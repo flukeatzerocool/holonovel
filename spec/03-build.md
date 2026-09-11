@@ -17,7 +17,7 @@ more workflows; the builder asks only the questions those workflows need and pro
 Ask the operator pre-build questions up front, as a single batch. The builder asks the
 workflow-selection question first, then all questions relevant to the selected workflows. Each workflow's
 questions are presented together; answers are recorded in DECISIONS.md. Non-interactive
-runs use defaults from the tables below (defaults: `build` when offline, `build + synthesis (action: run)` when network detected).
+runs use defaults from the tables below (defaults: `build` when offline, `build + manage_synthesis (action: run)` when network detected).
 
 Build intake questions are operator-facing build-process inputs recorded to DECISIONS.md (1) — they are not Novel property groups and do not participate in cross-property coupling (§7.7).
 
@@ -33,7 +33,7 @@ selected workflows, all answers, and the first workflow to execute.
 
 | #   | Question                     | Options                                  | Default |
 | --- | ---------------------------- | ---------------------------------------- | ------- |
-| Q0  | What workflow(s) should Holonovel run? | convert / build / synthesis (action: run) / update (select one or more) | build + synthesis (action: run) (when network detected), build (when offline) |
+| Q0  | What workflow(s) should Holonovel run? | convert / build / manage_synthesis (action: run) / update (select one or more) | build + manage_synthesis (action: run) (when network detected), build (when offline) |
 
 **Q1 — Pause between workflows.** Asked when two or more workflows are selected.
 
@@ -52,7 +52,7 @@ Auto-detection for Q0 default. When the default option specifies "when network
 detected," the builder probes connectivity to at least one known-public host before
 presenting questions. If the probe fails, the builder falls back to `build` only and
 records the failure in DECISIONS.md. If the probe succeeds, the default includes
-`synthesis (action: run)`; the operator may still deselect it.
+`manage_synthesis (action: run)`; the operator may still deselect it.
 
 **Convert workflow.** Asked when `convert` is selected. The workflow produces Markdown
 passing all Appendix H blocking checks and meeting content-type fidelity thresholds.
@@ -119,7 +119,7 @@ setting.
 **Ruleset-free mode.** When B1 is `none`, the build operates in ruleset-free mode: no ruleset files
 are indexed, no extraction occurs, and the server is built from the `holonovel`
 package (B10) and infrastructure tools (REQ-020) alone. The server provides a freeform
-narrative roleplay surface: scene management (`scene (action: set)` with scene_type and
+narrative roleplay surface: scene management (`manage_scene (action: set)` with scene_type and
 narrative_directive), NPC creation, lore tracking, faction management, player choices,
 pause/resume context, countdowns with full clock taxonomy, and session notation — all
 with world-model spatial navigation available as optional scaffolding. The builder
@@ -127,7 +127,7 @@ records ruleset-free mode in DECISIONS.md (1), runs `npm install holonovel`
 at the version specified by B10, and proceeds to server construction (§6.4) using
 the holonovel scaffold as the starting point. Extraction discovery and its dependent
 metrics are skipped. A build declared ruleset-free MUST NOT attempt to index, extract,
-or model any ruleset content; the server's `ruleset (action: search)` tool returns empty results, its
+or model any ruleset content; the server's `manage_ruleset (action: search)` tool returns empty results, its
 canonical lookup tools are waived (REQ-013), and no dice-resolution tools are registered.
 The server's ruleset content hash is the sentinel hash per REQ-044. When B1 is
 `none`, B12 (`TTRPG_WORLD_PROMINENCE`) is skipped — the world-model and narrative
@@ -156,7 +156,7 @@ H11 verification step: launch the server via the client's documented invocation,
 initialize handshake succeeds, and confirm `serverInfo.name` matches the
 `mcpServers` key. A `server unavailable` error stops the line.
 
-**Synthesis workflow.** Asked when `synthesis (action: run)` is selected.
+**Synthesis workflow.** Asked when `manage_synthesis (action: run)` is selected.
 
 | #   | Question                     | Options                          | Default             |
 | --- | ---------------------------- | -------------------------------- | ------------------- |
@@ -426,7 +426,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
 | 1     | MCP skeleton: initialize with badge gating, state management, and world-model infrastructure (provided by holonovel scaffold), tools/list, resources/list, prompts/list | G0b (MCP conformance, Appendix D)         |
-| 2     | Index: anchor tree, search, `ruleset (action: search)` tool              | RULESET_MODEL.md anchors match source                        |
+| 2     | Index: anchor tree, search, `manage_ruleset (action: search)` tool              | RULESET_MODEL.md anchors match source                        |
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
 | 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (badge test)                                       |
@@ -437,7 +437,7 @@ The server renders user-requestable artifacts through the output format catalog
 (Appendix T.1). The `markdown`, `json`, and `html` formats are mandatory Build
 baselines on every artifact surface; `ascii` is a mandatory baseline on
 stat-block surfaces; `lonelog` and ruleset-declared formats are optional. The
-`character (action: sheet)` tool SHALL support `markdown` (default), `json`, `html`, and
+`manage_character (action: sheet)` tool SHALL support `markdown` (default), `json`, `html`, and
 `ascii`. Interactive `ui://` surfaces (REQ-426a) are an optional negotiated
 extension, not a baseline.
 
@@ -993,7 +993,7 @@ states its objective, the tool calls to make, which badge calls each, and the pa
 criterion.
 
 **Verification principle.** Pattern Buffer sub-workflows verify state through tool-observable
-surfaces — `character (action: sheet)`, `session (action: recap)`, `spec_health`, `badge_briefing`,
+surfaces — `manage_character (action: sheet)`, `manage_session (action: recap)`, `spec_health`, `badge_briefing`,
 tool output — where the same assertion can be expressed through a tool call. The
 on-disk state format is tested by verification workflow G4 (Appendix F derived tests, T72/T77) and
 is an implementation detail. A Pattern Buffer sub-workflow that reads raw state files to
@@ -1051,7 +1051,7 @@ four items is incomplete and blocks handoff.
     with valid IDs; (g) same seed → identical results, different seeds differ
     (Blocking — verified in S4); (h) `spec_health` under Player badge returns only
     player-filtered metrics (Blocking — verified in S17);
-    (i) adversarial input: `scene (action: set)` with SQL-injection string stores and
+    (i) adversarial input: `manage_scene (action: set)` with SQL-injection string stores and
     echoes verbatim; no behavior change, no crash per REQ-054. A Novel import whose
     scene description carries embedded directives stores and echoes them verbatim
     with no behavior change, no new tools, and a logged finding per REQ-444.
@@ -1060,14 +1060,14 @@ four items is incomplete and blocks handoff.
     `[WARNING]` in `spec_health` enumerating corrupted Novel, no crash, uncorrupted
     Novels/roster continue working; (c) 10 rapid `set_badge` alternations → no lost state
     or crash after final switch; (d) 50-round combat with 2 entities + 2 dangers using
-    deterministic seeds → round counter reaches 50, conditions persist, `session (action: recap)`
+    deterministic seeds → round counter reaches 50, conditions persist, `manage_session (action: recap)`
     summarizes all rounds, memory hasn't doubled. (Blocking.)
 16. **Narrative state** — scene, NPC, countdown, lore, and briefing tools work end to end with deterministic seeds.
 17. **Novel lifecycle and persistence** — create/resume/end/switch cycle works; state persists
-    to disk and restores; `novel (action: end)` confirmation workflow removes file + backup; ended
+    to disk and restores; `manage_novel (action: end)` confirmation workflow removes file + backup; ended
     Novel blocks resume and switch. (Blocking.)
-18. **Adventure generation and encounter lifecycle** — `adventure (action: generate)` produces Novel-scoped,
-    badge-filtered, searchable content; regeneration replaces prior; `adventure (action: generate_encounter)`
+18. **Adventure generation and encounter lifecycle** — `manage_adventure (action: generate)` produces Novel-scoped,
+    badge-filtered, searchable content; regeneration replaces prior; `manage_adventure (action: generate_encounter)`
     produces batch state (scene + NPC + lore) as single undo target; setup metadata
     tracks completion. Generated and indexed adventures coexist in `badge_briefing`.
 19. **Badge briefing correctness** — populated Novel: Player sees entity stats without
@@ -1079,100 +1079,100 @@ four items is incomplete and blocks handoff.
 21. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
     combat rounds in 3 confrontations: all lore still triggers, ≥100 audit-log entries,
     verify audit log hash chain integrity per REQ-040 (consecutive entries form valid
-    chain), `session (action: recap)` returns correct final state, memory hasn't doubled,
+    chain), `manage_session (action: recap)` returns correct final state, memory hasn't doubled,
     Novel file ≤5 MB. (Blocking.)
 22. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
     undo/redo/set_badge blocked during pending workflow; valid option drains workflow; pending
     workflow survives server restart. (Blocking.)
 23. **Narrative features sweep** — exercise the narrative tool surface end to end:
-    `novel (action: save_context)` / `novel (action: get_context)` round-trip with auto-captured faction
+    `manage_novel (action: save_context)` / `manage_novel (action: get_context)` round-trip with auto-captured faction
     clocks, countdown positions, NPC dispositions, and entity relationships;
-    `novel (action: end)` clears gm_context; `faction (action: create)` with faction-type countdown,
-    `faction://` resource, `countdown (action: advance)` coupling, scene transition advances
-    faction clock, `faction (action: remove)` removes clock; `lore (action: set_secret)` / `lore (action: reveal)` /
-    `lore (action: knowledge)` cycle with character (action: sheet) "Known Information" section;
-    `scene (action: choices)` with `[NEED_INPUT]` workflow, `respond` resolution, `[choice]`
-    audit tag, countdown and faction clock coupling on resolved id; `relationship (action: set)`
-    / `relationship (action: get)` cycle, character (action: sheet) shows "Relationships" section,
+    `manage_novel (action: end)` clears gm_context; `manage_faction (action: create)` with faction-type countdown,
+    `faction://` resource, `manage_countdown (action: advance)` coupling, scene transition advances
+    faction clock, `manage_faction (action: remove)` removes clock; `manage_lore (action: set_secret)` / `manage_lore (action: reveal)` /
+    `manage_lore (action: knowledge)` cycle with manage_character (action: sheet) "Known Information" section;
+    `manage_scene (action: choices)` with `[NEED_INPUT]` workflow, `respond` resolution, `[choice]`
+    audit tag, countdown and faction clock coupling on resolved id; `manage_relationship (action: set)`
+    / `manage_relationship (action: get)` cycle, manage_character (action: sheet) shows "Relationships" section,
     relationship change between `ally` and `rival` prompts lore entry in
-    `badge_briefing`; `note (action: set)` / `note (action: list)` / `notes://<key>` round-trip, Player badge
+    `badge_briefing`; `manage_note (action: set)` / `manage_note (action: list)` / `notes://<key>` round-trip, Player badge
     excluded from notes content. Verify clock taxonomy: `racing` clock pair resolves
     correctly (first to full wins), `linked` clock chain triggers child on parent
     completion, `tug_of_war` retreated to zero does not trigger, `mission` clock
-    decrements on `novel (action: resume)`. All mutations appear in audit log and
-    `session (action: recap)`. (Blocking.)
+    decrements on `manage_novel (action: resume)`. All mutations appear in audit log and
+    `manage_session (action: recap)`. (Blocking.)
 24. **Session segmentation and audit compaction** — two sessions with different
     `TTRPG_SESSION_ID` values: assert two `[session-boundary]` markers in audit log
-    with session IDs and timestamps; `session (action: recap, session_id="s1")` returns only s1
-    entries; `session (action: recap, session_id="s2")` returns only s2 entries; `session (action: recap)`
+    with session IDs and timestamps; `manage_session (action: recap, session_id="s1")` returns only s1
+    entries; `manage_session (action: recap, session_id="s2")` returns only s2 entries; `manage_session (action: recap)`
     returns all entries; `spec_health` reports per-session metrics array. With
-    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `session (action: compress)` prompts `[NEED_INPUT]`
+    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_session (action: compress)` prompts `[NEED_INPUT]`
     confirmation; on confirm, session 1 entries removed from live log,
-    `audit://novel/archive` returns session 1 summary; `session (action: recap, session_id="s1")`
-    returns the summary from archive; `session (action: recap)` returns only session 2 entries.
-    Player badge `session (action: compress)` returns `[FORBIDDEN]`. (Non-blocking.)
+    `audit://novel/archive` returns session 1 summary; `manage_session (action: recap, session_id="s1")`
+    returns the summary from archive; `manage_session (action: recap)` returns only session 2 entries.
+    Player badge `manage_session (action: compress)` returns `[FORBIDDEN]`. (Non-blocking.)
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
     files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
-    `[restored-from-backup]` audit entry; `novel (action: end)` removes all backups.
-    `novel (action: checkpoint_set, "a")` → 5 mutations → `novel (action: checkpoint_restore, "a")` with `[NEED_INPUT]`
-    confirm → assert all 5 mutations reversed; `novel (action: checkpoint_remove)` removes entry;
+    `[restored-from-backup]` audit entry; `manage_novel (action: end)` removes all backups.
+    `manage_novel (action: checkpoint_set, "a")` → 5 mutations → `manage_novel (action: checkpoint_restore, "a")` with `[NEED_INPUT]`
+    confirm → assert all 5 mutations reversed; `manage_novel (action: checkpoint_remove)` removes entry;
     `TTRPG_MAX_CHECKPOINTS=1` overflow discards oldest; checkpoint survives restart
-    and Novel switch; `novel (action: export, json, include_checkpoints=true)` includes
-    checkpoints key; Player badge returns `[FORBIDDEN]`. `novel (action: clone, "src", "dst")`
+    and Novel switch; `manage_novel (action: export, json, include_checkpoints=true)` includes
+    checkpoints key; Player badge returns `[FORBIDDEN]`. `manage_novel (action: clone, "src", "dst")`
     creates independent Novel; mutating clone does not affect source; duplicate slug
     returns `[STATE_CONFLICT]`; `trim_audit_sessions=2` retains only 2 most recent
     sessions; Player badge returns `[FORBIDDEN]`. (Blocking.)
-26. **Narrative POV** — import two entities; `character (action: set_active, "char_01")` — assert
+26. **Narrative POV** — import two entities; `manage_character (action: set_active, "char_01")` — assert
     `badge_briefing` includes POV directive naming char_01 with narrative instruction
-    and personality fields; `character (action: set_active, "char_02")` — assert directive updates
-    to char_02. `character (action: set_active, "char_01", pov="omniscient")` — assert
+    and personality fields; `manage_character (action: set_active, "char_02")` — assert directive updates
+    to char_02. `manage_character (action: set_active, "char_01", pov="omniscient")` — assert
     `badge_briefing` shows "POV: none — narration is omniscient" with char_01 still
-    active; `character (action: set_active, "char_02")` preserves omniscient mode;
-    `character (action: set_active, "char_02", pov="character")` switches to character-locked POV
+    active; `manage_character (action: set_active, "char_02")` preserves omniscient mode;
+    `manage_character (action: set_active, "char_02", pov="character")` switches to character-locked POV
     for char_02. POV mode persists across server restart. POV directive is never
     truncated under a tight briefing budget (REQ-135 tier 1). (Blocking.)
 27. **Synthesis lifecycle with Wisdom mechanical enactment** — requires
     synthesis to have been run. Assert `synthesis://status` reports active
     modules with per-module item counts. Deactivate a module via
-    `synthesis (action: toggle, module_name, false)` — assert items from that module
+    `manage_synthesis (action: toggle, module_name, false)` — assert items from that module
     absent from synthesis surfaces. Reactivate — assert items return.
-    `synthesis (action: revert)` — assert community synthesis items removed, ruleset-native
+    `manage_synthesis (action: revert)` — assert community synthesis items removed, ruleset-native
     items (`[ruleset]` tag) preserved, `synthesis://status` reports zero community
     items. Assert `badge_briefing` synthesis content follows activation state: active
     modules' content appears, deactivated modules' content absent. Entity
     `voice_examples` carrying `[supplementary]` tag with source URL confirm synthesis
     sourcing. After synthesis is active: create a Novel, import an entity. Create an
-    NPC — assert `character (action: sheet)` renders voice_examples, goals, and personality
-    patterns without manual `character (action: voice)`/`character (action: personality)` (P6). Create a
-    countdown — assert it advances on `scene (action: set)` (P7). Call
-    `command (action: suggest, "spring a trap on the goblins")` — assert constraint override from
+    NPC — assert `manage_character (action: sheet)` renders voice_examples, goals, and personality
+    patterns without manual `manage_character (action: voice)`/`manage_character (action: personality)` (P6). Create a
+    countdown — assert it advances on `manage_scene (action: set)` (P7). Call
+    `run_command (action: suggest, "spring a trap on the goblins")` — assert constraint override from
     Wisdom appears in results (P10). Deactivate the relevant Wisdom item — assert
     mechanical behavior suppressed. Reactivate — assert restored. (Blocking.)
 28. **Briefing ordering, voice examples, session notation** —
-    `session (action: briefing_order, ["scene", "entities", "lore"])` — assert `badge_briefing`
+    `manage_session (action: briefing_order, ["scene", "entities", "lore"])` — assert `badge_briefing`
     sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
-    enumerated; `session (action: briefing_order, [])` resets to builder defaults.
-    `character (action: voice, entity_id, [{context:"greeting", dialogue:"Hello",
+    enumerated; `manage_session (action: briefing_order, [])` resets to builder defaults.
+    `manage_character (action: voice, entity_id, [{context:"greeting", dialogue:"Hello",
     tag:"formal"}])` — assert `entity://<id>/voice_examples` returns examples;
-    `entity://<id>/personality` reflects `character (action: personality)` fields.
-    `session (action: recap, format="lonelog")` — assert output in Lonelog notation (`###` scene
-    headers, `@` actions, `=>` outcomes); `session (action: compress, format="lonelog")` —
+    `entity://<id>/personality` reflects `manage_character (action: personality)` fields.
+    `manage_session (action: recap, format="lonelog")` — assert output in Lonelog notation (`###` scene
+    headers, `@` actions, `=>` outcomes); `manage_session (action: compress, format="lonelog")` —
     assert compressed Lonelog entries. (Non-blocking.)
-29. **Novel export/import cycle** — `novel (action: export, "json")` → `novel (action: import, data,
-    "dry-run")` reports changes without side effects → `novel (action: import, data, "replace")`
-    restores exported state → re-`novel (action: export, "json")` matches original.
-    `novel (action: export, "json", "lore")` produces lore-only payload. `novel (action: import, data,
+29. **Novel export/import cycle** — `manage_novel (action: export, "json")` → `manage_novel (action: import, data,
+    "dry-run")` reports changes without side effects → `manage_novel (action: import, data, "replace")`
+    restores exported state → re-`manage_novel (action: export, "json")` matches original.
+    `manage_novel (action: export, "json", "lore")` produces lore-only payload. `manage_novel (action: import, data,
     "dry-run", strict=true)` with broken references reports all failures and blocks
-    import. Assert `command (action: suggest, "attack the goblin")` returns at least one
+    import. Assert `run_command (action: suggest, "attack the goblin")` returns at least one
     combat-category tool with registered name and REQ-015 classification. (Blocking.)
 30. **Supplementary ruleset import** — call `import_supplementary` with the Appendix Z
     fixture. Assert `tools/list` includes `lookup_spell("frostbite")` and
     `lookup_monster("ice_wraith")` annotated with supplementary slug. Invoke
     `lookup_spell("frostbite")` — assert `[OK]` with response prefix, error taxonomy,
     and source quoting per REQ-001, REQ-002, REQ-061. Assert Wisdom items appear in
-    `synthesis (action: list)` with source anchor. Assert `badge_briefing`
+    `manage_synthesis (action: list)` with source anchor. Assert `badge_briefing`
     `narrative_threads` includes countdown-pacing advisory without manual activation
     (P7 coupling). Call `remove_supplementary` — assert tools absent from
     `tools/list`, Wisdom items removed. End Novel and resume — assert supplementary
@@ -1196,11 +1196,11 @@ four items is incomplete and blocks handoff.
     entry — assert faction clock advisory in `narrative_threads` (P33). Undo — assert
     pre-chain state restored. (Blocking.)
 33. **Wisdom mechanical enactment** — build with synthesis active on all 7 modules.
-    Create entity and NPC while Wisdom is active — assert NPC `character (action: sheet)` shows
+    Create entity and NPC while Wisdom is active — assert NPC `manage_character (action: sheet)` shows
     auto-populated voice_examples with `[vendor]` tag, goals from Wisdom patterns,
-    personality without manual `character (action: personality)`/`character (action: voice)` calls (P6).
-    Create countdown — assert `countdown (action: advance)` auto-applies on `scene (action: set)`, 1
-    tick per transition (P7). Call `command (action: suggest, "negotiate with the guard")` —
+    personality without manual `manage_character (action: personality)`/`manage_character (action: voice)` calls (P6).
+    Create countdown — assert `manage_countdown (action: advance)` auto-applies on `manage_scene (action: set)`, 1
+    tick per transition (P7). Call `run_command (action: suggest, "negotiate with the guard")` —
     assert Wisdom constraint overrides appear (P10). Deactivate individual Wisdom
     items — assert corresponding mechanical behavior stops. Reactivate items — assert
     behavior resumes. Assert Wisdom-derived entities render with REQ-371-conformant
@@ -1221,15 +1221,15 @@ four items is incomplete and blocks handoff.
     via rapid scene transitions — assert every faction clock receives autonomous
     tick (P29). Create goal-carrying NPC — assert World in Motion suggestion in
     `badge_briefing` on pacing signal (P30). (Non-blocking.)
-36. **Decision chain exercise** — create vow via `vow (action: set)`. Assert coupled
-    countdown auto-created (P4). Call `scene (action: choices, "Investigate the gate",
+36. **Decision chain exercise** — create vow via `manage_vow (action: set)`. Assert coupled
+    countdown auto-created (P4). Call `manage_scene (action: choices, "Investigate the gate",
     [{id:"investigate_gate", label:"Check the gate"}])` with `id` matching vow
-    scope — assert vow countdown advances one tick (P12). Call `vow (action: milestone)`
+    scope — assert vow countdown advances one tick (P12). Call `manage_vow (action: milestone)`
     — assert both vow progress and countdown advance. Declare goal on NPC with
     text >20 chars — assert vow-creation suggestion in `narrative_threads` (P20).
-    Call `vow (action: forsake)` — assert coupled countdown removed. (Non-blocking.)
+    Call `manage_vow (action: forsake)` — assert coupled countdown removed. (Non-blocking.)
 37. **Coupling advisory sweep** — create a countdown with `scope` naming a room. Set a
-    secret whose text overlaps the countdown scope — call `lore (action: reveal)` —
+    secret whose text overlaps the countdown scope — call `manage_lore (action: reveal)` —
     assert a countdown-advancement advisory in `narrative_threads` (P19). Add a lore
     entry with temporal-urgency language — assert a countdown-creation suggestion in
     `narrative_threads` (P19). Set a vow whose name keyword-matches a lore trigger —
@@ -1475,8 +1475,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-081 | S27 | Synthesis activation state |
 | REQ-082 | S28 | Briefing ordering |
 | REQ-083 | S16, S32 | Lore triggers |
-| REQ-084 | S29 | command (action: suggest) |
-| REQ-084a | S29 | lore (action: suggest) |
+| REQ-084 | S29 | run_command (action: suggest) |
+| REQ-084a | S29 | manage_lore (action: suggest) |
 | REQ-085 | S19, S26 | Macros |
 | REQ-086 | S18, S29 | Lorebook export/import |
 | REQ-087 | S18 | Lorebook lifecycle |
@@ -1493,8 +1493,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-198 | I2, I4 | Exit symmetry |
 | REQ-199 | I4, I9 | Thing containment |
 | REQ-200 | I7, I14, I16 | Kind hierarchy |
-| REQ-201 | I5, I10 | world (action: convert) validation |
-| REQ-202 | I5 | world (action: convert) on populated model |
+| REQ-201 | I5, I10 | manage_world (action: convert) validation |
+| REQ-202 | I5 | manage_world (action: convert) on populated model |
 | REQ-283 | I14 | Device lifecycle |
 | REQ-284 | I6, I14, I16 | Property state propagation |
 | REQ-309 | I7, I13 | World prominence |
@@ -1709,22 +1709,22 @@ are selected for changed surfaces.
    thing inside a closed container (returns rule-violation without first
    opening). (Blocking.)
 
-4. **CRUD round-trip** — create a room via `world (action: create_room)`, create a thing in it,
+4. **CRUD round-trip** — create a room via `manage_world (action: create_room)`, create a thing in it,
    create an exit connecting it back; read room resource, assert name,
    description, things, and exits match. Delete the room — assert contained
    things and exits removed, audit log records all mutations. Undo — assert
    deleted room and contents restored. (Blocking.)
 
-5. **world (action: convert) with fixture** — call `world (action: convert)` with the Appendix K
+5. **manage_world (action: convert) with fixture** — call `manage_world (action: convert)` with the Appendix K
    fixture. Assert object counts (3+ rooms, things, exits), linked annotations,
    and auditor log entry. Assert command("look") shows Entrance Chamber with
-   content. Call `world (action: convert)` on the same Novel — assert `[STATE_CONFLICT]`.
+   content. Call `manage_world (action: convert)` on the same Novel — assert `[STATE_CONFLICT]`.
    (Blocking.)
 
 6. **Property state propagation** — open a closed container, assert contents
    accessible. Close it, assert contents blocked. Lock a lockable door — assert
    it cannot be opened. Unlock it — assert it opens. All property mutations
-   appear in audit log and `session (action: recap)`. (Blocking.)
+   appear in audit log and `manage_session (action: recap)`. (Blocking.)
 
 7. **World-model resources** — call `room://<id>`, `thing://<id>`,
    `world://map`, `world://kinds`. Assert room and thing content matches state.
@@ -1735,7 +1735,7 @@ are selected for changed surfaces.
 
 8. **Large-map navigation** — populate 50+ room world model. Navigate from one
    end to the other (≥10 sequential moves). Assert each room description is
-   correct, no state corruption, memory stable. `session (action: recap)` covers
+   correct, no state corruption, memory stable. `manage_session (action: recap)` covers
    traversal history.
 
 9. **Empty world model** — on a Novel with zero rooms (fresh create, no
@@ -1744,45 +1744,45 @@ are selected for changed surfaces.
    assert parser commands now resolve against it.
 
 10. **Hybrid adventure load** — load an adventure module containing `## World`
-    assertions (Appendix K fixture format) via `adventure (action: load)`. Assert
+    assertions (Appendix K fixture format) via `manage_adventure (action: load)`. Assert
     world-model tier populated, room descriptions match, things placed in
-    declared rooms, exits connected. Assert `ruleset (action: search)` finds adventure
+    declared rooms, exits connected. Assert `manage_ruleset (action: search)` finds adventure
     prose. Assert `badge_briefing` surfaces adventure content badge-filtered.
     (Blocking.)
 
-11. **Narrative CRUD cycle** — create an NPC via `npc (action: create)`, set personality
-    fields via `character (action: personality)`, attach voice examples via `character (action: voice)`,
-    update the NPC's disposition via `npc (action: update)`, then remove it via
-    `npc (action: remove)`. Assert `badge_briefing` surfaces NPC name and disposition after
-    each mutation. Assert `session (action: recap)` covers the create-update-remove
-    sequence. Assert `npc (action: remove)` on a nonexistent NPC returns `[NOT_FOUND]`.
+11. **Narrative CRUD cycle** — create an NPC via `manage_npc (action: create)`, set personality
+    fields via `manage_character (action: personality)`, attach voice examples via `manage_character (action: voice)`,
+    update the NPC's disposition via `manage_npc (action: update)`, then remove it via
+    `manage_npc (action: remove)`. Assert `badge_briefing` surfaces NPC name and disposition after
+    each mutation. Assert `manage_session (action: recap)` covers the create-update-remove
+    sequence. Assert `manage_npc (action: remove)` on a nonexistent NPC returns `[NOT_FOUND]`.
     (Non-blocking.)
 
 12. **Lore and countdown lifecycle** — create a lore entry with triggers via
-    `lore (action: set)`, toggle it disabled then re-enabled via `lore (action: toggle)`,
-    update its content via `lore (action: update)`, remove it via
-    `lore (action: remove)`. Create a countdown via `countdown (action: set, ticks=2)`,
-    advance it twice to expiry via `countdown (action: advance)` — assert the expiry audit
-    log entry and countdown removal. Assert `lore (action: remove)` on a removed
+    `manage_lore (action: set)`, toggle it disabled then re-enabled via `manage_lore (action: toggle)`,
+    update its content via `manage_lore (action: update)`, remove it via
+    `manage_lore (action: remove)`. Create a countdown via `manage_countdown (action: set, ticks=2)`,
+    advance it twice to expiry via `manage_countdown (action: advance)` — assert the expiry audit
+    log entry and countdown removal. Assert `manage_lore (action: remove)` on a removed
     entry returns `[NOT_FOUND]`. (Non-blocking.)
 
 13. **Scene state and guidance** — set scene state via
-    `scene (action: set, description, location, time_of_day, atmosphere)`, set scene
+    `manage_scene (action: set, description, location, time_of_day, atmosphere)`, set scene
     type to `["social", "exploration"]`, set a narrative directive. Assert
     `badge_briefing` surfaces all scene fields, scene type, and directive. Set a
-    custom briefing order via `session (action: briefing_order, [...])` — assert `badge_briefing`
-    sections appear in the specified order. Assert `scene (action: set)` transitions
+    custom briefing order via `manage_session (action: briefing_order, [...])` — assert `badge_briefing`
+    sections appear in the specified order. Assert `manage_scene (action: set)` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 
-14. **Device lifecycle** — create a device via `world (action: create_thing, "lantern", {kind:
+14. **Device lifecycle** — create a device via `manage_world (action: create_thing, "lantern", {kind:
     "device", lit: true})`. Assert `command("switch on lantern")` returns
     `[OK]`. Assert `command("switch off lantern")` returns `[OK]`. Assert
     `command("switch on rock")` on a non-device returns `[RULE_VIOLATION]`.
-    Assert `world (action: convert)` recognizes "It is switchable." and "It is switched
+    Assert `manage_world (action: convert)` recognizes "It is switchable." and "It is switched
     on." (Blocking.)
 
 15. **Vehicle lifecycle** — create a world model with a vehicle via
-    `world (action: convert)`. Assert `command("enter raft")` returns `[OK]` and
+    `manage_world (action: convert)`. Assert `command("enter raft")` returns `[OK]` and
     viewpoint moves to vehicle interior. Assert `command("exit")` returns to
     parked room. Assert navigation aboard vehicle moves both vehicle and
     passengers. Assert vehicle persists at location when unoccupied. Assert
@@ -1791,7 +1791,7 @@ are selected for changed surfaces.
 
 16. **Extended property contracts** — create things with `wearable`, `edible`,
     `readable`, `transparent`, `climbable`, `enterable` properties via
-    `world (action: convert)`. Assert each property assertion is recognized. Assert
+    `manage_world (action: convert)`. Assert each property assertion is recognized. Assert
     `command("wear ring")` succeeds. Assert `command("eat mushroom")` succeeds.
     Assert `command("read altar")` returns `read_text`. Assert missing-property
     commands return `[RULE_VIOLATION]`. Assert `read_text` extraction from "The
@@ -1822,7 +1822,7 @@ are selected for changed surfaces.
 | Room navigation, parser commands                   | 1, 2, 8, 17                |
 | Object interaction, properties                     | 3, 6, 14, 15, 16           |
 | CRUD, state mutations                              | 4                         |
-| world (action: convert), hybrid parsing                     | 5, 10                     |
+| manage_world (action: convert), hybrid parsing                     | 5, 10                     |
 | Badge filtering, resource URIs                       | 7                         |
 | Empty state, error handling                        | 9                         |
 | NPCs, character narrative fields                   | 11                        |
@@ -1865,8 +1865,8 @@ only; it does not require every sub-workflow to appear as a row.
 | REQ-198 | I2, I4 | Exit symmetry |
 | REQ-199 | I4, I9 | Thing containment |
 | REQ-200 | I7, I14, I16 | Kind hierarchy |
-| REQ-201 | I5, I10 | world (action: convert) validation |
-| REQ-202 | I5 | world (action: convert) on populated model |
+| REQ-201 | I5, I10 | manage_world (action: convert) validation |
+| REQ-202 | I5 | manage_world (action: convert) on populated model |
 | REQ-222 | I4, I7 | World-model property resources |
 | REQ-283 | I14 | Device lifecycle |
 | REQ-284 | I6, I14, I16 | Property state propagation |
@@ -1887,7 +1887,7 @@ builder SHALL produce a diagnostic record in DECISIONS.md (5) containing: gate n
 sub-workflow name, failing test ID, REQ citation, expected output, actual output, and a
 diff (line-level comparison). The diagnostic record SHALL include a `resolution` field —
 initially `pending`, updated to `converged` when the builder resolves the discrepancy.
-*Acceptance criterion:* When G2 fails on an combat (action: init) turn-order mismatch,
+*Acceptance criterion:* When G2 fails on an manage_combat (action: init) turn-order mismatch,
 DECISIONS.md (5) contains a diagnostic with gate name, test ID, REQ citation, expected
 turn order, actual turn order, and a diff.
 _Check:_ T344.

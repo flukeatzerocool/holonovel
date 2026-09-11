@@ -154,8 +154,8 @@ A correct extraction of the fixture includes at least:
   non-entity participants (REQ-043).
 - **Actions**: `roll_move` (Resolution, MUST), `create_delver` (Command, MUST —
   a REQ-042 workflow raising sequential `[NEED_INPUT]` decisions: stat array, then knack),
-  `condition (action: apply)` / `condition (action: remove)` (Command, MUST), `start_confrontation` /
-  `advance_confrontation` / `end_confrontation` (Command, MUST), `ruleset (action: roll)`
+  `manage_condition (action: apply)` / `manage_condition (action: remove)` (Command, MUST), `start_confrontation` /
+  `advance_confrontation` / `end_confrontation` (Command, MUST), `manage_ruleset (action: roll)`
   (Generation, MUST), `snapshot_confrontation` / `load_confrontation` (Command, SHOULD).
   Eight MUST actions; ten domain tools registered. The five confrontation operations are
   Game Master; every other registered tool is both.
@@ -232,8 +232,8 @@ Corrective action: ask the Keeper to roll, or switch to game_master badge via `s
 
 The first combat block uses the ruleset term "confrontation" for tool names
 (`start_confrontation`, `advance_confrontation`, `end_confrontation`). The later
-block demonstrates the generic combat API (`combat (action: init)`, `combat (action: advance)`,
-`combat (action: end)`). Both naming conventions are valid for the same ruleset
+block demonstrates the generic combat API (`manage_combat (action: init)`, `manage_combat (action: advance)`,
+`manage_combat (action: end)`). Both naming conventions are valid for the same ruleset
 (REQ-020).
 
 → session { "action": "health" }
@@ -241,7 +241,7 @@ block demonstrates the generic combat API (`combat (action: init)`, `combat (act
 Indexed: <counts of anchors, concepts, entity types, actions, tables, procedures, guidance items>
 Pending sections: 0
 MUST coverage: 8/8 tools registered
-Defects: 3 — knacks rows 3/5 lack descriptions [content finding]; pushing contradiction [LOW; fallback: ruleset (action: search)];
+Defects: 3 — knacks rows 3/5 lack descriptions [content finding]; pushing contradiction [LOW; fallback: manage_ruleset (action: search)];
 broken link advancement.md#xp
 Ruleset version: matches intake snapshot
 
@@ -320,7 +320,7 @@ wounds, `Lantern Oil` → 3 uses (light property), `Blessed Pouch` → reroll on
 Knacks table — the dedup logic must collapse it into a cross-reference to the existing
 `knacks` anchor rather than registering a separate entity.
 
-Run `ruleset (action: roll)` for "gear" with a fixed seed and assert the result returns a valid row
+Run `manage_ruleset (action: roll)` for "gear" with a fixed seed and assert the result returns a valid row
 from the gear table with its mechanical fields rendered. The RNG is already verified by
 G2's B.4 preflight; no additional witness values are needed.
 
@@ -372,7 +372,7 @@ GM-only guidance items.
 
 Both directives are inert data across the import channel.
 
-- `novel (action: import, <payload>, "merge")` stores the scene description
+- `manage_novel (action: import, <payload>, "merge")` stores the scene description
   verbatim; the embedded directive grants no mechanical bonus, no new tool
   appears in `tools/list`, and badge gating and the registry are unchanged.
 - The directive text renders only as quoted scene data, and a finding is
@@ -628,9 +628,9 @@ A correct extraction of the fixture includes at least:
   are non-entity participants (REQ-043).
 - **Actions**: `roll_heroic_feat` (Resolution, MUST), `create_hero` (Command,
   MUST — REQ-042 workflow with sequential `[NEED_INPUT]` decisions: stat array,
-  then boon), `condition (action: apply)` / `condition (action: remove)` (Command, MUST),
+  then boon), `manage_condition (action: apply)` / `manage_condition (action: remove)` (Command, MUST),
   `init_cliffhanger` / `advance_cliffhanger` / `end_cliffhanger` (Command,
-  MUST), `ruleset (action: roll)` (Generation, MUST), `ruleset (action: search)` (Canonical, MUST),
+  MUST), `manage_ruleset (action: roll)` (Generation, MUST), `manage_ruleset (action: search)` (Canonical, MUST),
   `session` (Meta, MUST — its `health` action serves the `spec_health` report). Nine MUST tools registered. Cliffhanger
   operations and `session` are Game Master; every other tool is both.
 - **Tables**: gadgets (lookup + generation, with inline mechanical fields:
@@ -735,7 +735,7 @@ Corrective action: ask Dr. Chaotica to roll, or switch to game_master badge via 
 [OK] Session: [timespan]. Entity: Buster Kincaid (Peril 2/8, penalty −1, Shaken). Cliffhanger active: Round 5. Scene: Chaotica's Fortress of Solitude. NPCs: Chaotica's Death-Bot (HP 18), Lightning Fiend.
 
 → undo {}
-[OK] Reverted: combat (action: advance). Buster Kincaid Peril 2 → 2. Round: 4. Audit entry appended.
+[OK] Reverted: manage_combat (action: advance). Buster Kincaid Peril 2 → 2. Round: 4. Audit entry appended.
 
 → combat { "action": "advance", "entity": "hero_01", "action": "brawl", "seed": "1000" }
 [OK] Buster Kincaid acts. (Brawl: d20 = [13] + Might 4 − 1(Peril) = 16, success — TN 13.) Deterministic re-roll confirmed. Round 5.
@@ -871,7 +871,7 @@ open <door>, close <door>, inventory, or wait.
 [OK] Active badge: player
 
 → combat { "action": "init", "participants": [], "dangers": [{"name": "stone-guardian"}] }
-[ERROR] [FORBIDDEN] combat (action: init) is restricted to the game_master badge.
+[ERROR] [FORBIDDEN] manage_combat (action: init) is restricted to the game_master badge.
 Corrective action: switch badges. Via `set_badge("game_master")`.
 
 # GM badge — manage state, set lore and countdown
@@ -941,29 +941,29 @@ Exits: south (obsidian door).
 [OK] You take the Serpent Crown.
 
 → novel { "action": "end" }
-[NEED_INPUT] Decision: -novel (action: end)-confirm
+[NEED_INPUT] Decision: -manage_novel (action: end)-confirm
 Question: End Novel "The Serpent Crown"?
 Options: yes, cancel
 
-→ respond { "decision": "-novel (action: end)-confirm", "option": "yes" }
+→ respond { "decision": "-manage_novel (action: end)-confirm", "option": "yes" }
 [OK] Novel ended: the-serpent-crown. Roster survives.
 ```
 
 ### W.4 Behavioral contracts exercised
 
 The Appendix W transcript exercises: REQ-001 (status prefixes on `[OK]`, `[WARNING]`,
-`[ERROR]`, `[NEED_INPUT]`), REQ-032 (badge gating — `combat (action: init)` blocked from Player,
+`[ERROR]`, `[NEED_INPUT]`), REQ-032 (badge gating — `manage_combat (action: init)` blocked from Player,
 `set_badge` switches badges., REQ-041 (undo round-trip restores item position on the
 throne), REQ-042 (decision workflow — `[NEED_INPUT]` with yes/cancel, concluded via
 `respond`), REQ-055 (Novel lifecycle — create, play, end with confirmation; roster
-survives `novel (action: end)`), REQ-072 (session (action: recap) reports scene state, entity inventory,
+survives `manage_novel (action: end)`), REQ-072 (manage_session (action: recap) reports scene state, entity inventory,
 world-model summary), REQ-073 (countdown lifecycle — set, advance, expire, audit),
 REQ-092 (Novel persistence — created, written to disk per REQ-088, ended with file
 removal), REQ-196 (parser commands — look, go north, go south, take, open, assert
 locked door blocks passage, assert fixed things cannot be taken, assert unrecognized
 commands return `[NOT_FOUND]`), REQ-198 (world-model CRUD — implicit reverse exits,
 door state transitions), REQ-199 (property state — door open/closed/locked), REQ-201
-(hybrid source conversion via world (action: convert) populates rooms, things, and exits).
+(hybrid source conversion via manage_world (action: convert) populates rooms, things, and exits).
 
 ---
 
@@ -1064,8 +1064,8 @@ A correct extraction of the fixture includes at least:
   modeled [HIGH]; advancement is undefined (the cross-reference is broken —
   defect 1), so no advance tool exists.
 - **Actions**: `roll_gambit` (Resolution, MUST), `create_courtier` (Command, MUST —
-  REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `condition (action: apply)` /
-  `condition (action: remove)` (Command, MUST), `ruleset (action: roll)` (Generation, MUST). Four MUST
+  REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `manage_condition (action: apply)` /
+  `manage_condition (action: remove)` (Command, MUST), `manage_ruleset (action: roll)` (Generation, MUST). Four MUST
   tools registered.
 - **Tables**: Court Boons (lookup + generation — rows 3 and 5 lack descriptions,
   a content finding).

@@ -89,29 +89,29 @@ async function main() {
   // ── T62: categorized task map, query search, badge filtering ──────
   await test("T62: help() no-query lists categorized task map", async () => {
     const p = await boot();
-    await call(p, "novel", { action: "create", name: "help-t62a" });
+    await call(p, "manage_novel", { action: "create", name: "help-t62a" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = await call(p, "help", {});
+    const h = await call(p, "manage_session", { action: "discover" });
     assertContains(h, "### Tool Categories", "T62a");
-    assertContains(h, "**Combat:** combat", "T62a combat category");
-    assertContains(h, "**Characters:** character", "T62a characters category");
+    assertContains(h, "**Combat:** manage_combat", "T62a combat category");
+    assertContains(h, "**Characters:** manage_character", "T62a characters category");
     await kill(p);
   });
 
   await test("T62: help(query) returns matching tools", async () => {
     const p = await boot();
-    await call(p, "novel", { action: "create", name: "help-t62b" });
+    await call(p, "manage_novel", { action: "create", name: "help-t62b" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = await call(p, "help", { query: "combat" });
-    assertContains(h, "combat", "T62b");
+    const h = await call(p, "manage_session", { action: "discover", query: "manage_combat" });
+    assertContains(h, "manage_combat", "T62b");
     await kill(p);
   });
 
   await test("T62: Player badge sees no GM-only tools", async () => {
     const p = await boot();
     await call(p, "set_badge", { badge: "player" });
-    const h = await call(p, "help", {});
-    assertContains(h, "**Characters:** character", "T62c player-visible category");
+    const h = await call(p, "manage_session", { action: "discover" });
+    assertContains(h, "**Characters:** manage_character", "T62c player-visible category");
     assertNotContains(h, "**Combat:**", "T62c GM-only combat hidden from player");
     await kill(p);
   });
@@ -119,43 +119,43 @@ async function main() {
   // ── T118: GM category reassignment / reset / not-found / forbidden ──
   await test("T118: GM reassigns tool to user category", async () => {
     const p = await boot();
-    await call(p, "novel", { action: "create", name: "help-t118a" });
+    await call(p, "manage_novel", { action: "create", name: "help-t118a" });
     await call(p, "set_badge", { badge: "game_master" });
-    const r = await call(p, "help", { action: "category", tool_name: "combat", category: "Custom" });
+    const r = await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "Custom" });
     assertContains(r, "assigned to category 'Custom'", "T118a");
-    const h = await call(p, "help", {});
-    assertContains(h, "**Custom:** combat", "T118a override rendered");
-    assertNotContains(h, "**Combat:** combat", "T118a removed from builder category");
+    const h = await call(p, "manage_session", { action: "discover" });
+    assertContains(h, "**Custom:** manage_combat", "T118a override rendered");
+    assertNotContains(h, "**Combat:** manage_combat", "T118a removed from builder category");
     await kill(p);
   });
 
   await test("T118: reset restores builder category", async () => {
     const p = await boot();
-    await call(p, "novel", { action: "create", name: "help-t118b" });
+    await call(p, "manage_novel", { action: "create", name: "help-t118b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "help", { action: "category", tool_name: "combat", category: "Custom" });
-    const r = await call(p, "help", { action: "category", tool_name: "combat", category: "" });
+    await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "Custom" });
+    const r = await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "" });
     assertContains(r, "removed", "T118b");
-    const h = await call(p, "help", {});
-    assertContains(h, "**Combat:** combat", "T118b restored builder category");
+    const h = await call(p, "manage_session", { action: "discover" });
+    assertContains(h, "**Combat:** manage_combat", "T118b restored builder category");
     assertNotContains(h, "**Custom:**", "T118b override cleared");
     await kill(p);
   });
 
   await test("T118: unknown tool name returns NOT_FOUND", async () => {
     const p = await boot();
-    await call(p, "novel", { action: "create", name: "help-t118c" });
+    await call(p, "manage_novel", { action: "create", name: "help-t118c" });
     await call(p, "set_badge", { badge: "game_master" });
-    const r = await call(p, "help", { action: "category", tool_name: "bogus_tool", category: "X" });
+    const r = await call(p, "manage_session", { action: "category", tool_name: "bogus_tool", category: "X" });
     assertContains(r, "[ERROR] [NOT_FOUND]", "T118c");
     await kill(p);
   });
 
   await test("T118: Player badge cannot modify mapping", async () => {
     const p = await boot();
-    await call(p, "novel", { action: "create", name: "help-t118d" });
+    await call(p, "manage_novel", { action: "create", name: "help-t118d" });
     await call(p, "set_badge", { badge: "player" });
-    const r = await call(p, "help", { action: "category", tool_name: "combat", category: "X" });
+    const r = await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "X" });
     assertContains(r, "[FORBIDDEN]", "T118d");
     await kill(p);
   });

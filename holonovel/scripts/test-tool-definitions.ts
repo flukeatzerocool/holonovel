@@ -13,7 +13,7 @@
 // equal the npm-canonical host version, and that the root version-check gate
 // passes against the committed manifest.
 //
-// T511 (REQ-429): asserts the registered tool catalog is at most twenty-eight
+// T511 (REQ-429): asserts the registered tool catalog is at most twenty-six
 // tools, one per persisted entity type, and that every persisted type carries
 // a list/get/info/status/knowledge action on its entity tool.
 //
@@ -140,21 +140,21 @@ async function main() {
   const proc = await boot();
   const listResp = await send(proc, { method: "tools/list", params: {} });
   const tools: any[] = listResp.result?.tools ?? [];
-  assert(tools.length === 28, `expected the consolidated 28-tool surface, got ${tools.length}`);
+  assert(tools.length === 26, `expected the consolidated 26-tool surface, got ${tools.length}`);
 
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
-  await test("T511/REQ-429: server-wide action-discriminator surface within a 28-tool budget", () => {
+  await test("T511/REQ-429: server-wide action-discriminator surface within a 26-tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
-    const requiredEntityTools = ["novel", "character", "npc", "world", "faction", "vow", "countdown", "lore", "story", "note", "codex", "combat", "condition", "relationship", "fate", "ironsworn", "forged"];
+    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged"];
     for (const name of requiredEntityTools) {
       assert(toolNames.has(name), `missing entity tool '${name}'`);
     }
     const readActionHints: Record<string, string[]> = {
-      novel: ["info", "list"], character: ["sheet", "roster_list"], npc: ["list", "get"],
-      world: ["create_room"], faction: ["list"], vow: ["list"], countdown: ["list"],
-      lore: ["list", "get"], story: ["list"], note: ["list"], codex: ["list", "get"],
-      combat: ["status"], condition: ["list"], relationship: ["get"], fate: ["roll", "aspect", "fate_point", "stress"],
-      ironsworn: ["momentum", "move", "progress"], forged: ["action_roll", "stress", "downtime"],
+      manage_novel: ["info", "list"], manage_character: ["sheet", "roster_list"], manage_npc: ["list", "get"],
+      manage_world: ["create_room"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
+      manage_lore: ["list", "get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
+      manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_fate: ["roll", "aspect", "fate_point", "stress"],
+      resolve_ironsworn: ["momentum", "move", "progress"], resolve_forged: ["action_roll", "stress", "downtime"],
     };
     for (const [name, actions] of Object.entries(readActionHints)) {
       const tool = tools.find((t) => t.name === name);
@@ -167,7 +167,7 @@ async function main() {
 
     // Docs-as-code: the maintainer orientation must reflect the live surface.
     const agentsMd = readFileSync(join(ROOT, "holonovel", "AGENTS.md"), "utf-8");
-    assert(agentsMd.includes("28 action-discriminator tools"), "holonovel/AGENTS.md drifted from the 28-tool surface");
+    assert(agentsMd.includes("26 action-discriminator tools"), "holonovel/AGENTS.md drifted from the 26-tool surface");
   });
 
   let toolsWithDescription = 0;
@@ -217,7 +217,7 @@ async function main() {
   const proc2 = await boot();
   const list2 = await send(proc2, { method: "tools/list", params: { scope: "all" } });
   const names2 = new Set(((list2.result?.tools ?? []) as any[]).map((t: any) => t.name));
-  const health = JSON.parse(await call(proc2, "session", { action: "health" }));
+  const health = JSON.parse(await call(proc2, "manage_session", { action: "health" }));
 
   await test("T512/REQ-430: non-conformant ruleset tool flagged in spec_health without blocking registration", () => {
     assert(names2.has("tqtest_bad_lookup"), "bad_lookup tool not registered");
@@ -240,7 +240,7 @@ async function main() {
     goodRoll,
   ]);
   const proc3 = await boot();
-  const health3 = JSON.parse(await call(proc3, "session", { action: "health" }));
+  const health3 = JSON.parse(await call(proc3, "manage_session", { action: "health" }));
   await test("T512/REQ-430: conformant rebuild clears the tool-quality flag", () => {
     const counts = health3.ruleset_tool_quality;
     if (!counts || counts.conformant !== 2 || counts.non_conformant !== 0) {

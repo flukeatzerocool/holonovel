@@ -92,7 +92,7 @@ async function main() {
 
   {
     const proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "guardrails" });
+    await call(proc, "manage_novel", { action: "create",  name: "guardrails" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T469/REQ-400: State-Persistence Directive in GM briefing", async () => {
@@ -102,44 +102,44 @@ async function main() {
     });
 
     await test("T470/REQ-401: state_ledger token renders with mutation counts", async () => {
-      await call(proc, "note", { action: "set",  key: "ledger-note", content: "v" });
+      await call(proc, "manage_note", { action: "set",  key: "ledger-note", content: "v" });
       const b = await briefing(proc);
       assertContains(b, "state_ledger");
       assertContains(b, "note: 1");
     });
 
     await test("T476/REQ-407: persistence tools listed for GM regardless of scene type", async () => {
-      await call(proc, "scene", { action: "set",  description: "combat scene", scene_type: "combat" });
+      await call(proc, "manage_scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);
       assertContains(b, "Persistence tools");
-      for (const tool of ["scene (set)", "story (record)", "countdown (set)", "note (set)", "character (personality)", "npc (create)", "vow (set)", "fate (aspect)", "ironsworn (momentum)", "forged (stress)"]) {
+      for (const tool of ["manage_scene (set)", "manage_story (record)", "manage_countdown (set)", "manage_note (set)", "manage_character (personality)", "manage_npc (create)", "manage_vow (set)", "resolve_fate (aspect)", "resolve_ironsworn (momentum)", "resolve_forged (stress)"]) {
         if (!b.includes(tool)) throw new Error(`missing persist tool ${tool}`);
       }
     });
 
     await test("T473/REQ-404: uncommitted roll flagged and cleared by commit", async () => {
-      await call(proc, "scene", { action: "oracle",  question: "Do they notice?", seed: "z1" });
-      const recap = await call(proc, "session", { action: "recap" });
+      await call(proc, "manage_scene", { action: "oracle",  question: "Do they notice?", seed: "z1" });
+      const recap = await call(proc, "manage_session", { action: "recap" });
       assertContains(recap, "[uncommitted-roll]");
-      await call(proc, "note", { action: "set",  key: "commit-note", content: "v" });
-      const recap2 = await call(proc, "session", { action: "recap" });
+      await call(proc, "manage_note", { action: "set",  key: "commit-note", content: "v" });
+      const recap2 = await call(proc, "manage_session", { action: "recap" });
       assertNotContains(recap2, "[uncommitted-roll]");
     });
 
     await test("T473/REQ-404: base-capability roll names its commit tool", async () => {
-      await call(proc, "forged", { action: "action_roll",  name: "Skirmish", dice: 2, seed: "x1" });
-      const recap = await call(proc, "session", { action: "recap" });
+      await call(proc, "resolve_forged", { action: "action_roll",  name: "Skirmish", dice: 2, seed: "x1" });
+      const recap = await call(proc, "manage_session", { action: "recap" });
       assertContains(recap, "[uncommitted-roll]");
-      assertContains(recap, "forged (action: stress)");
-      await call(proc, "forged", { action: "stress",  op: "mark", entity_id: "pc_1", amount: 1 });
-      const recap2 = await call(proc, "session", { action: "recap" });
+      assertContains(recap, "resolve_forged (action: stress)");
+      await call(proc, "resolve_forged", { action: "stress",  op: "mark", entity_id: "pc_1", amount: 1 });
+      const recap2 = await call(proc, "manage_session", { action: "recap" });
       assertNotContains(recap2, "[uncommitted-roll]");
     });
 
     await test("T474/REQ-405: auto-moment recorded on scene transition", async () => {
-      await call(proc, "scene", { action: "set",  description: "Transition A" });
-      await call(proc, "scene", { action: "set",  description: "Transition B" });
-      const exp = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
+      await call(proc, "manage_scene", { action: "set",  description: "Transition A" });
+      await call(proc, "manage_scene", { action: "set",  description: "Transition B" });
+      const exp = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
       const story = exp.novel?.story_journal ?? exp.story_journal ?? [];
       const moments = story.filter((s: any) => s.type === "moment");
       if (moments.length < 1) throw new Error(`no auto-moments, got ${story.length} journal entries`);
@@ -150,12 +150,12 @@ async function main() {
 
   {
     const proc = await boot({ TTRPG_STATE_GATE: "warn" });
-    await call(proc, "novel", { action: "create",  name: "gate-novel" });
+    await call(proc, "manage_novel", { action: "create",  name: "gate-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T472/REQ-403b: TTRPG_STATE_GATE=warn does not block session tools", async () => {
-      const pc = await call(proc, "novel", { action: "save_context",  current_scene: "Gate scene" });
+      const pc = await call(proc, "manage_novel", { action: "save_context",  current_scene: "Gate scene" });
       assertContains(pc, "[OK]");
-      const sw = await call(proc, "novel", { action: "switch",  slug: "gate-novel" });
+      const sw = await call(proc, "manage_novel", { action: "switch",  slug: "gate-novel" });
       assertContains(sw, "[OK]");
     });
     await kill(proc);
@@ -163,11 +163,11 @@ async function main() {
 
   {
     const proc = await boot({ TTRPG_STATE_GATE: "block" });
-    await call(proc, "novel", { action: "create",  name: "block-novel" });
+    await call(proc, "manage_novel", { action: "create",  name: "block-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T472/REQ-403b: TTRPG_STATE_GATE=block permits clean session close", async () => {
-      await call(proc, "novel", { action: "save_context",  current_scene: "Clean" });
-      const sw = await call(proc, "novel", { action: "switch",  slug: "block-novel" });
+      await call(proc, "manage_novel", { action: "save_context",  current_scene: "Clean" });
+      const sw = await call(proc, "manage_novel", { action: "switch",  slug: "block-novel" });
       assertContains(sw, "[OK]");
     });
     await kill(proc);
@@ -175,10 +175,10 @@ async function main() {
 
   {
     const proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "mut-novel" });
+    await call(proc, "manage_novel", { action: "create",  name: "mut-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "note", { action: "set",  key: "m", content: "v" });
-    await call(proc, "vow", { action: "set",  name: "The Quest", description: "d", parties: [], difficulty: "dangerous" });
+    await call(proc, "manage_note", { action: "set",  key: "m", content: "v" });
+    await call(proc, "manage_vow", { action: "set",  name: "The Quest", description: "d", parties: [], difficulty: "dangerous" });
     await test("T470/REQ-401: mutation counts tracked per group", async () => {
       const b = await briefing(proc);
       assertContains(b, "note: 1");
@@ -188,15 +188,15 @@ async function main() {
     await test("T471/REQ-402: session close with zero mutations surfaces [session-no-mutations]", async () => {
       // Create a fresh novel, make no state writes, then close its session by
       // resuming it again — the zero-mutation window should be recorded.
-      await call(proc, "novel", { action: "create",  name: "silent-session" });
+      await call(proc, "manage_novel", { action: "create",  name: "silent-session" });
       await call(proc, "set_badge", { badge: "game_master" });
-      await call(proc, "novel", { action: "switch",  slug: "mut-novel" });
-      await call(proc, "novel", { action: "resume",  slug: "silent-session" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "mut-novel" });
+      await call(proc, "manage_novel", { action: "resume",  slug: "silent-session" });
       await call(proc, "set_badge", { badge: "game_master" });
       // Resuming again closes silent-session's first (zero-mutation) window.
-      await call(proc, "novel", { action: "switch",  slug: "mut-novel" });
-      await call(proc, "novel", { action: "resume",  slug: "silent-session" });
-      const recap = await call(proc, "session", { action: "recap" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "mut-novel" });
+      await call(proc, "manage_novel", { action: "resume",  slug: "silent-session" });
+      const recap = await call(proc, "manage_session", { action: "recap" });
       assertContains(recap, "session-no-mutations");
     });
 
@@ -216,9 +216,9 @@ async function main() {
       corrupt.audit_log.push({ timestamp: new Date().toISOString(), badge: "game_master", tool: "set_note", args: "{}", output_prefix: "", hash: "bbbbbbbb" });
       corrupt._checksum = "deadbeef0000000000000000000000000000000000000000000000000000";
       writeFileSync(file, JSON.stringify(corrupt));
-      const resp = await call(proc, "novel", { action: "resume",  slug: "corrupt-novel" });
+      const resp = await call(proc, "manage_novel", { action: "resume",  slug: "corrupt-novel" });
       assertContains(resp, "[OK]");
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       // state_regression surfaces via the state_ledger token in briefing.
       const b = await briefing(proc);
       assertContains(b, "state-regression");
@@ -233,7 +233,7 @@ async function main() {
     writeFileSync(join(dir, "novels", "corrupt-skip.json"), "{ not valid json ");
     const proc = await boot({ TTRPG_DATA_DIR: dir });
     await test("T175/REQ-001a: corrupt novel on disk surfaces in spec_health.data_health.corrupted", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       const corrupted = Object.keys(health.data_health?.corrupted ?? {});
       if (!corrupted.includes("corrupt-skip")) throw new Error(`corrupt-skip not surfaced: ${JSON.stringify(health.data_health)}`);
     });

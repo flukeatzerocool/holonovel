@@ -134,7 +134,7 @@ or directly manage Novel state while staying in the story. Switch to the Observe
 (REQ-305) to spectate — the AI plays both Player and Game Master while you watch,
 intervening only for mechanical decisions at your configured autonomy level (REQ-306).
 End the story with `set_badge("none")` — return to the Editor badge with the Novel intact.
-End the Novel with `novel (action: end)` — the save file is deleted. `set_badge` works without
+End the Novel with `manage_novel (action: end)` — the save file is deleted. `set_badge` works without
 restart. One user per MCP connection (REQ-030) — no multiplayer. Holonovel targets
 solo play: one human operator, one AI counterpart. By default, the human wears the
 Player badge and the AI briefs as Game Master (REQ-304). The human may switch badges
@@ -145,10 +145,10 @@ scene (REQ-308).
 
 **The play model (ruleset-free).** When no TTRPG ruleset is present, the server provides
 freeform narrative roleplay. The GM's narrative tools are the main way to play. Use
-`scene (action: set)` to describe a scene. Use `npc (action: create)` to introduce characters. Use
-`scene (action: choices)` to offer decisions. Use `lore (action: set)` to build the world as you play.
-Player tools describe character and preferences: `character (action: personality)`, `character (action: signal)`, and
-`character (action: sheet)`. Parser navigation (`go north`) is available when an adventure adds
+`manage_scene (action: set)` to describe a scene. Use `manage_npc (action: create)` to introduce characters. Use
+`manage_scene (action: choices)` to offer decisions. Use `manage_lore (action: set)` to build the world as you play.
+Player tools describe character and preferences: `manage_character (action: personality)`, `manage_character (action: signal)`, and
+`manage_character (action: sheet)`. Parser navigation (`go north`) is available when an adventure adds
 rooms. It is never required to be in the story. Adventures are starting-state Novels:
 factions, NPCs, scenes, and lore pre-populated for the GM to run.
 
@@ -170,7 +170,7 @@ carry no prefix and are shared. Each Novel is bound to one ruleset (REQ-380). A
 single audited path migrates from ruleset-free to an installed ruleset (REQ-380c). The
 active Novel's ruleset decides which ruleset-derived tools are callable (REQ-381).
 Cross-ruleset contamination is a defect (F8). Installing or removing a package is a
-server-scoped, audited operation (`ruleset (action: install)` / `ruleset (action: remove)` / `ruleset (action: list)`);
+server-scoped, audited operation (`manage_ruleset (action: install)` / `manage_ruleset (action: remove)` / `manage_ruleset (action: list)`);
 it never rebuilds the host. Updating the host re-checks installed packages without
 re-running their builds and keeps all user data (REQ-389, REQ-393, §6.7).
 
@@ -206,7 +206,7 @@ The spec is designed around eight failure modes. Recognize them early.
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
 | F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Pattern Buffer-5); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
-| F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `world (action: convert)` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
+| F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `manage_world (action: convert)` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 | F8   | Mechanics from one ruleset leak into a Novel bound to a different ruleset — Starfinder condition names appear in a D&D combat, or a D&D spell lookup succeeds under a Mothership Novel. | Tool prefix gating (REQ-379, REQ-381); per-ruleset extraction isolation (REQ-382); cross-ruleset isolation verification (G8) |
 
 **Fault trees.** Every root maps to a REQ or verification workflow. If a leaf has no
@@ -248,7 +248,7 @@ guard, the gap is explicit.
 - Corrupted state file → REQ-092 (atomic writes, .bak), T88
 - Model change breaks state load → REQ-065, T52
 - Audit log lost on restart → REQ-040, T8
-- Premature or accidental `novel (action: end)` → REQ-088, T31
+- Premature or accidental `manage_novel (action: end)` → REQ-088, T31
 
 **F6 — Client configuration errors.**
 

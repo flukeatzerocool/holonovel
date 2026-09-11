@@ -65,7 +65,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
 async function newNovel(proc: ChildProcess, name: string): Promise<void> {
-  await call(proc, "novel", { action: "create", name });
+  await call(proc, "manage_novel", { action: "create", name });
   await call(proc, "set_badge", { badge: "game_master" });
 }
 
@@ -77,15 +77,15 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "isw-momentum");
     await test("T524/REQ-438: set/gain/lose/reset momentum, clamped to -6..+10", async () => {
-      const set = await call(proc, "ironsworn", { action: "momentum", op: "set", entity_id: "pc_1", amount: 5 });
+      const set = await call(proc, "resolve_ironsworn", { action: "momentum", op: "set", entity_id: "pc_1", amount: 5 });
       assertContains(set, "set to 5");
-      const gain = await call(proc, "ironsworn", { action: "momentum", op: "gain", entity_id: "pc_1", amount: 1 });
+      const gain = await call(proc, "resolve_ironsworn", { action: "momentum", op: "gain", entity_id: "pc_1", amount: 1 });
       assertContains(gain, "now 6");
-      const lose = await call(proc, "ironsworn", { action: "momentum", op: "lose", entity_id: "pc_1", amount: 2 });
+      const lose = await call(proc, "resolve_ironsworn", { action: "momentum", op: "lose", entity_id: "pc_1", amount: 2 });
       assertContains(lose, "now 4");
-      const reset = await call(proc, "ironsworn", { action: "momentum", op: "reset", entity_id: "pc_1" });
+      const reset = await call(proc, "resolve_ironsworn", { action: "momentum", op: "reset", entity_id: "pc_1" });
       assertContains(reset, "reset to 2");
-      const clamped = await call(proc, "ironsworn", { action: "momentum", op: "set", entity_id: "pc_1", amount: 99 });
+      const clamped = await call(proc, "resolve_ironsworn", { action: "momentum", op: "set", entity_id: "pc_1", amount: 99 });
       assertContains(clamped, "set to 10");
     });
     proc.kill("SIGKILL");
@@ -96,15 +96,15 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "isw-move");
     await test("T525/REQ-439: move rolls an action die and two challenge dice to a hit band", async () => {
-      const out = await call(proc, "ironsworn", { action: "move", name: "Face Danger", adds: 2, seed: "42" });
+      const out = await call(proc, "resolve_ironsworn", { action: "move", name: "Face Danger", adds: 2, seed: "42" });
       assertContains(out, "Face Danger");
       assertContains(out, "Action die");
       assertContains(out, "Challenge dice");
       assert(/Strong hit|Weak hit|Miss/.test(out), `missing hit band: ${out}`);
     });
     await test("T525/REQ-439: same seed reproduces identical move results", async () => {
-      const a = await call(proc, "ironsworn", { action: "move", seed: "42" });
-      const b = await call(proc, "ironsworn", { action: "move", seed: "42" });
+      const a = await call(proc, "resolve_ironsworn", { action: "move", seed: "42" });
+      const b = await call(proc, "resolve_ironsworn", { action: "move", seed: "42" });
       assert(a === b, `seeded moves diverged:\n${a}\nvs\n${b}`);
     });
     proc.kill("SIGKILL");
@@ -115,14 +115,14 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "isw-progress");
     await test("T526/REQ-440: create/mark/test a progress track", async () => {
-      const create = await call(proc, "ironsworn", { action: "progress", op: "create", name: "Journey", rank: "dangerous" });
+      const create = await call(proc, "resolve_ironsworn", { action: "progress", op: "create", name: "Journey", rank: "dangerous" });
       assertContains(create, "created (dangerous, 10 boxes)");
-      const mark = await call(proc, "ironsworn", { action: "progress", op: "mark", name: "Journey", ticks: 2 });
+      const mark = await call(proc, "resolve_ironsworn", { action: "progress", op: "mark", name: "Journey", ticks: 2 });
       assertContains(mark, "at 2/10");
-      const testRoll = await call(proc, "ironsworn", { action: "progress", op: "test", name: "Journey", seed: "42" });
+      const testRoll = await call(proc, "resolve_ironsworn", { action: "progress", op: "test", name: "Journey", seed: "42" });
       assertContains(testRoll, "boxes vs");
       assert(/Strong hit|Weak hit|Miss/.test(testRoll), `missing progress band: ${testRoll}`);
-      const list = await call(proc, "ironsworn", { action: "progress", op: "list" });
+      const list = await call(proc, "resolve_ironsworn", { action: "progress", op: "list" });
       assertContains(list, "Journey");
     });
     proc.kill("SIGKILL");

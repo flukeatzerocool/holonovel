@@ -65,7 +65,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
 async function newNovel(proc: ChildProcess, name: string): Promise<void> {
-  await call(proc, "novel", { action: "create", name });
+  await call(proc, "manage_novel", { action: "create", name });
   await call(proc, "set_badge", { badge: "game_master" });
 }
 
@@ -77,7 +77,7 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fitd-roll");
     await test("T527/REQ-441: action roll reports highest die, position, effect, and a band", async () => {
-      const out = await call(proc, "forged", { action: "action_roll", name: "Skirmish", dice: 3, position: "risky", effect: "standard", seed: "42" });
+      const out = await call(proc, "resolve_forged", { action: "action_roll", name: "Skirmish", dice: 3, position: "risky", effect: "standard", seed: "42" });
       assertContains(out, "Skirmish");
       assertContains(out, "risky position");
       assertContains(out, "standard effect");
@@ -85,8 +85,8 @@ async function main() {
       assert(/Critical success|Partial success|Miss/.test(out), `missing band: ${out}`);
     });
     await test("T527/REQ-441: same seed reproduces identical action rolls", async () => {
-      const a = await call(proc, "forged", { action: "action_roll", dice: 2, seed: "42" });
-      const b = await call(proc, "forged", { action: "action_roll", dice: 2, seed: "42" });
+      const a = await call(proc, "resolve_forged", { action: "action_roll", dice: 2, seed: "42" });
+      const b = await call(proc, "resolve_forged", { action: "action_roll", dice: 2, seed: "42" });
       assert(a === b, `seeded rolls diverged:\n${a}\nvs\n${b}`);
     });
     proc.kill("SIGKILL");
@@ -97,20 +97,20 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fitd-stress");
     await test("T528/REQ-442: mark stress, resist for stress, and fill the track to trauma", async () => {
-      const mark = await call(proc, "forged", { action: "stress", op: "mark", entity_id: "pc_1", amount: 2 });
+      const mark = await call(proc, "resolve_forged", { action: "stress", op: "mark", entity_id: "pc_1", amount: 2 });
       assertContains(mark, "stress now 2/8");
-      const resist = await call(proc, "forged", { action: "stress", op: "resist", entity_id: "pc_1", name: "Harm", cost: 2 });
+      const resist = await call(proc, "resolve_forged", { action: "stress", op: "resist", entity_id: "pc_1", name: "Harm", cost: 2 });
       assertContains(resist, "resisted 'Harm' for 2 stress");
       assertContains(resist, "now 4/8");
-      const fill = await call(proc, "forged", { action: "stress", op: "mark", entity_id: "pc_1", amount: 4 });
+      const fill = await call(proc, "resolve_forged", { action: "stress", op: "mark", entity_id: "pc_1", amount: 4 });
       assertContains(fill, "gained trauma");
       assertContains(fill, "stress reset to 0");
-      const list = await call(proc, "forged", { action: "stress", op: "list" });
+      const list = await call(proc, "resolve_forged", { action: "stress", op: "list" });
       assertContains(list, "trauma");
     });
     await test("T528/REQ-442: resist is refused when it would exceed the track", async () => {
-      await call(proc, "forged", { action: "stress", op: "mark", entity_id: "pc_2", amount: 7 });
-      const refused = await call(proc, "forged", { action: "stress", op: "resist", entity_id: "pc_2", cost: 2 });
+      await call(proc, "resolve_forged", { action: "stress", op: "mark", entity_id: "pc_2", amount: 7 });
+      const refused = await call(proc, "resolve_forged", { action: "stress", op: "resist", entity_id: "pc_2", cost: 2 });
       assertContains(refused, "RULE_VIOLATION");
     });
     proc.kill("SIGKILL");
@@ -121,10 +121,10 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fitd-downtime");
     await test("T529/REQ-443: recover reduces stress; indulge_vice clears it", async () => {
-      await call(proc, "forged", { action: "stress", op: "mark", entity_id: "pc_1", amount: 3 });
-      const recover = await call(proc, "forged", { action: "downtime", op: "recover", entity_id: "pc_1", amount: 2 });
+      await call(proc, "resolve_forged", { action: "stress", op: "mark", entity_id: "pc_1", amount: 3 });
+      const recover = await call(proc, "resolve_forged", { action: "downtime", op: "recover", entity_id: "pc_1", amount: 2 });
       assertContains(recover, "stress now 1/8");
-      const vice = await call(proc, "forged", { action: "downtime", op: "indulge_vice", entity_id: "pc_1" });
+      const vice = await call(proc, "resolve_forged", { action: "downtime", op: "indulge_vice", entity_id: "pc_1" });
       assertContains(vice, "stress cleared to 0");
     });
     proc.kill("SIGKILL");

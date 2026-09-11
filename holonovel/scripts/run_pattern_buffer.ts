@@ -212,28 +212,28 @@ function buildScenarios(): PBScenario[] {
     objective: "Parser command sweep — every parser command on populated world model",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i1" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i1" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
+      { label: "convert_source", action: T("manage_world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms"); assertContains(r, "exits"); assertContains(r, "things");
       }},
-      { label: "create_character", action: T("character", { action: "create",  name: "TestHero" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "TestHero" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "command(look)", action: T("command", { command: "look" }), assert: (r) => {
+      { label: "command(look)", action: T("run_command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber"); assertContains(r, "rusty sword");
       }},
-      { label: "command(go north)", action: T("command", { command: "go north" }), assert: (r) => {
+      { label: "command(go north)", action: T("run_command", { command: "go north" }), assert: (r) => {
         assertContains(r, "Hall of Statues");
       }},
-      { label: "command(go east) — no exit", action: T("command", { command: "go east" }), assert: (r) => {
+      { label: "command(go east) — no exit", action: T("run_command", { command: "go east" }), assert: (r) => {
         assertContains(r, "can't go");
       }},
-      { label: "command(examine stone altar)", action: T("command", { command: "examine stone altar" }), assert: (r) => {
+      { label: "command(examine stone altar)", action: T("run_command", { command: "examine stone altar" }), assert: (r) => {
         assertContains(r, "Stone Altar");
       }},
-      { label: "command(inventory)", action: T("command", { command: "inventory" }), assert: assertOK },
-      { label: "command(wait)", action: T("command", { command: "wait" }), assert: (r) => assertContains(r, "Time passes") },
-      { label: "command(xyzzy) — unrecognized", action: T("command", { command: "xyzzy" }), assert: (r) => {
+      { label: "command(inventory)", action: T("run_command", { command: "inventory" }), assert: assertOK },
+      { label: "command(wait)", action: T("run_command", { command: "wait" }), assert: (r) => assertContains(r, "Time passes") },
+      { label: "command(xyzzy) — unrecognized", action: T("run_command", { command: "xyzzy" }), assert: (r) => {
         assertContains(r, "not a recognized command");
       }},
     ],
@@ -244,19 +244,19 @@ function buildScenarios(): PBScenario[] {
     objective: "Room navigation cycle — navigate through ≥5 linked rooms",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i2" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i2" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "populate 5-room chain", action: T("world", { action: "convert",  source: CHAIN_5 }), assert: (r) => {
+      { label: "populate 5-room chain", action: T("manage_world", { action: "convert",  source: CHAIN_5 }), assert: (r) => {
         assertContains(r, "5 rooms");
       }},
-      { label: "create_character", action: T("character", { action: "create",  name: "Navigator" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "Navigator" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "look at room 1", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Room 1") },
-      { label: "go east to room 2", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 2") },
-      { label: "go east to room 3", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 3") },
-      { label: "go east to room 4", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 4") },
-      { label: "go east to room 5", action: T("command", { command: "go east" }), assert: (r) => assertContains(r, "Room 5") },
-      { label: "go west back to room 4", action: T("command", { command: "go west" }), assert: (r) => assertContains(r, "Room 4") },
+      { label: "look at room 1", action: T("run_command", { command: "look" }), assert: (r) => assertContains(r, "Room 1") },
+      { label: "go east to room 2", action: T("run_command", { command: "go east" }), assert: (r) => assertContains(r, "Room 2") },
+      { label: "go east to room 3", action: T("run_command", { command: "go east" }), assert: (r) => assertContains(r, "Room 3") },
+      { label: "go east to room 4", action: T("run_command", { command: "go east" }), assert: (r) => assertContains(r, "Room 4") },
+      { label: "go east to room 5", action: T("run_command", { command: "go east" }), assert: (r) => assertContains(r, "Room 5") },
+      { label: "go west back to room 4", action: T("run_command", { command: "go west" }), assert: (r) => assertContains(r, "Room 4") },
     ],
   };
 
@@ -265,23 +265,23 @@ function buildScenarios(): PBScenario[] {
     objective: "Object interaction — take/drop portable, fixed blocked, contained in closed blocked",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i3" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i3" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
+      { label: "convert_source", action: T("manage_world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms");
       }},
-      { label: "create_character", action: T("character", { action: "create",  name: "Collector" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "Collector" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "look", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
-      { label: "take rusty sword", action: T("command", { command: "take rusty sword" }), assert: (r) => assertOK(r) },
-      { label: "examine rusty sword in inventory", action: T("command", { command: "examine rusty sword" }), assert: (r) => assertContains(r, "old iron sword") },
-      { label: "drop sword", action: T("command", { command: "drop rusty sword" }), assert: assertOK },
-      { label: "inventory should be empty", action: T("command", { command: "inventory" }), assert: (r) => assertContains(r, "nothing") },
-      { label: "take fixed thing (Entrance Chamber is a room)", action: T("command", { command: "take entrance chamber" }), assert: (r) => {
+      { label: "look", action: T("run_command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
+      { label: "take rusty sword", action: T("run_command", { command: "take rusty sword" }), assert: (r) => assertOK(r) },
+      { label: "examine rusty sword in inventory", action: T("run_command", { command: "examine rusty sword" }), assert: (r) => assertContains(r, "old iron sword") },
+      { label: "drop sword", action: T("run_command", { command: "drop rusty sword" }), assert: assertOK },
+      { label: "inventory should be empty", action: T("run_command", { command: "inventory" }), assert: (r) => assertContains(r, "nothing") },
+      { label: "take fixed thing (Entrance Chamber is a room)", action: T("run_command", { command: "take entrance chamber" }), assert: (r) => {
         assertContains(r, "see no");
       }},
-      { label: "take fixed altar", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "Hall of Statues") },
-      { label: "take stone altar (fixed)", action: T("command", { command: "take stone altar" }), assert: (r) => {
+      { label: "take fixed altar", action: T("run_command", { command: "go north" }), assert: (r) => assertContains(r, "Hall of Statues") },
+      { label: "take stone altar (fixed)", action: T("run_command", { command: "take stone altar" }), assert: (r) => {
         assertContains(r, "fixed");
       }},
     ],
@@ -292,19 +292,19 @@ function buildScenarios(): PBScenario[] {
     objective: "CRUD round-trip — create room/thing/exit, read resource, delete, undo",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i4" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i4" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create_room", action: T("world", { action: "create_room",  name: "TestRoom", description: "A test room." }), assert: (r) => assertContains(r, "created") },
-      { label: "create_thing", action: T("world", { action: "create_thing",  name: "TestSword", location: "TestRoom", kind: "thing" }), assert: (r) => assertContains(r, "created") },
-      { label: "create_room2", action: T("world", { action: "create_room",  name: "TestRoom2", description: "Second room." }), assert: assertOK },
-      { label: "create_exit", action: T("world", { action: "create_exit",  direction: "east", room_a: "TestRoom", room_b: "TestRoom2" }), assert: (r) => assertContains(r, "Exit created") },
+      { label: "create_room", action: T("manage_world", { action: "create_room",  name: "TestRoom", description: "A test room." }), assert: (r) => assertContains(r, "created") },
+      { label: "create_thing", action: T("manage_world", { action: "create_thing",  name: "TestSword", location: "TestRoom", kind: "thing" }), assert: (r) => assertContains(r, "created") },
+      { label: "create_room2", action: T("manage_world", { action: "create_room",  name: "TestRoom2", description: "Second room." }), assert: assertOK },
+      { label: "create_exit", action: T("manage_world", { action: "create_exit",  direction: "east", room_a: "TestRoom", room_b: "TestRoom2" }), assert: (r) => assertContains(r, "Exit created") },
       { label: "world://map includes rooms", action: R("world://map"), assert: (r) => {
         assertContains(r, "TestRoom"); assertContains(r, "TestRoom2");
       }},
       { label: "room://testroom resource", action: R("room://testroom"), assert: (r) => assertContains(r, "TestRoom") },
-      { label: "remove_room", action: T("world", { action: "remove_room",  name: "TestRoom" }), assert: (r) => assertContains(r, "removed") },
+      { label: "remove_room", action: T("manage_world", { action: "remove_room",  name: "TestRoom" }), assert: (r) => assertContains(r, "removed") },
       { label: "world://map — room gone", action: R("world://map"), assert: (r) => assertNotContains(r, "TestRoom →") },
-      { label: "undo", action: T("undo", {}), assert: assertOK },
+      { label: "undo", action: T("manage_history", {}), assert: assertOK },
       { label: "world://map — room restored", action: R("world://map"), assert: (r) => {
         assertContains(r, "TestRoom"); // may or may not have exits after undo
       }},
@@ -316,21 +316,21 @@ function buildScenarios(): PBScenario[] {
     objective: "convert_source with fixture — object counts, look output, state conflict on re-convert",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i5" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i5" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
+      { label: "convert_source", action: T("manage_world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: (r) => {
         assertContains(r, "rooms");
         assertContains(r, "exits");
         assertContains(r, "things");
       }},
-      { label: "create_character", action: T("character", { action: "create",  name: "FixtureHero" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "FixtureHero" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "look shows Entrance Chamber", action: T("command", { command: "look" }), assert: (r) => {
+      { label: "look shows Entrance Chamber", action: T("run_command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber");
         assertContains(r, "rusty sword");
       }},
       { label: "set_badge GM for re-convert", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source again — STATE_CONFLICT", action: T("world", { action: "convert",  source: "The Crypt is a room. \"Dark.\"" }), assert: (r) => {
+      { label: "convert_source again — STATE_CONFLICT", action: T("manage_world", { action: "convert",  source: "The Crypt is a room. \"Dark.\"" }), assert: (r) => {
         assertStateConflict(r);
       }},
     ],
@@ -341,19 +341,19 @@ function buildScenarios(): PBScenario[] {
     objective: "Property state propagation — open/close/lock/unlock container via parser commands",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i6" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i6" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create room", action: T("world", { action: "create_room",  name: "TestRoom", description: "Test room." }), assert: assertOK },
-      { label: "create chest (container)", action: T("world", { action: "create_thing",  name: "Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
-      { label: "create_character", action: T("character", { action: "create",  name: "ChestOpener" }), assert: assertOK },
+      { label: "create room", action: T("manage_world", { action: "create_room",  name: "TestRoom", description: "Test room." }), assert: assertOK },
+      { label: "create chest (container)", action: T("manage_world", { action: "create_thing",  name: "Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "ChestOpener" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "command(open chest) — should open (new chests start unlocked)", action: T("command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "open") },
-      { label: "command(close chest)", action: T("command", { command: "close wooden chest" }), assert: (r) => assertContains(r, "close") },
-      { label: "command(lock chest)", action: T("command", { command: "lock wooden chest" }), assert: (r) => assertContains(r, "lock") },
-      { label: "command(open chest) — locked, should warn", action: T("command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "locked") },
-      { label: "command(close chest) — already closed", action: T("command", { command: "close wooden chest" }), assert: (r) => assertContains(r, "already closed") },
-      { label: "command(unlock chest)", action: T("command", { command: "unlock wooden chest" }), assert: (r) => assertContains(r, "unlock") },
-      { label: "command(open chest) — now opens", action: T("command", { command: "open wooden chest" }), assert: (r) => assertOK(r) },
+      { label: "command(open chest) — should open (new chests start unlocked)", action: T("run_command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "open") },
+      { label: "command(close chest)", action: T("run_command", { command: "close wooden chest" }), assert: (r) => assertContains(r, "close") },
+      { label: "command(lock chest)", action: T("run_command", { command: "lock wooden chest" }), assert: (r) => assertContains(r, "lock") },
+      { label: "command(open chest) — locked, should warn", action: T("run_command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "locked") },
+      { label: "command(close chest) — already closed", action: T("run_command", { command: "close wooden chest" }), assert: (r) => assertContains(r, "already closed") },
+      { label: "command(unlock chest)", action: T("run_command", { command: "unlock wooden chest" }), assert: (r) => assertContains(r, "unlock") },
+      { label: "command(open chest) — now opens", action: T("run_command", { command: "open wooden chest" }), assert: (r) => assertOK(r) },
       { label: "world://kinds shows container properties", action: R("world://kinds"), assert: (r) => {
         assertContains(r, "container");
         assertContains(r, "door");
@@ -366,9 +366,9 @@ function buildScenarios(): PBScenario[] {
     objective: "World-model resources — room://, thing://, world://map, world://kinds",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i7" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i7" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert_source", action: T("world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: assertOK },
+      { label: "convert_source", action: T("manage_world", { action: "convert",  source: APPENDIX_K_FIXTURE }), assert: assertOK },
       { label: "world://map", action: R("world://map"), assert: (r) => {
         assertContains(r, "Entrance Chamber");
         assertContains(r, "→");
@@ -397,17 +397,17 @@ function buildScenarios(): PBScenario[] {
     objective: "Large-map navigation — 50+ room world model, ≥10 sequential moves",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i8" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i8" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "populate 50-room chain", action: T("world", { action: "convert",  source: CHAIN_50 }), assert: (r) => {
+      { label: "populate 50-room chain", action: T("manage_world", { action: "convert",  source: CHAIN_50 }), assert: (r) => {
         assertContains(r, "rooms");
       }},
-      { label: "create_character", action: T("character", { action: "create",  name: "LongWalker" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "LongWalker" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       // Walk 10 steps east
       ...[2,3,4,5,6,7,8,9,10,11].map(n => ({
         label: `go east → room ${n}`,
-        action: T("command", { command: "go east" }) as PBAction,
+        action: T("run_command", { command: "go east" }) as PBAction,
         assert: (r: string) => { assertContains(r, `Room ${n}`); },
       })),
     ],
@@ -418,21 +418,21 @@ function buildScenarios(): PBScenario[] {
     objective: "Empty world model — parser commands error, CRUD works, then parser works",
     blocking: false,
     steps: [
-      { label: "create_novel (empty world)", action: T("novel", { action: "create",  name: "pb-i9" }), assert: assertOK },
-      { label: "create_character", action: T("character", { action: "create",  name: "EmptyWalker" }), assert: assertOK },
+      { label: "create_novel (empty world)", action: T("manage_novel", { action: "create",  name: "pb-i9" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "EmptyWalker" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "command(look) — should fail", action: T("command", { command: "look" }), assert: (r) => {
+      { label: "command(look) — should fail", action: T("run_command", { command: "look" }), assert: (r) => {
         assertContains(r, "not been populated");
       }},
-      { label: "command(go north) — should fail", action: T("command", { command: "go north" }), assert: (r) => {
+      { label: "command(go north) — should fail", action: T("run_command", { command: "go north" }), assert: (r) => {
         assertContains(r, "not been populated");
       }},
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create_room on empty world", action: T("world", { action: "create_room",  name: "TestRoom", description: "A test room." }), assert: (r) => {
+      { label: "create_room on empty world", action: T("manage_world", { action: "create_room",  name: "TestRoom", description: "A test room." }), assert: (r) => {
         assertContains(r, "created");
       }},
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "command(look) — now works", action: T("command", { command: "look" }), assert: (r) => {
+      { label: "command(look) — now works", action: T("run_command", { command: "look" }), assert: (r) => {
         assertContains(r, "TestRoom");
       }},
     ],
@@ -443,20 +443,20 @@ function buildScenarios(): PBScenario[] {
     objective: "Hybrid adventure load — load adventure module with ## World assertions",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i10" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i10" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "load_adventure", action: T("adventure", { action: "load",  slug: "tomb-of-the-serpent-king" }), assert: (r) => {
+      { label: "load_adventure", action: T("manage_adventure", { action: "load",  slug: "tomb-of-the-serpent-king" }), assert: (r) => {
         assertContains(r, "loaded");
         assertContains(r, "rooms");
       }},
-      { label: "create_character", action: T("character", { action: "create",  name: "Adventurer" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "Adventurer" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "command(look) — adventure entrance", action: T("command", { command: "look" }), assert: (r) => {
+      { label: "command(look) — adventure entrance", action: T("run_command", { command: "look" }), assert: (r) => {
         assertContains(r, "Entrance Chamber");
       }},
-      { label: "go north to Hall", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "Hall of Statues") },
-      { label: "go north to Inner Sanctum", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "Inner Sanctum") },
-      { label: "session_recap", action: T("session", { action: "recap" }), assert: (r) => {
+      { label: "go north to Hall", action: T("run_command", { command: "go north" }), assert: (r) => assertContains(r, "Hall of Statues") },
+      { label: "go north to Inner Sanctum", action: T("run_command", { command: "go north" }), assert: (r) => assertContains(r, "Inner Sanctum") },
+      { label: "session_recap", action: T("manage_session", { action: "recap" }), assert: (r) => {
         assertContains(r, "rooms");
       }},
     ],
@@ -469,19 +469,19 @@ function buildScenarios(): PBScenario[] {
     steps: (() => {
       const npcRef = { id: "" };
       return [
-        { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i11" }), assert: assertOK },
+        { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i11" }), assert: assertOK },
         { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-        { label: "create_npc", action: T("npc", { action: "create",  name: "Galt", description: "A stern dwarf.", disposition: "neutral", location: "The Forge" }), assert: (r) => {
+        { label: "create_npc", action: T("manage_npc", { action: "create",  name: "Galt", description: "A stern dwarf.", disposition: "neutral", location: "The Forge" }), assert: (r) => {
           const match = r.match(/\((\w+)\)/);
           if (match) npcRef.id = match[1];
           assertContains(r, "Galt");
           assertOK(r);
         }},
-        { label: "set_personality on npc", action: TL("character", () => ({ entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
-        { label: "set_voice_examples on npc", action: TL("character", () => ({ entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
-        { label: "update_npc", action: TL("npc", () => ({ npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
-        { label: "remove_npc", action: TL("npc", () => ({ npc_id: npcRef.id })), assert: assertOK },
-        { label: "remove_nonexistent → NOT_FOUND", action: T("npc", { action: "remove",  npc_id: "nonexistent" }), assert: assertError },
+        { label: "set_personality on npc", action: TL("manage_character", () => ({ entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
+        { label: "set_voice_examples on npc", action: TL("manage_character", () => ({ entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
+        { label: "update_npc", action: TL("manage_npc", () => ({ npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
+        { label: "remove_npc", action: TL("manage_npc", () => ({ npc_id: npcRef.id })), assert: assertOK },
+        { label: "remove_nonexistent → NOT_FOUND", action: T("manage_npc", { action: "remove",  npc_id: "nonexistent" }), assert: assertError },
       ];
     })(),
   };
@@ -491,18 +491,18 @@ function buildScenarios(): PBScenario[] {
     objective: "Lore and countdown lifecycle — set/toggle/update/remove lore; countdown expiry",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i12" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i12" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "set_lore_entry", action: T("lore", { action: "set",  key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], badge_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
-      { label: "toggle_lore_entry (disable)", action: T("lore", { action: "toggle",  key: "artifact" }), assert: (r) => assertContains(r, "disabled") },
-      { label: "toggle_lore_entry (re-enable)", action: T("lore", { action: "toggle",  key: "artifact" }), assert: (r) => assertContains(r, "enabled") },
-      { label: "update_lore_entry", action: T("lore", { action: "update",  key: "artifact", content: "The Obsidian Crown whispers secrets to its wearer.", priority: 8 }), assert: assertOK },
-      { label: "remove_lore_entry", action: T("lore", { action: "remove",  key: "artifact" }), assert: assertOK },
-      { label: "remove_nonexistent lore", action: T("lore", { action: "remove",  key: "nonexistent" }), assert: assertError },
-      { label: "set_countdown(ticks=2)", action: T("countdown", { action: "set",  name: "timer", ticks: 2, type: "narrative" }), assert: assertOK },
-      { label: "advance_countdown → 1 left", action: T("countdown", { action: "advance",  name: "timer" }), assert: (r) => assertContains(r, "1 tick") },
-      { label: "advance_countdown → expiry", action: T("countdown", { action: "advance",  name: "timer" }), assert: (r) => assertContains(r, "expired") },
-      { label: "advance_expired → NOT_FOUND", action: T("countdown", { action: "advance",  name: "timer" }), assert: assertError },
+      { label: "set_lore_entry", action: T("manage_lore", { action: "set",  key: "artifact", content: "The Obsidian Crown was forged by the Serpent King.", triggers: ["crown", "serpent"], badge_scope: "shared", priority: 5 }), assert: (r) => assertContains(r, "created") },
+      { label: "toggle_lore_entry (disable)", action: T("manage_lore", { action: "toggle",  key: "artifact" }), assert: (r) => assertContains(r, "disabled") },
+      { label: "toggle_lore_entry (re-enable)", action: T("manage_lore", { action: "toggle",  key: "artifact" }), assert: (r) => assertContains(r, "enabled") },
+      { label: "update_lore_entry", action: T("manage_lore", { action: "update",  key: "artifact", content: "The Obsidian Crown whispers secrets to its wearer.", priority: 8 }), assert: assertOK },
+      { label: "remove_lore_entry", action: T("manage_lore", { action: "remove",  key: "artifact" }), assert: assertOK },
+      { label: "remove_nonexistent lore", action: T("manage_lore", { action: "remove",  key: "nonexistent" }), assert: assertError },
+      { label: "set_countdown(ticks=2)", action: T("manage_countdown", { action: "set",  name: "timer", ticks: 2, type: "narrative" }), assert: assertOK },
+      { label: "advance_countdown → 1 left", action: T("manage_countdown", { action: "advance",  name: "timer" }), assert: (r) => assertContains(r, "1 tick") },
+      { label: "advance_countdown → expiry", action: T("manage_countdown", { action: "advance",  name: "timer" }), assert: (r) => assertContains(r, "expired") },
+      { label: "advance_expired → NOT_FOUND", action: T("manage_countdown", { action: "advance",  name: "timer" }), assert: assertError },
     ],
   };
 
@@ -511,20 +511,20 @@ function buildScenarios(): PBScenario[] {
     objective: "Scene state and guidance — set_scene_state, scene_type, directive, badge_briefing, briefing_order",
     blocking: false,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i13" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i13" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "set_scene_state full", action: T("scene", { action: "set",  description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively", scene_type: "social" }), assert: (r) => assertContains(r, "Scene set") },
-      { label: "set_narrative_directive", action: T("scene", { action: "directive",  directive: "Emphasize the noise and crowd density." }), assert: assertOK },
+      { label: "set_scene_state full", action: T("manage_scene", { action: "set",  description: "The marketplace bustles with activity.", location: "Market Square", time_of_day: "midday", atmosphere: "lively", scene_type: "social" }), assert: (r) => assertContains(r, "Scene set") },
+      { label: "set_narrative_directive", action: T("manage_scene", { action: "directive",  directive: "Emphasize the noise and crowd density." }), assert: assertOK },
       { label: "badge_briefing prompt — GM", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => {
         assertContains(r, "marketplace");
         assertContains(r, "GM State");
       }},
-      { label: "set_scene_state second (push prior to history)", action: T("scene", { action: "set",  description: "The alley is dark and quiet.", location: "Back Alley", time_of_day: "night" }), assert: assertOK },
+      { label: "set_scene_state second (push prior to history)", action: T("manage_scene", { action: "set",  description: "The alley is dark and quiet.", location: "Back Alley", time_of_day: "night" }), assert: assertOK },
       { label: "scene_history resource includes prior scene", action: R("scene://history"), assert: (r) => {
         assertContains(r, "Market Square");
         assertContains(r, "midday");
       }},
-      { label: "set_briefing_order", action: T("session", { action: "briefing_order",  sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
+      { label: "set_briefing_order", action: T("manage_session", { action: "briefing_order",  sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
     ],
   };
 
@@ -533,16 +533,16 @@ function buildScenarios(): PBScenario[] {
     objective: "Device lifecycle — switch on/off a device; RULE_VIOLATION on non-device",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i14" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i14" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create_room", action: T("world", { action: "create_room",  name: "Cave", description: "A dark cave." }), assert: assertOK },
-      { label: "create_thing lantern (device)", action: T("world", { action: "create_thing",  name: "lantern", kind: "device", lit: true, location: "Cave" }), assert: assertOK },
-      { label: "create_thing rock", action: T("world", { action: "create_thing",  name: "rock", kind: "thing", location: "Cave" }), assert: assertOK },
-      { label: "create_character", action: T("character", { action: "create",  name: "SwitchFlipper" }), assert: assertOK },
+      { label: "create_room", action: T("manage_world", { action: "create_room",  name: "Cave", description: "A dark cave." }), assert: assertOK },
+      { label: "create_thing lantern (device)", action: T("manage_world", { action: "create_thing",  name: "lantern", kind: "device", lit: true, location: "Cave" }), assert: assertOK },
+      { label: "create_thing rock", action: T("manage_world", { action: "create_thing",  name: "rock", kind: "thing", location: "Cave" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "SwitchFlipper" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "switch on lantern", action: T("command", { command: "switch on lantern" }), assert: (r) => assertContains(r, "switch on") },
-      { label: "switch off lantern", action: T("command", { command: "switch off lantern" }), assert: (r) => assertContains(r, "switch off") },
-      { label: "switch on rock — RULE_VIOLATION", action: T("command", { command: "switch on rock" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
+      { label: "switch on lantern", action: T("run_command", { command: "switch on lantern" }), assert: (r) => assertContains(r, "switch on") },
+      { label: "switch off lantern", action: T("run_command", { command: "switch off lantern" }), assert: (r) => assertContains(r, "switch off") },
+      { label: "switch on rock — RULE_VIOLATION", action: T("run_command", { command: "switch on rock" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
     ],
   };
 
@@ -551,18 +551,18 @@ function buildScenarios(): PBScenario[] {
     objective: "Vehicle lifecycle — enter/exit, interior look, navigation, RULE_VIOLATION on non-enterable",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i15" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i15" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert vehicle fixture", action: T("world", { action: "convert",  source: VEHICLE_FIXTURE }), assert: (r) => assertContains(r, "rooms") },
-      { label: "create_character", action: T("character", { action: "create",  name: "Rafter" }), assert: assertOK },
+      { label: "convert vehicle fixture", action: T("manage_world", { action: "convert",  source: VEHICLE_FIXTURE }), assert: (r) => assertContains(r, "rooms") },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "Rafter" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "enter raft", action: T("command", { command: "enter raft" }), assert: (r) => assertContains(r, "You enter") },
-      { label: "look — interior", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "raft") },
-      { label: "exit — back to lake", action: T("command", { command: "exit" }), assert: assertOK },
-      { label: "enter rock — RULE_VIOLATION", action: T("command", { command: "enter rock" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
-      { label: "enter raft again", action: T("command", { command: "enter raft" }), assert: assertOK },
-      { label: "go north moves vehicle", action: T("command", { command: "go north" }), assert: (r) => assertContains(r, "moves north") },
-      { label: "exit", action: T("command", { command: "exit" }), assert: assertOK },
+      { label: "enter raft", action: T("run_command", { command: "enter raft" }), assert: (r) => assertContains(r, "You enter") },
+      { label: "look — interior", action: T("run_command", { command: "look" }), assert: (r) => assertContains(r, "raft") },
+      { label: "exit — back to lake", action: T("run_command", { command: "exit" }), assert: assertOK },
+      { label: "enter rock — RULE_VIOLATION", action: T("run_command", { command: "enter rock" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
+      { label: "enter raft again", action: T("run_command", { command: "enter raft" }), assert: assertOK },
+      { label: "go north moves vehicle", action: T("run_command", { command: "go north" }), assert: (r) => assertContains(r, "moves north") },
+      { label: "exit", action: T("run_command", { command: "exit" }), assert: assertOK },
     ],
   };
 
@@ -571,19 +571,19 @@ function buildScenarios(): PBScenario[] {
     objective: "Extended property contracts — wearable/edible/readable/climbable/transparent via convert",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i16" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i16" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert extended-props fixture", action: T("world", { action: "convert",  source: EXTENDED_PROPS_FIXTURE }), assert: (r) => assertContains(r, "rooms") },
-      { label: "create_character", action: T("character", { action: "create",  name: "PropertyTester" }), assert: assertOK },
+      { label: "convert extended-props fixture", action: T("manage_world", { action: "convert",  source: EXTENDED_PROPS_FIXTURE }), assert: (r) => assertContains(r, "rooms") },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "PropertyTester" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "take silver ring", action: T("command", { command: "take silver ring" }), assert: assertOK },
-      { label: "wear silver ring", action: T("command", { command: "wear silver ring" }), assert: (r) => assertContains(r, "wear") },
-      { label: "take red mushroom", action: T("command", { command: "take red mushroom" }), assert: assertOK },
-      { label: "eat mushroom", action: T("command", { command: "eat red mushroom" }), assert: (r) => assertContains(r, "eat") },
-      { label: "read altar — read_text", action: T("command", { command: "read altar" }), assert: (r) => assertContains(r, "Beware the serpent") },
-      { label: "climb rope ladder", action: T("command", { command: "climb rope ladder" }), assert: (r) => assertContains(r, "climb") },
-      { label: "take rock", action: T("command", { command: "take rock" }), assert: assertOK },
-      { label: "eat rock — missing property RULE_VIOLATION", action: T("command", { command: "eat rock" }), assert: (r) => assertContains(r, "not edible") },
+      { label: "take silver ring", action: T("run_command", { command: "take silver ring" }), assert: assertOK },
+      { label: "wear silver ring", action: T("run_command", { command: "wear silver ring" }), assert: (r) => assertContains(r, "wear") },
+      { label: "take red mushroom", action: T("run_command", { command: "take red mushroom" }), assert: assertOK },
+      { label: "eat mushroom", action: T("run_command", { command: "eat red mushroom" }), assert: (r) => assertContains(r, "eat") },
+      { label: "read altar — read_text", action: T("run_command", { command: "read altar" }), assert: (r) => assertContains(r, "Beware the serpent") },
+      { label: "climb rope ladder", action: T("run_command", { command: "climb rope ladder" }), assert: (r) => assertContains(r, "climb") },
+      { label: "take rock", action: T("run_command", { command: "take rock" }), assert: assertOK },
+      { label: "eat rock — missing property RULE_VIOLATION", action: T("run_command", { command: "eat rock" }), assert: (r) => assertContains(r, "not edible") },
     ],
   };
 
@@ -592,22 +592,22 @@ function buildScenarios(): PBScenario[] {
     objective: "Extended parser commands — standard-tier verbs, help tiers, again/g, pronoun",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i17" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i17" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "convert extended-props fixture", action: T("world", { action: "convert",  source: EXTENDED_PROPS_FIXTURE }), assert: assertOK },
-      { label: "create_character", action: T("character", { action: "create",  name: "VerbSweeper" }), assert: assertOK },
+      { label: "convert extended-props fixture", action: T("manage_world", { action: "convert",  source: EXTENDED_PROPS_FIXTURE }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "VerbSweeper" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "sit bench — supporter via jar? use altar", action: T("command", { command: "look" }), assert: assertOK },
-      { label: "listen", action: T("command", { command: "listen" }), assert: (r) => assertContains(r, "listen") },
-      { label: "smell", action: T("command", { command: "smell" }), assert: assertOK },
-      { label: "touch altar", action: T("command", { command: "touch altar" }), assert: (r) => assertContains(r, "touch") },
-      { label: "light lantern", action: T("command", { command: "light lantern" }), assert: (r) => assertContains(r, "light") },
-      { label: "extinguish lantern", action: T("command", { command: "extinguish lantern" }), assert: (r) => assertContains(r, "extinguish") },
-      { label: "help lists tiers", action: T("command", { command: "help" }), assert: (r) => {
+      { label: "sit bench — supporter via jar? use altar", action: T("run_command", { command: "look" }), assert: assertOK },
+      { label: "listen", action: T("run_command", { command: "listen" }), assert: (r) => assertContains(r, "listen") },
+      { label: "smell", action: T("run_command", { command: "smell" }), assert: assertOK },
+      { label: "touch altar", action: T("run_command", { command: "touch altar" }), assert: (r) => assertContains(r, "touch") },
+      { label: "light lantern", action: T("run_command", { command: "light lantern" }), assert: (r) => assertContains(r, "light") },
+      { label: "extinguish lantern", action: T("run_command", { command: "extinguish lantern" }), assert: (r) => assertContains(r, "extinguish") },
+      { label: "help lists tiers", action: T("run_command", { command: "help" }), assert: (r) => {
         assertContains(r, "core"); assertContains(r, "standard"); assertContains(r, "extended");
       }},
-      { label: "again repeats last command", action: T("command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
-      { label: "g repeats last command", action: T("command", { command: "g" }), assert: (r) => assertContains(r, "Entrance Chamber") },
+      { label: "again repeats last command", action: T("run_command", { command: "look" }), assert: (r) => assertContains(r, "Entrance Chamber") },
+      { label: "g repeats last command", action: T("run_command", { command: "g" }), assert: (r) => assertContains(r, "Entrance Chamber") },
     ],
   };
 
@@ -616,22 +616,22 @@ function buildScenarios(): PBScenario[] {
     objective: "Narrative-intent verbs — ask/tell/give/show/throw with transfer and RULE_VIOLATION",
     blocking: true,
     steps: [
-      { label: "create_novel", action: T("novel", { action: "create",  name: "pb-i18" }), assert: assertOK },
+      { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i18" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
-      { label: "create_room Crypt", action: T("world", { action: "create_room",  name: "Crypt", description: "A dark crypt." }), assert: assertOK },
-      { label: "create_npc guard", action: T("npc", { action: "create",  name: "guard", location: "Crypt" }), assert: assertOK },
-      { label: "create sword/rock/shield/altar", action: T("world", { action: "create_thing",  name: "sword", kind: "thing", location: "Crypt" }), assert: assertOK },
-      { label: "create rock", action: T("world", { action: "create_thing",  name: "rock", kind: "thing", location: "Crypt" }), assert: assertOK },
-      { label: "create fixed altar", action: T("world", { action: "create_thing",  name: "altar", kind: "supporter", fixed: true, location: "Crypt" }), assert: assertOK },
-      { label: "create_character", action: T("character", { action: "create",  name: "Narrator" }), assert: assertOK },
+      { label: "create_room Crypt", action: T("manage_world", { action: "create_room",  name: "Crypt", description: "A dark crypt." }), assert: assertOK },
+      { label: "create_npc guard", action: T("manage_npc", { action: "create",  name: "guard", location: "Crypt" }), assert: assertOK },
+      { label: "create sword/rock/shield/altar", action: T("manage_world", { action: "create_thing",  name: "sword", kind: "thing", location: "Crypt" }), assert: assertOK },
+      { label: "create rock", action: T("manage_world", { action: "create_thing",  name: "rock", kind: "thing", location: "Crypt" }), assert: assertOK },
+      { label: "create fixed altar", action: T("manage_world", { action: "create_thing",  name: "altar", kind: "supporter", fixed: true, location: "Crypt" }), assert: assertOK },
+      { label: "create_character", action: T("manage_character", { action: "create",  name: "Narrator" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-      { label: "ask guard about crypt", action: T("command", { command: "ask guard about crypt" }), assert: (r) => assertContains(r, "ask") },
-      { label: "take sword", action: T("command", { command: "take sword" }), assert: assertOK },
-      { label: "give sword to guard", action: T("command", { command: "give sword to guard" }), assert: (r) => assertContains(r, "give") },
-      { label: "take rock", action: T("command", { command: "take rock" }), assert: assertOK },
-      { label: "throw rock at statue", action: T("command", { command: "throw rock at statue" }), assert: (r) => assertContains(r, "throw") },
-      { label: "give altar to guard — RULE_VIOLATION", action: T("command", { command: "give altar to guard" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
-      { label: "ask nobody about crypt — WARNING", action: T("command", { command: "ask nobody about crypt" }), assert: (r) => assertContains(r, "WARNING") },
+      { label: "ask guard about crypt", action: T("run_command", { command: "ask guard about crypt" }), assert: (r) => assertContains(r, "ask") },
+      { label: "take sword", action: T("run_command", { command: "take sword" }), assert: assertOK },
+      { label: "give sword to guard", action: T("run_command", { command: "give sword to guard" }), assert: (r) => assertContains(r, "give") },
+      { label: "take rock", action: T("run_command", { command: "take rock" }), assert: assertOK },
+      { label: "throw rock at statue", action: T("run_command", { command: "throw rock at statue" }), assert: (r) => assertContains(r, "throw") },
+      { label: "give altar to guard — RULE_VIOLATION", action: T("run_command", { command: "give altar to guard" }), assert: (r) => assertContains(r, "RULE_VIOLATION") },
+      { label: "ask nobody about crypt — WARNING", action: T("run_command", { command: "ask nobody about crypt" }), assert: (r) => assertContains(r, "WARNING") },
     ],
   };
 
@@ -721,8 +721,8 @@ async function main() {
 
     // Clean up for next scenario
     try {
-      await doAction(proc, T("novel", { action: "end" }));
-      await doAction(proc, T("respond", { decision: "end novel confirm", option: "yes" }));
+      await doAction(proc, T("manage_novel", { action: "end" }));
+      await doAction(proc, T("respond_decision", { decision: "end novel confirm", option: "yes" }));
     } catch { /* cleanup best-effort — a dead server errors here */ }
 
     verdict.duration_ms = Date.now() - started;
@@ -746,10 +746,10 @@ async function main() {
 
   // Surface hash
   const toolNames = [
-    "adventure", "character", "codex", "combat", "command", "condition", "countdown",
-    "faction", "help", "lore", "note", "novel", "npc", "redo", "relationship",
-    "respond", "ruleset", "scene", "session", "set_badge", "story", "synthesis",
-    "undo", "vow", "world",
+    "manage_adventure", "manage_character", "manage_codex", "manage_combat", "run_command", "manage_condition", "manage_countdown",
+    "manage_faction", "manage_history", "manage_lore", "manage_note", "manage_novel", "manage_npc", "manage_relationship",
+    "respond_decision", "manage_ruleset", "manage_scene", "manage_session", "set_badge", "manage_story", "manage_synthesis",
+    "manage_vow", "manage_world", "resolve_fate", "resolve_ironsworn", "resolve_forged",
   ].sort();
   const resourceUris = [
     "room://{id}", "thing://{id}", "world://map", "world://kinds", "scene://history",

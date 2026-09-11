@@ -68,7 +68,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
 async function newNovel(proc: ChildProcess, name: string): Promise<void> {
-  await call(proc, "novel", { action: "create", name });
+  await call(proc, "manage_novel", { action: "create", name });
   await call(proc, "set_badge", { badge: "game_master" });
 }
 async function readResource(proc: ChildProcess, uri: string): Promise<string> {
@@ -86,7 +86,7 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fate-dice");
     await test("T520/REQ-434: 4dF returns four faces in {-1,0,+1}, a total, and a ladder band", async () => {
-      const out = await call(proc, "fate", { action: "roll", skill: "Fight", modifier: 2, difficulty: 2, seed: "42" });
+      const out = await call(proc, "resolve_fate", { action: "roll", skill: "Fight", modifier: 2, difficulty: 2, seed: "42" });
       const m = out.match(/faces \[ (.*) \]  total (-?\d+)  modifier/);
       assert(m, `roll output missing faces/total line: ${out}`);
       const faces = m![1].trim().split(/\s+/).map((f) => parseInt(f.replace("+", ""), 10));
@@ -95,8 +95,8 @@ async function main() {
       assert(/Fail|Tie|Succeed with style|Succeed/.test(out), `missing ladder band: ${out}`);
     });
     await test("T520/REQ-434: same seed reproduces identical faces", async () => {
-      const a = await call(proc, "fate", { action: "roll", seed: "42" });
-      const b = await call(proc, "fate", { action: "roll", seed: "42" });
+      const a = await call(proc, "resolve_fate", { action: "roll", seed: "42" });
+      const b = await call(proc, "resolve_fate", { action: "roll", seed: "42" });
       assert(a === b, `seeded rolls diverged:\n${a}\nvs\n${b}`);
     });
     proc.kill("SIGKILL");
@@ -107,17 +107,17 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fate-aspect");
     await test("T521/REQ-435: create/list an aspect; invoke consumes one Fate point", async () => {
-      const create = await call(proc, "fate", { action: "aspect", op: "create", name: "Dark Alley", target: "scene" });
+      const create = await call(proc, "resolve_fate", { action: "aspect", op: "create", name: "Dark Alley", target: "scene" });
       assertContains(create, "Dark Alley");
-      const list = await call(proc, "fate", { action: "aspect", op: "list" });
+      const list = await call(proc, "resolve_fate", { action: "aspect", op: "list" });
       assertContains(list, "Dark Alley");
-      const invoke = await call(proc, "fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
+      const invoke = await call(proc, "resolve_fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
       assertContains(invoke, "2 Fate point");
     });
     await test("T521/REQ-435: invoke with zero Fate points is refused", async () => {
-      await call(proc, "fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
-      await call(proc, "fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
-      const refused = await call(proc, "fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
+      await call(proc, "resolve_fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
+      await call(proc, "resolve_fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
+      const refused = await call(proc, "resolve_fate", { action: "aspect", op: "invoke", name: "Dark Alley", entity_id: "pc_1" });
       assertContains(refused, "RULE_VIOLATION");
     });
     proc.kill("SIGKILL");
@@ -128,15 +128,15 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fate-points");
     await test("T522/REQ-436: spend reduces points; spend at zero is refused; refresh restores", async () => {
-      const spend = await call(proc, "fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
+      const spend = await call(proc, "resolve_fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
       assertContains(spend, "now 2");
-      const spend2 = await call(proc, "fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 2 });
+      const spend2 = await call(proc, "resolve_fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 2 });
       assertContains(spend2, "now 0");
-      const refused = await call(proc, "fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
+      const refused = await call(proc, "resolve_fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
       assertContains(refused, "RULE_VIOLATION");
-      const refresh = await call(proc, "fate", { action: "fate_point", op: "refresh", entity_id: "pc_1" });
+      const refresh = await call(proc, "resolve_fate", { action: "fate_point", op: "refresh", entity_id: "pc_1" });
       assertContains(refresh, "refreshed to 3");
-      const list = await call(proc, "fate", { action: "fate_point", op: "list" });
+      const list = await call(proc, "resolve_fate", { action: "fate_point", op: "list" });
       assertContains(list, "pc_1");
     });
     proc.kill("SIGKILL");
@@ -147,14 +147,14 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fate-stress");
     await test("T523/REQ-437: mark physical stress and a consequence; clear empties the track", async () => {
-      const mark = await call(proc, "fate", { action: "stress", op: "mark", entity_id: "pc_1", track: "physical", shifts: 2 });
+      const mark = await call(proc, "resolve_fate", { action: "stress", op: "mark", entity_id: "pc_1", track: "physical", shifts: 2 });
       assertContains(mark, "physical 2");
-      const cons = await call(proc, "fate", { action: "stress", op: "mark", entity_id: "pc_1", consequence: "moderate" });
+      const cons = await call(proc, "resolve_fate", { action: "stress", op: "mark", entity_id: "pc_1", consequence: "moderate" });
       assertContains(cons, "moderate");
-      const list = await call(proc, "fate", { action: "stress", op: "list" });
+      const list = await call(proc, "resolve_fate", { action: "stress", op: "list" });
       assertContains(list, "physical");
       assertContains(list, "moderate");
-      const clear = await call(proc, "fate", { action: "stress", op: "clear", entity_id: "pc_1", track: "physical" });
+      const clear = await call(proc, "resolve_fate", { action: "stress", op: "clear", entity_id: "pc_1", track: "physical" });
       assertContains(clear, "physical 0");
     });
     proc.kill("SIGKILL");
@@ -165,8 +165,8 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "fate-audit");
     await test("REQ-040a: base-capability mutations and rolls leave audit entries", async () => {
-      await call(proc, "fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
-      await call(proc, "fate", { action: "roll", skill: "Fight", modifier: 2, difficulty: 2, seed: "42" });
+      await call(proc, "resolve_fate", { action: "fate_point", op: "spend", entity_id: "pc_1", amount: 1 });
+      await call(proc, "resolve_fate", { action: "roll", skill: "Fight", modifier: 2, difficulty: 2, seed: "42" });
       const audit = await readResource(proc, "audit://novel");
       assertContains(audit, "spend_fate_point");
       assertContains(audit, "fate_roll");

@@ -91,7 +91,7 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
 // violation_type: boundary) in the Novel audit log before propagating.
 // REQ-429 — server-wide action-discriminator surface: one tool per persisted
-// entity type within a twenty-eight-tool budget; every persisted type has a
+// entity type within a twenty-six-tool budget; every persisted type has a
 // list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
 // REQ-450 — TDQS-conformant tool definitions: every registered tool carries
 // all four MCP mutation-class hints (readOnlyHint, destructiveHint,
@@ -105,34 +105,32 @@ type ToolAnnotation = { readOnlyHint: boolean; destructiveHint: boolean; idempot
 const READ_ONLY: ToolAnnotation = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const MUTATING: ToolAnnotation = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
 const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
-  help: READ_ONLY,
   set_badge: MUTATING,
-  respond: MUTATING,
-  undo: MUTATING,
-  redo: MUTATING,
-  character: MUTATING,
-  npc: MUTATING,
-  world: MUTATING,
-  command: MUTATING,
-  combat: MUTATING,
-  scene: MUTATING,
-  countdown: MUTATING,
-  lore: MUTATING,
-  condition: MUTATING,
-  faction: MUTATING,
-  relationship: MUTATING,
-  vow: MUTATING,
-  fate: MUTATING,
-  ironsworn: MUTATING,
-  forged: MUTATING,
-  story: MUTATING,
-  note: MUTATING,
-  session: MUTATING,
-  adventure: MUTATING,
-  novel: MUTATING,
-  ruleset: MUTATING,
-  codex: MUTATING,
-  synthesis: MUTATING,
+  respond_decision: MUTATING,
+  manage_history: MUTATING,
+  manage_character: MUTATING,
+  manage_npc: MUTATING,
+  manage_world: MUTATING,
+  run_command: MUTATING,
+  manage_combat: MUTATING,
+  manage_scene: MUTATING,
+  manage_countdown: MUTATING,
+  manage_lore: MUTATING,
+  manage_condition: MUTATING,
+  manage_faction: MUTATING,
+  manage_relationship: MUTATING,
+  manage_vow: MUTATING,
+  resolve_fate: MUTATING,
+  resolve_ironsworn: MUTATING,
+  resolve_forged: MUTATING,
+  manage_story: MUTATING,
+  manage_note: MUTATING,
+  manage_session: MUTATING,
+  manage_adventure: MUTATING,
+  manage_novel: MUTATING,
+  manage_ruleset: MUTATING,
+  manage_codex: MUTATING,
+  manage_synthesis: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -350,7 +348,7 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
     const goal = npc.personality?.goals;
     if (!goal || goal.length < vowSuggestionMinChars()) continue;
     const alreadyVowed = novel.vows.some((v) => v.state === "active" && (v.description ?? "").toLowerCase().includes(goal.toLowerCase()));
-    if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via vow (action: set) or ignore.`);
+    if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via manage_vow (action: set) or ignore.`);
   }
 
   // REQ-362 — faction-vow: faction goal intersecting known entities/locations prompts vow.
@@ -1124,36 +1122,36 @@ function worldSnapshot(): void {
 // ── Help Categories ─────────────────────────────────────────────────
 
 const BUILDER_CATEGORIES: Record<string, string[]> = {
-  "Badge & Workflow": ["set_badge", "respond", "undo", "redo", "help"],
-  "Characters": ["character"],
-  "World Model": ["command", "world"],
-  "Lookups": ["ruleset"],
-  "Combat": ["combat"],
-  "Conditions": ["condition"],
-  "Narrative": ["scene"],
-  "NPCs": ["npc"],
-  "Factions": ["faction"],
-  "Secrets": ["lore"],
-  "Relationships": ["relationship"],
-  "Vows": ["vow"],
-  "Countdowns": ["countdown"],
-  "Fate": ["fate"],
-  "Ironsworn": ["ironsworn"],
-  "Forged in the Dark": ["forged"],
-  "Lore": ["lore"],
-  "Story Journal": ["story"],
-  "Notes": ["note"],
-  "Codex": ["codex"],
-  "Adventure": ["adventure"],
-  "Session": ["session"],
-  "Novel Lifecycle": ["novel"],
-  "Synthesis": ["synthesis"],
+  "Badge & Workflow": ["set_badge", "respond_decision", "manage_history"],
+  "Characters": ["manage_character"],
+  "World Model": ["run_command", "manage_world"],
+  "Lookups": ["manage_ruleset"],
+  "Combat": ["manage_combat"],
+  "Conditions": ["manage_condition"],
+  "Narrative": ["manage_scene"],
+  "NPCs": ["manage_npc"],
+  "Factions": ["manage_faction"],
+  "Secrets": ["manage_lore"],
+  "Relationships": ["manage_relationship"],
+  "Vows": ["manage_vow"],
+  "Countdowns": ["manage_countdown"],
+  "Fate": ["resolve_fate"],
+  "Ironsworn": ["resolve_ironsworn"],
+  "Forged in the Dark": ["resolve_forged"],
+  "Lore": ["manage_lore"],
+  "Story Journal": ["manage_story"],
+  "Notes": ["manage_note"],
+  "Codex": ["manage_codex"],
+  "Adventure": ["manage_adventure"],
+  "Session": ["manage_session"],
+  "Novel Lifecycle": ["manage_novel"],
+  "Synthesis": ["manage_synthesis"],
 };
 
 const GMToolsSet = new Set([
-  "scene", "combat", "condition", "npc", "faction", "relationship", "vow",
-  "countdown", "lore", "story", "note", "world", "adventure", "novel",
-  "synthesis", "codex", "ruleset", "session", "fate", "ironsworn", "forged",
+  "manage_scene", "manage_combat", "manage_condition", "manage_npc", "manage_faction", "manage_relationship", "manage_vow",
+  "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_world", "manage_adventure", "manage_novel",
+  "manage_synthesis", "manage_codex", "manage_ruleset", "manage_session", "resolve_fate", "resolve_ironsworn", "resolve_forged",
 ]);
 
 function isGMTool(name: string): boolean {
@@ -1399,7 +1397,7 @@ function badgeLabel(badge: Badge): string {
 // context; REQ-305 — observer mode: read-only spectator, AI plays both roles.
 server.registerTool("set_badge", {
   title: "Set Active Badge",
-  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond.",
+  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
   inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]).describe("The badge to activate: player, game_master, observer, or none (Editor).") },
 }, async ({ badge }) => {
   const novel = state.activeNovel;
@@ -1424,7 +1422,7 @@ function canon(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-server.registerTool("respond", {
+server.registerTool("respond_decision", {
   title: "Respond to Workflow Decision",
   description: "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
   inputSchema: { decision: z.string().describe("The canonical decision text the workflow is waiting on."), option: z.string().describe("The chosen option, or 'cancel' to abort the workflow and restore its snapshot.") },
@@ -1674,59 +1672,47 @@ function kwMatch(canonicalDecision: string, keywords: string[]): boolean {
   return keywords.some((kw) => tokens.includes(kw.toLowerCase()));
 }
 
-server.registerTool("undo", {
-  title: "Undo",
-  description: "Undo the most recent state mutation, restoring the prior per-badge snapshot. Use when: reverting a mistaken or unwanted change. Do NOT use when: re-applying an undone change — use redo.",
-  inputSchema: {},
-}, async () => {
+server.registerTool("manage_history", {
+  title: "Undo and Redo",
+  description: "Undo or redo the most recent state mutation, restoring the prior per-badge snapshot. Undo reverts a mistaken or unwanted change; redo re-applies the most recently undone change. Both directions mutate Novel state and persist immediately (readOnlyHint false). Use when: reverting a mistaken change (action: undo) or restoring an undone change (action: redo). Do NOT use when: the target change is not the most recent mutation — use the entity tool that made it (e.g. manage_lore, manage_story, manage_world).",
+  inputSchema: {
+    action: z.enum(["undo", "redo"]).optional().describe("Which direction to move: undo (revert the last mutation) or redo (re-apply the last undone mutation). Defaults to undo.")
+  },
+}, async (args: any) => {
   requireNotObserver();
   const novel = requireNovel();
   if (novel.pending_workflow) {
-    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before undoing.");
+    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond_decision before undoing or redoing.");
+  }
+  if ((args.action ?? "undo") === "redo") {
+    state.redo(novel, getBadge());
+    return ok("Redo successful.");
   }
   state.undo(novel, getBadge());
   return ok("Undo successful.");
 });
 
-server.registerTool("redo", {
-  title: "Redo",
-  description: "Re-apply the most recently undone mutation, restoring the per-badge snapshot that undo removed. Use when: an undo was issued by mistake and the change should be restored. Do NOT use when: reverting a new change — use undo.",
-  inputSchema: {},
-}, async () => {
-  requireNotObserver();
-  const novel = requireNovel();
-  if (novel.pending_workflow) {
-    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before redoing.");
-  }
-  state.redo(novel, getBadge());
-  return ok("Redo successful.");
-});
-
 // REQ-067 — Help and tool discovery: badge-filtered categorized task map with
 // query search and Novel-scoped category reassignment (T62/T118).
-server.registerTool("help", {
-  title: "Help and Tool Discovery",
-  description: "Show the available tools grouped by category (badge-filtered) or reassign a tool's category. Use when: the caller needs to discover tools, find one by keyword, or override a tool's category for a session. Do NOT use when: reading the current badge's guidance — use the badge_briefing prompt.",
-  inputSchema: { query: z.string().optional().describe("Optional search term matched against tool name, description, and title."), action: z.enum(["list", "category"]).optional().describe("list (default) or category (reassign a tool's category)."), tool_name: z.string().optional().describe("Registered tool name to reassign (category)."), category: z.string().nullable().optional().describe("New category label, or null/empty to restore default (category).") },
-}, async (args: any) => {
-  if (args.action === "category") {
-    requireGM();
-    const novel = requireNovel();
-    const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
-    if (!(args.tool_name in registeredTools)) {
-      const valid = Object.keys(registeredTools).join(", ");
-      return err("NOT_FOUND", `Tool '${args.tool_name}' not found. Valid: ${valid}`);
-    }
-    if (!args.category || args.category.trim() === "") {
-      delete novel.help_category_overrides[args.tool_name];
-      state.saveNovel(novel);
-      return ok(`Category override for '${args.tool_name}' removed.`);
-    }
-    novel.help_category_overrides[args.tool_name] = args.category.trim();
-    state.saveNovel(novel);
-    return ok(`Tool '${args.tool_name}' assigned to category '${args.category.trim()}'.`);
+async function reassignToolCategory(tool_name: string, category: string | null | undefined) {
+  requireGM();
+  const novel = requireNovel();
+  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+  if (!(tool_name in registeredTools)) {
+    const valid = Object.keys(registeredTools).join(", ");
+    return err("NOT_FOUND", `Tool '${tool_name}' not found. Valid: ${valid}`);
   }
-  const query = args.query;
+  if (!category || category.trim() === "") {
+    delete novel.help_category_overrides[tool_name];
+    state.saveNovel(novel);
+    return ok(`Category override for '${tool_name}' removed.`);
+  }
+  novel.help_category_overrides[tool_name] = category.trim();
+  state.saveNovel(novel);
+  return ok(`Tool '${tool_name}' assigned to category '${category.trim()}'.`);
+}
+
+async function toolDiscovery(query?: string) {
   // REQ-024 — tool documentation: tools carry a human title and descriptions
   // using the ruleset's own terms; full descriptions remain at resources/read.
   // REQ-415 — summary-first catalog: `help`/catalog listings return summaries;
@@ -1739,10 +1725,10 @@ server.registerTool("help", {
     const q = query.toLowerCase();
     const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
     const toolNames = Object.keys(registeredTools).filter(t => {
-      if (t === "set_badge" || t === "respond" || t === "undo" || t === "redo") return true;
+      if (t === "set_badge" || t === "respond_decision" || t === "manage_history") return true;
       if (!isGM && isGMTool(t)) return false;
       // Parser is hidden from the Player badge on ruleset-bound Novels (REQ-309b).
-      if (!isGM && t === "command" && novel?.ruleset) return false;
+      if (!isGM && t === "run_command" && novel?.ruleset) return false;
       return true;
     });
 
@@ -1771,7 +1757,7 @@ server.registerTool("help", {
 
     matched.sort((a, b) => b.relevance - a.relevance);
     const top = matched.slice(0, 5);
-    if (top.length === 0) return ok("No tools match. Try `command(\"look\")` for world description.");
+    if (top.length === 0) return ok("No tools match. Try `run_command(\"look\")` for world description.");
     return raw(top.map(m => `**${m.name}** — ${m.description}\nExample: ${m.example}`).join("\n\n"));
   }
 
@@ -1787,7 +1773,7 @@ server.registerTool("help", {
     if (isGM) {
       displayTools = displayTools.filter(t => !overriddenTools.has(t));
     } else {
-      displayTools = displayTools.filter(t => !GMToolsSet.has(t) && !(t === "command" && novel?.ruleset));
+      displayTools = displayTools.filter(t => !GMToolsSet.has(t) && !(t === "run_command" && novel?.ruleset));
     }
     if (displayTools.length > 0) {
       result += `**${cat}:** ${displayTools.join(", ")}\n`;
@@ -1806,12 +1792,12 @@ server.registerTool("help", {
   result += "\nUse the intro prompt to get started, or badge_briefing for current badge guidance.";
   // Add world-model hint if populated
   if (novel && novel.world.rooms.size > 0) {
-    result += `\n\nWorld-model populated: ${novel.world.rooms.size} rooms, ${novel.world.things.size} things. Try \`command("look")\`.`;
+    result += `\n\nWorld-model populated: ${novel.world.rooms.size} rooms, ${novel.world.things.size} things. Try \`run_command("look")\`.`;
   } else {
-    result += "\n\nNo world model — use world (action: convert) or the adventure tool to populate.";
+    result += "\n\nNo world model — use manage_world (action: convert) or the manage_adventure tool to populate.";
   }
   return raw(result);
-});
+}
 
 // --- Characters (ruleset-free, REQ-219; ruleset-driven REQ-104/151/152/181) ---
 
@@ -1888,9 +1874,9 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
 // Character (REQ-069, REQ-104, REQ-120, REQ-124, REQ-126, REQ-127, REQ-129, REQ-151, REQ-152, REQ-165, REQ-166, REQ-176, REQ-177, REQ-178, REQ-181, REQ-219, REQ-399) —
 // consolidated create/stage/import/sheet/set_active/personality/voice/signal/
 // remove/roster_remove/roster_list surface.
-server.registerTool("character", {
+server.registerTool("manage_character", {
   title: "Character",
-  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Use when: working with player characters. Do NOT use when: managing NPCs — use npc.",
+  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
   inputSchema: {
     action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, remove, roster_remove, or roster_list."),
     name: z.string().optional().describe("Character name; omit (create) to begin step-by-step."),
@@ -2222,9 +2208,9 @@ function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room"
   }
 }
 
-server.registerTool("command", {
+server.registerTool("run_command", {
   title: "Command",
-  description: "Execute a parser command, resolve a spatial intent, or suggest actions from intent. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use world or lore.",
+  description: "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state; resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
   inputSchema: {
     action: z.enum(["execute", "resolve", "suggest"]).optional().describe("execute (parser), resolve (non-mutating intent), or suggest (intent → tool calls). Defaults to execute."),
     command: z.string().optional().describe("The natural-language command (execute)."),
@@ -2235,7 +2221,7 @@ server.registerTool("command", {
   if (args.action === "resolve") {
     const badge = getBadge();
     if (badge === "player") {
-      return err("FORBIDDEN", "command (action: resolve) is not callable by the Player badge. Player spatial intents are resolved by the AI narrator. Corrective action: switch badge or direct intents through the narrator.");
+      return err("FORBIDDEN", "run_command (action: resolve) is not callable by the Player badge. Player spatial intents are resolved by the AI narrator. Corrective action: switch badge or direct intents through the narrator.");
     }
     requireNotObserver();
     const novel = requireNovel();
@@ -2249,7 +2235,7 @@ server.registerTool("command", {
     const rulesetBound = !!novel.ruleset;
     const badge = getBadge();
     const useResolveIntent = rulesetBound && badge !== "game_master";
-    const spatialTool = useResolveIntent ? "command (action: resolve)" : "command";
+    const spatialTool = useResolveIntent ? "run_command (action: resolve)" : "run_command";
     const intentLower = (args.intent ?? "").toLowerCase();
     const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
     if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")) {
@@ -2265,7 +2251,7 @@ server.registerTool("command", {
       domains.spatial.push(`command("open <door>")`);
     }
     if (intentLower.includes("fight") || intentLower.includes("attack")) {
-      domains.mechanical.push("combat (action: init — GM only, auto-advance mode)");
+      domains.mechanical.push("manage_combat (action: init — GM only, auto-advance mode)");
     }
     if (intentLower.includes("convince") || intentLower.includes("persuade") || intentLower.includes("talk") || intentLower.includes("negotiate") || intentLower.includes("intimidate")) {
       for (const [, npc] of novel.npcs) {
@@ -2696,9 +2682,9 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 
 // World (REQ-201, REQ-328, REQ-329, REQ-368) — consolidated room/thing/exit/convert surface with
 // the previously-missing update_room/update_thing lifecycle (completeness).
-server.registerTool("world", {
+server.registerTool("manage_world", {
   title: "World",
-  description: "Manage the world model — rooms, things, and exits. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use command (action: execute) or command (action: resolve).",
+  description: "Manage the world model — rooms, things, and exits. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve).",
   inputSchema: {
     action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert", "generate"]).describe("create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, convert, or generate."),
     name: z.string().optional().describe("Room/thing name (create/update/remove)."),
@@ -2902,7 +2888,7 @@ server.registerTool("world", {
         tables = model.generation_tables ?? {};
       }
       if (Object.keys(tables).length === 0) {
-        return ok("No generation tables in this ruleset — world (action: generate) cannot fabricate rooms. Corrective action: bind a ruleset whose package defines generation tables, or build the world manually with world (action: create_room).");
+        return ok("No generation tables in this ruleset — manage_world (action: generate) cannot fabricate rooms. Corrective action: bind a ruleset whose package defines generation tables, or build the world manually with manage_world (action: create_room).");
       }
       const cap = Math.max(1, worldGenMaxRooms());
       const rng = args.seed ? createRng(String(args.seed)) : createRng(String(sessionRoll(1000000000)));
@@ -3017,9 +3003,9 @@ function composeRoomContext(room: WorldRoom, novel: NovelState, world: WorldMode
 // --- Combat (GM, auto-advance in ruleset-free mode) ---
 
 // Combat (REQ-203, REQ-204, REQ-311) — consolidated init/advance/end/participant/status surface.
-server.registerTool("combat", {
+server.registerTool("manage_combat", {
   title: "Combat",
-  description: "Manage combat encounters in the active Novel. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use condition (action: apply).",
+  description: "Manage combat encounters in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
   inputSchema: {
     action: z.enum(["init", "advance", "end", "add_participant", "remove_participant", "status"]).describe("init, advance, end, add_participant, remove_participant, or status."),
     participants: z.array(z.string()).optional().describe("Entity identifiers participating (init)."),
@@ -3232,9 +3218,9 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
 // consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
-server.registerTool("scene", {
+server.registerTool("manage_scene", {
   title: "Scene",
-  description: "Manage the active scene and its narrative framing. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use story (action: record).",
+  description: "Manage the active scene and its narrative framing. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
     description: z.string().optional().describe("Scene description (set)."),
@@ -3410,7 +3396,7 @@ server.registerTool("scene", {
       const isDoubles = roll % 11 === 0;
       const marker = isDoubles ? (yes ? "[EXCEPTIONAL_YES]" : "[EXCEPTIONAL_NO]") : (yes ? "[YES]" : "[NO]");
       audit("ask_oracle", { question: args.question, likelihood: band, seed: args.seed });
-      novel.uncommitted_rolls.push({ roll: `${roll}/100 → ${marker}`, suggested_tool: "story (action: record)", at: new Date().toISOString() });
+      novel.uncommitted_rolls.push({ roll: `${roll}/100 → ${marker}`, suggested_tool: "manage_story (action: record)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
       let flavor = "";
@@ -3426,9 +3412,9 @@ server.registerTool("scene", {
 // --- NPCs (GM) ---
 
 // NPC (REQ-119, REQ-122, REQ-123, REQ-124, REQ-156, REQ-327) — consolidated create/update/remove/list/get surface.
-server.registerTool("npc", {
+server.registerTool("manage_npc", {
   title: "NPC",
-  description: "Manage non-player characters in the active Novel. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use character (action: create/import/sheet).",
+  description: "Manage non-player characters in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list", "get"]).describe("create, update, remove, list, or get."),
     name: z.string().optional().describe("NPC name (create)."),
@@ -3536,9 +3522,9 @@ server.registerTool("npc", {
 // --- Countdowns (GM) ---
 
 // Countdown (REQ-329, REQ-358, REQ-368) — consolidated set/advance/remove/list surface.
-server.registerTool("countdown", {
+server.registerTool("manage_countdown", {
   title: "Countdown",
-  description: "Manage countdown timers in the active Novel. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use vow (action: milestone).",
+  description: "Manage countdown timers in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone).",
   inputSchema: {
     action: z.enum(["set", "advance", "remove", "list"]).describe("set, advance, remove, or list."),
     name: z.string().optional().describe("Countdown name (set/advance/remove)."),
@@ -3629,9 +3615,9 @@ server.registerTool("countdown", {
 // --- Lore (GM) ---
 
 // Lore (REQ-083, REQ-094, REQ-234, REQ-328) — consolidated CRUD + list/get + interchange surface.
-server.registerTool("lore", {
+server.registerTool("manage_lore", {
   title: "Lore",
-  description: "Manage the active Novel's lore entries (world facts the narrator recalls). Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use story (action: record).",
+  description: "Manage the active Novel's lore entries (world facts the narrator recalls). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge"]).describe("set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge."),
     key: z.string().optional().describe("Lore key (set/update/remove/toggle/group/get)."),
@@ -3846,9 +3832,9 @@ function conditionCatalogue(novel: NovelState): string[] {
   return BASE_CONDITIONS;
 }
 // Condition (REQ-217) — consolidated apply/remove/list surface.
-server.registerTool("condition", {
+server.registerTool("manage_condition", {
   title: "Condition",
-  description: "Manage mechanical or narrative conditions on entities. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use combat (action: init/advance).",
+  description: "Manage mechanical or narrative conditions on entities. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
   inputSchema: {
     action: z.enum(["apply", "remove", "list"]).describe("apply, remove, or list."),
     entity_id: z.string().optional().describe("The entity to affect (apply/remove)."),
@@ -3907,9 +3893,9 @@ server.registerTool("condition", {
 // --- Factions (GM) ---
 
 // Faction (REQ-338, REQ-364) — consolidated create/update/remove/list surface.
-server.registerTool("faction", {
+server.registerTool("manage_faction", {
   title: "Faction",
-  description: "Manage organizations in the active Novel. Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use world (action: create_room).",
+  description: "Manage organizations in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list"]).describe("create, update, remove, or list."),
     name: z.string().optional().describe("Faction name (create)."),
@@ -3970,9 +3956,9 @@ server.registerTool("faction", {
 });
 
 // Relationship (REQ-236) — consolidated set/get surface.
-server.registerTool("relationship", {
+server.registerTool("manage_relationship", {
   title: "Relationship",
-  description: "Manage directed relationships between entities, NPCs, or factions. Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use faction (action: update).",
+  description: "Manage directed relationships between entities, NPCs, or factions. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use manage_faction (action: update).",
   inputSchema: {
     action: z.enum(["set", "get"]).describe("set or get."),
     entity_a: z.string().optional().describe("The source entity (set)."),
@@ -4004,9 +3990,9 @@ server.registerTool("relationship", {
 });
 
 // Vow (REQ-322, REQ-358) — consolidated set/milestone/resolve/forsake/list surface.
-server.registerTool("vow", {
+server.registerTool("manage_vow", {
   title: "Vow",
-  description: "Track narrative vows, quests, and obligations with milestones. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use countdown (action: set).",
+  description: "Track narrative vows, quests, and obligations with milestones. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
   inputSchema: {
     action: z.enum(["set", "milestone", "resolve", "forsake", "list"]).describe("set, milestone, resolve, forsake, or list."),
     name: z.string().optional().describe("Vow name (set)."),
@@ -4096,9 +4082,9 @@ server.registerTool("vow", {
 // Fate (REQ-434 through REQ-437) — consolidated roll/aspect/fate_point/stress
 // surface. Base capability: Fudge dice, aspects, Fate points, and stress are
 // Holonovel infrastructure (ruleset: null), never contingent on a bound package.
-server.registerTool("fate", {
+server.registerTool("resolve_fate", {
   title: "Fate",
-  description: "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or command (action: resolve).",
+  description: "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or run_command (action: resolve).",
   inputSchema: {
     action: z.enum(["roll", "aspect", "fate_point", "stress"]).describe("roll, aspect, fate_point, or stress."),
     dice: z.string().optional().describe("Fudge dice notation (roll), e.g. '4dF'; defaults to 4dF."),
@@ -4135,7 +4121,7 @@ server.registerTool("fate", {
       const sign = extra > 0 ? "+" : "−";
       audit("fate_roll", { notation: r.notation, skill: args.skill ?? null, difficulty, total: r.total, ladder });
       if (difficulty > 0 || args.skill) {
-        novel.uncommitted_rolls.push({ roll: `${label} → ${ladder}`, suggested_tool: "fate (action: stress)", at: new Date().toISOString() });
+        novel.uncommitted_rolls.push({ roll: `${label} → ${ladder}`, suggested_tool: "resolve_fate (action: stress)", at: new Date().toISOString() });
         if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
         state.saveNovel(novel);
       }
@@ -4261,9 +4247,9 @@ server.registerTool("fate", {
 
 // Ironsworn (REQ-438 through REQ-440) — momentum, the action-roll move
 // framework, and progress tracks. Base capability, ruleset: null.
-server.registerTool("ironsworn", {
+server.registerTool("resolve_ironsworn", {
   title: "Ironsworn",
-  description: "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use vow (action: set).",
+  description: "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use manage_vow (action: set).",
   inputSchema: {
     action: z.enum(["momentum", "move", "progress"]).describe("momentum, move, or progress."),
     op: z.string().optional().describe("Sub-operation: momentum (set, gain, lose, reset, list), progress (create, mark, test, list)."),
@@ -4348,7 +4334,7 @@ server.registerTool("ironsworn", {
       }
       const band = bandFor(actionScore, c1, c2);
       audit("ironsworn_move", { name: args.name ?? null, adds, action_die: actionDie, challenge_dice: [c1, c2], band, burned });
-      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Move"} → ${band}`, suggested_tool: "ironsworn (action: progress)", at: new Date().toISOString() });
+      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Move"} → ${band}`, suggested_tool: "resolve_ironsworn (action: progress)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
       return ok(`${args.name ?? "Move"}\nAction die: ${actionDie}${adds !== 0 ? ` + ${adds}` : ""} = ${actionScore}${burned ? " (momentum burn)" : ""}\nChallenge dice: ${c1}, ${c2}\n${band}`);
@@ -4393,9 +4379,9 @@ server.registerTool("ironsworn", {
 
 // Forged in the Dark (REQ-441 through REQ-443) — action rolls with position
 // and effect, stress/trauma with resistance, and downtime. Base capability.
-server.registerTool("forged", {
+server.registerTool("resolve_forged", {
   title: "Forged in the Dark",
-  description: "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use countdown (action: set).",
+  description: "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use manage_countdown (action: set).",
   inputSchema: {
     action: z.enum(["action_roll", "stress", "downtime"]).describe("action_roll, stress, or downtime."),
     op: z.string().optional().describe("Sub-operation: stress (mark, clear, resist, list), downtime (recover, indulge_vice, list)."),
@@ -4429,7 +4415,7 @@ server.registerTool("forged", {
       const highest = Math.max(...rolls);
       const band = highest >= 6 ? "Critical success" : highest >= 4 ? "Partial success" : "Miss";
       audit("forged_action_roll", { name: args.name ?? null, dice: rolls, highest, position, effect, band });
-      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Action"} → ${band}`, suggested_tool: "forged (action: stress)", at: new Date().toISOString() });
+      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Action"} → ${band}`, suggested_tool: "resolve_forged (action: stress)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
       return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}`);
@@ -4510,9 +4496,9 @@ server.registerTool("forged", {
 });
 
 // Story journal (REQ-246, REQ-331, REQ-333) — consolidated record/update/remove/list/promote surface.
-server.registerTool("story", {
+server.registerTool("manage_story", {
   title: "Story",
-  description: "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use lore (action: set).",
+  description: "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use manage_lore (action: set).",
   inputSchema: {
     action: z.enum(["record", "update", "remove", "list", "promote"]).describe("record, update, remove, list, or promote."),
     type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Story entry type (record/update)."),
@@ -4607,9 +4593,9 @@ server.registerTool("story", {
 // --- Notes ---
 
 // Note (REQ-242, REQ-285) — consolidated set/remove/list surface.
-server.registerTool("note", {
+server.registerTool("manage_note", {
   title: "Note",
-  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use lore (action: set).",
+  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set).",
   inputSchema: {
     action: z.enum(["set", "remove", "list", "set_server", "remove_server", "list_server"]).describe("set, remove, list, set_server, remove_server, or list_server."),
     key: z.string().optional().describe("The note key (set/remove/set_server/remove_server)."),
@@ -4800,19 +4786,28 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 
 // Session (REQ-025, REQ-072, REQ-082, REQ-086, REQ-173, REQ-174, REQ-175, REQ-186, REQ-253, REQ-279) — consolidated recap/verbosity/
 // briefing_order/compress/health surface.
-server.registerTool("session", {
+server.registerTool("manage_session", {
   title: "Session",
-  description: "Manage session-level surfaces and diagnostics. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), or reporting server health (health). Do NOT use when: recording story content — use story (action: record).",
+  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), or reassigning a tool's category for the session (category). Category reassignment mutates Novel-scoped state and persists; recap/verbosity/briefing_order/compress/health/discover are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
   inputSchema: {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe"]).describe("recap, verbosity, briefing_order, compress, health, or subscribe."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe", "discover", "category"]).describe("recap, verbosity, briefing_order, compress, health, subscribe, discover (list/search tools), or category (reassign a tool's category)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Maximum audit entries (compress)."),
     gm_notes: z.string().optional().describe("GM-only free-text notes returned only to the Game Master badge (recap)."),
     topics: z.array(z.string()).optional().describe("Notification topics to subscribe to (subscribe)."),
+    query: z.string().optional().describe("Optional search term matched against tool name, description, and title (discover)."),
+    tool_name: z.string().optional().describe("Registered tool name to reassign (category)."),
+    category: z.string().nullable().optional().describe("New category label, or null/empty to restore the default (category)."),
   },
 }, async (args: any) => {
   switch (args.action) {
+    case "discover": {
+      return toolDiscovery(args.query);
+    }
+    case "category": {
+      return reassignToolCategory(args.tool_name, args.category);
+    }
     case "verbosity": {
       outputVerbosity = args.mode;
       return ok(`Output verbosity set to '${args.mode}'.`);
@@ -4933,7 +4928,7 @@ server.registerTool("session", {
       return ok(`Subscribed to notification topics: ${topics.join(", ") || "(none)"}. Subscriptions are session-scoped and drop on disconnect.`);
     }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health, subscribe.`);
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health, subscribe, discover, category.`);
   }
 });
 
@@ -4963,9 +4958,9 @@ function assessGenerationGuard(input: string): string | null {
 // expansions. `target` selects novel (default when a Novel is active), codex
 // (default otherwise), or both. No Novel is required for the codex target.
 // Adventure (REQ-090, REQ-091, REQ-132, REQ-229, REQ-247, REQ-251, REQ-292, REQ-295) — consolidated generate/generate_encounter/load/list surface.
-server.registerTool("adventure", {
+server.registerTool("manage_adventure", {
   title: "Adventure",
-  description: "Generate, load, or list adventure content. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use story (action: record).",
+  description: "Generate, load, or list adventure content. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["generate", "generate_encounter", "load", "list"]).describe("generate, generate_encounter, load, or list."),
     premise: z.string().optional().describe("Adventure premise (generate)."),
@@ -5221,9 +5216,9 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 // create/resume/switch/end/export/import/rename/description/list/archive/
 // unarchive/info/genre/clone surface.
 const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
-server.registerTool("novel", {
+server.registerTool("manage_novel", {
   title: "Novel",
-  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, save_context, get_context, or checkpoint. Use when: handling a campaign's lifecycle, interchange, or return points. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.).",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, or return points. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.).",
   inputSchema: {
     action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
@@ -5294,7 +5289,7 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
     case "switch": {
       const active = state.activeNovel;
       if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
-        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with novel (action: save_context) or session (action: recap) before switching.");
+        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_session (action: recap) before switching.");
       }
       if (active) {
         const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
@@ -5312,7 +5307,7 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
       const novel = requireNovel();
       if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
       if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
-        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with novel (action: save_context) or session (action: recap) before ending.");
+        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_session (action: recap) before ending.");
       }
       novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
       state.saveNovel(novel);
@@ -5629,9 +5624,9 @@ Options: yes, cancel`);
 
 // Ruleset (REQ-057, REQ-058, REQ-059, REQ-216, REQ-218, REQ-379, REQ-390, REQ-391) — consolidated search/install/
 // remove/list/bind surface.
-server.registerTool("ruleset", {
+server.registerTool("manage_ruleset", {
   title: "Ruleset",
-  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or roll on a generation table. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or rolling a table (roll). Do NOT use when: the Novel is ruleset-free — use command (action: suggest) or session (action: health). install/remove mutate installed-package state and are audited; search and roll are read-only.",
+  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or roll on a generation table. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or rolling a table (roll). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove mutate installed-package state and are audited; search and roll are read-only.",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll"]).describe("search, install, remove, list, bind, or roll."),
     query: z.string().optional().describe("Search query (search)."),
@@ -5659,7 +5654,7 @@ server.registerTool("ruleset", {
         return raw(truncateOutput("search_rules", body + countReport(hits.length, total)));
       }
       if (rulesets.installedSlugs().length > 0) {
-        return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via ruleset (action: bind), or create a Novel with novel (action: create, ruleset: "...").`);
+        return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via manage_ruleset (action: bind), or create a Novel with manage_novel (action: create, ruleset: "...").`);
       }
       return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
     }
@@ -6568,9 +6563,9 @@ server.registerResource("ui-novel", "ui://novel/current", { title: "Active Novel
 // import, and delete. Replaces the former codex_set/codex_list/codex_capture/
 // codex_import tools and adds the spec-required codex_info/codex_delete surface
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
-server.registerTool("codex", {
+server.registerTool("manage_codex", {
   title: "Codex",
-  description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use lore (action: set) or note (action: set).",
+  description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
     action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (voice profile), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
@@ -6690,9 +6685,9 @@ server.registerTool("codex", {
 const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementary_guidance", "narrative_voices", "lore_templates"];
 // Synthesis (REQ-103, REQ-115, REQ-231, REQ-260, REQ-261, REQ-262, REQ-263, REQ-264) — consolidated run/revert/list/activate/
 // deactivate/toggle/player_add/player_remove/player_list surface.
-server.registerTool("synthesis", {
+server.registerTool("manage_synthesis", {
   title: "Synthesis",
-  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use codex (action: list).",
+  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
   inputSchema: {
     action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, or player_list."),
     module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list)."),
@@ -6744,7 +6739,7 @@ server.registerTool("synthesis", {
     case "activate": {
       requireGM();
       const novel = requireNovel();
-      if (!state.enriched) return err("STATE_CONFLICT", "Synthesis has not been run. Corrective action: run synthesis (action: run) first.");
+      if (!state.enriched) return err("STATE_CONFLICT", "Synthesis has not been run. Corrective action: run manage_synthesis (action: run) first.");
       const activated = novel.synthesis_activated ?? {};
       activated[args.module] = args.key;
       novel.synthesis_activated = activated;
@@ -6863,7 +6858,7 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   if (!novel) {
     const novels = [...state.novels.entries()].map(([slug, n]) => `- ${n.name} (${slug})`);
     const list = novels.length > 0 ? `\nAvailable Novels:\n${novels.join("\n")}` : "\nNo Novels yet — create one to begin.";
-    return { messages: [{ role: "user", content: { type: "text" as const, text: `## Editor Briefing${list}\n\nUse the intro prompt to get started, or novel (action: create) to set up a new campaign.` } }] };
+    return { messages: [{ role: "user", content: { type: "text" as const, text: `## Editor Briefing${list}\n\nUse the intro prompt to get started, or manage_novel (action: create) to set up a new campaign.` } }] };
   }
 
   const badge = novel.badge;
@@ -7021,7 +7016,7 @@ Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Crea
     // player signals, help, undo/redo, badge switching all callable by Player.
     briefing += `\n\n### Player Tools
 Use \`command("<action>")\` to interact with the world:
-- command("look") — describe the current room
+- run_command("look") — describe the current room
 - command("go north") — move in a direction
 - command("take sword") — pick up an object
 - command("examine thing") — look at something closely
@@ -7103,7 +7098,7 @@ Commit every narratable change to state in the same turn you narrate it — scen
     // REQ-407 — persist-tools never truncated: the GM scene-typed tool
       // section always lists the core state-persistence tools regardless of
       // scene type (scene, journal, countdown, note, personality, NPC, vow).
-      briefing += `\n\n### Persistence tools\nscene (set) · story (record) · countdown (set) · note (set) · character (personality) · npc (create) · vow (set) · fate (aspect) · ironsworn (momentum) · forged (stress)`;
+      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · resolve_fate (aspect) · resolve_ironsworn (momentum) · resolve_forged (stress)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.
@@ -7374,11 +7369,11 @@ from the live registry, not hardcoded strings.
 
 ## Intent to Tool Mapping
 
-- **Spatial / movement / inspection**: ${rulesetBound ? "command (action: resolve), command (GM)" : "command (parser)"}
+- **Spatial / movement / inspection**: ${rulesetBound ? "run_command (action: resolve), run_command (GM)" : "run_command (parser)"}
 - **Character creation / advancement**: character (create/import/sheet/set_active)
 - **Combat**: combat (init/advance/end)
 - **World building**: world (create_room/create_thing/create_exit/convert)
-- **Narrative / scene**: scene (set/directive), story (record)
+- **Narrative / scene**: manage_scene (set/directive), manage_story (record)
 - **Lookup**: ruleset (search), session (health), command (suggest)
 
 Select the tool whose registered action classification matches the intent.`;

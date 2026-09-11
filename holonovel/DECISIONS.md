@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 47e4ffd26185bda56d73d9d6e275746222bb774cfc27a4e574b0f77695b77797
+**Spec hash:** 772cef9d067d157825e4b6d0b8fcabfd590419c54b4eb89161e822c1f072c2ea
+
+### Holonovel Server Change — 2026-09-10 (verb_noun tool rename + undo/redo/help consolidation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Changed | spec + implementation — the 28-tool action-discriminator surface renamed to a uniform `verb_noun` (snake_case) convention and consolidated to 26 tools (TDQS Naming-Consistency 3→5 target). Content tools became `manage_<noun>` (`manage_lore`, `manage_story`, `manage_note`, `manage_character`, `manage_npc`, `manage_faction`, `manage_relationship`, `manage_vow`, `manage_countdown`, `manage_condition`, `manage_combat`, `manage_world`, `manage_scene`, `manage_novel`, `manage_codex`, `manage_synthesis`, `manage_adventure`, `manage_ruleset`, `manage_session`); mechanics resolvers became `resolve_fate`/`resolve_ironsworn`/`resolve_forged`; the parser became `run_command`; the workflow-decision tool became `respond_decision`; `set_badge` unchanged. `undo`+`redo` folded into `manage_history` (action: undo/redo); `help` folded into `manage_session` (action: discover/category) — this removes the only read-only host tool, so all 26 tools are now command/hybrid (REQ-450 annotation set rebuilt; T536 dropped its read-only assertion). REQ-429 budget 28 → 26 with a uniform-naming clause; the §7.7.1 coupling tokens and validate.ts aliases re-pointed `command (action: …)` → `run_command (action: …)`; REQ bodies, Appendix E/F/T, the §4 glossary, `holonovel/AGENTS.md`, and all 20 harnesses re-pointed. Tool descriptions gained explicit side-effect disclosures on the merged tools. |
+| Reused | spec, extraction, tooling |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 303, E 113); full `check` 0 errors (9 proofreading warnings); `validate:sdd --impl-audit=strict` 0 errors; build-order complete (package_format + data_format regenerated); root + holonovel typecheck 0 errors; holonovel test:all green (all scripts, 0 failures incl. T511 26-tool + AGENTS.md sync, T536 annotations) |
+| Follow-up | Glama re-index after deploy reflects the 26-tool verb_noun surface; TDQS Naming-Consistency expected 3→5. Per-tool Behavioral-Transparency disclosures were added only to the merged tools — extending them to the remaining content tools is a bounded follow-up for the 5/5 per-tool target. |
 
 ### Holonovel Server Change — 2026-09-10 (TDQS tool annotations: all four hints on every tool)
 

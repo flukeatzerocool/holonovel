@@ -128,13 +128,13 @@ async function main() {
   // ── §5.1 Output contracts + §5.3 tool/resource surface ──────────────
   {
     const proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "bf" });
+    await call(proc, "manage_novel", { action: "create",  name: "bf" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T90/T91/T175: [OK] response prefix and error taxonomy", async () => {
-      const ok = await call(proc, "world", { action: "create_room",  name: "hall", description: "A hall." });
+      const ok = await call(proc, "manage_world", { action: "create_room",  name: "hall", description: "A hall." });
       assertContains(ok, "[OK]");
-      const missing = await callRaw(proc, "world", { action: "remove_room",  name: "absent-room" });
+      const missing = await callRaw(proc, "manage_world", { action: "remove_room",  name: "absent-room" });
       const text = (missing.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(text, "[ERROR]");
       assertContains(text, "[NOT_FOUND]");
@@ -143,7 +143,7 @@ async function main() {
 
     await test("T26/T062: badge foundations — set_badge switches and persists across Novel scope", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const gated = await callRaw(proc, "npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
+      const gated = await callRaw(proc, "manage_npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
       const err = gated.isError === true || (gated.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n").includes("FORBIDDEN");
       if (!err) throw new Error("Player badge was not blocked from GM tool");
       await call(proc, "set_badge", { badge: "game_master" });
@@ -151,7 +151,7 @@ async function main() {
 
     await test("T5/T020: tools/list exposes the registered tool surface", async () => {
       const tools = await listTools(proc);
-      for (const t of ["novel", "set_badge", "world", "session", "combat", "scene"]) {
+      for (const t of ["manage_novel", "set_badge", "manage_world", "manage_session", "manage_combat", "manage_scene"]) {
         if (!tools.includes(t)) throw new Error(`missing tool ${t}`);
       }
     });
@@ -179,7 +179,7 @@ async function main() {
       }
       // The store is session-local; a produced output is retrievable by the
       // producing tool. Verify the resource read path returns markdown.
-      await call(proc, "world", { action: "create_room",  name: "pointer-hall", description: "A long description for pointer output." });
+      await call(proc, "manage_world", { action: "create_room",  name: "pointer-hall", description: "A long description for pointer output." });
       const content = await readResource(proc, "output://create_room/1");
       if (content.includes("[FORBIDDEN]")) throw new Error("output pointer read blocked");
     });
@@ -190,7 +190,7 @@ async function main() {
     });
 
     await test("T15/T45/T93/T154/T165/T166/T170/T171/T195: spec_health reports counts and health", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       assertContains(String(health.spec_version), "2026");
       if (typeof health.tool_count !== "number") throw new Error("spec_health missing tool_count");
       if (typeof health.resource_count !== "number") throw new Error("spec_health missing resource_count");
@@ -200,86 +200,86 @@ async function main() {
 
     await test("T211/T313/T314: player_signal records feedback", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const sig = await call(proc, "character", { action: "signal",  signal: "pace", value: "slow down" });
+      const sig = await call(proc, "manage_character", { action: "signal",  signal: "pace", value: "slow down" });
       assertContains(sig, "[OK] Signal recorded");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T53/T212/T213/T214/T215/T261/T072: session_recap summarizes the session", async () => {
-      const recap = await call(proc, "session", { action: "recap" });
+      const recap = await call(proc, "manage_session", { action: "recap" });
       assertContains(recap, "Active Novel");
     });
 
     await test("T268/T232: set_pause_context / get_pause_context", async () => {
-      await call(proc, "novel", { action: "save_context",  current_scene: "In the hall", immediate_situation: "Guards approach" });
-      const ctx = await call(proc, "novel", { action: "get_context" });
+      await call(proc, "manage_novel", { action: "save_context",  current_scene: "In the hall", immediate_situation: "Guards approach" });
+      const ctx = await call(proc, "manage_novel", { action: "get_context" });
       assertContains(ctx, "Guards approach");
     });
 
     await test("T279/T241: checkpoints save, list, restore, remove", async () => {
-      await call(proc, "fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
-      const npcCreate = await call(proc, "npc", { action: "create", name: "Checkpointer", mind: { directive: "Original directive." } });
+      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Checkpointer", mind: { directive: "Original directive." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
-      await call(proc, "novel", { action: "checkpoint_set",  label: "pre-combat" });
-      const list = await call(proc, "novel", { action: "checkpoint_list" });
+      await call(proc, "manage_novel", { action: "checkpoint_set",  label: "pre-combat" });
+      const list = await call(proc, "manage_novel", { action: "checkpoint_list" });
       assertContains(list, "pre-combat");
-      await call(proc, "fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
-      if (npcId) await call(proc, "npc", { action: "update", npc_id: npcId, mind: { directive: "Changed directive." } });
-      const restore = await call(proc, "novel", { action: "checkpoint_restore",  label: "pre-combat" });
+      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      if (npcId) await call(proc, "manage_npc", { action: "update", npc_id: npcId, mind: { directive: "Changed directive." } });
+      const restore = await call(proc, "manage_novel", { action: "checkpoint_restore",  label: "pre-combat" });
       assertContains(restore, "[NEED_INPUT]");
-      await call(proc, "respond", { decision: "restore_checkpoint:pre-combat", option: "yes" });
-      const fates = JSON.parse(await call(proc, "fate", { action: "fate_point",  op: "list" }));
+      await call(proc, "respond_decision", { decision: "restore_checkpoint:pre-combat", option: "yes" });
+      const fates = JSON.parse(await call(proc, "resolve_fate", { action: "fate_point",  op: "list" }));
       const pc1 = fates.find((f: any) => f.entity_id === "pc_1");
       if (!pc1 || pc1.fate_points !== 2) throw new Error(`checkpoint dropped base-capability state: ${JSON.stringify(fates)}`);
       if (npcId) {
-        const npcAfter = await call(proc, "npc", { action: "get", npc_id: npcId });
+        const npcAfter = await call(proc, "manage_npc", { action: "get", npc_id: npcId });
         assertContains(npcAfter, "Original directive.");
         if (npcAfter.toLowerCase().includes("changed directive")) throw new Error("checkpoint restore did not revert NPC mind");
       }
-      await call(proc, "novel", { action: "checkpoint_remove",  label: "pre-combat" });
+      await call(proc, "manage_novel", { action: "checkpoint_remove",  label: "pre-combat" });
     });
 
     await test("T280/T242: notes set, list, remove", async () => {
-      await call(proc, "note", { action: "set",  key: "gm-reminder", content: "Reveal the secret next turn" });
-      const list = await call(proc, "note", { action: "list" });
+      await call(proc, "manage_note", { action: "set",  key: "gm-reminder", content: "Reveal the secret next turn" });
+      const list = await call(proc, "manage_note", { action: "list" });
       assertContains(list, "gm-reminder");
-      await call(proc, "note", { action: "remove",  key: "gm-reminder" });
+      await call(proc, "manage_note", { action: "remove",  key: "gm-reminder" });
     });
 
     await test("T334/T416/T285: server notes set and listed", async () => {
-      await call(proc, "note", { action: "set_server",  key: "campaign", content: "The capital is besieged.", narrative_tag: "lore_seed" });
-      const list = await call(proc, "note", { action: "list_server" });
+      await call(proc, "manage_note", { action: "set_server",  key: "campaign", content: "The capital is besieged.", narrative_tag: "lore_seed" });
+      const list = await call(proc, "manage_note", { action: "list_server" });
       assertContains(list, "campaign");
-      await call(proc, "note", { action: "remove_server",  key: "campaign" });
+      await call(proc, "manage_note", { action: "remove_server",  key: "campaign" });
     });
 
     await test("T337/T481/T291: ask_oracle returns a d100 ladder result", async () => {
       await call(proc, "set_badge", { badge: "game_master" });
-      const oracle = await call(proc, "scene", { action: "oracle",  question: "Is the door locked?" });
+      const oracle = await call(proc, "manage_scene", { action: "oracle",  question: "Is the door locked?" });
       assertContains(oracle, "[OK] Question");
       assertContains(oracle, "/100");
     });
 
     await test("T254/T213: roll_on_table reports no tables in ruleset-free mode", async () => {
-      const roll = await call(proc, "ruleset", { action: "roll",  table: "weather", seed: "7" });
+      const roll = await call(proc, "manage_ruleset", { action: "roll",  table: "weather", seed: "7" });
       assertContains(roll, "[NOT_FOUND]");
     });
 
     await test("T277/T239: compact_audit_log summarizes recent entries", async () => {
-      await call(proc, "world", { action: "create_room",  name: "audit-room", description: "Audit." });
-      const summary = await call(proc, "session", { action: "compress",  max_entries: 5 });
+      await call(proc, "manage_world", { action: "create_room",  name: "audit-room", description: "Audit." });
+      const summary = await call(proc, "manage_session", { action: "compress",  max_entries: 5 });
       assertContains(summary, "Audit");
     });
 
     await test("T319/T321/T326/T260: granular synthesis activation toggles modules", async () => {
-      const disabled = await call(proc, "synthesis", { action: "toggle",  module: "lore_templates", enabled: false });
+      const disabled = await call(proc, "manage_synthesis", { action: "toggle",  module: "lore_templates", enabled: false });
       assertContains(disabled, "[OK] Synthesis module 'lore_templates' disabled");
-      const enabled = await call(proc, "synthesis", { action: "toggle",  module: "lore_templates", enabled: true });
+      const enabled = await call(proc, "manage_synthesis", { action: "toggle",  module: "lore_templates", enabled: true });
       assertContains(enabled, "[OK] Synthesis module 'lore_templates' enabled");
     });
 
     await test("T104: prompt health in spec_health", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (typeof health.prompt_count !== "number") throw new Error("prompt_count missing");
     });
 
@@ -289,21 +289,21 @@ async function main() {
   // ── §5.6 / §5.8 state, NPCs, world, synthesis, combat ───────────────
   {
     const proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "bf2" });
+    await call(proc, "manage_novel", { action: "create",  name: "bf2" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T25/T47/T56/T90/T91/T110/T131/T161/T162/T043: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
-      await call(proc, "world", { action: "create_room",  name: "conflict-room", description: "Room." });
+      await call(proc, "manage_world", { action: "create_room",  name: "conflict-room", description: "Room." });
       // Open a pending workflow (present_choices); badge + undo are blocked
       // until it resolves (REQ-043 conflict lifecycle).
-      const resp = await call(proc, "scene", { action: "choices",  prompt: "Choose", choices: [{ id: "a", label: "A" }] });
+      const resp = await call(proc, "manage_scene", { action: "choices",  prompt: "Choose", choices: [{ id: "a", label: "A" }] });
       assertContains(resp, "[NEED_INPUT]");
       const badgeBlocked = await call(proc, "set_badge", { badge: "player" });
       assertContains(badgeBlocked, "[STATE_CONFLICT]");
-      const undoBlocked = await call(proc, "undo", {});
+      const undoBlocked = await call(proc, "manage_history", {});
       assertContains(undoBlocked, "[STATE_CONFLICT]");
       // Resolve the workflow.
-      const resp2 = await call(proc, "respond", { decision: "-present_choices-", option: "a" });
+      const resp2 = await call(proc, "respond_decision", { decision: "-present_choices-", option: "a" });
       assertContains(resp2, "[OK]");
       // After resolution, mutations proceed normally.
       const unblocked = await call(proc, "set_badge", { badge: "game_master" });
@@ -311,114 +311,114 @@ async function main() {
     });
 
     await test("T121/T116: redo restores prior state", async () => {
-      await call(proc, "world", { action: "create_room",  name: "redo-room", description: "Redo." });
-      await call(proc, "undo", {});
-      const undone = await callRaw(proc, "world", { action: "remove_room",  name: "redo-room" });
+      await call(proc, "manage_world", { action: "create_room",  name: "redo-room", description: "Redo." });
+      await call(proc, "manage_history", {});
+      const undone = await callRaw(proc, "manage_world", { action: "remove_room",  name: "redo-room" });
       const text = (undone.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       if (!text.includes("[NOT_FOUND]")) throw new Error(`redo-room still exists after undo: ${text}`);
-      await call(proc, "redo", {});
-      const restored = await callRaw(proc, "world", { action: "remove_room",  name: "redo-room" });
+      await call(proc, "manage_history", { action: "redo" });
+      const restored = await callRaw(proc, "manage_world", { action: "remove_room",  name: "redo-room" });
       const text2 = (restored.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(text2, "[OK]");
     });
 
     await test("T239/T261/T196: parser command dispatch — create rooms and issue commands", async () => {
-      await call(proc, "novel", { action: "create",  name: "bf2-parser" });
-      await call(proc, "novel", { action: "switch",  slug: "bf2-parser" });
-      await call(proc, "world", { action: "create_room",  name: "parlor", description: "A cozy parlor." });
-      await call(proc, "world", { action: "create_room",  name: "study", description: "A dusty study." });
-      await call(proc, "world", { action: "create_exit",  direction: "north", room_a: "parlor", room_b: "study" });
-      await call(proc, "character", { action: "create",  name: "ParserChar", description: "traveller" });
-      await call(proc, "character", { action: "set_active",  entity_id: "character_01" });
+      await call(proc, "manage_novel", { action: "create",  name: "bf2-parser" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });
+      await call(proc, "manage_world", { action: "create_room",  name: "parlor", description: "A cozy parlor." });
+      await call(proc, "manage_world", { action: "create_room",  name: "study", description: "A dusty study." });
+      await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "parlor", room_b: "study" });
+      await call(proc, "manage_character", { action: "create",  name: "ParserChar", description: "traveller" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
       await call(proc, "set_badge", { badge: "player" });
-      const look = await call(proc, "command", { command: "look" });
+      const look = await call(proc, "run_command", { command: "look" });
       assertContains(look, "parlor");
-      const go = await call(proc, "command", { command: "go north" });
+      const go = await call(proc, "run_command", { command: "go north" });
       assertContains(go, "study");
       await call(proc, "set_badge", { badge: "game_master" });
-      await call(proc, "novel", { action: "switch",  slug: "bf2" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
     await test("T241/T261/T198: world-model CRUD — room/thing lifecycle", async () => {
-      await call(proc, "world", { action: "create_thing",  name: "candle", kind: "thing", description: "A candle.", location: "study" });
-      const gone = await callRaw(proc, "world", { action: "remove_thing",  name: "candle" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "candle", kind: "thing", description: "A candle.", location: "study" });
+      const gone = await callRaw(proc, "manage_world", { action: "remove_thing",  name: "candle" });
       const text = (gone.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(text, "[OK]");
     });
 
     await test("T242/T261/T199: property state tracking — description mutation", async () => {
-      await call(proc, "world", { action: "create_room",  name: "prop-room", description: "Initial." });
-      const updated = await callRaw(proc, "world", { action: "create_room",  name: "prop-room", description: "Updated." });
+      await call(proc, "manage_world", { action: "create_room",  name: "prop-room", description: "Initial." });
+      const updated = await callRaw(proc, "manage_world", { action: "create_room",  name: "prop-room", description: "Updated." });
       const text = (updated.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(text, "[STATE_CONFLICT]");
     });
 
     await test("T244/T261/T201: convert_source populates world model", async () => {
-      await call(proc, "novel", { action: "create",  name: "bf2-convert" });
-      await call(proc, "novel", { action: "switch",  slug: "bf2-convert" });
+      await call(proc, "manage_novel", { action: "create",  name: "bf2-convert" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-convert" });
       const src = `# World\n\n## Room: source-hall\nA source hall.\n`;
-      const conv = await call(proc, "world", { action: "convert",  source: src });
+      const conv = await call(proc, "manage_world", { action: "convert",  source: src });
       assertContains(conv, "[OK] World model populated");
-      await call(proc, "novel", { action: "switch",  slug: "bf2" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
     await test("T245/T202: world resources render map", async () => {
-      await call(proc, "novel", { action: "switch",  slug: "bf2-parser" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });
       const map = await readResource(proc, "world://map");
       assertContains(map, "parlor");
-      await call(proc, "novel", { action: "switch",  slug: "bf2" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
     await test("T64/T134/T450/T081: narrative directive set", async () => {
-      await call(proc, "scene", { action: "directive",  directive: "Foreshadow the siege." });
-      const scene = await call(proc, "scene", { action: "set",  description: "The gates tremble." });
+      await call(proc, "manage_scene", { action: "directive",  directive: "Foreshadow the siege." });
+      const scene = await call(proc, "manage_scene", { action: "set",  description: "The gates tremble." });
       assertContains(scene, "[OK] Scene set");
     });
 
     await test("T68/T96/T119/T120/T084: suggest_actions groups by domain", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const actions = await call(proc, "command", { action: "suggest",  intent: "explore" });
+      const actions = await call(proc, "run_command", { action: "suggest",  intent: "explore" });
       assertContains(actions, "Spatial");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T69/T085: macro system expands {{entity.name}} / {{scene.current}}", async () => {
-      await call(proc, "scene", { action: "set",  description: "Macro scene" });
-      await call(proc, "npc", { action: "create",  name: "Marco", description: "d", disposition: "neutral" });
-      const scene = await call(proc, "scene", { action: "set",  description: "{{novel.slug}} at {{scene.current}}" });
+      await call(proc, "manage_scene", { action: "set",  description: "Macro scene" });
+      await call(proc, "manage_npc", { action: "create",  name: "Marco", description: "d", disposition: "neutral" });
+      const scene = await call(proc, "manage_scene", { action: "set",  description: "{{novel.slug}} at {{scene.current}}" });
       assertContains(scene, "bf2");
     });
 
     await test("T327/T306/T230: synthesis dashboard lists modules", async () => {
-      const toggled = await call(proc, "synthesis", { action: "toggle",  module: "adventure_advice", enabled: true });
+      const toggled = await call(proc, "manage_synthesis", { action: "toggle",  module: "adventure_advice", enabled: true });
       assertContains(toggled, "[OK] Synthesis module 'adventure_advice' enabled");
     });
 
     await test("T104/T224: character creation workflow — quick-create produces a complete entity", async () => {
       await call(proc, "set_badge", { badge: "game_master" });
-      const sheet = await call(proc, "character", { action: "create",  name: "Brienne", description: "A knight.", goals: "Seek the relic" });
+      const sheet = await call(proc, "manage_character", { action: "create",  name: "Brienne", description: "A knight.", goals: "Seek the relic" });
       assertContains(sheet, "Brienne");
       const idMatch = sheet.match(/Entity id ([a-z0-9_]+)/i);
       const entityId = idMatch?.[1] ?? "character_01";
-      const active = await call(proc, "character", { action: "set_active",  entity_id: entityId });
+      const active = await call(proc, "manage_character", { action: "set_active",  entity_id: entityId });
       assertContains(active, "[OK]");
-      const cs = await call(proc, "character", { action: "sheet" });
+      const cs = await call(proc, "manage_character", { action: "sheet" });
       assertContains(cs, "Brienne");
     });
 
     await test("T468/T181: character creation output surface", async () => {
-      const sheet = await call(proc, "character", { action: "sheet",  format: "markdown" });
+      const sheet = await call(proc, "manage_character", { action: "sheet",  format: "markdown" });
       assertContains(sheet, "Brienne");
     });
 
     await test("T370/T323: resolve_intent returns structured intent resolution", async () => {
-      const intent = JSON.parse(await call(proc, "command", { action: "resolve",  intent: "I open the door" }));
+      const intent = JSON.parse(await call(proc, "run_command", { action: "resolve",  intent: "I open the door" }));
       if (intent.status !== "resolved") throw new Error(`resolve_intent status: ${intent.status}`);
     });
 
     await test("T351/T356/T307: entity presence — NPC appears in knowledge surface", async () => {
-      await call(proc, "npc", { action: "create",  name: "PresenceNPC", description: "Present.", disposition: "neutral" });
-      const k = await call(proc, "lore", { action: "knowledge",  entity_id: "presencenpc" });
+      await call(proc, "manage_npc", { action: "create",  name: "PresenceNPC", description: "Present.", disposition: "neutral" });
+      const k = await call(proc, "manage_lore", { action: "knowledge",  entity_id: "presencenpc" });
       assertContains(k, "presencenpc");
     });
 
@@ -428,12 +428,12 @@ async function main() {
   // ── §5.7 determinism, §5.9 persistence, §5.10 world, §5.20 ──────────
   {
     const proc = await boot({ TTRPG_SEED: "fixed-seed-42" });
-    await call(proc, "novel", { action: "create",  name: "bf3" });
+    await call(proc, "manage_novel", { action: "create",  name: "bf3" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T27/T111/T050: determinism — identical seed produces identical oracle roll", async () => {
-      const a = await call(proc, "scene", { action: "oracle",  question: "Rain?", seed: "determinism-check" });
-      const b = await call(proc, "scene", { action: "oracle",  question: "Rain?", seed: "determinism-check" });
+      const a = await call(proc, "manage_scene", { action: "oracle",  question: "Rain?", seed: "determinism-check" });
+      const b = await call(proc, "manage_scene", { action: "oracle",  question: "Rain?", seed: "determinism-check" });
       const rollA = a.match(/Roll: (\d+)\/100/)?.[1];
       const rollB = b.match(/Roll: (\d+)\/100/)?.[1];
       if (!rollA || !rollB || rollA !== rollB) throw new Error(`nondeterministic: ${rollA} vs ${rollB}`);
@@ -441,24 +441,24 @@ async function main() {
 
     await test("T41/T051: no outbound network access — server stays local", async () => {
       // The server is STDIO-local; assert no network endpoints are registered.
-      const health = await call(proc, "session", { action: "health" });
+      const health = await call(proc, "manage_session", { action: "health" });
       assertContains(health, "spec_version");
     });
 
     await test("T20/T052: path containment — world resources render map", async () => {
-      await call(proc, "world", { action: "create_room",  name: "containment-room", description: "Contained." });
+      await call(proc, "manage_world", { action: "create_room",  name: "containment-room", description: "Contained." });
       const map = await readResource(proc, "world://map");
       assertContains(map, "containment-room");
     });
 
     await test("T77/T88/T125/T156/T261/T092: Novel persistence — state survives restart", async () => {
-      await call(proc, "world", { action: "create_room",  name: "persist-room", description: "Persistent." });
+      await call(proc, "manage_world", { action: "create_room",  name: "persist-room", description: "Persistent." });
       await kill(proc);
 
       const proc2 = await boot({ TTRPG_SEED: "fixed-seed-42" });
       await call(proc2, "set_badge", { badge: "game_master" });
-      await call(proc2, "novel", { action: "resume",  slug: "bf3" });
-      const info = await call(proc2, "novel", { action: "info" });
+      await call(proc2, "manage_novel", { action: "resume",  slug: "bf3" });
+      const info = await call(proc2, "manage_novel", { action: "info" });
       assertContains(info, "bf3");
       const map = await readResource(proc2, "world://map");
       assertContains(map, "persist-room");
@@ -471,7 +471,7 @@ async function main() {
   // ── §5.3/§5.4/§5.5/§5.6/§5.7/§5.8/§5.10 — remaining ruleset-free surfaces ──
   {
     let proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "bf4" });
+    await call(proc, "manage_novel", { action: "create",  name: "bf4" });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T9/T066: set_badge cycles badges with audit", async () => {
@@ -482,79 +482,79 @@ async function main() {
     });
 
     await test("T55/T73/T216/T218/T220/T074: multi-entity support — several characters exist", async () => {
-      await call(proc, "character", { action: "create",  name: "MultiOne", description: "1" });
-      await call(proc, "character", { action: "create",  name: "MultiTwo", description: "2" });
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      await call(proc, "manage_character", { action: "create",  name: "MultiOne", description: "1" });
+      await call(proc, "manage_character", { action: "create",  name: "MultiTwo", description: "2" });
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if ((health.entities ?? 0) < 2) throw new Error(`expected ≥2 entities, got ${health.entities}`);
     });
 
     await test("T243/T200: kind mechanical contracts — device kind accepted", async () => {
-      await call(proc, "world", { action: "create_room",  name: "kind-room", description: "K." });
-      const dev = await call(proc, "world", { action: "create_thing",  name: "beacon", kind: "device", description: "signal", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_room",  name: "kind-room", description: "K." });
+      const dev = await call(proc, "manage_world", { action: "create_thing",  name: "beacon", kind: "device", description: "signal", location: "kind-room" });
       assertContains(dev, "[OK]");
     });
 
     await test("T264/T222: parser command vocabulary — look/go/examine", async () => {
-      await call(proc, "character", { action: "create",  name: "VocabChar", description: "v" });
-      await call(proc, "character", { action: "set_active",  entity_id: "character_01" });
+      await call(proc, "manage_character", { action: "create",  name: "VocabChar", description: "v" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
       await call(proc, "set_badge", { badge: "player" });
-      const look = await call(proc, "command", { command: "look" });
+      const look = await call(proc, "run_command", { command: "look" });
       assertContains(look, "kind-room");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T350/T483/T484/T485/T306: adjustable autonomy — set_autonomy changes level", async () => {
-      const auto = await call(proc, "scene", { action: "autonomy",  level: "full" });
+      const auto = await call(proc, "manage_scene", { action: "autonomy",  level: "full" });
       assertContains(auto, "[OK] Autonomy set");
     });
 
     await test("T361/T316: device lifecycle — switch on/off + RULE_VIOLATION on non-device", async () => {
-      await call(proc, "world", { action: "create_thing",  name: "t361-lantern", kind: "device", lit: true, location: "kind-room" });
-      await call(proc, "world", { action: "create_thing",  name: "t361-rock", kind: "thing", location: "kind-room" });
-      await call(proc, "character", { action: "set_active",  entity_id: "character_01" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t361-lantern", kind: "device", lit: true, location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t361-rock", kind: "thing", location: "kind-room" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
       await call(proc, "set_badge", { badge: "player" });
-      assertContains(await call(proc, "command", { command: "switch on t361-lantern" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "switch on t361-lantern" }), "[WARNING]");
-      assertContains(await call(proc, "command", { command: "switch off t361-lantern" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "switch on t361-rock" }), "RULE_VIOLATION");
-      assertContains(await call(proc, "command", { command: "switch on missing-thing" }), "NOT_FOUND");
+      assertContains(await call(proc, "run_command", { command: "switch on t361-lantern" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "switch on t361-lantern" }), "[WARNING]");
+      assertContains(await call(proc, "run_command", { command: "switch off t361-lantern" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "switch on t361-rock" }), "RULE_VIOLATION");
+      assertContains(await call(proc, "run_command", { command: "switch on missing-thing" }), "NOT_FOUND");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T362/T317: vehicle lifecycle — enterable, interior look, exit", async () => {
-      await call(proc, "world", { action: "create_room",  name: "t362-shore", description: "Shore." });
-      await call(proc, "world", { action: "create_exit",  direction: "north", room_a: "kind-room", room_b: "t362-shore" });
-      await call(proc, "world", { action: "create_thing",  name: "t362-raft", kind: "vehicle", enterable: true, description: "A rickety raft.", location: "kind-room" });
-      await call(proc, "world", { action: "create_thing",  name: "t362-rock", kind: "thing", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_room",  name: "t362-shore", description: "Shore." });
+      await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "kind-room", room_b: "t362-shore" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t362-raft", kind: "vehicle", enterable: true, description: "A rickety raft.", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t362-rock", kind: "thing", location: "kind-room" });
       await call(proc, "set_badge", { badge: "player" });
-      assertContains(await call(proc, "command", { command: "enter t362-raft" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "look" }), "t362-raft");
-      assertContains(await call(proc, "command", { command: "exit" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "enter t362-rock" }), "RULE_VIOLATION");
+      assertContains(await call(proc, "run_command", { command: "enter t362-raft" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "look" }), "t362-raft");
+      assertContains(await call(proc, "run_command", { command: "exit" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "enter t362-rock" }), "RULE_VIOLATION");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T363/T318: extended property contracts — wearable/edible/readable flags", async () => {
-      await call(proc, "world", { action: "create_thing",  name: "t363-ring", kind: "thing", wearable: true, location: "kind-room" });
-      await call(proc, "world", { action: "create_thing",  name: "t363-mushroom", kind: "thing", edible: true, location: "kind-room" });
-      await call(proc, "world", { action: "create_thing",  name: "t363-altar", kind: "supporter", readable: true, read_text: "Beware the serpent.", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t363-ring", kind: "thing", wearable: true, location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t363-mushroom", kind: "thing", edible: true, location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t363-altar", kind: "supporter", readable: true, read_text: "Beware the serpent.", location: "kind-room" });
       await call(proc, "set_badge", { badge: "player" });
-      await call(proc, "command", { command: "take t363-ring" });
-      assertContains(await call(proc, "command", { command: "wear t363-ring" }), "[OK]");
-      await call(proc, "command", { command: "take t363-mushroom" });
-      assertContains(await call(proc, "command", { command: "eat t363-mushroom" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "read t363-altar" }), "Beware the serpent");
+      await call(proc, "run_command", { command: "take t363-ring" });
+      assertContains(await call(proc, "run_command", { command: "wear t363-ring" }), "[OK]");
+      await call(proc, "run_command", { command: "take t363-mushroom" });
+      assertContains(await call(proc, "run_command", { command: "eat t363-mushroom" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "read t363-altar" }), "Beware the serpent");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T364/T319: extended parser vocabulary — light/extinguish/listen + help tiers", async () => {
-      await call(proc, "world", { action: "create_thing",  name: "t364-torch", kind: "thing", lit: true, location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t364-torch", kind: "thing", lit: true, location: "kind-room" });
       await call(proc, "set_badge", { badge: "player" });
-      assertContains(await call(proc, "command", { command: "extinguish t364-torch" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "light t364-torch" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "listen" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "touch t364-torch" }), "[OK]");
-      const help = await call(proc, "command", { command: "help" });
+      assertContains(await call(proc, "run_command", { command: "extinguish t364-torch" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "light t364-torch" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "listen" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "touch t364-torch" }), "[OK]");
+      const help = await call(proc, "run_command", { command: "help" });
       assertContains(help, "core");
       assertContains(help, "standard");
       assertContains(help, "extended");
@@ -562,30 +562,30 @@ async function main() {
     });
 
     await test("T365/T320: narrative-intent parser verbs — ask/give/shows", async () => {
-      await call(proc, "npc", { action: "create",  name: "t365-guard", location: "kind-room" });
-      await call(proc, "world", { action: "create_thing",  name: "t365-sword", kind: "thing", location: "kind-room" });
+      await call(proc, "manage_npc", { action: "create",  name: "t365-guard", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t365-sword", kind: "thing", location: "kind-room" });
       await call(proc, "set_badge", { badge: "player" });
-      assertContains(await call(proc, "command", { command: "ask t365-guard about crypt" }), "[OK]");
-      await call(proc, "command", { command: "take t365-sword" });
-      assertContains(await call(proc, "command", { command: "give t365-sword to t365-guard" }), "[OK]");
-      assertContains(await call(proc, "command", { command: "ask nobody about crypt" }), "[WARNING]");
+      assertContains(await call(proc, "run_command", { command: "ask t365-guard about crypt" }), "[OK]");
+      await call(proc, "run_command", { command: "take t365-sword" });
+      assertContains(await call(proc, "run_command", { command: "give t365-sword to t365-guard" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "ask nobody about crypt" }), "[WARNING]");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await test("T273/T235: structured player choices — present_choices emits options", async () => {
-      const pc = await call(proc, "scene", { action: "choices",  prompt: "Which path?", choices: [{ id: "path1", label: "North road" }] });
+      const pc = await call(proc, "manage_scene", { action: "choices",  prompt: "Which path?", choices: [{ id: "path1", label: "North road" }] });
       assertContains(pc, "North road");
-      await call(proc, "respond", { decision: "-present_choices-", option: "path1" });
+      await call(proc, "respond_decision", { decision: "-present_choices-", option: "path1" });
     });
 
     await test("T266/T224: workflow staleness — restart with pending workflow surfaces warning", async () => {
-      await call(proc, "scene", { action: "choices",  prompt: "Stale?", choices: [{ id: "s1", label: "S1" }] });
+      await call(proc, "manage_scene", { action: "choices",  prompt: "Stale?", choices: [{ id: "s1", label: "S1" }] });
       // Leave pending; new connections increment the staleness counter.
       await kill(proc);
       const proc2 = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: "3" });
       await call(proc2, "set_badge", { badge: "game_master" });
-      await call(proc2, "novel", { action: "resume",  slug: "bf4" });
-      const health = JSON.parse(await call(proc2, "session", { action: "health" }));
+      await call(proc2, "manage_novel", { action: "resume",  slug: "bf4" });
+      const health = JSON.parse(await call(proc2, "manage_session", { action: "health" }));
       if (!health.pending_workflow) throw new Error("pending_workflow not surfaced");
       await kill(proc2);
       // Reboot a fresh proc for the remaining tests in this block. bf4 was
@@ -593,7 +593,7 @@ async function main() {
       // boot, so `create bf4` would conflict — start a fresh Novel instead so
       // the remaining tests run against a clean slate (REQ-423 hydration).
       proc = await boot();
-      await call(proc, "novel", { action: "create",  name: "bf5" });
+      await call(proc, "manage_novel", { action: "create",  name: "bf5" });
       await call(proc, "set_badge", { badge: "game_master" });
       return;
     });
@@ -604,33 +604,33 @@ async function main() {
     });
 
     await test("T303/T227: synthesis model — toggle_synthesis_module surfaces modules", async () => {
-      const t = await call(proc, "synthesis", { action: "toggle",  module: "lore_templates", enabled: false });
+      const t = await call(proc, "manage_synthesis", { action: "toggle",  module: "lore_templates", enabled: false });
       assertContains(t, "[OK]");
-      await call(proc, "synthesis", { action: "toggle",  module: "lore_templates", enabled: true });
+      await call(proc, "manage_synthesis", { action: "toggle",  module: "lore_templates", enabled: true });
     });
 
     await test("T477/T488/T408: parameter ceiling recorded in spec_health", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (typeof health.parameter_ceiling !== "number") throw new Error("parameter_ceiling missing");
       // T477's recoverable clause: each tool's parameter count is exposed.
-      if (typeof health.tool_parameter_counts?.character !== "number") {
-        throw new Error("tool_parameter_counts.character missing");
+      if (typeof health.tool_parameter_counts?.manage_character !== "number") {
+        throw new Error("tool_parameter_counts.manage_character missing");
       }
     });
 
     await test("T478/T409: response-lean enumeration — spec_health reports summary counts", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (typeof health.tool_count !== "number") throw new Error("tool_count missing");
     });
 
     await test("T479/T410: token footprint in performance record", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (typeof health.token_footprint?.tools_list_bytes !== "number") throw new Error("token_footprint.tools_list_bytes missing");
     });
 
     await test("T480/T411: stable-metadata caching — repeated spec_health consistent", async () => {
-      const a = JSON.parse(await call(proc, "session", { action: "health" }));
-      const b = JSON.parse(await call(proc, "session", { action: "health" }));
+      const a = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const b = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (a.tool_count !== b.tool_count) throw new Error("cached metadata drifted between calls");
     });
 
@@ -641,22 +641,22 @@ async function main() {
     });
 
     await test("T194/T159: synthesis briefing integration — spec_health reports synthesis status", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (typeof health.synthesis_active !== "boolean") throw new Error("synthesis_active missing");
     });
 
     await test("S6/S17/REQ-030: single-user connection — one active badge serves the connection", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const p = await call(proc, "session", { action: "health" });
+      const p = await call(proc, "manage_session", { action: "health" });
       if (JSON.parse(p).active_badge !== "player") throw new Error("badge did not persist per-connection");
       await call(proc, "set_badge", { badge: "game_master" });
-      const g = await call(proc, "session", { action: "health" });
+      const g = await call(proc, "manage_session", { action: "health" });
       if (JSON.parse(g).active_badge !== "game_master") throw new Error("badge switch not reflected");
     });
 
     await test("T176/T177/T178/T002: error taxonomy — forbidden + corrective action; missing param surfaces SDK error", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const forbidden = await callRaw(proc, "npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
+      const forbidden = await callRaw(proc, "manage_npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
       const forbText = forbidden.isError
         ? "isError"
         : (forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
@@ -666,7 +666,7 @@ async function main() {
     });
 
     await test("T57/T112/T132/T133/T137/T331/T076: scene-state ledger — set_scene_state stores location/time/atmosphere", async () => {
-      await call(proc, "scene", { action: "set",  description: "The hall echoes.", location: "Throne Room", time_of_day: "dusk", atmosphere: "tense" });
+      await call(proc, "manage_scene", { action: "set",  description: "The hall echoes.", location: "Throne Room", time_of_day: "dusk", atmosphere: "tense" });
       const sc = JSON.parse(await readResource(proc, "scene://current"));
       assertContains(sc.location ?? "", "Throne Room");
       assertContains(sc.time_of_day ?? "", "dusk");
@@ -688,11 +688,11 @@ async function main() {
     });
 
     await test("T259/T218: ruleset-free build — parser primary Player surface", async () => {
-      await call(proc, "world", { action: "create_room",  name: "rf-room", description: "R." });
-      await call(proc, "character", { action: "create",  name: "RfChar", description: "c" });
-      await call(proc, "character", { action: "set_active",  entity_id: "character_01" });
+      await call(proc, "manage_world", { action: "create_room",  name: "rf-room", description: "R." });
+      await call(proc, "manage_character", { action: "create",  name: "RfChar", description: "c" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
       await call(proc, "set_badge", { badge: "player" });
-      const look = await call(proc, "command", { command: "look" });
+      const look = await call(proc, "run_command", { command: "look" });
       assertContains(look, "rf-room");
       await call(proc, "set_badge", { badge: "game_master" });
     });
