@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** eef1192ba349952ea4c2cd964335a821a21d10d3d0d98b1150c91d87eecfbf79
+**Spec hash:** 47e4ffd26185bda56d73d9d6e275746222bb774cfc27a4e574b0f77695b77797
 
 ### Holonovel Server Change — 2026-09-10 (TDQS tool annotations: all four hints on every tool)
 
