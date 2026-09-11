@@ -92,19 +92,19 @@ async function main() {
   // ── T138: raise → freeze → cancel-restore → resolve ───────────────
   {
     const proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "workflow-t138" });
+    await call(proc, "manage_novel", { action: "create",  name: "workflow-t138" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "character", { action: "create",  name: "Sentinel" });
+    await call(proc, "manage_character", { action: "create",  name: "Sentinel" });
 
-    const raise = await call(proc, "character", { action: "create" });
+    const raise = await call(proc, "manage_character", { action: "create" });
     assertContains(raise, "[NEED_INPUT]");
 
     await test("T138a: undo frozen during pending workflow", async () => {
-      const r = await call(proc, "undo", {});
+      const r = await call(proc, "manage_history", {});
       assertContains(r, "[STATE_CONFLICT]");
     });
     await test("T138b: redo frozen during pending workflow", async () => {
-      const r = await call(proc, "redo", {});
+      const r = await call(proc, "manage_history", { action: "redo" });
       assertContains(r, "[STATE_CONFLICT]");
     });
     await test("T138c: set_badge frozen during pending workflow", async () => {
@@ -112,45 +112,45 @@ async function main() {
       assertContains(r, "[STATE_CONFLICT]");
     });
     await test("T138d: second workflow raise returns STATE_CONFLICT", async () => {
-      const r = await call(proc, "scene", { action: "choices",  prompt: "q", choices: [{ id: "a", label: "A" }] });
+      const r = await call(proc, "manage_scene", { action: "choices",  prompt: "q", choices: [{ id: "a", label: "A" }] });
       assertContains(r, "[STATE_CONFLICT]");
     });
 
     await test("T138e: respond(cancel) cancels and restores pre-workflow snapshot", async () => {
-      const r = await call(proc, "respond", { decision: "character creation", option: "cancel" });
+      const r = await call(proc, "respond_decision", { decision: "character creation", option: "cancel" });
       assertContains(r, "cancelled");
       // The pre-existing entity survives (it was present before the workflow).
-      const sheet = await call(proc, "character", { action: "sheet" });
+      const sheet = await call(proc, "manage_character", { action: "sheet" });
       assertContains(sheet, "Sentinel");
     });
 
     await test("T138f: after cancel, a fresh workflow can be raised and resolved", async () => {
-      const r = await call(proc, "scene", { action: "choices",  prompt: "which path?", choices: [{ id: "north", label: "North" }, { id: "south", label: "South" }] });
+      const r = await call(proc, "manage_scene", { action: "choices",  prompt: "which path?", choices: [{ id: "north", label: "North" }, { id: "south", label: "South" }] });
       assertContains(r, "[NEED_INPUT]");
-      const resolve = await call(proc, "respond", { decision: "present choices", option: "north" });
+      const resolve = await call(proc, "respond_decision", { decision: "present choices", option: "north" });
       assertContains(resolve, "north");
     });
 
     await test("T138/REQ-190: drained workflow restores blocked tools and clears pending", async () => {
       // After the T138f drain, undo must be callable (no pending workflow).
-      const undo = await call(proc, "undo", {});
+      const undo = await call(proc, "manage_history", {});
       if (undo.includes("A workflow decision is pending")) {
         throw new Error(`undo still blocked after drain: ${undo.substring(0, 120)}`);
       }
     });
 
     await test("T32/REQ-191: options render as display-label pairs (kebab, label)", async () => {
-      const r = await call(proc, "scene", { action: "choices",  prompt: "choose", choices: [{ id: "acrobatics", label: "Acrobatics" }, { id: "arcana", label: "Arcana" }] });
+      const r = await call(proc, "manage_scene", { action: "choices",  prompt: "choose", choices: [{ id: "acrobatics", label: "Acrobatics" }, { id: "arcana", label: "Arcana" }] });
       assertContains(r, "acrobatics");
       assertContains(r, "Acrobatics");
       assertContains(r, "arcana");
     });
 
     await test("S22/REQ-192: second respond on drained workflow returns STATE_CONFLICT", async () => {
-      await call(proc, "scene", { action: "choices",  prompt: "collide?", choices: [{ id: "a", label: "A" }] });
-      const first = await call(proc, "respond", { decision: "-present_choices-", option: "a" });
+      await call(proc, "manage_scene", { action: "choices",  prompt: "collide?", choices: [{ id: "a", label: "A" }] });
+      const first = await call(proc, "respond_decision", { decision: "-present_choices-", option: "a" });
       assertContains(first, "[OK]");
-      const second = await call(proc, "respond", { decision: "-present_choices-", option: "a" });
+      const second = await call(proc, "respond_decision", { decision: "-present_choices-", option: "a" });
       assertContains(second, "[STATE_CONFLICT]");
       if (second.includes("[NOT_FOUND]")) throw new Error("drained respond should be STATE_CONFLICT, not NOT_FOUND");
     });
@@ -161,20 +161,20 @@ async function main() {
   // ── T157: pending workflow survives restart; cancel restores ─────
   {
     let proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "workflow-t157" });
+    await call(proc, "manage_novel", { action: "create",  name: "workflow-t157" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "character", { action: "create",  name: "PreExisting" });
-    const raise = await call(proc, "character", { action: "create" });
+    await call(proc, "manage_character", { action: "create",  name: "PreExisting" });
+    const raise = await call(proc, "manage_character", { action: "create" });
     assertContains(raise, "[NEED_INPUT]");
 
     await kill(proc);
     proc = await boot();
-    await call(proc, "novel", { action: "resume",  slug: "workflow-t157" });
+    await call(proc, "manage_novel", { action: "resume",  slug: "workflow-t157" });
 
     await test("T157: respond(cancel) after restart restores pre-workflow state", async () => {
-      const cancel = await call(proc, "respond", { decision: "character creation", option: "cancel" });
+      const cancel = await call(proc, "respond_decision", { decision: "character creation", option: "cancel" });
       assertContains(cancel, "cancelled");
-      const sheet = await call(proc, "character", { action: "sheet" });
+      const sheet = await call(proc, "manage_character", { action: "sheet" });
       assertContains(sheet, "PreExisting");
     });
     await kill(proc);
@@ -184,25 +184,25 @@ async function main() {
   {
     const THRESHOLD = "3";
     let proc = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: THRESHOLD });
-    await call(proc, "novel", { action: "create",  name: "workflow-t266" });
+    await call(proc, "manage_novel", { action: "create",  name: "workflow-t266" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "character", { action: "create",  name: "Anchor" });
-    await call(proc, "character", { action: "create" }); // raise workflow (connection 1)
+    await call(proc, "manage_character", { action: "create",  name: "Anchor" });
+    await call(proc, "manage_character", { action: "create" }); // raise workflow (connection 1)
 
     // Each resume after a restart is a new connection (REQ-224a).
     await kill(proc);
     proc = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: THRESHOLD });
-    await call(proc, "novel", { action: "resume",  slug: "workflow-t266" }); // connection 2
+    await call(proc, "manage_novel", { action: "resume",  slug: "workflow-t266" }); // connection 2
 
     await kill(proc);
     proc = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: THRESHOLD });
-    await call(proc, "novel", { action: "resume",  slug: "workflow-t266" }); // connection 3 → auto-cancel
+    await call(proc, "manage_novel", { action: "resume",  slug: "workflow-t266" }); // connection 3 → auto-cancel
 
     await test("T266a: staleness auto-cancels at threshold (workflow drained)", async () => {
-      const health = await call(proc, "session", { action: "health" });
+      const health = await call(proc, "manage_session", { action: "health" });
       assertContains(health, '"active_novel": "workflow-t266"');
       // pending_workflow should be null (drained) — not report an open decision.
-      const undo = await call(proc, "undo", {});
+      const undo = await call(proc, "manage_history", {});
       // After auto-cancel, undo is callable again (no pending workflow).
       if (undo.includes("[STATE_CONFLICT] A workflow decision is pending")) {
         throw new Error(`undo still blocked by a pending workflow: ${undo.substring(0, 200)}`);
@@ -212,16 +212,16 @@ async function main() {
 
     // Threshold=0 disables detection — workflow stays pending across resumes.
     proc = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: "0" });
-    await call(proc, "novel", { action: "create",  name: "workflow-t266b" });
+    await call(proc, "manage_novel", { action: "create",  name: "workflow-t266b" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await call(proc, "character", { action: "create" });
+    await call(proc, "manage_character", { action: "create" });
     for (let i = 0; i < 4; i++) {
       await kill(proc);
       proc = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: "0" });
-      await call(proc, "novel", { action: "resume",  slug: "workflow-t266b" });
+      await call(proc, "manage_novel", { action: "resume",  slug: "workflow-t266b" });
     }
     await test("T266c: threshold 0 disables auto-cancel (workflow still pending)", async () => {
-      const health = await call(proc, "session", { action: "health" });
+      const health = await call(proc, "manage_session", { action: "health" });
       // pending_workflow still reports an open decision.
       assertContains(health, "character_creation");
     });

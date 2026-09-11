@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-10 — verb_noun tool rename + undo/redo/help consolidation (26-tool surface)
+
+- Renamed the 28-tool action-discriminator surface to a uniform `verb_noun`
+  (snake_case) convention: content tools `manage_<noun>` (lore, story, note,
+  character, npc, faction, relationship, vow, countdown, condition, combat,
+  world, scene, novel, codex, synthesis, adventure, ruleset, session), mechanics
+  resolvers `resolve_fate`/`resolve_ironsworn`/`resolve_forged`, the parser
+  `run_command`, the workflow-decision tool `respond_decision`; `set_badge`
+  unchanged. (REQ-429)
+- Consolidated to 26 tools: `undo` + `redo` → `manage_history` (action:
+  undo/redo); `help` → `manage_session` (action: discover/category). The help
+  fold removes the only read-only host tool, so all 26 tools are now
+  command/hybrid — the `TOOL_ANNOTATIONS` set (REQ-450) and T536 were rebuilt.
+- Swept every tool citation across the spec (§4 glossary, REQ bodies, §7.7.1
+  coupling tokens and the validate.ts alias map, Appendix E/F/T), the 20 test
+  harnesses, `holonovel/AGENTS.md`, and the tool descriptions' cross-references.
+  REQ-429 budget 28 → 26 with a uniform-naming clause; T511/T536 re-pointed.
+- Added explicit side-effect/behavior disclosures to the merged tools'
+  descriptions (Behavioral Transparency).
+
 ## 2026-09-10 — Regenerate contract fingerprints + fingerprint-sync gate
 
 - Regenerated `holonovel/src/generated/contract-fingerprints.ts` — the DATA_FORMAT

@@ -92,7 +92,7 @@ async function readPrompt(proc: ChildProcess, name: string, args: Record<string,
 }
 
 async function newNovel(proc: ChildProcess, name: string): Promise<void> {
-  await call(proc, "novel", { action: "create", name });
+  await call(proc, "manage_novel", { action: "create", name });
   await call(proc, "set_badge", { badge: "game_master" });
 }
 
@@ -134,19 +134,19 @@ async function main() {
   {
     const proc = await boot({ TTRPG_NPC_MIND: "on", TTRPG_NPC_AUTONOMY: "on" });
     await newNovel(proc, "mind-test");
-    const create = await call(proc, "npc", { action: "create", name: "Innkeeper", goals: "Protect the cellar", disposition: "suspicious", mind: { private_journal: ["Owes a debt to the Thieves' Guild."], directive: "Suspicious of strangers; guards the cellar key.", auto_play: true } });
+    const create = await call(proc, "manage_npc", { action: "create", name: "Innkeeper", goals: "Protect the cellar", disposition: "suspicious", mind: { private_journal: ["Owes a debt to the Thieves' Guild."], directive: "Suspicious of strangers; guards the cellar key.", auto_play: true } });
     const idMatch = create.match(/\((\w+)\)/);
     assert(idMatch, `npc create did not report an id: ${create}`);
     const npcId = idMatch![1];
 
     await test("T513/REQ-075f: GM surfaces the mind; Player badge strips it from every surface", async () => {
-      const gmGet = await call(proc, "npc", { action: "get", npc_id: npcId });
+      const gmGet = await call(proc, "manage_npc", { action: "get", npc_id: npcId });
       assertContains(gmGet, "mind");
       assertContains(gmGet, "directive");
       const gmResource = await readResource(proc, `npc://${npcId}?format=json`);
       assertContains(gmResource, "mind");
       await call(proc, "set_badge", { badge: "player" });
-      const playerGet = await call(proc, "npc", { action: "get", npc_id: npcId });
+      const playerGet = await call(proc, "manage_npc", { action: "get", npc_id: npcId });
       assertNotContains(playerGet, "mind");
       assertNotContains(playerGet, "directive");
       const playerResource = await readResource(proc, `npc://${npcId}?format=json`);
@@ -158,7 +158,7 @@ async function main() {
       const bb = await readPrompt(proc, "badge_briefing", { badge: "game_master" });
       assertContains(bb, "World in Motion");
       assertContains(bb, "auto-apply");
-      const resp = await call(proc, "respond", { decision: "Innkeeper", option: "auto-apply" });
+      const resp = await call(proc, "respond_decision", { decision: "Innkeeper", option: "auto-apply" });
       assertContains(resp, "auto-applied");
     });
     proc.kill("SIGKILL");
@@ -166,7 +166,7 @@ async function main() {
     // T514b — with TTRPG_NPC_MIND off, no auto-apply option surfaces.
     const procB = await boot({ TTRPG_NPC_AUTONOMY: "on" });
     await newNovel(procB, "mind-off");
-    await call(procB, "npc", { action: "create", name: "Guard", goals: "Stop intruders", disposition: "suspicious", mind: { directive: "Do not let anyone past." } });
+    await call(procB, "manage_npc", { action: "create", name: "Guard", goals: "Stop intruders", disposition: "suspicious", mind: { directive: "Do not let anyone past." } });
     await test("T514/REQ-339d: auto-apply is absent when TTRPG_NPC_MIND is off", async () => {
       const bb = await readPrompt(procB, "badge_briefing", { badge: "game_master" });
       assertContains(bb, "World in Motion");
@@ -180,31 +180,31 @@ async function main() {
     seedPackage("gentest", { generation_tables: { trinkets: { dice_expression: "1d100", ranges: [{ min: 1, max: 100, result: "a dusty trinket" }] } } });
     const proc = await boot();
     await newNovel(proc, "gen-test");
-    await call(proc, "ruleset", { action: "bind", slug: "gentest" });
+    await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
 
     await test("T515/REQ-431: world generate produces a deterministic batch offered as a decision", async () => {
-      const g1 = await call(proc, "world", { action: "generate", seed: "42" });
+      const g1 = await call(proc, "manage_world", { action: "generate", seed: "42" });
       assertContains(g1, "NEED_INPUT");
       assertContains(g1, "Generated Chamber 1");
       assertContains(g1, "apply");
-      const resp = await call(proc, "respond", { decision: "world_generate", option: "apply" });
+      const resp = await call(proc, "respond_decision", { decision: "world_generate", option: "apply" });
       assertContains(resp, "World generated");
     });
 
     await test("T515/REQ-431: same seed reproduces the same world", async () => {
       const count = (s: string) => (s.match(/Generated Chamber (\d+) is a room/g) ?? []).length;
-      await call(proc, "novel", { action: "create", name: "gen-repro" });
-      await call(proc, "ruleset", { action: "bind", slug: "gentest" });
-      const g1 = await call(proc, "world", { action: "generate", seed: "7" });
-      await call(proc, "respond", { decision: "world_generate", option: "discard" });
-      const g2 = await call(proc, "world", { action: "generate", seed: "7" });
-      await call(proc, "respond", { decision: "world_generate", option: "discard" });
+      await call(proc, "manage_novel", { action: "create", name: "gen-repro" });
+      await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
+      const g1 = await call(proc, "manage_world", { action: "generate", seed: "7" });
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
+      const g2 = await call(proc, "manage_world", { action: "generate", seed: "7" });
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
       assert(count(g1) === count(g2) && count(g1) > 0, `same seed must produce the same room count (got ${count(g1)} vs ${count(g2)})`);
     });
 
     await test("T515/REQ-431: Player badge is forbidden from world generate", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const g = await call(proc, "world", { action: "generate", seed: "42" });
+      const g = await call(proc, "manage_world", { action: "generate", seed: "42" });
       assertContains(g, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
     });
@@ -214,7 +214,7 @@ async function main() {
     const proc3 = await boot();
     await newNovel(proc3, "gen-free");
     await test("T515/REQ-431: ruleset-free build returns the content-absent message", async () => {
-      const g = await call(proc3, "world", { action: "generate", seed: "42" });
+      const g = await call(proc3, "manage_world", { action: "generate", seed: "42" });
       assertContains(g, "No generation tables");
       assertNotContains(g, "NEED_INPUT");
     });
@@ -225,12 +225,12 @@ async function main() {
   {
     const proc = await boot();
     await newNovel(proc, "graph-test");
-    await call(proc, "world", { action: "create_room", name: "Throne Room", description: "grand" });
-    await call(proc, "world", { action: "create_room", name: "Guard Room", description: "guarded" });
-    await call(proc, "world", { action: "create_exit", direction: "east", room_a: "Throne Room", room_b: "Guard Room" });
-    await call(proc, "npc", { action: "create", name: "Guard", location: "Guard Room" });
-    await call(proc, "faction", { action: "create", name: "Merchant Guild", goals: ["Expand to East Dock"] });
-    await call(proc, "faction", { action: "create", name: "Crown Loyalists", goals: ["Protect the throne"] });
+    await call(proc, "manage_world", { action: "create_room", name: "Throne Room", description: "grand" });
+    await call(proc, "manage_world", { action: "create_room", name: "Guard Room", description: "guarded" });
+    await call(proc, "manage_world", { action: "create_exit", direction: "east", room_a: "Throne Room", room_b: "Guard Room" });
+    await call(proc, "manage_npc", { action: "create", name: "Guard", location: "Guard Room" });
+    await call(proc, "manage_faction", { action: "create", name: "Merchant Guild", goals: ["Expand to East Dock"] });
+    await call(proc, "manage_faction", { action: "create", name: "Crown Loyalists", goals: ["Protect the throne"] });
 
     await test("T516/REQ-296c: political, timeline, and geography projections are distinct", async () => {
       const political = JSON.parse(await readResource(proc, "graph://novel/political"));
@@ -254,14 +254,14 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "vendor-test");
     await test("T517/REQ-432: licensed vendor package lists license; unattributed one is held inactive", async () => {
-      const list = JSON.parse(await call(proc, "ruleset", { action: "list" }));
+      const list = JSON.parse(await call(proc, "manage_ruleset", { action: "list" }));
       const ok = list.find((p: any) => p.slug === "vendor-ok");
       assert(ok, "vendor-ok should be listed");
       assert(ok.licensed === true, "vendor-ok should be licensed");
       assert(ok.source_license === "CC BY 4.0", "vendor-ok should carry its source_license");
       const bad = list.find((p: any) => p.slug === "vendor-bad");
       assert(!bad, "vendor-bad should be held inactive (absent from list)");
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       const alerts = health.ruleset_package_alerts ?? [];
       const unattributed = alerts.filter((a: any) => String(a.reason ?? "").includes("[license-unattributed]"));
       assert(unattributed.some((a: any) => String(a.slug) === "vendor-bad"), "vendor-bad should be flagged [license-unattributed]");
@@ -274,11 +274,11 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "recap-test");
     await test("T518/REQ-072h: gm_notes returns to GM, never to Player", async () => {
-      const gm = await call(proc, "session", { action: "recap", gm_notes: "The real culprit is the butler." });
+      const gm = await call(proc, "manage_session", { action: "recap", gm_notes: "The real culprit is the butler." });
       assertContains(gm, "gm_notes");
       assertContains(gm, "butler");
       await call(proc, "set_badge", { badge: "player" });
-      const player = await call(proc, "session", { action: "recap", gm_notes: "The real culprit is the butler." });
+      const player = await call(proc, "manage_session", { action: "recap", gm_notes: "The real culprit is the butler." });
       assertNotContains(player, "gm_notes");
       assertNotContains(player, "butler");
     });
@@ -289,20 +289,20 @@ async function main() {
   {
     const proc = await boot();
     await newNovel(proc, "notify-test");
-    const sub = await call(proc, "session", { action: "subscribe", topics: ["countdown_fire"] });
+    const sub = await call(proc, "manage_session", { action: "subscribe", topics: ["countdown_fire"] });
     assertContains(sub, "countdown_fire");
     await test("T519/REQ-433: subscribed countdown_fire emits a notification on expiry", async () => {
-      await call(proc, "countdown", { action: "set", name: "timer", ticks: 1, type: "narrative" });
+      await call(proc, "manage_countdown", { action: "set", name: "timer", ticks: 1, type: "narrative" });
       notifications = [];
-      await call(proc, "countdown", { action: "advance", name: "timer" });
+      await call(proc, "manage_countdown", { action: "advance", name: "timer" });
       await new Promise((r) => setTimeout(r, 100));
       assert(notifications.some((n) => n.topic === "countdown_fire" && n.name === "timer"), `countdown_fire notification missing: ${JSON.stringify(notifications)}`);
     });
     await test("T519/REQ-433: unsubscribed topics emit nothing", async () => {
-      await call(proc, "session", { action: "subscribe", topics: [] });
-      await call(proc, "countdown", { action: "set", name: "timer2", ticks: 1, type: "narrative" });
+      await call(proc, "manage_session", { action: "subscribe", topics: [] });
+      await call(proc, "manage_countdown", { action: "set", name: "timer2", ticks: 1, type: "narrative" });
       notifications = [];
-      await call(proc, "countdown", { action: "advance", name: "timer2" });
+      await call(proc, "manage_countdown", { action: "advance", name: "timer2" });
       await new Promise((r) => setTimeout(r, 100));
       assert(notifications.filter((n) => n.topic === "countdown_fire").length === 0, "unsubscribed topic should not emit");
     });

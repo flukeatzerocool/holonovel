@@ -38,7 +38,7 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources, 5 prompts.
+src/index.ts            McpServer: 26 action-discriminator tools, ~22 resources, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
                         Narrative-intent verbs (ask/tell/give/show/throw) and
@@ -47,42 +47,42 @@ src/index.ts            McpServer: 28 action-discriminator tools, ~22 resources,
                         [vehicle-entry]/[vehicle-exit] story-journal moments).
 ```
 
-## Tool Surface (28 tools)
+## Tool Surface (26 tools)
 
-- **Badges & Workflow:** set_badge, respond, undo, redo, help
-- **character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
-- **npc** (action: create/update/remove/list/get) — GM NPC management
-- **world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert) — world-model rooms, things, exits
-- **command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
-- **combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle
-- **condition** (action: apply/remove/list) — mechanical/narrative conditions
-- **countdown** (action: set/advance/remove/list) — GM countdown timers
-- **faction** (action: create/update/remove/list) — GM factions and progress clocks
-- **vow** (action: set/milestone/resolve/forsake/list) — GM narrative vows
-- **relationship** (action: set/get) — directed entity relationships
-- **lore** (action: set/update/remove/toggle/group/suggest/list/get/export/import/set_secret/reveal/secret_list/knowledge) — Novel lore entries and secrets
-- **story** (action: record/update/remove/list/promote) — story journal beats
-- **note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
-- **codex** (action: set/list/get/capture/import/delete) — cross-Novel reusable content library
-- **novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle
-- **adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
-- **synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
-- **ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
-- **scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
-- **session** (action: recap/verbosity/briefing_order/compress/health/subscribe) — session recap, verbosity, briefing order, audit compression, event subscriptions, and the `spec_health` report
-- **fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
-- **ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
-- **forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime
+- **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
+- **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
+- **manage_npc** (action: create/update/remove/list/get) — GM NPC management
+- **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert) — world-model rooms, things, exits
+- **run_command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
+- **manage_combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle
+- **manage_condition** (action: apply/remove/list) — mechanical/narrative conditions
+- **manage_countdown** (action: set/advance/remove/list) — GM countdown timers
+- **manage_faction** (action: create/update/remove/list) — GM factions and progress clocks
+- **manage_vow** (action: set/milestone/resolve/forsake/list) — GM narrative vows
+- **manage_relationship** (action: set/get) — directed entity relationships
+- **manage_lore** (action: set/update/remove/toggle/group/suggest/list/get/export/import/set_secret/reveal/secret_list/knowledge) — Novel lore entries and secrets
+- **manage_story** (action: record/update/remove/list/promote) — story journal beats
+- **manage_note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
+- **manage_codex** (action: set/list/get/capture/import/delete) — cross-Novel reusable content library
+- **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle
+- **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
+- **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
+- **manage_ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
+- **manage_scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
+- **manage_session** (action: recap/verbosity/briefing_order/compress/health/subscribe/discover/category) — session recap, verbosity, briefing order, audit compression, event subscriptions, tool discovery/category reassignment, and the `spec_health` report
+- **resolve_fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
+- **resolve_ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
+- **resolve_forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime
 
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) as explicit booleans, set in the `TOOL_ANNOTATIONS` map in
-`src/index.ts`. `help` is read-only; the other 27 tools are command/hybrid
-(`destructiveHint: true`); `openWorldHint` is `false` everywhere (REQ-051 — no
-network). Registering a host tool without a map entry throws at startup;
-ruleset-derived tools (REQ-379) compute their hints from `schema.kind`. Adding a
-tool requires a corresponding `TOOL_ANNOTATIONS` entry — T536 (in
-`scripts/test-security.ts`) enforces the four-hint contract.
+`src/index.ts`. All 26 tools are command/hybrid (`destructiveHint: true`);
+`openWorldHint` is `false` everywhere (REQ-051 — no network). Registering a host
+tool without a map entry throws at startup; ruleset-derived tools (REQ-379)
+compute their hints from `schema.kind`. Adding a tool requires a corresponding
+`TOOL_ANNOTATIONS` entry — T536 (in `scripts/test-security.ts`) enforces the
+four-hint contract.
 
 ## Running
 
@@ -113,10 +113,10 @@ npm run start
 
 ## State Model
 
-- **Roster:** Persistent character store at `.holonovel-state/roster.json`. Staged via `character (action: stage)` / `character (action: create, stage_to_roster=true)`; imported into a novel via `character (action: import)`. Entries carry name, personality, voice examples, inventory, and optional ruleset-derived `stats`.
+- **Roster:** Persistent character store at `.holonovel-state/roster.json`. Staged via `manage_character (action: stage)` / `manage_character (action: create, stage_to_roster=true)`; imported into a novel via `manage_character (action: import)`. Entries carry name, personality, voice examples, inventory, and optional ruleset-derived `stats`.
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
 - **World Model:** Rooms, things, exits persisted within the Novel's JSON. Indexed at runtime as Maps.
-- **Snapshots:** Per-mutation snapshots per badge stack (undo/redo).
+- **Snapshots:** Per-mutation snapshots per badge stack (`manage_history` action: undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.
 
 ## Two-Repo Workflow (commit canonical source first)

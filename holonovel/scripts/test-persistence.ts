@@ -88,68 +88,68 @@ async function main() {
 
   {
     const proc = await boot();
-    await call(proc, "novel", { action: "create",  name: "first", description: "A first novel." });
+    await call(proc, "manage_novel", { action: "create",  name: "first", description: "A first novel." });
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T74: create_novel surfaces novel_setup as the recommended next step", async () => {
-      const resp = await call(proc, "novel", { action: "create",  name: "extra", description: "setup check" });
+      const resp = await call(proc, "manage_novel", { action: "create",  name: "extra", description: "setup check" });
       assertContains(resp, "novel_setup");
-      await call(proc, "novel", { action: "switch",  slug: "first" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "first" });
     });
 
     await test("T316/T257: list_novels lists created Novels", async () => {
-      const list = await call(proc, "novel", { action: "list" });
+      const list = await call(proc, "manage_novel", { action: "list" });
       assertContains(list, "first");
     });
 
     await test("T317/T258: novel_info returns metadata", async () => {
-      const info = await call(proc, "novel", { action: "info" });
+      const info = await call(proc, "manage_novel", { action: "info" });
       assertContains(info, "first");
       assertContains(info, "A first novel.");
     });
 
     await test("T315/T256: rename_novel changes slug and persists", async () => {
-      await call(proc, "novel", { action: "rename",  new_slug: "renamed" });
-      const info = await call(proc, "novel", { action: "info" });
+      await call(proc, "manage_novel", { action: "rename",  new_slug: "renamed" });
+      const info = await call(proc, "manage_novel", { action: "info" });
       assertContains(info, "renamed");
     });
 
     await test("T278/T240: clone_novel creates an independent copy", async () => {
-      await call(proc, "world", { action: "create_thing",  name: "sword", description: "A sharp blade." });
-      await call(proc, "fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
-      const npcCreate = await call(proc, "npc", { action: "create", name: "Clonekeeper", mind: { directive: "Guard the fork's secret.", auto_play: true } });
+      await call(proc, "manage_world", { action: "create_thing",  name: "sword", description: "A sharp blade." });
+      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Clonekeeper", mind: { directive: "Guard the fork's secret.", auto_play: true } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
-      await call(proc, "novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
-      const list = await call(proc, "novel", { action: "list" });
+      await call(proc, "manage_novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
+      const list = await call(proc, "manage_novel", { action: "list" });
       assertContains(list, "fork");
       assertContains(list, "renamed");
-      await call(proc, "novel", { action: "switch",  slug: "fork" });
-      const forkFate = JSON.parse(await call(proc, "fate", { action: "fate_point",  op: "list" }));
+      await call(proc, "manage_novel", { action: "switch",  slug: "fork" });
+      const forkFate = JSON.parse(await call(proc, "resolve_fate", { action: "fate_point",  op: "list" }));
       const forkPc1 = forkFate.find((f: any) => f.entity_id === "pc_1");
       if (!forkPc1 || forkPc1.fate_points !== 2) throw new Error(`clone dropped base-capability state: ${JSON.stringify(forkFate)}`);
       if (npcId) {
-        const forkNpc = await call(proc, "npc", { action: "get", npc_id: npcId });
+        const forkNpc = await call(proc, "manage_npc", { action: "get", npc_id: npcId });
         assertContains(forkNpc, "mind");
         assertContains(forkNpc, "Guard the fork's secret.");
       }
-      await call(proc, "novel", { action: "switch",  slug: "renamed" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "renamed" });
     });
 
     await test("T315/T278: rename and clone onto an existing slug return [STATE_CONFLICT]", async () => {
       // rename active "renamed" onto existing "fork" must refuse (REQ-256).
-      const renameConflict = await call(proc, "novel", { action: "rename",  new_slug: "fork" });
+      const renameConflict = await call(proc, "manage_novel", { action: "rename",  new_slug: "fork" });
       assertContains(renameConflict, "[STATE_CONFLICT]");
-      const info = JSON.parse(await call(proc, "novel", { action: "info" }));
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.slug !== "renamed") throw new Error(`rename conflict altered active slug: ${info.slug}`);
       // clone "renamed" onto existing "fork" must refuse (REQ-240).
-      const cloneConflict = await call(proc, "novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
+      const cloneConflict = await call(proc, "manage_novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
       assertContains(cloneConflict, "[STATE_CONFLICT]");
-      const still = await call(proc, "novel", { action: "info",  slug: "fork" });
+      const still = await call(proc, "manage_novel", { action: "info",  slug: "fork" });
       assertContains(still, "fork");
     });
 
     await test("T100/T281/T096: export produces a valid interchange manifest; import validates", async () => {
-      const exported = await call(proc, "novel", { action: "export",  format: "json" });
+      const exported = await call(proc, "manage_novel", { action: "export",  format: "json" });
       const parsed = JSON.parse(exported); // must be parseable JSON
       assertContains(exported, "\"slug\"");
       assertContains(exported, "\"name\"");
@@ -157,19 +157,19 @@ async function main() {
       assertContains(exported, "\"format_version\"");
       assertContains(exported, "\"manifest\"");
       assertContains(exported, "\"novel\"");
-      const dryrun = await call(proc, "novel", { action: "import",  data: exported, mode: "dry-run" });
+      const dryrun = await call(proc, "manage_novel", { action: "import",  data: exported, mode: "dry-run" });
       assertContains(dryrun, "valid manifest");
     });
 
     await test("T100: replace-import round-trip restores world and entities", async () => {
       // Populate a novel with world model + NPC + countdown + lore.
-      await call(proc, "world", { action: "create_room",  name: "throne room", description: "A grand hall." });
-      await call(proc, "world", { action: "create_thing",  name: "throne", description: "An ornate seat." });
-      await call(proc, "npc", { action: "create",  name: "Chancellor", description: "A wary official.", disposition: "neutral" });
-      await call(proc, "countdown", { action: "set",  name: "court adjourns", ticks: 5, type: "narrative", scope: "throne room" });
-      await call(proc, "lore", { action: "set",  key: "the_crown", content: "The crown is a forgery.", triggers: ["the_crown"] });
+      await call(proc, "manage_world", { action: "create_room",  name: "throne room", description: "A grand hall." });
+      await call(proc, "manage_world", { action: "create_thing",  name: "throne", description: "An ornate seat." });
+      await call(proc, "manage_npc", { action: "create",  name: "Chancellor", description: "A wary official.", disposition: "neutral" });
+      await call(proc, "manage_countdown", { action: "set",  name: "court adjourns", ticks: 5, type: "narrative", scope: "throne room" });
+      await call(proc, "manage_lore", { action: "set",  key: "the_crown", content: "The crown is a forgery.", triggers: ["the_crown"] });
 
-      const before = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
+      const before = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
       const roomsBefore = Object.keys(before.novel.world.rooms).sort();
       const thingsBefore = Object.keys(before.novel.world.things).sort();
       const npcsBefore = Object.keys(before.novel.npcs).sort();
@@ -179,8 +179,8 @@ async function main() {
       assertContains(thingsBefore.join(","), "throne");
 
       // Replace-import the export back and re-export — tiers must survive.
-      await call(proc, "novel", { action: "import",  data: JSON.stringify(before), mode: "replace" });
-      const after = JSON.parse(await call(proc, "novel", { action: "export",  format: "json" }));
+      await call(proc, "manage_novel", { action: "import",  data: JSON.stringify(before), mode: "replace" });
+      const after = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
       if (JSON.stringify(Object.keys(after.novel.world.rooms).sort()) !== JSON.stringify(roomsBefore)) {
         throw new Error(`round-trip rooms mismatch: before=${roomsBefore} after=${Object.keys(after.novel.world.rooms).sort()}`);
       }
@@ -199,95 +199,95 @@ async function main() {
     });
 
     await test("T78/T99/T093: metadata in spec_health lists Novels", async () => {
-      const health = await call(proc, "session", { action: "health" });
+      const health = await call(proc, "manage_session", { action: "health" });
       assertContains(health, "novel");
     });
 
     await test("T101/T160/T097: spec_health reports novel health", async () => {
-      const health = await call(proc, "session", { action: "health" });
+      const health = await call(proc, "manage_session", { action: "health" });
       assertContains(health, "health");
     });
 
     await test("T98/T095: switch_novel activates another Novel", async () => {
-      await call(proc, "novel", { action: "create",  name: "second" });
-      await call(proc, "novel", { action: "switch",  slug: "second" });
-      const info = await call(proc, "novel", { action: "info" });
+      await call(proc, "manage_novel", { action: "create",  name: "second" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "second" });
+      const info = await call(proc, "manage_novel", { action: "info" });
       assertContains(info, "second");
     });
 
     await test("T276/T238: mutations persist and backup rotation does not corrupt state", async () => {
-      for (let i = 0; i < 5; i++) await call(proc, "note", { action: "set",  key: `note-${i}`, content: `content ${i}` });
-      const list = await call(proc, "note", { action: "list" });
+      for (let i = 0; i < 5; i++) await call(proc, "manage_note", { action: "set",  key: `note-${i}`, content: `content ${i}` });
+      const list = await call(proc, "manage_note", { action: "list" });
       assertContains(list, "note-4");
     });
 
     await test("T158/REQ-140: end_novel confirmation dispatch removes the Novel", async () => {
-      await call(proc, "novel", { action: "create",  name: "dispatch-me" });
-      const confirm = await call(proc, "novel", { action: "end" });
+      await call(proc, "manage_novel", { action: "create",  name: "dispatch-me" });
+      const confirm = await call(proc, "manage_novel", { action: "end" });
       assertContains(confirm, "[NEED_INPUT]");
-      await call(proc, "respond", { decision: "end novel", option: "yes" });
+      await call(proc, "respond_decision", { decision: "end novel", option: "yes" });
       // After disposal, resume of the removed slug is a STATE_CONFLICT.
-      const resume = await call(proc, "novel", { action: "resume",  slug: "dispatch-me" });
+      const resume = await call(proc, "manage_novel", { action: "resume",  slug: "dispatch-me" });
       assertContains(resume, "[STATE_CONFLICT]");
       // Restore a working novel for subsequent tests.
-      await call(proc, "novel", { action: "create",  name: "restore-novel" });
+      await call(proc, "manage_novel", { action: "create",  name: "restore-novel" });
     });
 
     await test("T318/REQ-259: update_novel_description sets, surfaces, and clears", async () => {
       await call(proc, "set_badge", { badge: "game_master" });
-      await call(proc, "novel", { action: "description",  description: "A new premise." });
-      const info = JSON.parse(await call(proc, "novel", { action: "info" }));
+      await call(proc, "manage_novel", { action: "description",  description: "A new premise." });
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.description !== "A new premise.") throw new Error(`desc not set: ${info.description}`);
-      await call(proc, "novel", { action: "description",  description: "" });
-      const info2 = JSON.parse(await call(proc, "novel", { action: "info" }));
+      await call(proc, "manage_novel", { action: "description",  description: "" });
+      const info2 = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info2.description !== "") throw new Error("empty string did not clear description");
     });
 
     await test("T339/REQ-294: genre declaration surfaces in novel_info and spec_health", async () => {
-      await call(proc, "novel", { action: "create",  name: "genre-novel" });
+      await call(proc, "manage_novel", { action: "create",  name: "genre-novel" });
       await call(proc, "set_badge", { badge: "game_master" });
-      await call(proc, "novel", { action: "genre",  genre: "noir" });
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      await call(proc, "manage_novel", { action: "genre",  genre: "noir" });
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (health.active_genre !== "noir") throw new Error(`active_genre missing: ${health.active_genre}`);
-      const info = JSON.parse(await call(proc, "novel", { action: "info" }));
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.genre !== "noir") throw new Error(`genre not in novel_info: ${info.genre}`);
-      const bad = await call(proc, "novel", { action: "genre",  genre: "invalid_genre" });
+      const bad = await call(proc, "manage_novel", { action: "genre",  genre: "invalid_genre" });
       assertContains(bad, "[INVALID_INPUT]");
     });
 
     await test("T122/REQ-117: ended Novel moves to trash and is unresumable", async () => {
-      await call(proc, "novel", { action: "create",  name: "trash-me" });
-      await call(proc, "novel", { action: "end" });
-      await call(proc, "respond", { decision: "end novel", option: "yes" });
-      const resume = await call(proc, "novel", { action: "resume",  slug: "trash-me" });
+      await call(proc, "manage_novel", { action: "create",  name: "trash-me" });
+      await call(proc, "manage_novel", { action: "end" });
+      await call(proc, "respond_decision", { decision: "end novel", option: "yes" });
+      const resume = await call(proc, "manage_novel", { action: "resume",  slug: "trash-me" });
       assertContains(resume, "[STATE_CONFLICT]");
-      await call(proc, "novel", { action: "create",  name: "restore-novel" });
+      await call(proc, "manage_novel", { action: "create",  name: "restore-novel" });
     });
 
     await test("T381/REQ-334: archive/unarchive Novel lifecycle", async () => {
-      await call(proc, "novel", { action: "create",  name: "archive-me" });
+      await call(proc, "manage_novel", { action: "create",  name: "archive-me" });
       await call(proc, "set_badge", { badge: "game_master" });
-      await call(proc, "world", { action: "create_room",  name: "archived-room", description: "d" });
-      await call(proc, "fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
-      const npcCreate = await call(proc, "npc", { action: "create", name: "Archivist", mind: { directive: "Keep the archive sealed." } });
+      await call(proc, "manage_world", { action: "create_room",  name: "archived-room", description: "d" });
+      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Archivist", mind: { directive: "Keep the archive sealed." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
-      await call(proc, "novel", { action: "archive",  slug: "archive-me" });
-      const active = await call(proc, "novel", { action: "list" });
+      await call(proc, "manage_novel", { action: "archive",  slug: "archive-me" });
+      const active = await call(proc, "manage_novel", { action: "list" });
       if (active.includes("archive-me")) throw new Error("archived novel still listed as active");
-      const archived = await call(proc, "novel", { action: "list",  filter: "archived" });
+      const archived = await call(proc, "manage_novel", { action: "list",  filter: "archived" });
       assertContains(archived, "archive-me");
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (!JSON.stringify(health.archived_novels).includes("archive-me")) throw new Error("archived_novels missing");
-      const resume = await call(proc, "novel", { action: "resume",  slug: "archive-me" });
+      const resume = await call(proc, "manage_novel", { action: "resume",  slug: "archive-me" });
       assertContains(resume, "[STATE_CONFLICT]");
-      await call(proc, "novel", { action: "unarchive",  slug: "archive-me" });
-      const info = JSON.parse(await call(proc, "novel", { action: "info" }));
+      await call(proc, "manage_novel", { action: "unarchive",  slug: "archive-me" });
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.slug !== "archive-me") throw new Error("unarchive did not restore active novel");
-      const fateAfter = JSON.parse(await call(proc, "fate", { action: "fate_point",  op: "list" }));
+      const fateAfter = JSON.parse(await call(proc, "resolve_fate", { action: "fate_point",  op: "list" }));
       const pc1 = fateAfter.find((f: any) => f.entity_id === "pc_1");
       if (!pc1 || pc1.fate_points !== 2) throw new Error(`archive/unarchive dropped base-capability state: ${JSON.stringify(fateAfter)}`);
       if (npcId) {
-        const npcAfter = await call(proc, "npc", { action: "get", npc_id: npcId });
+        const npcAfter = await call(proc, "manage_npc", { action: "get", npc_id: npcId });
         assertContains(npcAfter, "Keep the archive sealed.");
       }
     });
@@ -306,14 +306,14 @@ async function main() {
 
     let proc = await boot({ TTRPG_DATA_DIR: dir });
     await test("B/REQ-065: hydration keys the registry by internal slug, not filename", async () => {
-      const list = await call(proc, "novel", { action: "list" });
+      const list = await call(proc, "manage_novel", { action: "list" });
       assertContains(list, "real-slug");
-      const info = JSON.parse(await call(proc, "novel", { action: "info",  slug: "real-slug" }));
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info",  slug: "real-slug" }));
       if (info.slug !== "real-slug") throw new Error("info by internal slug did not resolve");
-      const dup = await call(proc, "novel", { action: "create",  name: "Real Slug" });
+      const dup = await call(proc, "manage_novel", { action: "create",  name: "Real Slug" });
       assertContains(dup, "[STATE_CONFLICT]");
-      await call(proc, "novel", { action: "switch",  slug: "real-slug" });
-      const list2 = JSON.parse(await call(proc, "novel", { action: "list" }));
+      await call(proc, "manage_novel", { action: "switch",  slug: "real-slug" });
+      const list2 = JSON.parse(await call(proc, "manage_novel", { action: "list" }));
       const matches = list2.filter((r: any) => r.slug === "real-slug").length;
       if (matches !== 1) throw new Error(`real-slug listed ${matches} times`);
     });
@@ -324,7 +324,7 @@ async function main() {
     // (map-based activation, REQ-088/REQ-065).
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "real-slug" });
     await test("T159/REQ-088: TTRPG_NOVEL activates a misnamed save by internal slug", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (health.active_novel !== "real-slug") throw new Error(`misnamed startup novel not active: ${health.active_novel}`);
     });
     await kill(proc);
@@ -336,7 +336,7 @@ async function main() {
     writeFileSync(join(dir, "novels", "auto-slug.json"), JSON.stringify({ slug: "auto-slug", name: "auto-slug", badge: "game_master", metadata: meta }));
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "auto-slug" });
     await test("T159/REQ-088: TTRPG_NOVEL resumes an existing Novel before any tool call", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (health.active_novel !== "auto-slug") throw new Error(`startup novel not active: ${health.active_novel}`);
     });
     await kill(proc);
@@ -344,7 +344,7 @@ async function main() {
     // T159b — create a missing Novel at startup.
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "brand-new" });
     await test("T159/REQ-088: TTRPG_NOVEL creates a missing Novel before any tool call", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (health.active_novel !== "brand-new") throw new Error(`created startup novel not active: ${health.active_novel}`);
     });
     await kill(proc);
@@ -362,7 +362,7 @@ async function main() {
       await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "persistence-test", version: "1.0.0" } } });
       p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
       await new Promise((r) => setTimeout(r, 250));
-      const health = JSON.parse(await call(p, "session", { action: "health" }));
+      const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
       if (health.active_novel !== null) throw new Error(`corrupt startup novel became active: ${health.active_novel}`);
       const corrupted = Object.keys(health.data_health?.corrupted ?? {});
       if (!corrupted.includes("bad")) throw new Error(`corrupted slug not surfaced: ${JSON.stringify(health.data_health)}`);
@@ -382,7 +382,7 @@ async function main() {
     // Boot with rotation enabled, create + mutate to build the chain.
     let proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL_BACKUP_COUNT: "3", TTRPG_NOVEL: "rot" });
     await call(proc, "set_badge", { badge: "game_master" });
-    for (let i = 0; i < 12; i++) await call(proc, "note", { action: "set",  key: `n${i}`, content: `c${i}` });
+    for (let i = 0; i < 12; i++) await call(proc, "manage_note", { action: "set",  key: `n${i}`, content: `c${i}` });
 
     await test("T276/REQ-238: rotation produces .bak.1/.bak.2/.bak.3 with descending mtimes", async () => {
       for (const idx of [1, 2, 3]) {
@@ -406,11 +406,11 @@ async function main() {
 
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL_BACKUP_COUNT: "3", TTRPG_NOVEL: "rot" });
     await test("T276/REQ-238: corrupt primary + .bak.1 restores from .bak.2 with audited index", async () => {
-      const health = JSON.parse(await call(proc, "session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       if (health.active_novel !== "rot") throw new Error(`restored startup novel not active: ${health.active_novel}`);
       // Force a save so the restored state (with its resume audit entry) lands
       // on disk, then inspect the audit log directly.
-      await call(proc, "note", { action: "set",  key: "after-restore", content: "ok" });
+      await call(proc, "manage_note", { action: "set",  key: "after-restore", content: "ok" });
       const onDisk = JSON.parse(readFileSync(join(novelsDir, "rot.json"), "utf-8"));
       const entry = (onDisk.audit_log ?? []).find((e: any) => e.tool === "resume_novel" && e.args && e.args.includes("restored_from_backup"));
       if (!entry) throw new Error("no [restored-from-backup] audit entry");
@@ -419,9 +419,9 @@ async function main() {
 
     // End the Novel: the primary and all backups must move to .trash/.
     await test("T276/REQ-238: novel end moves primary + all backups to trash", async () => {
-      const confirm = await call(proc, "novel", { action: "end" });
+      const confirm = await call(proc, "manage_novel", { action: "end" });
       assertContains(confirm, "[NEED_INPUT]");
-      await call(proc, "respond", { decision: "end novel", option: "yes" });
+      await call(proc, "respond_decision", { decision: "end novel", option: "yes" });
       if (existsSync(join(novelsDir, "rot.json"))) throw new Error("primary not removed from novels dir");
       for (const idx of [1, 2, 3]) {
         if (existsSync(join(novelsDir, `rot.json.bak.${idx}`))) throw new Error(`backup .bak.${idx} not removed from novels dir`);
