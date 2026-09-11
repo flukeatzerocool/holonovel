@@ -12,6 +12,15 @@
 | Verification | typecheck 0 errors; `test:security` 7/7 (T530–T536); `test:tool-definitions` 6/6; `test:all` green except pre-existing T502 (`migrate-user-data` re-stamp drift — fails identically on the unmodified tree, unrelated to this change) |
 | Follow-up | M8ven/Glama re-index after deploy reflects the 28-tool four-hint surface; the directory's "32 tools / no test files" counts were stale (the consolidated surface is 28 tools, and tests live in `holonovel/scripts/` as tsx harnesses — now documented in `holonovel/AGENTS.md`) |
 
+### Holonovel Spec Update — 2026-09-10 (Holodeck config coupling closure + intended-gap whitelist discipline)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — two increments. (1) Holodeck config coupling closure (REQ-388): §7.7.0 pattern rules extended P1–P54 → P1–P59, adding P55–P59 so six previously-untunable behavioral knobs (story-beat retention window, campaign-memory fact budget, auto-record, action budget, narration validation, state-drift gating) each gain a natural-language directive access path; §4 Standing Rule 11 scoped to the REQ-388b behavioral classes, with build-time-only and presentation/display settings exempt and annotated non-behavioral in §7.6; §7.6 behavioral-annotation normalization (`TTRPG_AUTONOMY` dropped its `§7.7.1a` prefix, `TTRPG_SYNTHESIS_AUTO_TRIGGER` gained "couples per P47", five knobs gained P-rule references, `TTRPG_WORLD_PROMINENCE` re-annotated build-time and `TTRPG_NOVEL_PREVIEW_CHARS` presentation). REQ-369a/370a pattern-rule count updated P1–P59; REQ-374a archetype enumeration de-duplicated to a §7.7.0 reference. (2) REQ-454 added (intended-gap whitelist discipline) with a §5.2 coverage-map row — a whitelisted REQ cited in server source must carry a recorded disposition naming the builder/verifier surface that owes it. Implementation: the help tool's category reassignment now renders and the help tool is source-cited and exercised (REQ-067 re-classified to bucket C); `contract-fingerprints.ts` regenerated (dataFormat d029e9f7… → b2665b83…) plus a `check-fingerprint-sync.ts` gate to block stale fingerprints. Appendix F: T420/T421/T434/T450 pattern-rule ranges updated P1–P59, new T544. |
+| Reused | extraction |
+| Verification | assemble + check:fast 0 errors; `validate:sdd --sdd-strict` 0 errors (6 pre-existing DP-3 warnings); `--impl-audit=strict` buckets A/B 0 (C 303 / E 113); coupling derivation 59/59; typecheck clean; `test:all` green; deploy REQ-418 verified (spec hash 47e4ffd2…, fingerprints match) |
+
 ### Holonovel Spec Update — 2026-09-07 (terminology disambiguation: Pattern Buffer families, Gauntlet/Inform/enrichment retirement)
 
 | Field | Value |
