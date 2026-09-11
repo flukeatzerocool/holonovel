@@ -176,6 +176,19 @@ async function main() {
     const ruleset = tools.find((t) => t.name === "manage_ruleset");
     assert(ruleset && /roll/i.test(ruleset.description ?? ""), "T536 ruleset description does not name 'roll'");
     assert(ruleset && /install/i.test(ruleset.description ?? ""), "T536 ruleset description does not name 'install'");
+    // REQ-450: tools with four or more parameters state which parameters apply
+    // to each action in prose — not only in the JSON Schema.
+    for (const t of tools) {
+      const props: Record<string, any> = (t.inputSchema && typeof t.inputSchema === "object") ? (t.inputSchema.properties ?? {}) : {};
+      const paramNames = Object.keys(props);
+      if (paramNames.length < 4) continue;
+      const desc = typeof t.description === "string" ? t.description : "";
+      if (!desc.includes("Parameters by action")) throw new Error(`T536 tool '${t.name}' (${paramNames.length} params) missing 'Parameters by action' prose`);
+      for (const name of paramNames) {
+        if (name === "action") continue;
+        if (!new RegExp(`\\b${name}\\b`).test(desc)) throw new Error(`T536 tool '${t.name}' description does not name parameter '${name}'`);
+      }
+    }
     await kill(p);
   });
 
