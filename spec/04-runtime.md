@@ -106,8 +106,8 @@ DECISIONS.md.
 Character creation and advancement use sequential decision queues (REQ-042, REQ-056,
 REQ-104). Each decision presents a `[NEED_INPUT]` with a question, kebab-cased option
 list (≤25 entries from the ruleset index, "cancel" always last). The `decision` value
-passed to `respond` is the exact question text. `respond` drains one decision; `cancel`
-restores the pre-workflow snapshot. Pending workflows block undo, redo, and badge
+passed to `respond_decision` is the exact question text. `respond_decision` drains one decision; `cancel`
+restores the pre-workflow snapshot. Pending workflows block `manage_history (action: undo)`, `manage_history (action: redo)`, and badge
 switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-151, REQ-152, and REQ-181 for the creation workflow.
 
 ### 7.6 Configuration surface
@@ -122,7 +122,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
 | `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
-| `TTRPG_PORT`         | No       | HTTP port, optional                                  |
+| `TTRPG_PORT`         | No       | Optional inbound MCP transport port (HTTP); the server makes no outbound requests (REQ-051)                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (default 500)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
@@ -138,13 +138,13 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded |
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
-| `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output |
+| `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. Presentation. |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compress)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_novel (action: export)` output |
-| `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`) |
+| `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`). Presentation. |
 | `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
 | `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Build-time. |
 | `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
@@ -204,7 +204,7 @@ discarded by `manage_novel (action: end)`):
 | Relationship | Relational | read/write/create/delete (REQ-236) | read-only (appears on manage_character (action: sheet)) |
 | Vow | Decision, Temporal | read/write/create/delete (REQ-289, REQ-322) | read-only (shared/party scope per REQ-289e) |
 | GM Context | Session | read/write (REQ-232) | Game Master only |
-| Pending Workflow | Decision | read (engine-maintained per REQ-042); `respond` drains | read-only (`respond` drains per REQ-235) |
+| Pending Workflow | Decision | read (engine-maintained per REQ-042); `respond_decision` drains | read-only (`respond_decision` drains per REQ-235) |
 | Notes | Session | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) | read/write/create/delete (badge-scoped; GM sees all scopes, Player sees `player` + `shared` scopes per REQ-242) |
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
@@ -354,7 +354,7 @@ fuzzy, or semantic matching.
 | P47 | Session → Ruleset Wisdom | GM directives containing synthesis keywords map to synthesis module activation — "use voice patterns" activates voice_examples, "activate lore templates" activates lore_templates, "add flavor" sets TTRPG_SYNTHESIS_AUTO_TRIGGER to on_scene_change | Mechanical | The GM activates story flavor in plain English |
 | P48 | Relational → Entity-bearing | Relationship type flips (ally↔rival↔hostile) drive entity disposition shifts for both involved entities | Mechanical | Betrayal changes how the cast behaves — when two characters become rivals, their dispositions shift accordingly |
 | P49 | Guidance → Temporal | Guidance content with temporal urgency triggers suggests temporal-property creation in advisory surfaces | Navigational | The GM's notebook can drive the clock — what the operator records as urgent becomes a countdown suggestion |
-| P50 | Decision → Session | A pending workflow freezes undo, redo, and badge switching until drained or cancelled; cancellation restores the pre-workflow snapshot over all Novel property groups | Mechanical | The workflow holds the table — no mutation or role change while a decision is open |
+| P50 | Decision → Session | A pending workflow freezes `manage_history (action: undo)`, `manage_history (action: redo)`, and badge switching until drained or cancelled; cancellation restores the pre-workflow snapshot over all Novel property groups | Mechanical | The workflow holds the table — no mutation or role change while a decision is open |
 | P51 | Decision → Knowledge-carrying | Decision name and description keyword-match against knowledge triggers; matching knowledge surfaces as decision-relevant entries | Navigational | Vows match the Holodeck's knowledge |
 | P52 | Scene-anchored → Narrative-memory | Scene beat transitions populate narrative-memory records — the story_beats sequence in the narrative briefing | Narrative | The program structures the story |
 | P53 | Temporal → Temporal | A temporal signal coordinates with other temporal properties — a pacing fire advances every countdown | Mechanical | The clock drives the clock |
@@ -411,7 +411,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Relationship → Lore | P26 | When relationship type changes between `ally` and `rival`, the GM is prompted to consider a lore entry | Changed relationships become remembered facts — relationship state changes prompt lore | — | Navigational | REQ-236 |
 | Pending Workflow → Countdown | P12 | `manage_scene (action: choices)` with resolved `id` matching a countdown `scope` advances that countdown by one tick | Choices advance the clock — player decisions matching countdown scope tick the timer | — | Mechanical | REQ-235 |
 | Pending Workflow → Faction | P12 | `manage_scene (action: choices)` with resolved `id` matching a faction goal keyword advances that faction's clock | Player decisions drive faction momentum — choices matching faction goals advance the clock | — | Mechanical | REQ-235, REQ-233 |
-| Pending Workflow → Undo/Redo/Badge | P50 | A pending `[NEED_INPUT]` freezes undo, redo, and set_badge until drained or cancelled; `respond(cancel)` restores the pre-workflow snapshot over all Novel property groups | The workflow holds the table — no mutation or role change while a decision is open | All badges (blocking) | Mechanical | REQ-042, REQ-041, REQ-116, REQ-066 |
+| Pending Workflow → Undo/Redo/Badge | P50 | A pending `[NEED_INPUT]` freezes `manage_history (action: undo)`, `manage_history (action: redo)`, and `set_badge` until drained or cancelled; `respond_decision("cancel")` restores the pre-workflow snapshot over all Novel property groups | The workflow holds the table — no mutation or role change while a decision is open | All badges (blocking) | Mechanical | REQ-042, REQ-041, REQ-116, REQ-066 |
 | GM Context → State [non-property] | P17 | `manage_novel (action: save_context)` auto-captures faction clock states, countdown positions, NPC dispositions, and entity relationships | The operator's notes follow the scene — pause context captures state for resumption | — | Navigational | REQ-232, REQ-233 |
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Scene-tagged notes surface when their room appears — the operator's annotations follow the scene | Player-visible, badge-scoped | Navigational | REQ-242 |
 | NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | What characters experience becomes what they know — interactions create NPC memory | — | Mechanical | REQ-311 |

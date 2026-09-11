@@ -12,7 +12,7 @@ do not alter meaning are editorial and do not require a version bump.
 1. The server keeps no state between calls. All build-level state is in-process and
    rebuilt from scratch on startup. Novel state persists to disk (REQ-092).
 2. Randomness is deterministic and seedable (REQ-050).
-3. No network access at runtime (REQ-051).
+3. No outbound network access at runtime (REQ-051).
 4. The server trusts nothing client-supplied; every tool validates its inputs (REQ-054).
 5. Badge gating is enforced server-side (REQ-032).
 6. **LLMs propose intentions; the engine validates and executes.** The AI narrator
@@ -99,8 +99,7 @@ do not alter meaning are editorial and do not require a version bump.
 |               | Persists to `.holonovel-state/novels/<slug>.json`; survives process restarts      |
 |               | and rebuilds. Removed from disk by `manage_novel (action: end)`. Multiple Novels per server       |
 |               | instance; one active per connection. Isolated from other Novels.                  |
-| Connection     | One MCP transport lifecycle; born at startup, dies at close. No persistent   |
-|                | state of its own — Novel state and audit log survive the connection.         |
+| Connection     | Retired name for the Session state tier (§7.7) — see Session. In prose, a "connection" denotes the ephemeral MCP transport, which holds no state of its own.   |
 | Session        | A term with four senses, disambiguated by context. As a state tier (§7.7), the ephemeral connection scoping discarded on restart or Novel switch. As a Holodeck archetype (§7.7.0), content scoped to the operator's presence (GM Context, Notes, Narrative Directive, Voice Feedback). As a tool, the `session` tool (`manage_session (action: recap)`, `manage_session (action: health)`, `manage_session (action: briefing_order)`). In prose, "the active play session" means the Story. |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
@@ -125,7 +124,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
 | Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `manage_scene (action: set)`. Non-present entities are marked `[not present]` in `badge_briefing` and the party resource. The GM controls presence with `manage_scene (action: presence)`. |
 | Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `manage_lore (action: reveal)`. |
-| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Memory (story journal, session recap), Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
+| Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Journal & Session Recap, Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
 | Ruleset-free mode | The base host operating with no ruleset packages installed: no TTRPG ruleset is indexed; the server provides a freeform narrative roleplay surface — scene management, NPCs, lore, player choices, and world-model interactions. REQ-218. |
 | Host server       | The base `holonovel` server — ruleset-free by default, the sole MCP entry point. It loads declarative ruleset packages (REQ-389), never changes when a package is installed or removed, and updates without touching installed packages or user data (REQ-390). |
 | Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |

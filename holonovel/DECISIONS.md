@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 772cef9d067d157825e4b6d0b8fcabfd590419c54b4eb89161e822c1f072c2ea
+**Spec hash:** 7effb44f57ae6fe98a0cc5ffb9d23c0144f5057e595d8e61fdbcdc948754cd03
 
 ### Holonovel Server Change — 2026-09-10 (prose Parameter Semantics on high-arity tools)
 
@@ -31,6 +31,16 @@
 | Reused | spec, extraction, lockfile |
 | Verification | typecheck 0 errors; `test:security` 7/7 (T530–T536); `test:tool-definitions` 6/6; `test:all` green except pre-existing T502 (`migrate-user-data` re-stamp drift — fails identically on the unmodified tree, unrelated to this change) |
 | Follow-up | M8ven/Glama re-index after deploy reflects the 28-tool four-hint surface; the directory's "32 tools / no test files" counts were stale (the consolidated surface is 28 tools, and tests live in `holonovel/scripts/` as tsx harnesses — now documented in `holonovel/AGENTS.md`) |
+
+### Holonovel Spec Update — 2026-09-10 (full spec-review remediation: tool-surface re-point, state-model/standing-rule reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only — remediation of 31 spec-review findings (SR-1…SR-31). (1) Completed the verb_noun re-point the prior consolidation left partial: the spec now names `manage_session (action: discover/category)` (was `help`), `manage_history (action: undo/redo)` (was `undo`/`redo`), and `respond_decision` (was `respond`) across REQ-067a–c, REQ-041a–c, REQ-116, the REQ-042 series, REQ-140/190/191/192/224, the §7.4 classification table (read-only row now cites ruleset-derived `lookup_<category>` tools), §7.7 pending-workflow row, Appendix F test descriptions, and Appendix T. (2) State-model reconciliation: `badge_scope` canonicalized to `game_master` (REQ-310 campaign memory + `manage_vow` `scope`); Novel-setup flag renamed `characters_present` → `characters_present_step` (REQ-089c); Quick Reference and the §4 glossary `Connection` row aligned to the §7.7 four-tier model. (3) Standing Rule 3 scoped to outbound ("No outbound network access at runtime"); §7.4 `openWorldHint` and §7.6 `TTRPG_PORT` reworded so the inbound transport no longer contradicts REQ-051. (4) Prescriptions → contracts: REQ-452 (dropped `holonovel/scripts/check-conversion-evidence.ts` path), REQ-207a/REQ-247b1/b2 (extraction criteria, magic constants removed), REQ-131a, REQ-313b, REQ-092a/REQ-238a (durability contracts), REQ-194b (regex → behavioral). (5) REQ-064a delegation clause (vs REQ-306/305); REQ-100a latency-as-trend-metric; REQ-097a1 "reached by" cap warning. (6) Minor sweeps: §6.4.1/6.4.2 reorder; §5.13 retitled "Holodeck Coupling Model"; §5 section map synced; "must" → SHALL; §7.6 display annotations; REQ-063c plain-English guard; Appendix D "Editor badge"; Appendix Q version-field note; Appendix S "Confrontation" definition; REQ-002 parent trim; REQ-194a marker syntax; Appendix P Rule-4 scoping; duplicate `---`; "Tier 3 SDD" → "Spec-as-Source (SDD)"; §2 "four groups"; "Story Memory" → "Story Journal"; reading-guide glosses; REQ-211a pins the 18-step handoff count. |
+| Reused | extraction, lockfile |
+| Verification | assemble + check:fast 0 errors; `validate:sdd` 0 errors (17 proofreading warnings, incl. readability on the reworded REQ-452/092a/207a/247b1); `--impl-audit=strict` buckets A/B 0 (C 303 / E 113); coupling derivation 59/59; build-order complete (package_format `5fcbdf6f…`, data_format `0e997a32…`); root + holonovel typecheck clean. |
+| Follow-up | A full `must`→`SHALL` modal-drift sweep of the remaining lowercase `must` in REQ bodies (REQ-005 and §5.6 prose remain); §5.6 consolidation is a candidate for a future dedicated increment (see review-register SR-9). |
 
 ### Holonovel Spec Update — 2026-09-10 (Holodeck config coupling closure + intended-gap whitelist discipline)
 

@@ -27,9 +27,9 @@
 > Adjustable autonomy (REQ-306) controls how much the AI auto-plays vs. defers to the
 > human. Multi-character support with entity presence (REQ-307) and knowledge gating by
 > presence (REQ-308): one adventure loads as a hybrid world-model
-> and prose modules (REQ-079). State tiers: world model, roster, Novels (with synthesis
-> state), lore, and codex (server-level); connections are ephemeral transport; Novel
-> audit logs persist. RNG deterministic and seedable. Requirements state the contract; verification
+> and prose modules (REQ-079). State tiers: roster, codex, Novel, and Session (§7.7);
+> world-model and lore data are Novel property groups; connections are ephemeral
+> transport; Novel audit logs persist. RNG deterministic and seedable. Requirements state the contract; verification
 > loops enforce quality.
 
 ## Contents
@@ -61,12 +61,12 @@ files the current phase needs. That cuts phase context by about 73% versus the f
 Start with §1 (Mission), then §4 (Standing Rules — every builder must internalize
 these), then §6 (Build Process — this is your workflow). Use `build-phase-map.md`
 for per-phase file loading. Consult §5 (Requirements) by subsection as each build
-phase demands it. Skip the appendices until G0a.
+phase demands it. Skip the appendices until G0a (structural integrity, §8).
 
 **If you are updating an existing server:**
 Read §6.7 (Spec-driven updates), then the CHANGELOG for the spec version delta,
-then the §5 subsections cited by the gap audit. Confirm which deployed server tree
-the Update workflow will evaluate (REQ-398) before the gap audit. The
+then the §5 subsections cited by the gap audit (§6.7). Confirm which deployed server tree
+the Update workflow will evaluate (REQ-398) before the gap audit (§6.7). The
 `build-phase-map.md` identifies which files to load for the gap audit.
 
 **If you are a spec maintainer:**
@@ -105,7 +105,7 @@ converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution
 entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
 coding — the AI reads the ruleset and builds. The specification is the permanent
 artifact; implementations are disposable and rebuilt on demand. This is a
-Spec-as-Source (Tier 3 SDD) system — the specification is the canonical source
+Spec-as-Source (SDD) system — the specification is the canonical source
 code. Humans edit the spec; the builder AI generates, verifies, and regenerates
 the server code. Generated server code is never edited by hand. Full rebuilds have
 token and time costs. The builder prefers incremental updates when the spec delta is
@@ -184,10 +184,10 @@ The canonical requirements manifest is in [Appendix E](#appendix-e-requirements-
 The manifest covers output contracts, error taxonomy, and roll transparency. It covers
 badges and security, extraction and confidence, and tools and resources. It covers Novel
 state and persistence, guidance, and determinism. It covers input safety, durability, and
-infrastructure. Three groups divide these concerns. World is the world-model layer:
+infrastructure. Four groups divide these concerns. World is the world-model layer:
 rooms, things, exits, properties, parser commands, and hybrid source conversion. Novels
 is the save-file layer: lifecycle, exchange, checkpoints, notes, resume state, and
-archive. Narrative is the narrative layer: scenes, NPCs, factions, countdowns, and lore.
+archive. Badges & Workflow is the identity-and-permission layer. Narrative is the narrative layer: scenes, NPCs, factions, countdowns, and lore.
 It also holds the story journal, player choices, and all other REQ-020 base tools. Each
 requirement is one paragraph in §5. The manifest is the packing list for the DECISIONS.md
 traceability table. `scripts/validate.ts` verifies it mechanically.
