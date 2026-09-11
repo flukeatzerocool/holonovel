@@ -955,7 +955,7 @@ The Appendix W transcript exercises: REQ-001 (status prefixes on `[OK]`, `[WARNI
 `[ERROR]`, `[NEED_INPUT]`), REQ-032 (badge gating — `manage_combat (action: init)` blocked from Player,
 `set_badge` switches badges., REQ-041 (undo round-trip restores item position on the
 throne), REQ-042 (decision workflow — `[NEED_INPUT]` with yes/cancel, concluded via
-`respond`), REQ-055 (Novel lifecycle — create, play, end with confirmation; roster
+`respond_decision`), REQ-055 (Novel lifecycle — create, play, end with confirmation; roster
 survives `manage_novel (action: end)`), REQ-072 (manage_session (action: recap) reports scene state, entity inventory,
 world-model summary), REQ-073 (countdown lifecycle — set, advance, expire, audit),
 REQ-092 (Novel persistence — created, written to disk per REQ-088, ended with file

@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-09-10 — Full spec-review remediation (SR-1…SR-31)
+
+- Completed the verb_noun re-point the prior consolidation left partial: the
+  spec now names `manage_session (action: discover/category)` (was `help`),
+  `manage_history (action: undo/redo)` (was `undo`/`redo`), and `respond_decision`
+  (was `respond`) across REQ-067a–c, REQ-041a–c, REQ-116, the REQ-042 series,
+  REQ-140/190/191/192/224, the §7.4 classification table, the §7.7
+  pending-workflow row, Appendix F test descriptions, and Appendix T. The §7.4
+  `read-only` row now cites ruleset-derived `lookup_<category>` tools.
+- Reconciled state-model contradictions: `badge_scope` canonicalized to
+  `game_master` (REQ-310 and the `manage_vow` `scope` field no longer use `gm`);
+  the Novel-setup flag renamed `characters_present` → `characters_present_step`
+  (REQ-089c); the Quick Reference and the §4 glossary `Connection` row now match
+  the §7.7 four-tier model (Roster, Codex, Novel, Session).
+- Scoped Standing Rule 3 to outbound traffic and reworded §7.4 `openWorldHint`
+  and §7.6 `TTRPG_PORT` so the inbound transport surface no longer contradicts
+  REQ-051.
+- Converted prescriptions to contracts: REQ-452 (dropped the hardcoded
+  `holonovel/scripts/check-conversion-evidence.ts` path), REQ-207a/REQ-247b1/b2
+  (extraction criteria restated as contracts, magic constants removed),
+  REQ-131a, REQ-313b, REQ-092a/REQ-238a (durability contracts), REQ-194b
+  (regex → behavioral contract).
+- Added a REQ-064a delegation clause (reconciles "never decides for the player"
+  with REQ-306 autonomy and REQ-305 observer mode); a latency-as-trend-metric
+  clause to REQ-100a; and a defined cap-warning threshold to REQ-097a1.
+- Minor/Info sweeps: §6.4.1/§6.4.2 reordered; §5.13 retitled "Holodeck Coupling
+  Model"; §5 section map synced; modal drift (`must` → SHALL); §7.6 display-budget
+  annotations; REQ-063c plain-English guard; Appendix D "Editor badge";
+  Appendix Q version-field note; Appendix S "Confrontation" definition; REQ-002
+  parent trimmed; REQ-194a marker-syntax coverage; Appendix P Rule-4 scoping;
+  duplicate `---` removed; "Tier 3 SDD" → "Spec-as-Source (SDD)"; §2 "four
+  groups"; "Story Memory" → "Story Journal"; reading-guide forward-reference
+  glosses; the 18-step handoff count pinned in REQ-211a.
+- Recorded the Appendix-M §5 consolidation review in
+  `spec/audit/review-register.md` — nine subsections exceed the 40-REQ trigger;
+  disposition Deferred-by-user with §5.6 flagged for a future increment.
+
 ## 2026-09-10 — Prose Parameter Semantics on high-arity tools (TDQS Parameter Semantics)
 
 - Added a "Parameters by action:" clause to the descriptions of all 23 tools

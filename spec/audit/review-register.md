@@ -8,6 +8,14 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **§5 subsection consolidation review** (full-document spec-review SR-9,
+  2026-09-10): Appendix M's "§5 subsection exceeding 40 REQs SHALL trigger a
+  maintainer review for consolidation" exercised across the nine sections over
+  the threshold — §5.6 (260), §5.8 (127), §5.3 (84), §5.12 (82), §5.9 (76),
+  §5.10 (74), §5.5 (58), §5.1 (51), §5.7 (49). Disposition: `Deferred-by-user`
+  — each section's density is justified by its domain complexity; no immediate
+  consolidation. §5.6 is a candidate for a future dedicated consolidation
+  increment.
 - **§7.6 behavioral-annotation drift** (baseline spec-review, 2026-09-09):
   normalized the config-table annotation to one canonical form — `TTRPG_AUTONOMY`
   dropped its `§7.7.1a` prefix and `TTRPG_SYNTHESIS_AUTO_TRIGGER` gained its

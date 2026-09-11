@@ -456,6 +456,39 @@ README.md license footer. Format: "Built from: [Source] ([License], [Copyright])
 — one source per line, semicolon-separated, flowing into a single paragraph
 terminated by the RSS link and last-updated date.
 
+### 6.4.1 Prompt composition
+
+Each server prompt is a user-role message composed at invocation time from
+live state. The builder constructs prompts from these sources, in this order:
+
+1. **Live index.** Counts and listings (available classes, races, spells,
+   adventures, roster characters) are drawn from the running index — never
+   hardcoded. A prompt whose source data changes regenerates on the next
+   invocation.
+
+2. **State snapshot.** Entity stats, NPC lists, countdown status, scene
+   description, and Novel metadata are drawn from the current Novel state at
+   invocation time.
+
+3. **Registration surfaces.** Tool names, parameter hints, and category
+   groupings are drawn from the live tool registry and the ruleset extraction
+   model's action classifications (REQ-015).
+
+4. **Badge-scoped guidance.** Foundations (REQ-062), anti-slop guidance
+   (REQ-070), and supplementary synthesis (REQ-080) are included per the
+   active badge's filter.
+
+5. **Required contract elements.** Every prompt that carries a specification
+    contract (intro pointer in `badge_briefing` per REQ-063, plain-English
+    guidance sections and examples in `session_zero` per REQ-078, conversational
+    wizard steps in `novel_setup` per REQ-089) includes
+    those elements before any truncation. Standing Rule 10 applies — prompt
+    bodies SHALL contain no tool names or technical syntax.
+
+Prompts use the ruleset's own terminology for mechanics, tool names, and
+categories — the builder does not invent terms. The prompt length budget
+(REQ-118) applies to every prompt.
+
 ### 6.4.2 Package step
 
 *Prepare:* Load files from `build-phase-map.md` Package row: 03-build.md §6.4.2,
@@ -517,39 +550,6 @@ Unlike a merged server, packaging NEVER modifies the host: the base `holonovel`
 server is installed unchanged, and packages are dropped into the install directory
 (§7.6) for lazy hydration per REQ-390. After packaging, verify that the loaded host
 reports per-ruleset metrics and `ruleset_prefix_map` via `spec_health`.
-
-### 6.4.1 Prompt composition
-
-Each server prompt is a user-role message composed at invocation time from
-live state. The builder constructs prompts from these sources, in this order:
-
-1. **Live index.** Counts and listings (available classes, races, spells,
-   adventures, roster characters) are drawn from the running index — never
-   hardcoded. A prompt whose source data changes regenerates on the next
-   invocation.
-
-2. **State snapshot.** Entity stats, NPC lists, countdown status, scene
-   description, and Novel metadata are drawn from the current Novel state at
-   invocation time.
-
-3. **Registration surfaces.** Tool names, parameter hints, and category
-   groupings are drawn from the live tool registry and the ruleset extraction
-   model's action classifications (REQ-015).
-
-4. **Badge-scoped guidance.** Foundations (REQ-062), anti-slop guidance
-   (REQ-070), and supplementary synthesis (REQ-080) are included per the
-   active badge's filter.
-
-5. **Required contract elements.** Every prompt that carries a specification
-    contract (intro pointer in `badge_briefing` per REQ-063, plain-English
-    guidance sections and examples in `session_zero` per REQ-078, conversational
-    wizard steps in `novel_setup` per REQ-089) includes
-    those elements before any truncation. Standing Rule 10 applies — prompt
-    bodies SHALL contain no tool names or technical syntax.
-
-Prompts use the ruleset's own terminology for mechanics, tool names, and
-categories — the builder does not invent terms. The prompt length budget
-(REQ-118) applies to every prompt.
 
 ### 6.5 Verification and convergence
 
@@ -1092,7 +1092,7 @@ four items is incomplete and blocks handoff.
     `faction://` resource, `manage_countdown (action: advance)` coupling, scene transition advances
     faction clock, `manage_faction (action: remove)` removes clock; `manage_lore (action: set_secret)` / `manage_lore (action: reveal)` /
     `manage_lore (action: knowledge)` cycle with manage_character (action: sheet) "Known Information" section;
-    `manage_scene (action: choices)` with `[NEED_INPUT]` workflow, `respond` resolution, `[choice]`
+    `manage_scene (action: choices)` with `[NEED_INPUT]` workflow, `respond_decision` resolution, `[choice]`
     audit tag, countdown and faction clock coupling on resolved id; `manage_relationship (action: set)`
     / `manage_relationship (action: get)` cycle, manage_character (action: sheet) shows "Relationships" section,
     relationship change between `ally` and `rival` prompts lore entry in
