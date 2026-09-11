@@ -10,4 +10,5 @@ echo "Running pre-commit checks..."
 npm run assemble
 npx tsx scripts/version-check.ts
 npx tsx scripts/spec-delta.ts --report-only
+npm run check-fingerprint-sync
 npm run lint && npm run validate-readme

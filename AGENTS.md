@@ -248,6 +248,10 @@ remaining items before committing:
       `validate:sdd`; `check:fast` skips this)
 - [ ] build-phase-map file-index counts (subsections, appendices) match the
       current spec
+- [ ] Edits touching §5.9, §5.16–5.17, §6.3, §6.4.2, §7.7, §5.19, or
+      Appendix Q re-run fingerprint regeneration (`npm run build-order`);
+      `check-fingerprint-sync` (wired into pre-commit, `check`, `check:fast`)
+      fails the commit when the committed `contract-fingerprints.ts` is stale
 - [ ] New coupling rows cite property tokens that resolve to §7.7 property
       groups or the alias map; behavioral-config annotations name a P-rule
       backed by a §7.7.1a row naming that config

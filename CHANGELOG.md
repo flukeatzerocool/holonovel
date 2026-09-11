@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-10 — Regenerate contract fingerprints + fingerprint-sync gate
+
+- Regenerated `holonovel/src/generated/contract-fingerprints.ts` — the DATA_FORMAT
+  fingerprint was stale after the 2026-09-09 §7.7.1a coupling-table edit (which
+  changed a data-format section without re-running build-order), breaking
+  `test:fingerprints` T502 (migrate-user-data re-stamps to the spec-derived value
+  while the harness asserted the stale constant). `dataFormat` d029e9f7… →
+  b2665b83…; `PACKAGE_FORMAT` unchanged. (REQ-423, REQ-424)
+- Added `scripts/check-fingerprint-sync.ts`, a gate that recomputes both
+  contract fingerprints from `holonovel.md` and fails the commit when the
+  committed `contract-fingerprints.ts` is stale. Wired into pre-commit, `check`,
+  and `check:fast`, so this drift class (second occurrence — see 19378d0) can't
+  recur. Documented the fingerprint-section requirement in AGENTS.md.
+
 ## 2026-09-10 — TDQS tool annotations (all four hints on every tool)
 
 - Closed the M8ven directory finding that every holonovel tool shipped partial
