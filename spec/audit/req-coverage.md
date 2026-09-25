@@ -11,9 +11,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-003 | Roll transparency (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T47, T210, T131 | — |
 | REQ-004 | Truncation (1 sub-part) | 5.1 Output and Error Contracts | C | T13 | — |
 | REQ-010 | Traceability | 5.2 Extraction and Confidence | E | T15 | — |
-| REQ-011 | Confidence (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T15, T45, T93 | — |
+| REQ-011 | Confidence (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T15, T93 | — |
 | REQ-012 | Graceful fallback | 5.2 Extraction and Confidence | E | T91 | — |
-| REQ-013 | No assumed mechanics | 5.2 Extraction and Confidence | E | T25, T32 | — |
+| REQ-013 | No assumed mechanics | 5.2 Extraction and Confidence | E | T32 | — |
 | REQ-014 | Source immutability | 5.2 Extraction and Confidence | E | T224 | — |
 | REQ-015 | Action classification | 5.2 Extraction and Confidence | E | T15 | — |
 | REQ-016 | Guidance extraction | 5.2 Extraction and Confidence | E | T26 | — |
@@ -22,16 +22,16 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-020 | Tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T5, T32, T259 | — |
 | REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-022 | Resources (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T16 | — |
-| REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T22, T26, T49, T50, T155, T480 | — |
+| REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T26, T49, T50, T155, T480 | — |
 | REQ-024 | Tool documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T509, T488 | — |
-| REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
+| REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T62, T64, T66, T68, T70, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T62, T64, T66, T70, T75, T76, T80, T90, T91, T100, T101, T104, T118, T119, T127, T128, T129, T133, T134, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T70, T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T76, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
-| REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T25, T47, T56, T90, T91, T110, T131, T161, T162 | — |
+| REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T90, T91, T131, T162 | — |
 | REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | S17 | — |
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
@@ -47,17 +47,17 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-062 | Badge foundations | 5.1 Output and Error Contracts | C | T26 | — |
 | REQ-063 | Connection introduction (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T49, T50, T124, T259 | — |
 | REQ-064 | Badge behavioral boundaries (Part a) (6 sub-parts) | 5.1 Output and Error Contracts | C | T461 | — |
-| REQ-065 | Build fingerprint (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T224, T77, T125, S17 | — |
+| REQ-065 | Build fingerprint (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T224, T125, S17 | — |
 | REQ-066 | set_badge tool (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T138, S6 | — |
 | REQ-067 | Help and tool discovery (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T62, T118 | — |
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
-| REQ-072 | Session recap (Part a1) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261, T518 | — |
+| REQ-072 | Session recap (Part a1) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T518 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T312, T404, T406, T409, T410, T411 | — |
-| REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T73, T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T409, T513 | — |
-| REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T57, T112, T132, T137, T331, S17 | — |
+| REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, T218, T220, S17 | — |
+| REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513 | — |
+| REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124 | — |
 | REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207, T146, T285 | — |
@@ -65,16 +65,16 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-081 | Narrative directive (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T64, T134, T450 | — |
 | REQ-082 | Prompt section ordering (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T66, T225 | — |
 | REQ-083 | Dynamic lore (Part a) (6 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T400, T407, T411 | — |
-| REQ-084 | Action suggestions (Part b1) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T68, T96, T119, T120 | — |
+| REQ-084 | Action suggestions (Part b1) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T96, T119, T120 | — |
 | REQ-085 | Macro system (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T69 | — |
 | REQ-086 | Audit compression (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T70 | — |
 | REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T476 | — |
-| REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T98, T122, T159, T402 | — |
+| REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T98, T122, T159, T402 | — |
 | REQ-089 | Novel setup (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T74, T219 | — |
-| REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T73, T75, T146, T367 | — |
+| REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T75, T146, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
-| REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T77, T88, T125, T138, T156, T261 | — |
-| REQ-093 | Novel listing and metadata (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T78, T99, T110 | — |
+| REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T125, T138, T156, T261 | — |
+| REQ-093 | Novel listing and metadata (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T78, T99 | — |
 | REQ-094 | Lorebook interchange (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T80 | — |
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
 | REQ-096 | Novel interchange (Part a) (11 sub-parts) | 5.9 Novel Persistence and Transport | C | T100, T281 | — |
@@ -90,7 +90,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
 | REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
-| REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T110, T201, T149 | — |
+| REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T201, T149 | — |
 | REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-112 | Cross-reference discovery | 5.3 Tools, Resources, and Lookups | C | T115 | — |
@@ -152,8 +152,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, S22 | — |
-| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T53, T213 | — |
-| REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T214 | — |
+| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T213 | — |
+| REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T214 | — |
 | REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, S17 | — |
 | REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217, S17 | — |
 | REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219, S17 | — |
@@ -273,7 +273,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-303 | Scoped re-verification | 6.6 The Pattern Buffer | E | — | — |
 | REQ-304 | Counterpart AI role (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T482, T348 | — |
 | REQ-305 | Observer mode (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T349, T417, S6 | — |
-| REQ-306 | Adjustable autonomy (Part a) (7 sub-parts) | 5.5 Badges and Access | C | T483, T484, T485, T350, S22 | — |
+| REQ-306 | Adjustable autonomy (Part a) (7 sub-parts) | 5.5 Badges and Access | C | T483, T484, T485, S22 | — |
 | REQ-307 | Entity presence (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T351, T356, S17 | — |
 | REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356 | — |
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353 | — |

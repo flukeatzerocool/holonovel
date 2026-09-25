@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-25 — Coverage-integrity: over-stuffed test bundles resolved
+
+- `compare-spec-code.ts --bundles` now reports per-ID occurrence counts and a
+  safe-trim suggestion: an ID is droppable only when every REQ it maps to keeps
+  another exercised ID, so trimming cannot silently drop a REQ to bucket B.
+- Trimmed all nine `test-backfill.ts` integration-test names to ≤4 IDs.
+  Coverage is unchanged (A0/B0/C384/E114) and the over-stuffed-name warnings
+  fell from 9 to 0; `test:backfill` still passes 64/64.
+
 ## 2026-09-25 — Harness fail-loud contract (REQ-141m)
 
 - A test harness whose spawned server crashes mid-run could drain its event
