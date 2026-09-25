@@ -1444,6 +1444,28 @@ function checkHarnessGating(): string[] {
   return issues;
 }
 
+// REQ-113 evidence-integrity guard (spec-code comparison SC-6): a harness
+// `test("…")` name that carries more than four T/S/I IDs bundles unrelated
+// contracts into one executed name. Every bundled ID counts as exercised, so
+// bucket C overstates evidence (e.g. T116's only occurrence is the redo test).
+// Warning only — the accepted grouping convention is a judgement call, so this
+// flags the review candidate rather than failing the gate.
+const MAX_IDS_PER_TEST_NAME = 4;
+function checkTestNameInflation(): string[] {
+  const issues: string[] = [];
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
+      const ids = [...m[1].slice(0, m[1].indexOf(":") === -1 ? m[1].length : m[1].indexOf(":")).matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]);
+      if (ids.length > MAX_IDS_PER_TEST_NAME) {
+        issues.push(`over-stuffed test name in ${path.basename(f)}: "${m[1].slice(0, 60)}…" carries ${ids.length} IDs`);
+      }
+    }
+  }
+  return issues;
+}
+
 // Placeholder-stub detection (REQ-090/091 guard). Returns the stub sentinel
 // strings still present in the server source. A registered tool body that
 // returns a sentinel string (e.g. "(Placeholder" or "no ruleset mechanics
@@ -1541,6 +1563,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-225": "Ruleset Wisdom extraction — build-time; cited for build-time provenance in wisdom.ts",
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
   "REQ-373": "dynamic tool registration waived per REQ-372d — the reference stack statically registers MCP tools; recorded in DECISIONS.md (5) and exercised by T424's waiver branch",
+  "REQ-124": "§5.6 ruleset-dependent NPC damage resolution — needs a ruleset with a defensive-stat/damage model and zero-health threshold, which the ruleset-free reference host does not provide; re-activate with such a package (spec-code comparison SC-2)",
 };
 function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
   const issues: string[] = [];
@@ -1668,6 +1691,13 @@ const INTENDED_GAP_REQS = new Set([
   // tables; the workflow pattern itself is covered by character creation
   // (REQ-104). Not owed by the ruleset-free runtime server.
   "REQ-056",
+  // §5.6 ruleset-dependent (spec-code comparison 2026-09-25, SC-2): NPC damage
+  // resolution needs a ruleset's damage model and zero-health threshold, which a
+  // ruleset-free host does not provide. T131's only harness occurrence was the
+  // conflict-lifecycle bundle, which asserted nothing about damage — REQ-124 was
+  // a false bucket C. Re-activate with a ruleset package that declares
+  // defensive stats and a damage model.
+  "REQ-124",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
@@ -2037,6 +2067,12 @@ function main(): void {
   const gatingIssues = checkHarnessGating();
   if (gatingIssues.length > 0) { for (const issue of gatingIssues) console.log(`ERROR: ${issue}`); errors += gatingIssues.length; }
   else console.log("PASS: Every exercised harness is wired into a gate");
+
+  const inflationIssues = checkTestNameInflation();
+  if (inflationIssues.length > 0) {
+    for (const issue of inflationIssues) console.log(`WARNING: ${issue}`);
+    warnings += inflationIssues.length;
+  } else console.log("PASS: No over-stuffed test names (<= 4 IDs per name)");
 
   const intendedGapIssues = checkIntendedGapDispositions(sourceCites);
   if (intendedGapIssues.length > 0) { for (const issue of intendedGapIssues) console.log(issue); errors += intendedGapIssues.length; }

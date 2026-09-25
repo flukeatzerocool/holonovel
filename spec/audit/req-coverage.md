@@ -27,7 +27,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T62, T64, T66, T68, T70, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T151, T221, T261, T284, T285, T286, T326, S6 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T62, T64, T66, T68, T70, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T70, T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T76, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
@@ -90,7 +90,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
 | REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
-| REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T110, T201 | — |
+| REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T110, T201, T149 | — |
 | REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-112 | Cross-reference discovery | 5.3 Tools, Resources, and Lookups | C | T115 | — |
@@ -105,7 +105,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-121 | NPC resource URIs | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T128 | — |
 | REQ-122 | NPC narrative fields (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129 | — |
 | REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T130 | — |
-| REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T131 | — |
+| REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T131 | — |
 | REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T284, T312, T404 | — |
 | REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T202 | — |
 | REQ-127 | Ruleset-native personality mapping (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
@@ -115,8 +115,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-131 | Novel initialization order (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | E | — | — |
 | REQ-132 | Adventure generation lifecycle (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T146 | — |
 | REQ-133 | Forbidden-call audit (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T203, T147, S6 | — |
-| REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | C | S6 | — |
-| REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T461, T469, T470, T476 | — |
+| REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | C | T148, S6 | — |
+| REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T461, T469, T470, T476, T149 | — |
 | REQ-136 | Editor-badge briefing (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T150 | — |
 | REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T151, S6 | — |
 | REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T152 | — |

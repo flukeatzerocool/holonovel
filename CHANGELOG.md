@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-25 — Spec↔code conformance comparison and evidence remediation
+
+- Added `scripts/compare-spec-code.ts`, an informational tool that joins the
+  assembled spec's REQ bodies, the coverage register, source citation sites,
+  Appendix F, the §6.6 map, and harness `test(...)` bodies into a per-REQ
+  conformance dossier (`--check`, `--section`, `--signals`, `--out`, `--json`).
+  The full 498-REQ comparison is recorded in
+  `spec/audit/spec-code-comparison-2026-09-25.md`.
+- Fixed five false bucket-C REQs whose harness test names carried IDs the test
+  body never asserts: added real tests `T116` (REQ-113 result counts), `T148`
+  (REQ-134 Player surface), `T149` (REQ-135 briefing budget), and `T380`
+  (REQ-333 story promotion), and corrected the two mislabeled test names that
+  carried `T116` and `T380`.
+- `scripts/validate.ts` now warns on over-stuffed test names carrying more than
+  four IDs — the recurrence guard for the coverage-inflation class (SC-6).
+- REQ-124 (NPC damage resolution) reclassified from bucket C to intended gap E
+  with a REQ-454 disposition: it needs a ruleset damage model the ruleset-free
+  reference host does not provide.
+- The badge-briefing budget now honors the spec-declared
+  `TTRPG_MAX_BRIEFING_TOKENS` (04-runtime.md), with `TTRPG_PROMPT_BUDGET` kept
+  as a fallback.
+- Gates: 0 errors; 31/31 harnesses pass; coverage A0/B0/C385/E113.
+
 ## 2026-09-25 — Proofread: reference-prose structural checks and Appendix M standard
 
 - The proofreading pass now scores reference prose for sentence length and

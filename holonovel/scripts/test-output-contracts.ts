@@ -62,6 +62,7 @@ const RULESET_PKG = {
   index: [
     { id: "fireball", anchor: "Spells > Level 3 > Fireball", source_file: "wave1test.md", content: "Fireball deals 8d6 fire damage. See Monsters > Goblin for a common target.", category: "Spells", confidence: "high", line_range: "1420-1445" },
     { id: "goblin", anchor: "Monsters > Goblin", source_file: "wave1test.md", content: "Goblin: AC 15, HP 7.", category: "Monsters", confidence: "high", line_range: "200-210" },
+    { id: "goblin_king", anchor: "Monsters > Goblin King", source_file: "wave1test.md", content: "Goblin King: AC 17, HP 22.", category: "Monsters", confidence: "high", line_range: "211-220" },
   ],
   model: {
     concepts: {
@@ -479,7 +480,7 @@ async function main() {
   });
 
   // ── REQ-332 codex provenance ──
-  await test("T380/T384/REQ-332: codex import records provenance and reports stale", async () => {
+  await test("T384/REQ-332: codex import records provenance and reports stale", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4h" });
     await call(p, "set_badge", { badge: "game_master" });
@@ -1099,6 +1100,78 @@ async function main() {
     if (c?.mimeType === "text/html;profile=mcp-app") throw new Error("T508 ui served HTML without negotiation");
     assertContains(c?.text ?? "", "MCP Apps extension", "T508 fallback notice");
     passed++;
+    await kill(p);
+  });
+
+  // ── REQ-113 result count reporting (T116) ──
+  await test("T116/REQ-113: result count reporting", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w1r", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const limited = await call(p, "manage_ruleset", { action: "search",  query: "goblin", max_results: 1 });
+    assertContains(limited, "1 of 3 results", "REQ-113 returned vs total counts");
+    const full = await call(p, "manage_ruleset", { action: "search",  query: "goblin", max_results: 10 });
+    assertNotContains(full, "of 3 results", "REQ-113 no count line when total <= returned");
+    await kill(p);
+  });
+
+  // ── REQ-135 badge briefing size budget (T149) ──
+  await test("T149/REQ-135: badge briefing size budget", async () => {
+    const p = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "600" });
+    await call(p, "manage_novel", { action: "create",  name: "w1t" });
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "[truncated", "REQ-135 truncation marker at small budget");
+    assertContains(brief, "Confine tool use and responses to the current Novel", "REQ-135 badge boundary never truncated");
+    await kill(p);
+    const p2 = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "1000000" });
+    await call(p2, "manage_novel", { action: "create",  name: "w1t2" });
+    const brief2 = await proto(p2, "prompts/get", { name: "badge_briefing" });
+    assertNotContains(brief2, "[truncated", "REQ-135 no truncation under large budget");
+    await kill(p2);
+  });
+
+  // ── REQ-333 story journal to lore promotion (T380) ──
+  await test("T380/REQ-333: story journal to lore promotion", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w1s" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_story", { action: "record",  type: "revelation", entry: "The old well leads to the undercity" });
+    const promote = await call(p, "manage_story", { action: "promote",  index: 0, key: "well-undercity-link" });
+    assertContains(promote, "[OK]", "REQ-333 promotion succeeds");
+    const lore = await call(p, "manage_lore", { action: "get",  key: "well-undercity-link" });
+    assertContains(lore, "story_journal:0", "REQ-333 promotion records source");
+    await call(p, "manage_story", { action: "record",  type: "decision", entry: "We chose to trust the vampire" });
+    const bad = await call(p, "manage_story", { action: "promote",  index: 1 });
+    assertContains(bad, "[RULE_VIOLATION]", "REQ-333 immutable entry not promotable");
+    await kill(p);
+  });
+
+  // ── REQ-134 minimum Player tool surface (T148) ──
+  await test("T148/REQ-134: minimum Player tool surface", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w1p" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "Pia" });
+    await call(p, "manage_character", { action: "set_active",  entity_id: "character_01" });
+    await call(p, "set_badge", { badge: "player" });
+    const groups: Array<[string, string, Record<string, unknown>]> = [
+      ["dice-resolution", "resolve_fate", { action: "roll" }],
+      ["ruleset lookup", "manage_ruleset", { action: "search", query: "x" }],
+      ["character sheet", "manage_character", { action: "sheet", entity_id: "character_01" }],
+      ["action suggestions", "run_command", { action: "suggest" }],
+      ["player signal", "manage_character", { action: "signal", entity_id: "character_01", signal: "note" }],
+      ["tool discovery", "help", {}],
+      ["history", "manage_history", {}],
+      ["badge switching", "set_badge", { badge: "player" }],
+    ];
+    for (const [label, tool, args] of groups) {
+      const r = await call(p, tool, args);
+      if (r.includes("[FORBIDDEN]")) throw new Error(`REQ-134 Player cannot reach ${label} via ${tool}: ${r.slice(0, 200)}`);
+      passed++;
+    }
+    const forbidden = await call(p, "manage_npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
+    assertContains(forbidden, "[FORBIDDEN]", "REQ-134 GM-exclusive returns FORBIDDEN for Player");
     await kill(p);
   });
 

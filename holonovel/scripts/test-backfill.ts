@@ -310,7 +310,7 @@ async function main() {
       assertContains(unblocked, "[OK]");
     });
 
-    await test("T121/T116: redo restores prior state", async () => {
+    await test("T121: redo restores prior state", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "redo-room", description: "Redo." });
       await call(proc, "manage_history", {});
       const undone = await callRaw(proc, "manage_world", { action: "remove_room",  name: "redo-room" });
