@@ -6,14 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Feature parity — M1d Causal Transition Validation (REQ-484–495)
-
-- Add §5.27: transition proposals, admissibility decisions, scope-coordinate
-  validation, idempotency, rejected-transition evidence, causal–epistemic
-  firewall; new tool `manage_causal` (propose/admit/reject/list/state/ingress).
-- New §7.7 property groups Causal State and Transition Ledger.
-- Harness `scripts/test-causal.ts`; T574–T585. Depends on M1a.
-
 ## Feature parity — M2 Knowledge Corpus, Semantic Index, Knowledge Graph
 
 - M2a (REQ-496–503) cold corpus + per-entity acquisition ledger with access

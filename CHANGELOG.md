@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-24 — M1d: Causal Transition Validation
+
+- Objective-state changes are now validated against committed history before
+  they take effect. A proposed change is recorded as a proposal first and is
+  not truth until admitted; refused proposals stay in the ledger as auditable
+  evidence. (REQ-484, REQ-485, REQ-491)
+- Location is exclusive per entity and scope, ordered scalar state admits later
+  values while refusing incompatible ones, foreign-scope proposals are refused
+  so one branch cannot overwrite another, and re-admitting a value is idempotent
+  with an optional expected-version guard. Latent transitions can be permitted
+  and are flagged rather than silent. (REQ-486–REQ-490)
+- The causal layer never writes belief, evidence, or identity, and those layers
+  never write causal state. Machine-originated state enters through a
+  deterministic ingress path. New `manage_causal` tool (propose/admit/reject/
+  list/state/ingress) and a `causal://state` resource; Players read objective
+  state and mutation is Game Master-only. (REQ-492–REQ-495)
+- This completes the four bottom-line parity items (event log, belief,
+  identity, causal); the remaining parity milestones are on ROADMAP.md.
+
 ## 2026-09-24 — M1c: Character Identity Firewall
 
 - Characters now have a durable identity that play cannot rewrite. Identity

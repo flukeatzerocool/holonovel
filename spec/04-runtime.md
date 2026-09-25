@@ -171,6 +171,9 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED` | No | `true` (default) accepts authored character-card identity fields as facets on bootstrap; `false` stages them as pending candidates (REQ-479). Build-time. |
 | `TTRPG_IDENTITY_MAX_CANDIDATES` | No | Maximum identity candidates retained per character before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_CAUSAL_VALIDATION` | No | `true` (default) validates objective-state transitions before admission (REQ-485). Behavioral — couples per P13. |
+| `TTRPG_CAUSAL_LATENT_TRANSITIONS` | No | `false` (default) refuses incompatible transitions; `true` admits them flagged as latent (REQ-490). Behavioral — couples per P13. |
+| `TTRPG_CAUSAL_MAX_LEDGER_ENTRIES` | No | Maximum transition-ledger entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -232,6 +235,8 @@ discarded by `manage_novel (action: end)`):
 | Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
 | Evidence | Knowledge-carrying | read/write (REQ-461; mutation GM-only) | read-only (own entity, badge-filtered per REQ-472) |
 | Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
+| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_causal`) | read-only (objective state per REQ-495) |
+| Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -503,6 +508,14 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Evidence → Belief State | P54 | Admitted evidence reconciles into a belief stance, preserving support and opposition; governed by TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, and TTRPG_BELIEF_DECISION_MARGIN | What the character gathered becomes what they believe | GM-only | Navigational | REQ-465, REQ-466 |
 | Belief State → Lore | P54 | An accepted belief promotes to the entity's knowledge with its evidence provenance | What the character believes becomes what they know | GM-only | Navigational | REQ-461, REQ-462 |
 | Belief State → Scene | P40 | Beliefs relevant to the current scene surface in the scene's knowledge rendering | What the character believes colors what they notice | GM-only | Navigational | REQ-472 |
+| Causal State → Scene | P13 | An admitted causal transition triggers the scene-transition hook; governed by TTRPG_CAUSAL_VALIDATION and TTRPG_CAUSAL_LATENT_TRANSITIONS | Entering a new location is a scene change | GM-only | Mechanical | REQ-486, REQ-488 |
+| Transition Ledger → Lore | P16 | Recorded transition outcomes promote to knowledge-carrying records with their causal provenance | What happened becomes a known consequence | GM-only | Navigational | REQ-491, REQ-492 |
+
+**Admission decisions.** A causal proposal carries one admission decision (REQ-485):
+`admitted`, `admitted-with-latent-transition`, `rejected-impossible`, `conflict`,
+`underdetermined`, `fork-required`, or `epistemic-only`. `underdetermined` marks a
+recorded but undecided proposal; `admitted-with-latent-transition` is provisional
+and flagged rather than silent.
 
 ##### 7.7.1b Coupling curation
 
