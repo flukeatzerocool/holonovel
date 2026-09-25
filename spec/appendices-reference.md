@@ -1208,6 +1208,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-507 | Advisory relation metadata | 2026-09-24 |
 | REQ-508 | Authority boundary | 2026-09-24 |
 | REQ-509 | Index scope filtering | 2026-09-24 |
+| REQ-510 | Derived projection | 2026-09-24 |
+| REQ-511 | Node typing | 2026-09-24 |
+| REQ-512 | Edge derivation | 2026-09-24 |
+| REQ-513 | Rebuild idempotency and staleness | 2026-09-24 |
+| REQ-514 | Read-only scope-filtered exposure | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1830,6 +1835,11 @@ diet.
 | T597 | Automated | Advisory relation metadata: two near-identical items yield an equivalent or related relation. | REQ-507 |
 | T598 | Automated | Authority boundary: a search leaves the authoritative stores unchanged. | REQ-508 |
 | T599 | Automated | Index scope filtering: a Game Master-scope item is absent from a Player search. | REQ-509 |
+| T600 | Automated | Derived projection: rebuilding without source changes yields an identical node and edge set. | REQ-510 |
+| T601 | Automated | Node typing: a character node carries a stable id, a character type, and its name as label. | REQ-511 |
+| T602 | Automated | Edge derivation: a set relationship yields a relates-to edge and a placed character or NPC yields a located-in edge. | REQ-512 |
+| T603 | Automated | Rebuild idempotency and staleness: changing a source marks the graph stale, a rebuild clears it, and repeated builds are identical. | REQ-513 |
+| T604 | Automated | Read-only scope-filtered exposure: a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. | REQ-514 |
 
 ---
 

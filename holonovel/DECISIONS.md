@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** c9df60e2feef361bc8999f1e4542202580ee709a69bc0cf33fb64a424c217e84
+**Spec hash:** 3d1b471c362e103eca4122b3dbe917c37001eb5da624e179078c82e2d1186e38
 
-**Recorded tool budget:** 31 (REQ-429)
+**Recorded tool budget:** 32 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M2c: Knowledge-Graph Projection)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.30 Knowledge-Graph Projection (REQ-510–514), completing M2. Declared a derived, session-scoped read-only surface in §7.7.0 (not a Novel property group; never persisted; never writes state), so no §7.7 property-table change and no property-group count change (stays 36). REQ-407 names the knowledge-graph surface. New tool `manage_graph` (build/status/get/nodes/edges/neighbors); REQ-429 recorded budget 31 → 32. Implementation: `src/core/graph.ts` (deterministic node/edge projection over characters, NPCs, lore, factions, rooms, and relationships; SHA-256 source fingerprint; typed edges relates_to/located_in/holds_territory; scope-filtered reads). `StateManager.knowledgeGraph` is session-scoped and non-persisting. No new §7.6 config. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `3d1b471c…`; bucket A 0, B 0, C 363, E 113); typecheck 0 errors; test:graph 5/5 (T600–T604); test:tool-definitions 6/6 (T511 against the 32-tool recorded budget); version-check OK |
+| Follow-up | M2 (corpus, semantic index, knowledge graph) is complete. M3–M5 remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (M2b: Build-time Semantic Index)
 

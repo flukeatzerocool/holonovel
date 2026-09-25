@@ -35,6 +35,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.27   | Causal Transition Validation                            | 484–495 |
 | 5.28   | Knowledge Corpus                                        | 496–503 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
+| 5.30   | Knowledge-Graph Projection                              | 510–514 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3770,7 +3771,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3923,5 +3924,17 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-508 — Authority boundary.** Index candidates SHALL NOT write or mutate Novel state; a candidate SHALL become state only when promoted through the authoritative tool for its type. *Acceptance criterion:* a search leaves the authoritative stores unchanged. _Check:_ T598.
 
 **REQ-509 — Index scope filtering.** Index reads SHALL be filtered by the active badge so an item the caller cannot read does not surface as a candidate or relation. *Acceptance criterion:* a Game Master-scope item is absent from a Player search. _Check:_ T599.
+
+### 5.30 Knowledge-Graph Projection
+
+**REQ-510 — Derived projection.** THE server SHALL project a knowledge graph over Novel sources as a derived artifact, rebuilding it from those sources so the Novel file remains authoritative and a rebuild with unchanged sources reproduces the same graph. *Acceptance criterion:* rebuilding without source changes yields an identical node and edge set. _Check:_ T600.
+
+**REQ-511 — Node typing.** Each graph node SHALL carry a stable identifier, a type, and a label derived from its source. *Acceptance criterion:* a character source yields a character-typed node labeled with its name. _Check:_ T601.
+
+**REQ-512 — Edge derivation.** The graph SHALL derive typed edges from its sources, including relationship edges between characters, location edges from a character or NPC to a room, and territory edges from a faction to a room. *Acceptance criterion:* a set relationship yields a relationship edge and a placed character yields a location edge. _Check:_ T602.
+
+**REQ-513 — Rebuild idempotency and staleness.** The projection SHALL record a source fingerprint and build time and SHALL report itself stale when the current source fingerprint differs; recomputing with unchanged sources SHALL be idempotent. *Acceptance criterion:* changing a source marks the graph stale, a rebuild clears it, and repeated builds are identical. _Check:_ T603.
+
+**REQ-514 — Read-only scope-filtered exposure.** Knowledge-graph reads SHALL be read-only, SHALL NOT mutate Novel state, and SHALL be filtered by the active badge so a node the caller cannot read is not exposed. *Acceptance criterion:* a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. _Check:_ T604.
 
 #### End of requirements

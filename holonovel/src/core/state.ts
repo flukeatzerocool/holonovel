@@ -621,6 +621,8 @@ export class StateManager {
   roster = new Map<string, RosterEntity>();
   // REQ-504 — derived, session-scoped semantic index (advisory, never persisted).
   semanticIndex: import("./semantic.js").SemanticIndex | null = null;
+  // REQ-510 — derived, session-scoped knowledge-graph projection (never persisted).
+  knowledgeGraph: import("./graph.js").KnowledgeGraph | null = null;
   activeNovelId: string | null = null;
 
   buildFingerprint: {

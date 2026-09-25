@@ -18,10 +18,11 @@ per-entity acquisition ledger ship as `manage_corpus`. Remaining below.
 Offline deterministic index, staleness fingerprint, advisory ranking,
 relations, authority boundary, and scope filtering ship as `manage_index`.
 
-### M2c Knowledge-Graph Projection (REQ-510–514)
+### M2c Knowledge-Graph Projection — SHIPPED 2026-09-24 (REQ-510–514)
 
-Rebuildable JSON knowledge-graph projection over Novel sources; read tool
-`manage_graph`.
+Derived deterministic JSON graph, node/edge typing, fingerprint staleness,
+idempotent rebuild, and scope-filtered read-only exposure ship as
+`manage_graph`. **M2 complete.**
 
 ## Feature parity — M3 Generation-consistent Briefing Frame
 

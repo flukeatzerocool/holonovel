@@ -22,6 +22,7 @@ import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, appl
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
+import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -142,6 +143,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_causal: MUTATING,
   manage_corpus: MUTATING,
   manage_index: MUTATING,
+  manage_graph: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -5509,6 +5511,82 @@ server.registerTool("manage_index", {
     }
     default:
       return err("INVALID_INPUT", `Unknown index action '${args.action}'.`);
+  }
+});
+
+// --- Knowledge Graph ---
+
+// Knowledge-Graph Projection (REQ-510–REQ-514) — a derived, rebuildable JSON
+// graph over Novel sources. The Novel file is authoritative; graph reads never
+// mutate state.
+function gatherGraphSources(novel: NovelState): GraphSourceSet {
+  return {
+    characters: [...novel.entities.values()].map((e) => ({ id: e.id, name: e.name, current_room: e.current_room })),
+    npcs: [...novel.npcs.values()].map((n) => ({ id: n.id, name: n.name, location: n.location, room_id: n.room_id })),
+    lore: [...novel.lore.entries()].map(([key, l]) => ({ key, scope: l.badge_scope === "game_master" ? "game_master" : "shared" })),
+    factions: novel.factions.map((f) => ({ id: f.id, name: f.name, territory: f.territory })),
+    rooms: [...novel.world.rooms.entries()].map(([id, r]) => ({ id, name: r.name })),
+    relationships: novel.relationships.map((r) => ({ entity_a: r.entity_a, entity_b: r.entity_b, type: r.type })),
+  };
+}
+
+server.registerTool("manage_graph", {
+  title: "Knowledge Graph",
+  description: "Build and read a derived JSON knowledge graph over Novel sources. The Novel file is authoritative; the projection is read-only and never mutates state. Use when: rebuilding the projection (build), checking staleness (status), reading nodes or edges (nodes/edges), reading the whole visible graph (get), or listing a node's neighbors (neighbors). Do NOT use when: ranking text candidates — use manage_index (action: search); recording relationships — use manage_relationship. Parameters by action: neighbors — node_id; build/status/get/nodes/edges — (none).",
+  inputSchema: {
+    action: z.enum(["build", "status", "get", "nodes", "edges", "neighbors"]).describe("build, status, get, nodes, edges, or neighbors."),
+    node_id: z.string().optional().describe("Graph node id (neighbors)."),
+  },
+}, async (args: any) => {
+  const scopes = allowedScopesFor(getBadge()) as GraphScope[];
+  switch (args.action) {
+    case "build": {
+      requireNotObserver();
+      const novel = requireNovel();
+      // REQ-510 — derived projection; REQ-513 — fingerprint for staleness.
+      state.knowledgeGraph = projectGraph(gatherGraphSources(novel), new Date().toISOString());
+      audit("graph_build", { nodes: state.knowledgeGraph.nodes.length, edges: state.knowledgeGraph.edges.length });
+      return ok(`Projected ${state.knowledgeGraph.nodes.length} node(s), ${state.knowledgeGraph.edges.length} edge(s); fingerprint ${state.knowledgeGraph.fingerprint.slice(0, 12)}.`);
+    }
+    case "status": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!state.knowledgeGraph) return ok("Graph not projected.");
+      const stale = fingerprintGraph(gatherGraphSources(novel)) !== state.knowledgeGraph.fingerprint;
+      return ok(`Graph built at ${state.knowledgeGraph.built_at}; ${stale ? "STALE (sources changed)" : "current"}.`);
+    }
+    case "get": {
+      requireNotObserver();
+      if (!state.knowledgeGraph) return err("STATE_CONFLICT", "Graph not projected. Run manage_graph (action: build) first.");
+      // REQ-514 — scope-filtered read.
+      return raw(JSON.stringify(visibleGraph(state.knowledgeGraph, scopes), null, 2));
+    }
+    case "nodes": {
+      requireNotObserver();
+      if (!state.knowledgeGraph) return err("STATE_CONFLICT", "Graph not projected. Run manage_graph (action: build) first.");
+      const nodes = visibleGraph(state.knowledgeGraph, scopes).nodes;
+      if (nodes.length === 0) return ok("No visible nodes.");
+      return raw(JSON.stringify(nodes, null, 2));
+    }
+    case "edges": {
+      requireNotObserver();
+      if (!state.knowledgeGraph) return err("STATE_CONFLICT", "Graph not projected. Run manage_graph (action: build) first.");
+      const edges = visibleGraph(state.knowledgeGraph, scopes).edges;
+      if (edges.length === 0) return ok("No visible edges.");
+      return raw(JSON.stringify(edges, null, 2));
+    }
+    case "neighbors": {
+      requireNotObserver();
+      if (!state.knowledgeGraph) return err("STATE_CONFLICT", "Graph not projected. Run manage_graph (action: build) first.");
+      if (!args.node_id) return err("INVALID_INPUT", "node_id is required for neighbors.");
+      const ids = new Set(visibleGraph(state.knowledgeGraph, scopes).nodes.map((n) => n.id));
+      if (!ids.has(args.node_id)) return err("NOT_FOUND", `Node '${args.node_id}' not found or not visible.`);
+      const edges = state.knowledgeGraph.edges.filter((e) => (e.from === args.node_id || e.to === args.node_id) && ids.has(e.from) && ids.has(e.to));
+      if (edges.length === 0) return ok("No neighbors.");
+      return raw(JSON.stringify(edges, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown graph action '${args.action}'.`);
   }
 });
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-24 — M2c: Knowledge-Graph Projection
+
+- The server can project a read-only knowledge graph over a Novel's sources —
+  characters, NPCs, lore, factions, rooms, and relationships — as a derived
+  artifact. The Novel file stays authoritative: rebuilding with unchanged
+  sources yields an identical graph, and the projection never writes state.
+  (REQ-510, REQ-511)
+- Nodes carry stable ids, types, and labels; edges are derived and typed —
+  relationships between characters, where a character or NPC is located, and
+  faction territory. The graph records a source fingerprint, reports itself
+  stale when sources change, and rebuilds idempotently. All reads are filtered
+  by the active badge, so a Game Master-scope node does not appear in a Player's
+  graph. (REQ-512–REQ-514)
+- New `manage_graph` tool (build/status/get/nodes/edges/neighbors). Like the
+  semantic index, the graph is derived and session-scoped — never persisted or
+  included in saves, checkpoints, archives, or interchange. This completes the
+  M2 parity milestone; M3–M5 remain on ROADMAP.md.
+
 ## 2026-09-24 — M2b: Build-time Semantic Index
 
 - The server can now build a semantic index over a Novel's own sources — lore,
