@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-25 — check:fast gate integrity
+
+- `check:fast` ran its sub-checks in the background and used a bare `wait`,
+  which returns zero in POSIX sh — so a failing sub-check printed FAIL but the
+  gate still exited zero. It now waits on each sub-check by PID and exits
+  non-zero if any fails.
+
 ## 2026-09-25 — Follow-through: SC-7 sample verification and proofreading closure
 
 - SC-7 comment-only citations: sampled 12 of the 105 flagged REQs across §5.1,
