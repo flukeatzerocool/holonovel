@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.09.10)
+# AGENTS.md — holonovel MCP Server (v2026.09.24)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -64,12 +64,12 @@ src/index.ts            McpServer: 26 action-discriminator tools, ~22 resources,
 - **manage_story** (action: record/update/remove/list/promote) — story journal beats
 - **manage_note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
 - **manage_codex** (action: set/list/get/capture/import/delete) — cross-Novel reusable content library
-- **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle
+- **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/branch/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle, including event-log branching (REQ-458/REQ-459)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
 - **manage_ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
 - **manage_scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
-- **manage_session** (action: recap/verbosity/briefing_order/compress/health/subscribe/discover/category) — session recap, verbosity, briefing order, audit compression, event subscriptions, tool discovery/category reassignment, and the `spec_health` report
+- **manage_session** (action: recap/verbosity/briefing_order/compress/health/subscribe/discover/category/event/history) — session recap, verbosity, briefing order, audit compression, event subscriptions, tool discovery/category reassignment, event-log append/read (REQ-455–457/REQ-460), and the `spec_health` report
 - **resolve_fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
 - **resolve_ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
 - **resolve_forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime

@@ -164,6 +164,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral — couples per P57. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
+| `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -186,7 +187,7 @@ State tiers:
 | Novel      | Active story state and active badge state (REQ-031b, REQ-055a), bound ruleset (REQ-380; immutable after creation), pending workflow, gm_context (pause/resume narrative context), host base-capability state (REQ-434–443), NPC mind state (REQ-075f), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; moved to `.trash/` by `manage_novel (action: end)` per REQ-117 | Multiple Novels per server; one active per Session |
 | Session    | Active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains thirty property groups, all
+**Novel properties.** Every Novel contains thirty-one property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `manage_novel (action: end)`):
 
@@ -222,6 +223,7 @@ discarded by `manage_novel (action: end)`):
 | Narrative Threads | Narrative-memory | read/write (REQ-281) | read-only (shared) |
 | NPC Goal Pursuit | Entity-bearing | read/write (REQ-339) | read-only |
 | Autonomous Countdown | Temporal | read/write (REQ-338) | read-only |
+| Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -480,6 +482,8 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → Available Actions [non-property] | P58 | Directive action-quantity keywords ("more options", "fewer options") adjust TTRPG_MAX_AVAILABLE_ACTIONS | The GM controls how many choices the story offers — directive keywords adjust the action budget | GM-only | Mechanical | REQ-081, REQ-084 |
 | Narrative Directive → Narration Validation [non-property] | P59 | Directive validation keywords ("validate my narration", "narrate freely") toggle TTRPG_NARRATION_VALIDATION | The GM tunes the server's safety gates in plain English — directive keywords toggle pre-narration validation | GM-only | Mechanical | REQ-081, REQ-312 |
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
+| Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
+| Event Log → NPC | P33 | Event-log entries referencing an NPC surface in that NPC's memory and goal-pursuit advisories | What was observed of a character becomes what the character remembers | — | Navigational | REQ-460 |
 
 ##### 7.7.1b Coupling curation
 

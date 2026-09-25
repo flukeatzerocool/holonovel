@@ -1153,6 +1153,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-452 | Conversion evidence verification | 2026-09-06 |
 | REQ-453 | Extraction evidence-map parity | 2026-09-06 |
 | REQ-454 | Intended-gap whitelist discipline | 2026-09-08 |
+| REQ-455 | Event log append | 2026-09-24 |
+| REQ-456 | Non-semantic record | 2026-09-24 |
+| REQ-457 | Alternative events | 2026-09-24 |
+| REQ-458 | Novel branching | 2026-09-24 |
+| REQ-459 | Branch lineage and isolation | 2026-09-24 |
+| REQ-460 | Event provenance lookup | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1720,6 +1726,12 @@ diet.
 | T542 | Automated | Conversion evidence verification: run `scripts/check-conversion-evidence.ts` against DECISIONS.md — assert a ruleset-free or Markdown-only build reports "conversion not selected — waived" and exits zero; assert a DECISIONS.md recording a fidelity rate below 90% or a `pending` artifact disposition fails the strict check. | REQ-452 |
 | T543 | Automated | Extraction evidence-map parity: assert every REQ in §5.2 has a coverage-map row or an explicit non-harness disposition; assert a §5.2 REQ lacking both fails validation. | REQ-453 |
 | T544 | Automated | Intended-gap whitelist discipline: assert `npm run validate` exits non-zero when a whitelisted REQ is cited in server source without a disposition; assert a builder-side whitelisted REQ passes; assert REQ-067 is absent from the intended-gap whitelist and buckets to C when source-cited and exercised. | REQ-454 |
+| T545 | Automated | Event log append: append two observations and assert deterministic ordinals 1 then 2 in append order, reproduced on replay with the same inputs. | REQ-455 |
+| T546 | Automated | Non-semantic record: assert an observation's text and source/kind provenance are preserved verbatim, including instruction-shaped text, independent of interpretation. | REQ-456 |
+| T547 | Automated | Alternative events: superseding entry 1 appends a replacement, marks entry 1 superseded while retaining it, and excludes it only when `include_superseded` is false. | REQ-457 |
+| T548 | Automated | Novel branching: branch at event K yields a child sharing the first K entries and leaves the parent event log unchanged. | REQ-458 |
+| T549 | Automated | Branch lineage and isolation: `manage_novel (action: info)` reports parent slug and branch point; mutating one branch leaves its siblings and parent unchanged. | REQ-459 |
+| T550 | Automated | Event provenance lookup: a request for entries through ordinal N returns the contributing entries and no later entry. | REQ-460 |
 
 ---
 
