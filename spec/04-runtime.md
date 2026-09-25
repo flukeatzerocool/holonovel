@@ -178,6 +178,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CAUSAL_MAX_LEDGER_ENTRIES` | No | Maximum transition-ledger entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral — couples per P29. |
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -243,6 +244,7 @@ discarded by `manage_novel (action: end)`):
 | Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
+| Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_perception`) | read-only (own entity, badge-filtered per REQ-545) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -530,6 +532,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Transition Ledger → Lore | P16 | Recorded transition outcomes promote to knowledge-carrying records with their causal provenance | What happened becomes a known consequence | GM-only | Navigational | REQ-491, REQ-492 |
 | Knowledge Corpus → Lore | P54 | A consumed corpus document promotes to knowledge-carrying records carrying its acquisition-ledger provenance | Reference material becomes known facts | GM-only | Navigational | REQ-500, REQ-501 |
 | Agent Tasks → NPC | P29 | An active agent task triggers immediate goal pursuit and disposition updates on its owning NPC; governed by TTRPG_AGENT_AUTONOMY | Ticking tasks drive character action | GM-only | Mechanical | REQ-529 |
+| Perception Ledger → Lore | P16 | Perceived events promote to knowledge-carrying records | What was perceived becomes what is known | GM-only | Navigational | REQ-540, REQ-541 |
 
 **Admission decisions.** A causal proposal carries one admission decision (REQ-485):
 `admitted`, `admitted-with-latent-transition`, `rejected-impossible`, `conflict`,

@@ -29,13 +29,11 @@ idempotent rebuild, and scope-filtered read-only exposure ship as
 Durable task/action lifecycle with an autonomy policy ships as `manage_agent`;
 the M4b inference-boundary gloss is recorded in §7.4.
 
-## Feature parity — N3 Perception Ledger (REQ-540–545, narrowed)
+## Feature parity — N3 Perception Ledger (REQ-540–545) — SHIPPED 2026-09-24
 
-- Per-entity record of which event-log ordinals, messages, and scene changes an
-  entity perceived, feeding `manage_belief`; new tool `manage_perception`. The
-  import/export gateway and cross-Novel scope are already covered (REQ-372,
-  REQ-321/332) and are out of scope.
-- Depends on M1a, M1b, M2a. Scheduled.
+Append-only per-entity perception ledger, distinct from belief, ships as
+`manage_perception`. The N1–N3 program is complete; only the narrowed M3
+(briefing consistency) remains below.
 
 ## De-scoped / narrowed (2026-09-24 program)
 

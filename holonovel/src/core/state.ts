@@ -540,6 +540,8 @@ export interface NovelState {
   }>;
   // REQ-522 — durable NPC/agent task and action lifecycle.
   agent_tasks: import("./agent.js").AgentTask[];
+  // REQ-540 — append-only per-entity perception ledger (observed, not believed).
+  perception_ledger: import("./perception.js").PerceptionRecord[];
   // REQ-496/REQ-498/REQ-500 — cold knowledge corpus, access profiles, and the
   // per-entity acquisition ledger.
   corpus_documents: import("./corpus.js").CorpusDocument[];
@@ -838,6 +840,7 @@ export class StateManager {
       transition_ledger: [],
       supplementary_rulesets: [],
       agent_tasks: [],
+      perception_ledger: [],
       corpus_documents: [],
       corpus_access: [],
       corpus_consumption: [],
@@ -1130,6 +1133,7 @@ export class StateManager {
       transition_ledger: data.transition_ledger ?? [],
       supplementary_rulesets: data.supplementary_rulesets ?? [],
       agent_tasks: data.agent_tasks ?? [],
+      perception_ledger: data.perception_ledger ?? [],
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2121,6 +2125,7 @@ function novelToJSON(novel: NovelState): any {
     transition_ledger: novel.transition_ledger,
     supplementary_rulesets: novel.supplementary_rulesets,
     agent_tasks: novel.agent_tasks,
+    perception_ledger: novel.perception_ledger,
     // REQ-496/REQ-498/REQ-500 — corpus documents, access, and acquisitions persist.
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
@@ -2244,6 +2249,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     transition_ledger: data.transition_ledger ?? [],
     supplementary_rulesets: data.supplementary_rulesets ?? [],
     agent_tasks: data.agent_tasks ?? [],
+    perception_ledger: data.perception_ledger ?? [],
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],

@@ -24,6 +24,7 @@ import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONS
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
+import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind } from "./core/perception.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -146,6 +147,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_index: MUTATING,
   manage_graph: MUTATING,
   manage_agent: MUTATING,
+  manage_perception: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -4747,6 +4749,7 @@ function novelToJSONState(novel: NovelState): any {
     transition_ledger: novel.transition_ledger,
     supplementary_rulesets: novel.supplementary_rulesets,
     agent_tasks: novel.agent_tasks,
+    perception_ledger: novel.perception_ledger,
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
     corpus_consumption: novel.corpus_consumption,
@@ -4823,6 +4826,7 @@ function loadNovelFromStateData(data: any): NovelState {
     transition_ledger: data.transition_ledger ?? [],
     supplementary_rulesets: data.supplementary_rulesets ?? [],
     agent_tasks: data.agent_tasks ?? [],
+    perception_ledger: data.perception_ledger ?? [],
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
@@ -5684,6 +5688,78 @@ server.registerTool("manage_agent", {
     }
     default:
       return err("INVALID_INPUT", `Unknown agent action '${args.action}'.`);
+  }
+});
+
+// --- Perception Ledger ---
+
+// Perception Ledger (REQ-540–REQ-545) — append-only per-entity record of what
+// an entity perceived. Perception is the observed layer, distinct from belief;
+// it feeds evidence but is not itself belief.
+server.registerTool("manage_perception", {
+  title: "Perception",
+  description: "Record and read what an entity perceived — messages, scene changes, and observations — as an append-only ledger distinct from belief. Mutation (record) persists to the Novel and is audited; list/for_entity/for_event are read-only. Use when: recording that an entity perceived something (record), listing perceptions (list), or reading an entity's or an event's perceptions (for_entity/for_event). Do NOT use when: recording what an entity believes — use manage_belief; recording observations for provenance — use manage_session (action: event). Parameters by action: record — entity_id, kind, summary, event_ordinal; for_entity — entity_id; for_event — event_ordinal; list — (none).",
+  inputSchema: {
+    action: z.enum(["record", "list", "for_entity", "for_event"]).describe("record, list, for_entity, or for_event."),
+    entity_id: z.string().optional().describe("Entity that perceived (record/for_entity)."),
+    kind: z.enum(["message", "scene", "observation"]).optional().describe("message, scene, or observation (record; default observation)."),
+    summary: z.string().optional().describe("What was perceived (record)."),
+    event_ordinal: z.number().optional().describe("Contributing event-log ordinal (record/for_event; defaults to the latest event)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "record": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.entity_id || !args.summary) return err("INVALID_INPUT", "entity_id and summary are required for record.");
+      const kind = (args.kind ?? "observation") as PerceptionKind;
+      if (!PERCEPTION_KINDS.includes(kind)) return err("INVALID_INPUT", `Unknown kind '${kind}'.`);
+      // REQ-540/REQ-543 — record with event provenance.
+      const record: PerceptionRecord = {
+        id: nextPerceptionId(novel.perception_ledger),
+        entity_id: args.entity_id,
+        event_ordinal: args.event_ordinal !== undefined ? args.event_ordinal : (novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null),
+        kind,
+        summary: args.summary,
+        at: new Date().toISOString(),
+      };
+      novel.perception_ledger.push(record);
+      const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "0", 10);
+      if (cap > 0 && novel.perception_ledger.length > cap) novel.perception_ledger = novel.perception_ledger.slice(novel.perception_ledger.length - cap);
+      state.saveNovel(novel);
+      audit("perception_record", { entity_id: record.entity_id, kind: record.kind, ordinal: record.event_ordinal });
+      return ok(`Perception ${record.id} recorded for '${record.entity_id}'.`);
+    }
+    case "list": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const badge = getBadge();
+      // REQ-545 — a Player sees only the active entity's perceptions.
+      const records = badge === "player" ? novel.perception_ledger.filter((r) => r.entity_id === novel.active_entity_id) : novel.perception_ledger;
+      if (records.length === 0) return ok("No perceptions recorded.");
+      return raw(JSON.stringify(records, null, 2));
+    }
+    case "for_entity": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id) return err("INVALID_INPUT", "entity_id is required for for_entity.");
+      if (getBadge() === "player" && args.entity_id !== novel.active_entity_id) {
+        return err("FORBIDDEN", "Player badge reads only the active entity's perceptions.");
+      }
+      const records = novel.perception_ledger.filter((r) => r.entity_id === args.entity_id);
+      if (records.length === 0) return ok(`No perceptions for '${args.entity_id}'.`);
+      return raw(JSON.stringify(records, null, 2));
+    }
+    case "for_event": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (args.event_ordinal === undefined) return err("INVALID_INPUT", "event_ordinal is required for for_event.");
+      const records = novel.perception_ledger.filter((r) => r.event_ordinal === args.event_ordinal);
+      if (records.length === 0) return ok(`No perceptions for event #${args.event_ordinal}.`);
+      return raw(JSON.stringify(records, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown perception action '${args.action}'.`);
   }
 });
 

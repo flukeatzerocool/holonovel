@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-24 — N3: Perception Ledger (REQ-540–545)
+
+- The server keeps an append-only perception ledger — what each entity perceived
+  as messages, scene changes, and observations — kept deliberately separate from
+  what it believes. Recording a perception never creates or alters a belief.
+  (REQ-540, REQ-541)
+- Perceptions cite the event-log ordinal they derive from, are queryable by
+  entity or by event, persist with the Novel across restarts, and are bounded by
+  `TTRPG_PERCEPTION_MAX_ENTRIES`. New `manage_perception` tool (record/list/
+  for_entity/for_event); a Player reads only the active entity's perceptions and
+  mutation is Game Master-only. (REQ-542–REQ-545)
+- This completes the N1–N3 program (supplementary import, durable agent tasks,
+  perception ledger). Of the original roadmap, only M3 (briefing consistency,
+  narrowed/retained) remains; M4b/M5a/M5b are de-scoped or folded as recorded.
+
 ## 2026-09-24 — N2: Durable Agent Tasks (REQ-522–530)
 
 - NPCs and entities can now hold durable tasks that outlive a single scene.
