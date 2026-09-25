@@ -2,7 +2,17 @@
 
 **Spec hash:** 3d1b471c362e103eca4122b3dbe917c37001eb5da624e179078c82e2d1186e38
 
-**Recorded tool budget:** 32 (REQ-429)
+**Recorded tool budget:** 33 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (N2: Durable Agent Tasks)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.31 Durable Agent Tasks (REQ-522–530) as N2. New §7.7 property group `Agent Tasks` (Temporal) with a §7.7.1a row (Agent Tasks → NPC, P29, naming TTRPG_AGENT_AUTONOMY); §7.6 adds `TTRPG_AGENT_AUTONOMY` (behavioral, couples per P29) and `TTRPG_AGENT_MAX_TASKS` (storage); §7.4 records the M4b inference-boundary gloss (no outbound model inference at runtime; donated inference out of scope). REQ-407 names the agent-task surface. Property-group count statements updated 36 → 37 (§6.5, REQ-374a, T425, T439). New tool `manage_agent` (create/list/get/start/advance/complete/fail/cancel); REQ-429 recorded budget 32 → 33. Implementation: `src/core/agent.ts` (admitted lifecycle transitions, append-only action log, autonomy policy, subject filtering, terminal immutability); Novel `agent_tasks` persisted through every serialize/deserialize path; integrates with REQ-339 via `source_goal`. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `48a49638…`; bucket A 0, B 0, C 373, E 112); typecheck 0 errors; test:agent 9/9 (T605–T613); test:tool-definitions 6/6 (T511 against the 33-tool recorded budget); version-check OK |
+| Follow-up | N3 (perception ledger REQ-540–545) remains on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (N1: Supplementary ruleset import)
 

@@ -24,13 +24,10 @@ Derived deterministic JSON graph, node/edge typing, fingerprint staleness,
 idempotent rebuild, and scope-filtered read-only exposure ship as
 `manage_graph`. **M2 complete.**
 
-## Feature parity — N2 Durable Agent Tasks (REQ-522–530)
+## Feature parity — N2 Durable Agent Tasks (REQ-522–530) — SHIPPED 2026-09-24
 
-- Durable NPC/agent task and action lifecycle with an autonomy policy; new tool
-  `manage_agent`; integrates with REQ-339 (accepting a goal-pursuit suggestion
-  may create a task). Carries the M4b §7.4 gloss (donated inference de-scoped by
-  Standing Rule 3).
-- Depends on M1b, M1c. Scheduled.
+Durable task/action lifecycle with an autonomy policy ships as `manage_agent`;
+the M4b inference-boundary gloss is recorded in §7.4.
 
 ## Feature parity — N3 Perception Ledger (REQ-540–545, narrowed)
 
