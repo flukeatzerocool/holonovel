@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-25 — Proofread: foundational and build-preamble corrections
+
+- Corrected telegraphic fragments in the Quick Reference: "Quality is enforced by"
+  and "RNG is deterministic and seedable" now carry their copulas.
+- Added the serial "and" to the G0 intake verification list ("readable,
+  well-formed, and structurally sound").
+- No normative change — no REQ body, SHALL/MAY/MUST strength, identifier, or
+  `_Check:_` citation was altered; package-format and data-format fingerprints
+  are unchanged. This is the first batch of an in-depth proofread; remaining
+  source files and the open readability/passive warnings are tracked separately.
+
 ## 2026-09-25 — Feature-parity integration remediation
 
 - The feature-parity tools shipped in M1a–M3 / N1–N3 are now wired into the
