@@ -33,6 +33,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.25   | Belief and Evidence                                     | 461–472 |
 | 5.26   | Character Identity                                      | 473–483 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
+| 5.28   | Knowledge Corpus                                        | 496–503 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3492,7 +3493,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 35 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 36 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -3768,7 +3769,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3889,5 +3890,23 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, and b
 **REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through a causal-state resource and a state read action for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
 
 **REQ-495 — Causal visibility and badge gating.** Causal-state and ledger reads SHALL be available to every non-observer badge, and proposal and admission SHALL require the Game Master badge. *Acceptance criterion:* a Player reads objective state, and a Player proposal is refused. _Check:_ T585.
+
+### 5.28 Knowledge Corpus
+
+**REQ-496 — Corpus document registration.** THE server SHALL register cold reference documents carrying a title, body, knowledge domain, and trusted source profile, and a registered document SHALL create no knowledge until an entity consumes it. *Acceptance criterion:* registering a document leaves every entity's acquisition ledger empty. _Check:_ T586.
+
+**REQ-497 — Source-profile routing.** Each document's knowledge domain SHALL be routed from a trusted structured source profile rather than inferred from its prose, and the server SHALL allow re-routing a document to another domain. *Acceptance criterion:* a document's domain reflects its routing and updates when re-routed. _Check:_ T587.
+
+**REQ-498 — Corpus access predicate.** Consumption SHALL be permitted only when the document is public, its knowledge domain matches the entity's accessible domains, or the entity holds an explicit grant, and an explicit deny SHALL override every allowance. *Acceptance criterion:* a restricted document is refused until granted or domain-matched, and a denied entity is refused even for a public document. _Check:_ T588.
+
+**REQ-499 — Consumption modes.** Consumption SHALL record one of the modes read, research, taught, or import, and the mode SHALL be preserved on the acquisition record. *Acceptance criterion:* consuming in research mode records research on the acquisition. _Check:_ T589.
+
+**REQ-500 — Acquisition ledger.** The server SHALL record for each consumption the entity, document, knowledge domain, mode, and time, and SHALL list an entity's acquisitions. *Acceptance criterion:* a consumption produces a ledger entry naming its entity, document, and domain. _Check:_ T590.
+
+**REQ-501 — Cold until consumed.** A corpus document SHALL remain quarantined, contributing no knowledge, until a successful consumption records an acquisition for an entity. *Acceptance criterion:* an entity's acquisition ledger is empty before consumption and holds one entry after. _Check:_ T591.
+
+**REQ-502 — Reference deixis.** WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the material is not attributed to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
+
+**REQ-503 — Corpus visibility and badge gating.** Corpus registration, routing, and access-policy changes SHALL require the Game Master badge; a Player SHALL consume only for the active entity; and the Observer SHALL read without consuming. *Acceptance criterion:* a Player consumption for another entity is refused, and an Observer consumption is refused. _Check:_ T593.
 
 #### End of requirements

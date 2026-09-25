@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-24 — M2a: Knowledge Corpus and Access Control
+
+- The server can hold cold reference material that creates no knowledge until a
+  character actually consumes it. Documents are registered with a knowledge
+  domain routed from a trusted source profile, and a registered document stays
+  quarantined — contributing nothing — until a consumption records an
+  acquisition for an entity. (REQ-496, REQ-497, REQ-501)
+- Access follows a four-way predicate: a document is reachable when it is
+  public, its domain matches the character's accessible domains, or the
+  character holds an explicit grant, and an explicit deny always wins.
+  Consumption records its mode (read, research, taught, or import), the domain,
+  and the time in a per-entity acquisition ledger. (REQ-498–REQ-500)
+- Reference material written in the first or second person is left
+  deliberately unresolved, so a memoir's "I am the king" cannot silently become
+  the consuming character's own memory. New `manage_corpus` tool (register/
+  list/get/route/grant/deny/access/consume/acquisitions); a Player consumes only
+  for their own character and the Observer is read-only. (REQ-502, REQ-503)
+- The semantic-index and knowledge-graph milestones remain on ROADMAP.md.
+
 ## 2026-09-24 — M1d: Causal Transition Validation
 
 - Objective-state changes are now validated against committed history before

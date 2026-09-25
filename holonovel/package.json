@@ -49,11 +49,12 @@
     "test:belief": "tsx scripts/test-belief.ts",
     "test:identity": "tsx scripts/test-identity.ts",
     "test:causal": "tsx scripts/test-causal.ts",
+    "test:corpus": "tsx scripts/test-corpus.ts",
     "test:help": "tsx scripts/test-help.ts",
     "check:vendor": "tsx scripts/check-vendor-manifest.ts --strict",
     "check:conversion-evidence": "tsx scripts/check-conversion-evidence.ts --strict",
     "test:update-workflow": "tsx scripts/test-update-workflow.ts",
-    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:pattern-buffer && npm run test:pattern-buffer-ruleset && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps && npm run test:fate && npm run test:ironsworn && npm run test:forged && npm run test:security && npm run test:event-log && npm run test:belief && npm run test:identity && npm run test:causal && npm run test:help && npm run test:update-workflow && npm run check:vendor && npm run check:conversion-evidence"
+    "test:all": "npm run test:workflow && npm run test:character-creation && npm run test:fingerprints && npm run test:output-contracts && npm run test:pattern-buffer && npm run test:pattern-buffer-ruleset && npm run test:backfill && npm run test:persistence && npm run test:persistence-guardrails && npm run test:narrative && npm run test:adventure && npm run test:g7 && npm run test:tool-definitions && npm run test:competitive-gaps && npm run test:fate && npm run test:ironsworn && npm run test:forged && npm run test:security && npm run test:event-log && npm run test:belief && npm run test:identity && npm run test:causal && npm run test:corpus && npm run test:help && npm run test:update-workflow && npm run check:vendor && npm run check:conversion-evidence"
   },
   "keywords": [
     "parser",
