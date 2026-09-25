@@ -1564,6 +1564,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
   "REQ-373": "dynamic tool registration waived per REQ-372d — the reference stack statically registers MCP tools; recorded in DECISIONS.md (5) and exercised by T424's waiver branch",
   "REQ-124": "§5.6 ruleset-dependent NPC damage resolution — needs a ruleset with a defensive-stat/damage model and zero-health threshold, which the ruleset-free reference host does not provide; re-activate with such a package (spec-code comparison SC-2)",
+  "REQ-123": "§5.6 builder-defined NPC stat fields — derived from a ruleset's own stat-block conventions at discovery; the ruleset-free reference host's package format carries no stat-block schema, so the NPC surface exposes narrative fields only. Re-activate with a stat-block ruleset (spec-code comparison SC-6)",
 };
 function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
   const issues: string[] = [];
@@ -1698,6 +1699,13 @@ const INTENDED_GAP_REQS = new Set([
   // a false bucket C. Re-activate with a ruleset package that declares
   // defensive stats and a damage model.
   "REQ-124",
+  // §5.6 ruleset-dependent (spec-code comparison 2026-09-25, SC-6): builder-
+  // defined NPC stat fields are derived from a ruleset's stat-block conventions
+  // during discovery; the ruleset-free reference host's package format carries
+  // no stat-block schema, so its NPC create/update surface exposes narrative
+  // fields only. T130's only harness occurrence was the personality bundle,
+  // which asserted nothing about stat fields — REQ-123 was a false bucket C.
+  "REQ-123",
 ]);
 
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {

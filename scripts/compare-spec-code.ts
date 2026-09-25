@@ -11,7 +11,7 @@
  *
  * Usage:
  *   npx tsx scripts/compare-spec-code.ts [--section 5.1] [--out FILE]
- *                                        [--json FILE] [--check] [--help]
+ *                                        [--json FILE] [--check] [--bundles] [--help]
  *
  * Exit codes: 0 = dossier produced, 1 = --check parity mismatch, 2 = fatal
  * unexpected error.
@@ -46,6 +46,38 @@ interface TestBody {
   file: string;
   name: string;
   snippet: string;
+}
+
+// An executed `test("<name>", ...)` call, its leading (prefix) identifiers, and
+// every [TIS] identifier the whole name carries. Used to measure how far a
+// bundled name is the sole evidence for a REQ (bundle-dependency report).
+interface TestNameEntry {
+  file: string;
+  name: string;
+  prefixIds: string[];
+  allIds: string[];
+}
+
+const MAX_IDS_PER_TEST_NAME = 4;
+
+function gatherTestNames(): TestNameEntry[] {
+  const out: TestNameEntry[] = [];
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
+      const name = m[1];
+      const colon = name.indexOf(":");
+      const prefix = colon === -1 ? name : name.slice(0, colon);
+      out.push({
+        file: rel(f),
+        name,
+        prefixIds: [...prefix.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
+        allIds: [...name.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
+      });
+    }
+  }
+  return out;
 }
 
 function walkTsFiles(dir: string): string[] {
@@ -170,7 +202,7 @@ function parseAppendixF(text: string): Map<string, AppFEntry> {
 // before the colon, but the assertion may only exercise one of them. Flag an ID
 // whose Appendix F title shares no vocabulary with the test's own description:
 // candidate orphan mapping (the ID rides along without being exercised).
-function orphanIdsInTestName(name: string, appF: Map<string, AppFEntry>): string[] {
+function orphanIdsInTestName(name: string, appF: Map<string, AppFEntry>, occurrences: Map<string, number>): string[] {
   const colon = name.indexOf(":");
   if (colon === -1) return [];
   const prefix = name.slice(0, colon);
@@ -180,6 +212,9 @@ function orphanIdsInTestName(name: string, appF: Map<string, AppFEntry>): string
   const suffixTokens = tokenize(suffix);
   const out: string[] = [];
   for (const id of prefixIds) {
+    // Only a singleton occurrence can be an orphan: if the same ID names
+    // another executed test, that test is the ID's real evidence.
+    if ((occurrences.get(id) ?? 0) > 1) continue;
     const f = appF.get(id);
     if (!f || !f.title) continue;
     const titleTokens = tokenize(f.title);
@@ -254,6 +289,11 @@ function buildDossiers(): Dossier[] {
   const appF = parseAppendixFReqTests(text);
   const appFEntries = parseAppendixF(text);
   const subMap = parseSubworkflowMap(text);
+  const testNames = gatherTestNames();
+  const occurrences = new Map<string, number>();
+  for (const tn of testNames) {
+    for (const id of new Set(tn.allIds)) occurrences.set(id, (occurrences.get(id) ?? 0) + 1);
+  }
 
   // Group spec REQ IDs by base.
   const subPartsOf = new Map<string, string[]>();
@@ -318,7 +358,7 @@ function buildDossiers(): Dossier[] {
     const orphans = new Set<string>();
     for (const t of reg.exercisedTests) {
       for (const b of testBodies.get(t) ?? []) {
-        for (const o of orphanIdsInTestName(b.name, appFEntries)) orphans.add(o);
+        for (const o of orphanIdsInTestName(b.name, appFEntries, occurrences)) orphans.add(o);
       }
     }
     if (orphans.size > 0) signals.push(`orphan-test-id(${[...orphans].join(",")})`);
@@ -342,6 +382,69 @@ function buildDossiers(): Dossier[] {
     });
   }
   return dossiers;
+}
+
+// Bundle-dependency report. For every executed `test("<name>")` that carries
+// more than MAX_IDS_PER_TEST_NAME leading identifiers, list the REQs whose
+// exercised evidence is exactly that bundle's prefix IDs — i.e. REQs that
+// silently fall from bucket C to B if the bundle's misleading IDs are trimmed.
+// This is the definitive residual worklist for the coverage-integrity audit
+// (spec-code comparison SC-6). Read-only.
+function renderBundleReport(): string {
+  const text = readSpec();
+  const bodies = extractReqBodies(text);
+  const appF = parseAppendixFReqTests(text);
+  const subMap = parseSubworkflowMap(text);
+  const testNames = gatherTestNames();
+
+  const subPartsOf = new Map<string, string[]>();
+  for (const id of bodies.keys()) {
+    const base = baseReq(id);
+    if (!subPartsOf.has(base)) subPartsOf.set(base, []);
+    if (id !== base) subPartsOf.get(base)!.push(id);
+  }
+
+  const idToNames = new Map<string, Set<number>>();
+  testNames.forEach((tn, i) => {
+    for (const id of new Set(tn.allIds)) {
+      if (!idToNames.has(id)) idToNames.set(id, new Set());
+      idToNames.get(id)!.add(i);
+    }
+  });
+
+  const lines: string[] = [];
+  const dependentTotal = new Set<string>();
+  for (let i = 0; i < testNames.length; i++) {
+    const tn = testNames[i];
+    if (tn.prefixIds.length <= MAX_IDS_PER_TEST_NAME) continue;
+    const prefixSet = new Set(tn.prefixIds);
+    const suffixSet = new Set(tn.allIds.filter((id) => !prefixSet.has(id)));
+    const dependent: string[] = [];
+    const shared: string[] = [];
+    for (const [base, subs] of subPartsOf) {
+      const ids = [base, ...subs];
+      const specTests = new Set<string>();
+      for (const id of ids) {
+        for (const t of appF.get(id) ?? []) specTests.add(t);
+        for (const t of subMap.get(id) ?? []) specTests.add(t);
+      }
+      const exercised = [...specTests].filter((t) => idToNames.has(t));
+      // Only REQs this bundle actually contributes to: at least one exercised
+      // ID sits in the bundle's prefix.
+      if (!exercised.some((t) => prefixSet.has(t))) continue;
+      const anchored = exercised.some((t) => !prefixSet.has(t) || (idToNames.get(t)?.size ?? 0) > 1);
+      if (anchored) { shared.push(base); continue; }
+      dependent.push(base);
+      dependentTotal.add(base);
+    }
+    lines.push(`BUNDLE ${tn.file} "${tn.name.slice(0, 70)}…" (${tn.prefixIds.length} IDs)`);
+    if (dependent.length) lines.push(`  bundle-only (fall C→B if prefix IDs trimmed): ${dependent.join(", ")}`);
+    if (shared.length) lines.push(`  also-evidenced-elsewhere: ${shared.join(", ")}`);
+    if (suffixSet.size > 0) lines.push(`  note: suffix carries ${[...suffixSet].join(",")}`);
+    lines.push("");
+  }
+  lines.push(`Bundle-dependent REQs (${dependentTotal.size}): ${[...dependentTotal].sort().join(", ")}`);
+  return lines.join("\n") + "\n";
 }
 
 function sectionSort(a: string, b: string): number {
@@ -436,6 +539,12 @@ function main(): void {
   const outPath = parseValueFlag(argv, "--out");
   const jsonPath = parseValueFlag(argv, "--json");
   const check = parseFlag(argv, "--check");
+  const bundles = parseFlag(argv, "--bundles");
+
+  if (bundles) {
+    process.stdout.write(renderBundleReport());
+    return;
+  }
 
   const all = buildDossiers();
   let rows = onlySection ? all.filter((r) => r.section.startsWith(onlySection)) : all;

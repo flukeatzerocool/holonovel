@@ -17,6 +17,17 @@ the tracking surfaces for the coverage backlog.
   names, and made the briefing budget honor `TTRPG_MAX_BRIEFING_TOKENS`.
   SC-7 (comment-only citations) is `Closed-P3` below. `--impl-audit=strict`
   passes at A0/B0/C385/E113, 0 errors.
+- **Residual remediation SC-6/SC-9** (2026-09-25, session 2): the
+  `compare-spec-code.ts --bundles` report isolated the 6 falsely-C
+  bundle-dependent REQs (123, 160, 175, 380, 389, 390). Added
+  T195/T214/T441/T452/T453/T454/T455 tests, reclassified REQ-123 as a
+  ruleset-dependent intended gap, and fixed SC-9 — a corrupt-hash package
+  crashed the host at startup (`toolSchemas` hydrated during tool registration)
+  and at health/list hydration, violating REQ-389b and defeating REQ-390 lazy
+  hydration. `toolSchemas` now reads `tools.json` without hydrating,
+  `validateDeclaredToolSchemas` preserves REQ-430, and startup/health/list guard
+  per-package hydration. Register now A0/B0/C384/E114, 0 errors; `test:all`
+  0 failures.
 - **§5 subsection consolidation review** (full-document spec-review SR-9,
   2026-09-10): Appendix M's "§5 subsection exceeding 40 REQs SHALL trigger a
   maintainer review for consolidation" exercised across the nine sections over

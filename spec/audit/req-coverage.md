@@ -56,7 +56,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-072 | Session recap (Part a1) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261, T518 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T73, T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T130, T409, T513 | — |
+| REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T409, T513 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T57, T112, T132, T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124 | — |
@@ -104,7 +104,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-120 | NPC rendering | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T127 | — |
 | REQ-121 | NPC resource URIs | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T128 | — |
 | REQ-122 | NPC narrative fields (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129 | — |
-| REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T130 | — |
+| REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T131 | — |
 | REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T284, T312, T404 | — |
 | REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T202 | — |
@@ -346,14 +346,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-376 | Holonovel Pattern Buffer traceability (Part a1) (5 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-377 | Mechanical coupling extraction (Part a) (4 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
 | REQ-378 | Mechanical coupling verification (Part a) (2 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
-| REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
-| REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T441, T449 | — |
-| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449, T456 | — |
-| REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
-| REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
-| REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
-| REQ-385 | command suggest cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
-| REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
+| REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T441 | — |
+| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T456 | — |
+| REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-385 | command suggest cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-387 | Codex ruleset annotation (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T450 | — |
 | REQ-389 | Ruleset package format (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T452, T453 | — |

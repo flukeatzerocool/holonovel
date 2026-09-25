@@ -324,9 +324,35 @@ export class RulesetManager {
     return pkg;
   }
 
+  // REQ-390 — startup tool registration reads a package's declared schemas
+  // from tools.json WITHOUT hydrating its index/model. Hydration (and content-
+  // hash validation) is deferred until a Novel bound to the slug is activated
+  // or one of its tools is called. A package with an unreadable tools.json
+  // contributes no tools; other packages are unaffected.
   toolSchemas(slug: string): RulesetToolSchema[] {
-    const pkg = this.hydrate(slug);
-    return pkg.tools;
+    const p = path.join(this.installDir, slug, "tools.json");
+    if (!fs.existsSync(p)) return [];
+    try {
+      return JSON.parse(fs.readFileSync(p, "utf-8")) as RulesetToolSchema[];
+    } catch {
+      // Malformed tools.json — treat as no tools; hydration will surface the
+      // defect (hash/parse) when the package is actually used.
+      return [];
+    }
+  }
+
+  // REQ-430 — validate a package's declared tool schemas at load (from
+  // tools.json) without hydrating its index/model, so non-conformant tools are
+  // flagged in spec_health while REQ-390 lazy hydration is preserved.
+  validateDeclaredToolSchemas(slug: string, tools: RulesetToolSchema[]): void {
+    const alerts: { tool: string; defects: string[] }[] = [];
+    let conformant = 0;
+    for (const schema of tools) {
+      const defects = validateToolSchema(schema);
+      if (defects.length === 0) conformant++;
+      else alerts.push({ tool: schema.name, defects });
+    }
+    this.toolQuality.set(slug, { conformant, alerts });
   }
 
   // Full-text search over the hydrated index. Simple normalized substring

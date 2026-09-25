@@ -809,8 +809,20 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
 }
 
 // Register ruleset-prefixed tools for every installed package (REQ-379).
+// REQ-389b/REQ-393 — a package that fails loading (e.g. content-hash mismatch)
+// is recorded and skipped; the host boots and serves the other packages.
+const rulesetLoadErrors: { slug: string; reason: string }[] = [];
 for (const slug of rulesets.installedSlugs()) {
-  for (const schema of rulesets.toolSchemas(slug)) {
+  let schemas: ReturnType<typeof rulesets.toolSchemas>;
+  try {
+    schemas = rulesets.toolSchemas(slug);
+  } catch (e: any) {
+    rulesetLoadErrors.push({ slug, reason: e.message });
+    continue;
+  }
+  // REQ-430 — flag non-conformant declared tools at load (no index hydration).
+  rulesets.validateDeclaredToolSchemas(slug, schemas);
+  for (const schema of schemas) {
     const toolName = `${slug}_${schema.name}`;
     // REQ-450 — ruleset-derived tools read indexed data (lookup/search/info:
     // idempotent) or generate content (roll/table): neither mutates Novel
@@ -6771,13 +6783,23 @@ server.registerTool("manage_ruleset", {
       }
     }
     case "list": {
-      const list = rulesets.installedSlugs().map((slug) => rulesets.hydrate(slug)).map((pkg) => ({
-        slug: pkg.slug, name: pkg.manifest.name, host_version: pkg.manifest.host_version,
-        built_at: pkg.manifest.built_at, state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
-        // REQ-432a — vendor package license attribution.
-        licensed: pkg.manifest.source_license !== undefined,
-        source_license: pkg.manifest.source_license ?? null,
-      }));
+      // REQ-389b/REQ-393 — a package whose content hash fails validation is
+      // reported as rejected (with the reason) rather than crashing the host;
+      // other installed packages continue to serve.
+      const list = rulesets.installedSlugs().map((slug) => {
+        try {
+          const pkg = rulesets.hydrate(slug);
+          return {
+            slug: pkg.slug, name: pkg.manifest.name, host_version: pkg.manifest.host_version,
+            built_at: pkg.manifest.built_at, state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
+            // REQ-432a — vendor package license attribution.
+            licensed: pkg.manifest.source_license !== undefined,
+            source_license: pkg.manifest.source_license ?? null,
+          };
+        } catch (e: any) {
+          return { slug, state: "rejected", error: e.message };
+        }
+      });
       return raw(JSON.stringify(list, null, 2));
     }
     case "bind": {
@@ -6975,6 +6997,9 @@ function buildSpecHealth(): Record<string, unknown> {
     ruleset_package_alerts: isGM
       ? [
           ...rulesets.incompatibleSlugs(),
+          // REQ-389b — packages that failed to load (e.g. content-hash mismatch),
+          // recorded at startup so the rejection is surfaced in spec_health.
+          ...rulesetLoadErrors.map((e) => ({ slug: e.slug, reason: `[load-rejected] ${e.reason}` })),
           ...rulesets.toolQualityAlerts().map((a) => ({ slug: a.slug, reason: `[tool-quality] ${a.tool}: ${a.defects.join("; ")}` })),
         ]
       : undefined,
@@ -7014,7 +7039,12 @@ function buildSpecHealth(): Record<string, unknown> {
     mcp_apps: { negotiated: appsNegotiated() },
     confidence: { overall: "N/A — ruleset-free", per_file: {}, per_category: {} },
     indexed_counts: {
-      anchors: rulesets.installedSlugs().reduce((n, s) => n + (rulesets.hydrate(s)?.index.length ?? 0), 0),
+      // REQ-389b — a package that fails hydration (e.g. content-hash mismatch)
+      // contributes nothing and must not crash the health report; its rejection
+      // is surfaced by `manage_ruleset (action: list)`.
+      anchors: rulesets.installedSlugs().reduce((n, s) => {
+        try { return n + (rulesets.hydrate(s)?.index.length ?? 0); } catch { return n; }
+      }, 0),
       concepts: 0, entity_types: 0, actions: 0,
       tables: 0, procedures: 0, guidance_items: 0,
     },
