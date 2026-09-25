@@ -22,6 +22,8 @@ import {
   checkEmptyReqBodies,
   checkTruncatedReqBodies,
   checkDecisionsCitations,
+  checkPropertyGroupCount,
+  checkBuildPhaseMapCounts,
 } from "./lib/req-checks.js";
 
 const __dirname = import.meta.dirname;
@@ -1892,6 +1894,15 @@ function main(): void {
 
   const countIssues = checkStaleCounts(text);
   if (countIssues.length > 0) { for (const issue of countIssues) console.log(`WARNING: ${issue}`); warnings += countIssues.length; }
+
+  const propGroupCountIssues = checkPropertyGroupCount(text);
+  if (propGroupCountIssues.length > 0) { for (const issue of propGroupCountIssues) console.log(`WARNING: ${issue}`); warnings += propGroupCountIssues.length; }
+
+  const phaseMapCountIssues = checkBuildPhaseMapCounts(
+    fs.readFileSync(path.resolve(import.meta.dirname, "..", "spec", "build-phase-map.md"), "utf-8"),
+    fs.readFileSync(path.resolve(import.meta.dirname, "..", "spec", "02-requirements.md"), "utf-8"),
+  );
+  if (phaseMapCountIssues.length > 0) { for (const issue of phaseMapCountIssues) console.log(`WARNING: ${issue}`); warnings += phaseMapCountIssues.length; }
 
   reportSectionCounts(text);
 

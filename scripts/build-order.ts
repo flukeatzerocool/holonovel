@@ -115,7 +115,6 @@ const firstRun = !saved;
 
 const specChanged = firstRun || current.spec_hash !== saved.spec_hash;
 const holoSrcChanged = firstRun || current.holonovel_src_hash !== saved.holonovel_src_hash;
-const versionChanged = firstRun || current.root_version !== saved.root_version;
 
 const steps: Step[] = [];
 
@@ -167,12 +166,10 @@ if (holoSrcChanged) {
   steps.push({ label: "4. Typecheck holonovel", fn: () => skip("4. Typecheck holonovel", "holonovel/src/ unchanged") });
 }
 
-// Step 5: Version-bump
-if (versionChanged) {
-  steps.push({ label: "5. Bump versions", fn: () => run("5. Bump versions", "npx tsx scripts/version-bump.ts") });
-} else {
-  steps.push({ label: "5. Bump versions", fn: () => skip("5. Bump versions", "version unchanged") });
-}
+// Step 5: Version-bump — always runs so a new CHANGELOG entry advances the
+// CalVer and every reference in one pass (version-bump self-computes the target;
+// REQ-107a). It is idempotent when the version is already current.
+steps.push({ label: "5. Bump versions", fn: () => run("5. Bump versions", "npx tsx scripts/version-bump.ts") });
 
 // Step 6: Version-check — always runs (fast, catch-all)
 steps.push({ label: "6. Verify version consistency", fn: () => run("6. Verify version consistency", "npx tsx scripts/version-check.ts") });

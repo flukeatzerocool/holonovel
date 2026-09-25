@@ -239,7 +239,9 @@ violations, cross-references, and assumptions. Manually verify the
 remaining items before committing:
 
 - [ ] Cross-section counts match their targets (e.g., §6.5 metric count
-      matches REQ-025 text)
+      matches REQ-025 text); the §7.7 prose carries no hardcoded property-group
+      count and the build-phase-map §5-subsection count matches the actual
+      `### 5.N` headings (both guarded by `npm run validate`)
 - [ ] Appendix ranges like "Appendices A–X" match the actual appendix count
 - [ ] Renamed headings or appendices are followed by a spec-wide grep
       for stale references
@@ -265,6 +267,9 @@ remaining items before committing:
       §5.19 guardrail enumerations (REQ-400/407); new tools are classified in
       the DECISIONS.md gate-classification table (REQ-137a)
 - [ ] `holonovel/AGENTS.md` tool-surface list and counts match `tools/list`
+- [ ] Add the CHANGELOG entry, then run `npm run build-order` (or
+      `npm run version-bump`) — the CalVer, AGENTS.md, DECISIONS.md, index.ts,
+      lockfile, and server.json advance together (REQ-107a)
 - [ ] README license footer lists any newly borrowed mechanics source
 
 Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).

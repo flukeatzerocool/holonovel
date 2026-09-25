@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-24 — Convention hardening: tool budget, count guards, version flow
+
+- The tool-count rule is now a discipline, not a fixed ceiling: the registered
+  catalog must match a budget recorded in DECISIONS.md, and adding a tool
+  requires updating that budget and its justification in the same change.
+  Previously the rule read as a hard cap of twenty-six tools, which would have
+  blocked the planned feature work on a technicality. (REQ-429)
+- The build-phase-map's §5 subsection count and the §7.7 prose are now guarded
+  against silent drift: a validator warns if the §5 count disagrees with the
+  actual headings, and the §7.7 prose no longer states a property-group count
+  (the table is the single source of truth).
+- Version maintenance is now one command: `version-bump` targets the later of
+  the current version and the latest CHANGELOG date, and syncs `server.json`
+  alongside the other references, so a new changelog entry no longer needs a
+  manual root bump or hand-edited manifest. `build-order` always runs it.
+
 ## 2026-09-24 — M1a: Temporal Event Log and Branching
 
 - The Novel now keeps an append-only event log: every observation that enters

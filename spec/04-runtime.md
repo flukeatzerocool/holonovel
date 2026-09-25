@@ -187,7 +187,7 @@ State tiers:
 | Novel      | Active story state and active badge state (REQ-031b, REQ-055a), bound ruleset (REQ-380; immutable after creation), pending workflow, gm_context (pause/resume narrative context), host base-capability state (REQ-434–443), NPC mind state (REQ-075f), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; moved to `.trash/` by `manage_novel (action: end)` per REQ-117 | Multiple Novels per server; one active per Session |
 | Session    | Active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains thirty-one property groups, all
+**Novel properties.** Every Novel contains the property groups below, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `manage_novel (action: end)`):
 

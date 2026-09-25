@@ -92,8 +92,8 @@ server.server.registerCapabilities({ extensions: { "io.modelcontextprotocol/ui":
 // thrown `[FORBIDDEN]` records the call (badge, tool name, arguments,
 // violation_type: boundary) in the Novel audit log before propagating.
 // REQ-429 — server-wide action-discriminator surface: one tool per persisted
-// entity type within a twenty-six-tool budget; every persisted type has a
-// list/get/info/status/knowledge action; uniform verb-noun/noun+action naming.
+// entity type within the DECISIONS.md recorded tool budget; every persisted
+// type has a list/get/info/status/knowledge action; uniform verb-noun naming.
 // REQ-450 — TDQS-conformant tool definitions: every registered tool carries
 // all four MCP mutation-class hints (readOnlyHint, destructiveHint,
 // idempotentHint, openWorldHint) as explicit booleans matching the tool's
