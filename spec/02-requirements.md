@@ -519,7 +519,7 @@ produces at least three constraint overrides in RULESET_MODEL.md.
 _Check:_ T368.
 
 **REQ-452 — Conversion evidence verification.**
-The builder SHALL verify conversion evidence before using converted content: DECISIONS.md (2) pins the converter and version; DECISIONS.md (6) records per-content-type fidelity ≥90% and the Phase-1 trial gate ≥70%; DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. Verification SHALL fail when a record is missing or a threshold is unmet until the record is produced or waived, and SHALL pass with a "conversion not selected — waived" disposition when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails verification until produced or waived. _Check:_ T542.
+The builder SHALL verify conversion evidence before using converted content. DECISIONS.md (2) pins the converter and version. DECISIONS.md (6) records per-content-type fidelity ≥90% and the Phase-1 trial gate ≥70%. DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. Verification SHALL fail when a record is missing or a threshold is not met, until the record appears or a waiver covers it, and SHALL pass with a "conversion not selected — waived" disposition when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails verification until produced or waived. _Check:_ T542.
 
 **REQ-453 — Extraction evidence-map parity.**
 The §5.2 coverage map SHALL list every REQ in §5.2. A §5.2 REQ with neither a map row nor an explicit non-harness disposition is a validation error that blocks assembly. *Acceptance criterion:* a §5.2 REQ with no map row and no disposition fails validation; a §5.2 REQ with an explicit disposition row passes. _Check:_ T543.
@@ -1857,7 +1857,7 @@ _Check:_ T209.
 During Discovery (§6.3), the builder SHALL extract structural content from every adventure module using discoverable patterns. The extraction requires no Appendix K formatting.
 
 **REQ-247b1 — Adventure structure extraction (Part b1).**
-The builder SHALL extract adventure structure into a table-of-contents of `##`/`###` headings and extract NPC references, each labeled with extraction confidence. Every heading becomes a structural ToC entry; garbled numeric-only headings are excluded. A bolded name associated with a numeric stat value, a role noun, or a page reference is an NPC reference; values that do not parse are recorded in a `notes` narrative field.
+The builder SHALL extract adventure structure into a table-of-contents of `##`/`###` headings and extract NPC references, each labeled with extraction confidence. Every heading becomes a structural ToC entry; the builder excludes garbled numeric-only headings. A bolded name associated with a numeric stat value, a role noun, or a page reference is an NPC reference; the builder records unparseable values in a `notes` narrative field.
 
 **REQ-247b2 — Adventure structure extraction (Part b2).**
 Location and faction extraction follows. A heading whose text contains no rule/action keywords (roll, check, save, attack, damage) and carries descriptive prose below it counts as a scene or location description. A heading associated with a goal- or resource-describing sentence and containing an organization term (Guild, Fleet, Council, Company, Syndicate) counts as a faction reference. Confidence MEDIUM.
@@ -2782,7 +2782,7 @@ The filtering SHALL operate as a preference, not a block. Preference (a): the se
 **REQ-295c — Genre-filtered generation (Part c).**
 Generation tables (REQ-213) SHALL carry an optional `genre_tags` field extracted during Discovery (§6.3). The server classifies a table with no `genre_tags` field as `universal`. *Acceptance criterion:* With `genre: "noir"` set, `manage_adventure (action: generate_encounter, "dark alley")` drawn from tables where the noir-tagged table contains "mugger" and the universal table contains "dragon" SHALL return the mugger. _Check:_ T340.
 **REQ-092a — Novel persistence (Part a).**
-`.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers, the `audit_log` array (REQ-040), the `story_journal` array (REQ-246), Novel metadata, and undo snapshot stacks) SHALL persist atomically — a crash or interrupted write SHALL NOT leave a half-written primary file; the previous good file is recoverable via the backup chain (REQ-238).
+`.holonovel-state/novels/<slug>.json` SHALL persist atomically. The file is self-contained JSON bundling all state tiers, the `audit_log` array (REQ-040), the `story_journal` array (REQ-246), Novel metadata, and undo snapshot stacks. A crash or interrupted write SHALL NOT leave a half-written primary file. The previous good file is recoverable via the backup chain (REQ-238).
 
 **REQ-092b — Novel persistence (Part b).**
 Concurrent writers targeting the same Novel SHALL NOT corrupt the primary file. A Novel on disk whose file size is zero after an atomic write indicates a durability failure — surfaced in `spec_health` and stderr. The previous Novel file is retained as a rotating backup chain `<slug>.json.bak.1..N` per REQ-238. Both corrupted JSON and a missing backup chain surface in `spec_health` and stderr. A rebuild with a changed entity model loads the Novel gracefully: absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined defaults.
@@ -3832,7 +3832,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win. _Check:_ T555.
 
-**REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound, while independent acquisitions SHALL accumulate, and reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
+**REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound. Independent acquisitions SHALL accumulate. Reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
 
 **REQ-467 — Contradiction preservation.** Contradictory evidence SHALL remain retrievable after a stance is materialized, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
 
@@ -3944,7 +3944,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-522 — Task creation.** THE server SHALL provide `manage_agent` for durable agent tasks carrying a subject, a goal, an autonomy level, and a lifecycle status, created in a queued state. *Acceptance criterion:* creating a task records it as queued with no actions. _Check:_ T605.
 
-**REQ-523 — Task lifecycle.** A task's status SHALL be one of queued, active, done, failed, or cancelled, and the server SHALL move a queued task to active on start and an active task to done, failed, or cancelled on settlement. *Acceptance criterion:* a task moves queued, then active, then done in that order. _Check:_ T606.
+**REQ-523 — Task lifecycle.** A task's status SHALL be one of queued, active, done, failed, or cancelled. The server SHALL move a queued task to active on start, and an active task to done, failed, or cancelled on settlement. *Acceptance criterion:* a task moves queued, then active, then done in that order. _Check:_ T606.
 
 **REQ-524 — Admitted transitions.** A lifecycle transition not admitted by the task's current status SHALL be refused as a conflict rather than applied. *Acceptance criterion:* completing a queued task is refused and leaves it queued. _Check:_ T607.
 

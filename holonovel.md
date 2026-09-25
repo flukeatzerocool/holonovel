@@ -204,7 +204,7 @@ The spec is designed around eight failure modes. Recognize them early.
 | F2   | Context exhaustion — large rulesets drive the AI into prompt-size limits.                         | Chunked reading (§6.3); confidence thresholds (REQ-011)             |
 | F3   | The server speaks MCP incorrectly — wrong method names, malformed JSON, missing handshake fields. | G0b (MCP conformance, REQ-001, Appendix D)                |
 | F4   | A specific ruleset's classes, spells, or equipment are hardcoded into the source tree.            | Fixture isolation (H4); hardcoded-mechanics check (H3); REQ-013     |
-| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; Pattern Buffer-5); audit log (REQ-040); Novel persistence (REQ-092)    |
+| F5   | Server-side state reported at the edge disappears in the middle — HP and conditions lost on reconnect. | State survival under restart (REQ-055 — T9, T31; §6.6 Pattern Buffer); audit log (REQ-040); Novel persistence (REQ-092)    |
 | F6   | Client configuration for the built server has wrong field names, paths, or values.                | H11 client-config launch; G0b live initialize                    |
 | F7   | World-model assertions fail to parse — rooms, exits, or things produce incorrect containment or missing connections. | `manage_world (action: convert)` validation phase (REQ-201); adventure content validation (REQ-171); kind hierarchy enforcement (REQ-200) |
 | F8   | Mechanics from one ruleset leak into a Novel bound to a different ruleset — Starfinder condition names appear in a D&D combat, or a D&D spell lookup succeeds under a Mothership Novel. | Tool prefix gating (REQ-379, REQ-381); per-ruleset extraction isolation (REQ-382); cross-ruleset isolation verification (G8) |
@@ -365,7 +365,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Editor badge | Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The default badge on Novel creation and resume. Out of the story. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in manage_session (action: recap), badge_briefing, and manage_novel (action: export). REQ-246. |
 | State ledger    | The `state_ledger` briefing token — reports the last state-mutation timestamp and per-group mutation counts for the session, so the GM sees at a glance what has been persisted. REQ-401. |
-| State drift     | The condition where the GM has narrated (via pause context or prose) advances beyond what has been committed through state tools. Surfaced as a `[state-drift]` marker and gated by `TTRPG_STATE_GATE`. REQ-403. |
+| State drift     | The condition where the GM's narration (via pause context or prose) has advanced beyond what has been committed through state tools. Surfaced as a `[state-drift]` marker and gated by `TTRPG_STATE_GATE`. REQ-403. |
 | Health report (`spec_health`) | The build-health diagnostic report produced by the `session` tool's `health` action (REQ-025, REQ-429). Reports live-registry counts, confidence, convergence summary, indexed counts, safety protocols, and badge-filtered sub-reports. `spec_health` names the report surface throughout this specification, not a tool. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
@@ -958,7 +958,7 @@ produces at least three constraint overrides in RULESET_MODEL.md.
 _Check:_ T368.
 
 **REQ-452 — Conversion evidence verification.**
-The builder SHALL verify conversion evidence before using converted content: DECISIONS.md (2) pins the converter and version; DECISIONS.md (6) records per-content-type fidelity ≥90% and the Phase-1 trial gate ≥70%; DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. Verification SHALL fail when a record is missing or a threshold is unmet until the record is produced or waived, and SHALL pass with a "conversion not selected — waived" disposition when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails verification until produced or waived. _Check:_ T542.
+The builder SHALL verify conversion evidence before using converted content. DECISIONS.md (2) pins the converter and version. DECISIONS.md (6) records per-content-type fidelity ≥90% and the Phase-1 trial gate ≥70%. DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. Verification SHALL fail when a record is missing or a threshold is not met, until the record appears or a waiver covers it, and SHALL pass with a "conversion not selected — waived" disposition when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails verification until produced or waived. _Check:_ T542.
 
 **REQ-453 — Extraction evidence-map parity.**
 The §5.2 coverage map SHALL list every REQ in §5.2. A §5.2 REQ with neither a map row nor an explicit non-harness disposition is a validation error that blocks assembly. *Acceptance criterion:* a §5.2 REQ with no map row and no disposition fails validation; a §5.2 REQ with an explicit disposition row passes. _Check:_ T543.
@@ -2296,7 +2296,7 @@ _Check:_ T209.
 During Discovery (§6.3), the builder SHALL extract structural content from every adventure module using discoverable patterns. The extraction requires no Appendix K formatting.
 
 **REQ-247b1 — Adventure structure extraction (Part b1).**
-The builder SHALL extract adventure structure into a table-of-contents of `##`/`###` headings and extract NPC references, each labeled with extraction confidence. Every heading becomes a structural ToC entry; garbled numeric-only headings are excluded. A bolded name associated with a numeric stat value, a role noun, or a page reference is an NPC reference; values that do not parse are recorded in a `notes` narrative field.
+The builder SHALL extract adventure structure into a table-of-contents of `##`/`###` headings and extract NPC references, each labeled with extraction confidence. Every heading becomes a structural ToC entry; the builder excludes garbled numeric-only headings. A bolded name associated with a numeric stat value, a role noun, or a page reference is an NPC reference; the builder records unparseable values in a `notes` narrative field.
 
 **REQ-247b2 — Adventure structure extraction (Part b2).**
 Location and faction extraction follows. A heading whose text contains no rule/action keywords (roll, check, save, attack, damage) and carries descriptive prose below it counts as a scene or location description. A heading associated with a goal- or resource-describing sentence and containing an organization term (Guild, Fleet, Council, Company, Syndicate) counts as a faction reference. Confidence MEDIUM.
@@ -3221,7 +3221,7 @@ The filtering SHALL operate as a preference, not a block. Preference (a): the se
 **REQ-295c — Genre-filtered generation (Part c).**
 Generation tables (REQ-213) SHALL carry an optional `genre_tags` field extracted during Discovery (§6.3). The server classifies a table with no `genre_tags` field as `universal`. *Acceptance criterion:* With `genre: "noir"` set, `manage_adventure (action: generate_encounter, "dark alley")` drawn from tables where the noir-tagged table contains "mugger" and the universal table contains "dragon" SHALL return the mugger. _Check:_ T340.
 **REQ-092a — Novel persistence (Part a).**
-`.holonovel-state/novels/<slug>.json` (self-contained JSON bundling all state tiers, the `audit_log` array (REQ-040), the `story_journal` array (REQ-246), Novel metadata, and undo snapshot stacks) SHALL persist atomically — a crash or interrupted write SHALL NOT leave a half-written primary file; the previous good file is recoverable via the backup chain (REQ-238).
+`.holonovel-state/novels/<slug>.json` SHALL persist atomically. The file is self-contained JSON bundling all state tiers, the `audit_log` array (REQ-040), the `story_journal` array (REQ-246), Novel metadata, and undo snapshot stacks. A crash or interrupted write SHALL NOT leave a half-written primary file. The previous good file is recoverable via the backup chain (REQ-238).
 
 **REQ-092b — Novel persistence (Part b).**
 Concurrent writers targeting the same Novel SHALL NOT corrupt the primary file. A Novel on disk whose file size is zero after an atomic write indicates a durability failure — surfaced in `spec_health` and stderr. The previous Novel file is retained as a rotating backup chain `<slug>.json.bak.1..N` per REQ-238. Both corrupted JSON and a missing backup chain surface in `spec_health` and stderr. A rebuild with a changed entity model loads the Novel gracefully: absent-model fields in JSON preserved as inert data; missing fields receive ruleset-defined defaults.
@@ -4271,7 +4271,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win. _Check:_ T555.
 
-**REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound, while independent acquisitions SHALL accumulate, and reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
+**REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound. Independent acquisitions SHALL accumulate. Reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
 
 **REQ-467 — Contradiction preservation.** Contradictory evidence SHALL remain retrievable after a stance is materialized, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
 
@@ -4383,7 +4383,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-522 — Task creation.** THE server SHALL provide `manage_agent` for durable agent tasks carrying a subject, a goal, an autonomy level, and a lifecycle status, created in a queued state. *Acceptance criterion:* creating a task records it as queued with no actions. _Check:_ T605.
 
-**REQ-523 — Task lifecycle.** A task's status SHALL be one of queued, active, done, failed, or cancelled, and the server SHALL move a queued task to active on start and an active task to done, failed, or cancelled on settlement. *Acceptance criterion:* a task moves queued, then active, then done in that order. _Check:_ T606.
+**REQ-523 — Task lifecycle.** A task's status SHALL be one of queued, active, done, failed, or cancelled. The server SHALL move a queued task to active on start, and an active task to done, failed, or cancelled on settlement. *Acceptance criterion:* a task moves queued, then active, then done in that order. _Check:_ T606.
 
 **REQ-524 — Admitted transitions.** A lifecycle transition not admitted by the task's current status SHALL be refused as a conflict rather than applied. *Acceptance criterion:* completing a queued task is refused and leaves it queued. _Check:_ T607.
 
@@ -7170,7 +7170,7 @@ for exact wording.
 
 Before handoff, re-run G2 once from a cold checkout of the four artifacts,
 following only README.md and AGENTS.md. A reproduction failure stops the line.
-_Verify:_ T90 (N fixture), Golden transcript replay (B fixture), T261 (W fixture).
+_Check:_ T90 (N fixture), Golden transcript replay (B fixture), T261 (W fixture).
 
 **G2 coverage completeness.** After the golden transcript passes, the builder
 SHALL verify that every behavioral contract the selected fixture exercises
@@ -11304,7 +11304,7 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 | **Denial of Service** | Web scrape exhausts builder resources, gets IP banned by source site | Web-scrape protocol (Appendix G) enforces rate limiting and retry with backoff | **Minor.** Single-source scrape is bounded. Multi-source concurrent scraping is not addressed. |
 | **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | Chrome stripping (Appendix G.4) removes `<script>`, `<style>`, and non-content HTML elements before conversion; content-type classification (Appendix G.4) skips pages with no mechanical indicators | **Minor.** Stripping reduces the attack surface; classification skips the most likely injection targets (blog posts, forum pages). The spec still assumes trusted sources for content-bearing pages. |
 
-_Verify:_ None — this appendix is a reference analysis. Gaps identified here are
+_Check:_ None — this appendix is a reference analysis. Gaps identified here are
 candidates for future spec revisions, not per-build verification targets.
 
 ### P.1 OWASP Crosswalk
@@ -11499,7 +11499,7 @@ mapping from infrastructure category to help category name SHALL be recorded in
 DECISIONS.md. Help category names are advisory — the GM may override them
 (REQ-067) — but the infrastructure classification is immutable.
 
-_Verify:_ T3, T5, T32, T33.
+_Check:_ T3, T5, T32, T33.
 
 ### T.1 Output Format Catalog
 
@@ -11519,7 +11519,7 @@ surface SHALL support every format marked mandatory for its role.
 
 Presentation formats (`html`, `ascii`, `lonelog`) are not interchange formats
 and are not importable; requesting one on an interchange-only surface returns
-`[INVALID_INPUT]` per REQ-425b. _Verify:_ T505, T506, T507.
+`[INVALID_INPUT]` per REQ-425b. _Check:_ T505, T506, T507.
 
 ---
 
@@ -11732,6 +11732,38 @@ before re-binding.
   stale (staleness never blocks loading, REQ-423).
 - A legacy artifact lacks a fingerprint: it is flagged `[data-stale]` and
   re-stamped by the next explicit migration.
+
+### V.9 Proofread the specification
+
+**Entry point.** `npm run validate:sdd` (the proofreading pass in
+`scripts/validate.ts`), or `npm run check:fast` for the fast gate.
+
+**Happy path.**
+
+1. Run `npm run validate:sdd`; record the current error and warning counts in
+   `spec/audit/proofread-register.md` as the batch baseline.
+2. Proofread the source files in canonical load order, one batch at a time.
+   Apply five passes to each file: mechanical (spelling, punctuation,
+   capitalization, hyphenation), grammar (agreement, tense, modifiers,
+   fragments), terminology and style (canonical terms per §4 and Appendix S,
+   retired terms per Appendix R, `GN`/`§N` forms), clarity and consistency
+   (long sentences, naming drift, near-duplicates), and — for every REQ edited —
+   an Appendix M re-check against the body limits.
+3. Record each finding as `PR-<n>` in the register with location, correction,
+   and disposition: `Fixed`, `Accepted`, `Open`, or `Deferred`.
+4. Edit files under `spec/` only; run `npm run assemble && npm run check:fast`.
+5. Record every accepted warning in the register with its rationale. Warnings
+   are pointers, not verdicts: canonical terms, SHALL/MAY strength, and
+   mandated identifiers outrank the readability score.
+
+**Recovery.**
+
+- A REQ edit trips a shape or readability violation: restore the contract or
+  tighten the body to the Appendix M limits; if the enumeration cannot clear
+  the readability bar without dropping load-bearing wording, record it as an
+  accepted exception.
+- An edit lands in a fingerprint-scoped section (§5.9, §5.16–§5.17, §6.3,
+  §6.4.2, §7.7, §5.19, Appendix Q): run `npm run build-order` before commit.
 
 ---
 

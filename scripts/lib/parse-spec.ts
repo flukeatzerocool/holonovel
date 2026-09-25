@@ -138,6 +138,58 @@ export function extractNarrativeProse(text: string): ProseParagraph[] {
   return paragraphs;
 }
 
+export function extractReferenceProse(text: string): ProseParagraph[] {
+  const narrativeStart = text.indexOf("### How to read this specification");
+  const narrativeEnd = text.indexOf("## 5. Requirements");
+  const reqRanges = findReqBoundaries(text).map((b) => [b.start, b.end] as [number, number]);
+  const inReq = (off: number) => reqRanges.some(([s, e]) => off >= s && off < e);
+
+  const lines = text.split("\n");
+  const paragraphs: ProseParagraph[] = [];
+  let section = "";
+  let buf: string[] = [];
+  let bufLine = 0;
+  let inFence = false;
+  let offset = 0;
+
+  const flush = () => {
+    const p = buf.join(" ").replace(/\s+/g, " ").trim();
+    if (p.length === 0) return;
+    paragraphs.push({ section, paragraph: p, line: bufLine });
+    buf = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const lineOffset = offset;
+    offset += raw.length + 1;
+    const t = raw.trim();
+    // Skip the §0–§4 narrative range — extractNarrativeProse already scores it.
+    if (narrativeStart >= 0 && narrativeEnd > narrativeStart && lineOffset >= narrativeStart && lineOffset < narrativeEnd) {
+      flush();
+      continue;
+    }
+    if (inFence) { if (t.startsWith("```")) inFence = false; continue; }
+    if (t.startsWith("```")) { flush(); inFence = true; continue; }
+    // Skip REQ bodies (scored per-REQ) and their check trailers.
+    if (inReq(lineOffset) || inReq(lineOffset + raw.length)) { flush(); continue; }
+    if (/^[*_]Check:[*_]/.test(t) || /^[*_]Verify:[*_]/.test(t)) { flush(); continue; }
+    if (/^\s/.test(raw)) { flush(); continue; }
+    if (/^#{1,6}\s+/.test(t)) { flush(); section = t.replace(/^#+\s*/, "").trim(); continue; }
+    if (t === "") { flush(); continue; }
+    if (t.startsWith("|")) { flush(); continue; }
+    if (t.startsWith(">")) { flush(); continue; }
+    if (/^-{3,}\s*$/.test(t)) { flush(); continue; }
+    if (/^\d{1,2}\.\s+/.test(t)) { flush(); continue; }
+    if (/^[-*]\s+/.test(t)) { flush(); continue; }
+    if (/^\*\*.+\*\*\s*$/.test(t)) { flush(); continue; }
+    if (buf.length === 0) bufLine = i + 1;
+    buf.push(t);
+  }
+  flush();
+  return paragraphs;
+}
+
 export interface TerminologyEntry {
   term: string;
   canonical: string;
