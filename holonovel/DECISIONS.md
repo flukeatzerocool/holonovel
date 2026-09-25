@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** b763ab3c5092a45ad270114342035996970839a831127c88df66edc118fad337
+**Spec hash:** fa83f1fd62e18bdbb58c6a8ce3d7d5c854ca26c329bf928bf0d75c7c04f2bf3f
 
-**Recorded tool budget:** 28 (REQ-429)
+**Recorded tool budget:** 29 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M1d: Causal Transition Validation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.27 Causal Transition Validation (REQ-484–495), completing the four bottom-line M1 items. New §7.7 property groups `Causal State` (Spatial) and `Transition Ledger` (Narrative-memory) with two §7.7.1a rows: Causal State → Scene (P13, naming TTRPG_CAUSAL_VALIDATION/LATENT_TRANSITIONS) and Transition Ledger → Lore (P16); an admission-decision catalog paragraph added to §7.7.1. §7.6 adds three configs (two behavioral coupling per P13, one storage). REQ-407 names the causal-state surface. Property-group count statements updated 33 → 35 (§6.5, REQ-374a, T425, T439). New tool `manage_causal` (propose/admit/reject/list/state/ingress) and resource `causal://state`; REQ-429 recorded budget 28 → 29. Implementation: `src/core/causal.ts` (scope-coordinate validation, location exclusivity, ordered scalar, optimistic version + idempotency, latent transitions, structural causal–epistemic firewall); Novel `causal_slots` + `transition_ledger` persisted through every serialize/deserialize path; `manage_causal` with badge gating. The plan's suggested Causal→World (P14) and Ledger→Story Journal (P31) rows were adjusted to P13/P16 because the source archetypes did not match (P14/P31 source is Temporal). |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `fa83f1fd…`; bucket A 0, B 0, C 344, E 113); typecheck 0 errors; test:causal 12/12 (T574–T585); test:tool-definitions 6/6 (T511 against the 29-tool recorded budget); version-check OK |
+| Follow-up | The four bottom-line M1 items (event log, belief, identity, causal) are complete. M2–M5 remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (M1c: Character Identity Firewall)
 

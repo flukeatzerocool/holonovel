@@ -19,6 +19,7 @@ import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateN
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
+import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -136,6 +137,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_synthesis: MUTATING,
   manage_belief: MUTATING,
   manage_identity: MUTATING,
+  manage_causal: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -4733,6 +4735,8 @@ function novelToJSONState(novel: NovelState): any {
     branch_lineage: novel.branch_lineage,
     evidence: novel.evidence,
     belief_state: novel.belief_state,
+    causal_slots: novel.causal_slots,
+    transition_ledger: novel.transition_ledger,
   };
 }
 
@@ -4802,6 +4806,8 @@ function loadNovelFromStateData(data: any): NovelState {
     branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
     evidence: data.evidence ?? [],
     belief_state: data.belief_state ?? [],
+    causal_slots: data.causal_slots ?? [],
+    transition_ledger: data.transition_ledger ?? [],
   };
 }
 
@@ -5109,6 +5115,146 @@ server.registerTool("manage_identity", {
     }
     default:
       return err("INVALID_INPUT", `Unknown identity action '${args.action}'.`);
+  }
+});
+
+// --- Causal Transition Validation ---
+
+// Causal Transition Validation (REQ-484–REQ-495) — decides whether a proposed
+// objective-state transition can coexist with the committed history of one
+// scope, preserving every proposal as auditable evidence. The causal layer
+// never writes belief, evidence, or identity (REQ-492).
+function causalOptions(novel: NovelState) {
+  return {
+    scope: novel.slug,
+    latentTransitions: (process.env.TTRPG_CAUSAL_LATENT_TRANSITIONS ?? "false") === "true",
+  };
+}
+
+function causalEnabled(): boolean {
+  return (process.env.TTRPG_CAUSAL_VALIDATION ?? "true") !== "false";
+}
+
+function buildProposal(novel: NovelState, args: any, origin: OriginSource): TransitionProposal {
+  return {
+    id: nextProposalId(novel.transition_ledger),
+    scope: args.scope ?? novel.slug,
+    domain: (args.domain ?? "location") as CausalDomain,
+    entity: args.entity,
+    key: args.key,
+    value: args.value,
+    from: args.from,
+    expected_version: args.expected_version,
+    origin_source: origin,
+    source_ordinal: args.source_ordinal !== undefined
+      ? args.source_ordinal
+      : (novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null),
+    at: new Date().toISOString(),
+  };
+}
+
+function validateProposalArgs(args: any): string | null {
+  if (args.domain !== undefined && !CAUSAL_DOMAINS.includes(args.domain)) return `domain must be one of ${CAUSAL_DOMAINS.join(", ")}.`;
+  if (!args.entity) return "entity is required.";
+  if (args.key === undefined) return "key is required.";
+  if (args.value === undefined) return "value is required.";
+  return null;
+}
+
+server.registerTool("manage_causal", {
+  title: "Causal",
+  description: "Validate objective-state transitions against committed history. Proposals are recorded in a ledger before admission; a proposal is not truth until admitted, and refused proposals are preserved as evidence. Mutating actions (propose, admit, reject, ingress) persist to the Novel and are audited; list/state are read-only. Use when: proposing an objective change (propose), admitting or refusing a recorded proposal (admit/reject), submitting machine-originated state (ingress), inspecting the transition ledger (list), or reading admitted objective state (state). Do NOT use when: recording what an entity believes — use manage_belief; editing the world model directly — use manage_world. Parameters by action: propose — scope, domain, entity, key, value, from, expected_version, origin_source, source_ordinal; admit/reject — proposal_id; ingress — scope, domain, entity, key, value, source_ordinal; list/state — (none).",
+  inputSchema: {
+    action: z.enum(["propose", "admit", "reject", "list", "state", "ingress"]).describe("propose, admit, reject, list, state, or ingress."),
+    scope: z.string().optional().describe("Scope coordinate (default the active Novel slug)."),
+    domain: z.enum(["location", "scalar"]).optional().describe("location or scalar (default location)."),
+    entity: z.string().optional().describe("Entity whose objective state is proposed."),
+    key: z.string().optional().describe("State key within the entity."),
+    value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional().describe("Proposed value."),
+    from: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional().describe("Expected prior value (proposal)."),
+    expected_version: z.number().optional().describe("Optimistic version guard (proposal)."),
+    origin_source: z.enum(["narrative", "machine", "ruleset"]).optional().describe("narrative, machine, or ruleset (proposal)."),
+    source_ordinal: z.number().optional().describe("Contributing event-log ordinal (default the latest event)."),
+    proposal_id: z.string().optional().describe("Recorded proposal id (admit/reject)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "state": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (novel.causal_slots.length === 0) return ok("No admitted causal state.");
+      return raw(JSON.stringify(novel.causal_slots, null, 2));
+    }
+    case "list": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (novel.transition_ledger.length === 0) return ok("Transition ledger is empty.");
+      return raw(JSON.stringify(novel.transition_ledger, null, 2));
+    }
+    case "propose": {
+      requireGM();
+      const novel = requireNovel();
+      if (!causalEnabled()) return err("FORBIDDEN", "Causal validation is disabled (TTRPG_CAUSAL_VALIDATION=false).");
+      const bad = validateProposalArgs(args); if (bad) return err("INVALID_INPUT", bad);
+      const p = buildProposal(novel, args, (args.origin_source ?? "narrative") as OriginSource);
+      // REQ-484 — record the proposal; it is not truth until admitted.
+      novel.transition_ledger.push({ ...p, decision: "underdetermined", reason: "proposal recorded, awaiting admission" });
+      state.saveNovel(novel);
+      audit("causal_propose", { proposal_id: p.id, domain: p.domain, entity: p.entity });
+      return ok(`Proposal ${p.id} recorded (underdetermined).`);
+    }
+    case "admit": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.proposal_id) return err("INVALID_INPUT", "proposal_id is required for admit.");
+      const record = novel.transition_ledger.find((r) => r.id === args.proposal_id);
+      if (!record) return err("NOT_FOUND", `Proposal '${args.proposal_id}' not found.`);
+      if (record.decision !== "underdetermined") return err("STATE_CONFLICT", `Proposal '${record.id}' is already ${record.decision}.`);
+      const { decision, reason } = evaluate(record, novel.causal_slots, causalOptions(novel));
+      record.decision = decision;
+      record.reason = reason;
+      if (decision === "admitted" || decision === "admitted_with_latent_transition") {
+        applySlot(novel.causal_slots, record, new Date().toISOString());
+      }
+      const cap = parseInt(process.env.TTRPG_CAUSAL_MAX_LEDGER_ENTRIES ?? "0", 10);
+      if (cap > 0 && novel.transition_ledger.length > cap) {
+        novel.transition_ledger = novel.transition_ledger.slice(novel.transition_ledger.length - cap);
+      }
+      state.saveNovel(novel);
+      audit("causal_admit", { proposal_id: record.id, decision });
+      return ok(`Proposal ${record.id}: ${decision} — ${reason}.`);
+    }
+    case "reject": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.proposal_id) return err("INVALID_INPUT", "proposal_id is required for reject.");
+      const record = novel.transition_ledger.find((r) => r.id === args.proposal_id);
+      if (!record) return err("NOT_FOUND", `Proposal '${args.proposal_id}' not found.`);
+      // REQ-491 — the refusal is preserved.
+      record.decision = "rejected_impossible";
+      record.reason = "rejected by operator";
+      state.saveNovel(novel);
+      audit("causal_reject", { proposal_id: record.id });
+      return ok(`Proposal ${record.id} rejected.`);
+    }
+    case "ingress": {
+      requireGM();
+      const novel = requireNovel();
+      if (!causalEnabled()) return err("FORBIDDEN", "Causal validation is disabled (TTRPG_CAUSAL_VALIDATION=false).");
+      const bad = validateProposalArgs(args); if (bad) return err("INVALID_INPUT", bad);
+      // REQ-493 — deterministic machine ingress: evaluate and apply in one step.
+      const p = buildProposal(novel, args, "machine");
+      const { decision, reason } = evaluate(p, novel.causal_slots, causalOptions(novel));
+      novel.transition_ledger.push({ ...p, decision, reason });
+      if (decision === "admitted" || decision === "admitted_with_latent_transition") {
+        applySlot(novel.causal_slots, p, new Date().toISOString());
+      }
+      state.saveNovel(novel);
+      audit("causal_ingress", { proposal_id: p.id, decision });
+      return ok(`Ingress ${p.id}: ${decision} — ${reason}.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown causal action '${args.action}'.`);
   }
 });
 
@@ -6480,6 +6626,13 @@ server.registerResource("identity-kernel", new ResourceTemplate("identity://{id}
   const identity = identityFor(id);
   if (!identity) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   return { contents: [{ uri: uri.href, text: JSON.stringify(compileKernel(identity), null, 2), mimeType: "application/json" }] };
+});
+
+// Causal state resource (REQ-494) — admitted objective state for the active Novel.
+server.registerResource("causal-state", "causal://state", { title: "Causal State" }, async () => {
+  const novel = state.activeNovel;
+  const text = novel ? JSON.stringify(novel.causal_slots, null, 2) : "[]";
+  return { contents: [{ uri: "causal://state", text, mimeType: "application/json" }] };
 });
 
 // Countdown resource

@@ -32,6 +32,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.24   | Temporal Event Log and Branching                        | 455–460 |
 | 5.25   | Belief and Evidence                                     | 461–472 |
 | 5.26   | Character Identity                                      | 473–483 |
+| 5.27   | Causal Transition Validation                            | 484–495 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3491,7 +3492,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 33 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 35 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -3767,7 +3768,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3862,5 +3863,31 @@ personality, NPC, vow, event-log, belief/evidence, identity, and base-capability
 **REQ-482 — Developmental proposal-only.** Identity candidates whose stability class is developmental SHALL remain proposals; the server SHALL NOT apply them to durable identity without explicit acceptance, and bootstrap SHALL NOT auto-accept them. *Acceptance criterion:* a developmental candidate leaves the version unchanged until explicitly accepted. _Check:_ T572.
 
 **REQ-483 — Identity source provenance.** Every identity candidate SHALL record its provenance — character card, manual entry, or another named source — preserved on the accepted facet. *Acceptance criterion:* a manual candidate and a card candidate report their distinct sources. _Check:_ T573.
+
+### 5.27 Causal Transition Validation
+
+**REQ-484 — Transition proposal.** A proposed change to objective world state SHALL be recorded as a proposal carrying its scope coordinate, domain, target entity and key, proposed value, optional expected prior value, and originating event-log ordinal before it is applied, and SHALL NOT change state until admitted. *Acceptance criterion:* proposing a transition leaves the admitted state unchanged and records the proposal. _Check:_ T574.
+
+**REQ-485 — Admission decision.** Each proposal SHALL receive an admission decision drawn from the admission-decision catalog defined in the state model and recorded in the transition ledger. *Acceptance criterion:* a valid proposal is admitted and an incompatible one is refused with a named decision. _Check:_ T575.
+
+**REQ-486 — Location exclusivity.** An entity SHALL occupy at most one admitted value for a location key within one scope coordinate; a proposal whose expected prior value does not match the admitted value SHALL be refused as a conflict unless a latent transition is permitted. *Acceptance criterion:* two incompatible location writes do not both become current. _Check:_ T576.
+
+**REQ-487 — Ordered scalar transitions.** Ordered scalar state SHALL admit a proposed value at least the current value and SHALL refuse a lower incompatible value as a conflict rather than applying it. *Acceptance criterion:* a higher scalar value is admitted and a lower one is refused. _Check:_ T577.
+
+**REQ-488 — Scope-coordinate validation.** A proposal whose scope coordinate differs from the active scope SHALL be refused, so one scope cannot overwrite another's deterministic state. *Acceptance criterion:* a foreign-scope proposal is refused and leaves state unchanged. _Check:_ T578.
+
+**REQ-489 — Transition idempotency and version.** Re-admitting an already-current value SHALL be idempotent and SHALL NOT advance the state version; WHEN a proposal carries an expected version that does not match the admitted version, THE server SHALL refuse it as a conflict. *Acceptance criterion:* a repeated value leaves the version unchanged, and a stale expected version is refused. _Check:_ T579.
+
+**REQ-490 — Latent transition handling.** WHEN latent transitions are enabled and a proposal is incompatible with the admitted value, THE server SHALL admit it and record the decision as a latent transition rather than silently overwriting. *Acceptance criterion:* an incompatible proposal with latent transitions enabled is admitted and flagged. _Check:_ T580.
+
+**REQ-491 — Rejected-transition evidence.** A refused proposal SHALL be retained in the transition ledger as auditable evidence and SHALL NOT delete its originating claim. *Acceptance criterion:* a refused proposal remains listable with its decision after the refusal. _Check:_ T581.
+
+**REQ-492 — Causal-epistemic firewall.** The causal layer SHALL NOT write belief, evidence, or identity state, and those layers SHALL NOT write causal state. *Acceptance criterion:* admitting a transition leaves belief and identity state unchanged. _Check:_ T582.
+
+**REQ-493 — Deterministic machine ingress.** Machine-originated state SHALL be submitted through a deterministic ingress action whose proposals carry a machine origin and are recorded in the transition ledger like any other proposal. *Acceptance criterion:* an ingress submission is recorded with a machine origin and applied when admitted. _Check:_ T583.
+
+**REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through a causal-state resource and a state read action for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
+
+**REQ-495 — Causal visibility and badge gating.** Causal-state and ledger reads SHALL be available to every non-observer badge, and proposal and admission SHALL require the Game Master badge. *Acceptance criterion:* a Player reads objective state, and a Player proposal is refused. _Check:_ T585.
 
 #### End of requirements

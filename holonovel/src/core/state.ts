@@ -525,6 +525,10 @@ export interface NovelState {
   // REQ-461/REQ-465 — per-entity evidence records and reconciled belief stances.
   evidence: import("./belief.js").EvidenceRecord[];
   belief_state: import("./belief.js").BeliefRecord[];
+  // REQ-486/REQ-487 — admitted objective-state values at scope coordinates.
+  causal_slots: import("./causal.js").CausalSlot[];
+  // REQ-484/REQ-491 — every transition proposal, admitted or refused.
+  transition_ledger: import("./causal.js").TransitionRecord[];
 }
 
 export interface RosterEntity extends NovelEntity {
@@ -810,6 +814,8 @@ export class StateManager {
       branch_lineage: { parent_slug: null, branch_point: null },
       evidence: [],
       belief_state: [],
+      causal_slots: [],
+      transition_ledger: [],
     };
 
     this.novels.set(slug, novel);
@@ -1095,6 +1101,8 @@ export class StateManager {
       branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
       evidence: data.evidence ?? [],
       belief_state: data.belief_state ?? [],
+      causal_slots: data.causal_slots ?? [],
+      transition_ledger: data.transition_ledger ?? [],
     };
     return novel;
   }
@@ -2078,6 +2086,9 @@ function novelToJSON(novel: NovelState): any {
     // REQ-461/REQ-465 — evidence and belief state persist with the Novel.
     evidence: novel.evidence,
     belief_state: novel.belief_state,
+    // REQ-486/REQ-491 — causal slots and transition ledger persist with the Novel.
+    causal_slots: novel.causal_slots,
+    transition_ledger: novel.transition_ledger,
   };
 }
 
@@ -2193,6 +2204,8 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
     evidence: data.evidence ?? [],
     belief_state: data.belief_state ?? [],
+    causal_slots: data.causal_slots ?? [],
+    transition_ledger: data.transition_ledger ?? [],
   };
 }
 

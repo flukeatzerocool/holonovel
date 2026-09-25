@@ -1182,6 +1182,18 @@ date-stamps matching CHANGELOG entries.
 | REQ-481 | Identity visibility and badge gating | 2026-09-24 |
 | REQ-482 | Developmental proposal-only | 2026-09-24 |
 | REQ-483 | Identity source provenance | 2026-09-24 |
+| REQ-484 | Transition proposal | 2026-09-24 |
+| REQ-485 | Admission decision | 2026-09-24 |
+| REQ-486 | Location exclusivity | 2026-09-24 |
+| REQ-487 | Ordered scalar transitions | 2026-09-24 |
+| REQ-488 | Scope-coordinate validation | 2026-09-24 |
+| REQ-489 | Transition idempotency and version | 2026-09-24 |
+| REQ-490 | Latent transition handling | 2026-09-24 |
+| REQ-491 | Rejected-transition evidence | 2026-09-24 |
+| REQ-492 | Causal-epistemic firewall | 2026-09-24 |
+| REQ-493 | Deterministic machine ingress | 2026-09-24 |
+| REQ-494 | Causal state exposure | 2026-09-24 |
+| REQ-495 | Causal visibility and badge gating | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1666,7 +1678,7 @@ diet.
 | T422 | Automated | Ruleset Wisdom as rendered reality: build a host carrying vendor Ruleset Wisdom (§11.4). Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `manage_synthesis (action: activate)` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `manage_synthesis (action: deactivate)` on a Wisdom item — assert the coupled behavior ceases. Call `manage_synthesis (action: revert)` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T423 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `import_supplementary` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `manage_synthesis (action: list)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `import_supplementary` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `import_supplementary` under Player badge — assert `[FORBIDDEN]`. Call `remove_supplementary` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary-gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T424 | Automated | Dynamic tool registration: call `import_supplementary` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `remove_supplementary` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `import_supplementary` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
-| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 33 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
+| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 35 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
 | T426 | Automated | Wisdom mechanical coupling rate: build with a ruleset producing Wisdom items. Assert ≥30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational fails this Phase 1 metric. Assert re-classification from Navigational to Mechanical where ruleset text supports behavioral language. | REQ-375 |
 | T427 | Automated | Coupling chain Pattern Buffer: populate world model, create countdown with world_effect, create faction. Advance scene — assert countdown ticks and faction clock ticks (P1). Move player via go — assert scene transition hook and lore triggers (P13, P2). Advance countdown to fire — assert world_effect mutates room (P14). Record consequence story journal — assert faction advisory in narrative_threads (P33). Undo — assert pre-chain state restored. | §6.6 S32 |
 | T428 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with host-carried Wisdom active — assert manage_character (action: sheet) shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on manage_scene (action: set) (P7). run_command (action: suggest) returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
@@ -1680,7 +1692,7 @@ diet.
 | T436 | Automated | Scene ↔ NPC couplings: create NPC with disposition=friendly. Call `manage_scene (action: set, "...", scene_type="combat")` — assert `narrative_threads` includes NPC disposition advisory (P41). Call `manage_scene (action: set, "...", scene_type="social")` — assert advisory updated. Create NPC with `location` matching active room — call `manage_scene (action: set, "...", characters_present=["<entity>"])` — assert NPC auto-registers in scene per P42. | REQ-369, REQ-075 |
 | T437 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T438 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], badge_scope="shared". Call `manage_scene (action: set, "You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with badge_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
-| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 33 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
+| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 35 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
 | T440 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T441 | Automated | Novel ruleset binding: call `manage_novel (action: create, "test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `manage_novel (action: info)`. Call `manage_novel (action: create, "test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T442 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
@@ -1778,6 +1790,18 @@ diet.
 | T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
 | T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
 | T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
+| T574 | Automated | Transition proposal: proposing a transition leaves the admitted state unchanged and records the proposal. | REQ-484 |
+| T575 | Automated | Admission decision: a valid proposal is admitted and an incompatible one is refused with a named decision. | REQ-485 |
+| T576 | Automated | Location exclusivity: two incompatible location writes do not both become current; a continuous move is admitted. | REQ-486 |
+| T577 | Automated | Ordered scalar transitions: a higher scalar value is admitted and a lower one is refused. | REQ-487 |
+| T578 | Automated | Scope-coordinate validation: a foreign-scope proposal is refused and leaves state unchanged. | REQ-488 |
+| T579 | Automated | Transition idempotency and version: a repeated value leaves the version unchanged and a stale expected version is refused. | REQ-489 |
+| T580 | Automated | Latent transition handling: an incompatible proposal with latent transitions enabled is admitted and flagged. | REQ-490 |
+| T581 | Automated | Rejected-transition evidence: a refused proposal remains listable with its decision. | REQ-491 |
+| T582 | Automated | Causal-epistemic firewall: admitting a transition leaves belief and identity state unchanged. | REQ-492 |
+| T583 | Automated | Deterministic machine ingress: an ingress submission is recorded with a machine origin and applied when admitted. | REQ-493 |
+| T584 | Automated | Causal state exposure: the causal-state resource returns the admitted slots for the active Novel. | REQ-494 |
+| T585 | Automated | Causal badge gating: a Player reads objective state and a Player proposal is refused. | REQ-495 |
 
 ---
 
