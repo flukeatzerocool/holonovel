@@ -98,6 +98,36 @@ function seedRuleset(): void {
   for (const [name, obj] of Object.entries(files)) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
 }
 
+// A second minimal valid package, used by the lazy-hydration test (REQ-390):
+// two installed packages, only the bound one hydrates.
+const SECOND_PKG: any = {
+  slug: "wave2test",
+  manifest: { slug: "wave2test", name: "Wave2 Test", host_version: "2026.08.18", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-08-24", counts: { index: 1 } },
+  index: [
+    { id: "shield", anchor: "Items > Shield", source_file: "wave2test.md", content: "Shield: +2 AC.", category: "Items", confidence: "high", line_range: "1-3" },
+  ],
+  model: { concepts: { shield: { name: "Shield", ac_bonus: 2 } }, tables: {}, generation_tables: {} },
+  tools: [
+    { name: "lookup_item", title: "Lookup Item", description: "Look up an item's full rules text. Use when: you need an item's details. Do NOT use when: you need a spell — use lookup_spell.", kind: "lookup", collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The item name to look up." } } } },
+  ],
+  resources: [], prompts: [],
+};
+SECOND_PKG.manifest.content_hash = contentHash(SECOND_PKG);
+
+function seedSecondRuleset(): void {
+  const dir = join(DATA_DIR, "rulesets", "wave2test");
+  mkdirSync(dir, { recursive: true });
+  const files: Record<string, any> = {
+    "manifest.json": SECOND_PKG.manifest,
+    "index.json": SECOND_PKG.index,
+    "model.json": SECOND_PKG.model,
+    "tools.json": SECOND_PKG.tools,
+    "resources.json": [],
+    "prompts.json": [],
+  };
+  for (const [name, obj] of Object.entries(files)) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
+}
+
 async function main() {
   // ── REQ-003 roll transparency + REQ-060 verbose + REQ-061/280 source ──
   await test("T210/T47/REQ-003 + REQ-060 + REQ-061/REQ-280: ruleset lookup full entry, source quoting, roll transparency", async () => {
@@ -542,7 +572,7 @@ async function main() {
   });
 
   // ── Wave 5b: remaining NPC/personality surfaces ──
-  await test("T130/REQ-123 + T191/REQ-156 + T200/REQ-165 + T201/REQ-166 + T202/REQ-167: NPC stat fields, personality rendering", async () => {
+  await test("T201/REQ-166 + T126/REQ-126: personality rendering and voice examples", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w5d" });
     await call(p, "set_badge", { badge: "game_master" });
@@ -958,17 +988,107 @@ async function main() {
   });
 
   // ── Wave 11: §5.16/§5.17 Ruleset packages + §5.4 workflows ──
-  await test("T441/T449/REQ-380 + T452/T453/REQ-389 + T454/T455/REQ-390: ruleset binding, package format, lazy hydration", async () => {
+  await test("T441/REQ-380: Novel ruleset binding, health count, unknown-ruleset rejection", async () => {
     seedRuleset();
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w11a", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
-    if (typeof h.rulesets_installed !== "number") throw new Error("REQ-380 ruleset binding health");
+    if (h.rulesets_installed !== 1) throw new Error(`REQ-380 rulesets_installed ${h.rulesets_installed}`);
+    const info = await call(p, "manage_novel", { action: "info" });
+    assertContains(info, "wave1test", "REQ-380 info reports bound ruleset");
+    const bad = await call(p, "manage_novel", { action: "create",  name: "w11bad", ruleset: "nonexistent" });
+    assertContains(bad, "[INVALID_INPUT]", "REQ-380 unknown ruleset rejected");
+    assertContains(bad, "Valid rulesets", "REQ-380 valid rulesets enumerated");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-389b/c package integrity and install surface ──
+  await test("T452/T453/REQ-389: package serves tools; bound-package removal refused; list reports state", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w11p", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
     const look = await call(p, "wave1test_lookup_spell", { key: "fireball" });
-    assertContains(look, "Evocation", "REQ-389 package tool surface");
+    assertContains(look, "Evocation", "REQ-389 package tool serves without source Markdown");
+    const remove = await call(p, "manage_ruleset", { action: "remove",  slug: "wave1test" });
+    assertContains(remove, "[STATE_CONFLICT]", "REQ-389c remove refused while Novel bound");
     const list = await call(p, "manage_ruleset", { action: "list" });
-    assertContains(list, "wave1test", "REQ-390 hydration state");
+    assertContains(list, "wave1test", "REQ-389c list reports installed package");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-389b corrupted-hash rejection ──
+  await test("T452/REQ-389: corrupted package manifest hash is rejected by slug with hashes named", async () => {
+    seedRuleset();
+    const corrupt = JSON.parse(JSON.stringify(RULESET_PKG.manifest));
+    corrupt.content_hash = "0".repeat(64);
+    writeFileSync(join(DATA_DIR, "rulesets", "wave1test", "manifest.json"), JSON.stringify(corrupt, null, 2) + "\n");
+    const p = await boot();
+    const bad = await call(p, "manage_novel", { action: "create",  name: "w11cx", ruleset: "wave1test" });
+    assertContains(bad, "[INVALID_INPUT]", "REQ-389b corrupted package rejected");
+    assertContains(bad, "hash", "REQ-389b rejection names the hash");
+    passed++;
+    await kill(p);
+    // Restore a valid manifest so later tests are not poisoned by the corrupt one.
+    seedRuleset();
+  });
+
+  // ── REQ-390 lazy hydration ──
+  await test("T454/T455/REQ-390: installed-not-activated package defers hydration until bound", async () => {
+    seedRuleset();
+    seedSecondRuleset();
+    const p = await boot();
+    // Direct call to an installed-but-unhydrated tool is refused (REQ-390a).
+    const pre = await call(p, "wave1test_lookup_spell", { key: "fireball" });
+    assertContains(pre, "[STATE_CONFLICT]", "REQ-390a unactivated ruleset tool refused");
+    await call(p, "manage_novel", { action: "create",  name: "w11l", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    if (h.rulesets_installed !== 2) throw new Error(`REQ-390b installed ${h.rulesets_installed}`);
+    if (h.rulesets_hydrated !== 1) throw new Error(`REQ-390b hydrated ${h.rulesets_hydrated} (expected only the bound package)`);
+    const after = await call(p, "wave1test_lookup_spell", { key: "fireball" });
+    assertContains(after, "Evocation", "REQ-390a bound package hydrates on activation");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-160 synthesis health reporting ──
+  await test("T195/REQ-160: spec_health reports synthesis activation and per-module counts", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "wS1" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const before = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    if (!("synthesis_active" in before)) throw new Error("REQ-160 synthesis_active absent");
+    if (!before.synthesis_health || typeof before.synthesis_health.module_counts !== "object") throw new Error("REQ-160 module_counts absent");
+    await call(p, "manage_synthesis", { action: "run" });
+    const after = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    if (after.synthesis_health.synthesis_active !== true) throw new Error("REQ-160 synthesis_active not true after run");
+    for (const mod of ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"]) {
+      if (!(mod in after.synthesis_health.module_counts)) throw new Error(`REQ-160 module_counts missing ${mod}`);
+    }
+    if (!after.synthesis_health.fingerprint) throw new Error("REQ-160 fingerprint absent");
+    passed++;
+    await kill(p);
+  });
+
+  // ── REQ-175 confrontation summary derivation ──
+  await test("T214/REQ-175: recap derives completed and pending confrontations", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "wR1" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "Ann" });
+    await call(p, "manage_npc", { action: "create",  name: "Foe" });
+    await call(p, "manage_combat", { action: "init" });
+    await call(p, "manage_combat", { action: "advance" });
+    await call(p, "manage_combat", { action: "end",  outcome: "goblins routed" });
+    const recap = await call(p, "manage_session", { action: "recap" });
+    assertContains(recap, "confrontations_completed:", "REQ-175 completed confrontations");
+    await call(p, "manage_combat", { action: "init" });
+    const recap2 = await call(p, "manage_session", { action: "recap" });
+    assertContains(recap2, "confrontation_pending:", "REQ-175 pending confrontation");
     passed++;
     await kill(p);
   });

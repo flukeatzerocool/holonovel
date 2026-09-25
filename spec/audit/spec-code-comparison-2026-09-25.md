@@ -133,3 +133,45 @@ holonovel npm run test:all                   → EXIT=0; 31 harnesses; 0 failure
 npm run typecheck                            → EXIT=0
 ```
 
+## Residual remediation (2026-09-25, session 2)
+
+SC-6's true residual was isolated with a new `compare-spec-code.ts --bundles`
+report: of 17 REQs whose only exercised evidence is a bundled test name, 10 were
+already bucket E (builder/verifier-side) and 6 were falsely bucket C. Actions:
+
+| REQ | Action | Result |
+|-----|--------|--------|
+| REQ-123 | Builder-defined NPC stat fields require a ruleset stat-block schema the ruleset-free package format does not carry; whitelisted as an intended gap with disposition | register: E |
+| REQ-160 | Added `T195/REQ-160` synthesis-health test (`synthesis_health.module_counts`, 7 modules, fingerprint) | register: C |
+| REQ-175 | Added `T214/REQ-175` recap confrontation-derivation test | register: C |
+| REQ-380 | Rebuilt the `T441` test to assert binding via `manage_novel (action: info)` and unknown-ruleset `[INVALID_INPUT]` | register: C |
+| REQ-389 | Added `T452/T453/REQ-389` tests: package serves without source Markdown; bound-package removal refused; corrupt-hash manifest rejected | register: C |
+| REQ-390 | Added `T454/T455/REQ-390` test: installed-but-unactivated tool returns `[STATE_CONFLICT]`; only the bound package hydrates (installed 2 / hydrated 1) | register: C |
+
+**SC-9 (P0, found during residual remediation) — corrupt package crashed the
+host.** A package whose declared content hash did not match was rejected
+correctly by `manage_novel (action: create)`, but `toolSchemas()` hydrated every
+installed package during startup tool registration, and the health-anchor and
+`manage_ruleset (action: list)` reductions hydrated unguarded — so a corrupt
+package crashed the server at boot, violating REQ-389b ("continue serving other
+packages") and defeating REQ-390 lazy hydration (all packages hydrated at
+startup). Fixed: `toolSchemas()` now reads `tools.json` without hydrating;
+`validateDeclaredToolSchemas()` preserves REQ-430 load-time validation; startup
+registration records and skips a package that fails to load; health/list guard
+per-package hydration.
+
+**Residual after remediation.** 9 over-stuffed `test-backfill.ts` bundle names
+remain (integration tests whose grouped naming is the accepted convention); the
+`checkTestNameInflation` warning surfaces them. The 133 accepted proofreading
+warnings and the SC-7 comment-only sample verification remain open (classes C/D
+of the residual program).
+
+**Post-remediation gates.**
+
+```
+npm run validate -- --write-register   → EXIT=0; A0/B0/C384/E114; 0 errors
+npm run check:fast                     → EXIT=0; 0 errors (9 over-stuffed warnings)
+holonovel npm run test:all             → EXIT=0; 31 harnesses; 0 failures
+npm run typecheck (holonovel)          → EXIT=0
+```
+

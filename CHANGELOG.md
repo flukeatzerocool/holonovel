@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-25 — Coverage-integrity residuals and ruleset-hydration hardening
+
+- The coverage-integrity audit is now driven by a new
+  `compare-spec-code.ts --bundles` report that names, for every over-stuffed
+  harness test name, the REQs whose only evidence is that bundle — the
+  definitive false-bucket-C worklist.
+- Six falsely-evidenced REQs now have real tests: synthesis health (REQ-160),
+  recap confrontation derivation (REQ-175), Novel ruleset binding (REQ-380),
+  ruleset package serving/removal/corrupt-hash rejection (REQ-389), and lazy
+  hydration (REQ-390). REQ-123 (builder-defined NPC stat fields) is now an
+  intended gap, since the ruleset-free package format carries no stat-block
+  schema.
+- Fixed a host crash: an installed package whose declared content hash did not
+  match was rejected on use but crashed the server at startup (ruleset tools
+  hydrated during registration) and at health/package-list hydration. Startup
+  registration now reads declared tool schemas without hydrating, load-time
+  tool-quality validation is preserved, and per-package hydration failures are
+  skipped and reported instead of taking down the host. Lazy hydration (REQ-390)
+  now holds: a package is loaded only when its Novel is activated.
+- Gates: 0 errors; 31/31 harnesses pass; coverage A0/B0/C384/E114. Nine
+  over-stuffed `test-backfill.ts` bundle names remain as review warnings.
+
 ## 2026-09-25 — Spec↔code conformance comparison and evidence remediation
 
 - Added `scripts/compare-spec-code.ts`, an informational tool that joins the
