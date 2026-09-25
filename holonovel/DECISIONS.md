@@ -4,6 +4,62 @@
 
 **Recorded tool budget:** 34 (REQ-429)
 
+## Gate classification (REQ-137a)
+
+Every registered host tool is assigned one gate classification: **un-gated**
+(callable under the Player and Game Master badges), **GM-only** (every action
+requires the Game Master badge), or **Player** (every action requires the
+Player badge). The `tools/list` contract of REQ-137b — badge-filtered listing —
+remains a recorded intended gap (it requires replacing the MCP SDK's built-in
+list handler); the table records the handler-level gate that `tools/call`
+enforces today.
+
+| Tool name | Gate | Badge visibility |
+|-----------|------|------------------|
+| `set_badge` | un-gated | Player, Game Master |
+| `respond_decision` | un-gated | Player, Game Master |
+| `manage_history` | un-gated | Player, Game Master |
+| `manage_character` | un-gated | Player, Game Master |
+| `run_command` | un-gated | Player, Game Master |
+| `manage_world` | GM-only | Game Master |
+| `manage_combat` | un-gated | Player, Game Master |
+| `manage_scene` | un-gated | Player, Game Master |
+| `manage_npc` | un-gated | Player, Game Master |
+| `manage_countdown` | un-gated | Player, Game Master |
+| `manage_lore` | un-gated | Player, Game Master |
+| `manage_condition` | un-gated | Player, Game Master |
+| `manage_faction` | un-gated | Player, Game Master |
+| `manage_relationship` | GM-only | Game Master |
+| `manage_vow` | un-gated | Player, Game Master |
+| `resolve_fate` | un-gated | Player, Game Master |
+| `resolve_ironsworn` | un-gated | Player, Game Master |
+| `resolve_forged` | un-gated | Player, Game Master |
+| `manage_story` | GM-only | Game Master |
+| `manage_note` | un-gated | Player, Game Master |
+| `manage_belief` | un-gated | Player, Game Master |
+| `manage_identity` | un-gated | Player, Game Master |
+| `manage_causal` | un-gated | Player, Game Master |
+| `manage_corpus` | un-gated | Player, Game Master |
+| `manage_index` | un-gated | Player, Game Master |
+| `manage_graph` | un-gated | Player, Game Master |
+| `manage_agent` | un-gated | Player, Game Master |
+| `manage_perception` | un-gated | Player, Game Master |
+| `manage_session` | un-gated | Player, Game Master |
+| `manage_adventure` | un-gated | Player, Game Master |
+| `manage_novel` | un-gated | Player, Game Master |
+| `manage_ruleset` | un-gated | Player, Game Master |
+| `manage_codex` | un-gated | Player, Game Master |
+| `manage_synthesis` | un-gated | Player, Game Master |
+
+### Holonovel Spec Update — 2026-09-25 (feature-parity integration remediation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — integrated the M1a–M3/N1–N3 feature-parity tools into the cross-cutting conventions. Implementation: `BUILDER_CATEGORIES` gains `manage_belief`/`manage_identity`/`manage_causal`/`manage_corpus`/`manage_index`/`manage_graph`/`manage_agent`/`manage_perception`, and `GMToolsSet` gains the six GM-mutation tools, so `manage_session (action: discover)` lists every registered tool and hides GM-mutation tools from the Player map; the `### Persistence tools` briefing line names every REQ-407 surface (event log, belief/evidence, identity, causal state, corpus, semantic index, knowledge graph, agent tasks, perception, base capabilities); `holonovel/AGENTS.md` records the live resource/template counts (32 resources, 21 templates). Spec: §7.7.0 archetype examples add the feature-parity property groups; Appendix F T511 names the feature-parity persisted types; REQ-423 and the §1 `Data-format fingerprint` term now name the sections `scripts/lib/contract-fingerprint.ts` hashes (§5.6, §5.9, §5.19, §5.21–§5.28, §5.31–§5.32, §7.7, Appendix Q), with the derived §5.29/§5.30/§5.33 surfaces excluded. New DECISIONS.md gate-classification table (REQ-137a) covers all 34 tools. Tests: T62 (every registered tool listed; Player GM-only hidden), T476 (full persist list), T511 (feature-parity entity tools/read actions), and a new T151 table-coverage test. |
+| Reused | source, config, lockfile, extraction, surfaces |
+| Verification | assemble + check:fast 0 errors; typecheck 0 errors; test:help 7/7 (T62/T118); test:persistence-guardrails 12/12 (T476); test:tool-definitions 7/7 (T151/T509/T510/T511/T512); data_format fingerprint advanced (REQ-423 section alignment) — persisted artifacts re-stamp and load |
+
 ### Holonovel Spec Update — 2026-09-24 (M3: Briefing Consistency)
 
 | Field | Value |
@@ -907,7 +963,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.24 |
+| Spec version | 2026.09.25 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

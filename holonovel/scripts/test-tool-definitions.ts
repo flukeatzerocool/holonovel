@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Tool-definition quality harness (REQ-427, REQ-024), registry-published
 // distribution guard (REQ-428), server-wide action-discriminator surface
-// guard (REQ-429), and ruleset tool-quality conformance guard (REQ-430).
-// Exercises T509, T510, T511, and T512.
+// guard (REQ-429), ruleset tool-quality conformance guard (REQ-430), and the
+// gate-classification table guard (REQ-137a). Exercises T151, T509, T510,
+// T511, and T512.
 //
 // T509 (REQ-427 + REQ-024): boots a ruleset-free host and asserts every
 // registered tool's description carries the three-clause structure (summary,
@@ -155,7 +156,7 @@ async function main() {
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
   await test("T511/REQ-429: server-wide action-discriminator surface within the recorded tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
-    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged"];
+    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_index", "manage_graph", "manage_agent", "manage_perception", "manage_session"];
     for (const name of requiredEntityTools) {
       assert(toolNames.has(name), `missing entity tool '${name}'`);
     }
@@ -165,6 +166,9 @@ async function main() {
       manage_lore: ["list", "get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
       manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_fate: ["roll", "aspect", "fate_point", "stress"],
       resolve_ironsworn: ["momentum", "move", "progress"], resolve_forged: ["action_roll", "stress", "downtime"],
+      manage_belief: ["list", "get"], manage_identity: ["list", "snapshot"], manage_causal: ["list", "state"],
+      manage_corpus: ["list", "get"], manage_index: ["status", "list"], manage_graph: ["status", "get", "nodes", "edges"],
+      manage_agent: ["list", "get"], manage_perception: ["list"], manage_session: ["event", "history"],
     };
     for (const [name, actions] of Object.entries(readActionHints)) {
       const tool = tools.find((t) => t.name === name);
@@ -209,6 +213,35 @@ async function main() {
     assert(toolsWithDescription === tools.length, "not every tool has a three-clause description");
   });
   console.log(`    (${toolsWithDescription}/${tools.length} tools conformant; ${describedParams} parameters described)`);
+
+  // ── T151 (REQ-137a): the DECISIONS.md gate-classification table enumerates
+  // every registered tool exactly once with a valid gate. The badge-filtered
+  // `tools/list` half of REQ-137b remains the recorded intended gap.
+  await test("T151/REQ-137a: gate-classification table covers every registered tool", () => {
+    const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
+    const start = md.indexOf("## Gate classification");
+    assert(start !== -1, "DECISIONS.md is missing the '## Gate classification' section");
+    const nextHeading = md.indexOf("\n### ", start + 1);
+    const section = nextHeading === -1 ? md.slice(start) : md.slice(start, nextHeading);
+    const rows = new Map<string, string>();
+    for (const line of section.split("\n")) {
+      const m = line.match(/^\|\s*`([^`]+)`\s*\|\s*([^|]+?)\s*\|/);
+      if (m) rows.set(m[1], m[2].trim());
+    }
+    const valid = new Set(["un-gated", "GM-only", "Player"]);
+    for (const [name, gate] of rows) {
+      assert(valid.has(gate), `${name} has invalid gate '${gate}'`);
+    }
+    for (const t of tools) {
+      assert(rows.has(t.name), `gate-classification table missing '${t.name}'`);
+    }
+    assert(rows.size === tools.length, `gate table has ${rows.size} rows for ${tools.length} tools`);
+    assert(rows.get("set_badge") === "un-gated", "set_badge must be un-gated");
+    const playerOnly = [...rows].filter(([, g]) => g === "Player").map(([n]) => n);
+    const gmOnly = new Set([...rows].filter(([, g]) => g === "GM-only").map(([n]) => n));
+    for (const n of playerOnly) assert(!gmOnly.has(n), `${n} classified as both Player-only and GM-only`);
+  });
+
   proc.kill("SIGKILL");
 
   // ── T512 ────────────────────────────────────────────────────────────

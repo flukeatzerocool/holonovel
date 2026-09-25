@@ -73,6 +73,10 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   const content = resp.result?.content ?? [];
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
+async function listTools(proc: ChildProcess): Promise<string[]> {
+  const resp = await send(proc, { method: "tools/list", params: { scope: "all" } });
+  return ((resp.result?.tools ?? []) as any[]).map((t) => t.name);
+}
 function kill(proc: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
     proc.on("exit", () => resolve());
@@ -95,6 +99,10 @@ async function main() {
     assertContains(h, "### Tool Categories", "T62a");
     assertContains(h, "**Combat:** manage_combat", "T62a combat category");
     assertContains(h, "**Characters:** manage_character", "T62a characters category");
+    // REQ-067: the categorized task map lists every registered tool.
+    for (const name of await listTools(p)) {
+      assertContains(h, name, `T62a all registered tools rendered (${name})`);
+    }
     await kill(p);
   });
 
@@ -113,6 +121,14 @@ async function main() {
     const h = await call(p, "manage_session", { action: "discover" });
     assertContains(h, "**Characters:** manage_character", "T62c player-visible category");
     assertNotContains(h, "**Combat:**", "T62c GM-only combat hidden from player");
+    // REQ-067: GM-mutation tools stay hidden from the Player task map, while
+    // the player-readable derived surfaces remain discoverable.
+    for (const name of ["manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_agent", "manage_perception"]) {
+      assertNotContains(h, name, `T62c GM-only ${name} hidden from player`);
+    }
+    for (const name of ["manage_index", "manage_graph"]) {
+      assertContains(h, name, `T62c player-readable ${name} discoverable`);
+    }
     await kill(p);
   });
 

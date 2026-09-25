@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-25 — Feature-parity integration remediation
+
+- The feature-parity tools shipped in M1a–M3 / N1–N3 are now wired into the
+  cross-cutting conventions the rest of the surface follows. `manage_belief`,
+  `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`,
+  `manage_graph`, `manage_agent`, and `manage_perception` appear in the
+  `manage_session (action: discover)` categorized task map; the Game
+  Master-mutation tools are hidden from the Player map, and the player-readable
+  derived surfaces remain discoverable. (REQ-067)
+- The Game Master briefing's persistence-tools line now names every REQ-407
+  state surface (event log, belief/evidence, identity, causal state, corpus,
+  semantic index, knowledge graph, agent tasks, perception, and base
+  capabilities), and the §7.7.0 archetype examples list the feature-parity
+  property groups. (REQ-407, §7.7.0)
+- The REQ-137a gate-classification table now records every registered host
+  tool; T151 verifies the table covers the live catalog. The badge-filtered
+  `tools/list` half of REQ-137b remains a recorded intended gap.
+- The data-format fingerprint now hashes the state-model sections REQ-423
+  names — including §5.24–§5.28 and §5.31–§5.32 — closing a spec/
+  implementation drift; persisted artifacts re-stamp to the new `data_format`
+  and load per REQ-423.
+- T511 now asserts the feature-parity persisted types carry read/enumerate
+  actions, and T62 asserts the discovery map lists every registered tool.
+
 ## 2026-09-24 — M3: Briefing Consistency (REQ-515–521)
 
 - The briefing now declares its consistency: `badge_briefing` and

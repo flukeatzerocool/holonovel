@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-09-09
+Generated: 2026-09-25
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -27,7 +27,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T45, T480, T93, T195, T204, T154, T165, T166, T170, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T62, T64, T66, T68, T70, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T221, T261, T284, T285, T286, T326, S6 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T62, T64, T66, T68, T70, T75, T76, T80, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T151, T221, T261, T284, T285, T286, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T70, T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T76, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
@@ -118,7 +118,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | C | S6 | — |
 | REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T461, T469, T470, T476 | — |
 | REQ-136 | Editor-badge briefing (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T150 | — |
-| REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | E | S6 | — |
+| REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T151, S6 | — |
 | REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T152 | — |
 | REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | C | T153 | — |
 | REQ-140 | End-Novel confirmation dispatch | 5.4 Decision workflows | C | T158 | — |
@@ -336,14 +336,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-366 | Observer narrative surface (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T417 | implemented |
 | REQ-367 | Property propagation across containment (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T418 | — |
 | REQ-368 | Countdown-world effect coupling (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T419 | — |
-| REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
-| REQ-370 | Coupling derivation (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
-| REQ-371 | Ruleset Wisdom as rendered reality (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
-| REQ-372 | Supplementary ruleset import (Part a) (5 sub-parts) | 5.14 Content Sources | E | — | — |
-| REQ-373 | Dynamic tool registration (Part a1) (2 sub-parts) | 5.14 Content Sources | E | — | — |
-| REQ-374 | Archetype coverage (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
-| REQ-375 | Wisdom mechanical coupling rate (Part a) (2 sub-parts) | 5.13 Holodeck | E | — | — |
-| REQ-376 | Holonovel Pattern Buffer traceability (Part a1) (5 sub-parts) | 5.13 Holodeck | E | — | — |
+| REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-370 | Coupling derivation (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-371 | Ruleset Wisdom as rendered reality (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-372 | Supplementary ruleset import (Part a) (5 sub-parts) | 5.14 Content Sources | C | T423 | — |
+| REQ-373 | Dynamic tool registration (Part a1) (2 sub-parts) | 5.14 Content Sources | E | T424 | — |
+| REQ-374 | Archetype coverage (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-375 | Wisdom mechanical coupling rate (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-376 | Holonovel Pattern Buffer traceability (Part a1) (5 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-377 | Mechanical coupling extraction (Part a) (4 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
 | REQ-378 | Mechanical coupling verification (Part a) (2 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
 | REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T449 | — |
@@ -422,4 +422,86 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-452 | Conversion evidence verification | 5.2 Extraction and Confidence | E | — | — |
 | REQ-453 | Extraction evidence-map parity | 5.2 Extraction and Confidence | E | — | — |
 | REQ-454 | Intended-gap whitelist discipline | 5.2 Extraction and Confidence | E | — | — |
+| REQ-455 | Event log append | 5.24 Temporal Event Log and Branching | C | T545 | — |
+| REQ-456 | Non-semantic record | 5.24 Temporal Event Log and Branching | C | T546 | — |
+| REQ-457 | Alternative events | 5.24 Temporal Event Log and Branching | C | T547 | — |
+| REQ-458 | Novel branching | 5.24 Temporal Event Log and Branching | C | T548 | — |
+| REQ-459 | Branch lineage and isolation | 5.24 Temporal Event Log and Branching | C | T549 | — |
+| REQ-460 | Event provenance lookup | 5.24 Temporal Event Log and Branching | C | T550 | — |
+| REQ-461 | Evidence acquisition record | 5.25 Belief and Evidence | C | T551 | — |
+| REQ-462 | Evidence provenance | 5.25 Belief and Evidence | C | T552 | — |
+| REQ-463 | Polarity-independent question identity | 5.25 Belief and Evidence | C | T553 | — |
+| REQ-464 | Evidence admission states | 5.25 Belief and Evidence | C | T554 | — |
+| REQ-465 | Belief stance materialization | 5.25 Belief and Evidence | C | T555 | — |
+| REQ-466 | Independent corroboration | 5.25 Belief and Evidence | C | T556 | — |
+| REQ-467 | Contradiction preservation | 5.25 Belief and Evidence | C | T557 | — |
+| REQ-468 | Belief refresh | 5.25 Belief and Evidence | C | T558 | — |
+| REQ-469 | Belief family policies | 5.25 Belief and Evidence | C | T559 | — |
+| REQ-470 | Single-value predicates | 5.25 Belief and Evidence | C | T560 | — |
+| REQ-471 | Belief branch inheritance | 5.25 Belief and Evidence | C | T561 | — |
+| REQ-472 | Belief visibility and badge gating | 5.25 Belief and Evidence | C | T562 | — |
+| REQ-473 | Identity candidate staging | 5.26 Character Identity | C | T563 | — |
+| REQ-474 | Identity stability classes | 5.26 Character Identity | C | T564 | — |
+| REQ-475 | Identity perspective | 5.26 Character Identity | C | T565 | — |
+| REQ-476 | Compiled identity kernel | 5.26 Character Identity | C | T566 | — |
+| REQ-477 | Identity write-authority isolation | 5.26 Character Identity | C | T567 | — |
+| REQ-478 | Identity revision | 5.26 Character Identity | C | T568 | — |
+| REQ-479 | Character-card bootstrap exclusions | 5.26 Character Identity | C | T569 | — |
+| REQ-480 | Identity kernel exposure | 5.26 Character Identity | C | T570 | — |
+| REQ-481 | Identity visibility and badge gating | 5.26 Character Identity | C | T571 | — |
+| REQ-482 | Developmental proposal-only | 5.26 Character Identity | C | T572 | — |
+| REQ-483 | Identity source provenance | 5.26 Character Identity | C | T573 | — |
+| REQ-484 | Transition proposal | 5.27 Causal Transition Validation | C | T574 | — |
+| REQ-485 | Admission decision | 5.27 Causal Transition Validation | C | T575 | — |
+| REQ-486 | Location exclusivity | 5.27 Causal Transition Validation | C | T576 | — |
+| REQ-487 | Ordered scalar transitions | 5.27 Causal Transition Validation | C | T577 | — |
+| REQ-488 | Scope-coordinate validation | 5.27 Causal Transition Validation | C | T578 | — |
+| REQ-489 | Transition idempotency and version | 5.27 Causal Transition Validation | C | T579 | — |
+| REQ-490 | Latent transition handling | 5.27 Causal Transition Validation | C | T580 | — |
+| REQ-491 | Rejected-transition evidence | 5.27 Causal Transition Validation | C | T581 | — |
+| REQ-492 | Causal-epistemic firewall | 5.27 Causal Transition Validation | C | T582 | — |
+| REQ-493 | Deterministic machine ingress | 5.27 Causal Transition Validation | C | T583 | — |
+| REQ-494 | Causal state exposure | 5.27 Causal Transition Validation | C | T584 | — |
+| REQ-495 | Causal visibility and badge gating | 5.27 Causal Transition Validation | C | T585 | — |
+| REQ-496 | Corpus document registration | 5.28 Knowledge Corpus | C | T586 | — |
+| REQ-497 | Source-profile routing | 5.28 Knowledge Corpus | C | T587 | — |
+| REQ-498 | Corpus access predicate | 5.28 Knowledge Corpus | C | T588 | — |
+| REQ-499 | Consumption modes | 5.28 Knowledge Corpus | C | T589 | — |
+| REQ-500 | Acquisition ledger | 5.28 Knowledge Corpus | C | T590 | — |
+| REQ-501 | Cold until consumed | 5.28 Knowledge Corpus | C | T591 | — |
+| REQ-502 | Reference deixis | 5.28 Knowledge Corpus | C | T592 | — |
+| REQ-503 | Corpus visibility and badge gating | 5.28 Knowledge Corpus | C | T593 | — |
+| REQ-504 | Offline index construction | 5.29 Build-time Semantic Index | C | T594 | — |
+| REQ-505 | Index staleness and rebuild | 5.29 Build-time Semantic Index | C | T595 | — |
+| REQ-506 | Advisory candidate ranking | 5.29 Build-time Semantic Index | C | T596 | — |
+| REQ-507 | Advisory relation metadata | 5.29 Build-time Semantic Index | C | T597 | — |
+| REQ-508 | Authority boundary | 5.29 Build-time Semantic Index | C | T598 | — |
+| REQ-509 | Index scope filtering | 5.29 Build-time Semantic Index | C | T599 | — |
+| REQ-510 | Derived projection | 5.30 Knowledge-Graph Projection | C | T600 | — |
+| REQ-511 | Node typing | 5.30 Knowledge-Graph Projection | C | T601 | — |
+| REQ-512 | Edge derivation | 5.30 Knowledge-Graph Projection | C | T602 | — |
+| REQ-513 | Rebuild idempotency and staleness | 5.30 Knowledge-Graph Projection | C | T603 | — |
+| REQ-514 | Read-only scope-filtered exposure | 5.30 Knowledge-Graph Projection | C | T604 | — |
+| REQ-515 | Readiness cursor | 5.33 Briefing Consistency | C | T620 | — |
+| REQ-516 | Consistency declaration | 5.33 Briefing Consistency | C | T621 | — |
+| REQ-517 | Derived-surface freshness | 5.33 Briefing Consistency | C | T622 | — |
+| REQ-518 | Consistency determinism | 5.33 Briefing Consistency | C | T623 | — |
+| REQ-519 | Consistency read-only | 5.33 Briefing Consistency | C | T624 | — |
+| REQ-520 | Consistency visibility | 5.33 Briefing Consistency | C | T625 | — |
+| REQ-521 | Staleness advisory | 5.33 Briefing Consistency | C | T626 | — |
+| REQ-522 | Task creation | 5.31 Durable Agent Tasks | C | T605 | — |
+| REQ-523 | Task lifecycle | 5.31 Durable Agent Tasks | C | T606 | — |
+| REQ-524 | Admitted transitions | 5.31 Durable Agent Tasks | C | T607 | — |
+| REQ-525 | Action log | 5.31 Durable Agent Tasks | C | T608 | — |
+| REQ-526 | Autonomy policy | 5.31 Durable Agent Tasks | C | T609 | — |
+| REQ-527 | Task subject | 5.31 Durable Agent Tasks | C | T610 | — |
+| REQ-528 | Terminal immutability | 5.31 Durable Agent Tasks | C | T611 | — |
+| REQ-529 | Goal-suggestion origin | 5.31 Durable Agent Tasks | C | T612 | — |
+| REQ-530 | Agent badge gating | 5.31 Durable Agent Tasks | C | T613 | — |
+| REQ-540 | Perception record | 5.32 Perception Ledger | C | T614 | — |
+| REQ-541 | Observed, not believed | 5.32 Perception Ledger | C | T615 | — |
+| REQ-542 | Per-entity query | 5.32 Perception Ledger | C | T616 | — |
+| REQ-543 | Event provenance | 5.32 Perception Ledger | C | T617 | — |
+| REQ-544 | Persistence | 5.32 Perception Ledger | C | T618 | — |
+| REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
 
