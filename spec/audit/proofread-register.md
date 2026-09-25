@@ -203,5 +203,21 @@ assembled spec at the batch-3 commit.
   the 44 new structural findings as accepted backlog; added the Appendix M
   reference-prose standard and exception-location note (PR-6); bounded coverage
   read of `04-runtime.md` §7.7.1a–§7.8 and the fixture-intro prose, both clean.
-  Total 0 errors / 133 warnings, all accepted. Validator self-tests 13/13.
+   Total 0 errors / 133 warnings, all accepted. Validator self-tests 13/13.
+
+## Closure (2026-09-25, session 3)
+
+Re-verified against the live `npm run validate:sdd` output: **0 errors, 133
+warnings**, matching the families and locations above. The marginally-over-grade
+items were sampled for clearability — REQ-130a (18.3), REQ-470 (18.1), REQ-490
+(18.2), REQ-540 (18.3) — along with reference prose §6.6/line 6060 (grade 18.0).
+Each is dense normative or procedural text: a meaning-preserving rewrite would
+not reliably drop the Flesch-Kincaid score below the ceiling and would risk
+dropping a load-bearing term or an identifier cited elsewhere. Per the §5.13
+readability standard and Appendix M, vocabulary, canonical terms, and SHALL/MAY
+strength outrank the prose heuristics.
+
+**Disposition: all 133 warnings `Accepted` by policy.** The register is closed;
+accepted items are split opportunistically on future edits to their sections. No
+contract-bearing rewrite was made.
 

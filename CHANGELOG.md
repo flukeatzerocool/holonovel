@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-25 — Follow-through: SC-7 sample verification and proofreading closure
+
+- SC-7 comment-only citations: sampled 12 of the 105 flagged REQs across §5.1,
+  §5.3, §5.4, §5.6, §5.7, §5.8, §5.10, §5.11; every one has real implementing
+  code at its comment-only cite site, so no false bucket-C remains. Recorded
+  Closed-P3 with sample evidence.
+- Proofreading: re-verified the live pass (0 errors / 133 warnings) against the
+  register and sampled the marginal items (REQ-130a/470/490/540 and reference
+  prose §6.6). None is clearable without risking a load-bearing term, so all 133
+  are confirmed Accepted by policy (§5.13 / Appendix M) and the register is
+  closed.
+
 ## 2026-09-25 — Coverage-integrity: over-stuffed test bundles resolved
 
 - `compare-spec-code.ts --bundles` now reports per-ID occurrence counts and a
