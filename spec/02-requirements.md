@@ -33,7 +33,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.25   | Belief and Evidence                                     | 461–472 |
 | 5.26   | Character Identity                                      | 473–483 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
-| 5.28   | Knowledge Corpus                                        | 496–503 |
+| 5.28   | Knowledge Corpus                                        | 496–503, 546 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
@@ -748,10 +748,10 @@ _Check:_ T289.
 The `holodeck_config` field reports coverage of behavioral configuration.
 
 **REQ-388b — Holodeck config discovery (Part b).**
-The field SHALL contain the following values. The `behavioral_coupled` value counts behavioral `TTRPG_*` variables whose configuration has a coupling row in §7.7.1a with a Session-archetype source. The `behavioral_total` value counts behavioral `TTRPG_*` variables classified as affecting pacing, autonomy, reactivity, synthesis, narration, or tone. The `natural_language_paths` value maps each behavioral variable name to its natural language access path — the `manage_character (action: signal)` signal type or `manage_scene (action: directive)` keywords that control it. The `uncoupled` value lists behavioral variable names lacking a natural language access path.
+The field SHALL contain the following values. The `behavioral_total` value counts `TTRPG_*` variables annotated `Behavioral` or `Behavioral (mechanical)` in §7.6. The `behavioral_coupled` value counts behavioral variables whose configuration has a §7.7.1a coupling row naming it, of any source archetype. The `natural_language_paths` value maps each `Behavioral` variable to its natural language access path — the `manage_character (action: signal)` signal type or `manage_scene (action: directive)` keywords that control it. The `uncoupled` value lists behavioral variable names lacking a coupling row.
 
 **REQ-388c — Holodeck config discovery (Part c).**
-System variables (storage caps, file paths, build parameters, seed values) SHALL be excluded from the behavioral count. The classification of each `TTRPG_*` variable as behavioral or system SHALL be recorded in DECISIONS.md at build time.
+System variables (storage caps, file paths, build parameters, seed values) SHALL be excluded from the behavioral count. The classification of each `TTRPG_*` variable as `Behavioral`, `Behavioral (mechanical)`, or system SHALL be recorded in §7.6 and summarized in DECISIONS.md at build time.
 
 **REQ-388d — Holodeck config discovery (Part d).**
 When no Novel is active, `holodeck_config` SHALL report server-level defaults without Novel overrides. *Acceptance criterion:* After a build with `TTRPG_PACING_WINDOW=6` and `TTRPG_NPC_AUTONOMY=off`, `spec_health.holodeck_config` reports `behavioral_coupled: <N>`, `behavioral_total: <M>`, `natural_language_paths` listing each coupled variable's natural language path, and `uncoupled` listing any behavioral variables without a coupling row. _Check:_ T450.
@@ -3530,7 +3530,7 @@ WHEN the server imports a supplementary ruleset, THE server SHALL run extraction
 Supplementary rulesets do not affect other Novels — tools and Wisdom are Novel-scoped. The server MAY cache extraction results across Novels that import the same supplementary source. The `remove_supplementary` tool deactivates all tools and Wisdom from the supplementary ruleset in the current Novel. State derived from supplementary content (NPCs created from supplementary stat blocks, lore from supplementary Wisdom) persists — the tools that created them are no longer available.
 
 **REQ-372d — Supplementary ruleset import (Part d).**
-WHEN the builder's chosen stack cannot support dynamic tool registration, THE builder SHALL record a waiver in DECISIONS.md (5) citing the technical constraint, and supplementary ruleset import SHALL be limited to Ruleset Wisdom only — mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
+WHEN the builder's build does not register supplementary mechanics as tools at runtime, THE builder SHALL record a waiver in DECISIONS.md (5) citing the constraint, whether a stack limitation or a build-scope decision. Supplementary ruleset import SHALL then be limited to Ruleset Wisdom only; mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
 
 **REQ-372e — Supplementary ruleset import (Part e).**
 Call `manage_ruleset (action: import_supplementary, source)`, then `manage_ruleset (action: remove_supplementary, slug)` — assert imported Wisdom is removed. End Novel and resume — assert the supplementary ruleset re-resolves. Move the source file — assert `[supplementary-gap]` in `spec_health`. _Check:_ T423.
@@ -3720,7 +3720,7 @@ Game Master, `badge_briefing` orientation SHALL include a persistence
 directive instructing the GM to commit state for every narratable change.
 Scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
 be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
-REQ-073), including the base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
+REQ-073), including the event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, and base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
 never-truncated tier (REQ-135). _Check:_ T469.
 
 **REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
@@ -3913,6 +3913,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-502 — Reference deixis.** WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the material is not attributed to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
 
 **REQ-503 — Corpus visibility and badge gating.** Corpus registration, routing, and access-policy changes SHALL require the Game Master badge; a Player SHALL consume only for the active entity; and the Observer SHALL read without consuming. *Acceptance criterion:* a Player consumption for another entity is refused, and an Observer consumption is refused. _Check:_ T593.
+
+**REQ-546 — Corpus retention bound.** The registered document set and the per-entity acquisition ledger SHALL each be bounded by a configured cap, and exceeding a cap SHALL evict the oldest entries first. *Acceptance criterion:* with a cap of 2, registering a third document evicts the first, and consuming beyond the acquisition cap evicts the oldest acquisition. _Check:_ T628.
 
 ### 5.29 Build-time Semantic Index
 

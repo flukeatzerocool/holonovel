@@ -8,11 +8,11 @@
 
 Every registered host tool is assigned one gate classification: **un-gated**
 (callable under the Player and Game Master badges), **GM-only** (every action
-requires the Game Master badge), or **Player** (every action requires the
-Player badge). The `tools/list` contract of REQ-137b — badge-filtered listing —
-remains a recorded intended gap (it requires replacing the MCP SDK's built-in
-list handler); the table records the handler-level gate that `tools/call`
-enforces today.
+requires the Game Master badge), or **Player** (every action requires the Player
+badge). The `tools/list` contract of REQ-137b is implemented: `src/index.ts`
+wraps the MCP SDK's ListTools handler and filters the catalog by the active
+badge (Game Master and no-badge see all; Player and Observer see un-gated and
+Player-only tools). T151 asserts the table and the filtered output agree.
 
 | Tool name | Gate | Badge visibility |
 |-----------|------|------------------|
@@ -50,6 +50,31 @@ enforces today.
 | `manage_ruleset` | un-gated | Player, Game Master |
 | `manage_codex` | un-gated | Player, Game Master |
 | `manage_synthesis` | un-gated | Player, Game Master |
+
+## Configuration classification (REQ-388c)
+
+Behavioral `TTRPG_*` variables are classified in §7.6 and mirrored in the
+`HOLODECK_BEHAVIORAL` catalog in `src/index.ts`, surfaced by
+`manage_session (action: health).holodeck_config`. `Behavioral` variables are
+natural-language-tunable (a Session-source coupling row in §7.7.1a);
+`Behavioral (mechanical)` variables are engine-tuned (a non-Session coupling
+row). All other `TTRPG_*` variables are system or presentation.
+
+| Class | Variables |
+|-------|-----------|
+| Behavioral | TTRPG_AUTONOMY, TTRPG_PACING_WINDOW, TTRPG_NPC_AUTONOMY, TTRPG_NPC_MIND, TTRPG_MAX_AVAILABLE_ACTIONS, TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS, TTRPG_WORLD_REACTIVITY, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE, TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER |
+| Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
+| System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
+
+### Holonovel Spec Update — 2026-09-25 (feature-parity residual remediation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — closed the feature-parity residuals. (1) Behavioral-config contract reconciled: Standing Rule 11 now separates natural-language-tunable (`Behavioral`, Session-source §7.7.1a row) from mechanically-coupled (`Behavioral (mechanical)`, any-source row); §7.6 re-annotated ten non-Session configs; REQ-388b/c redefined against §7.6; `checkConfigCouplingAnnotations` now rejects a plain `Behavioral` annotation whose cited P-rule is not Session-sourced. (2) `holodeck_config` implemented in `buildSpecHealth` (behavioral_total / behavioral_coupled / natural_language_paths / uncoupled), available to every badge; REQ-388 moved E→C. (3) Knowledge Corpus bounded — new REQ-546/T628, `TTRPG_CORPUS_MAX_DOCUMENTS` and `TTRPG_CORPUS_MAX_ACQUISITIONS`; §5.28 section map, Appendix E/F, and an Appendix M retention-bound checklist line. (4) REQ-372d waiver rationale corrected to build scope (the MCP SDK supports runtime registration). (5) REQ-137b badge-filtered `tools/list` implemented by wrapping the SDK ListTools handler; T151 extended. (6) `manage_session` unknown-action message and REQ-400 example list updated. |
+| Reused | source, config, extraction, lockfile, surfaces |
+| Verification | assemble + check:fast 0 errors; full validate 0 errors / 133 warnings (baseline); typecheck 0 errors; test:tool-definitions 8/8 (T151 badge filter, T450); test:corpus 9/9 (T628); test:all 0 failures; data_format fingerprint advanced (§5.28) — persisted artifacts re-stamp and load |
+| Follow-up | REQ-373 (dynamic tool registration) remains a build-scope waived intended gap. |
 
 ### Holonovel Spec Update — 2026-09-25 (feature-parity integration remediation)
 
@@ -96,7 +121,7 @@ enforces today.
 |-------|-------|
 | Delta class | minor |
 | Changed | spec + implementation — implements the supplementary-import subsystem (REQ-372) and records the REQ-372d/REQ-373 dynamic-registration waiver. Spec: REQ-372a/REQ-372e reworded to the action form (`manage_ruleset (action: import_supplementary/remove_supplementary)`); the waiver disposition is recorded here under DECISIONS.md section (5). Implementation: `manage_ruleset` gains `import_supplementary` (inline Wisdom or deterministic Markdown-heading extraction, SHA-256 content hash, Novel-scoped `supplementary_rulesets`) and `remove_supplementary`; `manage_synthesis (action: list)` surfaces supplementary Wisdom tagged `supplementary:<slug>` even before synthesis runs; `spec_health` reports `supplementary_rulesets` and `supplementary_gap`. NOVEL state `supplementary_rulesets` persists through every serialize/deserialize path. |
-| Waiver (5) | The reference `holonovel` stack registers MCP tools statically at build time and does not support runtime dynamic tool registration, so per REQ-372d supplementary import is limited to Ruleset Wisdom — mechanics from supplementary sources require a full rebuild. REQ-373 (`dynamic tool registration`) remains an intended gap (bucket E) under this waiver; T424 exercises the waiver branch (no tools registered). The waiver re-evaluates on each builder version. |
+| Waiver (5) | The reference `holonovel` build registers ruleset-derived tools at build time and does not implement runtime extraction of supplementary mechanics into conformant MCP tool schemas. The MCP SDK does support runtime tool registration (`registerTool`/`remove()`/`sendToolListChanged`), so the limitation is build scope, not stack capability — REQ-372d is invoked on that scope basis. Per REQ-372d, supplementary import is limited to Ruleset Wisdom — mechanics from supplementary sources require a full rebuild. REQ-373 (`dynamic tool registration`) remains an intended gap (bucket E) under this waiver; T424 exercises the waiver branch (no tools registered). The waiver re-evaluates on each builder version. |
 | Reused | spec, extraction, lockfile |
 | Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 364, E 113); typecheck 0 errors; test:supplementary 2/2 (T423/T424 waiver branch); test:tool-definitions 6/6 (T511 against the 32-tool recorded budget, unchanged); version-check OK |
 | Follow-up | N2 (durable agent tasks REQ-522–530) and N3 (perception ledger REQ-540–545) remain on ROADMAP.md. Dynamic tool registration (REQ-373) remains waived/E pending a stack that supports it. |

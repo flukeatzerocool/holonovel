@@ -2,7 +2,7 @@
 // Knowledge Corpus harness — covers REQ-496 (cold registration), REQ-497
 // (source-profile routing), REQ-498 (access predicate), REQ-499 (consumption
 // modes), REQ-500 (acquisition ledger), REQ-501 (cold-until-consumed),
-// REQ-502 (reference deixis), REQ-503 (badge gating).
+// REQ-502 (reference deixis), REQ-503 (badge gating), REQ-546 (retention bound).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -16,7 +16,7 @@ const DATA_DIR = mkdtempSync(join(tmpdir(), "corpus-"));
 let msgId = 0; const pending = new Map(); let buffer = "";
 function send(proc: any, msg: any): Promise<any> { return new Promise((r) => { const id = ++msgId; pending.set(id, r); proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n"); }); }
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
-async function boot() { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "corpus", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
+async function boot(extraEnv: Record<string, string> = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...extraEnv }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "corpus", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
@@ -118,6 +118,25 @@ async function main() {
     await call(p, "set_badge", { badge: "observer" });
     const obs = await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: id });
     assert(obs.includes("[FORBIDDEN]") || obs.includes("[ERROR]"), "Observer consume should fail: " + obs.slice(0, 100));
+    await kill(p);
+  });
+
+  // ── T628: retention bound (REQ-546) ─────────────────────────────────
+  await test("T628/REQ-546: document and acquisition ledgers evict oldest first", async () => {
+    const p = await boot({ TTRPG_CORPUS_MAX_DOCUMENTS: "2", TTRPG_CORPUS_MAX_ACQUISITIONS: "2" });
+    await newNovel(p, "cp9");
+    const d1 = await register(p, { title: "One", body: "a", domain: "general", access_public: true });
+    const d2 = await register(p, { title: "Two", body: "b", domain: "general", access_public: true });
+    const d3 = await register(p, { title: "Three", body: "c", domain: "general", access_public: true });
+    const list = JSON.parse(await call(p, "manage_corpus", { action: "list" }));
+    assert(list.length === 2, `document cap not enforced: ${list.length}`);
+    assert(!list.some((d: any) => d.id === d1), "oldest document was not evicted");
+    assert(list.some((d: any) => d.id === d3), "newest document missing");
+    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: d2 });
+    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: d3 });
+    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: d3 });
+    const acq = await acquisitions(p, "hero");
+    assert(acq.length === 2, `acquisition cap not enforced: ${acq.length}`);
     await kill(p);
   });
 

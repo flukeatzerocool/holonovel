@@ -8,6 +8,21 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **Feature-parity residual remediation** (2026-09-25): (1) N1 — the behavioral-
+  config contract was reconciled: Standing Rule 11 now distinguishes
+  natural-language-tunable (`Behavioral`, Session-source coupling row) from
+  mechanically-coupled (`Behavioral (mechanical)`) dimensions; §7.6 re-annotated
+  ten non-Session configs; REQ-388b/c redefined against §7.6; the validator now
+  rejects a plain `Behavioral` annotation whose cited P-rule is not Session-
+  sourced. (2) R2 — `holodeck_config` is implemented in `buildSpecHealth`, with a
+  real T450 in `test-tool-definitions.ts`; REQ-388 moved E→C. (3) N2 — Knowledge
+  Corpus is bounded (REQ-546/T628; `TTRPG_CORPUS_MAX_DOCUMENTS` /
+  `TTRPG_CORPUS_MAX_ACQUISITIONS`). (4) R3 — the REQ-372d waiver rationale was
+  corrected to a build-scope basis (the MCP SDK supports runtime registration).
+  (5) R1/REQ-137b — badge-filtered `tools/list` is implemented by wrapping the
+  SDK ListTools handler; T151 extended to assert the filtered lists. (6) N3/R4
+  minor fixes. Register buckets A0/B0/C387/E112.
+
 - **Spec↔code conformance comparison SC-1…SC-6, SC-8** (2026-09-25): full
   498-REQ comparison (`spec/audit/spec-code-comparison-2026-09-25.md`,
   `scripts/compare-spec-code.ts`) found five false bucket-C REQs caused by
@@ -140,20 +155,18 @@ the tracking surfaces for the coverage backlog.
   *location* weakness, not missing behavior, and a full 105-REQ code read is not
   warranted.
 - **DECISIONS.md gate-classification table absent** (content-integration scan,
-  2026-09-04): PARTIALLY RESOLVED 2026-09-25 — DECISIONS.md now carries the
-  REQ-137a table enumerating all 34 tools, and T151 has a harness asserting the
-  table covers the live registry. The remaining REQ-137b half — badge-filtered
-  `tools/list` — is still owed: the MCP SDK's built-in list handler cannot be
-  replaced after `McpServer` construction, so badge filtering requires a
-  low-level server or transport change. Kept here as the residual Closed-P3 gap
-  (server badge gating on `tools/call` is verified by T148 and the harnesses).
+  2026-09-04): RESOLVED 2026-09-25 — DECISIONS.md carries the REQ-137a table
+  enumerating all 34 tools, and REQ-137b badge-filtered `tools/list` is
+  implemented (the SDK ListTools handler is wrapped in `src/index.ts`); T151
+  asserts both the table coverage and the filtered lists.
 - **Uncoupled behavioral configs** (integration review, 2026-09-04): RESOLVED
   2026-09-08 — the ten listed configs are now all coupled or reclassified
   (P55–P59 coupling rows; TTRPG_WORLD_PROMINENCE / TTRPG_NOVEL_PREVIEW_CHARS
   reclassified non-behavioral; TTRPG_CLIMAX_ACCELERATION and
   TTRPG_SYNTHESIS_AUTO_TRIGGER had already gained P1 / P47 rows). See Resolved.
-- **REQ-388/T450 (holodeck_config discovery) implementation gap** — bucket-E
-  intended gap, owed by tooling; unchanged by this wave.
+- **REQ-373 (dynamic tool registration) intended gap** — remains a recorded
+  waiver under REQ-372d; the waiver rationale was corrected 2026-09-25 to a
+  build-scope basis (the MCP SDK supports runtime registration).
 - **Counting-surface drift** (2026-09-08 evaluation, F3): the three prior
   instances (§5 index drift, build-phase-map subsection count, AGENTS.md
   tool-surface drift) are Resolved and now mechanically enforced

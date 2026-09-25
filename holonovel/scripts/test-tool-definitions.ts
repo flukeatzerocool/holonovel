@@ -2,8 +2,9 @@
 // Tool-definition quality harness (REQ-427, REQ-024), registry-published
 // distribution guard (REQ-428), server-wide action-discriminator surface
 // guard (REQ-429), ruleset tool-quality conformance guard (REQ-430), and the
-// gate-classification table guard (REQ-137a). Exercises T151, T509, T510,
-// T511, and T512.
+// gate-classification table guard (REQ-137a/REQ-137b) and the Holodeck
+// behavioral-config discovery guard (REQ-388). Exercises T151, T450, T509,
+// T510, T511, and T512.
 //
 // T509 (REQ-427 + REQ-024): boots a ruleset-free host and asserts every
 // registered tool's description carries the three-clause structure (summary,
@@ -83,9 +84,9 @@ function attach(proc: ChildProcess): void {
     }
   });
 }
-async function boot(): Promise<ChildProcess> {
+async function boot(extraEnv: Record<string, string> = {}): Promise<ChildProcess> {
   const proc = spawn("npx", ["tsx", SERVER_SCRIPT], {
-    env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR },
+    env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...extraEnv },
     stdio: ["pipe", "pipe", "pipe"],
   });
   attach(proc);
@@ -216,10 +217,10 @@ async function main() {
   });
   console.log(`    (${toolsWithDescription}/${tools.length} tools conformant; ${describedParams} parameters described)`);
 
-  // ── T151 (REQ-137a): the DECISIONS.md gate-classification table enumerates
-  // every registered tool exactly once with a valid gate. The badge-filtered
-  // `tools/list` half of REQ-137b remains the recorded intended gap.
-  await test("T151/REQ-137a: gate-classification table covers every registered tool", () => {
+  // ── T151 (REQ-137a/REQ-137b): the DECISIONS.md gate-classification table
+  // enumerates every registered tool exactly once with a valid gate, and the
+  // badge-filtered `tools/list` output matches the table's Gate column.
+  await test("T151/REQ-137a+REQ-137b: gate table covers the registry; tools/list is badge-filtered", async () => {
     const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
     const start = md.indexOf("## Gate classification");
     assert(start !== -1, "DECISIONS.md is missing the '## Gate classification' section");
@@ -242,6 +243,17 @@ async function main() {
     const playerOnly = [...rows].filter(([, g]) => g === "Player").map(([n]) => n);
     const gmOnly = new Set([...rows].filter(([, g]) => g === "GM-only").map(([n]) => n));
     for (const n of playerOnly) assert(!gmOnly.has(n), `${n} classified as both Player-only and GM-only`);
+
+    // REQ-137b — tools/list filtering. Badge state lives on the active Novel.
+    await call(proc, "manage_novel", { action: "create", name: "t151-gate" });
+    await call(proc, "set_badge", { badge: "player" });
+    const playerNames = new Set(((await send(proc, { method: "tools/list", params: {} })).result?.tools ?? []).map((t: any) => t.name));
+    for (const n of gmOnly) assert(!playerNames.has(n), `Player tools/list must exclude GM-only '${n}'`);
+    assert(playerNames.has("set_badge"), "set_badge must appear in Player tools/list");
+    await call(proc, "set_badge", { badge: "game_master" });
+    const gmNames = new Set(((await send(proc, { method: "tools/list", params: {} })).result?.tools ?? []).map((t: any) => t.name));
+    for (const n of gmOnly) assert(gmNames.has(n), `GM tools/list must include GM-only '${n}'`);
+    assert(gmNames.size === tools.length, `GM tools/list has ${gmNames.size} tools, expected ${tools.length}`);
   });
 
   proc.kill("SIGKILL");
@@ -297,6 +309,33 @@ async function main() {
     if (tq.length !== 0) throw new Error(`residual tool-quality alerts: ${JSON.stringify(tq)}`);
   });
   proc3.kill("SIGKILL");
+
+  // ── T450 (REQ-388a–d) ───────────────────────────────────────────────
+  const procT450 = await boot({ TTRPG_PACING_WINDOW: "6", TTRPG_NPC_AUTONOMY: "off", TTRPG_WORLD_REACTIVITY: "on" });
+  const health450 = JSON.parse(await call(procT450, "manage_session", { action: "health" }));
+  await test("T450/REQ-388: holodeck_config reports behavioral-config coverage", () => {
+    const hc = health450.holodeck_config;
+    assert(hc, "spec_health is missing holodeck_config");
+    const specMd = readFileSync(join(ROOT, "holonovel.md"), "utf-8");
+    const cfgStart = specMd.indexOf("### 7.6 Configuration surface");
+    const cfgEnd = specMd.indexOf("### 7.7 State model", cfgStart);
+    const behavioralCount = specMd.slice(cfgStart, cfgEnd).split("\n")
+      .filter((l) => /^\|\s*`TTRPG_\w+`\s*\|/.test(l) && l.includes("Behavioral")).length;
+    assert(hc.behavioral_total === behavioralCount, `behavioral_total ${hc.behavioral_total} != §7.6 count ${behavioralCount}`);
+    assert(hc.behavioral_coupled === hc.behavioral_total, "behavioral_coupled must equal behavioral_total");
+    assert(Array.isArray(hc.uncoupled) && hc.uncoupled.length === 0, "uncoupled must be empty");
+    const paths = hc.natural_language_paths ?? {};
+    for (const v of ["pacing_window", "npc_autonomy", "npc_mind", "world_reactivity", "story_beat_window", "campaign_memory_max_facts", "auto_record", "max_available_actions", "narration_validation", "state_gate"]) {
+      assert(typeof paths[v] === "string" && paths[v].length > 0, `natural_language_paths missing ${v}`);
+    }
+    for (const v of ["belief_reconciliation", "belief_accept_threshold", "belief_decision_margin", "causal_validation", "causal_latent_transitions", "agent_autonomy", "climax_acceleration", "faction_autonomy_interval", "npc_urgency_threshold", "vow_suggestion_goal_min_chars"]) {
+      assert(!(v in paths), `natural_language_paths must exclude mechanically-coupled ${v}`);
+    }
+    for (const v of ["max_npcs", "data_dir", "world_prominence", "novel_preview_chars"]) {
+      assert(!(v in paths), `system/presentation ${v} must be absent`);
+    }
+  });
+  procT450.kill("SIGKILL");
 
   // ── T510 ────────────────────────────────────────────────────────────
   const pkgJson = JSON.parse(readFileSync(join(ROOT, "holonovel", "package.json"), "utf-8"));

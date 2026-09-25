@@ -150,12 +150,12 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
 | `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Build-time. |
 | `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
-| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral — couples per P1. |
-| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
+| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral (mechanical) — couples per P1. |
+| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
 | `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
-| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
-| `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
+| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral (mechanical) — couples per P4. |
+| `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral (mechanical) — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral — couples per P58. |
 | `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral — couples per P55. |
 | `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral — couples per P56. |
@@ -167,18 +167,20 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 | `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral — couples per P54. |
-| `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral — couples per P54. |
-| `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral (mechanical) — couples per P54. |
+| `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral (mechanical) — couples per P54. |
+| `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral (mechanical) — couples per P54. |
 | `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED` | No | `true` (default) accepts authored character-card identity fields as facets on bootstrap; `false` stages them as pending candidates (REQ-479). Build-time. |
 | `TTRPG_IDENTITY_MAX_CANDIDATES` | No | Maximum identity candidates retained per character before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_CAUSAL_VALIDATION` | No | `true` (default) validates objective-state transitions before admission (REQ-485). Behavioral — couples per P13. |
-| `TTRPG_CAUSAL_LATENT_TRANSITIONS` | No | `false` (default) refuses incompatible transitions; `true` admits them flagged as latent (REQ-490). Behavioral — couples per P13. |
+| `TTRPG_CAUSAL_VALIDATION` | No | `true` (default) validates objective-state transitions before admission (REQ-485). Behavioral (mechanical) — couples per P13. |
+| `TTRPG_CAUSAL_LATENT_TRANSITIONS` | No | `false` (default) refuses incompatible transitions; `true` admits them flagged as latent (REQ-490). Behavioral (mechanical) — couples per P13. |
 | `TTRPG_CAUSAL_MAX_LEDGER_ENTRIES` | No | Maximum transition-ledger entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral — couples per P29. |
+| `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral (mechanical) — couples per P29. |
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 

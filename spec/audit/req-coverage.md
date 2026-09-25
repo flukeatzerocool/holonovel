@@ -118,7 +118,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-134 | Minimum Player tool surface | 5.5 Badges and Access | C | T148, S6 | — |
 | REQ-135 | Badge briefing size budget (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T461, T469, T470, T476, T149 | — |
 | REQ-136 | Editor-badge briefing (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T150 | — |
-| REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T151, S6 | — |
+| REQ-137 | Gate classification auditability (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T151, S6 | — |
 | REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T152 | — |
 | REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | C | T153 | — |
 | REQ-140 | End-Novel confirmation dispatch | 5.4 Decision workflows | C | T158 | — |
@@ -355,7 +355,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-385 | command suggest cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-387 | Codex ruleset annotation (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T450 | — |
+| REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T450 | — |
 | REQ-389 | Ruleset package format (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T452, T453 | — |
 | REQ-390 | Lazy ruleset hydration (Part a) (2 sub-parts) | 5.17 Ruleset Packages | C | T454, T455 | — |
 | REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456 | — |
@@ -504,4 +504,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-543 | Event provenance | 5.32 Perception Ledger | C | T617 | — |
 | REQ-544 | Persistence | 5.32 Perception Ledger | C | T618 | — |
 | REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
+| REQ-546 | Corpus retention bound | 5.28 Knowledge Corpus | C | T628 | — |
 

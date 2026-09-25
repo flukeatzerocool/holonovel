@@ -1228,6 +1228,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-543 | Event provenance | 2026-09-24 |
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
+| REQ-546 | Corpus retention bound | 2026-09-25 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
 | REQ-517 | Derived-surface freshness | 2026-09-24 |
@@ -1745,7 +1746,7 @@ diet.
 | T447 | Automated | Import rejection: export D&D Novel. Import into D&D + Starfinder server — assert success. Export Starfinder Novel — import into D&D-only server — assert rejection with valid rulesets enumerated. Import D&D character into Starfinder Novel — assert rejection naming both rulesets. | REQ-386 |
 | T448 | Automated | Codex ruleset annotation: assert `manage_codex (action: list, ruleset="dnd5e")` returns D&D-tagged plus untagged entries only. Assert `manage_codex (action: list, ruleset="starfinder")` returns Starfinder-tagged plus untagged — no D&D entries. Assert `manage_codex (action: import)` of D&D spell codex entry into Starfinder Novel is rejected. Assert `manage_codex (action: capture, "npc", name)` from a D&D-bound Novel creates a codex entry with `ruleset: "dnd5e"` and does not appear in `manage_codex (action: list, ruleset="starfinder")`; assert `manage_codex (action: import)` of that entry into a Starfinder Novel returns `[ERROR] [STATE_CONFLICT]`. | REQ-387 |
 | T449 | Automated | G8 isolation workflow: run all nine G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
-| T450 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call manage_session (action: health) — assert holodeck_config.behavioral_coupled counts every behavioral variable, natural_language_paths includes pacing_window → "manage_character (action: signal, pace, faster/slower)", npc_autonomy → "manage_scene (action: directive, 'NPCs act independently')", npc_mind → "manage_scene (action: directive, 'NPCs think for themselves')", world_reactivity → "manage_scene (action: directive, 'the world reacts')", story_beat_window → "manage_scene (action: directive, 'keep more beats')", campaign_memory_max_facts → "manage_scene (action: directive, 'more campaign notes')", auto_record → "manage_scene (action: directive, 'auto-record moments')", max_available_actions → "manage_scene (action: directive, 'more options')", narration_validation → "manage_scene (action: directive, 'validate my narration')", state_gate → "manage_scene (action: directive, 'warn on state drift')". Assert uncoupled is empty. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) and build-time/presentation settings (TTRPG_WORLD_PROMINENCE, TTRPG_NOVEL_PREVIEW_CHARS) absent from behavioral counts. | REQ-388, REQ-069, REQ-081 |
+| T450 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call manage_session (action: health) — assert holodeck_config.behavioral_total counts every variable annotated `Behavioral` or `Behavioral (mechanical)` in §7.6; assert behavioral_coupled equals behavioral_total (every behavioral variable has a §7.7.1a coupling row); assert natural_language_paths includes pacing_window → "manage_character (action: signal, pace, faster/slower)", npc_autonomy → "manage_scene (action: directive, 'NPCs act independently')", npc_mind → "manage_scene (action: directive, 'NPCs think for themselves')", world_reactivity → "manage_scene (action: directive, 'the world reacts')", story_beat_window → "manage_scene (action: directive, 'keep more beats')", campaign_memory_max_facts → "manage_scene (action: directive, 'more campaign notes')", auto_record → "manage_scene (action: directive, 'auto-record moments')", max_available_actions → "manage_scene (action: directive, 'more options')", narration_validation → "manage_scene (action: directive, 'validate my narration')", state_gate → "manage_scene (action: directive, 'warn on state drift')"; assert natural_language_paths excludes the mechanically-coupled variables (belief reconciliation/threshold/margin, causal validation/latent transitions, agent autonomy, climax acceleration, faction autonomy interval, NPC urgency threshold, vow suggestion minimum). Assert uncoupled is empty. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) and build-time/presentation settings (TTRPG_WORLD_PROMINENCE, TTRPG_NOVEL_PREVIEW_CHARS) absent from behavioral counts. | REQ-388, REQ-069, REQ-081 |
 | T451 | Automated | Binding migration: create a ruleset-free Novel, install a ruleset package, call `manage_ruleset (action: bind)` — assert the Novel gains the slug's tools and the transition is audited. Assert `manage_ruleset (action: bind)` on a Novel already bound to a different slug returns `[ERROR] [STATE_CONFLICT]`. Assert `manage_novel (action: resume)` restores the migrated binding. | REQ-380c |
 | T452 | Automated | Package format integrity: build a package via the Package step, load it into a host — assert `manage_ruleset (action: search)`, lookups, and dice tools serve with no source-Markdown file access. Corrupt the package manifest's content hash — assert the host rejects the package by slug, reports expected/received hashes in `spec_health`, and continues serving other packages. | REQ-389 |
 | T453 | Automated | Install surface: `manage_ruleset (action: install)` with a duplicate slug or incompatible host version fails naming the reason; `manage_ruleset (action: remove)` with a bound Novel active returns `[ERROR] [STATE_CONFLICT]`; `manage_ruleset (action: list)` distinguishes loaded from installed-but-idle packages. Assert all three are audited. | REQ-389c |
@@ -1886,6 +1887,7 @@ diet.
 | T625 | Automated | Consistency visibility: Player and Observer both receive an available report. | REQ-520 |
 | T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
 | T627 | Automated | Harness fail-loud: a harness whose spawned process terminates unexpectedly and never completes exits non-zero with a diagnostic; a harness that completes exits zero with its summary. | REQ-141m |
+| T628 | Automated | Corpus retention bound: with TTRPG_CORPUS_MAX_DOCUMENTS=2, registering a third document evicts the oldest; with TTRPG_CORPUS_MAX_ACQUISITIONS=2, consuming beyond the cap evicts the oldest acquisition for that entity. | REQ-546 |
 
 ---
 
@@ -2391,12 +2393,15 @@ build artifact — it is a spec-maintainer reference.
       the roll-to-commit marker per REQ-404
 - [ ] Guardrail surfaces: new state surfaces are named in the §5.19
       persistence-directive and never-truncated tool enumerations (REQ-400, REQ-407)
+- [ ] Retention bounds: a new persisted surface has a `TTRPG_*_MAX_*` eviction cap,
+      or a recorded justification for unbounded growth
 - [ ] Gate classification: every new tool is recorded in the DECISIONS.md
       gate-classification table (REQ-137a)
 - [ ] Holodeck config alignment: every behavioral configuration introduced by this REQ
-      has a coupling row in §7.7.1a with a Session-archetype source (manage_character (action: signal) or
-      manage_scene (action: directive)). System configuration is annotated as non-behavioral
-      with justification.
+      is annotated `Behavioral` in §7.6 with a coupling row in §7.7.1a whose source
+      archetype is Session (manage_character (action: signal) or manage_scene (action: directive)),
+      or annotated `Behavioral (mechanical)` with a coupling row of any source archetype.
+      System configuration is annotated as non-behavioral with justification.
 - [ ] Convergence metrics: a new §6.5 metric names its ownership class — host-owned
       (recorded `host-verified` per §6.5) or package-owned (runs fresh).
 - [ ] REQ body is exactly one paragraph — no blank lines, no tables, no bullet lists,

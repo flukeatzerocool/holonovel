@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-25 — Feature-parity residual remediation
+
+- The behavioral-configuration contract is now consistent: a config that
+  affects the story is either tunable in plain English (a `Behavioral` config
+  with a Session-source coupling row) or engine-tuned (a `Behavioral
+  (mechanical)` config). Ten previously mis-annotated configs were
+  reclassified, and the assembly-time gate now rejects the mismatch.
+  (REQ-388, Standing Rule 11)
+- `manage_session (action: health)` now reports `holodeck_config`: how many
+  behavioral configs exist, which are reachable by plain-English signal or
+  directive, and that none is uncoupled. (REQ-388)
+- The Knowledge Corpus is now bounded by a retention cap, so registered
+  documents and per-entity acquisitions cannot grow the save file without
+  limit — the last of the new persisted surfaces to gain a bound. (REQ-546)
+- Badge-filtered `tools/list` now works: a Player or Observer connection sees
+  the tools it can call, while the Game Master and Editor see the full catalog.
+  (REQ-137b)
+- The supplementary-ruleset waiver now states the real constraint — the
+  reference build does not extract runtime mechanics into tool schemas — rather
+  than claiming the stack cannot support dynamic registration. (REQ-372d,
+  REQ-373)
+- Minor: the `manage_session` unknown-action error names every valid action, and
+  the state-persistence directive lists the feature-parity state tools.
+  (REQ-400)
+
 ## 2026-09-25 — Gate failure-propagation convention
 
 - G4 (Verification Workflows) now requires a gate that runs sub-checks in
