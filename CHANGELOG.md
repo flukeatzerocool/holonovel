@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-24 — M1b: Belief and Evidence Reconciliation
+
+- Characters now hold beliefs, not just facts: the server records what each
+  entity has learned as evidence, then reconciles it into a belief stance.
+  Opposite statements about the same subject, predicate, and object contest one
+  question, and a stance is accepted only when its support clears a threshold
+  and leads the opposing side by a margin — otherwise it stays unresolved
+  rather than letting the most recent statement win. (REQ-461, REQ-463,
+  REQ-465)
+- Evidence is preserved, never erased: suppressed or unresolved evidence is
+  retained but excluded from the stance, contradictions stay retrievable, and
+  every record cites the event-log observation that produced it. Correlated
+  evidence from one source does not compound, so a single witness repeated does
+  not outrank an independent second source. (REQ-462, REQ-464, REQ-466–REQ-468)
+- Beliefs follow declared family policies — durable facts accumulate support
+  while volatile state reflects the latest acquisition, and single-value
+  predicates (like location) keep one current value. New
+  `manage_belief` tool (list/get/evidence/admit/retract/conflicts/reconcile);
+  Players read only their own entity, and mutation is Game Master-only.
+  (REQ-469–REQ-472)
+- This is the second milestone of the feature-parity program; the identity
+  firewall and causal transition validation remain on ROADMAP.md.
+
 ## 2026-09-24 — Convention hardening: tool budget, count guards, version flow
 
 - The tool-count rule is now a discipline, not a fixed ceiling: the registered

@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 3f03d60feed346e44a95c5c6458f28cc054c7a43b207c876f6bb4a4bba8abb19
+**Spec hash:** eb4776e24879423b6cd94bc2a09bbdcde8761403573e2692cfd1a77a22288717
 
-**Recorded tool budget:** 26 (REQ-429)
+**Recorded tool budget:** 27 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M1b: Belief and Evidence Reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.25 Belief and Evidence (REQ-461–472) as M1b of the feature-parity program. New §7.7 property groups `Evidence` and `Belief State` (Knowledge-carrying) with three §7.7.1a rows: Evidence → Belief State (P54, naming TTRPG_BELIEF_RECONCILIATION/ACCEPT_THRESHOLD/DECISION_MARGIN), Belief State → Lore (P54), Belief State → Scene (P40). §7.6 adds four configs (three behavioral coupling per P54, one storage). REQ-407 names the belief/evidence surface. Property-group count statements updated 31 → 33 (§6.5, REQ-374a, T425, T439). New tool `manage_belief` (list/get/evidence/admit/retract/conflicts/reconcile), REQ-429 recorded budget 26 → 27. Implementation: `src/core/belief.ts` (deterministic polarity-independent reconciliation, noisy-OR correlated-source collapse, durable/volatile/single-value families, idempotent recompute); Novel `evidence` + `belief_state` persisted through every serialize/deserialize path; `manage_belief` in `index.ts` with badge gating. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `eb4776e2…`; bucket A 0, B 0, C 321, E 113); typecheck 0 errors; test:belief 12/12 (T551–T562); test:tool-definitions 6/6 (T511 against the 27-tool recorded budget); version-check OK |
+| Follow-up | M1c (identity firewall), M1d (causal transition validation), M2–M5 remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (convention hardening: tool budget, count guards, version flow)
 

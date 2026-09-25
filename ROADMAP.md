@@ -6,16 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Feature parity — M1b Belief and Evidence Reconciliation (REQ-461–472)
-
-- Add §5.25: per-entity evidence admission and deterministic belief-stance
-  reconciliation, contradiction preserved, with new tool `manage_belief`
-  (list/get/evidence/admit/retract/conflicts/reconcile).
-- New §7.7 property groups Evidence and Belief State; §7.6 thresholds
-  `TTRPG_BELIEF_ACCEPT_THRESHOLD` / `TTRPG_BELIEF_DECISION_MARGIN` (behavioral,
-  each needs a §7.7.1a Session-archetype coupling row).
-- Harness `scripts/test-belief.ts`; T551–T562. Depends on M1a (REQ-455–460).
-
 ## Feature parity — M1c Character Identity Firewall (REQ-473–483)
 
 - Add §5.26: staged identity candidates, stability classes, perspective,
