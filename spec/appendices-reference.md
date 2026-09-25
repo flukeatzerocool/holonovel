@@ -1202,6 +1202,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-501 | Cold until consumed | 2026-09-24 |
 | REQ-502 | Reference deixis | 2026-09-24 |
 | REQ-503 | Corpus visibility and badge gating | 2026-09-24 |
+| REQ-504 | Offline index construction | 2026-09-24 |
+| REQ-505 | Index staleness and rebuild | 2026-09-24 |
+| REQ-506 | Advisory candidate ranking | 2026-09-24 |
+| REQ-507 | Advisory relation metadata | 2026-09-24 |
+| REQ-508 | Authority boundary | 2026-09-24 |
+| REQ-509 | Index scope filtering | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1818,6 +1824,12 @@ diet.
 | T591 | Automated | Cold until consumed: the ledger is empty before consumption and holds one entry after. | REQ-501 |
 | T592 | Automated | Reference deixis: consuming a first-person document records an unresolved deixis. | REQ-502 |
 | T593 | Automated | Corpus badge gating: a Player consumption for another entity is refused; an Observer consumption is refused. | REQ-503 |
+| T594 | Automated | Offline index construction: building produces one indexed record per source carrying its type and a non-empty feature vector. | REQ-504 |
+| T595 | Automated | Index staleness and rebuild: changing a source marks the index stale and rebuilding clears it. | REQ-505 |
+| T596 | Automated | Advisory candidate ranking: the best-matching item ranks first and repeated searches return identical results. | REQ-506 |
+| T597 | Automated | Advisory relation metadata: two near-identical items yield an equivalent or related relation. | REQ-507 |
+| T598 | Automated | Authority boundary: a search leaves the authoritative stores unchanged. | REQ-508 |
+| T599 | Automated | Index scope filtering: a Game Master-scope item is absent from a Player search. | REQ-509 |
 
 ---
 

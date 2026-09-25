@@ -619,6 +619,8 @@ function worldFromJSON(data: any): WorldModel {
 export class StateManager {
   novels = new Map<string, NovelState>();
   roster = new Map<string, RosterEntity>();
+  // REQ-504 — derived, session-scoped semantic index (advisory, never persisted).
+  semanticIndex: import("./semantic.js").SemanticIndex | null = null;
   activeNovelId: string | null = null;
 
   buildFingerprint: {

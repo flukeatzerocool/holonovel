@@ -302,6 +302,12 @@ preserved with roster baselines wherever roster references are preserved
 (REQ-240a). A future identity surface that defines cross-property effects SHALL
 register as a property group with archetypes and coupling rows per REQ-370.
 
+**Semantic index.** The semantic index (REQ-504–509) is a derived,
+session-scoped advisory surface, not a Novel property group: it is rebuilt
+offline from the property groups, is never persisted, and never writes state.
+Copy, snapshot, archive, and interchange operations do not include it, since it
+is regenerated from the property groups they already carry.
+
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
 | Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |

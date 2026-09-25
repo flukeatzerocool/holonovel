@@ -21,6 +21,7 @@ import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
+import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -140,6 +141,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_identity: MUTATING,
   manage_causal: MUTATING,
   manage_corpus: MUTATING,
+  manage_index: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -5425,6 +5427,88 @@ server.registerTool("manage_corpus", {
     }
     default:
       return err("INVALID_INPUT", `Unknown corpus action '${args.action}'.`);
+  }
+});
+
+// --- Semantic Index ---
+
+// Semantic Index (REQ-504–REQ-509) — a derived, session-scoped, offline feature
+// index over Novel sources. Ranking is advisory: candidates never write state.
+function gatherIndexSources(novel: NovelState): IndexSourceItem[] {
+  const items: IndexSourceItem[] = [];
+  for (const [key, l] of novel.lore) {
+    items.push({ id: `lore:${key}`, type: "lore", text: `${key} ${l.content} ${(l.triggers ?? []).join(" ")}`, scope: l.badge_scope === "game_master" ? "game_master" : "shared" });
+  }
+  for (const d of novel.corpus_documents) {
+    items.push({ id: `corpus:${d.id}`, type: "corpus", text: `${d.title} ${d.body}`, scope: d.access_public ? "shared" : "game_master" });
+  }
+  for (const [id, n] of novel.npcs) {
+    items.push({ id: `npc:${id}`, type: "npc", text: `${n.name} ${n.description ?? ""} ${n.personality?.description ?? ""}`, scope: "game_master" });
+  }
+  for (const [id, e] of novel.entities) {
+    items.push({ id: `entity:${id}`, type: "entity", text: `${e.name} ${e.personality?.description ?? ""} ${e.personality?.background ?? ""}`, scope: "shared" });
+  }
+  return items;
+}
+
+server.registerTool("manage_index", {
+  title: "Semantic Index",
+  description: "Build and query a derived, offline semantic index over Novel sources. Ranking is advisory only: candidates never write state and must be promoted through their authoritative tool to become truth. Use when: building or rebuilding the index (build), checking staleness (status), listing indexed items (list), ranking candidates for a query (search), or reading item relations (relations). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore or manage_corpus. Parameters by action: search — query, limit; relations — item_id; build/list/status — (none).",
+  inputSchema: {
+    action: z.enum(["build", "status", "list", "search", "relations"]).describe("build, status, list, search, or relations."),
+    query: z.string().optional().describe("Query text to rank candidates against (search)."),
+    limit: z.number().optional().describe("Maximum candidates to return (search; default 5)."),
+    item_id: z.string().optional().describe("Indexed item id to filter relations (relations)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "build": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const items = gatherIndexSources(novel);
+      // REQ-504/REQ-505 — deterministic offline build with a source fingerprint.
+      state.semanticIndex = buildIndex(items, new Date().toISOString());
+      audit("index_build", { items: items.length, fingerprint: state.semanticIndex.fingerprint });
+      return ok(`Indexed ${items.length} item(s); fingerprint ${state.semanticIndex.fingerprint.slice(0, 12)}.`);
+    }
+    case "status": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!state.semanticIndex) return ok("Index not built.");
+      const current = fingerprintItems(gatherIndexSources(novel));
+      const stale = current !== state.semanticIndex.fingerprint;
+      return ok(`Index built at ${state.semanticIndex.built_at}; ${stale ? "STALE (sources changed)" : "current"}; ${state.semanticIndex.records.length} item(s).`);
+    }
+    case "list": {
+      requireNotObserver();
+      if (!state.semanticIndex) return ok("Index not built.");
+      const allow = new Set(allowedScopesFor(getBadge()));
+      const visible = state.semanticIndex.records.filter((r) => allow.has(r.scope)).map((r) => ({ id: r.id, type: r.type, scope: r.scope, cluster: r.cluster }));
+      if (visible.length === 0) return ok("No indexed items.");
+      return raw(JSON.stringify(visible, null, 2));
+    }
+    case "search": {
+      requireNotObserver();
+      if (!state.semanticIndex) return err("STATE_CONFLICT", "Index not built. Run manage_index (action: build) first.");
+      if (!args.query) return err("INVALID_INPUT", "query is required for search.");
+      const limit = args.limit ?? 5;
+      // REQ-509 — scope-filtered; REQ-506 — deterministic advisory ranking.
+      const candidates = rank(args.query, state.semanticIndex, allowedScopesFor(getBadge()), limit);
+      if (candidates.length === 0) return ok("No candidates.");
+      return raw(JSON.stringify(candidates, null, 2));
+    }
+    case "relations": {
+      requireNotObserver();
+      if (!state.semanticIndex) return ok("Index not built.");
+      const allow = new Set(allowedScopesFor(getBadge()));
+      const scopes = new Map(state.semanticIndex.records.map((r) => [r.id, r.scope]));
+      let rels = state.semanticIndex.relations.filter((rel) => allow.has(scopes.get(rel.a) ?? "game_master") && allow.has(scopes.get(rel.b) ?? "game_master"));
+      if (args.item_id) rels = rels.filter((rel) => rel.a === args.item_id || rel.b === args.item_id);
+      if (rels.length === 0) return ok("No relations.");
+      return raw(JSON.stringify(rels, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown index action '${args.action}'.`);
   }
 });
 
