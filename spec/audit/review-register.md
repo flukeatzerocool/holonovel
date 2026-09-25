@@ -108,12 +108,13 @@ the tracking surfaces for the coverage backlog.
 ## Closed-P3 (recorded, no action)
 
 - **DECISIONS.md gate-classification table absent** (content-integration scan,
-  2026-09-04): REQ-137a contracts a gate-classification table enumerating every
-  tool, but DECISIONS.md carries no such table and T151 has no harness
-  implementation (REQ-137 is bucket-E builder-side, mapped to S6). No
-  demonstrated failure — server badge gating is verified elsewhere (T148, the
-  backfill badge block). Recorded; reopen only if a badge-gating drift is
-  demonstrated.
+  2026-09-04): PARTIALLY RESOLVED 2026-09-25 — DECISIONS.md now carries the
+  REQ-137a table enumerating all 34 tools, and T151 has a harness asserting the
+  table covers the live registry. The remaining REQ-137b half — badge-filtered
+  `tools/list` — is still owed: the MCP SDK's built-in list handler cannot be
+  replaced after `McpServer` construction, so badge filtering requires a
+  low-level server or transport change. Kept here as the residual Closed-P3 gap
+  (server badge gating on `tools/call` is verified by T148 and the harnesses).
 - **Uncoupled behavioral configs** (integration review, 2026-09-04): RESOLVED
   2026-09-08 — the ten listed configs are now all coupled or reclassified
   (P55–P59 coupling rows; TTRPG_WORLD_PROMINENCE / TTRPG_NOVEL_PREVIEW_CHARS
