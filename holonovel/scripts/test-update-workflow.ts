@@ -15,6 +15,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 
 const ROOT = join(import.meta.dirname!, "..", "..");
 const SPEC_PATH = join(ROOT, "holonovel.md");
@@ -83,6 +85,7 @@ function main(): void {
     else rmSync(FP_FILE, { force: true });
   }
 
+  harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
   process.exit(0);

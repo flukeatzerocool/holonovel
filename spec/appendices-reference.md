@@ -1251,6 +1251,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-141j | Input-validation convergence metric (Part j) | 2026-08-11 |
 | REQ-141k | Pattern Buffer harness execution (Part k) | 2026-09-06 |
 | REQ-141l | Pattern Buffer partial-run disposition (Part l) | 2026-09-06 |
+| REQ-141m | Harness fail-loud (Part m) | 2026-09-25 |
 | REQ-142a | Blocking classification principle (Part a) | 2026-08-11 |
 | REQ-142b | Blocking classification principle (Part b) | 2026-08-11 |
 | REQ-142c | Blocking classification single source (Part c) | 2026-09-06 |
@@ -1884,6 +1885,7 @@ diet.
 | T624 | Automated | Consistency read-only: repeated reports leave the cursor unchanged. | REQ-519 |
 | T625 | Automated | Consistency visibility: Player and Observer both receive an available report. | REQ-520 |
 | T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
+| T627 | Automated | Harness fail-loud: a harness whose spawned process terminates unexpectedly and never completes exits non-zero with a diagnostic; a harness that completes exits zero with its summary. | REQ-141m |
 
 ---
 

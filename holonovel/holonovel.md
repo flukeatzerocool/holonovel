@@ -5719,6 +5719,9 @@ The operator may override this ceiling by recording an acceptance entry in DECIS
 Every Pattern Buffer sub-workflow SHALL execute through the runnable harness the structured-encoding clause mandates; the builder SHALL NOT record a sub-workflow verdict the harness did not produce. The Ruleset harness SHALL cover every S-sub-workflow §6.6 defines, and the Holonovel harness SHALL cover every I-sub-workflow §6.6 defines. A build whose harness is absent, unwired, or out of step with the defined sub-workflow set SHALL be incomplete. The DECISIONS.md (6) record SHALL carry the harness's execution timestamp and verdict count. *Acceptance criterion:* a build whose harness covers fewer sub-workflows than §6.6 defines fails validation; DECISIONS.md (6) records only harness-produced verdicts. _Check:_ T537.
 **REQ-141l — Pattern Buffer partial-run disposition (Part l).**
 A Pattern Buffer run that records fewer verdicts than the scoped set SHALL be complete only when each skipped sub-workflow carries a reason. The reason is either a fingerprint-rule note in DECISIONS.md (6) or an operator-acceptance entry in DECISIONS.md (5) that names the skipped sub-workflow, following the REQ-141j acceptance model. A run recorded as representative, sampled, or partial without such entries is a process-compliance finding that blocks handoff. *Acceptance criterion:* a partial run with no acceptance entry fails handoff verification; a partial run with an acceptance entry naming each skipped sub-workflow passes. _Check:_ T539.
+**REQ-141m — Harness fail-loud (Part m).**
+A test harness that spawns a server or fixture process SHALL exit non-zero with a diagnostic when that process terminates unexpectedly and the harness cannot complete its run. A harness that produces no pass/fail summary SHALL be treated as a failure, never a silent pass. *Acceptance criterion:* a harness whose spawned server crashes mid-run exits non-zero and names the failure, and a harness that completes normally exits zero with its summary. _Check:_ T627.
+
 **REQ-142a — Blocking classification principle (Part a).**
 The builder classifies a Pattern Buffer sub-workflow as blocking when it exercises a correctness property whose failure would make the server unsafe to use in any play session. Unsafe failures include state loss, badge-boundary violation, data corruption, unrecoverable crash, or undetectable incorrect results in core play mechanics. A sub-workflow is non-blocking when it tests a property whose failure degrades experience but does not make the server unsafe. Degrading failures include graceful-degradation edge cases, cosmetic output issues, or features documented as deferred in DECISIONS.md (5).
 
@@ -7195,7 +7198,10 @@ imported directives remain inert per REQ-444.
 [Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking
 disabled (REQ-051). Waivers are allowed only under REQ-013; log each with its
 reason in DECISIONS.md. Automated tests must ship a runnable script
-(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual
+(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. A harness
+that spawns a server SHALL also fail non-zero with a diagnostic when the spawned
+process terminates unexpectedly; a run that produces no summary is a failure,
+never a silent pass (REQ-141m). Manual
 tests must document the verification procedure and expected output shape in
 DECISIONS.md. This workflow uniquely verifies the server against the formal
 test catalogue — individual tool contracts are exercised by G2 (fixture
@@ -9535,6 +9541,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-141j | Input-validation convergence metric (Part j) | 2026-08-11 |
 | REQ-141k | Pattern Buffer harness execution (Part k) | 2026-09-06 |
 | REQ-141l | Pattern Buffer partial-run disposition (Part l) | 2026-09-06 |
+| REQ-141m | Harness fail-loud (Part m) | 2026-09-25 |
 | REQ-142a | Blocking classification principle (Part a) | 2026-08-11 |
 | REQ-142b | Blocking classification principle (Part b) | 2026-08-11 |
 | REQ-142c | Blocking classification single source (Part c) | 2026-09-06 |
@@ -10168,6 +10175,7 @@ diet.
 | T624 | Automated | Consistency read-only: repeated reports leave the cursor unchanged. | REQ-519 |
 | T625 | Automated | Consistency visibility: Player and Observer both receive an available report. | REQ-520 |
 | T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
+| T627 | Automated | Harness fail-loud: a harness whose spawned process terminates unexpectedly and never completes exits non-zero with a diagnostic; a harness that completes exits zero with its summary. | REQ-141m |
 
 ---
 

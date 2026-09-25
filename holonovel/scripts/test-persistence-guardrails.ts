@@ -9,6 +9,8 @@ import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-persistence-guardrails-"));
@@ -241,6 +243,7 @@ async function main() {
     rmSync(dir, { recursive: true, force: true });
   }
 
+  harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

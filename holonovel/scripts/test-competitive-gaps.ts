@@ -13,6 +13,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-competitive-gaps-"));
@@ -309,6 +311,7 @@ async function main() {
     proc.kill("SIGKILL");
   }
 
+  harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
