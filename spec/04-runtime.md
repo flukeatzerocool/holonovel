@@ -165,6 +165,10 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 | `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -224,6 +228,8 @@ discarded by `manage_novel (action: end)`):
 | NPC Goal Pursuit | Entity-bearing | read/write (REQ-339) | read-only |
 | Autonomous Countdown | Temporal | read/write (REQ-338) | read-only |
 | Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
+| Evidence | Knowledge-carrying | read/write (REQ-461; mutation GM-only) | read-only (own entity, badge-filtered per REQ-472) |
+| Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -484,6 +490,9 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
 | Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
 | Event Log → NPC | P33 | Event-log entries referencing an NPC surface in that NPC's memory and goal-pursuit advisories | What was observed of a character becomes what the character remembers | — | Navigational | REQ-460 |
+| Evidence → Belief State | P54 | Admitted evidence reconciles into a belief stance, preserving support and opposition; governed by TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, and TTRPG_BELIEF_DECISION_MARGIN | What the character gathered becomes what they believe | GM-only | Navigational | REQ-465, REQ-466 |
+| Belief State → Lore | P54 | An accepted belief promotes to the entity's knowledge with its evidence provenance | What the character believes becomes what they know | GM-only | Navigational | REQ-461, REQ-462 |
+| Belief State → Scene | P40 | Beliefs relevant to the current scene surface in the scene's knowledge rendering | What the character believes colors what they notice | GM-only | Navigational | REQ-472 |
 
 ##### 7.7.1b Coupling curation
 

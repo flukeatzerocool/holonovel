@@ -522,6 +522,9 @@ export interface NovelState {
   event_log: import("./event-log.js").EventLogEntry[];
   // REQ-458/REQ-459 — branch lineage: parent Novel and branch point.
   branch_lineage: import("./event-log.js").BranchLineage;
+  // REQ-461/REQ-465 — per-entity evidence records and reconciled belief stances.
+  evidence: import("./belief.js").EvidenceRecord[];
+  belief_state: import("./belief.js").BeliefRecord[];
 }
 
 export interface RosterEntity extends NovelEntity {
@@ -803,6 +806,8 @@ export class StateManager {
       forged: { characters: {} },
       event_log: [],
       branch_lineage: { parent_slug: null, branch_point: null },
+      evidence: [],
+      belief_state: [],
     };
 
     this.novels.set(slug, novel);
@@ -1086,6 +1091,8 @@ export class StateManager {
       forged: normalizeForgedState(data.forged),
       event_log: data.event_log ?? [],
       branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
+      evidence: data.evidence ?? [],
+      belief_state: data.belief_state ?? [],
     };
     return novel;
   }
@@ -2063,6 +2070,9 @@ function novelToJSON(novel: NovelState): any {
     // REQ-455/REQ-458/REQ-459 — event log and branch lineage persist with the Novel.
     event_log: novel.event_log,
     branch_lineage: novel.branch_lineage,
+    // REQ-461/REQ-465 — evidence and belief state persist with the Novel.
+    evidence: novel.evidence,
+    belief_state: novel.belief_state,
   };
 }
 
@@ -2176,6 +2186,8 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     forged: normalizeForgedState(data.forged),
     event_log: data.event_log ?? [],
     branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
+    evidence: data.evidence ?? [],
+    belief_state: data.belief_state ?? [],
   };
 }
 

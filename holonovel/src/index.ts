@@ -17,6 +17,7 @@ import * as crypto from "crypto";
 import { expandMacros } from "./core/macros.js";
 import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
+import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -132,6 +133,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_ruleset: MUTATING,
   manage_codex: MUTATING,
   manage_synthesis: MUTATING,
+  manage_belief: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -4727,6 +4729,8 @@ function novelToJSONState(novel: NovelState): any {
     forged: novel.forged,
     event_log: novel.event_log,
     branch_lineage: novel.branch_lineage,
+    evidence: novel.evidence,
+    belief_state: novel.belief_state,
   };
 }
 
@@ -4794,6 +4798,8 @@ function loadNovelFromStateData(data: any): NovelState {
     forged: { characters: data.forged?.characters ?? {} },
     event_log: data.event_log ?? [],
     branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
+    evidence: data.evidence ?? [],
+    belief_state: data.belief_state ?? [],
   };
 }
 
@@ -4808,6 +4814,180 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 
 // Session (REQ-025, REQ-072, REQ-082, REQ-086, REQ-173, REQ-174, REQ-175, REQ-186, REQ-253, REQ-279) — consolidated recap/verbosity/
 // briefing_order/compress/health surface.
+// --- Belief & Evidence ---
+
+// Belief & Evidence (REQ-461–REQ-472) — determine each entity's belief stances
+// from its admitted evidence, preserving support, opposition, and disagreement.
+function beliefOptions() {
+  return {
+    acceptThreshold: Number(process.env.TTRPG_BELIEF_ACCEPT_THRESHOLD ?? "0.6"),
+    decisionMargin: Number(process.env.TTRPG_BELIEF_DECISION_MARGIN ?? "0.15"),
+  };
+}
+
+// REQ-468 — recompute every belief question from the entity's evidence records.
+// REQ-466 — idempotent: an unchanged stance keeps its prior timestamp, so a
+// repeated reconcile is reproducible.
+function recomputeBeliefs(novel: NovelState, entityId?: string): void {
+  const at = new Date().toISOString();
+  const entities = entityId ? [entityId] : [...new Set(novel.evidence.map((e) => e.entity_id))];
+  const previous = new Map(novel.belief_state.map((b) => [`${b.entity_id}|${b.question}`, b]));
+  novel.belief_state = novel.belief_state.filter((b) => !entities.includes(b.entity_id));
+  for (const eid of entities) {
+    for (const rec of reconcileEntity(eid, novel.evidence, beliefOptions(), at)) {
+      const prev = previous.get(`${eid}|${rec.question}`);
+      if (prev
+        && prev.stance === rec.stance && prev.support === rec.support && prev.opposition === rec.opposition
+        && prev.accepted === rec.accepted && prev.current === rec.current
+        && JSON.stringify(prev.evidence_ids) === JSON.stringify(rec.evidence_ids)) {
+        rec.at = prev.at;
+      }
+      novel.belief_state.push(rec);
+    }
+  }
+}
+
+function nextEvidenceId(novel: NovelState): string {
+  let max = 0;
+  for (const e of novel.evidence) {
+    const m = e.id.match(/^ev-(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `ev-${max + 1}`;
+}
+
+// REQ-472 — a Player reads only the active entity's beliefs; the Observer reads.
+function beliefReadGate(novel: NovelState, entityId: string | undefined) {
+  const badge = getBadge();
+  if (badge === "player" && entityId && entityId !== novel.active_entity_id) {
+    return err("FORBIDDEN", "Player badge reads only the active entity's beliefs. Switch badges with set_badge to read others.");
+  }
+  return null;
+}
+
+server.registerTool("manage_belief", {
+  title: "Belief",
+  description: "Manage per-entity evidence and reconciled belief stances. Mutating actions (admit, retract, reconcile) persist to the Novel and are audited; list/get/evidence/conflicts are read-only. Use when: recording what an entity has learned or believes (admit), suppressing a piece of evidence (retract), inspecting current stances (list), reading one question (get), listing supporting evidence (evidence), finding unresolved contradictions (conflicts), or forcing recomputation (reconcile). Do NOT use when: recording objective world truth — use manage_world; recording lore — use manage_lore; recording observations — use manage_session (action: event). Parameters by action: list/conflicts/reconcile — entity_id; get/evidence — entity_id, question; admit — entity_id, subject, predicate, object, polarity, weight, source, status, source_ordinal; retract — entity_id, evidence_id.",
+  inputSchema: {
+    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile"]).describe("list, get, evidence, admit, retract, conflicts, or reconcile."),
+    entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
+    subject: z.string().optional().describe("Proposition subject (admit)."),
+    predicate: z.string().optional().describe("Proposition predicate (admit)."),
+    object: z.string().optional().describe("Proposition object (admit)."),
+    polarity: z.enum(["positive", "negative"]).optional().describe("positive or negative (admit)."),
+    weight: z.number().optional().describe("Evidence support weight 0..1 (admit; default 1)."),
+    source: z.string().optional().describe("Source key used to correlate duplicate evidence (admit; default the active badge)."),
+    status: z.enum(["active", "unresolved", "suppressed"]).optional().describe("active, unresolved, or suppressed (admit; default active)."),
+    source_ordinal: z.number().optional().describe("Contributing event-log ordinal (admit; default the latest event ordinal)."),
+    question: z.string().optional().describe("Belief question key, or subject|predicate|object (get/evidence)."),
+    evidence_id: z.string().optional().describe("Evidence record id (retract)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "list": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id) return err("INVALID_INPUT", "entity_id is required for list.");
+      const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
+      const records = novel.belief_state.filter((b) => b.entity_id === args.entity_id);
+      if (records.length === 0) return ok(`No beliefs recorded for '${args.entity_id}'.`);
+      return raw(JSON.stringify(records, null, 2));
+    }
+    case "get": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id || !args.question) return err("INVALID_INPUT", "entity_id and question are required for get.");
+      const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
+      const key = normalizeToken(args.question);
+      const record = novel.belief_state.find((b) => b.entity_id === args.entity_id && b.question === key);
+      if (!record) return err("NOT_FOUND", `No belief for question '${args.question}' on '${args.entity_id}'.`);
+      return raw(JSON.stringify(record, null, 2));
+    }
+    case "evidence": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id) return err("INVALID_INPUT", "entity_id is required for evidence.");
+      const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
+      let records = novel.evidence.filter((e) => e.entity_id === args.entity_id);
+      if (args.question) {
+        const key = normalizeToken(args.question);
+        records = records.filter((e) => questionKey(e.subject, e.predicate, e.object) === key);
+      }
+      if (records.length === 0) return ok(`No evidence recorded for '${args.entity_id}'.`);
+      return raw(JSON.stringify(records, null, 2));
+    }
+    case "admit": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.entity_id || !args.subject || !args.predicate || !args.object || !args.polarity) {
+        return err("INVALID_INPUT", "entity_id, subject, predicate, object, and polarity are required for admit.");
+      }
+      const weight = args.weight ?? 1;
+      if (typeof weight !== "number" || weight < 0 || weight > 1) return err("INVALID_INPUT", "weight must be between 0 and 1.");
+      const status: EvidenceStatus = args.status ?? "active";
+      const badge = getBadge();
+      const source = args.source ?? (badge === "player" ? "player" : badge === "game_master" ? "game_master" : "system");
+      const ordinals = args.source_ordinal !== undefined
+        ? [args.source_ordinal]
+        : (novel.event_log.length ? [novel.event_log[novel.event_log.length - 1].ordinal] : []);
+      // REQ-461 — immutable acquisition record. REQ-462 — event provenance.
+      const record: EvidenceRecord = {
+        id: nextEvidenceId(novel),
+        entity_id: args.entity_id,
+        subject: args.subject, predicate: args.predicate, object: args.object,
+        polarity: args.polarity as Polarity, status, weight, source, source_ordinals: ordinals,
+        at: new Date().toISOString(),
+      };
+      novel.evidence.push(record);
+      const cap = parseInt(process.env.TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY ?? "0", 10);
+      if (cap > 0) {
+        const forEntity = novel.evidence.filter((e) => e.entity_id === record.entity_id);
+        if (forEntity.length > cap) {
+          const drop = new Set(forEntity.slice(0, forEntity.length - cap).map((e) => e.id));
+          novel.evidence = novel.evidence.filter((e) => !drop.has(e.id));
+        }
+      }
+      recomputeBeliefs(novel, record.entity_id);
+      state.saveNovel(novel);
+      audit("belief_admit", { entity_id: record.entity_id, question: questionKey(record.subject, record.predicate, record.object), polarity: record.polarity });
+      return ok(`Evidence ${record.id} admitted for '${record.entity_id}'.`);
+    }
+    case "retract": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.evidence_id) return err("INVALID_INPUT", "evidence_id is required for retract.");
+      const idx = novel.evidence.findIndex((e) => e.id === args.evidence_id);
+      if (idx === -1) return err("NOT_FOUND", `Evidence '${args.evidence_id}' not found.`);
+      const entityId = novel.evidence[idx].entity_id;
+      novel.evidence.splice(idx, 1);
+      recomputeBeliefs(novel, entityId);
+      state.saveNovel(novel);
+      audit("belief_retract", { evidence_id: args.evidence_id });
+      return ok(`Evidence '${args.evidence_id}' retracted for '${entityId}'.`);
+    }
+    case "conflicts": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id) return err("INVALID_INPUT", "entity_id is required for conflicts.");
+      const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
+      const records = novel.belief_state.filter((b) => b.entity_id === args.entity_id && !b.accepted);
+      if (records.length === 0) return ok(`No unresolved beliefs for '${args.entity_id}'.`);
+      return raw(JSON.stringify(records, null, 2));
+    }
+    case "reconcile": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id) return err("INVALID_INPUT", "entity_id is required for reconcile.");
+      const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
+      recomputeBeliefs(novel, args.entity_id);
+      state.saveNovel(novel);
+      return ok(`Reconciled beliefs for '${args.entity_id}'.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown belief action '${args.action}'.`);
+  }
+});
+
 server.registerTool("manage_session", {
   title: "Session",
   description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment and event append mutate Novel-scoped state and persist; recap/verbosity/briefing_order/compress/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries; recap — gm_notes; subscribe — topics; discover — query; category — tool_name, category; event — text, source, supersede; history — through_ordinal, include_superseded.",

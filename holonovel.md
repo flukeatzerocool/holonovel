@@ -469,6 +469,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.22   | Ironsworn Base Capabilities                             | 438–440 |
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 | 5.24   | Temporal Event Log and Branching                        | 455–460 |
+| 5.25   | Belief and Evidence                                     | 461–472 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3928,7 +3929,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 31 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 33 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -4204,7 +4205,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4249,6 +4250,32 @@ personality, NPC, vow, event-log, and base-capability state tools defined in §5
 **REQ-459 — Branch lineage and isolation.** Each branch SHALL record its parent Novel and branch point, and `manage_novel (action: info)` SHALL report that lineage. A branch SHALL NOT read or mutate a sibling branch's state. *Acceptance criterion:* mutating one branch leaves its siblings and parent unchanged, and `manage_novel (action: info)` reports the parent slug and branch point. _Check:_ T549.
 
 **REQ-460 — Event provenance lookup.** Any derived knowledge, belief, or identity record SHALL cite the event-log ordinals that contributed to it, and the server SHALL return the entries for a requested ordinal range. *Acceptance criterion:* a request for entries through a given ordinal returns exactly the contributing entries and no later entry. _Check:_ T550.
+
+### 5.25 Belief and Evidence
+
+**REQ-461 — Evidence acquisition record.** THE server SHALL record each admitted evidence acquisition for an entity as an immutable record carrying the entity, the proposition's subject, predicate, and object, its polarity, an admission status, a support weight, a source key, and its contributing event-log ordinals. Evidence records SHALL persist with the Novel and SHALL NOT be rewritten by reconciliation. *Acceptance criterion:* admitting evidence for an entity appends a record naming its proposition, polarity, weight, and source. _Check:_ T551.
+
+**REQ-462 — Evidence provenance.** Every evidence record SHALL cite the event-log ordinal that produced it, and the server SHALL return those ordinals for any evidence record or belief. *Acceptance criterion:* evidence admitted after a recorded observation lists that observation's ordinal. _Check:_ T552.
+
+**REQ-463 — Polarity-independent question identity.** A positive and a negative proposition SHALL contest one belief question when they share subject, predicate, and object, distinguished only by polarity; propositions differing in any of the three SHALL remain separate questions. *Acceptance criterion:* opposite statements about the same subject, predicate, and object produce one question carrying both supports. _Check:_ T553.
+
+**REQ-464 — Evidence admission states.** Each acquisition SHALL carry an admission status of usable, unresolved, or suppressed. Unresolved and suppressed evidence SHALL be preserved and retrievable and SHALL NOT contribute to a belief stance while in that status. *Acceptance criterion:* suppressed evidence creates no stance yet remains listable. _Check:_ T554.
+
+**REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win. _Check:_ T555.
+
+**REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound, while independent acquisitions SHALL accumulate, and reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
+
+**REQ-467 — Contradiction preservation.** Contradictory evidence SHALL remain retrievable after a stance is materialized, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
+
+**REQ-468 — Belief refresh.** WHEN evidence is admitted, retracted, or reclassified for an entity, the server SHALL recompute that entity's belief stances from its evidence records before returning the result. *Acceptance criterion:* admitting opposing evidence weakens or flips the stance in the same call. _Check:_ T558.
+
+**REQ-469 — Belief family policies.** Each predicate SHALL map to a belief family whose reconciliation policy is either durable or volatile; durable predicates SHALL accumulate support across acquisitions, volatile predicates SHALL reflect the most recent acquisition, and the mapping used SHALL be deterministic and reported per belief. *Acceptance criterion:* two matching durable facts both contribute, while a later volatile acquisition supersedes an earlier one. _Check:_ T559.
+
+**REQ-470 — Single-value predicates.** Predicates declared single-value SHALL hold at most one current object per entity and question; the highest-support object SHALL be current, and a support tie within the decision margin SHALL leave the slot without a current value. *Acceptance criterion:* two contradictory single-value readings do not both become current. _Check:_ T560.
+
+**REQ-471 — Belief branch inheritance.** Belief and evidence state SHALL be inherited by a branch from its parent through the branch point and SHALL NOT be read from or written to a sibling branch. *Acceptance criterion:* a branch inherits the parent's stances, and a belief admitted in one branch leaves its parent and siblings unchanged. _Check:_ T561.
+
+**REQ-472 — Belief visibility and badge gating.** Belief and evidence reads SHALL be badge-filtered: the Game Master reads every entity, a Player reads only the active entity, and the Observer reads without mutating. Evidence mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another entity's beliefs returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T562.
 
 #### End of requirements
 
@@ -4860,7 +4887,7 @@ before any server code is written.
 | Synthesis population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Synthesis term anchoring | Synthesis items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 31 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 33 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 Synthesis population, Synthesis term anchoring, and the Wisdom mechanical
 coupling rate (REQ-375) are artifact-scope metrics — they verify the extracted
@@ -6481,6 +6508,10 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 | `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -6540,6 +6571,8 @@ discarded by `manage_novel (action: end)`):
 | NPC Goal Pursuit | Entity-bearing | read/write (REQ-339) | read-only |
 | Autonomous Countdown | Temporal | read/write (REQ-338) | read-only |
 | Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
+| Evidence | Knowledge-carrying | read/write (REQ-461; mutation GM-only) | read-only (own entity, badge-filtered per REQ-472) |
+| Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -6800,6 +6833,9 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
 | Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
 | Event Log → NPC | P33 | Event-log entries referencing an NPC surface in that NPC's memory and goal-pursuit advisories | What was observed of a character becomes what the character remembers | — | Navigational | REQ-460 |
+| Evidence → Belief State | P54 | Admitted evidence reconciles into a belief stance, preserving support and opposition; governed by TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, and TTRPG_BELIEF_DECISION_MARGIN | What the character gathered becomes what they believe | GM-only | Navigational | REQ-465, REQ-466 |
+| Belief State → Lore | P54 | An accepted belief promotes to the entity's knowledge with its evidence provenance | What the character believes becomes what they know | GM-only | Navigational | REQ-461, REQ-462 |
+| Belief State → Scene | P40 | Beliefs relevant to the current scene surface in the scene's knowledge rendering | What the character believes colors what they notice | GM-only | Navigational | REQ-472 |
 
 ##### 7.7.1b Coupling curation
 
@@ -9205,6 +9241,18 @@ date-stamps matching CHANGELOG entries.
 | REQ-458 | Novel branching | 2026-09-24 |
 | REQ-459 | Branch lineage and isolation | 2026-09-24 |
 | REQ-460 | Event provenance lookup | 2026-09-24 |
+| REQ-461 | Evidence acquisition record | 2026-09-24 |
+| REQ-462 | Evidence provenance | 2026-09-24 |
+| REQ-463 | Polarity-independent question identity | 2026-09-24 |
+| REQ-464 | Evidence admission states | 2026-09-24 |
+| REQ-465 | Belief stance materialization | 2026-09-24 |
+| REQ-466 | Independent corroboration | 2026-09-24 |
+| REQ-467 | Contradiction preservation | 2026-09-24 |
+| REQ-468 | Belief refresh | 2026-09-24 |
+| REQ-469 | Belief family policies | 2026-09-24 |
+| REQ-470 | Single-value predicates | 2026-09-24 |
+| REQ-471 | Belief branch inheritance | 2026-09-24 |
+| REQ-472 | Belief visibility and badge gating | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9689,7 +9737,7 @@ diet.
 | T422 | Automated | Ruleset Wisdom as rendered reality: build a host carrying vendor Ruleset Wisdom (§11.4). Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `manage_synthesis (action: activate)` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `manage_synthesis (action: deactivate)` on a Wisdom item — assert the coupled behavior ceases. Call `manage_synthesis (action: revert)` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T423 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `import_supplementary` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `manage_synthesis (action: list)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `import_supplementary` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `import_supplementary` under Player badge — assert `[FORBIDDEN]`. Call `remove_supplementary` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary-gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T424 | Automated | Dynamic tool registration: call `import_supplementary` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `remove_supplementary` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `import_supplementary` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
-| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 31 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
+| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 33 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
 | T426 | Automated | Wisdom mechanical coupling rate: build with a ruleset producing Wisdom items. Assert ≥30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational fails this Phase 1 metric. Assert re-classification from Navigational to Mechanical where ruleset text supports behavioral language. | REQ-375 |
 | T427 | Automated | Coupling chain Pattern Buffer: populate world model, create countdown with world_effect, create faction. Advance scene — assert countdown ticks and faction clock ticks (P1). Move player via go — assert scene transition hook and lore triggers (P13, P2). Advance countdown to fire — assert world_effect mutates room (P14). Record consequence story journal — assert faction advisory in narrative_threads (P33). Undo — assert pre-chain state restored. | §6.6 S32 |
 | T428 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with host-carried Wisdom active — assert manage_character (action: sheet) shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on manage_scene (action: set) (P7). run_command (action: suggest) returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
@@ -9703,7 +9751,7 @@ diet.
 | T436 | Automated | Scene ↔ NPC couplings: create NPC with disposition=friendly. Call `manage_scene (action: set, "...", scene_type="combat")` — assert `narrative_threads` includes NPC disposition advisory (P41). Call `manage_scene (action: set, "...", scene_type="social")` — assert advisory updated. Create NPC with `location` matching active room — call `manage_scene (action: set, "...", characters_present=["<entity>"])` — assert NPC auto-registers in scene per P42. | REQ-369, REQ-075 |
 | T437 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T438 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], badge_scope="shared". Call `manage_scene (action: set, "You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with badge_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
-| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 31 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
+| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 33 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
 | T440 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T441 | Automated | Novel ruleset binding: call `manage_novel (action: create, "test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `manage_novel (action: info)`. Call `manage_novel (action: create, "test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T442 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
@@ -9778,6 +9826,18 @@ diet.
 | T548 | Automated | Novel branching: branch at event K yields a child sharing the first K entries and leaves the parent event log unchanged. | REQ-458 |
 | T549 | Automated | Branch lineage and isolation: `manage_novel (action: info)` reports parent slug and branch point; mutating one branch leaves its siblings and parent unchanged. | REQ-459 |
 | T550 | Automated | Event provenance lookup: a request for entries through ordinal N returns the contributing entries and no later entry. | REQ-460 |
+| T551 | Automated | Evidence acquisition record: admitting evidence appends a record naming its subject, predicate, object, polarity, weight, and source. | REQ-461 |
+| T552 | Automated | Evidence provenance: evidence admitted after a recorded observation lists that observation's event-log ordinal. | REQ-462 |
+| T553 | Automated | Question identity: opposite polarities about the same subject, predicate, and object contest one question carrying both supports; a differing field yields a separate question. | REQ-463 |
+| T554 | Automated | Admission states: suppressed evidence creates no stance and remains listable; unresolved evidence is excluded from the stance. | REQ-464 |
+| T555 | Automated | Stance materialization: support at the acceptance threshold with the required margin is accepted; strong opposition yields an unresolved stance. | REQ-465 |
+| T556 | Automated | Independent corroboration: correlated evidence from one source does not compound while independent sources accumulate; a repeated reconciliation returns identical stances. | REQ-466 |
+| T557 | Automated | Contradiction preservation: both supporting and opposing evidence remain retrievable after a stance is materialized. | REQ-467 |
+| T558 | Automated | Belief refresh: admitting opposing evidence weakens or flips the stance in the same call. | REQ-468 |
+| T559 | Automated | Family policies: two matching durable facts accumulate support while a later volatile acquisition supersedes an earlier one; the family is reported. | REQ-469 |
+| T560 | Automated | Single-value predicates: only the highest-support object is current; a tie within the decision margin leaves no current value. | REQ-470 |
+| T561 | Automated | Branch inheritance: a branch inherits the parent's stances at the branch point, and a belief admitted in one branch leaves its parent and siblings unchanged. | REQ-471 |
+| T562 | Automated | Belief badge gating: a Player request for another entity's beliefs returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-472 |
 
 ---
 

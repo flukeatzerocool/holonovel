@@ -30,6 +30,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.22   | Ironsworn Base Capabilities                             | 438–440 |
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 | 5.24   | Temporal Event Log and Branching                        | 455–460 |
+| 5.25   | Belief and Evidence                                     | 461–472 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3489,7 +3490,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 31 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 33 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -3765,7 +3766,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3810,5 +3811,31 @@ personality, NPC, vow, event-log, and base-capability state tools defined in §5
 **REQ-459 — Branch lineage and isolation.** Each branch SHALL record its parent Novel and branch point, and `manage_novel (action: info)` SHALL report that lineage. A branch SHALL NOT read or mutate a sibling branch's state. *Acceptance criterion:* mutating one branch leaves its siblings and parent unchanged, and `manage_novel (action: info)` reports the parent slug and branch point. _Check:_ T549.
 
 **REQ-460 — Event provenance lookup.** Any derived knowledge, belief, or identity record SHALL cite the event-log ordinals that contributed to it, and the server SHALL return the entries for a requested ordinal range. *Acceptance criterion:* a request for entries through a given ordinal returns exactly the contributing entries and no later entry. _Check:_ T550.
+
+### 5.25 Belief and Evidence
+
+**REQ-461 — Evidence acquisition record.** THE server SHALL record each admitted evidence acquisition for an entity as an immutable record carrying the entity, the proposition's subject, predicate, and object, its polarity, an admission status, a support weight, a source key, and its contributing event-log ordinals. Evidence records SHALL persist with the Novel and SHALL NOT be rewritten by reconciliation. *Acceptance criterion:* admitting evidence for an entity appends a record naming its proposition, polarity, weight, and source. _Check:_ T551.
+
+**REQ-462 — Evidence provenance.** Every evidence record SHALL cite the event-log ordinal that produced it, and the server SHALL return those ordinals for any evidence record or belief. *Acceptance criterion:* evidence admitted after a recorded observation lists that observation's ordinal. _Check:_ T552.
+
+**REQ-463 — Polarity-independent question identity.** A positive and a negative proposition SHALL contest one belief question when they share subject, predicate, and object, distinguished only by polarity; propositions differing in any of the three SHALL remain separate questions. *Acceptance criterion:* opposite statements about the same subject, predicate, and object produce one question carrying both supports. _Check:_ T553.
+
+**REQ-464 — Evidence admission states.** Each acquisition SHALL carry an admission status of usable, unresolved, or suppressed. Unresolved and suppressed evidence SHALL be preserved and retrievable and SHALL NOT contribute to a belief stance while in that status. *Acceptance criterion:* suppressed evidence creates no stance yet remains listable. _Check:_ T554.
+
+**REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win. _Check:_ T555.
+
+**REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound, while independent acquisitions SHALL accumulate, and reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
+
+**REQ-467 — Contradiction preservation.** Contradictory evidence SHALL remain retrievable after a stance is materialized, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
+
+**REQ-468 — Belief refresh.** WHEN evidence is admitted, retracted, or reclassified for an entity, the server SHALL recompute that entity's belief stances from its evidence records before returning the result. *Acceptance criterion:* admitting opposing evidence weakens or flips the stance in the same call. _Check:_ T558.
+
+**REQ-469 — Belief family policies.** Each predicate SHALL map to a belief family whose reconciliation policy is either durable or volatile; durable predicates SHALL accumulate support across acquisitions, volatile predicates SHALL reflect the most recent acquisition, and the mapping used SHALL be deterministic and reported per belief. *Acceptance criterion:* two matching durable facts both contribute, while a later volatile acquisition supersedes an earlier one. _Check:_ T559.
+
+**REQ-470 — Single-value predicates.** Predicates declared single-value SHALL hold at most one current object per entity and question; the highest-support object SHALL be current, and a support tie within the decision margin SHALL leave the slot without a current value. *Acceptance criterion:* two contradictory single-value readings do not both become current. _Check:_ T560.
+
+**REQ-471 — Belief branch inheritance.** Belief and evidence state SHALL be inherited by a branch from its parent through the branch point and SHALL NOT be read from or written to a sibling branch. *Acceptance criterion:* a branch inherits the parent's stances, and a belief admitted in one branch leaves its parent and siblings unchanged. _Check:_ T561.
+
+**REQ-472 — Belief visibility and badge gating.** Belief and evidence reads SHALL be badge-filtered: the Game Master reads every entity, a Player reads only the active entity, and the Observer reads without mutating. Evidence mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another entity's beliefs returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T562.
 
 #### End of requirements
