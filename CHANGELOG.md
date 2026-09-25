@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-25 — Proofread hardening: register, validator coverage, warning triage
+
+- Added a spec-side proofread register (`spec/audit/proofread-register.md`) and an
+  Appendix V.9 runbook so a proofread resumes from a tracked record instead of
+  re-deriving its scope.
+- The proofreading pass now also scores reference prose — appendices, the §5
+  preamble, and §6–§11 — through a new `referenceProse` category at the same
+  grade-18 ceiling as REQ bodies. REQ bodies and the §0–§4 narrative keep their
+  existing bars. Validator self-tests cover the new extractor.
+- Triaged the warning backlog to 0 errors / 89 accepted warnings, each with a
+  recorded rationale. Five REQs were reworded (452, 092a, 466, 523, 247b1),
+  clearing ten warnings; the remainder are EARS-inherent passives, accepted
+  modal-drift metric names, and dense label-bound enumerations.
+- Fixed a dangling "Pattern Buffer-5" reference (now §6.6 Pattern Buffer) and
+  normalized four `_Verify:_` citation markers to canonical `_Check:_`.
+- Corrected a garbled "State drift" definition in the §4 terminology table.
+
 ## 2026-09-25 — Proofread: foundational and build-preamble corrections
 
 - Corrected telegraphic fragments in the Quick Reference: "Quality is enforced by"

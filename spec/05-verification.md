@@ -71,7 +71,7 @@ for exact wording.
 
 Before handoff, re-run G2 once from a cold checkout of the four artifacts,
 following only README.md and AGENTS.md. A reproduction failure stops the line.
-_Verify:_ T90 (N fixture), Golden transcript replay (B fixture), T261 (W fixture).
+_Check:_ T90 (N fixture), Golden transcript replay (B fixture), T261 (W fixture).
 
 **G2 coverage completeness.** After the golden transcript passes, the builder
 SHALL verify that every behavioral contract the selected fixture exercises

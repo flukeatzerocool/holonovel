@@ -180,3 +180,36 @@ before re-binding.
   stale (staleness never blocks loading, REQ-423).
 - A legacy artifact lacks a fingerprint: it is flagged `[data-stale]` and
   re-stamped by the next explicit migration.
+
+### V.9 Proofread the specification
+
+**Entry point.** `npm run validate:sdd` (the proofreading pass in
+`scripts/validate.ts`), or `npm run check:fast` for the fast gate.
+
+**Happy path.**
+
+1. Run `npm run validate:sdd`; record the current error and warning counts in
+   `spec/audit/proofread-register.md` as the batch baseline.
+2. Proofread the source files in canonical load order, one batch at a time.
+   Apply five passes to each file: mechanical (spelling, punctuation,
+   capitalization, hyphenation), grammar (agreement, tense, modifiers,
+   fragments), terminology and style (canonical terms per §4 and Appendix S,
+   retired terms per Appendix R, `GN`/`§N` forms), clarity and consistency
+   (long sentences, naming drift, near-duplicates), and — for every REQ edited —
+   an Appendix M re-check against the body limits.
+3. Record each finding as `PR-<n>` in the register with location, correction,
+   and disposition: `Fixed`, `Accepted`, `Open`, or `Deferred`.
+4. Edit files under `spec/` only; run `npm run assemble && npm run check:fast`.
+5. Record every accepted warning in the register with its rationale. Warnings
+   are pointers, not verdicts: canonical terms, SHALL/MAY strength, and
+   mandated identifiers outrank the readability score.
+
+**Recovery.**
+
+- A REQ edit trips a shape or readability violation: restore the contract or
+  tighten the body to the Appendix M limits; if the enumeration cannot clear
+  the readability bar without dropping load-bearing wording, record it as an
+  accepted exception.
+- An edit lands in a fingerprint-scoped section (§5.9, §5.16–§5.17, §6.3,
+  §6.4.2, §7.7, §5.19, Appendix Q): run `npm run build-order` before commit.
+

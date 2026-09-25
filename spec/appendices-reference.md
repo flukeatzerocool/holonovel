@@ -2650,7 +2650,7 @@ Disclosure, Denial of Service, and Elevation of Privilege.
 | **Denial of Service** | Web scrape exhausts builder resources, gets IP banned by source site | Web-scrape protocol (Appendix G) enforces rate limiting and retry with backoff | **Minor.** Single-source scrape is bounded. Multi-source concurrent scraping is not addressed. |
 | **Information Disclosure** | Scraped page source contains credentials, session tokens, or personal data | Chrome stripping (Appendix G.4) removes `<script>`, `<style>`, and non-content HTML elements before conversion; content-type classification (Appendix G.4) skips pages with no mechanical indicators | **Minor.** Stripping reduces the attack surface; classification skips the most likely injection targets (blog posts, forum pages). The spec still assumes trusted sources for content-bearing pages. |
 
-_Verify:_ None — this appendix is a reference analysis. Gaps identified here are
+_Check:_ None — this appendix is a reference analysis. Gaps identified here are
 candidates for future spec revisions, not per-build verification targets.
 
 ### P.1 OWASP Crosswalk
@@ -2845,7 +2845,7 @@ mapping from infrastructure category to help category name SHALL be recorded in
 DECISIONS.md. Help category names are advisory — the GM may override them
 (REQ-067) — but the infrastructure classification is immutable.
 
-_Verify:_ T3, T5, T32, T33.
+_Check:_ T3, T5, T32, T33.
 
 ### T.1 Output Format Catalog
 
@@ -2865,4 +2865,4 @@ surface SHALL support every format marked mandatory for its role.
 
 Presentation formats (`html`, `ascii`, `lonelog`) are not interchange formats
 and are not importable; requesting one on an interchange-only surface returns
-`[INVALID_INPUT]` per REQ-425b. _Verify:_ T505, T506, T507.
+`[INVALID_INPUT]` per REQ-425b. _Check:_ T505, T506, T507.

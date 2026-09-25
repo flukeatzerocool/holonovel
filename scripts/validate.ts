@@ -14,6 +14,7 @@ import {
   extractReqBodiesWithSentences,
   extractTerminology,
   extractNarrativeProse,
+  extractReferenceProse,
   splitSentences,
   type ReqBodyEntry,
 } from "./lib/parse-spec.js";
@@ -456,10 +457,11 @@ interface ProofreadingIssues {
   termDrift: string[];
   readability: string[];
   proseReadability: string[];
+  referenceProse: string[];
 }
 
 function emptyIssues(): ProofreadingIssues {
-  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [], proseReadability: [] };
+  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [], proseReadability: [], referenceProse: [] };
 }
 
 function fleschKincaidGrade(words: string[], sentences: string[]): number {
@@ -625,6 +627,18 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
     if (words.length === 0 || sentences.length === 0) continue;
     const grade = fleschKincaidGrade(words, sentences);
     if (grade > 12) issues.proseReadability.push(`${p.section} (line ${p.line}): Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 12`);
+  }
+
+  // ── Reference prose readability (appendices, §5 preamble, §6–§11) ──
+  // Widens proofreading beyond the §0–§4 narrative range and REQ bodies.
+  // Uses the normative-build ceiling (grade 18), matching REQ bodies; the
+  // stricter grade-12 bar applies only to the §0–§4 reading-guide narrative.
+  for (const p of extractReferenceProse(text)) {
+    const words = p.paragraph.replace(/`[^`]+`/g, " ").split(/\s+/).filter((w) => w.length > 0);
+    const sentences = splitSentences(p.paragraph);
+    if (words.length === 0 || sentences.length === 0) continue;
+    const grade = fleschKincaidGrade(words, sentences);
+    if (grade > 18) issues.referenceProse.push(`${p.section} (line ${p.line}): Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 18`);
   }
 
   return issues;
@@ -1874,6 +1888,7 @@ function main(): void {
     [proof.termDrift, "PASS: Term usage consistent with Terminology table", "WARNING"],
     [proof.readability, "PASS: Readability within grade threshold", "WARNING"],
     [proof.proseReadability, "PASS: Narrative prose within grade-12 threshold", "WARNING"],
+    [proof.referenceProse, "PASS: Reference prose within grade-12 threshold", "WARNING"],
   ];
   for (const [iss, passMsg, level] of proofCats) {
     if (iss.length > 0) {

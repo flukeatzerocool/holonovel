@@ -4,6 +4,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts } from "./lib/req-checks.js";
+import { extractReferenceProse } from "./lib/parse-spec.js";
 
 let passed = 0;
 let failed = 0;
@@ -111,6 +112,47 @@ test("build-phase-map subsection-count match passes", () => {
   const spec = "### 5.1 One\n### 5.2 Two\n### 5.3 Three\n";
   const issues = checkBuildPhaseMapCounts(map, spec);
   if (issues.length !== 0) throw new Error(`unexpected subsection-count issues: ${JSON.stringify(issues)}`);
+});
+
+const REF_PROSE = [
+  "### How to read this specification",
+  "",
+  "Read this specification in layers and never front to back.",
+  "",
+  "## 5. Requirements",
+  "",
+  "**REQ-906a — Sample (Part a).**",
+  "The server SHALL render a watchamacallit widget.",
+  "",
+  "### 6.1 Workflow",
+  "",
+  "The builder runs the workflow before discovery begins.",
+  "",
+  "## Appendix Z: Reference",
+  "",
+  "This appendix summarizes the reference material for operators.",
+].join("\n");
+
+test("reference prose excludes REQ bodies and the §0–§4 narrative range", () => {
+  const paragraphs = extractReferenceProse(REF_PROSE);
+  const joined = paragraphs.map((p) => p.paragraph).join(" ");
+  if (joined.includes("watchamacallit")) {
+    throw new Error("REQ body leaked into reference prose");
+  }
+  if (joined.includes("never front to back")) {
+    throw new Error("§0–§4 narrative range leaked into reference prose");
+  }
+});
+
+test("reference prose includes §6 and appendix paragraphs", () => {
+  const paragraphs = extractReferenceProse(REF_PROSE);
+  const joined = paragraphs.map((p) => p.paragraph).join(" ");
+  if (!joined.includes("runs the workflow before discovery")) {
+    throw new Error(`§6 prose missing from reference prose; got: ${JSON.stringify(paragraphs)}`);
+  }
+  if (!joined.includes("summarizes the reference material")) {
+    throw new Error(`appendix prose missing from reference prose; got: ${JSON.stringify(paragraphs)}`);
+  }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
