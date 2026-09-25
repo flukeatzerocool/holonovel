@@ -1098,10 +1098,14 @@ function antiSlopFor(badge: string): string {
 // REQ-135 — badge briefing size budget: same truncation discipline, never
 // touching badge foundations and the intro pointer; REQ-180 — byte-UTF-8
 // thresholds (characters ≈ bytes for UTF-8 Markdown here).
-const promptBudget = (): number => configInt("TTRPG_PROMPT_BUDGET", 16000);
+// REQ-135 — the briefing budget is the spec-declared
+// `TTRPG_MAX_BRIEFING_TOKENS` (04-runtime.md config table); the historical
+// `TTRPG_PROMPT_BUDGET` remains a fallback so existing callers keep working.
+const briefingBudget = (): number =>
+  configInt("TTRPG_MAX_BRIEFING_TOKENS", configInt("TTRPG_PROMPT_BUDGET", 16000));
 const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "intro"]);
 function applyPromptBudget(text: string): string {
-  const budget = promptBudget();
+  const budget = briefingBudget();
   if (text.length <= budget) return text;
   const sections = text.split(/\n(?=### )/);
   let kept = "";

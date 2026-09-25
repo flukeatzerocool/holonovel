@@ -8,6 +8,15 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **Spec↔code conformance comparison SC-1…SC-6, SC-8** (2026-09-25): full
+  498-REQ comparison (`spec/audit/spec-code-comparison-2026-09-25.md`,
+  `scripts/compare-spec-code.ts`) found five false bucket-C REQs caused by
+  bundled harness test names, and one config-name drift. Fixed in-session:
+  added T116/T148/T149/T380 tests, whitelisted REQ-124 as a ruleset-dependent
+  intended gap, added `checkTestNameInflation`, corrected two mislabeled test
+  names, and made the briefing budget honor `TTRPG_MAX_BRIEFING_TOKENS`.
+  SC-7 (comment-only citations) is `Closed-P3` below. `--impl-audit=strict`
+  passes at A0/B0/C385/E113, 0 errors.
 - **§5 subsection consolidation review** (full-document spec-review SR-9,
   2026-09-10): Appendix M's "§5 subsection exceeding 40 REQs SHALL trigger a
   maintainer review for consolidation" exercised across the nine sections over
