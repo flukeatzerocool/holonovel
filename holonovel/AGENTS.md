@@ -38,7 +38,7 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 33 action-discriminator tools, ~24 resources, 5 prompts.
+src/index.ts            McpServer: 34 action-discriminator tools, ~24 resources, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
                         Narrative-intent verbs (ask/tell/give/show/throw) and
@@ -47,7 +47,7 @@ src/index.ts            McpServer: 33 action-discriminator tools, ~24 resources,
                         [vehicle-entry]/[vehicle-exit] story-journal moments).
 ```
 
-## Tool Surface (33 tools — the REQ-429 recorded budget in DECISIONS.md)
+## Tool Surface (34 tools — the REQ-429 recorded budget in DECISIONS.md)
 
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
 - **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
@@ -77,6 +77,7 @@ src/index.ts            McpServer: 33 action-discriminator tools, ~24 resources,
 - **manage_index** (action: build/status/list/search/relations) — derived offline semantic index; advisory ranking only (REQ-504–REQ-509)
 - **manage_graph** (action: build/status/get/nodes/edges/neighbors) — derived JSON knowledge-graph projection; read-only (REQ-510–REQ-514)
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)
+- **manage_perception** (action: record/list/for_entity/for_event) — per-entity perception ledger, observed not believed (REQ-540–REQ-545)
 - **resolve_fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
 - **resolve_ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
 - **resolve_forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime
@@ -84,7 +85,7 @@ src/index.ts            McpServer: 33 action-discriminator tools, ~24 resources,
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) as explicit booleans, set in the `TOOL_ANNOTATIONS` map in
-`src/index.ts`. All 33 tools are command/hybrid (`destructiveHint: true`);
+`src/index.ts`. All 34 tools are command/hybrid (`destructiveHint: true`);
 `openWorldHint` is `false` everywhere (REQ-051 — no network). Registering a host
 tool without a map entry throws at startup; ruleset-derived tools (REQ-379)
 compute their hints from `schema.kind`. Adding a tool requires a corresponding

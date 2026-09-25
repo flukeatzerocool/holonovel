@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 3d1b471c362e103eca4122b3dbe917c37001eb5da624e179078c82e2d1186e38
+**Spec hash:** bb67f5e4ee79ca5c80af23303b29da2b97eae08019ee06886c46d09fc72e4237
 
-**Recorded tool budget:** 33 (REQ-429)
+**Recorded tool budget:** 34 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (N3: Perception Ledger)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.32 Perception Ledger (REQ-540–545), completing the N1–N3 program. New §7.7 property group `Perception Ledger` (Narrative-memory) with a §7.7.1a row (Perception Ledger → Lore, P16); §7.6 adds `TTRPG_PERCEPTION_MAX_ENTRIES` (storage). REQ-407 names the perception surface. Property-group count statements updated 37 → 38 (§6.5, REQ-374a, T425, T439). New tool `manage_perception` (record/list/for_entity/for_event); REQ-429 recorded budget 33 → 34. Implementation: `src/core/perception.ts` (append-only per-entity records, event provenance, observed-vs-believed separation); Novel `perception_ledger` persisted through every serialize/deserialize path. The import/export gateway and cross-Novel scope named in the original M5c were already covered by REQ-372 and the Codex (REQ-321/332) and were out of scope. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `bb67f5e4…`; bucket A 0, B 0, C 379, E 112); typecheck 0 errors; test:perception 6/6 (T614–T619); test:tool-definitions 6/6 (T511 against the 34-tool recorded budget); version-check OK |
+| Follow-up | The N1–N3 program is complete. Remaining roadmap: M3 (briefing consistency, narrowed/retained). |
 
 ### Holonovel Spec Update — 2026-09-24 (N2: Durable Agent Tasks)
 

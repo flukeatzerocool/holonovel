@@ -37,6 +37,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.29   | Build-time Semantic Index                               | 504–509 |
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
+| 5.32   | Perception Ledger                                       | 540–545 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3496,7 +3497,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 37 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 38 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -3772,7 +3773,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, perception, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3957,5 +3958,19 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-529 — Goal-suggestion origin.** A task MAY cite the goal-pursuit suggestion that produced it, so accepting a suggestion creates a durable task rather than a parallel path. *Acceptance criterion:* a task records its originating goal text. _Check:_ T612.
 
 **REQ-530 — Agent badge gating.** Task mutation SHALL require the Game Master badge, task reads SHALL be available to every non-observer badge, and the Observer SHALL read without mutating. *Acceptance criterion:* a Player task creation is refused and an Observer mutation is refused. _Check:_ T613.
+
+### 5.32 Perception Ledger
+
+**REQ-540 — Perception record.** THE server SHALL record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, and the contributing event-log ordinal. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, and summary. _Check:_ T614.
+
+**REQ-541 — Observed, not believed.** Perception entries SHALL be separate from belief: recording a perception SHALL NOT create or alter a belief stance. *Acceptance criterion:* recording a perception leaves the entity's beliefs unchanged. _Check:_ T615.
+
+**REQ-542 — Per-entity query.** The server SHALL list perceptions filtered by entity. *Acceptance criterion:* an entity query returns only that entity's perceptions. _Check:_ T616.
+
+**REQ-543 — Event provenance.** A perception SHALL cite the event-log ordinal it derives from, defaulting to the latest event, and the server SHALL list perceptions by event. *Acceptance criterion:* a perception recorded after an event carries that event's ordinal, and an event query returns it. _Check:_ T617.
+
+**REQ-544 — Persistence.** Perception entries SHALL persist with the Novel and survive a restart, bounded by a configured cap. *Acceptance criterion:* a perception survives an end-and-resume cycle. _Check:_ T618.
+
+**REQ-545 — Perception badge gating.** A Player SHALL read only the active entity's perceptions, and perception mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player read of another entity's perceptions is refused and an Observer mutation is refused. _Check:_ T619.
 
 #### End of requirements
