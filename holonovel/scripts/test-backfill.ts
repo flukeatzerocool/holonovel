@@ -186,12 +186,12 @@ async function main() {
       if (content.includes("[FORBIDDEN]")) throw new Error("output pointer read blocked");
     });
 
-    await test("T22/T26/T49/T50/T155: prompts/get returns badge_briefing with sections", async () => {
+    await test("T26/T49/T50/T155: prompts/get returns badge_briefing with sections", async () => {
       const brief = await getPrompt(proc, "badge_briefing", {});
       assertContains(brief, "## ");
     });
 
-    await test("T15/T45/T93/T154/T165/T166/T170/T171/T195: spec_health reports counts and health", async () => {
+    await test("T15/T93/T171/T195: spec_health reports counts and health", async () => {
       const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
       assertContains(String(health.spec_version), "2026");
       if (typeof health.tool_count !== "number") throw new Error("spec_health missing tool_count");
@@ -207,7 +207,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T53/T212/T213/T214/T215/T261/T072: session_recap summarizes the session", async () => {
+    await test("T214/T215/T261/T072: session_recap summarizes the session", async () => {
       const recap = await call(proc, "manage_session", { action: "recap" });
       assertContains(recap, "Active Novel");
     });
@@ -294,7 +294,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "bf2" });
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await test("T25/T47/T56/T90/T91/T110/T131/T161/T162/T043: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
+    await test("T91/T131/T162/T043: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "conflict-room", description: "Room." });
       // Open a pending workflow (present_choices); badge + undo are blocked
       // until it resolves (REQ-043 conflict lifecycle).
@@ -377,7 +377,7 @@ async function main() {
       assertContains(scene, "[OK] Scene set");
     });
 
-    await test("T68/T96/T119/T120/T084: suggest_actions groups by domain", async () => {
+    await test("T96/T119/T120/T084: suggest_actions groups by domain", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const actions = await call(proc, "run_command", { action: "suggest",  intent: "explore" });
       assertContains(actions, "Spatial");
@@ -453,7 +453,7 @@ async function main() {
       assertContains(map, "containment-room");
     });
 
-    await test("T77/T88/T125/T156/T261/T092: Novel persistence — state survives restart", async () => {
+    await test("T125/T156/T261/T092: Novel persistence — state survives restart", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "persist-room", description: "Persistent." });
       await kill(proc);
 
@@ -483,7 +483,7 @@ async function main() {
       assertContains(gm, "[OK] Active badge: game_master");
     });
 
-    await test("T55/T73/T216/T218/T220/T074: multi-entity support — several characters exist", async () => {
+    await test("T216/T218/T220/T074: multi-entity support — several characters exist", async () => {
       await call(proc, "manage_character", { action: "create",  name: "MultiOne", description: "1" });
       await call(proc, "manage_character", { action: "create",  name: "MultiTwo", description: "2" });
       const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
@@ -505,7 +505,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T350/T483/T484/T485/T306: adjustable autonomy — set_autonomy changes level", async () => {
+    await test("T483/T484/T485/T306: adjustable autonomy — set_autonomy changes level", async () => {
       const auto = await call(proc, "manage_scene", { action: "autonomy",  level: "full" });
       assertContains(auto, "[OK] Autonomy set");
     });
@@ -667,7 +667,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T57/T112/T132/T133/T137/T331/T076: scene-state ledger — set_scene_state stores location/time/atmosphere", async () => {
+    await test("T133/T137/T331/T076: scene-state ledger — set_scene_state stores location/time/atmosphere", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "The hall echoes.", location: "Throne Room", time_of_day: "dusk", atmosphere: "tense" });
       const sc = JSON.parse(await readResource(proc, "scene://current"));
       assertContains(sc.location ?? "", "Throne Room");

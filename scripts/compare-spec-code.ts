@@ -412,6 +412,27 @@ function renderBundleReport(): string {
     }
   });
 
+  // Exercised test set per base REQ (base + sub-parts), used to decide whether
+  // dropping an ID from a bundle leaves every REQ it maps to still evidenced.
+  const exercisedOf = new Map<string, Set<string>>();
+  for (const [base, subs] of subPartsOf) {
+    const set = new Set<string>();
+    for (const id of [base, ...subs]) {
+      for (const t of appF.get(id) ?? []) if (idToNames.has(t)) set.add(t);
+      for (const t of subMap.get(id) ?? []) if (idToNames.has(t)) set.add(t);
+    }
+    exercisedOf.set(base, set);
+  }
+  const droppable = (id: string): boolean => {
+    for (const [base, exercised] of exercisedOf) {
+      if (!exercised.has(id)) continue;
+      let others = 0;
+      for (const t of exercised) if (t !== id) others++;
+      if (others === 0) return false;
+    }
+    return true;
+  };
+
   const lines: string[] = [];
   const dependentTotal = new Set<string>();
   for (let i = 0; i < testNames.length; i++) {
@@ -438,6 +459,13 @@ function renderBundleReport(): string {
       dependentTotal.add(base);
     }
     lines.push(`BUNDLE ${tn.file} "${tn.name.slice(0, 70)}…" (${tn.prefixIds.length} IDs)`);
+    lines.push(`  ids: ${tn.prefixIds.map((id) => `${id}×${idToNames.get(id)?.size ?? 0}`).join(", ")}`);
+    const canDrop = tn.prefixIds.filter(droppable);
+    const mustKeep = tn.prefixIds.filter((id) => !droppable(id));
+    lines.push(`  safe-to-drop: ${canDrop.join(", ") || "—"}`);
+    const over = tn.prefixIds.length - MAX_IDS_PER_TEST_NAME;
+    const trimmed = over <= canDrop.length ? tn.prefixIds.filter((id) => !canDrop.slice(0, over).includes(id)) : tn.prefixIds;
+    lines.push(`  suggested-trim (${trimmed.length}): ${trimmed.join("/")}${over > canDrop.length ? `  [UNRESOLVABLE — ${mustKeep.length} IDs are sole evidence]` : ""}`);
     if (dependent.length) lines.push(`  bundle-only (fall C→B if prefix IDs trimmed): ${dependent.join(", ")}`);
     if (shared.length) lines.push(`  also-evidenced-elsewhere: ${shared.join(", ")}`);
     if (suffixSet.size > 0) lines.push(`  note: suffix carries ${[...suffixSet].join(",")}`);
