@@ -1829,7 +1829,7 @@ diet.
 | T567 | Automated | Identity write-authority isolation: observations, beliefs, and scene changes leave the identity version unchanged. | REQ-477 |
 | T568 | Automated | Identity revision: re-accepting a facet advances its revision and replaces its value. | REQ-478 |
 | T569 | Automated | Card-bootstrap exclusions: a card's scenario and first message are not staged, while its name and description are. | REQ-479 |
-| T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel with its stability groups. | REQ-480 |
+| T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel grouped by stability class. | REQ-480 |
 | T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
 | T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
 | T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
@@ -2397,6 +2397,9 @@ build artifact — it is a spec-maintainer reference.
       or a recorded justification for unbounded growth
 - [ ] Gate classification: every new tool is recorded in the DECISIONS.md
       gate-classification table (REQ-137a)
+- [ ] Vocabulary registration: new subsystem or state-surface vocabulary is registered
+      in §4 (Terminology) or Appendix S (Builder Glossary), or explicitly declared a
+      section-local term
 - [ ] Holodeck config alignment: every behavioral configuration introduced by this REQ
       is annotated `Behavioral` in §7.6 with a coupling row in §7.7.1a whose source
       archetype is Session (manage_character (action: signal) or manage_scene (action: directive)),

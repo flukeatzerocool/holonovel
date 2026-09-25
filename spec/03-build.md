@@ -1167,22 +1167,22 @@ four items is incomplete and blocks handoff.
     "dry-run", strict=true)` with broken references reports all failures and blocks
     import. Assert `run_command (action: suggest, "attack the goblin")` returns at least one
     combat-category tool with registered name and REQ-015 classification. (Blocking.)
-30. **Supplementary ruleset import** — call `import_supplementary` with the Appendix Z
+30. **Supplementary ruleset import** — call `manage_ruleset (action: import_supplementary)` with the Appendix Z
     fixture. Assert `tools/list` includes `lookup_spell("frostbite")` and
     `lookup_monster("ice_wraith")` annotated with supplementary slug. Invoke
     `lookup_spell("frostbite")` — assert `[OK]` with response prefix, error taxonomy,
     and source quoting per REQ-001, REQ-002, REQ-061. Assert Wisdom items appear in
     `manage_synthesis (action: list)` with source anchor. Assert `badge_briefing`
     `narrative_threads` includes countdown-pacing advisory without manual activation
-    (P7 coupling). Call `remove_supplementary` — assert tools absent from
+    (P7 coupling). Call `manage_ruleset (action: remove_supplementary)` — assert tools absent from
     `tools/list`, Wisdom items removed. End Novel and resume — assert supplementary
     re-resolved. Move the fixture file — assert `[supplementary-gap]` in
     `spec_health`, remaining content with `[partial]` marker. Player badge
-    `import_supplementary` returns `[FORBIDDEN]`. (Blocking.)
-31. **Dynamic tool registration** — call `import_supplementary` with Appendix Z.
+    `manage_ruleset (action: import_supplementary)` returns `[FORBIDDEN]`. (Blocking.)
+31. **Dynamic tool registration** — call `manage_ruleset (action: import_supplementary)` with Appendix Z.
     Assert `tools/list` includes supplementary tools. Invoke a supplementary-derived
     tool — assert conforms to REQ-001, REQ-002, REQ-003, REQ-061. Call
-    `remove_supplementary` — assert tools deregistered, tool invocation returns
+    `manage_ruleset (action: remove_supplementary)` — assert tools deregistered, tool invocation returns
     tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
     waiver — assert only Wisdom imported, no new tools. (Blocking.)
 32. **Coupling chain exercise** — populate world model with 3 connected rooms. Set

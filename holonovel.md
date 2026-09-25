@@ -426,6 +426,18 @@ do not alter meaning are editorial and do not require a version bump.
 | Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `manage_ruleset (action: install)`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |
 | Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable except the single audited migration path (REQ-380c). |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
+| Temporal Event Log | The Novel-scoped append-only record of every observation entering play, each entry carrying a deterministic ordinal and a source classification; a Novel branch shares the log through its branch point (REQ-455–460). |
+| Evidence | A record of an admitted observation entering the belief layer, carrying provenance and an admission state (REQ-461–464). |
+| Belief State | The engine-maintained per-entity stance on a belief question, reconciled from admitted evidence (REQ-465–472). |
+| Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class, and the compiled identity kernel (REQ-473–483). |
+| Causal State | Validated objective world state maintained through transition proposals and admission decisions (REQ-484–495). |
+| Transition Ledger | The append-only record of causal proposals and their admission decisions, retained as auditable evidence (REQ-484, REQ-491). |
+| Knowledge Corpus | Registered cold reference documents and their per-entity acquisition ledgers (REQ-496–503, REQ-546). |
+| Semantic Index | A derived, session-scoped advisory ranking of Novel sources by offline feature extraction; never persisted (REQ-504–509). |
+| Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
+| Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
+| Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
+| Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
 **Technology stack.** TypeScript on Node.js 20+, with stdio transport. It is a single
 process, with no database and no external services. This is the prescribed stack. The
@@ -3970,10 +3982,10 @@ The server SHALL support runtime import of supplementary TTRPG rulesets via `man
 WHEN the server imports a supplementary ruleset, THE server SHALL run extraction against the supplementary source per REQ-011 and REQ-225, recording confidence and content hash in Novel metadata. The server SHALL register extracted mechanics as MCP tools per REQ-020 and REQ-373. The server SHALL render extracted Ruleset Wisdom per REQ-371 (P5–P11). The server SHALL record the supplementary ruleset's slug and content hash in the Novel's metadata. On Novel resume, the server SHALL re-resolve supplementary rulesets, surfacing `[supplementary-gap]` in `spec_health` if a source file is missing or hash-mismatched. Import is Game Master only, under the Editor badge.
 
 **REQ-372c — Supplementary ruleset import (Part c).**
-Supplementary rulesets do not affect other Novels — tools and Wisdom are Novel-scoped. The server MAY cache extraction results across Novels that import the same supplementary source. The `remove_supplementary` tool deactivates all tools and Wisdom from the supplementary ruleset in the current Novel. State derived from supplementary content (NPCs created from supplementary stat blocks, lore from supplementary Wisdom) persists — the tools that created them are no longer available.
+Supplementary rulesets do not affect other Novels — tools and Wisdom are Novel-scoped. The server MAY cache extraction results across Novels that import the same supplementary source. The `manage_ruleset (action: remove_supplementary)` action deactivates all tools and Wisdom from the supplementary ruleset in the current Novel. State derived from supplementary content (NPCs created from supplementary stat blocks, lore from supplementary Wisdom) persists — the tools that created them are no longer available.
 
 **REQ-372d — Supplementary ruleset import (Part d).**
-WHEN the builder's build does not register supplementary mechanics as tools at runtime, THE builder SHALL record a waiver in DECISIONS.md (5) citing the constraint, whether a stack limitation or a build-scope decision. Supplementary ruleset import SHALL then be limited to Ruleset Wisdom only; mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
+WHEN the builder's build does not register supplementary mechanics as tools at runtime, THE builder SHALL record a waiver in DECISIONS.md (5) citing the constraint, whether a stack limitation or a build-scope decision. Supplementary ruleset import SHALL then be limited to Ruleset Wisdom only; mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `manage_ruleset (action: import_supplementary, source: "xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
 
 **REQ-372e — Supplementary ruleset import (Part e).**
 Call `manage_ruleset (action: import_supplementary, source)`, then `manage_ruleset (action: remove_supplementary, slug)` — assert imported Wisdom is removed. End Novel and resume — assert the supplementary ruleset re-resolves. Move the source file — assert `[supplementary-gap]` in `spec_health`. _Check:_ T423.
@@ -3981,7 +3993,7 @@ Call `manage_ruleset (action: import_supplementary, source)`, then `manage_rules
 The server SHALL support registration of additional MCP tools at runtime when supplementary rulesets import (REQ-372). Dynamically registered tools SHALL conform to the same contracts as build-time tools. The contracts include the response prefix (REQ-001), error taxonomy (REQ-002), roll transparency (REQ-003), source quoting (REQ-061), and badge gating (REQ-032). The `tools/list` output SHALL include dynamically registered tools alongside build-time tools. The `tools/list` output SHALL annotate dynamically registered tools with their source supplementary ruleset slug.
 
 **REQ-373a2 — Dynamic tool registration (Part a2).**
-When the server removes a supplementary ruleset (REQ-372), its tools SHALL deregister — `tools/list` and tool invocation SHALL behave as if the tools never existed. *Acceptance criterion:* After `import_supplementary`, `tools/list` includes new tools annotated with source slug. Tool invocation produces `[OK]` with response prefix, error taxonomy, and source quoting. After `remove_supplementary`, tools are absent from `tools/list` and invocation returns `[NOT_FOUND]` (tool not recognized by the MCP layer). _Check:_ T424.
+When the server removes a supplementary ruleset (REQ-372), its tools SHALL deregister — `tools/list` and tool invocation SHALL behave as if the tools never existed. *Acceptance criterion:* After `manage_ruleset (action: import_supplementary)`, `tools/list` includes new tools annotated with source slug. Tool invocation produces `[OK]` with response prefix, error taxonomy, and source quoting. After `manage_ruleset (action: remove_supplementary)`, tools are absent from `tools/list` and invocation returns `[NOT_FOUND]` (tool not recognized by the MCP layer). _Check:_ T424.
 
 ---
 
@@ -4305,7 +4317,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-479 — Character-card bootstrap exclusions.** Bootstrapping identity from a character card SHALL stage the card's identity fields as candidates and SHALL exclude scenario, first-message, and example-dialogue fields. *Acceptance criterion:* a card's scenario and first message are not staged, while its name and description are. _Check:_ T569.
 
-**REQ-480 — Identity kernel exposure.** The compiled identity kernel SHALL be served through `manage_identity (action: snapshot)` and an `identity://<character>` resource for consumption by the character sheet and briefing surfaces. *Acceptance criterion:* snapshot and the identity resource return the same kernel with its stability groups. _Check:_ T570.
+**REQ-480 — Identity kernel exposure.** The compiled identity kernel SHALL be served through `manage_identity (action: snapshot)` and an `identity://<character>` resource for consumption by the character sheet and briefing surfaces. *Acceptance criterion:* snapshot and the identity resource return the same kernel grouped by stability class. _Check:_ T570.
 
 **REQ-481 — Identity visibility and badge gating.** Identity reads SHALL be badge-filtered: the Game Master reads every character, a Player reads only the active character, and the Observer reads without mutating; identity mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another character's identity returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T571.
 
@@ -4335,7 +4347,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-493 — Deterministic machine ingress.** Machine-originated state SHALL be submitted through a deterministic ingress action whose proposals carry a machine origin and are recorded in the transition ledger like any other proposal. *Acceptance criterion:* an ingress submission is recorded with a machine origin and applied when admitted. _Check:_ T583.
 
-**REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through a causal-state resource and a state read action for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
+**REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through `manage_causal` and a causal-state resource for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
 
 **REQ-495 — Causal visibility and badge gating.** Causal-state and ledger reads SHALL be available to every non-observer badge, and proposal and admission SHALL require the Game Master badge. *Acceptance criterion:* a Player reads objective state, and a Player proposal is refused. _Check:_ T585.
 
@@ -4351,7 +4363,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-500 — Acquisition ledger.** The server SHALL record for each consumption the entity, document, knowledge domain, mode, and time, and SHALL list an entity's acquisitions. *Acceptance criterion:* a consumption produces a ledger entry naming its entity, document, and domain. _Check:_ T590.
 
-**REQ-501 — Cold until consumed.** A corpus document SHALL remain quarantined, contributing no knowledge, until a successful consumption records an acquisition for an entity. *Acceptance criterion:* an entity's acquisition ledger is empty before consumption and holds one entry after. _Check:_ T591.
+**REQ-501 — Cold until consumed.** A corpus document SHALL remain cold, contributing no knowledge, until a successful consumption records an acquisition for an entity. *Acceptance criterion:* an entity's acquisition ledger is empty before consumption and holds one entry after. _Check:_ T591.
 
 **REQ-502 — Reference deixis.** WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the material is not attributed to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
 
@@ -4407,7 +4419,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 ### 5.32 Perception Ledger
 
-**REQ-540 — Perception record.** THE server SHALL record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, and the contributing event-log ordinal. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, and summary. _Check:_ T614.
+**REQ-540 — Perception record.** THE server SHALL provide `manage_perception` to record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, and the contributing event-log ordinal. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, and summary. _Check:_ T614.
 
 **REQ-541 — Observed, not believed.** Perception entries SHALL be separate from belief: recording a perception SHALL NOT create or alter a belief stance. *Acceptance criterion:* recording a perception leaves the entity's beliefs unchanged. _Check:_ T615.
 
@@ -4423,7 +4435,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-515 — Readiness cursor.** THE server SHALL report, in `badge_briefing` and `manage_session (action: health)`, the event-log ordinal the briefing reflects as its readiness cursor. *Acceptance criterion:* after N events the reported cursor equals N. _Check:_ T620.
 
-**REQ-516 — Consistency declaration.** The consistency report SHALL declare its availability and the event-log cursor it reflects, so a caller can tell which committed state a briefing describes. *Acceptance criterion:* the report is available and carries a numeric cursor. _Check:_ T621.
+**REQ-516 — Consistency declaration.** The consistency report SHALL declare its availability and the readiness cursor it reflects, so a caller can tell which committed state a briefing describes. *Acceptance criterion:* the report is available and carries a numeric cursor. _Check:_ T621.
 
 **REQ-517 — Derived-surface freshness.** The report SHALL state, for each derived advisory surface, whether it is unbuilt, current, or stale relative to its sources. *Acceptance criterion:* a surface is unbuilt before its build, current after, and stale once sources change. _Check:_ T622.
 
@@ -5608,22 +5620,22 @@ four items is incomplete and blocks handoff.
     "dry-run", strict=true)` with broken references reports all failures and blocks
     import. Assert `run_command (action: suggest, "attack the goblin")` returns at least one
     combat-category tool with registered name and REQ-015 classification. (Blocking.)
-30. **Supplementary ruleset import** — call `import_supplementary` with the Appendix Z
+30. **Supplementary ruleset import** — call `manage_ruleset (action: import_supplementary)` with the Appendix Z
     fixture. Assert `tools/list` includes `lookup_spell("frostbite")` and
     `lookup_monster("ice_wraith")` annotated with supplementary slug. Invoke
     `lookup_spell("frostbite")` — assert `[OK]` with response prefix, error taxonomy,
     and source quoting per REQ-001, REQ-002, REQ-061. Assert Wisdom items appear in
     `manage_synthesis (action: list)` with source anchor. Assert `badge_briefing`
     `narrative_threads` includes countdown-pacing advisory without manual activation
-    (P7 coupling). Call `remove_supplementary` — assert tools absent from
+    (P7 coupling). Call `manage_ruleset (action: remove_supplementary)` — assert tools absent from
     `tools/list`, Wisdom items removed. End Novel and resume — assert supplementary
     re-resolved. Move the fixture file — assert `[supplementary-gap]` in
     `spec_health`, remaining content with `[partial]` marker. Player badge
-    `import_supplementary` returns `[FORBIDDEN]`. (Blocking.)
-31. **Dynamic tool registration** — call `import_supplementary` with Appendix Z.
+    `manage_ruleset (action: import_supplementary)` returns `[FORBIDDEN]`. (Blocking.)
+31. **Dynamic tool registration** — call `manage_ruleset (action: import_supplementary)` with Appendix Z.
     Assert `tools/list` includes supplementary tools. Invoke a supplementary-derived
     tool — assert conforms to REQ-001, REQ-002, REQ-003, REQ-061. Call
-    `remove_supplementary` — assert tools deregistered, tool invocation returns
+    `manage_ruleset (action: remove_supplementary)` — assert tools deregistered, tool invocation returns
     tool-not-found at MCP layer. Build with a stack that recorded a dynamic-tool
     waiver — assert only Wisdom imported, no new tools. (Blocking.)
 32. **Coupling chain exercise** — populate world model with 3 connected rooms. Set
@@ -10130,7 +10142,7 @@ diet.
 | T567 | Automated | Identity write-authority isolation: observations, beliefs, and scene changes leave the identity version unchanged. | REQ-477 |
 | T568 | Automated | Identity revision: re-accepting a facet advances its revision and replaces its value. | REQ-478 |
 | T569 | Automated | Card-bootstrap exclusions: a card's scenario and first message are not staged, while its name and description are. | REQ-479 |
-| T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel with its stability groups. | REQ-480 |
+| T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel grouped by stability class. | REQ-480 |
 | T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
 | T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
 | T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
@@ -10698,6 +10710,9 @@ build artifact — it is a spec-maintainer reference.
       or a recorded justification for unbounded growth
 - [ ] Gate classification: every new tool is recorded in the DECISIONS.md
       gate-classification table (REQ-137a)
+- [ ] Vocabulary registration: new subsystem or state-surface vocabulary is registered
+      in §4 (Terminology) or Appendix S (Builder Glossary), or explicitly declared a
+      section-local term
 - [ ] Holodeck config alignment: every behavioral configuration introduced by this REQ
       is annotated `Behavioral` in §7.6 with a coupling row in §7.7.1a whose source
       archetype is Session (manage_character (action: signal) or manage_scene (action: directive)),
@@ -12146,7 +12161,7 @@ findings entry, not a parse failure.
 
 <!-- fixture version 1 -->
 
-A minimal supplementary ruleset for testing `import_supplementary` (REQ-372)
+A minimal supplementary ruleset for testing `manage_ruleset (action: import_supplementary)` (REQ-372)
 and dynamic tool registration (REQ-373). Small enough to not stress extraction
 but complete enough to exercise all three contract dimensions: tools, Wisdom, removal.
 
@@ -12223,6 +12238,6 @@ the same hazardous terrain — the environment drives the clock, not the monster
    suggestion for the three-stage cold exposure progression appears in
    `badge_briefing` `narrative_threads` without manual activation.
 
-3. **Removal.** `remove_supplementary` SHALL deregister both tools and remove
+3. **Removal.** `manage_ruleset (action: remove_supplementary)` SHALL deregister both tools and remove
    associated Wisdom items. Previously-created state (an ice wraith NPC, a
    frostbite-struck entity) SHALL persist.
