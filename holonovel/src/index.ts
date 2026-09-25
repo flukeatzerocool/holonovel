@@ -86,7 +86,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.09.24",
+  version: "2026.09.25",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -1176,12 +1176,21 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Session": ["manage_session"],
   "Novel Lifecycle": ["manage_novel"],
   "Synthesis": ["manage_synthesis"],
+  "Belief & Evidence": ["manage_belief"],
+  "Identity": ["manage_identity"],
+  "Causal State": ["manage_causal"],
+  "Knowledge Corpus": ["manage_corpus"],
+  "Semantic Index": ["manage_index"],
+  "Knowledge Graph": ["manage_graph"],
+  "Agent Tasks": ["manage_agent"],
+  "Perception": ["manage_perception"],
 };
 
 const GMToolsSet = new Set([
   "manage_scene", "manage_combat", "manage_condition", "manage_npc", "manage_faction", "manage_relationship", "manage_vow",
   "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_world", "manage_adventure", "manage_novel",
   "manage_synthesis", "manage_codex", "manage_ruleset", "manage_session", "resolve_fate", "resolve_ironsworn", "resolve_forged",
+  "manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_agent", "manage_perception",
 ]);
 
 function isGMTool(name: string): boolean {
@@ -8251,8 +8260,10 @@ Commit every narratable change to state in the same turn you narrate it — scen
 
     // REQ-407 — persist-tools never truncated: the GM scene-typed tool
       // section always lists the core state-persistence tools regardless of
-      // scene type (scene, journal, countdown, note, personality, NPC, vow).
-      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · resolve_fate (aspect) · resolve_ironsworn (momentum) · resolve_forged (stress)`;
+      // scene type (scene, journal, countdown, note, personality, NPC, vow,
+      // event log, belief/evidence, identity, causal state, corpus, semantic
+      // index, knowledge graph, agent tasks, perception, base capabilities).
+      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · manage_session (event) · manage_belief (admit) · manage_identity (accept) · manage_causal (propose) · manage_corpus (register) · manage_index (build) · manage_graph (build) · manage_agent (create) · manage_perception (record) · resolve_fate (aspect) · resolve_ironsworn (momentum) · resolve_forged (stress)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.

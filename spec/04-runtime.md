@@ -327,12 +327,12 @@ of derived advisory surfaces; it is not a property group and never writes state.
 
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
-| Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |
+| Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal, Agent Tasks |
 | Entity-bearing | Carries persistent identity with fields | NPC, Faction, Player character |
 | Scene-anchored | Changes trigger scene-transition hooks | Scene state, Adventure waypoint, Story beats |
-| Knowledge-carrying | Content surfaced by trigger matching | Lore, Secret, Knowledge state, Campaign memory, Background |
-| Narrative-memory | Records story events for later recall | Story journal, Session recap |
-| Spatial | Defines physical constraints and locations | World model (rooms, things, exits, vehicles) |
+| Knowledge-carrying | Content surfaced by trigger matching | Lore, Secret, Knowledge state, Campaign memory, Background, Evidence, Belief State, Knowledge Corpus |
+| Narrative-memory | Records story events for later recall | Story journal, Session recap, Event Log, Transition Ledger, Perception Ledger |
+| Spatial | Defines physical constraints and locations | World model (rooms, things, exits, vehicles), Causal State |
 | Relational | Links entities through typed connections | Relationships |
 | Decision | Presents structured player choices | Choices, Vows, Pending Workflow |
 | Guidance | Advisory content, never mechanical | Server notes, Anti-slop, Narrative tone |

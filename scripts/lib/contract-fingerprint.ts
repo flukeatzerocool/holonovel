@@ -26,8 +26,21 @@ export interface ContractFingerprints {
 // it names the rebuild/migrate tooling, not the package artifact shape.
 const PACKAGE_SECTIONS = ["### 5.16 ", "### 5.17 ", "### 6.3 ", "### 6.4.2 "];
 
-// REQ-423 — the sections that determine the shape of persisted user data.
-const DATA_SECTIONS = ["### 7.7 ", "### 5.9 ", "### 5.19 ", "## Appendix Q:"];
+// REQ-423 — the sections that determine the shape of persisted user data:
+// the state model (§7.7), core state and lifecycle (§5.6), the spatial world
+// model (§5.9), the persistence guardrails (§5.19), the base capabilities
+// (§5.21–§5.23), the feature-parity state surfaces whose records persist with
+// the Novel (§5.24–§5.28, §5.31, §5.32), and the interchange contract
+// (Appendix Q). The derived session-scoped surfaces — semantic index (§5.29),
+// knowledge graph (§5.30) — and the brief-consistency report (§5.33) are
+// excluded: they are never persisted.
+const DATA_SECTIONS = [
+  "### 5.6 ", "### 5.9 ", "### 5.19 ",
+  "### 5.21 ", "### 5.22 ", "### 5.23 ",
+  "### 5.24 ", "### 5.25 ", "### 5.26 ", "### 5.27 ", "### 5.28 ",
+  "### 5.31 ", "### 5.32 ",
+  "### 7.7 ", "## Appendix Q:",
+];
 
 function extractSection(text: string, heading: string): string {
   const lines = text.split("\n");
