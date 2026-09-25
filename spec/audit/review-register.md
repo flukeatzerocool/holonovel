@@ -128,6 +128,17 @@ the tracking surfaces for the coverage backlog.
 
 ## Closed-P3 (recorded, no action)
 
+- **SC-7 comment-only source citations** (spec↔code comparison SC-7, 2026-09-25):
+  sampled 2026-09-25 — 12 of the 105 REQs flagged `weak-cite-only-comments`
+  (REQ-001, 020, 041, 052, 074, 085, 165, 198, 219, 235, 255, 286) were read at
+  their comment-only cite sites; every one has real implementing code adjacent
+  to the comment (response contract at `index.ts:930`, path containment at
+  `index.ts:61`, entities/party resources at `index.ts:7463`, macro expansion at
+  `macros.ts:20`, choice advance at `index.ts:1604`, boundary advisory at
+  `index.ts:872`, world model at `model.ts:5`, and so on). No false bucket-C
+  found. The class is recorded Closed-P3: a comment-only citation is a citation-
+  *location* weakness, not missing behavior, and a full 105-REQ code read is not
+  warranted.
 - **DECISIONS.md gate-classification table absent** (content-integration scan,
   2026-09-04): PARTIALLY RESOLVED 2026-09-25 — DECISIONS.md now carries the
   REQ-137a table enumerating all 34 tools, and T151 has a harness asserting the
