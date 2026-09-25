@@ -475,6 +475,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.28   | Knowledge Corpus                                        | 496–503 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
+| 5.31   | Durable Agent Tasks                                     | 522–530 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3934,7 +3935,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 36 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 37 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -4210,7 +4211,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4375,6 +4376,26 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-513 — Rebuild idempotency and staleness.** The projection SHALL record a source fingerprint and build time and SHALL report itself stale when the current source fingerprint differs; recomputing with unchanged sources SHALL be idempotent. *Acceptance criterion:* changing a source marks the graph stale, a rebuild clears it, and repeated builds are identical. _Check:_ T603.
 
 **REQ-514 — Read-only scope-filtered exposure.** Knowledge-graph reads SHALL be read-only, SHALL NOT mutate Novel state, and SHALL be filtered by the active badge so a node the caller cannot read is not exposed. *Acceptance criterion:* a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. _Check:_ T604.
+
+### 5.31 Durable Agent Tasks
+
+**REQ-522 — Task creation.** THE server SHALL provide `manage_agent` for durable agent tasks carrying a subject, a goal, an autonomy level, and a lifecycle status, created in a queued state. *Acceptance criterion:* creating a task records it as queued with no actions. _Check:_ T605.
+
+**REQ-523 — Task lifecycle.** A task's status SHALL be one of queued, active, done, failed, or cancelled, and the server SHALL move a queued task to active on start and an active task to done, failed, or cancelled on settlement. *Acceptance criterion:* a task moves queued, then active, then done in that order. _Check:_ T606.
+
+**REQ-524 — Admitted transitions.** A lifecycle transition not admitted by the task's current status SHALL be refused as a conflict rather than applied. *Acceptance criterion:* completing a queued task is refused and leaves it queued. _Check:_ T607.
+
+**REQ-525 — Action log.** An active task SHALL accumulate an append-only action log recording each action's sequence, description, and time. *Acceptance criterion:* advancing a task appends an action with the next sequence. _Check:_ T608.
+
+**REQ-526 — Autonomy policy.** Every task SHALL carry an autonomy level of advisory, prompt, or auto, defaulted from the configuration surface and overridable per task. *Acceptance criterion:* a task created with auto records auto. _Check:_ T609.
+
+**REQ-527 — Task subject.** Every task SHALL name the subject that owns it, and the server SHALL list tasks filtered by subject. *Acceptance criterion:* a subject filter returns only that subject's tasks. _Check:_ T610.
+
+**REQ-528 — Terminal immutability.** A terminal task SHALL be immutable: it SHALL NOT advance and its status SHALL NOT change. *Acceptance criterion:* advancing a done task is refused. _Check:_ T611.
+
+**REQ-529 — Goal-suggestion origin.** A task MAY cite the goal-pursuit suggestion that produced it, so accepting a suggestion creates a durable task rather than a parallel path. *Acceptance criterion:* a task records its originating goal text. _Check:_ T612.
+
+**REQ-530 — Agent badge gating.** Task mutation SHALL require the Game Master badge, task reads SHALL be available to every non-observer badge, and the Observer SHALL read without mutating. *Acceptance criterion:* a Player task creation is refused and an Observer mutation is refused. _Check:_ T613.
 
 #### End of requirements
 
@@ -4986,7 +5007,7 @@ before any server code is written.
 | Synthesis population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Synthesis term anchoring | Synthesis items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 36 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 37 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 Synthesis population, Synthesis term anchoring, and the Wisdom mechanical
 coupling rate (REQ-375) are artifact-scope metrics — they verify the extracted
@@ -6543,6 +6564,8 @@ DECISIONS.md.
 | Prompt naming | Prompt names are immutable contracts; style (bare-noun vs verb) is not enforced. Narrative prompts (`intro`, `session_zero`, `novel_setup`) are plain-English per Standing Rule 10; operational prompts (`badge_briefing`, `run_workflow`) follow their own REQ contracts. | REQ-020, Standing Rule 10 |
 | Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 
+**Inference boundary.** Agent and NPC cognition is resolved in-process; the server performs no outbound model inference at runtime (Standing Rule 3). Donated or external inference is out of scope: where a task or suggestion needs model reasoning, the connected client LLM supplies it and the server records only the durable outcome. (REQ-522)
+
 ### 7.5 Decisions and workflows
 
 Character creation and advancement use sequential decision queues (REQ-042, REQ-056,
@@ -6616,6 +6639,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CAUSAL_VALIDATION` | No | `true` (default) validates objective-state transitions before admission (REQ-485). Behavioral — couples per P13. |
 | `TTRPG_CAUSAL_LATENT_TRANSITIONS` | No | `false` (default) refuses incompatible transitions; `true` admits them flagged as latent (REQ-490). Behavioral — couples per P13. |
 | `TTRPG_CAUSAL_MAX_LEDGER_ENTRIES` | No | Maximum transition-ledger entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral — couples per P29. |
+| `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -6680,6 +6705,7 @@ discarded by `manage_novel (action: end)`):
 | Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_causal`) | read-only (objective state per REQ-495) |
 | Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
+| Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -6966,6 +6992,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Causal State → Scene | P13 | An admitted causal transition triggers the scene-transition hook; governed by TTRPG_CAUSAL_VALIDATION and TTRPG_CAUSAL_LATENT_TRANSITIONS | Entering a new location is a scene change | GM-only | Mechanical | REQ-486, REQ-488 |
 | Transition Ledger → Lore | P16 | Recorded transition outcomes promote to knowledge-carrying records with their causal provenance | What happened becomes a known consequence | GM-only | Navigational | REQ-491, REQ-492 |
 | Knowledge Corpus → Lore | P54 | A consumed corpus document promotes to knowledge-carrying records carrying its acquisition-ledger provenance | Reference material becomes known facts | GM-only | Navigational | REQ-500, REQ-501 |
+| Agent Tasks → NPC | P29 | An active agent task triggers immediate goal pursuit and disposition updates on its owning NPC; governed by TTRPG_AGENT_AUTONOMY | Ticking tasks drive character action | GM-only | Mechanical | REQ-529 |
 
 **Admission decisions.** A causal proposal carries one admission decision (REQ-485):
 `admitted`, `admitted-with-latent-transition`, `rejected-impossible`, `conflict`,
@@ -9431,6 +9458,15 @@ date-stamps matching CHANGELOG entries.
 | REQ-512 | Edge derivation | 2026-09-24 |
 | REQ-513 | Rebuild idempotency and staleness | 2026-09-24 |
 | REQ-514 | Read-only scope-filtered exposure | 2026-09-24 |
+| REQ-522 | Task creation | 2026-09-24 |
+| REQ-523 | Task lifecycle | 2026-09-24 |
+| REQ-524 | Admitted transitions | 2026-09-24 |
+| REQ-525 | Action log | 2026-09-24 |
+| REQ-526 | Autonomy policy | 2026-09-24 |
+| REQ-527 | Task subject | 2026-09-24 |
+| REQ-528 | Terminal immutability | 2026-09-24 |
+| REQ-529 | Goal-suggestion origin | 2026-09-24 |
+| REQ-530 | Agent badge gating | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9915,7 +9951,7 @@ diet.
 | T422 | Automated | Ruleset Wisdom as rendered reality: build a host carrying vendor Ruleset Wisdom (§11.4). Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `manage_synthesis (action: activate)` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `manage_synthesis (action: deactivate)` on a Wisdom item — assert the coupled behavior ceases. Call `manage_synthesis (action: revert)` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T423 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `manage_ruleset (action: import_supplementary)` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `manage_synthesis (action: list)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `manage_ruleset (action: import_supplementary)` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `manage_ruleset (action: import_supplementary)` under Player badge — assert `[FORBIDDEN]`. Call `manage_ruleset (action: remove_supplementary)` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary-gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T424 | Automated | Dynamic tool registration: call `manage_ruleset (action: import_supplementary)` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `manage_ruleset (action: remove_supplementary)` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `manage_ruleset (action: import_supplementary)` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. | REQ-373 |
-| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 36 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
+| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 37 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
 | T426 | Automated | Wisdom mechanical coupling rate: build with a ruleset producing Wisdom items. Assert ≥30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational fails this Phase 1 metric. Assert re-classification from Navigational to Mechanical where ruleset text supports behavioral language. | REQ-375 |
 | T427 | Automated | Coupling chain Pattern Buffer: populate world model, create countdown with world_effect, create faction. Advance scene — assert countdown ticks and faction clock ticks (P1). Move player via go — assert scene transition hook and lore triggers (P13, P2). Advance countdown to fire — assert world_effect mutates room (P14). Record consequence story journal — assert faction advisory in narrative_threads (P33). Undo — assert pre-chain state restored. | §6.6 S32 |
 | T428 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with host-carried Wisdom active — assert manage_character (action: sheet) shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on manage_scene (action: set) (P7). run_command (action: suggest) returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
@@ -9929,7 +9965,7 @@ diet.
 | T436 | Automated | Scene ↔ NPC couplings: create NPC with disposition=friendly. Call `manage_scene (action: set, "...", scene_type="combat")` — assert `narrative_threads` includes NPC disposition advisory (P41). Call `manage_scene (action: set, "...", scene_type="social")` — assert advisory updated. Create NPC with `location` matching active room — call `manage_scene (action: set, "...", characters_present=["<entity>"])` — assert NPC auto-registers in scene per P42. | REQ-369, REQ-075 |
 | T437 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T438 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], badge_scope="shared". Call `manage_scene (action: set, "You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with badge_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
-| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 36 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
+| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 37 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
 | T440 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T441 | Automated | Novel ruleset binding: call `manage_novel (action: create, "test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `manage_novel (action: info)`. Call `manage_novel (action: create, "test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T442 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
@@ -10058,6 +10094,15 @@ diet.
 | T602 | Automated | Edge derivation: a set relationship yields a relates-to edge and a placed character or NPC yields a located-in edge. | REQ-512 |
 | T603 | Automated | Rebuild idempotency and staleness: changing a source marks the graph stale, a rebuild clears it, and repeated builds are identical. | REQ-513 |
 | T604 | Automated | Read-only scope-filtered exposure: a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. | REQ-514 |
+| T605 | Automated | Task creation: creating a task records it as queued with no actions. | REQ-522 |
+| T606 | Automated | Task lifecycle: a task moves queued, then active, then done in that order. | REQ-523 |
+| T607 | Automated | Admitted transitions: completing a queued task is refused and leaves it queued. | REQ-524 |
+| T608 | Automated | Action log: advancing a task appends an action with the next sequence. | REQ-525 |
+| T609 | Automated | Autonomy policy: a task created with auto records auto. | REQ-526 |
+| T610 | Automated | Task subject: a subject filter returns only that subject's tasks. | REQ-527 |
+| T611 | Automated | Terminal immutability: advancing a done task is refused. | REQ-528 |
+| T612 | Automated | Goal-suggestion origin: a task records its originating goal text. | REQ-529 |
+| T613 | Automated | Agent badge gating: a Player task creation is refused and an Observer mutation is refused. | REQ-530 |
 
 ---
 

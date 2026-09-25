@@ -36,6 +36,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.28   | Knowledge Corpus                                        | 496–503 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
+| 5.31   | Durable Agent Tasks                                     | 522–530 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3495,7 +3496,7 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 36 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 37 property groups classified.
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
@@ -3771,7 +3772,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3936,5 +3937,25 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-513 — Rebuild idempotency and staleness.** The projection SHALL record a source fingerprint and build time and SHALL report itself stale when the current source fingerprint differs; recomputing with unchanged sources SHALL be idempotent. *Acceptance criterion:* changing a source marks the graph stale, a rebuild clears it, and repeated builds are identical. _Check:_ T603.
 
 **REQ-514 — Read-only scope-filtered exposure.** Knowledge-graph reads SHALL be read-only, SHALL NOT mutate Novel state, and SHALL be filtered by the active badge so a node the caller cannot read is not exposed. *Acceptance criterion:* a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. _Check:_ T604.
+
+### 5.31 Durable Agent Tasks
+
+**REQ-522 — Task creation.** THE server SHALL provide `manage_agent` for durable agent tasks carrying a subject, a goal, an autonomy level, and a lifecycle status, created in a queued state. *Acceptance criterion:* creating a task records it as queued with no actions. _Check:_ T605.
+
+**REQ-523 — Task lifecycle.** A task's status SHALL be one of queued, active, done, failed, or cancelled, and the server SHALL move a queued task to active on start and an active task to done, failed, or cancelled on settlement. *Acceptance criterion:* a task moves queued, then active, then done in that order. _Check:_ T606.
+
+**REQ-524 — Admitted transitions.** A lifecycle transition not admitted by the task's current status SHALL be refused as a conflict rather than applied. *Acceptance criterion:* completing a queued task is refused and leaves it queued. _Check:_ T607.
+
+**REQ-525 — Action log.** An active task SHALL accumulate an append-only action log recording each action's sequence, description, and time. *Acceptance criterion:* advancing a task appends an action with the next sequence. _Check:_ T608.
+
+**REQ-526 — Autonomy policy.** Every task SHALL carry an autonomy level of advisory, prompt, or auto, defaulted from the configuration surface and overridable per task. *Acceptance criterion:* a task created with auto records auto. _Check:_ T609.
+
+**REQ-527 — Task subject.** Every task SHALL name the subject that owns it, and the server SHALL list tasks filtered by subject. *Acceptance criterion:* a subject filter returns only that subject's tasks. _Check:_ T610.
+
+**REQ-528 — Terminal immutability.** A terminal task SHALL be immutable: it SHALL NOT advance and its status SHALL NOT change. *Acceptance criterion:* advancing a done task is refused. _Check:_ T611.
+
+**REQ-529 — Goal-suggestion origin.** A task MAY cite the goal-pursuit suggestion that produced it, so accepting a suggestion creates a durable task rather than a parallel path. *Acceptance criterion:* a task records its originating goal text. _Check:_ T612.
+
+**REQ-530 — Agent badge gating.** Task mutation SHALL require the Game Master badge, task reads SHALL be available to every non-observer badge, and the Observer SHALL read without mutating. *Acceptance criterion:* a Player task creation is refused and an Observer mutation is refused. _Check:_ T613.
 
 #### End of requirements

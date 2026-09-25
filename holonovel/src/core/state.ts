@@ -538,6 +538,8 @@ export interface NovelState {
     wisdom: Array<{ module: string; key: string; content: string }>;
     imported_at: string;
   }>;
+  // REQ-522 — durable NPC/agent task and action lifecycle.
+  agent_tasks: import("./agent.js").AgentTask[];
   // REQ-496/REQ-498/REQ-500 — cold knowledge corpus, access profiles, and the
   // per-entity acquisition ledger.
   corpus_documents: import("./corpus.js").CorpusDocument[];
@@ -835,6 +837,7 @@ export class StateManager {
       causal_slots: [],
       transition_ledger: [],
       supplementary_rulesets: [],
+      agent_tasks: [],
       corpus_documents: [],
       corpus_access: [],
       corpus_consumption: [],
@@ -1126,6 +1129,7 @@ export class StateManager {
       causal_slots: data.causal_slots ?? [],
       transition_ledger: data.transition_ledger ?? [],
       supplementary_rulesets: data.supplementary_rulesets ?? [],
+      agent_tasks: data.agent_tasks ?? [],
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2116,6 +2120,7 @@ function novelToJSON(novel: NovelState): any {
     causal_slots: novel.causal_slots,
     transition_ledger: novel.transition_ledger,
     supplementary_rulesets: novel.supplementary_rulesets,
+    agent_tasks: novel.agent_tasks,
     // REQ-496/REQ-498/REQ-500 — corpus documents, access, and acquisitions persist.
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
@@ -2238,6 +2243,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     causal_slots: data.causal_slots ?? [],
     transition_ledger: data.transition_ledger ?? [],
     supplementary_rulesets: data.supplementary_rulesets ?? [],
+    agent_tasks: data.agent_tasks ?? [],
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],

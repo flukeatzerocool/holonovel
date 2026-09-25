@@ -23,6 +23,7 @@ import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type Tra
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
+import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -144,6 +145,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_corpus: MUTATING,
   manage_index: MUTATING,
   manage_graph: MUTATING,
+  manage_agent: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -4744,6 +4746,7 @@ function novelToJSONState(novel: NovelState): any {
     causal_slots: novel.causal_slots,
     transition_ledger: novel.transition_ledger,
     supplementary_rulesets: novel.supplementary_rulesets,
+    agent_tasks: novel.agent_tasks,
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
     corpus_consumption: novel.corpus_consumption,
@@ -4819,6 +4822,7 @@ function loadNovelFromStateData(data: any): NovelState {
     causal_slots: data.causal_slots ?? [],
     transition_ledger: data.transition_ledger ?? [],
     supplementary_rulesets: data.supplementary_rulesets ?? [],
+    agent_tasks: data.agent_tasks ?? [],
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
@@ -5589,6 +5593,97 @@ server.registerTool("manage_graph", {
     }
     default:
       return err("INVALID_INPUT", `Unknown graph action '${args.action}'.`);
+  }
+});
+
+// --- Durable Agent Tasks ---
+
+// Durable Agent Tasks (REQ-522–REQ-530) — a persistent task/action lifecycle
+// for NPCs and entities. Only admitted transitions are permitted; terminal
+// tasks are immutable.
+function requireTask(novel: NovelState, taskId: string | undefined): AgentTask | null {
+  if (!taskId) return null;
+  return novel.agent_tasks.find((t) => t.id === taskId) ?? null;
+}
+
+server.registerTool("manage_agent", {
+  title: "Agent",
+  description: "Manage durable NPC/agent tasks and their action lifecycle. Mutating actions (create, start, advance, complete, fail, cancel) persist to the Novel and are audited; list/get are read-only. Use when: creating a task (create), starting it (start), logging an action (advance), settling it (complete/fail/cancel), or inspecting tasks (list/get). Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc. Parameters by action: create — subject, goal, autonomy, source_goal; start/complete/fail/cancel — task_id; advance — task_id, description; get — task_id; list — subject.",
+  inputSchema: {
+    action: z.enum(["create", "list", "get", "start", "advance", "complete", "fail", "cancel"]).describe("create, list, get, start, advance, complete, fail, or cancel."),
+    subject: z.string().optional().describe("Entity or NPC that owns the task (create/list)."),
+    goal: z.string().optional().describe("Task goal text (create)."),
+    autonomy: z.enum(["advisory", "prompt", "auto"]).optional().describe("advisory, prompt, or auto (create; default the TTRPG_AGENT_AUTONOMY setting)."),
+    source_goal: z.string().optional().describe("Originating goal-pursuit suggestion (create)."),
+    task_id: z.string().optional().describe("Task id (get/start/advance/complete/fail/cancel)."),
+    description: z.string().optional().describe("Action description (advance)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "list": {
+      requireNotObserver();
+      const novel = requireNovel();
+      let tasks = novel.agent_tasks;
+      if (args.subject) tasks = tasks.filter((t) => t.subject === args.subject);
+      if (tasks.length === 0) return ok("No agent tasks.");
+      return raw(JSON.stringify(tasks, null, 2));
+    }
+    case "get": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const task = requireTask(novel, args.task_id);
+      if (!task) return err("NOT_FOUND", `Agent task '${args.task_id ?? "none"}' not found.`);
+      return raw(JSON.stringify(task, null, 2));
+    }
+    case "create": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.subject || !args.goal) return err("INVALID_INPUT", "subject and goal are required for create.");
+      const autonomy = (args.autonomy ?? process.env.TTRPG_AGENT_AUTONOMY ?? "prompt") as AgentAutonomy;
+      if (!AUTONOMY_LEVELS.includes(autonomy)) return err("INVALID_INPUT", `Unknown autonomy '${autonomy}'.`);
+      const now = new Date().toISOString();
+      // REQ-522 — a new task starts queued. REQ-529 — may cite its originating goal suggestion.
+      const task: AgentTask = { id: nextTaskId(novel.agent_tasks), subject: args.subject, goal: args.goal, status: "queued", autonomy, actions: [], source_goal: args.source_goal, created_at: now, updated_at: now };
+      novel.agent_tasks.push(task);
+      const cap = parseInt(process.env.TTRPG_AGENT_MAX_TASKS ?? "0", 10);
+      if (cap > 0 && novel.agent_tasks.length > cap) novel.agent_tasks = novel.agent_tasks.slice(novel.agent_tasks.length - cap);
+      state.saveNovel(novel);
+      audit("agent_create", { task_id: task.id, subject: task.subject, autonomy });
+      return ok(`Agent task ${task.id} queued for '${task.subject}'.`);
+    }
+    case "start":
+    case "complete":
+    case "fail":
+    case "cancel": {
+      requireGM();
+      const novel = requireNovel();
+      const task = requireTask(novel, args.task_id);
+      if (!task) return err("NOT_FOUND", `Agent task '${args.task_id ?? "none"}' not found.`);
+      const target: AgentTaskStatus = args.action === "start" ? "active" : args.action === "complete" ? "done" : args.action === "fail" ? "failed" : "cancelled";
+      // REQ-524 — refused when the transition is not admitted.
+      if (!agentTransition(task, target, new Date().toISOString())) {
+        return err("STATE_CONFLICT", `Task ${task.id} cannot move from '${task.status}' to '${target}'.`);
+      }
+      state.saveNovel(novel);
+      audit("agent_transition", { task_id: task.id, status: task.status });
+      return ok(`Agent task ${task.id}: ${task.status}.`);
+    }
+    case "advance": {
+      requireGM();
+      const novel = requireNovel();
+      const task = requireTask(novel, args.task_id);
+      if (!task) return err("NOT_FOUND", `Agent task '${args.task_id ?? "none"}' not found.`);
+      if (!args.description) return err("INVALID_INPUT", "description is required for advance.");
+      // REQ-528 — terminal tasks are immutable.
+      if (!isMutable(task)) return err("STATE_CONFLICT", `Task ${task.id} is ${task.status} and cannot advance.`);
+      if (task.status !== "active") return err("STATE_CONFLICT", `Task ${task.id} must be active to advance.`);
+      const action = recordAction(task, args.description, new Date().toISOString());
+      state.saveNovel(novel);
+      audit("agent_advance", { task_id: task.id, seq: action.seq });
+      return ok(`Agent task ${task.id} action #${action.seq} recorded.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown agent action '${args.action}'.`);
   }
 });
 

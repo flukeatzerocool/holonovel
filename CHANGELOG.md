@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-24 — N2: Durable Agent Tasks (REQ-522–530)
+
+- NPCs and entities can now hold durable tasks that outlive a single scene.
+  A task is created queued with a subject, goal, and autonomy level (advisory,
+  prompt, or auto), moves through an admitted lifecycle (queued → active →
+  done/failed/cancelled), and accumulates an append-only action log. Illegal
+  transitions are refused, and a settled task is immutable. (REQ-522–REQ-528)
+- A task may cite the goal-pursuit suggestion that produced it, so accepting a
+  suggestion creates a durable task rather than a parallel path. New
+  `manage_agent` tool (create/list/get/start/advance/complete/fail/cancel);
+  Players read tasks and mutation is Game Master-only. Autonomy defaults come
+  from `TTRPG_AGENT_AUTONOMY`. (REQ-526, REQ-529, REQ-530)
+- The §7.4 inference boundary records that agent cognition is resolved
+  in-process with no outbound model inference at runtime (M4b): donated or
+  external inference is out of scope, and the client LLM supplies any model
+  reasoning. N3 (perception ledger) remains on ROADMAP.md.
+
 ## 2026-09-24 — N1: Supplementary ruleset import (REQ-372)
 
 - The server can import a supplementary ruleset into a Novel at runtime with
