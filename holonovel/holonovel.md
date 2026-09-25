@@ -10,7 +10,7 @@
 > infrastructure (rooms, things, exits, properties, parser commands, kind hierarchy) provides
 > the spatial foundation for scene composition — defining what is physically possible in the
 > story — with configurable surface prominence (REQ-309). Optional synthesis
-> workflow adds web-sourced play advice and Novel-state insights. Quality enforced by
+> workflow adds web-sourced play advice and Novel-state insights. Quality is enforced by
 > verification workflows, 18 handoff verification steps,
 > and a golden-transcript replay. One base server — the ruleset-free `holonovel`
 > host — loads one or more declarative ruleset packages at startup (packages are
@@ -29,7 +29,7 @@
 > presence (REQ-308): one adventure loads as a hybrid world-model
 > and prose modules (REQ-079). State tiers: roster, codex, Novel, and Session (§7.7);
 > world-model and lore data are Novel property groups; connections are ephemeral
-> transport; Novel audit logs persist. RNG deterministic and seedable. Requirements state the contract; verification
+> transport; Novel audit logs persist. RNG is deterministic and seedable. Requirements state the contract; verification
 > loops enforce quality.
 
 ## Contents
@@ -4616,7 +4616,7 @@ operator can override. The builder records the shared answer under each
 applicable workflow's entry in DECISIONS.md (1) with a `(shared with <workflow>)`
 annotation.
 
-**Verification workflow G0.** Run at intake: verify the source is readable, well-formed, structurally sound.
+**Verification workflow G0.** Run at intake: verify the source is readable, well-formed, and structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
 are converted per [Appendix G](#appendix-g-source-conversion). G0 is a ruleset-facing

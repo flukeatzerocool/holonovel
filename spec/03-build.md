@@ -181,7 +181,7 @@ operator can override. The builder records the shared answer under each
 applicable workflow's entry in DECISIONS.md (1) with a `(shared with <workflow>)`
 annotation.
 
-**Verification workflow G0.** Run at intake: verify the source is readable, well-formed, structurally sound.
+**Verification workflow G0.** Run at intake: verify the source is readable, well-formed, and structurally sound.
 The structural pass identifies heading count, table count, and broken links. The provisions
 of Appendix H apply. A structural defect blocks the line. Sources not already in Markdown
 are converted per [Appendix G](#appendix-g-source-conversion). G0 is a ruleset-facing
