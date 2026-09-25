@@ -1,6 +1,16 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 7effb44f57ae6fe98a0cc5ffb9d23c0144f5057e595d8e61fdbcdc948754cd03
+**Spec hash:** 45b4c33f9e93c1dffd4ccb2ecd5de68f44a3a1f00947a2668eaa2ec728c7fe2c
+
+### Holonovel Spec Update — 2026-09-24 (M1a: Temporal Event Log and Branching)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.24 Temporal Event Log and Branching (REQ-455–460) as the first milestone of the feature-parity program. New §7.7 property group `Event Log` (Narrative-memory) with two §7.7.1a coupling rows (Event Log → Lore, P16; Event Log → NPC, P33); §7.6 config `TTRPG_EVENT_LOG_MAX_ENTRIES` (storage, non-behavioral); REQ-407 never-truncated list gains the event-log surface; §5 section map and build-phase-map file index updated. Implementation: `src/core/event-log.ts`; Novel-scoped `event_log` + `branch_lineage` persisted through every serialize/deserialize path (`state.ts`, `index.ts`); `manage_session (action: event/history)` and `manage_novel (action: branch)`; scene-set and story-record append observations (REQ-455). Tool budget (REQ-429) unchanged — no new tool. Gate-classification table (REQ-137a) remains absent per the recorded Closed-P3 disposition; the new actions are enumerated here instead. |
+| Reused | spec, extraction, lockfile |
+| Verification | typecheck 0 errors; test:event-log 6/6 (T545–T550); assemble + check:fast 0 errors (spec hash `45b4c33f…`; bucket A 0, B 0, C 309, E 113); build-order fingerprints synced (`data_format 4db813d8…`) |
+| Follow-up | M1b (belief/evidence reconciliation), M1c (identity firewall), M1d (causal transition validation) remain on ROADMAP.md; each is a separate Phase-2 plan. |
 
 ### Holonovel Server Change — 2026-09-10 (prose Parameter Semantics on high-arity tools)
 
@@ -784,7 +794,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.10 |
+| Spec version | 2026.09.24 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |

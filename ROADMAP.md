@@ -6,6 +6,64 @@
   Update this file when planning a release.
 -->
 
+## Feature parity — M1b Belief and Evidence Reconciliation (REQ-461–472)
+
+- Add §5.25: per-entity evidence admission and deterministic belief-stance
+  reconciliation, contradiction preserved, with new tool `manage_belief`
+  (list/get/evidence/admit/retract/conflicts/reconcile).
+- New §7.7 property groups Evidence and Belief State; §7.6 thresholds
+  `TTRPG_BELIEF_ACCEPT_THRESHOLD` / `TTRPG_BELIEF_DECISION_MARGIN` (behavioral,
+  each needs a §7.7.1a Session-archetype coupling row).
+- Harness `scripts/test-belief.ts`; T551–T562. Depends on M1a (REQ-455–460).
+
+## Feature parity — M1c Character Identity Firewall (REQ-473–483)
+
+- Add §5.26: staged identity candidates, stability classes, perspective,
+  versioned compiled kernel, write-authority isolation; new tool
+  `manage_identity` (stage/accept/reject/snapshot/bootstrap/list).
+- Identity Kernel is Roster-tier, declared a self-contained non-coupling
+  surface and named in clone/checkpoint/archive enumerations.
+- Harness `scripts/test-identity.ts`; T563–T573. Depends on M1a.
+
+## Feature parity — M1d Causal Transition Validation (REQ-484–495)
+
+- Add §5.27: transition proposals, admissibility decisions, scope-coordinate
+  validation, idempotency, rejected-transition evidence, causal–epistemic
+  firewall; new tool `manage_causal` (propose/admit/reject/list/state/ingress).
+- New §7.7 property groups Causal State and Transition Ledger.
+- Harness `scripts/test-causal.ts`; T574–T585. Depends on M1a.
+
+## Feature parity — M2 Knowledge Corpus, Semantic Index, Knowledge Graph
+
+- M2a (REQ-496–503) cold corpus + per-entity acquisition ledger with access
+  predicates, tool `manage_corpus`.
+- M2b (REQ-504–509) build-time semantic index (no runtime network); advisory
+  ranking only.
+- M2c (REQ-510–514) rebuildable JSON knowledge-graph projection, read tool
+  `manage_graph`.
+- Depends on M1a, M1b.
+
+## Feature parity — M3 Generation-consistent Briefing Frame
+
+- REQ-515–521: token-budgeted `badge_briefing` frame with readiness cursor
+  and single-flight assembly; extends `manage_session`, no new tool.
+- Depends on M1a, M1b.
+
+## Feature parity — M4 Durable Agent Tasks
+
+- M4a (REQ-522–530): durable NPC/agent task and action lifecycle with
+  autonomy policy; tool `manage_agent`.
+- M4b: donated inference is de-scoped by Standing Rule 3 (no outbound network
+  at runtime); the boundary is recorded as a §7.4 gloss.
+- Depends on M1b, M1c.
+
+## Feature parity — M5 Pipeline, Plugins, Multi-party Surfaces
+
+- M5a (REQ-531–535) build-time job registry; M5b (REQ-536–539) ruleset-declared
+  declarative extension points; M5c (REQ-540–545) per-entity perception ledger,
+  import/export gateway, cross-Novel scope resolution, tool `manage_perception`.
+- Depends on M1a, M1b, M2a.
+
 ## Supplementary ruleset import (REQ-372/373)
 
 - Implement the supplementary-import subsystem end to end: `import_supplementary`

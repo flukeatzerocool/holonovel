@@ -16,6 +16,7 @@ import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
 import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX } from "./core/state.js";
+import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -77,7 +78,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.09.10",
+  version: "2026.09.24",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -858,6 +859,19 @@ function audit(tool: string, args: any, prefix?: string): void {
   // receive entries recorded under a GM badge.
   const badge = getBadge();
   notifyForBadge("audit_delta", { tool, prefix: prefix ?? null }, badge, badge === "game_master" || badge === "none");
+}
+
+// REQ-455 — append an observation to the Novel event log, capped by config.
+// REQ-456 — the entry preserves source, ordinal, and time independently of any
+// semantic interpretation. Callers persist the Novel after recording.
+function recordEvent(kind: string, text: string, source?: EventSource): void {
+  const novel = state.activeNovel;
+  if (!novel) return;
+  const badge = getBadge();
+  const resolved: EventSource = source ?? (badge === "player" ? "player" : badge === "game_master" ? "game_master" : "system");
+  appendEvent(novel.event_log, resolved, kind, text, new Date().toISOString());
+  const cap = parseInt(process.env.TTRPG_EVENT_LOG_MAX_ENTRIES ?? "0", 10);
+  if (cap > 0 && novel.event_log.length > cap) novel.event_log = evictToCap(novel.event_log, cap);
 }
 
 // REQ-292 — count adventure modules on disk (empty → 0).
@@ -3329,6 +3343,8 @@ server.registerTool("manage_scene", {
         if (novel.auto_record) recordStoryMoment(novel, effectiveDescription, location ?? null);
       }
       state.recordMutation(novel, "set_scene_state", "scene");
+      // REQ-455 — the scene description is an observation that enters play.
+      recordEvent("scene", effectiveDescription, "game_master");
       state.saveNovel(novel);
       audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
       emitEvent("scene_transition", { location: location ?? null });
@@ -4528,6 +4544,8 @@ server.registerTool("manage_story", {
         room_id: roomId,
       });
       state.recordMutation(novel, "record_story", "journal");
+      // REQ-455 — a journal moment is an observation that enters play.
+      recordEvent("story", `${type}: ${entry}`, "game_master");
       state.saveNovel(novel);
       return ok(`Story entry #${index} recorded (${type}).`);
     }
@@ -4707,6 +4725,8 @@ function novelToJSONState(novel: NovelState): any {
     fate: novel.fate,
     ironsworn: novel.ironsworn,
     forged: novel.forged,
+    event_log: novel.event_log,
+    branch_lineage: novel.branch_lineage,
   };
 }
 
@@ -4772,6 +4792,8 @@ function loadNovelFromStateData(data: any): NovelState {
     fate: { aspects: data.fate?.aspects ?? [], fate_points: data.fate?.fate_points ?? {}, stress: data.fate?.stress ?? {} },
     ironsworn: { momentum: data.ironsworn?.momentum ?? {}, progress_tracks: data.ironsworn?.progress_tracks ?? [] },
     forged: { characters: data.forged?.characters ?? {} },
+    event_log: data.event_log ?? [],
+    branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
   };
 }
 
@@ -4788,9 +4810,9 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 // briefing_order/compress/health surface.
 server.registerTool("manage_session", {
   title: "Session",
-  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), or reassigning a tool's category for the session (category). Category reassignment mutates Novel-scoped state and persists; recap/verbosity/briefing_order/compress/health/discover are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries; recap — gm_notes; subscribe — topics; discover — query; category — tool_name, category.",
+  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment and event append mutate Novel-scoped state and persist; recap/verbosity/briefing_order/compress/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries; recap — gm_notes; subscribe — topics; discover — query; category — tool_name, category; event — text, source, supersede; history — through_ordinal, include_superseded.",
   inputSchema: {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe", "discover", "category"]).describe("recap, verbosity, briefing_order, compress, health, subscribe, discover (list/search tools), or category (reassign a tool's category)."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress, health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Maximum audit entries (compress)."),
@@ -4799,9 +4821,47 @@ server.registerTool("manage_session", {
     query: z.string().optional().describe("Optional search term matched against tool name, description, and title (discover)."),
     tool_name: z.string().optional().describe("Registered tool name to reassign (category)."),
     category: z.string().nullable().optional().describe("New category label, or null/empty to restore the default (category)."),
+    text: z.string().optional().describe("Observation text (event)."),
+    source: z.enum(["player", "game_master", "system", "machine"]).optional().describe("Event source classification (event)."),
+    supersede: z.number().optional().describe("Ordinal of an event this observation replaces (event)."),
+    through_ordinal: z.number().optional().describe("Return events up to and including this ordinal (history)."),
+    include_superseded: z.boolean().optional().describe("Include superseded events (history; default true)."),
   },
 }, async (args: any) => {
   switch (args.action) {
+    case "event": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const text = args.text;
+      if (typeof text !== "string" || text.length === 0) return err("INVALID_INPUT", "text is required for event.");
+      const badge = getBadge();
+      const src: EventSource = args.source ?? (badge === "player" ? "player" : badge === "game_master" ? "game_master" : "system");
+      // REQ-457 — a superseding observation appends a replacement and marks the
+      // prior entry superseded without deleting it.
+      if (args.supersede !== undefined) {
+        const replacement = supersedeEvent(novel.event_log, args.supersede, src, "event", text, new Date().toISOString());
+        if (!replacement) return err("NOT_FOUND", `Event ordinal ${args.supersede} not found.`);
+        state.saveNovel(novel);
+        audit("record_event", { ordinal: replacement.ordinal, supersedes: args.supersede });
+        return ok(`Event #${replacement.ordinal} recorded, superseding #${args.supersede}.`);
+      }
+      recordEvent("event", text, src);
+      state.saveNovel(novel);
+      const ordinal = novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : 0;
+      audit("record_event", { ordinal });
+      return ok(`Event #${ordinal} recorded.`);
+    }
+    case "history": {
+      const novel = requireNovel();
+      const badge = getBadge();
+      // REQ-032/REQ-456 — badge filtering: Player and Observer never see
+      // GM-sourced observations; the entry text itself stays verbatim.
+      let entries = sliceThrough(novel.event_log, args.through_ordinal ?? null);
+      if (args.include_superseded === false) entries = entries.filter((e) => !e.superseded);
+      if (badge === "player" || badge === "observer") entries = entries.filter((e) => e.source !== "game_master");
+      if (entries.length === 0) return ok("Event log is empty.");
+      return ok(entries.map(describeEntry).join("\n"));
+    }
     case "discover": {
       return toolDiscovery(args.query);
     }
@@ -5218,13 +5278,14 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
 server.registerTool("manage_novel", {
   title: "Novel",
-  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, or return points. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name; branch — source_slug, new_name, from_event; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
   inputSchema: {
-    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
+    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
     slug: z.string().optional().describe("Novel slug (resume/switch/archive/unarchive/info)."),
-    source_slug: z.string().optional().describe("Novel to copy (clone)."),
-    new_name: z.string().optional().describe("Name for the copy (clone)."),
+    source_slug: z.string().optional().describe("Novel to copy or branch from (clone/branch)."),
+    new_name: z.string().optional().describe("Name for the copy or branch (clone/branch)."),
+    from_event: z.number().optional().describe("Event-log ordinal to branch from (branch; default latest)."),
     new_slug: z.string().optional().describe("New slug (rename)."),
     ruleset: z.string().optional().describe("Ruleset slug (create)."),
     genre: z.string().optional().describe("Genre tag (create/genre)."),
@@ -5517,6 +5578,8 @@ Options: yes, cancel`);
         scene: novel.scene_description ? novel.scene_description.substring(0, 100) : null,
         created: novel.metadata.created, modified: novel.metadata.modified,
         codex_sources: novel.codex_sources ?? [],
+        event_count: novel.event_log.length,
+        branch_lineage: novel.branch_lineage,
       }, null, 2));
     }
     case "genre": {
@@ -5547,6 +5610,30 @@ Options: yes, cancel`);
       state.novels.set(slug, novel);
       state.saveNovel(novel);
       return ok(`Cloned '${args.source_slug}' as '${slug}'.`);
+    }
+    case "branch": {
+      requireGM();
+      const source = state.novels.get(args.source_slug);
+      if (!source) return err("NOT_FOUND", `Source novel '${args.source_slug}' not found.`);
+      const slug = args.new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
+        return err("STATE_CONFLICT", `Novel '${slug}' already exists.`);
+      }
+      const branch = JSON.parse(JSON.stringify(novelToJSONState(source)));
+      branch.slug = slug;
+      branch.name = args.new_name;
+      branch.metadata.created = new Date().toISOString();
+      branch.metadata.modified = new Date().toISOString();
+      // REQ-458 — share the source event log up to the branch point; the parent
+      // Novel is never modified. REQ-459 — record parent and branch point.
+      const lastOrdinal = source.event_log.length ? source.event_log[source.event_log.length - 1].ordinal : null;
+      const branchPoint = args.from_event ?? lastOrdinal;
+      branch.event_log = sliceThrough(source.event_log, branchPoint);
+      branch.branch_lineage = { parent_slug: source.slug, branch_point: branchPoint };
+      const novel = loadNovelFromStateData(branch);
+      state.novels.set(slug, novel);
+      state.saveNovel(novel);
+      return ok(`Branched '${args.source_slug}' as '${slug}' at event #${branchPoint ?? 0}.`);
     }
     case "save_context": {
       requireGM();

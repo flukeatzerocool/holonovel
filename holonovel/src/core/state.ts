@@ -517,6 +517,11 @@ export interface NovelState {
   ironsworn: IronswornState;
   // REQ-441/442/443 — Forged in the Dark base capabilities.
   forged: ForgedState;
+  // REQ-455/REQ-456 — Novel-scoped append-only event log: every observation
+  // that enters play, with deterministic ordinal and provenance.
+  event_log: import("./event-log.js").EventLogEntry[];
+  // REQ-458/REQ-459 — branch lineage: parent Novel and branch point.
+  branch_lineage: import("./event-log.js").BranchLineage;
 }
 
 export interface RosterEntity extends NovelEntity {
@@ -796,6 +801,8 @@ export class StateManager {
       fate: { aspects: [], fate_points: {}, stress: {} },
       ironsworn: { momentum: {}, progress_tracks: [] },
       forged: { characters: {} },
+      event_log: [],
+      branch_lineage: { parent_slug: null, branch_point: null },
     };
 
     this.novels.set(slug, novel);
@@ -1077,6 +1084,8 @@ export class StateManager {
       fate: normalizeFateState(data.fate),
       ironsworn: normalizeIronswornState(data.ironsworn),
       forged: normalizeForgedState(data.forged),
+      event_log: data.event_log ?? [],
+      branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
     };
     return novel;
   }
@@ -2051,6 +2060,9 @@ function novelToJSON(novel: NovelState): any {
     fate: novel.fate,
     ironsworn: novel.ironsworn,
     forged: novel.forged,
+    // REQ-455/REQ-458/REQ-459 — event log and branch lineage persist with the Novel.
+    event_log: novel.event_log,
+    branch_lineage: novel.branch_lineage,
   };
 }
 
@@ -2162,6 +2174,8 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     fate: normalizeFateState(data.fate),
     ironsworn: normalizeIronswornState(data.ironsworn),
     forged: normalizeForgedState(data.forged),
+    event_log: data.event_log ?? [],
+    branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
   };
 }
 

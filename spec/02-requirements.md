@@ -29,6 +29,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
 | 5.22   | Ironsworn Base Capabilities                             | 438–440 |
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
+| 5.24   | Temporal Event Log and Branching                        | 455–460 |
 
 ### 5.1 Output and Error Contracts
 
@@ -3764,7 +3765,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -3795,5 +3796,19 @@ personality, NPC, vow, and base-capability state tools defined in §5. The serve
 **REQ-442 — Stress, trauma, and resistance.** `resolve_forged (action: stress)` SHALL mark, clear, resist, and list stress — a per-character track from 0 to 8. Marking adds `amount` stress; when the track fills, the character SHALL gain a trauma and the stress resets to 0. Resisting SHALL spend `cost` stress (default two) to reduce a named consequence and SHALL be refused when the cost would exceed the track. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress and trauma persist with the Novel. *Acceptance criterion:* marking two stress reports a two-box track; a resist spends two; filling the track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
 
 **REQ-443 — Downtime.** `resolve_forged (action: downtime)` SHALL recover and indulge a character's vice, and list character stress and trauma. Recovering SHALL reduce stress by `amount` boxes (default two); indulging a vice SHALL clear stress to 0. Recover and indulge are Game Master operations; listing SHALL be readable by any badge. Downtime state persists with the Novel. *Acceptance criterion:* recovering after marking three stress reduces the track; indulging a vice clears it to 0. _Check:_ T529.
+
+### 5.24 Temporal Event Log and Branching
+
+**REQ-455 — Event log append.** THE server SHALL maintain a Novel-scoped event log recording every observation that enters play — player utterances, GM narration, tool outcomes, and machine-originated state reports — as an append-only entry carrying a deterministic ordinal, a source classification, and a timestamp. Later processing SHALL NOT rewrite an entry; a correction appends a new entry. The log SHALL be bounded by a configured cap, evicting the oldest entries when the cap is reached. *Acceptance criterion:* a session of N inputs produces N ordered entries, and replaying the same inputs reproduces the same ordinals. _Check:_ T545.
+
+**REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
+
+**REQ-457 — Alternative events.** WHEN an observation replaces an earlier one, THE server SHALL append the replacement as an alternative entry and mark the prior entry superseded without deleting it. Superseded entries SHALL remain readable and SHALL be excluded only on explicit request. *Acceptance criterion:* superseding an entry appends a replacement, marks the original superseded, and leaves the original retrievable. _Check:_ T547.
+
+**REQ-458 — Novel branching.** THE server SHALL provide `manage_novel (action: branch, source_slug, new_name, from_event?)` — Editor or Game Master badge — creating an independent Novel that shares the source's event log through the branch point and diverges afterward. The parent Novel SHALL remain unmodified. *Acceptance criterion:* branching at event K yields a child whose first K entries match the parent and whose parent is untouched. _Check:_ T548.
+
+**REQ-459 — Branch lineage and isolation.** Each branch SHALL record its parent Novel and branch point, and `manage_novel (action: info)` SHALL report that lineage. A branch SHALL NOT read or mutate a sibling branch's state. *Acceptance criterion:* mutating one branch leaves its siblings and parent unchanged, and `manage_novel (action: info)` reports the parent slug and branch point. _Check:_ T549.
+
+**REQ-460 — Event provenance lookup.** Any derived knowledge, belief, or identity record SHALL cite the event-log ordinals that contributed to it, and the server SHALL return the entries for a requested ordinal range. *Acceptance criterion:* a request for entries through a given ordinal returns exactly the contributing entries and no later entry. _Check:_ T550.
 
 #### End of requirements

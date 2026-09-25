@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-24 — M1a: Temporal Event Log and Branching
+
+- The Novel now keeps an append-only event log: every observation that enters
+  play is recorded with a stable ordinal, its source, and a timestamp,
+  independently of how later processing interprets it. Corrections append a
+  replacement and mark the original superseded rather than erasing history.
+  (REQ-455–REQ-457)
+- `manage_novel (action: branch)` forks a Novel from any point in its event
+  log into an independent save file. The parent is never modified, branches
+  record their parent and branch point, and siblings cannot read or write each
+  other. `manage_session (action: event/history)` appends and reads
+  observations. (REQ-458–REQ-460)
+- The event log is a Novel property group, so it persists with saves,
+  checkpoints, clones, and archive, and survives restarts. Its size is bounded
+  by `TTRPG_EVENT_LOG_MAX_ENTRIES` (oldest entries evict first).
+- This is the first milestone of the feature-parity program; belief
+  reconciliation, the identity firewall, and causal transition validation are
+  recorded on ROADMAP.md.
+
 ## 2026-09-10 — Full spec-review remediation (SR-1…SR-31)
 
 - Completed the verb_noun re-point the prior consolidation left partial: the

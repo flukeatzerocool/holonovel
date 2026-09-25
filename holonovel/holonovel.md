@@ -468,6 +468,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
 | 5.22   | Ironsworn Base Capabilities                             | 438–440 |
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
+| 5.24   | Temporal Event Log and Branching                        | 455–460 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4203,7 +4204,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4234,6 +4235,20 @@ personality, NPC, vow, and base-capability state tools defined in §5. The serve
 **REQ-442 — Stress, trauma, and resistance.** `resolve_forged (action: stress)` SHALL mark, clear, resist, and list stress — a per-character track from 0 to 8. Marking adds `amount` stress; when the track fills, the character SHALL gain a trauma and the stress resets to 0. Resisting SHALL spend `cost` stress (default two) to reduce a named consequence and SHALL be refused when the cost would exceed the track. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress and trauma persist with the Novel. *Acceptance criterion:* marking two stress reports a two-box track; a resist spends two; filling the track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
 
 **REQ-443 — Downtime.** `resolve_forged (action: downtime)` SHALL recover and indulge a character's vice, and list character stress and trauma. Recovering SHALL reduce stress by `amount` boxes (default two); indulging a vice SHALL clear stress to 0. Recover and indulge are Game Master operations; listing SHALL be readable by any badge. Downtime state persists with the Novel. *Acceptance criterion:* recovering after marking three stress reduces the track; indulging a vice clears it to 0. _Check:_ T529.
+
+### 5.24 Temporal Event Log and Branching
+
+**REQ-455 — Event log append.** THE server SHALL maintain a Novel-scoped event log recording every observation that enters play — player utterances, GM narration, tool outcomes, and machine-originated state reports — as an append-only entry carrying a deterministic ordinal, a source classification, and a timestamp. Later processing SHALL NOT rewrite an entry; a correction appends a new entry. The log SHALL be bounded by a configured cap, evicting the oldest entries when the cap is reached. *Acceptance criterion:* a session of N inputs produces N ordered entries, and replaying the same inputs reproduces the same ordinals. _Check:_ T545.
+
+**REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
+
+**REQ-457 — Alternative events.** WHEN an observation replaces an earlier one, THE server SHALL append the replacement as an alternative entry and mark the prior entry superseded without deleting it. Superseded entries SHALL remain readable and SHALL be excluded only on explicit request. *Acceptance criterion:* superseding an entry appends a replacement, marks the original superseded, and leaves the original retrievable. _Check:_ T547.
+
+**REQ-458 — Novel branching.** THE server SHALL provide `manage_novel (action: branch, source_slug, new_name, from_event?)` — Editor or Game Master badge — creating an independent Novel that shares the source's event log through the branch point and diverges afterward. The parent Novel SHALL remain unmodified. *Acceptance criterion:* branching at event K yields a child whose first K entries match the parent and whose parent is untouched. _Check:_ T548.
+
+**REQ-459 — Branch lineage and isolation.** Each branch SHALL record its parent Novel and branch point, and `manage_novel (action: info)` SHALL report that lineage. A branch SHALL NOT read or mutate a sibling branch's state. *Acceptance criterion:* mutating one branch leaves its siblings and parent unchanged, and `manage_novel (action: info)` reports the parent slug and branch point. _Check:_ T549.
+
+**REQ-460 — Event provenance lookup.** Any derived knowledge, belief, or identity record SHALL cite the event-log ordinals that contributed to it, and the server SHALL return the entries for a requested ordinal range. *Acceptance criterion:* a request for entries through a given ordinal returns exactly the contributing entries and no later entry. _Check:_ T550.
 
 #### End of requirements
 
@@ -6465,6 +6480,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral — couples per P57. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
+| `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -6487,7 +6503,7 @@ State tiers:
 | Novel      | Active story state and active badge state (REQ-031b, REQ-055a), bound ruleset (REQ-380; immutable after creation), pending workflow, gm_context (pause/resume narrative context), host base-capability state (REQ-434–443), NPC mind state (REQ-075f), factions, secrets, relationships — the container for characters, NPCs, scene, countdowns, lore, synthesis, and adventures. Pending workflow is Novel-tier per REQ-042: the open `[NEED_INPUT]` decision and its pre-workflow snapshot persist to disk and survive process restarts. | Persists to disk at `.holonovel-state/novels/<slug>.json`; survives process restarts and rebuilds; moved to `.trash/` by `manage_novel (action: end)` per REQ-117 | Multiple Novels per server; one active per Session |
 | Session    | Active entity — ephemeral connection scoping            | Born when a client begins tool calls against a Novel; discarded on process restart or Novel switch | No persistent state — Novel state and audit log survive; all Session fields reset to defaults on restart or switch |
 
-**Novel properties.** Every Novel contains thirty property groups, all
+**Novel properties.** Every Novel contains thirty-one property groups, all
 Novel-scoped with shared lifecycle (survive connections and process restart,
 discarded by `manage_novel (action: end)`):
 
@@ -6523,6 +6539,7 @@ discarded by `manage_novel (action: end)`):
 | Narrative Threads | Narrative-memory | read/write (REQ-281) | read-only (shared) |
 | NPC Goal Pursuit | Entity-bearing | read/write (REQ-339) | read-only |
 | Autonomous Countdown | Temporal | read/write (REQ-338) | read-only |
+| Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -6781,6 +6798,8 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → Available Actions [non-property] | P58 | Directive action-quantity keywords ("more options", "fewer options") adjust TTRPG_MAX_AVAILABLE_ACTIONS | The GM controls how many choices the story offers — directive keywords adjust the action budget | GM-only | Mechanical | REQ-081, REQ-084 |
 | Narrative Directive → Narration Validation [non-property] | P59 | Directive validation keywords ("validate my narration", "narrate freely") toggle TTRPG_NARRATION_VALIDATION | The GM tunes the server's safety gates in plain English — directive keywords toggle pre-narration validation | GM-only | Mechanical | REQ-081, REQ-312 |
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
+| Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
+| Event Log → NPC | P33 | Event-log entries referencing an NPC surface in that NPC's memory and goal-pursuit advisories | What was observed of a character becomes what the character remembers | — | Navigational | REQ-460 |
 
 ##### 7.7.1b Coupling curation
 
@@ -9180,6 +9199,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-452 | Conversion evidence verification | 2026-09-06 |
 | REQ-453 | Extraction evidence-map parity | 2026-09-06 |
 | REQ-454 | Intended-gap whitelist discipline | 2026-09-08 |
+| REQ-455 | Event log append | 2026-09-24 |
+| REQ-456 | Non-semantic record | 2026-09-24 |
+| REQ-457 | Alternative events | 2026-09-24 |
+| REQ-458 | Novel branching | 2026-09-24 |
+| REQ-459 | Branch lineage and isolation | 2026-09-24 |
+| REQ-460 | Event provenance lookup | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9747,6 +9772,12 @@ diet.
 | T542 | Automated | Conversion evidence verification: run `scripts/check-conversion-evidence.ts` against DECISIONS.md — assert a ruleset-free or Markdown-only build reports "conversion not selected — waived" and exits zero; assert a DECISIONS.md recording a fidelity rate below 90% or a `pending` artifact disposition fails the strict check. | REQ-452 |
 | T543 | Automated | Extraction evidence-map parity: assert every REQ in §5.2 has a coverage-map row or an explicit non-harness disposition; assert a §5.2 REQ lacking both fails validation. | REQ-453 |
 | T544 | Automated | Intended-gap whitelist discipline: assert `npm run validate` exits non-zero when a whitelisted REQ is cited in server source without a disposition; assert a builder-side whitelisted REQ passes; assert REQ-067 is absent from the intended-gap whitelist and buckets to C when source-cited and exercised. | REQ-454 |
+| T545 | Automated | Event log append: append two observations and assert deterministic ordinals 1 then 2 in append order, reproduced on replay with the same inputs. | REQ-455 |
+| T546 | Automated | Non-semantic record: assert an observation's text and source/kind provenance are preserved verbatim, including instruction-shaped text, independent of interpretation. | REQ-456 |
+| T547 | Automated | Alternative events: superseding entry 1 appends a replacement, marks entry 1 superseded while retaining it, and excludes it only when `include_superseded` is false. | REQ-457 |
+| T548 | Automated | Novel branching: branch at event K yields a child sharing the first K entries and leaves the parent event log unchanged. | REQ-458 |
+| T549 | Automated | Branch lineage and isolation: `manage_novel (action: info)` reports parent slug and branch point; mutating one branch leaves its siblings and parent unchanged. | REQ-459 |
+| T550 | Automated | Event provenance lookup: a request for entries through ordinal N returns the contributing entries and no later entry. | REQ-460 |
 
 ---
 
