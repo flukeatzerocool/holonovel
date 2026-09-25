@@ -237,6 +237,7 @@ discarded by `manage_novel (action: end)`):
 | Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
 | Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_causal`) | read-only (objective state per REQ-495) |
 | Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
+| Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -510,6 +511,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Belief State → Scene | P40 | Beliefs relevant to the current scene surface in the scene's knowledge rendering | What the character believes colors what they notice | GM-only | Navigational | REQ-472 |
 | Causal State → Scene | P13 | An admitted causal transition triggers the scene-transition hook; governed by TTRPG_CAUSAL_VALIDATION and TTRPG_CAUSAL_LATENT_TRANSITIONS | Entering a new location is a scene change | GM-only | Mechanical | REQ-486, REQ-488 |
 | Transition Ledger → Lore | P16 | Recorded transition outcomes promote to knowledge-carrying records with their causal provenance | What happened becomes a known consequence | GM-only | Navigational | REQ-491, REQ-492 |
+| Knowledge Corpus → Lore | P54 | A consumed corpus document promotes to knowledge-carrying records carrying its acquisition-ledger provenance | Reference material becomes known facts | GM-only | Navigational | REQ-500, REQ-501 |
 
 **Admission decisions.** A causal proposal carries one admission decision (REQ-485):
 `admitted`, `admitted-with-latent-transition`, `rejected-impossible`, `conflict`,

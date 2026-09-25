@@ -8,13 +8,12 @@
 
 ## Feature parity — M2 Knowledge Corpus, Semantic Index, Knowledge Graph
 
-- M2a (REQ-496–503) cold corpus + per-entity acquisition ledger with access
-  predicates, tool `manage_corpus`.
-- M2b (REQ-504–509) build-time semantic index (no runtime network); advisory
-  ranking only.
-- M2c (REQ-510–514) rebuildable JSON knowledge-graph projection, read tool
-  `manage_graph`.
-- Depends on M1a, M1b.
+### M2a Knowledge Corpus — SHIPPED 2026-09-24 (REQ-496–503)
+
+Cold corpus, source-profile domain routing, four-way access predicate, and the
+per-entity acquisition ledger ship as `manage_corpus`. Remaining below.
+
+### M2b Build-time Semantic Index (REQ-504–509)
 
 ## Feature parity — M3 Generation-consistent Briefing Frame
 

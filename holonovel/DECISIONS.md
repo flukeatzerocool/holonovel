@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** fa83f1fd62e18bdbb58c6a8ce3d7d5c854ca26c329bf928bf0d75c7c04f2bf3f
+**Spec hash:** ad0ecd291bd9ce794c9ac41fa7832c88254e8a24b280690b893a48e5480996d4
 
-**Recorded tool budget:** 29 (REQ-429)
+**Recorded tool budget:** 30 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M2a: Knowledge Corpus and Access Control)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.28 Knowledge Corpus (REQ-496–503) as M2a of the feature-parity program. New §7.7 property group `Knowledge Corpus` (Knowledge-carrying) with one §7.7.1a row: Knowledge Corpus → Lore (P54). REQ-407 names the corpus surface. Property-group count statements updated 35 → 36 (§6.5, REQ-374a, T425, T439). New tool `manage_corpus` (register/list/get/route/grant/deny/access/consume/acquisitions); REQ-429 recorded budget 29 → 30. Implementation: `src/core/corpus.ts` (cold registration, source-profile domain routing, four-way access predicate public/domain/grant minus deny, four consumption modes, acquisition ledger, first/second-person deixis left unresolved). Novel `corpus_documents`/`corpus_access`/`corpus_consumption` persisted through every serialize/deserialize path. No new §7.6 config. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `ad0ecd29…`; bucket A 0, B 0, C 352, E 113); typecheck 0 errors; test:corpus 8/8 (T586–T593); test:tool-definitions 6/6 (T511 against the 30-tool recorded budget); version-check OK |
+| Follow-up | M2b (build-time semantic index) and M2c (knowledge-graph projection) remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (M1d: Causal Transition Validation)
 

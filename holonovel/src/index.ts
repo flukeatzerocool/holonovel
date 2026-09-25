@@ -20,6 +20,7 @@ import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, t
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
+import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -138,6 +139,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_belief: MUTATING,
   manage_identity: MUTATING,
   manage_causal: MUTATING,
+  manage_corpus: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -4737,6 +4739,9 @@ function novelToJSONState(novel: NovelState): any {
     belief_state: novel.belief_state,
     causal_slots: novel.causal_slots,
     transition_ledger: novel.transition_ledger,
+    corpus_documents: novel.corpus_documents,
+    corpus_access: novel.corpus_access,
+    corpus_consumption: novel.corpus_consumption,
   };
 }
 
@@ -4808,6 +4813,9 @@ function loadNovelFromStateData(data: any): NovelState {
     belief_state: data.belief_state ?? [],
     causal_slots: data.causal_slots ?? [],
     transition_ledger: data.transition_ledger ?? [],
+    corpus_documents: data.corpus_documents ?? [],
+    corpus_access: data.corpus_access ?? [],
+    corpus_consumption: data.corpus_consumption ?? [],
   };
 }
 
@@ -5255,6 +5263,168 @@ server.registerTool("manage_causal", {
     }
     default:
       return err("INVALID_INPUT", `Unknown causal action '${args.action}'.`);
+  }
+});
+
+// --- Knowledge Corpus ---
+
+// Knowledge Corpus (REQ-496–REQ-503) — cold reference material that creates no
+// knowledge until an entity explicitly consumes it, then records what was
+// acquired with its access predicate and deixis.
+function corpusAccessGate(novel: NovelState, entityId: string, doc: CorpusDocument): boolean {
+  return canAccess(doc, entityId, novel.corpus_access);
+}
+
+server.registerTool("manage_corpus", {
+  title: "Corpus",
+  description: "Manage cold reference material and per-entity knowledge acquisition. Registered documents create no knowledge until consumed; consumption records exactly what an entity acquired. Mutation (register, route, grant, deny, access, consume) persists to the Novel and is audited; list/get/acquisitions are read-only. Use when: registering reference material (register), assigning its knowledge domain (route), opening or closing access (grant/deny), setting an entity's knowledge-domain profile (access), reading a document to acquire it (consume), or inspecting what an entity has acquired (acquisitions). Do NOT use when: recording beliefs — use manage_belief; registering a reusable gameplay artifact — use manage_codex. Parameters by action: register — title, body, domain, source_profile, access_public, access_domains, grants, denies; route — document_id, domain; grant/deny — document_id, entity_id; access — entity_id, domains; consume — entity_id, document_id, mode; get — document_id; list — domain; acquisitions — entity_id.",
+  inputSchema: {
+    action: z.enum(["register", "list", "get", "route", "grant", "deny", "access", "consume", "acquisitions"]).describe("register, list, get, route, grant, deny, access, consume, or acquisitions."),
+    title: z.string().optional().describe("Document title (register)."),
+    body: z.string().optional().describe("Document reference text (register)."),
+    domain: z.string().optional().describe("Knowledge domain (register/route/list)."),
+    source_profile: z.string().optional().describe("Trusted source profile the domain is routed from (register; default manual)."),
+    access_public: z.boolean().optional().describe("Whether every entity may consume it (register; default false)."),
+    access_domains: z.array(z.string()).optional().describe("Knowledge domains granted access (register)."),
+    grants: z.array(z.string()).optional().describe("Entity ids explicitly granted access (register)."),
+    denies: z.array(z.string()).optional().describe("Entity ids explicitly denied access (register)."),
+    document_id: z.string().optional().describe("Corpus document id (get/route/grant/deny/consume)."),
+    entity_id: z.string().optional().describe("Entity acquiring or inspected (consume/acquisitions/access/grant/deny)."),
+    mode: z.enum(["read", "research", "taught", "import"]).optional().describe("read, research, taught, or import (consume; default read)."),
+    domains: z.array(z.string()).optional().describe("Knowledge domains the entity may access (access)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "register": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.title || !args.body || !args.domain) return err("INVALID_INPUT", "title, body, and domain are required for register.");
+      // REQ-496 — cold registration; REQ-497 — domain routed from the source profile.
+      const doc: CorpusDocument = {
+        id: nextDocumentId(novel.corpus_documents),
+        title: args.title,
+        domain: args.domain,
+        body: args.body,
+        source_profile: args.source_profile ?? "manual",
+        access_public: args.access_public ?? false,
+        access_domains: args.access_domains ?? [],
+        access_grants: args.grants ?? [],
+        access_denies: args.denies ?? [],
+        registered_at: new Date().toISOString(),
+      };
+      novel.corpus_documents.push(doc);
+      state.saveNovel(novel);
+      audit("corpus_register", { document_id: doc.id, domain: doc.domain });
+      return ok(`Corpus document ${doc.id} registered (cold).`);
+    }
+    case "list": {
+      requireNotObserver();
+      const novel = requireNovel();
+      let docs = novel.corpus_documents;
+      if (args.domain) docs = docs.filter((d) => d.domain === args.domain);
+      const summary = docs.map((d) => ({ id: d.id, title: d.title, domain: d.domain, source_profile: d.source_profile, access_public: d.access_public }));
+      if (summary.length === 0) return ok("Corpus is empty.");
+      return raw(JSON.stringify(summary, null, 2));
+    }
+    case "get": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.document_id) return err("INVALID_INPUT", "document_id is required for get.");
+      const doc = novel.corpus_documents.find((d) => d.id === args.document_id);
+      if (!doc) return err("NOT_FOUND", `Corpus document '${args.document_id}' not found.`);
+      return raw(JSON.stringify(doc, null, 2));
+    }
+    case "route": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.document_id || !args.domain) return err("INVALID_INPUT", "document_id and domain are required for route.");
+      const doc = novel.corpus_documents.find((d) => d.id === args.document_id);
+      if (!doc) return err("NOT_FOUND", `Corpus document '${args.document_id}' not found.`);
+      // REQ-497 — domain is routed from a trusted structured profile, never prose.
+      doc.domain = args.domain;
+      state.saveNovel(novel);
+      audit("corpus_route", { document_id: doc.id, domain: doc.domain });
+      return ok(`Corpus document ${doc.id} routed to domain '${doc.domain}'.`);
+    }
+    case "grant": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.document_id || !args.entity_id) return err("INVALID_INPUT", "document_id and entity_id are required for grant.");
+      const doc = novel.corpus_documents.find((d) => d.id === args.document_id);
+      if (!doc) return err("NOT_FOUND", `Corpus document '${args.document_id}' not found.`);
+      if (!doc.access_grants.includes(args.entity_id)) doc.access_grants.push(args.entity_id);
+      state.saveNovel(novel);
+      audit("corpus_grant", { document_id: doc.id, entity_id: args.entity_id });
+      return ok(`Entity '${args.entity_id}' granted access to ${doc.id}.`);
+    }
+    case "deny": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.document_id || !args.entity_id) return err("INVALID_INPUT", "document_id and entity_id are required for deny.");
+      const doc = novel.corpus_documents.find((d) => d.id === args.document_id);
+      if (!doc) return err("NOT_FOUND", `Corpus document '${args.document_id}' not found.`);
+      if (!doc.access_denies.includes(args.entity_id)) doc.access_denies.push(args.entity_id);
+      state.saveNovel(novel);
+      audit("corpus_deny", { document_id: doc.id, entity_id: args.entity_id });
+      return ok(`Entity '${args.entity_id}' denied access to ${doc.id}.`);
+    }
+    case "access": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.entity_id || !args.domains) return err("INVALID_INPUT", "entity_id and domains are required for access.");
+      const existing = novel.corpus_access.find((a) => a.entity_id === args.entity_id);
+      if (existing) existing.domains = args.domains;
+      else novel.corpus_access.push({ entity_id: args.entity_id, domains: args.domains } as CorpusAccess);
+      state.saveNovel(novel);
+      audit("corpus_access", { entity_id: args.entity_id, domains: args.domains });
+      return ok(`Entity '${args.entity_id}' knowledge-domain profile set.`);
+    }
+    case "consume": {
+      requireNotObserver();
+      const novel = requireNovel();
+      if (!args.entity_id || !args.document_id) return err("INVALID_INPUT", "entity_id and document_id are required for consume.");
+      const doc = novel.corpus_documents.find((d) => d.id === args.document_id);
+      if (!doc) return err("NOT_FOUND", `Corpus document '${args.document_id}' not found.`);
+      const badge = getBadge();
+      if (badge === "player" && args.entity_id !== novel.active_entity_id) {
+        return err("FORBIDDEN", "Player badge consumes only for the active entity. Switch badges with set_badge to consume for others.");
+      }
+      // REQ-498 — the access predicate gates consumption.
+      if (!corpusAccessGate(novel, args.entity_id, doc)) {
+        return err("FORBIDDEN", `Entity '${args.entity_id}' may not access corpus document '${doc.id}'.`);
+      }
+      const mode = (args.mode ?? "read") as ConsumptionMode;
+      if (!CONSUMPTION_MODES.includes(mode)) return err("INVALID_INPUT", `Unknown mode '${mode}'.`);
+      // REQ-500 — acquisition ledger; REQ-501 — knowledge only now, on consumption.
+      const record: CorpusConsumption = {
+        id: nextConsumptionId(novel.corpus_consumption),
+        entity_id: args.entity_id,
+        document_id: doc.id,
+        domain: doc.domain,
+        mode,
+        deixis: deixisOf(doc.body),
+        excerpt: excerptOf(doc.body),
+        at: new Date().toISOString(),
+      };
+      novel.corpus_consumption.push(record);
+      state.saveNovel(novel);
+      audit("corpus_consume", { entity_id: record.entity_id, document_id: record.document_id, mode });
+      return ok(`Acquisition ${record.id}: '${args.entity_id}' consumed '${doc.id}' (${mode}, deixis ${record.deixis}).`);
+    }
+    case "acquisitions": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const badge = getBadge();
+      if (badge === "player" && args.entity_id && args.entity_id !== novel.active_entity_id) {
+        return err("FORBIDDEN", "Player badge reads only the active entity's acquisitions. Switch badges with set_badge to read others.");
+      }
+      let records = novel.corpus_consumption;
+      if (args.entity_id) records = records.filter((r) => r.entity_id === args.entity_id);
+      if (records.length === 0) return ok("No acquisitions recorded.");
+      return raw(JSON.stringify(records, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown corpus action '${args.action}'.`);
   }
 });
 
