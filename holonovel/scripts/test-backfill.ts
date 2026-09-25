@@ -371,7 +371,7 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
-    await test("T64/T134/T450/T081: narrative directive set", async () => {
+    await test("T64/T134/T081: narrative directive set", async () => {
       await call(proc, "manage_scene", { action: "directive",  directive: "Foreshadow the siege." });
       const scene = await call(proc, "manage_scene", { action: "set",  description: "The gates tremble." });
       assertContains(scene, "[OK] Scene set");

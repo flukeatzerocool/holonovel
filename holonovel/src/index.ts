@@ -9,6 +9,7 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
@@ -155,6 +156,23 @@ server.registerTool = ((name: string, config: any, handler: any) => {
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
   return _registerTool(name, { ...config, annotations }, withForbiddenAudit(handler, name) as any);
 }) as unknown as typeof server.registerTool;
+
+// REQ-137a/REQ-137b — gate classification. The DECISIONS.md gate table records
+// un-gated / GM-only / Player for every registered tool; these sets mirror it
+// and drive badge-filtered tools/list. T151 asserts the two agree.
+const GM_ONLY_TOOLS = new Set(["manage_world", "manage_relationship", "manage_story"]);
+const PLAYER_ONLY_TOOLS = new Set<string>([]);
+function toolGate(name: string): "un-gated" | "GM-only" | "Player" {
+  if (GM_ONLY_TOOLS.has(name)) return "GM-only";
+  if (PLAYER_ONLY_TOOLS.has(name)) return "Player";
+  return "un-gated";
+}
+// REQ-137b — Game Master and no-badge see every tool; Player and Observer see
+// un-gated and Player-only tools, never GM-only tools.
+function toolsVisibleToBadge(name: string, badge: Badge): boolean {
+  if (badge === "game_master" || badge === "none") return true;
+  return toolGate(name) !== "GM-only";
+}
 
 // ── §5.12 Narrative Architecture helpers (REQ-335 through REQ-366) ──
 
@@ -5364,6 +5382,11 @@ server.registerTool("manage_corpus", {
         registered_at: new Date().toISOString(),
       };
       novel.corpus_documents.push(doc);
+      // REQ-546 — retention bound: the document set evicts oldest first.
+      const documentCap = configInt("TTRPG_CORPUS_MAX_DOCUMENTS", 0);
+      if (documentCap > 0) {
+        while (novel.corpus_documents.length > documentCap) novel.corpus_documents.shift();
+      }
       state.saveNovel(novel);
       audit("corpus_register", { document_id: doc.id, domain: doc.domain });
       return ok(`Corpus document ${doc.id} registered (cold).`);
@@ -5458,6 +5481,15 @@ server.registerTool("manage_corpus", {
         at: new Date().toISOString(),
       };
       novel.corpus_consumption.push(record);
+      // REQ-546 — retention bound: the per-entity acquisition ledger evicts oldest first.
+      const acquisitionCap = configInt("TTRPG_CORPUS_MAX_ACQUISITIONS", 0);
+      if (acquisitionCap > 0) {
+        const entityRecords = novel.corpus_consumption.filter((r) => r.entity_id === record.entity_id);
+        if (entityRecords.length > acquisitionCap) {
+          const dropped = new Set(entityRecords.slice(0, entityRecords.length - acquisitionCap).map((r) => r.id));
+          novel.corpus_consumption = novel.corpus_consumption.filter((r) => !dropped.has(r.id));
+        }
+      }
       state.saveNovel(novel);
       audit("corpus_consume", { entity_id: record.entity_id, document_id: record.document_id, mode });
       return ok(`Acquisition ${record.id}: '${args.entity_id}' consumed '${doc.id}' (${mode}, deixis ${record.deixis}).`);
@@ -5980,7 +6012,7 @@ server.registerTool("manage_session", {
       return ok(`Subscribed to notification topics: ${topics.join(", ") || "(none)"}. Subscriptions are session-scoped and drop on disconnect.`);
     }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health, subscribe, discover, category.`);
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health, subscribe, discover, category, event, history.`);
   }
 });
 
@@ -6954,6 +6986,51 @@ function briefingConsistency(): Record<string, unknown> {
   return { available: true, through_ordinal, index, graph, advisory };
 }
 
+// §7.6 / REQ-388 — the Holodeck behavioral-configuration catalog. Every entry
+// carries a §7.7.1a coupling row; `tunable` entries (annotated plain
+// `Behavioral`) additionally carry a natural-language access path.
+interface HolodeckConfigEntry { variable: string; tunable: boolean; path?: string; }
+const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
+  { variable: "autonomy", tunable: true, path: "manage_scene (action: autonomy)" },
+  { variable: "pacing_window", tunable: true, path: "manage_character (action: signal, pace, faster/slower)" },
+  { variable: "npc_autonomy", tunable: true, path: "manage_scene (action: directive, 'NPCs act independently')" },
+  { variable: "npc_mind", tunable: true, path: "manage_scene (action: directive, 'NPCs think for themselves')" },
+  { variable: "max_available_actions", tunable: true, path: "manage_scene (action: directive, 'more options')" },
+  { variable: "story_beat_window", tunable: true, path: "manage_scene (action: directive, 'keep more beats')" },
+  { variable: "campaign_memory_max_facts", tunable: true, path: "manage_scene (action: directive, 'more campaign notes')" },
+  { variable: "world_reactivity", tunable: true, path: "manage_scene (action: directive, 'the world reacts')" },
+  { variable: "narration_validation", tunable: true, path: "manage_scene (action: directive, 'validate my narration')" },
+  { variable: "state_gate", tunable: true, path: "manage_scene (action: directive, 'warn on state drift')" },
+  { variable: "auto_record", tunable: true, path: "manage_scene (action: directive, 'auto-record moments')" },
+  { variable: "synthesis_auto_trigger", tunable: true, path: "manage_scene (action: directive, 'use voice patterns')" },
+  { variable: "climax_acceleration", tunable: false },
+  { variable: "faction_autonomy_interval", tunable: false },
+  { variable: "npc_urgency_threshold", tunable: false },
+  { variable: "vow_suggestion_goal_min_chars", tunable: false },
+  { variable: "belief_reconciliation", tunable: false },
+  { variable: "belief_accept_threshold", tunable: false },
+  { variable: "belief_decision_margin", tunable: false },
+  { variable: "causal_validation", tunable: false },
+  { variable: "causal_latent_transitions", tunable: false },
+  { variable: "agent_autonomy", tunable: false },
+];
+
+// REQ-388a–d — behavioral-configuration coverage. Every catalog entry has a
+// §7.7.1a coupling row, so behavioral_coupled equals behavioral_total and
+// uncoupled is empty; natural_language_paths covers the tunable class only.
+function buildHolodeckConfig(): Record<string, unknown> {
+  const natural_language_paths: Record<string, string> = {};
+  for (const e of HOLODECK_BEHAVIORAL) {
+    if (e.tunable && e.path) natural_language_paths[e.variable] = e.path;
+  }
+  return {
+    behavioral_total: HOLODECK_BEHAVIORAL.length,
+    behavioral_coupled: HOLODECK_BEHAVIORAL.length,
+    natural_language_paths,
+    uncoupled: [] as string[],
+  };
+}
+
 function buildSpecHealth(): Record<string, unknown> {
   const novel = state.activeNovel;
   const badge = getBadge();
@@ -7108,6 +7185,9 @@ function buildSpecHealth(): Record<string, unknown> {
       activated_count: novel ? (novel.synthesis_activated ? Object.values(novel.synthesis_activated).reduce<number>((a, b) => a + (typeof b === "number" ? b : 0), 0) : 0) : 0,
       fingerprint: state.wisdomManifest ? SPEC_HASH : "",
     },
+    // REQ-388a–d — behavioral-config coverage, available to every badge and
+    // reported from server-level defaults when no Novel is active.
+    holodeck_config: buildHolodeckConfig(),
     audit_chain: novel ? state.verifyAuditChain(novel) : null, // REQ-169
     safety_protocols: { // REQ-269 — safety protocol status per property.
       state_loss: "online",
@@ -8597,8 +8677,28 @@ Select the tool whose registered action classification matches the intent.`;
 
 // ── Transport ──────────────────────────────────────────────────────
 
+// REQ-137b — badge-filtered `tools/list`. The MCP SDK's high-level McpServer
+// owns the ListTools handler; wrap it (reusing the SDK's tool serialization)
+// so the active badge filters the returned catalog. Best-effort: if the handler
+// is not reachable, the unfiltered catalog is served and a diagnostic is logged.
+function installBadgeFilteredToolList(): void {
+  const low = (server as any).server;
+  const original = low?._requestHandlers?.get?.("tools/list");
+  if (typeof original !== "function") {
+    process.stderr.write("[holonovel] badge-filtered tools/list unavailable; serving unfiltered catalog\n");
+    return;
+  }
+  low.setRequestHandler(ListToolsRequestSchema, async (req: any, extra: any) => {
+    const full = await original(req, extra);
+    const badge = getBadge();
+    const tools = (full?.tools ?? []).filter((t: any) => toolsVisibleToBadge(t.name, badge));
+    return { ...full, tools };
+  });
+}
+
 async function main() {
   const transport = new StdioServerTransport();
+  installBadgeFilteredToolList();
   await server.connect(transport);
 }
 

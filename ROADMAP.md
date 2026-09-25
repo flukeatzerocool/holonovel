@@ -65,7 +65,18 @@ All roadmap items are shipped or dispositioned. Nothing is scheduled.
 ## Supplementary ruleset import (REQ-372/373) — SHIPPED 2026-09-24 (N1)
 
 `manage_ruleset (action: import_supplementary/remove_supplementary)` with
-Wisdom-only import under the REQ-372d dynamic-registration waiver; Pattern
+Wisdom-only import under the REQ-372d build-scope waiver; Pattern
 Buffer S30/S31 now execute. REQ-373 (dynamic tool registration) remains
-waived/E.
+waived/E — the waiver was corrected 2026-09-25 to cite build scope, not stack
+capability (the MCP SDK supports runtime registration).
+
+## Residual remediation — SHIPPED 2026-09-25
+
+- **REQ-388 `holodeck_config`** — implemented (`manage_session (action: health)`);
+  the behavioral-config contract was reconciled (Standing Rule 11 two-tier:
+  `Behavioral` vs `Behavioral (mechanical)`).
+- **REQ-137b badge-filtered `tools/list`** — implemented; the SDK ListTools
+  handler is wrapped to filter by the active badge.
+- **REQ-546 corpus retention** — `TTRPG_CORPUS_MAX_DOCUMENTS` /
+  `TTRPG_CORPUS_MAX_ACQUISITIONS` bound the corpus ledgers.
 

@@ -1276,11 +1276,26 @@ function checkConfigCouplingAnnotations(text: string): string[] {
 
   const configAliases: Record<string, string[]> = { TTRPG_AUTONOMY: ["scene (action: autonomy)"] };
 
+  // Standing Rule 11 — a plain `Behavioral` config needs a natural-language
+  // path, i.e. a coupling row whose source archetype is Session. Parse the
+  // §7.7.0 pattern-rule table to know which rules have a Session source.
+  const sessionRules = new Set<string>();
+  const rulesStart = text.indexOf("| Rule | Source archetype");
+  const rulesEnd = text.indexOf("##### 7.7.1", rulesStart === -1 ? 0 : rulesStart);
+  if (rulesStart !== -1) {
+    const rulesText = text.slice(rulesStart, rulesEnd === -1 ? text.length : rulesEnd);
+    for (const line of rulesText.split("\n")) {
+      const m = line.match(/^\|\s*(P\d+)\s*\|\s*([^|]+?)\s*\|/);
+      if (m && m[2].includes("Session")) sessionRules.add(m[1]);
+    }
+  }
+
   for (const line of cfgText.split("\n")) {
     const m = line.match(/^\|\s*`(TTRPG_\w+)`\s*\|/);
     if (!m) continue;
     const variable = m[1];
     if (!line.includes("Behavioral")) continue;
+    const mechanical = /Behavioral\s*\(mechanical\)/.test(line);
     const couples = line.match(/couples per\s+(?:§7\.7\.1a\s+)?([P\d\s/]+)/);
     if (!couples) {
       issues.push(`ERROR: §7.6 ${variable} annotated "Behavioral" without a "couples per P<rule>" annotation`);
@@ -1295,6 +1310,9 @@ function checkConfigCouplingAnnotations(text: string): string[] {
     for (const rule of rules) {
       const found = couplingText.split("\n").some((l) => l.includes(`| ${rule} |`) && names.some((n) => l.includes(n)));
       if (!found) issues.push(`ERROR: §7.6 ${variable} annotated "couples per ${rule}" but no §7.7.1a row cites ${rule} and names ${variable}`);
+      if (!mechanical && !sessionRules.has(rule)) {
+        issues.push(`ERROR: §7.6 ${variable} is annotated plain "Behavioral" but couples per ${rule}, whose source archetype is not Session; annotate "Behavioral (mechanical)" or add a Session-source path (Standing Rule 11)`);
+      }
     }
   }
 
@@ -1639,9 +1657,8 @@ const INTENDED_GAP_REQS = new Set([
   // server-runtime and cited in holonovel/src (see REQ-454).
   "REQ-161", "REQ-162", "REQ-163", "REQ-164", "REQ-187", "REQ-278",
   // REQ-107 version coordination is a build-time DECISIONS.md record.
-  // REQ-388 holodeck_config is a deferred runtime `spec_health` field — not
-  // yet implemented in server source; tracked as an intended feature gap.
-  "REQ-107", "REQ-388",
+  // REQ-388 holodeck_config was implemented 2026-09-25 — removed from this list.
+  "REQ-107",
   // REQ-372 (supplementary import, Wisdom-only) is now server-runtime and
   // cited — NOT whitelisted. REQ-373 (dynamic tool registration) remains an
   // intended gap under the REQ-372d waiver (the reference stack registers MCP
@@ -1683,12 +1700,13 @@ const INTENDED_GAP_REQS = new Set([
   // bounded-domain parameter documentation is a DECISIONS.md build record
   // (REQ-182). None are owed by the runtime `holonovel/src` server.
   "REQ-021", "REQ-110", "REQ-182",
-  // §5.5 builder-side (2026-08-24 wave-3 triage): gate classification
-  // auditability and truncation-budget units are DECISIONS.md build records
-  // (REQ-137, REQ-180); evidence-record fields, evidence hash commitment, and
-  // verifier model criteria are §10 independent-verification contracts (REQ-211,
-  // REQ-275, REQ-276). Not owed by the runtime server.
-  "REQ-137", "REQ-180", "REQ-211", "REQ-275", "REQ-276",
+  // §5.5 builder-side (2026-08-24 wave-3 triage): truncation-budget units are
+  // a DECISIONS.md build record (REQ-180); evidence-record fields, evidence hash
+  // commitment, and verifier model criteria are §10 independent-verification
+  // contracts (REQ-211, REQ-275, REQ-276). Not owed by the runtime server.
+  // REQ-137 gate classification was implemented 2026-09-25 (REQ-137b tools/list
+  // filter) — removed from this list.
+  "REQ-180", "REQ-211", "REQ-275", "REQ-276",
   // §5.6/§5.9 builder-side (2026-08-24 wave-4 triage): ruleset hash recording,
   // per-section content hashing, and Novel initialization order are build-time
   // DECISIONS.md records (§5.6/§5.9). Not owed by the runtime server.

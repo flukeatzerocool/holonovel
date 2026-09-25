@@ -333,16 +333,20 @@ do not alter meaning are editorial and do not require a version bump.
 11. **Holodeck config alignment.** A behavioral configuration dimension is any
     `TTRPG_*` variable or narrative-tool parameter that affects story pacing,
     character behavior, world reactivity, tone, autonomy, synthesis activation,
-    or narration style — the REQ-388b behavioral classes. Such a dimension
-    SHALL register a natural language access path via a coupling row in §7.7.1a
-    with a Session-archetype source (`manage_character (action: signal)` or
-    `manage_scene (action: directive)`). Build-time-only settings and
+    or narration style — the REQ-388b behavioral classes. A behavioral dimension
+    is either natural-language-tunable or mechanically coupled. A
+    natural-language-tunable dimension SHALL register a natural language access
+    path via a coupling row in §7.7.1a whose source archetype is Session
+    (`manage_character (action: signal)` or `manage_scene (action: directive)`),
+    and SHALL be annotated `Behavioral` in §7.6. A mechanically-coupled dimension
+    SHALL register a §7.7.1a coupling row of any source archetype and SHALL be
+    annotated `Behavioral (mechanical)` in §7.6. Build-time-only settings and
     presentation/display budgets are exempt and SHALL be annotated
     non-behavioral in §7.6. System configuration (storage caps, file paths,
-    build parameters, seed values) is exempt. The coverage of behavioral configs
-    with natural language access paths SHALL be mechanically verified at
-    assembly time, reported in `spec_health` at runtime, and checked against the
-    Appendix M authoring checklist before every new or modified REQ is committed.
+    build parameters, seed values) is exempt. The coupling coverage of behavioral
+    dimensions SHALL be mechanically verified at assembly time, reported in
+    `spec_health` at runtime, and checked against the Appendix M authoring
+    checklist before every new or modified REQ is committed.
 12. **REQ atomicity.** Every requirement is exactly one paragraph — no
     exceptions. A REQ body that requires a second paragraph (blank line),
     a bullet list, a numbered step sequence, or an embedded table is at
@@ -472,7 +476,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.25   | Belief and Evidence                                     | 461–472 |
 | 5.26   | Character Identity                                      | 473–483 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
-| 5.28   | Knowledge Corpus                                        | 496–503 |
+| 5.28   | Knowledge Corpus                                        | 496–503, 546 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
@@ -1187,10 +1191,10 @@ _Check:_ T289.
 The `holodeck_config` field reports coverage of behavioral configuration.
 
 **REQ-388b — Holodeck config discovery (Part b).**
-The field SHALL contain the following values. The `behavioral_coupled` value counts behavioral `TTRPG_*` variables whose configuration has a coupling row in §7.7.1a with a Session-archetype source. The `behavioral_total` value counts behavioral `TTRPG_*` variables classified as affecting pacing, autonomy, reactivity, synthesis, narration, or tone. The `natural_language_paths` value maps each behavioral variable name to its natural language access path — the `manage_character (action: signal)` signal type or `manage_scene (action: directive)` keywords that control it. The `uncoupled` value lists behavioral variable names lacking a natural language access path.
+The field SHALL contain the following values. The `behavioral_total` value counts `TTRPG_*` variables annotated `Behavioral` or `Behavioral (mechanical)` in §7.6. The `behavioral_coupled` value counts behavioral variables whose configuration has a §7.7.1a coupling row naming it, of any source archetype. The `natural_language_paths` value maps each `Behavioral` variable to its natural language access path — the `manage_character (action: signal)` signal type or `manage_scene (action: directive)` keywords that control it. The `uncoupled` value lists behavioral variable names lacking a coupling row.
 
 **REQ-388c — Holodeck config discovery (Part c).**
-System variables (storage caps, file paths, build parameters, seed values) SHALL be excluded from the behavioral count. The classification of each `TTRPG_*` variable as behavioral or system SHALL be recorded in DECISIONS.md at build time.
+System variables (storage caps, file paths, build parameters, seed values) SHALL be excluded from the behavioral count. The classification of each `TTRPG_*` variable as `Behavioral`, `Behavioral (mechanical)`, or system SHALL be recorded in §7.6 and summarized in DECISIONS.md at build time.
 
 **REQ-388d — Holodeck config discovery (Part d).**
 When no Novel is active, `holodeck_config` SHALL report server-level defaults without Novel overrides. *Acceptance criterion:* After a build with `TTRPG_PACING_WINDOW=6` and `TTRPG_NPC_AUTONOMY=off`, `spec_health.holodeck_config` reports `behavioral_coupled: <N>`, `behavioral_total: <M>`, `natural_language_paths` listing each coupled variable's natural language path, and `uncoupled` listing any behavioral variables without a coupling row. _Check:_ T450.
@@ -3969,7 +3973,7 @@ WHEN the server imports a supplementary ruleset, THE server SHALL run extraction
 Supplementary rulesets do not affect other Novels — tools and Wisdom are Novel-scoped. The server MAY cache extraction results across Novels that import the same supplementary source. The `remove_supplementary` tool deactivates all tools and Wisdom from the supplementary ruleset in the current Novel. State derived from supplementary content (NPCs created from supplementary stat blocks, lore from supplementary Wisdom) persists — the tools that created them are no longer available.
 
 **REQ-372d — Supplementary ruleset import (Part d).**
-WHEN the builder's chosen stack cannot support dynamic tool registration, THE builder SHALL record a waiver in DECISIONS.md (5) citing the technical constraint, and supplementary ruleset import SHALL be limited to Ruleset Wisdom only — mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
+WHEN the builder's build does not register supplementary mechanics as tools at runtime, THE builder SHALL record a waiver in DECISIONS.md (5) citing the constraint, whether a stack limitation or a build-scope decision. Supplementary ruleset import SHALL then be limited to Ruleset Wisdom only; mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
 
 **REQ-372e — Supplementary ruleset import (Part e).**
 Call `manage_ruleset (action: import_supplementary, source)`, then `manage_ruleset (action: remove_supplementary, slug)` — assert imported Wisdom is removed. End Novel and resume — assert the supplementary ruleset re-resolves. Move the source file — assert `[supplementary-gap]` in `spec_health`. _Check:_ T423.
@@ -4159,7 +4163,7 @@ Game Master, `badge_briefing` orientation SHALL include a persistence
 directive instructing the GM to commit state for every narratable change.
 Scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
 be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
-REQ-073), including the base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
+REQ-073), including the event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, and base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
 never-truncated tier (REQ-135). _Check:_ T469.
 
 **REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
@@ -4352,6 +4356,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-502 — Reference deixis.** WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the material is not attributed to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
 
 **REQ-503 — Corpus visibility and badge gating.** Corpus registration, routing, and access-policy changes SHALL require the Game Master badge; a Player SHALL consume only for the active entity; and the Observer SHALL read without consuming. *Acceptance criterion:* a Player consumption for another entity is refused, and an Observer consumption is refused. _Check:_ T593.
+
+**REQ-546 — Corpus retention bound.** The registered document set and the per-entity acquisition ledger SHALL each be bounded by a configured cap, and exceeding a cap SHALL evict the oldest entries first. *Acceptance criterion:* with a cap of 2, registering a third document evicts the first, and consuming beyond the acquisition cap evicts the oldest acquisition. _Check:_ T628.
 
 ### 5.29 Build-time Semantic Index
 
@@ -6648,12 +6654,12 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
 | `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Build-time. |
 | `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
-| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral — couples per P1. |
-| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral — couples per P4. |
+| `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral (mechanical) — couples per P1. |
+| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
 | `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
-| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral — couples per P4. |
-| `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral — couples per P20. |
+| `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral (mechanical) — couples per P4. |
+| `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral (mechanical) — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral — couples per P58. |
 | `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral — couples per P55. |
 | `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral — couples per P56. |
@@ -6665,18 +6671,20 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 | `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral — couples per P54. |
-| `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral — couples per P54. |
-| `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral — couples per P54. |
+| `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral (mechanical) — couples per P54. |
+| `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral (mechanical) — couples per P54. |
+| `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral (mechanical) — couples per P54. |
 | `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED` | No | `true` (default) accepts authored character-card identity fields as facets on bootstrap; `false` stages them as pending candidates (REQ-479). Build-time. |
 | `TTRPG_IDENTITY_MAX_CANDIDATES` | No | Maximum identity candidates retained per character before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_CAUSAL_VALIDATION` | No | `true` (default) validates objective-state transitions before admission (REQ-485). Behavioral — couples per P13. |
-| `TTRPG_CAUSAL_LATENT_TRANSITIONS` | No | `false` (default) refuses incompatible transitions; `true` admits them flagged as latent (REQ-490). Behavioral — couples per P13. |
+| `TTRPG_CAUSAL_VALIDATION` | No | `true` (default) validates objective-state transitions before admission (REQ-485). Behavioral (mechanical) — couples per P13. |
+| `TTRPG_CAUSAL_LATENT_TRANSITIONS` | No | `false` (default) refuses incompatible transitions; `true` admits them flagged as latent (REQ-490). Behavioral (mechanical) — couples per P13. |
 | `TTRPG_CAUSAL_MAX_LEDGER_ENTRIES` | No | Maximum transition-ledger entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral — couples per P29. |
+| `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral (mechanical) — couples per P29. |
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -9521,6 +9529,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-543 | Event provenance | 2026-09-24 |
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
+| REQ-546 | Corpus retention bound | 2026-09-25 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
 | REQ-517 | Derived-surface freshness | 2026-09-24 |
@@ -10038,7 +10047,7 @@ diet.
 | T447 | Automated | Import rejection: export D&D Novel. Import into D&D + Starfinder server — assert success. Export Starfinder Novel — import into D&D-only server — assert rejection with valid rulesets enumerated. Import D&D character into Starfinder Novel — assert rejection naming both rulesets. | REQ-386 |
 | T448 | Automated | Codex ruleset annotation: assert `manage_codex (action: list, ruleset="dnd5e")` returns D&D-tagged plus untagged entries only. Assert `manage_codex (action: list, ruleset="starfinder")` returns Starfinder-tagged plus untagged — no D&D entries. Assert `manage_codex (action: import)` of D&D spell codex entry into Starfinder Novel is rejected. Assert `manage_codex (action: capture, "npc", name)` from a D&D-bound Novel creates a codex entry with `ruleset: "dnd5e"` and does not appear in `manage_codex (action: list, ruleset="starfinder")`; assert `manage_codex (action: import)` of that entry into a Starfinder Novel returns `[ERROR] [STATE_CONFLICT]`. | REQ-387 |
 | T449 | Automated | G8 isolation workflow: run all nine G8 isolation steps. Assert all pass. Evidence in `@section evidence-g8`. | REQ-379, REQ-380, REQ-381, REQ-382, REQ-383, REQ-384, REQ-385, REQ-386 |
-| T450 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call manage_session (action: health) — assert holodeck_config.behavioral_coupled counts every behavioral variable, natural_language_paths includes pacing_window → "manage_character (action: signal, pace, faster/slower)", npc_autonomy → "manage_scene (action: directive, 'NPCs act independently')", npc_mind → "manage_scene (action: directive, 'NPCs think for themselves')", world_reactivity → "manage_scene (action: directive, 'the world reacts')", story_beat_window → "manage_scene (action: directive, 'keep more beats')", campaign_memory_max_facts → "manage_scene (action: directive, 'more campaign notes')", auto_record → "manage_scene (action: directive, 'auto-record moments')", max_available_actions → "manage_scene (action: directive, 'more options')", narration_validation → "manage_scene (action: directive, 'validate my narration')", state_gate → "manage_scene (action: directive, 'warn on state drift')". Assert uncoupled is empty. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) and build-time/presentation settings (TTRPG_WORLD_PROMINENCE, TTRPG_NOVEL_PREVIEW_CHARS) absent from behavioral counts. | REQ-388, REQ-069, REQ-081 |
+| T450 | Automated | Holodeck config discovery: build a server with TTRPG_PACING_WINDOW=6, TTRPG_NPC_AUTONOMY=off, TTRPG_WORLD_REACTIVITY=on. Call manage_session (action: health) — assert holodeck_config.behavioral_total counts every variable annotated `Behavioral` or `Behavioral (mechanical)` in §7.6; assert behavioral_coupled equals behavioral_total (every behavioral variable has a §7.7.1a coupling row); assert natural_language_paths includes pacing_window → "manage_character (action: signal, pace, faster/slower)", npc_autonomy → "manage_scene (action: directive, 'NPCs act independently')", npc_mind → "manage_scene (action: directive, 'NPCs think for themselves')", world_reactivity → "manage_scene (action: directive, 'the world reacts')", story_beat_window → "manage_scene (action: directive, 'keep more beats')", campaign_memory_max_facts → "manage_scene (action: directive, 'more campaign notes')", auto_record → "manage_scene (action: directive, 'auto-record moments')", max_available_actions → "manage_scene (action: directive, 'more options')", narration_validation → "manage_scene (action: directive, 'validate my narration')", state_gate → "manage_scene (action: directive, 'warn on state drift')"; assert natural_language_paths excludes the mechanically-coupled variables (belief reconciliation/threshold/margin, causal validation/latent transitions, agent autonomy, climax acceleration, faction autonomy interval, NPC urgency threshold, vow suggestion minimum). Assert uncoupled is empty. Assert system variables (TTRPG_MAX_NPCS, TTRPG_DATA_DIR) and build-time/presentation settings (TTRPG_WORLD_PROMINENCE, TTRPG_NOVEL_PREVIEW_CHARS) absent from behavioral counts. | REQ-388, REQ-069, REQ-081 |
 | T451 | Automated | Binding migration: create a ruleset-free Novel, install a ruleset package, call `manage_ruleset (action: bind)` — assert the Novel gains the slug's tools and the transition is audited. Assert `manage_ruleset (action: bind)` on a Novel already bound to a different slug returns `[ERROR] [STATE_CONFLICT]`. Assert `manage_novel (action: resume)` restores the migrated binding. | REQ-380c |
 | T452 | Automated | Package format integrity: build a package via the Package step, load it into a host — assert `manage_ruleset (action: search)`, lookups, and dice tools serve with no source-Markdown file access. Corrupt the package manifest's content hash — assert the host rejects the package by slug, reports expected/received hashes in `spec_health`, and continues serving other packages. | REQ-389 |
 | T453 | Automated | Install surface: `manage_ruleset (action: install)` with a duplicate slug or incompatible host version fails naming the reason; `manage_ruleset (action: remove)` with a bound Novel active returns `[ERROR] [STATE_CONFLICT]`; `manage_ruleset (action: list)` distinguishes loaded from installed-but-idle packages. Assert all three are audited. | REQ-389c |
@@ -10179,6 +10188,7 @@ diet.
 | T625 | Automated | Consistency visibility: Player and Observer both receive an available report. | REQ-520 |
 | T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
 | T627 | Automated | Harness fail-loud: a harness whose spawned process terminates unexpectedly and never completes exits non-zero with a diagnostic; a harness that completes exits zero with its summary. | REQ-141m |
+| T628 | Automated | Corpus retention bound: with TTRPG_CORPUS_MAX_DOCUMENTS=2, registering a third document evicts the oldest; with TTRPG_CORPUS_MAX_ACQUISITIONS=2, consuming beyond the cap evicts the oldest acquisition for that entity. | REQ-546 |
 
 ---
 
@@ -10684,12 +10694,15 @@ build artifact — it is a spec-maintainer reference.
       the roll-to-commit marker per REQ-404
 - [ ] Guardrail surfaces: new state surfaces are named in the §5.19
       persistence-directive and never-truncated tool enumerations (REQ-400, REQ-407)
+- [ ] Retention bounds: a new persisted surface has a `TTRPG_*_MAX_*` eviction cap,
+      or a recorded justification for unbounded growth
 - [ ] Gate classification: every new tool is recorded in the DECISIONS.md
       gate-classification table (REQ-137a)
 - [ ] Holodeck config alignment: every behavioral configuration introduced by this REQ
-      has a coupling row in §7.7.1a with a Session-archetype source (manage_character (action: signal) or
-      manage_scene (action: directive)). System configuration is annotated as non-behavioral
-      with justification.
+      is annotated `Behavioral` in §7.6 with a coupling row in §7.7.1a whose source
+      archetype is Session (manage_character (action: signal) or manage_scene (action: directive)),
+      or annotated `Behavioral (mechanical)` with a coupling row of any source archetype.
+      System configuration is annotated as non-behavioral with justification.
 - [ ] Convergence metrics: a new §6.5 metric names its ownership class — host-owned
       (recorded `host-verified` per §6.5) or package-owned (runs fresh).
 - [ ] REQ body is exactly one paragraph — no blank lines, no tables, no bullet lists,

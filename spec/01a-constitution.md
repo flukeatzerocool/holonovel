@@ -54,16 +54,20 @@ do not alter meaning are editorial and do not require a version bump.
 11. **Holodeck config alignment.** A behavioral configuration dimension is any
     `TTRPG_*` variable or narrative-tool parameter that affects story pacing,
     character behavior, world reactivity, tone, autonomy, synthesis activation,
-    or narration style — the REQ-388b behavioral classes. Such a dimension
-    SHALL register a natural language access path via a coupling row in §7.7.1a
-    with a Session-archetype source (`manage_character (action: signal)` or
-    `manage_scene (action: directive)`). Build-time-only settings and
+    or narration style — the REQ-388b behavioral classes. A behavioral dimension
+    is either natural-language-tunable or mechanically coupled. A
+    natural-language-tunable dimension SHALL register a natural language access
+    path via a coupling row in §7.7.1a whose source archetype is Session
+    (`manage_character (action: signal)` or `manage_scene (action: directive)`),
+    and SHALL be annotated `Behavioral` in §7.6. A mechanically-coupled dimension
+    SHALL register a §7.7.1a coupling row of any source archetype and SHALL be
+    annotated `Behavioral (mechanical)` in §7.6. Build-time-only settings and
     presentation/display budgets are exempt and SHALL be annotated
     non-behavioral in §7.6. System configuration (storage caps, file paths,
-    build parameters, seed values) is exempt. The coverage of behavioral configs
-    with natural language access paths SHALL be mechanically verified at
-    assembly time, reported in `spec_health` at runtime, and checked against the
-    Appendix M authoring checklist before every new or modified REQ is committed.
+    build parameters, seed values) is exempt. The coupling coverage of behavioral
+    dimensions SHALL be mechanically verified at assembly time, reported in
+    `spec_health` at runtime, and checked against the Appendix M authoring
+    checklist before every new or modified REQ is committed.
 12. **REQ atomicity.** Every requirement is exactly one paragraph — no
     exceptions. A REQ body that requires a second paragraph (blank line),
     a bullet list, a numbered step sequence, or an embedded table is at
