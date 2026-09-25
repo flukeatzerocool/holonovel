@@ -147,6 +147,18 @@ do not alter meaning are editorial and do not require a version bump.
 | Package set      | The installed ruleset packages known to the host. Each package was built independently by the Package step (§6.4.2), installed via `manage_ruleset (action: install)`, and hydrated lazily on first activation of a Novel bound to its slug (REQ-390). |
 | Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable except the single audited migration path (REQ-380c). |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
+| Temporal Event Log | The Novel-scoped append-only record of every observation entering play, each entry carrying a deterministic ordinal and a source classification; a Novel branch shares the log through its branch point (REQ-455–460). |
+| Evidence | A record of an admitted observation entering the belief layer, carrying provenance and an admission state (REQ-461–464). |
+| Belief State | The engine-maintained per-entity stance on a belief question, reconciled from admitted evidence (REQ-465–472). |
+| Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class, and the compiled identity kernel (REQ-473–483). |
+| Causal State | Validated objective world state maintained through transition proposals and admission decisions (REQ-484–495). |
+| Transition Ledger | The append-only record of causal proposals and their admission decisions, retained as auditable evidence (REQ-484, REQ-491). |
+| Knowledge Corpus | Registered cold reference documents and their per-entity acquisition ledgers (REQ-496–503, REQ-546). |
+| Semantic Index | A derived, session-scoped advisory ranking of Novel sources by offline feature extraction; never persisted (REQ-504–509). |
+| Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
+| Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
+| Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
+| Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
 **Technology stack.** TypeScript on Node.js 20+, with stdio transport. It is a single
 process, with no database and no external services. This is the prescribed stack. The

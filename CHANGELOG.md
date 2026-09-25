@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-25 — Terminology consistency remediation
+
+- Terminology now reads consistently across the feature-parity additions: the
+  supplementary-import tool is named in its canonical
+  `manage_ruleset (action: …)` form everywhere, the identity kernel groups by
+  its defined "stability class", and the consistency report reports the
+  defined "readiness cursor". (REQ-372, REQ-373, REQ-480, REQ-501, REQ-516)
+- The causal-state and perception tools are now named by the requirements that
+  establish them, not only by the state model, matching how the agent and
+  identity tools are introduced. (REQ-494, REQ-540)
+- The §4 terminology table now registers the feature-parity subsystem
+  vocabulary — event log, evidence, belief state, character identity, causal
+  state, transition ledger, knowledge corpus, semantic index, knowledge graph,
+  durable agent task, perception ledger, and briefing consistency — so the new
+  terms have one canonical home.
+
 ## 2026-09-25 — Feature-parity residual remediation
 
 - The behavioral-configuration contract is now consistent: a config that

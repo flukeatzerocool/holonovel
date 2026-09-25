@@ -1120,7 +1120,7 @@ findings entry, not a parse failure.
 
 <!-- fixture version 1 -->
 
-A minimal supplementary ruleset for testing `import_supplementary` (REQ-372)
+A minimal supplementary ruleset for testing `manage_ruleset (action: import_supplementary)` (REQ-372)
 and dynamic tool registration (REQ-373). Small enough to not stress extraction
 but complete enough to exercise all three contract dimensions: tools, Wisdom, removal.
 
@@ -1197,7 +1197,7 @@ the same hazardous terrain — the environment drives the clock, not the monster
    suggestion for the three-stage cold exposure progression appears in
    `badge_briefing` `narrative_threads` without manual activation.
 
-3. **Removal.** `remove_supplementary` SHALL deregister both tools and remove
+3. **Removal.** `manage_ruleset (action: remove_supplementary)` SHALL deregister both tools and remove
    associated Wisdom items. Previously-created state (an ice wraith NPC, a
    frostbite-struck entity) SHALL persist.
 
