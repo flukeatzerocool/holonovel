@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** eb4776e24879423b6cd94bc2a09bbdcde8761403573e2692cfd1a77a22288717
+**Spec hash:** b763ab3c5092a45ad270114342035996970839a831127c88df66edc118fad337
 
-**Recorded tool budget:** 27 (REQ-429)
+**Recorded tool budget:** 28 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M1c: Character Identity Firewall)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.26 Character Identity (REQ-473–483) as M1c of the feature-parity program. Identity state is declared a self-contained Roster-tier surface in §7.7.0 (no §7.7 property groups, no coupling rows) and named in REQ-240a's roster-preservation clause. §7.6 adds `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED` (build-time) and `TTRPG_IDENTITY_MAX_CANDIDATES` (storage). REQ-407 names the identity surface. New tool `manage_identity` (stage/accept/reject/list/snapshot/bootstrap) and resource `identity://<character>`; REQ-429 recorded budget 27 → 28. Implementation: `src/core/identity.ts` (staged candidates, stability classes, perspectives, deterministic version-keyed kernel, card-bootstrap exclusions, developmental proposal-only); `RosterEntity.identity` persisted through `saveRoster`/`loadRoster`/`addToRoster`; `manage_identity` with badge gating; identity is never written by play, belief, or memory. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `b763ab3c…`; bucket A 0, B 0, C 332, E 113); typecheck 0 errors; test:identity 11/11 (T563–T573); test:tool-definitions 6/6 (T511 against the 28-tool recorded budget); version-check OK |
+| Follow-up | M1d (causal transition validation) and M2–M5 remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (M1b: Belief and Evidence Reconciliation)
 

@@ -528,7 +528,9 @@ export interface NovelState {
 }
 
 export interface RosterEntity extends NovelEntity {
-  // Roster baselines are immutable except narrative fields
+  // Roster baselines are immutable except narrative fields (REQ-077).
+  // REQ-473/REQ-476 — staged identity candidates, accepted facets, and version.
+  identity: import("./identity.js").IdentityState;
 }
 
 const VALID_SCENE_TYPES = ["combat", "social", "exploration", "neutral"] as const;
@@ -1857,6 +1859,7 @@ ${turnOrder}`;
         conditions: entity.conditions,
         condition_rounds: entity.condition_rounds,
         stats: entity.stats,
+        identity: entity.identity,
       };
     }
     rosterData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
@@ -1882,6 +1885,7 @@ ${turnOrder}`;
         conditions: e.conditions || [],
         condition_rounds: e.condition_rounds || {},
         stats: e.stats,
+        identity: e.identity ?? { character_id: e.id || id, candidates: [], facets: [], version: 0 },
       });
     }
   }
@@ -1911,6 +1915,7 @@ ${turnOrder}`;
       conditions: entity.conditions || [],
       condition_rounds: entity.condition_rounds || {},
       stats: entity.stats,
+      identity: { character_id: entity.id, candidates: [], facets: [], version: 0 },
     });
     this.saveRoster();
     return id;
