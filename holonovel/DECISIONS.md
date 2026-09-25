@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** bb67f5e4ee79ca5c80af23303b29da2b97eae08019ee06886c46d09fc72e4237
+**Spec hash:** 893566239baf5ee6aee957e26eb952f843ce636109615df82257d2e571eb9e9e
 
 **Recorded tool budget:** 34 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M3: Briefing Consistency)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.33 Briefing Consistency (REQ-515–521), the final roadmap item (narrowed M3). The report is declared a derived, read-only surface in §7.7.0 (no property group, no config, no new tool). Implementation: `briefingConsistency()` reports the event-log readiness cursor and derived-surface freshness (semantic index, knowledge graph: unbuilt/current/stale) with a staleness advisory; surfaced in `spec_health.briefing_consistency` and appended to the `badge_briefing` prompt after the length budget so it is never truncated. `applyPromptBudget` remains unchanged (token budgeting already shipped under REQ-109/135). |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `89356623…`; bucket A 0, B 0, C 386, E 112); typecheck 0 errors; test:briefing 7/7 (T620–T626); test:tool-definitions 6/6 (T511 against the 34-tool recorded budget, unchanged); version-check OK |
+| Follow-up | None — the feature-parity roadmap is complete; REQ-373 (dynamic tool registration) remains a recorded waived intended gap. |
 
 ### Holonovel Spec Update — 2026-09-24 (N3: Perception Ledger)
 

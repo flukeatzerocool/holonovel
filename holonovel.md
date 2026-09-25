@@ -477,6 +477,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
 | 5.32   | Perception Ledger                                       | 540–545 |
+| 5.33   | Briefing Consistency                                    | 515–521 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4412,6 +4413,22 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-545 — Perception badge gating.** A Player SHALL read only the active entity's perceptions, and perception mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player read of another entity's perceptions is refused and an Observer mutation is refused. _Check:_ T619.
 
+### 5.33 Briefing Consistency
+
+**REQ-515 — Readiness cursor.** THE server SHALL report, in `badge_briefing` and `manage_session (action: health)`, the event-log ordinal the briefing reflects as its readiness cursor. *Acceptance criterion:* after N events the reported cursor equals N. _Check:_ T620.
+
+**REQ-516 — Consistency declaration.** The consistency report SHALL declare its availability and the event-log cursor it reflects, so a caller can tell which committed state a briefing describes. *Acceptance criterion:* the report is available and carries a numeric cursor. _Check:_ T621.
+
+**REQ-517 — Derived-surface freshness.** The report SHALL state, for each derived advisory surface, whether it is unbuilt, current, or stale relative to its sources. *Acceptance criterion:* a surface is unbuilt before its build, current after, and stale once sources change. _Check:_ T622.
+
+**REQ-518 — Consistency determinism.** Given unchanged state, repeated consistency reports SHALL be identical. *Acceptance criterion:* two consecutive reports are equal. _Check:_ T623.
+
+**REQ-519 — Consistency read-only.** The consistency report SHALL NOT mutate Novel state and SHALL NOT advance the event log. *Acceptance criterion:* repeated reports leave the cursor unchanged. _Check:_ T624.
+
+**REQ-520 — Consistency visibility.** The consistency report SHALL be available to every badge. *Acceptance criterion:* Player and Observer both receive an available report. _Check:_ T625.
+
+**REQ-521 — Staleness advisory.** A stale derived surface SHALL be reported as an advisory and SHALL NOT block briefing rendering. *Acceptance criterion:* a stale surface produces an advisory and the briefing still renders its consistency line. _Check:_ T626.
+
 #### End of requirements
 
 ---
@@ -6798,6 +6815,10 @@ derived, session-scoped read-only surface, not a Novel property group: it is
 rebuilt offline from the property groups, is never persisted, and never writes
 state. Copy, snapshot, archive, and interchange operations do not include it,
 since it is regenerated from the property groups they already carry.
+
+**Briefing consistency.** The briefing-consistency report (REQ-515–521) is a
+derived, read-only indicator of the event-log readiness cursor and the freshness
+of derived advisory surfaces; it is not a property group and never writes state.
 
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
@@ -9491,6 +9512,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-543 | Event provenance | 2026-09-24 |
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
+| REQ-515 | Readiness cursor | 2026-09-24 |
+| REQ-516 | Consistency declaration | 2026-09-24 |
+| REQ-517 | Derived-surface freshness | 2026-09-24 |
+| REQ-518 | Consistency determinism | 2026-09-24 |
+| REQ-519 | Consistency read-only | 2026-09-24 |
+| REQ-520 | Consistency visibility | 2026-09-24 |
+| REQ-521 | Staleness advisory | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -10133,6 +10161,13 @@ diet.
 | T617 | Automated | Event provenance: a perception recorded after an event carries that event's ordinal and an event query returns it. | REQ-543 |
 | T618 | Automated | Persistence: a perception survives an end-and-resume cycle. | REQ-544 |
 | T619 | Automated | Perception badge gating: a Player read of another entity's perceptions is refused and an Observer mutation is refused. | REQ-545 |
+| T620 | Automated | Readiness cursor: after N events the reported cursor equals N. | REQ-515 |
+| T621 | Automated | Consistency declaration: the report is available and carries a numeric cursor. | REQ-516 |
+| T622 | Automated | Derived-surface freshness: a surface is unbuilt before its build, current after, and stale once sources change. | REQ-517 |
+| T623 | Automated | Consistency determinism: two consecutive reports are equal. | REQ-518 |
+| T624 | Automated | Consistency read-only: repeated reports leave the cursor unchanged. | REQ-519 |
+| T625 | Automated | Consistency visibility: Player and Observer both receive an available report. | REQ-520 |
+| T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
 
 ---
 
