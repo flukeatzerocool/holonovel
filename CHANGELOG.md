@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-24 — M2b: Build-time Semantic Index
+
+- The server can now build a semantic index over a Novel's own sources — lore,
+  corpus documents, NPCs, and characters — entirely offline. Construction is
+  deterministic feature extraction with no outbound network, and the index
+  records a source fingerprint so it can report itself stale when sources
+  change and be rebuilt. (REQ-504, REQ-505)
+- Searches rank candidates by similarity with a deterministic order and return
+  advisory results only: a candidate never writes state and becomes truth only
+  when promoted through the authoritative tool for its type. The index also
+  exposes build-derived relations (equivalent, related) between items. All
+  reads are filtered by the active badge, so a Game Master-scope item cannot
+  surface as a Player's candidate. (REQ-506–REQ-509)
+- New `manage_index` tool (build/status/list/search/relations). The index is
+  derived and session-scoped — never persisted, never included in saves,
+  checkpoints, archives, or interchange. The knowledge-graph milestone remains
+  on ROADMAP.md.
+
 ## 2026-09-24 — M2a: Knowledge Corpus and Access Control
 
 - The server can hold cold reference material that creates no knowledge until a

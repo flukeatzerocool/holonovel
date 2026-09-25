@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** ad0ecd291bd9ce794c9ac41fa7832c88254e8a24b280690b893a48e5480996d4
+**Spec hash:** c9df60e2feef361bc8999f1e4542202580ee709a69bc0cf33fb64a424c217e84
 
-**Recorded tool budget:** 30 (REQ-429)
+**Recorded tool budget:** 31 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (M2b: Build-time Semantic Index)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — adds §5.29 Build-time Semantic Index (REQ-504–509) as M2b. The index is declared a derived, session-scoped advisory surface in §7.7.0 (not a Novel property group; never persisted; never writes state), so there is no §7.7 property-table change and no property-group count change. REQ-407 names the semantic-index surface. New tool `manage_index` (build/status/list/search/relations); REQ-429 recorded budget 30 → 31. Implementation: `src/core/semantic.ts` (offline tokenization + term-vector cosine, SHA-256 source fingerprint, deterministic clustering and equivalent/related relation derivation, scope-filtered deterministic ranking with no outbound network). `StateManager.semanticIndex` is session-scoped and non-persisting. No new §7.6 config. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `c9df60e2…`; bucket A 0, B 0, C 358, E 113); typecheck 0 errors; test:index 6/6 (T594–T599); test:tool-definitions 6/6 (T511 against the 31-tool recorded budget); version-check OK |
+| Follow-up | M2c (knowledge-graph projection) and M3–M5 remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (M2a: Knowledge Corpus and Access Control)
 

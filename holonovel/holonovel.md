@@ -473,6 +473,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.26   | Character Identity                                      | 473–483 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
 | 5.28   | Knowledge Corpus                                        | 496–503 |
+| 5.29   | Build-time Semantic Index                               | 504–509 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4208,7 +4209,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4347,6 +4348,20 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-502 — Reference deixis.** WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the material is not attributed to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
 
 **REQ-503 — Corpus visibility and badge gating.** Corpus registration, routing, and access-policy changes SHALL require the Game Master badge; a Player SHALL consume only for the active entity; and the Observer SHALL read without consuming. *Acceptance criterion:* a Player consumption for another entity is refused, and an Observer consumption is refused. _Check:_ T593.
+
+### 5.29 Build-time Semantic Index
+
+**REQ-504 — Offline index construction.** THE server SHALL build a semantic index of Novel sources by deterministic offline feature extraction with no outbound network access, producing for each indexed item a stable identifier, its source type, and a feature vector. *Acceptance criterion:* building produces one indexed record per source carrying its type and a non-empty feature vector. _Check:_ T594.
+
+**REQ-505 — Index staleness and rebuild.** The index SHALL record a source fingerprint and build time and SHALL report itself stale when the current source fingerprint differs from the built fingerprint; rebuilding SHALL refresh the fingerprint. *Acceptance criterion:* changing a source marks the index stale, and rebuilding clears it. _Check:_ T595.
+
+**REQ-506 — Advisory candidate ranking.** A search SHALL return candidates ranked by similarity to the query with a deterministic order under ties, and the ranking SHALL be advisory. *Acceptance criterion:* the best-matching item ranks first and repeated searches return identical results. _Check:_ T596.
+
+**REQ-507 — Advisory relation metadata.** The index SHALL expose build-derived relations between items from a relation catalog including equivalent, refines, contradicts, and related, and every relation SHALL be advisory. *Acceptance criterion:* two near-identical items yield an equivalent or related relation. _Check:_ T597.
+
+**REQ-508 — Authority boundary.** Index candidates SHALL NOT write or mutate Novel state; a candidate SHALL become state only when promoted through the authoritative tool for its type. *Acceptance criterion:* a search leaves the authoritative stores unchanged. _Check:_ T598.
+
+**REQ-509 — Index scope filtering.** Index reads SHALL be filtered by the active badge so an item the caller cannot read does not surface as a candidate or relation. *Acceptance criterion:* a Game Master-scope item is absent from a Player search. _Check:_ T599.
 
 #### End of requirements
 
@@ -6715,6 +6730,12 @@ through `manage_identity`, does not couple to any Novel property group, and is
 preserved with roster baselines wherever roster references are preserved
 (REQ-240a). A future identity surface that defines cross-property effects SHALL
 register as a property group with archetypes and coupling rows per REQ-370.
+
+**Semantic index.** The semantic index (REQ-504–509) is a derived,
+session-scoped advisory surface, not a Novel property group: it is rebuilt
+offline from the property groups, is never persisted, and never writes state.
+Copy, snapshot, archive, and interchange operations do not include it, since it
+is regenerated from the property groups they already carry.
 
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
@@ -9380,6 +9401,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-501 | Cold until consumed | 2026-09-24 |
 | REQ-502 | Reference deixis | 2026-09-24 |
 | REQ-503 | Corpus visibility and badge gating | 2026-09-24 |
+| REQ-504 | Offline index construction | 2026-09-24 |
+| REQ-505 | Index staleness and rebuild | 2026-09-24 |
+| REQ-506 | Advisory candidate ranking | 2026-09-24 |
+| REQ-507 | Advisory relation metadata | 2026-09-24 |
+| REQ-508 | Authority boundary | 2026-09-24 |
+| REQ-509 | Index scope filtering | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9996,6 +10023,12 @@ diet.
 | T591 | Automated | Cold until consumed: the ledger is empty before consumption and holds one entry after. | REQ-501 |
 | T592 | Automated | Reference deixis: consuming a first-person document records an unresolved deixis. | REQ-502 |
 | T593 | Automated | Corpus badge gating: a Player consumption for another entity is refused; an Observer consumption is refused. | REQ-503 |
+| T594 | Automated | Offline index construction: building produces one indexed record per source carrying its type and a non-empty feature vector. | REQ-504 |
+| T595 | Automated | Index staleness and rebuild: changing a source marks the index stale and rebuilding clears it. | REQ-505 |
+| T596 | Automated | Advisory candidate ranking: the best-matching item ranks first and repeated searches return identical results. | REQ-506 |
+| T597 | Automated | Advisory relation metadata: two near-identical items yield an equivalent or related relation. | REQ-507 |
+| T598 | Automated | Authority boundary: a search leaves the authoritative stores unchanged. | REQ-508 |
+| T599 | Automated | Index scope filtering: a Game Master-scope item is absent from a Player search. | REQ-509 |
 
 ---
 

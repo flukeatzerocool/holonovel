@@ -13,7 +13,15 @@
 Cold corpus, source-profile domain routing, four-way access predicate, and the
 per-entity acquisition ledger ship as `manage_corpus`. Remaining below.
 
-### M2b Build-time Semantic Index (REQ-504–509)
+### M2b Build-time Semantic Index — SHIPPED 2026-09-24 (REQ-504–509)
+
+Offline deterministic index, staleness fingerprint, advisory ranking,
+relations, authority boundary, and scope filtering ship as `manage_index`.
+
+### M2c Knowledge-Graph Projection (REQ-510–514)
+
+Rebuildable JSON knowledge-graph projection over Novel sources; read tool
+`manage_graph`.
 
 ## Feature parity — M3 Generation-consistent Briefing Frame
 
