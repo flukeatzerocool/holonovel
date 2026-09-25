@@ -18,6 +18,8 @@ import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 
 import { PACKAGE_FORMAT, DATA_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 
 const ROOT = join(import.meta.dirname!, "..", "..");
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -318,6 +320,7 @@ async function main() {
     });
   }
 
+  harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

@@ -11,6 +11,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "sec-"));
@@ -192,6 +194,7 @@ async function main() {
     await kill(p);
   });
 
+  harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
   if (failed > 0) process.exit(1);

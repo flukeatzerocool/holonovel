@@ -1414,6 +1414,32 @@ function gatherExercisedIds(): Set<string> {
   return ids;
 }
 
+// REQ-141m (harness fail-loud): a test harness that spawns a process must
+// import the shared guard and signal completion, so a crashed child that
+// abandons a pending call cannot drain the event loop and masquerade as a
+// silent pass. Mechanized so the guard cannot be dropped from a new harness.
+function checkHarnessFailLoud(): string[] {
+  const issues: string[] = [];
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    const base = path.basename(f);
+    if (!/^test-.*\.ts$/.test(base)) continue;
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    if (!/\bspawn\s*\(/.test(content)) continue;
+    if (!content.includes("harness-guard")) {
+      issues.push(`harness '${base}' spawns a process but does not import ./lib/harness-guard.js (REQ-141m)`);
+      continue;
+    }
+    if (!content.includes("installHarnessGuard()")) {
+      issues.push(`harness '${base}' does not call installHarnessGuard() (REQ-141m)`);
+    }
+    if (!content.includes("harnessComplete()")) {
+      issues.push(`harness '${base}' does not call harnessComplete() (REQ-141m)`);
+    }
+  }
+  return issues;
+}
+
 // A harness whose `test("...")` calls contribute exercised T/S/I IDs must be
 // wired into a gate — its basename must appear in a `scripts` entry of
 // holonovel/package.json. This prevents an ungated (or silently broken) harness
@@ -2075,6 +2101,10 @@ function main(): void {
   const gatingIssues = checkHarnessGating();
   if (gatingIssues.length > 0) { for (const issue of gatingIssues) console.log(`ERROR: ${issue}`); errors += gatingIssues.length; }
   else console.log("PASS: Every exercised harness is wired into a gate");
+
+  const failLoudIssues = checkHarnessFailLoud();
+  if (failLoudIssues.length > 0) { for (const issue of failLoudIssues) console.log(`ERROR: ${issue}`); errors += failLoudIssues.length; }
+  else console.log("PASS: Every spawning harness installs the fail-loud guard (REQ-141m)");
 
   const inflationIssues = checkTestNameInflation();
   if (inflationIssues.length > 0) {

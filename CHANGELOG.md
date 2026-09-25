@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-25 — Harness fail-loud contract (REQ-141m)
+
+- A test harness whose spawned server crashes mid-run could drain its event
+  loop and exit zero with no summary — a silent pass. New REQ-141m and a G4
+  clause make that a failure: a harness must exit non-zero with a diagnostic
+  when a spawned process terminates unexpectedly, and a run with no summary is
+  never a pass (T627).
+- Added a shared `holonovel/scripts/lib/harness-guard.ts`, installed in all 28
+  spawned-process harnesses; a new `validate.ts` check requires it so a new
+  harness cannot omit the guard.
+- Added `test-harness-guard.ts`, which proves a silent-drain harness exits
+  non-zero with the diagnostic and a completing harness exits zero silently.
+- `check-script-discipline` now recognizes `holonovel/scripts/lib` as a library
+  tree (no shebang required).
+
 ## 2026-09-25 — Prompt budget for every prompt; register reconciliation
 
 - The per-prompt length budget now applies to all five prompts (`intro`,

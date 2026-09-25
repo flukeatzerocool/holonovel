@@ -12,7 +12,7 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
 const DIRS = [join(ROOT, "scripts"), join(ROOT, "holonovel", "scripts")];
-const LIB_DIR = join(ROOT, "scripts", "lib");
+const LIB_DIRS = [join(ROOT, "scripts", "lib"), join(ROOT, "holonovel", "scripts", "lib")];
 
 const issues: string[] = [];
 
@@ -45,7 +45,7 @@ for (const dir of DIRS) {
     const rel = file.slice(ROOT.length + 1);
     const content = readFileSync(file, "utf-8");
     const lines = content.split("\n");
-    const isLib = file.startsWith(LIB_DIR);
+    const isLib = LIB_DIRS.some((d) => file.startsWith(d));
 
     if (!isLib && !content.startsWith("#!")) {
       issues.push(`${rel}: missing shebang on first line`);

@@ -122,7 +122,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-138 | Prompt health reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T152 | — |
 | REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | C | T153 | — |
 | REQ-140 | End-Novel confirmation dispatch | 5.4 Decision workflows | C | T158 | — |
-| REQ-141 | Input-validation convergence metric (Part a) (12 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
+| REQ-141 | Input-validation convergence metric (Part a) (13 sub-parts) | 6.6 The Pattern Buffer | E | T627 | — |
 | REQ-142 | Blocking classification principle (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-146 | Reconciliation authority (Part a) (4 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-147 | Confidence aggregation (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | T181 | — |

@@ -96,7 +96,10 @@ imported directives remain inert per REQ-444.
 [Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking
 disabled (REQ-051). Waivers are allowed only under REQ-013; log each with its
 reason in DECISIONS.md. Automated tests must ship a runnable script
-(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. Manual
+(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. A harness
+that spawns a server SHALL also fail non-zero with a diagnostic when the spawned
+process terminates unexpectedly; a run that produces no summary is a failure,
+never a silent pass (REQ-141m). Manual
 tests must document the verification procedure and expected output shape in
 DECISIONS.md. This workflow uniquely verifies the server against the formal
 test catalogue — individual tool contracts are exercised by G2 (fixture

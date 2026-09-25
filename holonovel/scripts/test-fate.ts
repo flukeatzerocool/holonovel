@@ -8,6 +8,8 @@ import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-fate-"));
@@ -174,6 +176,7 @@ async function main() {
     proc.kill("SIGKILL");
   }
 
+  harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
