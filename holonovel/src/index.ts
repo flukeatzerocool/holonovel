@@ -18,6 +18,7 @@ import { expandMacros } from "./core/macros.js";
 import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
+import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -134,6 +135,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_codex: MUTATING,
   manage_synthesis: MUTATING,
   manage_belief: MUTATING,
+  manage_identity: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -4988,6 +4990,128 @@ server.registerTool("manage_belief", {
   }
 });
 
+// --- Identity ---
+
+// Character Identity (REQ-473–REQ-483) — Roster-tier identity, staged,
+// perspective-tagged, stability-classed, and version-compiled. Identity is the
+// only writer of identity; conversation, belief, and memory never touch it.
+function identityFor(characterId: string): IdentityState | null {
+  const entity = state.roster.get(characterId);
+  if (!entity) return null;
+  if (!entity.identity) entity.identity = emptyIdentity(characterId);
+  return entity.identity;
+}
+
+function identityReadGate(characterId: string) {
+  const badge = getBadge();
+  if (badge === "player" && characterId !== state.activeNovel?.active_entity_id) {
+    return err("FORBIDDEN", "Player badge reads only the active character's identity. Switch badges with set_badge to read others.");
+  }
+  return null;
+}
+
+server.registerTool("manage_identity", {
+  title: "Identity",
+  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. Mutation (stage, accept, reject, bootstrap) persists the roster and is audited; list/snapshot are read-only. Use when: importing or authoring identity material (stage), accepting or rejecting a candidate (accept/reject), seeding from a character card (bootstrap), inspecting candidates and facets (list), or reading the compiled kernel (snapshot). Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality). Parameters by action: stage — character_id, facet, value, stability, perspective, source; accept — character_id, candidate_id, perspective; reject — character_id, candidate_id; list — character_id; snapshot — character_id; bootstrap — character_id, card.",
+  inputSchema: {
+    action: z.enum(["stage", "accept", "reject", "list", "snapshot", "bootstrap"]).describe("stage, accept, reject, list, snapshot, or bootstrap."),
+    character_id: z.string().describe("Roster character id."),
+    candidate_id: z.string().optional().describe("Identity candidate id (accept/reject)."),
+    facet: z.string().optional().describe("Identity facet key, e.g. name or calling (stage)."),
+    value: z.string().optional().describe("Identity facet value (stage)."),
+    stability: z.enum(["structural", "constitutional", "core", "developmental"]).optional().describe("structural, constitutional, core, or developmental (stage; default core)."),
+    perspective: z.enum(["self", "biographical", "public_reputation", "secret", "unknown"]).optional().describe("self, biographical, public_reputation, secret, or unknown (stage/accept; default self)."),
+    source: z.string().optional().describe("Provenance label for the candidate (stage; default manual)."),
+    card: z.record(z.string(), z.unknown()).optional().describe("Character-card fields to stage (bootstrap)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "list": {
+      requireNotObserver();
+      const gate = identityReadGate(args.character_id); if (gate) return gate;
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      return raw(JSON.stringify(identity, null, 2));
+    }
+    case "snapshot": {
+      requireNotObserver();
+      const gate = identityReadGate(args.character_id); if (gate) return gate;
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      return raw(JSON.stringify(compileKernel(identity), null, 2));
+    }
+    case "stage": {
+      requireGM();
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!args.facet || !args.value) return err("INVALID_INPUT", "facet and value are required for stage.");
+      if (args.stability && !STABILITY_CLASSES.includes(args.stability)) return err("INVALID_INPUT", `Unknown stability '${args.stability}'.`);
+      if (args.perspective && !PERSPECTIVES.includes(args.perspective)) return err("INVALID_INPUT", `Unknown perspective '${args.perspective}'.`);
+      const candidate: IdentityCandidate = {
+        id: nextCandidateId(identity),
+        facet: args.facet,
+        value: args.value,
+        stability: (args.stability ?? "core") as StabilityClass,
+        perspective: (args.perspective ?? "self") as IdentityPerspective,
+        source: args.source ?? "manual",
+        status: "pending",
+        proposed_at: new Date().toISOString(),
+      };
+      identity.candidates.push(candidate);
+      state.saveRoster();
+      audit("identity_stage", { character_id: args.character_id, candidate_id: candidate.id, facet: candidate.facet, stability: candidate.stability });
+      return ok(`Identity candidate ${candidate.id} staged for '${args.character_id}'.`);
+    }
+    case "accept": {
+      requireGM();
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      const candidate = identity.candidates.find((c) => c.id === args.candidate_id);
+      if (!candidate) return err("NOT_FOUND", `Identity candidate '${args.candidate_id}' not found.`);
+      if (candidate.status !== "pending") return err("STATE_CONFLICT", `Candidate '${candidate.id}' is already ${candidate.status}.`);
+      const perspective = (args.perspective ?? candidate.perspective) as IdentityPerspective;
+      applyFacet(identity, candidate, perspective, new Date().toISOString());
+      candidate.status = "accepted";
+      state.saveRoster();
+      audit("identity_accept", { character_id: args.character_id, candidate_id: candidate.id, facet: candidate.facet, version: identity.version });
+      return ok(`Accepted identity candidate ${candidate.id}; identity version is now ${identity.version}.`);
+    }
+    case "reject": {
+      requireGM();
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      const candidate = identity.candidates.find((c) => c.id === args.candidate_id);
+      if (!candidate) return err("NOT_FOUND", `Identity candidate '${args.candidate_id}' not found.`);
+      candidate.status = "rejected";
+      state.saveRoster();
+      audit("identity_reject", { character_id: args.character_id, candidate_id: candidate.id });
+      return ok(`Rejected identity candidate ${candidate.id}.`);
+    }
+    case "bootstrap": {
+      requireGM();
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!args.card || typeof args.card !== "object") return err("INVALID_INPUT", "card is required for bootstrap.");
+      const staged = candidatesFromCard(args.character_id, args.card, new Date().toISOString());
+      const autoAccept = (process.env.TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED ?? "true") !== "false";
+      for (const c of staged) {
+        c.id = nextCandidateId(identity);
+        identity.candidates.push(c);
+        // REQ-482 — developmental candidates are proposal-only, never auto-accepted.
+        if (autoAccept && c.stability !== "developmental") {
+          applyFacet(identity, c, c.perspective, new Date().toISOString());
+          c.status = "accepted";
+        }
+      }
+      state.saveRoster();
+      audit("identity_bootstrap", { character_id: args.character_id, staged: staged.length, auto_accept: autoAccept });
+      return ok(`Bootstrapped ${staged.length} identity candidate(s) for '${args.character_id}'.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown identity action '${args.action}'.`);
+  }
+});
+
 server.registerTool("manage_session", {
   title: "Session",
   description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment and event append mutate Novel-scoped state and persist; recap/verbosity/briefing_order/compress/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries; recap — gm_notes; subscribe — topics; discover — query; category — tool_name, category; event — text, source, supersede; history — through_ordinal, include_superseded.",
@@ -6345,6 +6469,17 @@ server.registerResource("scene-history", "scene://history", { title: "Scene Hist
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "scene://history", text: "[]", mimeType: "application/json" }] };
   return { contents: [{ uri: "scene://history", text: JSON.stringify(novel.scene_history), mimeType: "application/json" }] };
+});
+
+// Identity resource (REQ-476/REQ-480) — the compiled identity kernel for a
+// roster character. Secret-perspective facets are excluded from the kernel.
+server.registerResource("identity-kernel", new ResourceTemplate("identity://{id}", { list: () => {
+  return { resources: [...state.roster.keys()].map(id => ({ uri: `identity://${id}`, name: id })) };
+} }), { title: "Identity Kernel" }, async (uri) => {
+  const id = resourceKey(uri);
+  const identity = identityFor(id);
+  if (!identity) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  return { contents: [{ uri: uri.href, text: JSON.stringify(compileKernel(identity), null, 2), mimeType: "application/json" }] };
 });
 
 // Countdown resource

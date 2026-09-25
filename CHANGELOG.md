@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-24 — M1c: Character Identity Firewall
+
+- Characters now have a durable identity that play cannot rewrite. Identity
+  material — character-card fields, biography, or manual entries — enters a
+  staging boundary as candidates; it becomes durable identity only through
+  explicit acceptance. Each facet carries a stability class (structural,
+  constitutional, core, or developmental) and a perspective (self,
+  biographical, public reputation, secret, or unknown), and secret facets are
+  excluded from the compiled kernel. (REQ-473–REQ-475)
+- Accepted facets compile into a deterministic, version-keyed kernel served
+  through `manage_identity (action: snapshot)` and an `identity://<character>`
+  resource. Conversation, belief, and memory never write identity; a session of
+  play leaves the identity version unchanged. Re-accepting a facet advances its
+  revision, and developmental candidates stay proposals until accepted.
+  (REQ-476–REQ-478, REQ-482)
+- Character-card bootstrap stages the card's identity fields while excluding
+  scenario, first-message, and example-dialogue fields; every candidate records
+  its source. New `manage_identity` tool (stage/accept/reject/list/snapshot/
+  bootstrap); a Player reads only their own character and mutation is Game
+  Master-only. (REQ-479–REQ-481, REQ-483)
+- The causal transition validation milestone remains on ROADMAP.md.
+
 ## 2026-09-24 — M1b: Belief and Evidence Reconciliation
 
 - Characters now hold beliefs, not just facts: the server records what each

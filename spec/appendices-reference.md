@@ -1171,6 +1171,17 @@ date-stamps matching CHANGELOG entries.
 | REQ-470 | Single-value predicates | 2026-09-24 |
 | REQ-471 | Belief branch inheritance | 2026-09-24 |
 | REQ-472 | Belief visibility and badge gating | 2026-09-24 |
+| REQ-473 | Identity candidate staging | 2026-09-24 |
+| REQ-474 | Identity stability classes | 2026-09-24 |
+| REQ-475 | Identity perspective | 2026-09-24 |
+| REQ-476 | Compiled identity kernel | 2026-09-24 |
+| REQ-477 | Identity write-authority isolation | 2026-09-24 |
+| REQ-478 | Identity revision | 2026-09-24 |
+| REQ-479 | Character-card bootstrap exclusions | 2026-09-24 |
+| REQ-480 | Identity kernel exposure | 2026-09-24 |
+| REQ-481 | Identity visibility and badge gating | 2026-09-24 |
+| REQ-482 | Developmental proposal-only | 2026-09-24 |
+| REQ-483 | Identity source provenance | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1756,6 +1767,17 @@ diet.
 | T560 | Automated | Single-value predicates: only the highest-support object is current; a tie within the decision margin leaves no current value. | REQ-470 |
 | T561 | Automated | Branch inheritance: a branch inherits the parent's stances at the branch point, and a belief admitted in one branch leaves its parent and siblings unchanged. | REQ-471 |
 | T562 | Automated | Belief badge gating: a Player request for another entity's beliefs returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-472 |
+| T563 | Automated | Identity candidate staging: staging a candidate leaves the accepted facets and identity version unchanged. | REQ-473 |
+| T564 | Automated | Identity stability classes: a facet accepted as core is reported as core in the kernel; acceptance advances the version. | REQ-474 |
+| T565 | Automated | Identity perspective: a biographical facet retains its perspective and a secret facet is excluded from the compiled kernel. | REQ-475 |
+| T566 | Automated | Compiled identity kernel: repeated snapshots share an identity version; an acceptance advances the version and the kernel reflects it. | REQ-476 |
+| T567 | Automated | Identity write-authority isolation: observations, beliefs, and scene changes leave the identity version unchanged. | REQ-477 |
+| T568 | Automated | Identity revision: re-accepting a facet advances its revision and replaces its value. | REQ-478 |
+| T569 | Automated | Card-bootstrap exclusions: a card's scenario and first message are not staged, while its name and description are. | REQ-479 |
+| T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel with its stability groups. | REQ-480 |
+| T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
+| T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
+| T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
 
 ---
 

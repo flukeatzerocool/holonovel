@@ -6,15 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Feature parity — M1c Character Identity Firewall (REQ-473–483)
-
-- Add §5.26: staged identity candidates, stability classes, perspective,
-  versioned compiled kernel, write-authority isolation; new tool
-  `manage_identity` (stage/accept/reject/snapshot/bootstrap/list).
-- Identity Kernel is Roster-tier, declared a self-contained non-coupling
-  surface and named in clone/checkpoint/archive enumerations.
-- Harness `scripts/test-identity.ts`; T563–T573. Depends on M1a.
-
 ## Feature parity — M1d Causal Transition Validation (REQ-484–495)
 
 - Add §5.27: transition proposals, admissibility decisions, scope-coordinate

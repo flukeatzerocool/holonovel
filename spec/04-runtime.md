@@ -169,6 +169,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral — couples per P54. |
 | `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral — couples per P54. |
 | `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED` | No | `true` (default) accepts authored character-card identity fields as facets on bootstrap; `false` stages them as pending candidates (REQ-479). Build-time. |
+| `TTRPG_IDENTITY_MAX_CANDIDATES` | No | Maximum identity candidates retained per character before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -285,6 +287,14 @@ footing as property groups: copy, snapshot, archive, and interchange
 operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
 include property-group state. Mind content is GM-only per REQ-075f and SHALL
 be stripped from every Player-badge surface.
+
+**Character identity.** Character identity state (REQ-473–483) — the staged
+candidates, accepted facets, and compiled kernel — is Roster-tier, permanent
+state attached to roster baselines. It is self-contained: it mutates only
+through `manage_identity`, does not couple to any Novel property group, and is
+preserved with roster baselines wherever roster references are preserved
+(REQ-240a). A future identity surface that defines cross-property effects SHALL
+register as a property group with archetypes and coupling rows per REQ-370.
 
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|

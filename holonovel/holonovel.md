@@ -470,6 +470,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 | 5.24   | Temporal Event Log and Branching                        | 455–460 |
 | 5.25   | Belief and Evidence                                     | 461–472 |
+| 5.26   | Character Identity                                      | 473–483 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4205,7 +4206,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4276,6 +4277,30 @@ personality, NPC, vow, event-log, belief/evidence, and base-capability state too
 **REQ-471 — Belief branch inheritance.** Belief and evidence state SHALL be inherited by a branch from its parent through the branch point and SHALL NOT be read from or written to a sibling branch. *Acceptance criterion:* a branch inherits the parent's stances, and a belief admitted in one branch leaves its parent and siblings unchanged. _Check:_ T561.
 
 **REQ-472 — Belief visibility and badge gating.** Belief and evidence reads SHALL be badge-filtered: the Game Master reads every entity, a Player reads only the active entity, and the Observer reads without mutating. Evidence mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another entity's beliefs returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T562.
+
+### 5.26 Character Identity
+
+**REQ-473 — Identity candidate staging.** Imported or authored identity material — character-card fields, biography, wiki text, or manual entries — SHALL enter a staging boundary as candidates and SHALL NOT become durable identity except through explicit acceptance. *Acceptance criterion:* staging a candidate leaves the accepted facets and identity version unchanged. _Check:_ T563.
+
+**REQ-474 — Identity stability classes.** Every identity facet SHALL carry a stability class from structural, constitutional, core, or developmental, recorded at acceptance and preserved in the compiled kernel. *Acceptance criterion:* a facet accepted as core is reported as core in the kernel. _Check:_ T564.
+
+**REQ-475 — Identity perspective.** Every candidate and facet SHALL carry a perspective distinguishing self-definition, biographical fact, public reputation, secret, or unknown; a secret-perspective facet SHALL be excluded from the compiled kernel. *Acceptance criterion:* a biographical facet retains its perspective, and a secret facet is absent from the kernel. _Check:_ T565.
+
+**REQ-476 — Compiled identity kernel.** Accepted facets SHALL compile into a deterministic kernel grouped by stability class and keyed by the character's identity version and a compiler version; two compilations at one identity version SHALL be identical, and an acceptance SHALL advance the version. *Acceptance criterion:* repeated snapshots share a version, and an acceptance produces a kernel at the next version. _Check:_ T566.
+
+**REQ-477 — Identity write-authority isolation.** Conversation, belief reconciliation, memory, and runtime state SHALL NOT write durable identity; identity acceptance is the mutation path for durable identity. *Acceptance criterion:* a session of observations, beliefs, and scene changes leaves the identity version unchanged. _Check:_ T567.
+
+**REQ-478 — Identity revision.** WHEN a facet is accepted again, THE server SHALL replace its prior value and advance that facet's revision, retaining the acceptance time and source. *Acceptance criterion:* re-accepting a facet reports revision two carrying the new value. _Check:_ T568.
+
+**REQ-479 — Character-card bootstrap exclusions.** Bootstrapping identity from a character card SHALL stage the card's identity fields as candidates and SHALL exclude scenario, first-message, and example-dialogue fields. *Acceptance criterion:* a card's scenario and first message are not staged, while its name and description are. _Check:_ T569.
+
+**REQ-480 — Identity kernel exposure.** The compiled identity kernel SHALL be served through `manage_identity (action: snapshot)` and an `identity://<character>` resource for consumption by the character sheet and briefing surfaces. *Acceptance criterion:* snapshot and the identity resource return the same kernel with its stability groups. _Check:_ T570.
+
+**REQ-481 — Identity visibility and badge gating.** Identity reads SHALL be badge-filtered: the Game Master reads every character, a Player reads only the active character, and the Observer reads without mutating; identity mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another character's identity returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T571.
+
+**REQ-482 — Developmental proposal-only.** Identity candidates whose stability class is developmental SHALL remain proposals; the server SHALL NOT apply them to durable identity without explicit acceptance, and bootstrap SHALL NOT auto-accept them. *Acceptance criterion:* a developmental candidate leaves the version unchanged until explicitly accepted. _Check:_ T572.
+
+**REQ-483 — Identity source provenance.** Every identity candidate SHALL record its provenance — character card, manual entry, or another named source — preserved on the accepted facet. *Acceptance criterion:* a manual candidate and a card candidate report their distinct sources. _Check:_ T573.
 
 #### End of requirements
 
@@ -6512,6 +6537,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral — couples per P54. |
 | `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral — couples per P54. |
 | `TTRPG_BELIEF_MAX_ATOMS_PER_ENTITY` | No | Maximum belief questions retained per entity before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED` | No | `true` (default) accepts authored character-card identity fields as facets on bootstrap; `false` stages them as pending candidates (REQ-479). Build-time. |
+| `TTRPG_IDENTITY_MAX_CANDIDATES` | No | Maximum identity candidates retained per character before oldest-first eviction (0 = unlimited). Storage. |
 
 ¹ Optional. Sets the initial active Novel on startup.
 
@@ -6628,6 +6655,14 @@ footing as property groups: copy, snapshot, archive, and interchange
 operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
 include property-group state. Mind content is GM-only per REQ-075f and SHALL
 be stripped from every Player-badge surface.
+
+**Character identity.** Character identity state (REQ-473–483) — the staged
+candidates, accepted facets, and compiled kernel — is Roster-tier, permanent
+state attached to roster baselines. It is self-contained: it mutates only
+through `manage_identity`, does not couple to any Novel property group, and is
+preserved with roster baselines wherever roster references are preserved
+(REQ-240a). A future identity surface that defines cross-property effects SHALL
+register as a property group with archetypes and coupling rows per REQ-370.
 
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
@@ -9253,6 +9288,17 @@ date-stamps matching CHANGELOG entries.
 | REQ-470 | Single-value predicates | 2026-09-24 |
 | REQ-471 | Belief branch inheritance | 2026-09-24 |
 | REQ-472 | Belief visibility and badge gating | 2026-09-24 |
+| REQ-473 | Identity candidate staging | 2026-09-24 |
+| REQ-474 | Identity stability classes | 2026-09-24 |
+| REQ-475 | Identity perspective | 2026-09-24 |
+| REQ-476 | Compiled identity kernel | 2026-09-24 |
+| REQ-477 | Identity write-authority isolation | 2026-09-24 |
+| REQ-478 | Identity revision | 2026-09-24 |
+| REQ-479 | Character-card bootstrap exclusions | 2026-09-24 |
+| REQ-480 | Identity kernel exposure | 2026-09-24 |
+| REQ-481 | Identity visibility and badge gating | 2026-09-24 |
+| REQ-482 | Developmental proposal-only | 2026-09-24 |
+| REQ-483 | Identity source provenance | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -9838,6 +9884,17 @@ diet.
 | T560 | Automated | Single-value predicates: only the highest-support object is current; a tie within the decision margin leaves no current value. | REQ-470 |
 | T561 | Automated | Branch inheritance: a branch inherits the parent's stances at the branch point, and a belief admitted in one branch leaves its parent and siblings unchanged. | REQ-471 |
 | T562 | Automated | Belief badge gating: a Player request for another entity's beliefs returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-472 |
+| T563 | Automated | Identity candidate staging: staging a candidate leaves the accepted facets and identity version unchanged. | REQ-473 |
+| T564 | Automated | Identity stability classes: a facet accepted as core is reported as core in the kernel; acceptance advances the version. | REQ-474 |
+| T565 | Automated | Identity perspective: a biographical facet retains its perspective and a secret facet is excluded from the compiled kernel. | REQ-475 |
+| T566 | Automated | Compiled identity kernel: repeated snapshots share an identity version; an acceptance advances the version and the kernel reflects it. | REQ-476 |
+| T567 | Automated | Identity write-authority isolation: observations, beliefs, and scene changes leave the identity version unchanged. | REQ-477 |
+| T568 | Automated | Identity revision: re-accepting a facet advances its revision and replaces its value. | REQ-478 |
+| T569 | Automated | Card-bootstrap exclusions: a card's scenario and first message are not staged, while its name and description are. | REQ-479 |
+| T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel with its stability groups. | REQ-480 |
+| T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
+| T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
+| T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
 
 ---
 
