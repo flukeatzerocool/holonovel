@@ -6892,6 +6892,21 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
 // REQ-025 — spec health reports build health, indexed counts, and URI completeness.
 // Extracted as a named function so the consolidated `session` tool's `health`
 // action reuses it directly.
+// REQ-515, REQ-516, REQ-517, REQ-518, REQ-519, REQ-520, REQ-521 — briefing
+// consistency: the event-log cursor the briefing reflects and the freshness of
+// its derived advisory surfaces. Read-only; staleness is an advisory, never a block.
+function briefingConsistency(): Record<string, unknown> {
+  const novel = state.activeNovel;
+  if (!novel) return { available: false };
+  const through_ordinal = novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : 0;
+  const index = !state.semanticIndex ? "unbuilt" : (fingerprintItems(gatherIndexSources(novel)) === state.semanticIndex.fingerprint ? "current" : "stale");
+  const graph = !state.knowledgeGraph ? "unbuilt" : (fingerprintGraph(gatherGraphSources(novel)) === state.knowledgeGraph.fingerprint ? "current" : "stale");
+  const advisory = index === "stale" || graph === "stale"
+    ? "[stale-derived] rebuild with manage_index/manage_graph for current advisory surfaces"
+    : null;
+  return { available: true, through_ordinal, index, graph, advisory };
+}
+
 function buildSpecHealth(): Record<string, unknown> {
   const novel = state.activeNovel;
   const badge = getBadge();
@@ -6965,6 +6980,9 @@ function buildSpecHealth(): Record<string, unknown> {
       ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData), corrupted: Object.fromEntries(state.corruptData) }
       : undefined,
     build_timestamp: state.buildFingerprint.buildTimestamp,
+    // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
+    // derived-surface freshness (read-only advisory).
+    briefing_consistency: briefingConsistency(),
     tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
@@ -8347,6 +8365,10 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
 
   // REQ-118 — prompt length budget: truncate low-priority sections past budget.
   briefing = applyPromptBudget(briefing);
+
+  // REQ-515–521 — briefing consistency cursor (never truncated).
+  const bc = briefingConsistency();
+  briefing += `\n\n**Briefing consistency:** events through #${bc.through_ordinal}; index ${bc.index}; graph ${bc.graph}.${bc.advisory ? ` ${bc.advisory}` : ""}`;
 
   return { messages: [{ role: "user", content: { type: "text" as const, text: briefing } }] };
 });

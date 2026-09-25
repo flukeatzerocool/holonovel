@@ -35,6 +35,21 @@ Append-only per-entity perception ledger, distinct from belief, ships as
 `manage_perception`. The N1–N3 program is complete; only the narrowed M3
 (briefing consistency) remains below.
 
+## Feature parity — COMPLETE 2026-09-24
+
+All roadmap items are shipped or dispositioned. Nothing is scheduled.
+
+- **M1** Temporal event log, belief/evidence, identity firewall, causal
+  validation — shipped.
+- **M2** Knowledge corpus, semantic index, knowledge graph — shipped.
+- **N1** Supplementary ruleset import — shipped under the REQ-372d waiver.
+- **N2** Durable agent tasks — shipped.
+- **N3** Perception ledger — shipped.
+- **M3** Briefing consistency — shipped (narrowed: token budgeting already
+  shipped; this adds the consistency cursor and derived-surface freshness).
+- **M4b/M5a/M5b** de-scoped or folded (see dispositions below).
+- **REQ-373** (dynamic tool registration) — recorded waived intended gap.
+
 ## De-scoped / narrowed (2026-09-24 program)
 
 - **M3 Generation-consistent briefing (REQ-515–521)** — narrowed, retained:

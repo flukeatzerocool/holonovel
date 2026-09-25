@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09-24 — M3: Briefing Consistency (REQ-515–521)
+
+- The briefing now declares its consistency: `badge_briefing` and
+  `manage_session (action: health)` report the event-log ordinal the briefing
+  reflects (its readiness cursor) and whether each derived advisory surface —
+  the semantic index and knowledge graph — is unbuilt, current, or stale
+  relative to its sources. (REQ-515–REQ-517)
+- The report is deterministic and read-only, available to every badge, and
+  reports a stale derived surface as an advisory that never blocks the briefing
+  from rendering. No new tool, property group, or configuration: token
+  budgeting already shipped under REQ-109/135. (REQ-518–REQ-521)
+- This completes the feature-parity roadmap. Only REQ-373 (dynamic tool
+  registration) remains a recorded, waived intended gap under the REQ-372d
+  waiver.
+
 ## 2026-09-24 — N3: Perception Ledger (REQ-540–545)
 
 - The server keeps an append-only perception ledger — what each entity perceived

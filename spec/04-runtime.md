@@ -321,6 +321,10 @@ rebuilt offline from the property groups, is never persisted, and never writes
 state. Copy, snapshot, archive, and interchange operations do not include it,
 since it is regenerated from the property groups they already carry.
 
+**Briefing consistency.** The briefing-consistency report (REQ-515–521) is a
+derived, read-only indicator of the event-log readiness cursor and the freshness
+of derived advisory surfaces; it is not a property group and never writes state.
+
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
 | Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |

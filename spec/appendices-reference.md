@@ -1228,6 +1228,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-543 | Event provenance | 2026-09-24 |
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
+| REQ-515 | Readiness cursor | 2026-09-24 |
+| REQ-516 | Consistency declaration | 2026-09-24 |
+| REQ-517 | Derived-surface freshness | 2026-09-24 |
+| REQ-518 | Consistency determinism | 2026-09-24 |
+| REQ-519 | Consistency read-only | 2026-09-24 |
+| REQ-520 | Consistency visibility | 2026-09-24 |
+| REQ-521 | Staleness advisory | 2026-09-24 |
 | REQ-299 | Cross-model audit sufficiency | 2026-08-11 |
 | REQ-108a | Pattern Buffer traceability (Part a) | 2026-08-11 |
 | REQ-108b | Pattern Buffer traceability (Part b) | 2026-08-11 |
@@ -1870,6 +1877,13 @@ diet.
 | T617 | Automated | Event provenance: a perception recorded after an event carries that event's ordinal and an event query returns it. | REQ-543 |
 | T618 | Automated | Persistence: a perception survives an end-and-resume cycle. | REQ-544 |
 | T619 | Automated | Perception badge gating: a Player read of another entity's perceptions is refused and an Observer mutation is refused. | REQ-545 |
+| T620 | Automated | Readiness cursor: after N events the reported cursor equals N. | REQ-515 |
+| T621 | Automated | Consistency declaration: the report is available and carries a numeric cursor. | REQ-516 |
+| T622 | Automated | Derived-surface freshness: a surface is unbuilt before its build, current after, and stale once sources change. | REQ-517 |
+| T623 | Automated | Consistency determinism: two consecutive reports are equal. | REQ-518 |
+| T624 | Automated | Consistency read-only: repeated reports leave the cursor unchanged. | REQ-519 |
+| T625 | Automated | Consistency visibility: Player and Observer both receive an available report. | REQ-520 |
+| T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
 
 ---
 
