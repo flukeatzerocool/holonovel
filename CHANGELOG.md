@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-25 — Gate failure-propagation convention
+
+- G4 (Verification Workflows) now requires a gate that runs sub-checks in
+  parallel to propagate every sub-check's failure: a gate that reports a
+  failing sub-check while exiting zero is non-conformant and its green result
+  is not evidence. This closes the class behind the `check:fast` bare-`wait`
+  masking fix, alongside the REQ-141m harness fail-loud contract.
+
 ## 2026-09-25 — check:fast gate integrity
 
 - `check:fast` ran its sub-checks in the background and used a bare `wait`,
