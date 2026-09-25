@@ -24,38 +24,38 @@ Derived deterministic JSON graph, node/edge typing, fingerprint staleness,
 idempotent rebuild, and scope-filtered read-only exposure ship as
 `manage_graph`. **M2 complete.**
 
-## Feature parity — M3 Generation-consistent Briefing Frame
+## Feature parity — N2 Durable Agent Tasks (REQ-522–530)
 
-- REQ-515–521: token-budgeted `badge_briefing` frame with readiness cursor
-  and single-flight assembly; extends `manage_session`, no new tool.
-- Depends on M1a, M1b.
+- Durable NPC/agent task and action lifecycle with an autonomy policy; new tool
+  `manage_agent`; integrates with REQ-339 (accepting a goal-pursuit suggestion
+  may create a task). Carries the M4b §7.4 gloss (donated inference de-scoped by
+  Standing Rule 3).
+- Depends on M1b, M1c. Scheduled.
 
-## Feature parity — M4 Durable Agent Tasks
+## Feature parity — N3 Perception Ledger (REQ-540–545, narrowed)
 
-- M4a (REQ-522–530): durable NPC/agent task and action lifecycle with
-  autonomy policy; tool `manage_agent`.
-- M4b: donated inference is de-scoped by Standing Rule 3 (no outbound network
-  at runtime); the boundary is recorded as a §7.4 gloss.
-- Depends on M1b, M1c.
+- Per-entity record of which event-log ordinals, messages, and scene changes an
+  entity perceived, feeding `manage_belief`; new tool `manage_perception`. The
+  import/export gateway and cross-Novel scope are already covered (REQ-372,
+  REQ-321/332) and are out of scope.
+- Depends on M1a, M1b, M2a. Scheduled.
 
-## Feature parity — M5 Pipeline, Plugins, Multi-party Surfaces
+## De-scoped / narrowed (2026-09-24 program)
 
-- M5a (REQ-531–535) build-time job registry; M5b (REQ-536–539) ruleset-declared
-  declarative extension points; M5c (REQ-540–545) per-entity perception ledger,
-  import/export gateway, cross-Novel scope resolution, tool `manage_perception`.
-- Depends on M1a, M1b, M2a.
+- **M3 Generation-consistent briefing (REQ-515–521)** — narrowed, retained:
+  `badge_briefing` token budgeting already ships (REQ-109/135, T149); the
+  remaining increment is a briefing-consistency indicator tied to the event log.
+- **M4b Donated inference** — de-scoped by Standing Rule 3 (no outbound network
+  at runtime); recorded as a §7.4 gloss carried by N2.
+- **M5a Build-time job registry (REQ-531–535)** — de-scoped: the build pipeline
+  is synchronous and stage-stamped; a durable job queue is non-applicable.
+- **M5b Ruleset extension points (REQ-536–539)** — folded into REQ-372/373
+  (shipped N1): ruleset packages already declare tools/resources/prompts as data.
 
-## Supplementary ruleset import (REQ-372/373)
+## Supplementary ruleset import (REQ-372/373) — SHIPPED 2026-09-24 (N1)
 
-- Implement the supplementary-import subsystem end to end: `import_supplementary`
-  / `remove_supplementary`, runtime extraction (REQ-011/225), MCP-level dynamic
-  tool registration (REQ-020/373), Novel-scoped `supplementary_rulesets` state,
-  Ruleset Wisdom rendering (REQ-371 P5–P11), the Appendix Z fixture, and the
-  dynamic-registration waiver path (REQ-373). Currently a sanctioned bucket-E
-  intended gap; Pattern Buffer sub-workflows S30/S31 are recorded `blocked`
-  against it until shipped.
-- Plan kept in `plans/2026-09-06-supplementary-import.md`; tracked in
-  `spec/audit/review-register.md` (`Scheduled-roadmap`) and `req-coverage.md`
-  (REQ-372/373 bucket E).
-- Unblock S30/S31 in the §6.6 harness once the surface lands.
+`manage_ruleset (action: import_supplementary/remove_supplementary)` with
+Wisdom-only import under the REQ-372d dynamic-registration waiver; Pattern
+Buffer S30/S31 now execute. REQ-373 (dynamic tool registration) remains
+waived/E.
 

@@ -157,6 +157,23 @@ function capture(key: string, pattern: RegExp): (r: string) => void {
 
 // ── §6.6 sub-workflow register ─────────────────────────────────────
 
+const S30_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-supp" }), assert: assertOK },
+  { label: "import supplementary Wisdom", action: T("manage_ruleset", { action: "import_supplementary", slug: "pb-supp", wisdom: [{ content: "PB supplementary guidance" }] }), assert: (r) => assertContains(r, "Wisdom-only", "supp-import ") },
+  { label: "supplementary Wisdom listed in synthesis", action: T("manage_synthesis", { action: "list" }), assert: (r) => assertContains(r, "supplementary:pb-supp", "supp-list ") },
+  { label: "spec_health reports the supplementary import", action: T("manage_session", { action: "health" }), assert: (r) => assertContains(r, "pb-supp", "supp-health ") },
+  { label: "remove supplementary ruleset", action: T("manage_ruleset", { action: "remove_supplementary", slug: "pb-supp" }), assert: (r) => assertContains(r, "Removed", "supp-remove ") },
+];
+
+const S31_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-supp-waiver" }), assert: assertOK },
+  { label: "import registers no tools under the waiver", action: T("manage_ruleset", { action: "import_supplementary", slug: "pb-waiver", wisdom: [{ content: "no tools" }] }), assert: (r) => assertContains(r, "no new tools", "waiver-import ") },
+  { label: "supplementary Wisdom remains listed", action: T("manage_synthesis", { action: "list" }), assert: (r) => assertContains(r, "supplementary:pb-waiver", "waiver-list ") },
+  { label: "remove waivered supplementary ruleset", action: T("manage_ruleset", { action: "remove_supplementary", slug: "pb-waiver" }), assert: (r) => assertContains(r, "Removed", "waiver-remove ") },
+];
+
 function buildRegister(): PBSubworkflow[] {
   const followOn = (s_id: string, name: string, blocking: boolean, objective: string): PBSubworkflow =>
     ({ s_id, name, objective, blocking, mode: "follow-on", reason: "not yet ported into this harness — bounded future increment" });
@@ -197,8 +214,8 @@ function buildRegister(): PBSubworkflow[] {
     followOn("S27", "Synthesis lifecycle + Wisdom mechanical enactment", true, "toggle/revert; Wisdom P6/P7/P10; deactivate/reactivate"),
     { s_id: "S28", name: "Briefing ordering, voice examples, session notation", objective: "briefing_order; voice examples; lonelog format", blocking: false, mode: "execute", steps: S28_STEPS },
     { s_id: "S29", name: "Novel export/import cycle", objective: "export/import dry-run/replace round-trip; lore-only; strict broken-reference", blocking: true, mode: "execute", steps: S29_STEPS },
-    blocked("S30", "Supplementary ruleset import", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
-    blocked("S31", "Dynamic tool registration", true, "REQ-372/373 intended-gap (bucket E): the reference server does not implement import_supplementary/remove_supplementary or dynamic tool registration; a server-capability increment is scheduled on ROADMAP.md — out of harness scope"),
+    { s_id: "S30", name: "Supplementary ruleset import", objective: "import/remove supplementary Wisdom (REQ-372); Novel-scoped and persistent, Wisdom-only", blocking: true, mode: "execute", steps: S30_STEPS },
+    { s_id: "S31", name: "Dynamic tool registration (waiver)", objective: "under the REQ-372d waiver no tools register; supplementary Wisdom remains listed", blocking: true, mode: "execute", steps: S31_STEPS },
     { s_id: "S32", name: "Coupling chain exercise", objective: "countdown ⇄ world_effect ⇄ scene-transition ⇄ lore trigger chain + fire", blocking: true, mode: "execute", steps: S32_STEPS },
     followOn("S33", "Wisdom mechanical enactment", true, "P6/P7/P10 auto-population; deactivate/reactivate behavior"),
     { s_id: "S34", name: "Entity-bearing chain exercise", objective: "NPC memory facts across restart; relationship flip", blocking: false, mode: "execute", steps: S34_STEPS },

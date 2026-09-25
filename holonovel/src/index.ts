@@ -4743,6 +4743,7 @@ function novelToJSONState(novel: NovelState): any {
     belief_state: novel.belief_state,
     causal_slots: novel.causal_slots,
     transition_ledger: novel.transition_ledger,
+    supplementary_rulesets: novel.supplementary_rulesets,
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
     corpus_consumption: novel.corpus_consumption,
@@ -4817,6 +4818,7 @@ function loadNovelFromStateData(data: any): NovelState {
     belief_state: data.belief_state ?? [],
     causal_slots: data.causal_slots ?? [],
     transition_ledger: data.transition_ledger ?? [],
+    supplementary_rulesets: data.supplementary_rulesets ?? [],
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
@@ -6493,14 +6495,40 @@ Options: yes, cancel`);
 
 // Ruleset (REQ-057, REQ-058, REQ-059, REQ-216, REQ-218, REQ-379, REQ-390, REQ-391) — consolidated search/install/
 // remove/list/bind surface.
+// REQ-372 — deterministic supplementary Wisdom extraction: each ATX heading
+// under the level-1 title becomes a supplementary_guidance item; text with no
+// headings becomes a single item. No network, no model.
+function extractSupplementaryWisdom(raw: string): Array<{ module: string; key: string; content: string }> {
+  const lines = raw.split("\n");
+  const items: Array<{ module: string; key: string; content: string }> = [];
+  let current: { key: string; buffer: string[] } | null = null;
+  const flush = () => {
+    if (current) {
+      const content = current.buffer.join("\n").trim();
+      if (content) items.push({ module: "supplementary_guidance", key: current.key, content });
+    }
+  };
+  for (const line of lines) {
+    const h = line.match(/^#{2,3}\s+(.+?)\s*$/);
+    if (h) { flush(); current = { key: h[1].trim(), buffer: [] }; continue; }
+    if (current) current.buffer.push(line);
+  }
+  flush();
+  if (items.length === 0) {
+    const body = raw.trim();
+    if (body) items.push({ module: "supplementary_guidance", key: "supplementary", content: body.slice(0, 500) });
+  }
+  return items;
+}
+
 server.registerTool("manage_ruleset", {
   title: "Ruleset",
-  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or roll on a generation table. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or rolling a table (roll). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove mutate installed-package state and are audited; search and roll are read-only. Parameters by action: search — query, max_results; install — slug, manifest, index, model, tools, resources, prompts; remove/bind — slug; roll — table, seed.",
+  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only. Parameters by action: search — query, max_results; install — slug, manifest, index, model, tools, resources, prompts; remove/bind — slug; roll — table, seed; import_supplementary — slug, source, wisdom; remove_supplementary — slug.",
   inputSchema: {
-    action: z.enum(["search", "install", "remove", "list", "bind", "roll"]).describe("search, install, remove, list, bind, or roll."),
+    action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, roll, import_supplementary, or remove_supplementary."),
     query: z.string().optional().describe("Search query (search)."),
     max_results: z.number().optional().describe("Maximum results (search)."),
-    slug: z.string().optional().describe("Ruleset slug (install/remove/bind)."),
+    slug: z.string().optional().describe("Ruleset slug (install/remove/bind/import_supplementary/remove_supplementary)."),
     manifest: z.any().optional().describe("Package manifest (install)."),
     index: z.any().optional().describe("Search index (install)."),
     model: z.any().optional().describe("Extraction model (install)."),
@@ -6509,6 +6537,8 @@ server.registerTool("manage_ruleset", {
     prompts: z.any().optional().describe("Prompts (install)."),
     table: z.string().optional().describe("Generation table to roll on (roll)."),
     seed: z.string().optional().describe("Deterministic seed (roll)."),
+    source: z.string().optional().describe("Supplementary Markdown source path (import_supplementary)."),
+    wisdom: z.array(z.object({ module: z.string().optional(), key: z.union([z.string(), z.number()]).optional(), content: z.string() })).optional().describe("Inline supplementary Wisdom items (import_supplementary)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -6604,8 +6634,45 @@ server.registerTool("manage_ruleset", {
       }
       return ok(`Table: ${key}\nDice: ${entry.dice_expression ?? "d100"}\nRoll: ${roll}\nRange: ${range.min}-${range.max}\nResult: ${range.result}`);
     }
+    case "import_supplementary": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.slug) return err("INVALID_INPUT", "slug is required for import_supplementary.");
+      let wisdom: Array<{ module: string; key: string; content: string }> = [];
+      let hash = "";
+      const source = args.source ?? "(inline)";
+      if (Array.isArray(args.wisdom)) {
+        wisdom = args.wisdom.map((w: any, i: number) => ({ module: w.module ?? "supplementary_guidance", key: String(w.key ?? i + 1), content: String(w.content ?? "") }));
+        hash = crypto.createHash("sha256").update(JSON.stringify(wisdom)).digest("hex");
+      } else if (typeof args.source === "string" && fs.existsSync(args.source)) {
+        const raw = fs.readFileSync(args.source, "utf-8");
+        hash = crypto.createHash("sha256").update(raw).digest("hex");
+        wisdom = extractSupplementaryWisdom(raw);
+      } else {
+        return err("NOT_FOUND", `Supplementary source '${args.source ?? ""}' not found. Provide a readable source path or inline wisdom.`);
+      }
+      // REQ-372a — Novel-scoped; re-import replaces. REQ-372d/REQ-373 — the
+      // reference stack registers tools statically, so the recorded waiver
+      // limits import to Ruleset Wisdom (no dynamic tools).
+      novel.supplementary_rulesets = novel.supplementary_rulesets.filter((s) => s.slug !== args.slug);
+      novel.supplementary_rulesets.push({ slug: args.slug, source, hash, wisdom, imported_at: new Date().toISOString() });
+      state.saveNovel(novel);
+      audit("import_supplementary", { slug: args.slug, wisdom_items: wisdom.length, waiver: true });
+      return ok(`Imported supplementary ruleset '${args.slug}' — ${wisdom.length} Wisdom item(s), Wisdom-only under the REQ-373 waiver; no new tools registered.`);
+    }
+    case "remove_supplementary": {
+      requireGM();
+      const novel = requireNovel();
+      if (!args.slug) return err("INVALID_INPUT", "slug is required for remove_supplementary.");
+      const before = novel.supplementary_rulesets.length;
+      novel.supplementary_rulesets = novel.supplementary_rulesets.filter((s) => s.slug !== args.slug);
+      if (novel.supplementary_rulesets.length === before) return err("NOT_FOUND", `Supplementary ruleset '${args.slug}' is not imported.`);
+      state.saveNovel(novel);
+      audit("remove_supplementary", { slug: args.slug });
+      return ok(`Removed supplementary ruleset '${args.slug}'. State derived from it (NPCs, lore) persists.`);
+    }
     default:
-      return err("INVALID_INPUT", `Unknown ruleset action '${args.action}'. Valid actions: search, install, remove, list, bind, roll.`);
+      return err("INVALID_INPUT", `Unknown ruleset action '${args.action}'. Valid actions: search, install, remove, list, bind, roll, import_supplementary, remove_supplementary.`);
   }
 });
 
@@ -6714,6 +6781,13 @@ function buildSpecHealth(): Record<string, unknown> {
       : undefined,
     // REQ-430 — conformant vs non-conformant ruleset-derived tool counts.
     ruleset_tool_quality: isGM ? rulesets.toolQualityCounts() : undefined,
+    // REQ-372 — imported supplementary rulesets and any missing-source gap.
+    supplementary_rulesets: isGM ? (novel?.supplementary_rulesets ?? []).map((s) => ({ slug: s.slug, source: s.source, hash: s.hash, wisdom_items: s.wisdom.length })) : undefined,
+    supplementary_gap: isGM
+      ? (novel?.supplementary_rulesets ?? [])
+          .filter((s) => s.source !== "(inline)" && !fs.existsSync(s.source))
+          .map((s) => ({ slug: s.slug, source: s.source, reason: "[supplementary-gap] source missing" }))
+      : undefined,
     // REQ-423 — [data-stale] artifacts, advisory (never block loading);
     // REQ-001a — [WARNING] enumeration of corrupted Novels (corruptData).
     data_health: isGM
@@ -7609,14 +7683,18 @@ server.registerTool("manage_synthesis", {
       return ok("Synthesis state reverted. Server state restored to pre-synthesis baseline.");
     }
     case "list": {
+      const novel = state.activeNovel;
       const manifest = state.wisdomManifest;
-      if (!manifest) return ok("No synthesis items (synthesis not run).");
+      // REQ-372 — supplementary imports surface as Wisdom even before synthesis runs.
+      const supplementary = (novel?.supplementary_rulesets ?? []).flatMap((s) => s.wisdom.map((w) => ({ module: w.module, tag: `supplementary:${s.slug}`, content: w.content, badge_scope: "game_master" })));
+      if (!manifest && supplementary.length === 0) return ok("No synthesis items (synthesis not run; no supplementary imports).");
       const all = [
-        ...(manifest.voice_examples ?? []).map((i: any) => ({ module: "voice_examples", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-        ...(manifest.lore_templates ?? []).map((i: any) => ({ module: "lore_templates", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-        ...(manifest.action_patterns ?? []).map((i: any) => ({ module: "action_patterns", tag: i.tag ?? "vendor", content: i.intent, badge_scope: "game_master" })),
-        ...(manifest.supplementary_guidance ?? []).map((i: any) => ({ module: "supplementary_guidance", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-        ...(manifest.narrative_voices ?? []).map((i: any) => ({ module: "narrative_voices", tag: i.tag ?? "vendor", content: i.name, badge_scope: i.badge_scope })),
+        ...(manifest?.voice_examples ?? []).map((i: any) => ({ module: "voice_examples", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
+        ...(manifest?.lore_templates ?? []).map((i: any) => ({ module: "lore_templates", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
+        ...(manifest?.action_patterns ?? []).map((i: any) => ({ module: "action_patterns", tag: i.tag ?? "vendor", content: i.intent, badge_scope: "game_master" })),
+        ...(manifest?.supplementary_guidance ?? []).map((i: any) => ({ module: "supplementary_guidance", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
+        ...(manifest?.narrative_voices ?? []).map((i: any) => ({ module: "narrative_voices", tag: i.tag ?? "vendor", content: i.name, badge_scope: i.badge_scope })),
+        ...supplementary,
       ];
       const filtered = args.module ? all.filter((i: any) => i.module === args.module) : all;
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
