@@ -308,6 +308,12 @@ offline from the property groups, is never persisted, and never writes state.
 Copy, snapshot, archive, and interchange operations do not include it, since it
 is regenerated from the property groups they already carry.
 
+**Knowledge graph.** The knowledge-graph projection (REQ-510–514) is likewise a
+derived, session-scoped read-only surface, not a Novel property group: it is
+rebuilt offline from the property groups, is never persisted, and never writes
+state. Copy, snapshot, archive, and interchange operations do not include it,
+since it is regenerated from the property groups they already carry.
+
 | Archetype | Definition | Example property groups |
 |-----------|-----------|------------------------|
 | Temporal | Progresses over time, fires on completion | Countdown, Faction clock, Pacing signal |
