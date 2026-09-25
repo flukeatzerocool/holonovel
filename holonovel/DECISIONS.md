@@ -1,6 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 45b4c33f9e93c1dffd4ccb2ecd5de68f44a3a1f00947a2668eaa2ec728c7fe2c
+**Spec hash:** 3f03d60feed346e44a95c5c6458f28cc054c7a43b207c876f6bb4a4bba8abb19
+
+**Recorded tool budget:** 26 (REQ-429)
+
+### Holonovel Spec Update — 2026-09-24 (convention hardening: tool budget, count guards, version flow)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + tooling — three methodology findings from the M1a AAR. (1) REQ-429 reworded from a fixed "at most twenty-six tools" ceiling to a recorded-budget discipline: the catalog SHALL match a DECISIONS.md budget, and adding a tool requires updating that budget and its per-tool justification (REQ-021) in the same change. Appendix F T511 reworded; `test-tool-definitions.ts` now reads the recorded budget from DECISIONS.md (no hardcoded count); T536's `>= 26` lower bound left as-is. (2) Count guards: `scripts/lib/req-checks.ts` gains `checkPropertyGroupCount` (flags a hardcoded §7.7 property-group count) and `checkBuildPhaseMapCounts` (compares the build-phase-map §5-subsection declaration to the actual `### 5.N` headings); both invoked by `scripts/validate.ts` as WARNINGs; §7.7 prose drops "thirty-one property groups" (the table is canonical); `scripts/test-req-checks.ts` gains four self-test cases. (3) Version flow: `scripts/version-bump.ts` now targets the later of the root version and the latest dated CHANGELOG entry (REQ-107a), writes root `package.json`, and syncs `holonovel/server.json`; `scripts/build-order.ts` always runs version-bump (step 5). AGENTS.md pre-commit checklist updated. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (spec hash `3f03d60f…`; bucket A 0, B 0, C 309, E 113); root + holonovel typecheck 0 errors; test:validators 10/10 (4 new); test:tool-definitions 6/6 (T511 against the recorded budget); test:security T536 ok; version-check OK incl. server.json |
+| Follow-up | None. M1b–M1d and M2–M5 remain on ROADMAP.md. |
 
 ### Holonovel Spec Update — 2026-09-24 (M1a: Temporal Event Log and Branching)
 

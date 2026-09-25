@@ -13,8 +13,8 @@
 // equal the npm-canonical host version, and that the root version-check gate
 // passes against the committed manifest.
 //
-// T511 (REQ-429): asserts the registered tool catalog is at most twenty-six
-// tools, one per persisted entity type, and that every persisted type carries
+// T511 (REQ-429): asserts the registered tool catalog equals the recorded tool
+// budget, one per persisted entity type, and that every persisted type carries
 // a list/get/info/status/knowledge action on its entity tool.
 //
 // T512 (REQ-430): seeds a fixture package with one conformant and one
@@ -35,6 +35,15 @@ import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 const ROOT = join(import.meta.dirname!, "..", "..");
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-tooldef-"));
+
+// REQ-429 — the recorded tool budget in DECISIONS.md is the single source of
+// truth for the catalog size; read it rather than hardcoding a count.
+function recordedToolBudget(): number {
+  const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
+  const m = md.match(/\*\*Recorded tool budget:\*\*\s*(\d+)/);
+  if (!m) throw new Error("DECISIONS.md is missing the REQ-429 'Recorded tool budget' line");
+  return parseInt(m[1], 10);
+}
 
 let passed = 0;
 let failed = 0;
@@ -140,10 +149,11 @@ async function main() {
   const proc = await boot();
   const listResp = await send(proc, { method: "tools/list", params: {} });
   const tools: any[] = listResp.result?.tools ?? [];
-  assert(tools.length === 26, `expected the consolidated 26-tool surface, got ${tools.length}`);
+  const budget = recordedToolBudget();
+  assert(tools.length === budget, `expected the recorded tool budget of ${budget}, got ${tools.length}`);
 
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
-  await test("T511/REQ-429: server-wide action-discriminator surface within a 26-tool budget", () => {
+  await test("T511/REQ-429: server-wide action-discriminator surface within the recorded tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
     const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged"];
     for (const name of requiredEntityTools) {
@@ -167,7 +177,9 @@ async function main() {
 
     // Docs-as-code: the maintainer orientation must reflect the live surface.
     const agentsMd = readFileSync(join(ROOT, "holonovel", "AGENTS.md"), "utf-8");
-    assert(agentsMd.includes("26 action-discriminator tools"), "holonovel/AGENTS.md drifted from the 26-tool surface");
+    const docCount = agentsMd.match(/(\d+)\s+action-discriminator tools/);
+    assert(docCount !== null, "holonovel/AGENTS.md is missing the tool-surface count line");
+    assert(parseInt(docCount![1], 10) === tools.length, `holonovel/AGENTS.md tool count (${docCount![1]}) drifted from the live surface (${tools.length})`);
   });
 
   let toolsWithDescription = 0;
