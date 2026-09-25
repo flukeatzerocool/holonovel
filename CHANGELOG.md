@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-09-25 — Proofread: reference-prose structural checks and Appendix M standard
+
+- The proofreading pass now scores reference prose for sentence length and
+  condition stacking, in addition to readability. Passive voice stays unscored
+  there because descriptive reference prose legitimately uses it. This extends
+  `extractReferenceProse` (`scripts/validate.ts`) and surfaces 44 structural
+  findings, recorded as accepted backlog in the proofread register.
+- Appendix M now states the reference-prose standard and where accepted
+  exceptions are recorded: `spec/audit/proofread-register.md` for
+  spec-repository proofreads, DECISIONS.md for build-time records.
+- Bounded coverage read of `04-runtime.md` §7.7.1a–§7.8 and the fixture-intro
+  prose; no defects found. Total remains 0 errors / 133 accepted warnings.
+
 ## 2026-09-25 — Proofread hardening: register, validator coverage, warning triage
 
 - Added a spec-side proofread register (`spec/audit/proofread-register.md`) and an

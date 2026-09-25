@@ -458,10 +458,12 @@ interface ProofreadingIssues {
   readability: string[];
   proseReadability: string[];
   referenceProse: string[];
+  referenceSentLen: string[];
+  referenceCondStack: string[];
 }
 
 function emptyIssues(): ProofreadingIssues {
-  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [], proseReadability: [], referenceProse: [] };
+  return { passive: [], modal: [], xref: [], doubleNeg: [], sentLen: [], condStack: [], emptySec: [], pronoun: [], termDrift: [], readability: [], proseReadability: [], referenceProse: [], referenceSentLen: [], referenceCondStack: [] };
 }
 
 function fleschKincaidGrade(words: string[], sentences: string[]): number {
@@ -633,12 +635,27 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
   // Widens proofreading beyond the §0–§4 narrative range and REQ bodies.
   // Uses the normative-build ceiling (grade 18), matching REQ bodies; the
   // stricter grade-12 bar applies only to the §0–§4 reading-guide narrative.
+  // Sentence length and condition stacking are structural clarity signals and
+  // apply here too; passive voice is not flagged in descriptive reference prose.
   for (const p of extractReferenceProse(text)) {
     const words = p.paragraph.replace(/`[^`]+`/g, " ").split(/\s+/).filter((w) => w.length > 0);
     const sentences = splitSentences(p.paragraph);
     if (words.length === 0 || sentences.length === 0) continue;
     const grade = fleschKincaidGrade(words, sentences);
     if (grade > 18) issues.referenceProse.push(`${p.section} (line ${p.line}): Flesch-Kincaid grade ${grade.toFixed(1)} — exceeds grade 18`);
+    const wordCounts = sentences.map((s) => s.split(/\s+/).filter((w) => w.length > 0).length);
+    const veryLong = wordCounts.filter((w) => w > 45);
+    if (veryLong.length > 0) {
+      issues.referenceSentLen.push(`${p.section} (line ${p.line}): ${veryLong.length} sentence(s) exceed 45 words (max ${Math.max(...wordCounts)})`);
+    }
+    for (const s of sentences) {
+      const conjunctions = (s.match(/\b(and|or)\b/gi) || []).length;
+      const conditionals = (s.match(/\b(if|when|while|unless)\b/gi) || []).length;
+      if (conjunctions > 3 || conditionals > 2) {
+        issues.referenceCondStack.push(`${p.section} (line ${p.line}): sentence with ${conjunctions} conjunctions, ${conditionals} conditionals`);
+        break;
+      }
+    }
   }
 
   return issues;
@@ -1888,7 +1905,9 @@ function main(): void {
     [proof.termDrift, "PASS: Term usage consistent with Terminology table", "WARNING"],
     [proof.readability, "PASS: Readability within grade threshold", "WARNING"],
     [proof.proseReadability, "PASS: Narrative prose within grade-12 threshold", "WARNING"],
-    [proof.referenceProse, "PASS: Reference prose within grade-12 threshold", "WARNING"],
+    [proof.referenceProse, "PASS: Reference prose within grade-18 threshold", "WARNING"],
+    [proof.referenceSentLen, "PASS: Reference prose sentence length within limit", "WARNING"],
+    [proof.referenceCondStack, "PASS: Reference prose condition stacking within limit", "WARNING"],
   ];
   for (const [iss, passMsg, level] of proofCats) {
     if (iss.length > 0) {

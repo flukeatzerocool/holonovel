@@ -10703,7 +10703,8 @@ lifecycle repetition, multi-paragraph REQs, embedded tables, bullet lists,
 numbered steps, and sentence-count violations all surface as errors before commit.
 The proofreading checks (passive voice, modal drift, double negatives, sentence length,
 condition stacking, pronoun ambiguity, term drift, REQ-body readability, narrative
-prose readability) surface as warnings.
+prose readability, reference-prose readability, reference-prose sentence length,
+reference-prose condition stacking) surface as warnings.
 
 **Prose readability standard.** The narrative prose — the "How to read this
 specification" block plus the prose of §1 through §4 — SHALL read at a Flesch-Kincaid
@@ -10721,7 +10722,16 @@ heuristic. This is a warning, not a gate — a flag is a *pointer*. The bar must
 by degrading mandated vocabulary: SHALL/MAY strength, canonical terms, and identifiers
 always outrank the readability score. When a dense enumeration cannot clear grade 18
 without dropping load-bearing wording, record the REQ in DECISIONS.md as an accepted
-readability exception and leave the contract intact.
+readability exception and leave the contract intact. Spec-repository proofreads record
+the same acceptances in `spec/audit/proofread-register.md` (Appendix V.9); DECISIONS.md
+remains the build-time record.
+
+**Reference-prose standard.** Reference prose — the §5 preamble, §6 through §11, and
+the appendices outside the REQ bodies — SHALL read at a Flesch-Kincaid grade level of 18
+or below, matching the REQ-body ceiling. Sentence length and condition stacking are scored
+there as structural clarity signals; passive voice is not, because descriptive reference
+prose legitimately uses it. A flag is a *pointer*, not a verdict, and the same
+accepted-exception mechanism applies.
 
 **REQ anatomy.** One paragraph stating a single verifiable contract — the
 *what*. Ends in `_Check:` with test citations. Contains no parameter types,

@@ -34,8 +34,9 @@ several REQs trip multiple families (REQ-452 trips four).
 
 Recorded acceptances under the spec's own policy (§5.13 readability standard;
 Appendix M authoring conventions): vocabulary, canonical terms, and SHALL/MAY
-strength outrank prose heuristics. After Batch 2 the tree carries **89
-warnings, all accepted** (0 errors).
+strength outrank prose heuristics. After Batch 3 the tree carries **133
+warnings, all accepted** (0 errors). Line numbers below are against the
+assembled spec at the batch-3 commit.
 
 - **Modal drift (4).** REQ-162b, REQ-208a, REQ-244b, REQ-383a — the lowercase
   "must" carries the convergence-metric name; renaming it degrades the metric
@@ -54,6 +55,10 @@ warnings, all accepted** (0 errors).
   paragraphs above grade 18. The `extractReferenceProse` harness uses the same
   grade-18 normative ceiling as REQ bodies. Listed below; W.4's grade 60.4 is a
   metric artifact on a token-dense enumeration, not a readability defect.
+- **Reference-prose sentence length (39).** Build-process and appendix
+  paragraphs with a sentence over 45 words — largely procedural enumerations and
+  semicolon lists. Structural clarity pointers, accepted as a backlog; split on
+  future edits to those sections.
 - **Narrative-prose readability (2).** The reading guide (line 93) and §1
   "Executed-in-context boundaries" (line 177) carry mandated vocabulary
   (`Spec Kit`, `executable-spec`, `client-side subagent splitting`); no
@@ -61,32 +66,109 @@ warnings, all accepted** (0 errors).
 
 ### Reference-prose readability exceptions (47)
 
-| Section (line) | Grade | | Section (line) | Grade |
-| --- | --- | --- | --- | --- |
-| 5.2 (673) | 18.7 | | 6.5.5 (5322) | 19.4 |
-| 5.10 (3351) | 21.8 | | 6.5.5 (5339) | 20.2 |
-| 5.10 (3409) | 24.8 | | 6.6 (5444) | 18.1 |
-| 5.12 (3681) | 18.8 | | Surface-to-scenario (6060) | 18.0 |
-| 5.12 (3689) | 18.4 | | Holonovel Pattern Buffer (6110) | 18.5 |
-| 6.3 (4673) | 21.3 | | Implementation fingerprint (6396) | 18.3 |
-| 6.3 (4722) | 23.9 | | Synthesis consistency (6449) | 18.4 |
-| 6.3 (4739) | 21.0 | | Synthesis population (6464) | 19.0 |
-| 6.3 (4746) | 18.2 | | 7.7.0 (6819) | 21.2 |
-| 6.3 (4770) | 27.9 | | 7.7.0 (6842) | 23.4 |
-| 6.3 (4801) | 18.5 | | 8 (7107) | 20.1 |
-| 6.3 (4811) | 20.1 | | 8 (7214) | 19.5 |
-| 6.5 (5136) | 18.9 | | 10 (7398) | 19.4 |
-| 6.5 (5175) | 22.6 | | 11.1 (7555) | 19.3 |
-| 6.5.3 (5253) | 18.5 | | 11.3 (7703) | 18.9 |
-| 6.5.4 (5279) | 23.5 | | 11.3 (7740) | 19.6 |
-| 6.5.5 (5299) | 19.8 | | 11.4 (7906) | 25.9 |
-| 6.5.5 (5310) | 19.1 | | G.2 (10272) | 20.4 |
-| G.6 (10376) | 18.5 | | Appendix P (11288) | 18.7 |
-| Indexing and badge gating (10617) | 21.2 | | Appendix S (11439) | 19.0 |
-| Appendix M (10700) | 23.1 | | V.4 (11655) | 21.2 |
-| Appendix N (10840) | 21.7 | | V.7 (11691) | 24.9 |
-| V.8 (11714) | 24.9 | | W.4 (11946) | 60.4 |
-| Y.2 (12103) | 27.3 | | | |
+| Section (line) | Grade |
+| --- | --- |
+| 5.2 (673) | 18.7 |
+| 5.10 (3351) | 21.8 |
+| 5.10 (3409) | 24.8 |
+| 5.12 (3681) | 18.8 |
+| 5.12 (3689) | 18.4 |
+| 6.3 (4673) | 21.3 |
+| 6.3 (4722) | 23.9 |
+| 6.3 (4739) | 21.0 |
+| 6.3 (4746) | 18.2 |
+| 6.3 (4770) | 27.9 |
+| 6.3 (4801) | 18.5 |
+| 6.3 (4811) | 20.1 |
+| 6.5 (5136) | 18.9 |
+| 6.5 (5175) | 22.6 |
+| 6.5.3 (5253) | 18.5 |
+| 6.5.4 (5279) | 23.5 |
+| 6.5.5 (5299) | 19.8 |
+| 6.5.5 (5310) | 19.1 |
+| 6.5.5 (5322) | 19.4 |
+| 6.5.5 (5339) | 20.2 |
+| 6.6 (5444) | 18.1 |
+| Surface-to-scenario (6060) | 18.0 |
+| Holonovel Pattern Buffer (6110) | 18.5 |
+| Implementation fingerprint (6396) | 18.3 |
+| Synthesis consistency (6449) | 18.4 |
+| Synthesis population (6464) | 19.0 |
+| 7.7.0 (6819) | 21.2 |
+| 7.7.0 (6842) | 23.4 |
+| 8 (7107) | 20.1 |
+| 8 (7214) | 19.5 |
+| 10 (7398) | 19.4 |
+| 11.1 (7555) | 19.3 |
+| 11.3 (7703) | 18.9 |
+| 11.3 (7740) | 19.6 |
+| 11.4 (7906) | 25.9 |
+| G.2 (10272) | 20.4 |
+| G.6 (10376) | 18.5 |
+| Indexing and badge gating (10617) | 21.2 |
+| Appendix M (10700) | 26.3 |
+| Appendix N (10850) | 21.7 |
+| Appendix P (11298) | 18.7 |
+| Appendix S (11449) | 19.0 |
+| V.4 (11665) | 21.2 |
+| V.7 (11701) | 24.9 |
+| V.8 (11724) | 24.9 |
+| W.4 (11956) | 60.4 |
+| Y.2 (12113) | 27.3 |
+
+### Reference-prose sentence-length exceptions (39)
+
+| Section (line) | Max words |
+| --- | --- |
+| 5.10 (3409) | 56 |
+| 5.12 (3681) | 51 |
+| 6.3 (4654) | 63 |
+| 6.3 (4673) | 64 |
+| 6.3 (4722) | 72 |
+| 6.3 (4755) | 55 |
+| 6.3 (4770) | 52 |
+| 6.3 (4824) | 47 |
+| 6.5 (5007) | 59 |
+| 6.5 (5049) | 60 |
+| 6.5 (5136) | 59 |
+| 6.5 (5175) | 81 |
+| 6.5.3 (5233) | 69 |
+| 6.5.4 (5279) | 52 |
+| 6.5.5 (5322) | 62 |
+| 6.6 (5362) | 53 |
+| 6.6 (5393) | 62 |
+| 6.6 (5444) | 58 |
+| Surface-to-scenario (5774) | 49 |
+| Surface-to-scenario (6041) | 54 |
+| Surface-to-scenario (6060) | 49 |
+| Holonovel Pattern Buffer (6110) | 52 |
+| Gap audit method (6416) | 52 |
+| Synthesis consistency (6449) | 59 |
+| Synthesis population (6464) | 67 |
+| 7.7.0 (6779) | 49 |
+| 7.7.0 (6842) | 54 |
+| 8 (7135) | 49 |
+| 8 (7145) | 46 |
+| 8 (7214) | 71 |
+| 8 (7232) | 57 |
+| 11.1 (7555) | 55 |
+| 11.3 (7710) | 72 |
+| B.5 (8268) | 47 |
+| Appendix L (10631) | 51 |
+| Appendix M (10776) | 50 |
+| Appendix M (10807) | 48 |
+| W.4 (11956) | 148 |
+| Y.2 (12113) | 56 |
+
+### Reference-prose condition-stacking exceptions (5)
+
+| Section (line) | Finding |
+| --- | --- |
+| 6.3 (4770) | 4 conjunctions, 0 conditionals |
+| 6.5 (5007) | 4 conjunctions, 1 conditional |
+| 7.7.0 (6779) | 4 conjunctions, 0 conditionals |
+| 11.3 (7710) | 1 conjunction, 3 conditionals |
+| G.6 (10383) | 4 conjunctions, 0 conditionals |
 
 ## Finding ledger
 
@@ -97,6 +179,7 @@ warnings, all accepted** (0 errors).
 | PR-3 | This program | Appendices and §5 preamble/§6/§7/§9–§11 prose are outside the proofreading pass. | Fixed — coverage extended (`referenceProse` category). |
 | PR-4 | `spec/02-requirements.md` | Ten warnings cleared by rewrites (REQ-452, 092a, 466, 523, 247b1). | Fixed. |
 | PR-5 | `spec/01a-constitution.md:89` | Garbled "State drift" definition: "the GM has narrated … advances beyond" (missing relative clause). | Fixed — "the GM's narration … has advanced beyond". |
+| PR-6 | `spec/appendices-reference.md` (Appendix M) | Reference-prose checks were unscored; the exception-location policy was unstated. | Fixed — added the reference-prose standard and the register/DECISIONS.md split. |
 
 ## Batch log
 
@@ -115,4 +198,10 @@ warnings, all accepted** (0 errors).
   self-tests 13/13. Bounded coverage batch: `01a-constitution.md` (one garbled
   definition fixed, PR-5), `appendices-licenses.md`, and `08-synthesis.md` §11.1–§11.2
   read clean.
+- **Batch 3 (2026-09-25).** Extended the reference-prose pass with sentence-length
+  and condition-stacking checks (passive voice deliberately excluded); recorded
+  the 44 new structural findings as accepted backlog; added the Appendix M
+  reference-prose standard and exception-location note (PR-6); bounded coverage
+  read of `04-runtime.md` §7.7.1a–§7.8 and the fixture-intro prose, both clean.
+  Total 0 errors / 133 warnings, all accepted. Validator self-tests 13/13.
 
