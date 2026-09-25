@@ -4,6 +4,17 @@
 
 **Recorded tool budget:** 32 (REQ-429)
 
+### Holonovel Spec Update — 2026-09-24 (N1: Supplementary ruleset import)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — implements the supplementary-import subsystem (REQ-372) and records the REQ-372d/REQ-373 dynamic-registration waiver. Spec: REQ-372a/REQ-372e reworded to the action form (`manage_ruleset (action: import_supplementary/remove_supplementary)`); the waiver disposition is recorded here under DECISIONS.md section (5). Implementation: `manage_ruleset` gains `import_supplementary` (inline Wisdom or deterministic Markdown-heading extraction, SHA-256 content hash, Novel-scoped `supplementary_rulesets`) and `remove_supplementary`; `manage_synthesis (action: list)` surfaces supplementary Wisdom tagged `supplementary:<slug>` even before synthesis runs; `spec_health` reports `supplementary_rulesets` and `supplementary_gap`. NOVEL state `supplementary_rulesets` persists through every serialize/deserialize path. |
+| Waiver (5) | The reference `holonovel` stack registers MCP tools statically at build time and does not support runtime dynamic tool registration, so per REQ-372d supplementary import is limited to Ruleset Wisdom — mechanics from supplementary sources require a full rebuild. REQ-373 (`dynamic tool registration`) remains an intended gap (bucket E) under this waiver; T424 exercises the waiver branch (no tools registered). The waiver re-evaluates on each builder version. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (bucket A 0, B 0, C 364, E 113); typecheck 0 errors; test:supplementary 2/2 (T423/T424 waiver branch); test:tool-definitions 6/6 (T511 against the 32-tool recorded budget, unchanged); version-check OK |
+| Follow-up | N2 (durable agent tasks REQ-522–530) and N3 (perception ledger REQ-540–545) remain on ROADMAP.md. Dynamic tool registration (REQ-373) remains waived/E pending a stack that supports it. |
+
 ### Holonovel Spec Update — 2026-09-24 (M2c: Knowledge-Graph Projection)
 
 | Field | Value |

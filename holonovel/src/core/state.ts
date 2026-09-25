@@ -529,6 +529,15 @@ export interface NovelState {
   causal_slots: import("./causal.js").CausalSlot[];
   // REQ-484/REQ-491 — every transition proposal, admitted or refused.
   transition_ledger: import("./causal.js").TransitionRecord[];
+  // REQ-372 — Novel-scoped supplementary ruleset imports. Under the recorded
+  // REQ-373 dynamic-registration waiver the reference server imports Wisdom only.
+  supplementary_rulesets: Array<{
+    slug: string;
+    source: string;
+    hash: string;
+    wisdom: Array<{ module: string; key: string; content: string }>;
+    imported_at: string;
+  }>;
   // REQ-496/REQ-498/REQ-500 — cold knowledge corpus, access profiles, and the
   // per-entity acquisition ledger.
   corpus_documents: import("./corpus.js").CorpusDocument[];
@@ -825,6 +834,7 @@ export class StateManager {
       belief_state: [],
       causal_slots: [],
       transition_ledger: [],
+      supplementary_rulesets: [],
       corpus_documents: [],
       corpus_access: [],
       corpus_consumption: [],
@@ -1115,6 +1125,7 @@ export class StateManager {
       belief_state: data.belief_state ?? [],
       causal_slots: data.causal_slots ?? [],
       transition_ledger: data.transition_ledger ?? [],
+      supplementary_rulesets: data.supplementary_rulesets ?? [],
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2104,6 +2115,7 @@ function novelToJSON(novel: NovelState): any {
     // REQ-486/REQ-491 — causal slots and transition ledger persist with the Novel.
     causal_slots: novel.causal_slots,
     transition_ledger: novel.transition_ledger,
+    supplementary_rulesets: novel.supplementary_rulesets,
     // REQ-496/REQ-498/REQ-500 — corpus documents, access, and acquisitions persist.
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
@@ -2225,6 +2237,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     belief_state: data.belief_state ?? [],
     causal_slots: data.causal_slots ?? [],
     transition_ledger: data.transition_ledger ?? [],
+    supplementary_rulesets: data.supplementary_rulesets ?? [],
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],

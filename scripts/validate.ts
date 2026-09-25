@@ -1509,6 +1509,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-247": "adventure structure extraction — §6.3 discovery heuristic",
   "REQ-225": "Ruleset Wisdom extraction — build-time; cited for build-time provenance in wisdom.ts",
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
+  "REQ-373": "dynamic tool registration waived per REQ-372d — the reference stack statically registers MCP tools; recorded in DECISIONS.md (5) and exercised by T424's waiver branch",
 };
 function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
   const issues: string[] = [];
@@ -1560,7 +1561,11 @@ const INTENDED_GAP_REQS = new Set([
   // REQ-388 holodeck_config is a deferred runtime `spec_health` field — not
   // yet implemented in server source; tracked as an intended feature gap.
   "REQ-107", "REQ-388",
-  "REQ-372", "REQ-373",
+  // REQ-372 (supplementary import, Wisdom-only) is now server-runtime and
+  // cited — NOT whitelisted. REQ-373 (dynamic tool registration) remains an
+  // intended gap under the REQ-372d waiver (the reference stack registers MCP
+  // tools statically) — see INTENDED_GAP_CITED_DISPOSITIONS.
+  "REQ-373",
   "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
   "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
   // §5.18 update/migration entry points are build-tooling contracts

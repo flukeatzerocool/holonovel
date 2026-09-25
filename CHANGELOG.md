@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-09-24 — N1: Supplementary ruleset import (REQ-372)
+
+- The server can import a supplementary ruleset into a Novel at runtime with
+  `manage_ruleset (action: import_supplementary)` and reverse it with
+  `manage_ruleset (action: remove_supplementary)`. Imports are Novel-scoped and
+  persistent: each Novel records its imported rulesets, and a resume re-resolves
+  them. (REQ-372)
+- Wisdom arrives either as inline items or extracted deterministically from a
+  Markdown source's headings, with a content hash. Imported Wisdom surfaces in
+  `manage_synthesis (action: list)` tagged with its source slug, and
+  `spec_health` reports each import plus a `[supplementary-gap]` when a source
+  file goes missing. (REQ-372)
+- The reference server registers its MCP tools statically, so under the
+  spec-sanctioned REQ-372d waiver supplementary import is limited to Ruleset
+  Wisdom — no new tools are registered; dynamic tool registration (REQ-373)
+  remains a waived, recorded intended gap. Pattern Buffer sub-workflows S30/S31
+  now execute instead of reporting `blocked`.
+- N2 (durable agent tasks) and N3 (perception ledger) remain on ROADMAP.md, with
+  M3/M4b/M5a/M5b recorded de-scoped or narrowed.
+
 ## 2026-09-24 — M2c: Knowledge-Graph Projection
 
 - The server can project a read-only knowledge graph over a Novel's sources —

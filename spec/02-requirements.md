@@ -3518,7 +3518,7 @@ Gaps detected by `npm run validate` are errors that block assembly. _Check:_ T43
 ### 5.14 Content Sources
 
 **REQ-372a — Supplementary ruleset import (Part a).**
-The server SHALL support runtime import of supplementary TTRPG rulesets via `import_supplementary`. Import is Novel-scoped — each Novel records its active supplementary rulesets under `supplementary_rulesets: [<slug>, ...]`. Import IS reversible via `remove_supplementary`.
+The server SHALL support runtime import of supplementary TTRPG rulesets via `manage_ruleset (action: import_supplementary)`. Import is Novel-scoped — each Novel records its active supplementary rulesets under `supplementary_rulesets: [<slug>, ...]`. Import IS reversible via `manage_ruleset (action: remove_supplementary)`.
 
 **REQ-372b — Supplementary ruleset import (Part b).**
 WHEN the server imports a supplementary ruleset, THE server SHALL run extraction against the supplementary source per REQ-011 and REQ-225, recording confidence and content hash in Novel metadata. The server SHALL register extracted mechanics as MCP tools per REQ-020 and REQ-373. The server SHALL render extracted Ruleset Wisdom per REQ-371 (P5–P11). The server SHALL record the supplementary ruleset's slug and content hash in the Novel's metadata. On Novel resume, the server SHALL re-resolve supplementary rulesets, surfacing `[supplementary-gap]` in `spec_health` if a source file is missing or hash-mismatched. Import is Game Master only, under the Editor badge.
@@ -3530,7 +3530,7 @@ Supplementary rulesets do not affect other Novels — tools and Wisdom are Novel
 WHEN the builder's chosen stack cannot support dynamic tool registration, THE builder SHALL record a waiver in DECISIONS.md (5) citing the technical constraint, and supplementary ruleset import SHALL be limited to Ruleset Wisdom only — mechanics from supplementary sources require a full rebuild. The waiver SHALL re-evaluate on each builder version. *Acceptance criterion:* Call `import_supplementary("xanathars-guide.md")` in a Novel — assert new spells, classes, and Wisdom appear in `tools/list`, `badge_briefing`, and `manage_synthesis (action: list)`. Assert Wisdom mechanically couples per P5–P11.
 
 **REQ-372e — Supplementary ruleset import (Part e).**
-Call `remove_supplementary("xanathars-guide.md")` — assert tools and Wisdom removed. End Novel and resume — assert supplementary ruleset re-resolves. Move the source file — assert `[supplementary-gap]` in `spec_health`. _Check:_ T423.
+Call `manage_ruleset (action: import_supplementary, source)`, then `manage_ruleset (action: remove_supplementary, slug)` — assert imported Wisdom is removed. End Novel and resume — assert the supplementary ruleset re-resolves. Move the source file — assert `[supplementary-gap]` in `spec_health`. _Check:_ T423.
 **REQ-373a1 — Dynamic tool registration (Part a1).**
 The server SHALL support registration of additional MCP tools at runtime when supplementary rulesets import (REQ-372). Dynamically registered tools SHALL conform to the same contracts as build-time tools. The contracts include the response prefix (REQ-001), error taxonomy (REQ-002), roll transparency (REQ-003), source quoting (REQ-061), and badge gating (REQ-032). The `tools/list` output SHALL include dynamically registered tools alongside build-time tools. The `tools/list` output SHALL annotate dynamically registered tools with their source supplementary ruleset slug.
 
