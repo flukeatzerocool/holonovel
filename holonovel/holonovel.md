@@ -7201,7 +7201,10 @@ reason in DECISIONS.md. Automated tests must ship a runnable script
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. A harness
 that spawns a server SHALL also fail non-zero with a diagnostic when the spawned
 process terminates unexpectedly; a run that produces no summary is a failure,
-never a silent pass (REQ-141m). Manual
+never a silent pass (REQ-141m). A gate that runs its sub-checks in parallel
+SHALL propagate the failure of every sub-check; a gate that reports a failing
+sub-check while exiting zero is non-conformant, and its green result is not
+evidence. Manual
 tests must document the verification procedure and expected output shape in
 DECISIONS.md. This workflow uniquely verifies the server against the formal
 test catalogue — individual tool contracts are exercised by G2 (fixture
