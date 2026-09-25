@@ -1116,20 +1116,32 @@ function antiSlopFor(badge: string): string {
 const briefingBudget = (): number =>
   configInt("TTRPG_MAX_BRIEFING_TOKENS", configInt("TTRPG_PROMPT_BUDGET", 16000));
 const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "intro"]);
+// REQ-118 — every prompts/get result stays within the per-prompt budget.
+// Sections are truncated lowest-priority first, preserving headers and the
+// never-truncated contract elements. Prefer the deepest heading level present
+// (badge_briefing's ### sections) so existing truncation is unchanged; fall
+// back to ## sections, then to a structure-less prefix for prompts with no
+// headings.
 function applyPromptBudget(text: string): string {
   const budget = briefingBudget();
   if (text.length <= budget) return text;
-  const sections = text.split(/\n(?=### )/);
+  const level = text.includes("\n### ") ? "###" : text.includes("\n## ") ? "##" : null;
+  if (!level) {
+    const marker = "\n\n[truncated — full content: guidance://current]";
+    return text.slice(0, Math.max(0, budget - marker.length)) + marker;
+  }
+  const sections = text.split(new RegExp(`\\n(?=${level} )`));
+  const headerRe = new RegExp(`^${level} ([^\\n]+)`);
   let kept = "";
   for (const section of sections) {
-    const header = section.match(/^### ([^\n]+)/)?.[1]?.toLowerCase() ?? "";
+    const header = section.match(headerRe)?.[1]?.toLowerCase() ?? "";
     const required = [...NEVER_TRUNCATED].some((n) => header.includes(n));
     if (required || kept.length + section.length <= budget) {
       kept += kept ? "\n" : "";
       kept += section;
     } else {
       const slug = header.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      kept += `\n### ${header.charAt(0).toUpperCase() + header.slice(1)} [truncated — full content: guidance://${slug || "current"}]`;
+      kept += `\n${level} ${header.charAt(0).toUpperCase() + header.slice(1)} [truncated — full content: guidance://${slug || "current"}]`;
     }
   }
   return kept;
@@ -8027,7 +8039,7 @@ server.prompt("intro", "Introduction and Getting Started", async () => {
       role: "user",
       content: {
         type: "text" as const,
-        text: `# Welcome to Holonovel
+        text: applyPromptBudget(`# Welcome to Holonovel
 
 This server runs tabletop roleplay with a real, persistent world. Every scene,
 character, and object lives on the server — not in a chat window — so your
@@ -8042,7 +8054,7 @@ ${library}
 3. Choose your role — player, game master, or observer.
 4. Enter the story and begin your first scene.
 
-For the latest specification, see ${specRepoUrl()}.`,
+For the latest specification, see ${specRepoUrl()}.`),
       },
     }],
   };
@@ -8429,7 +8441,7 @@ server.prompt("session_zero", "Session Zero Setup", async () => {
       role: "user",
       content: {
         type: "text" as const,
-        text: `# Session Zero
+        text: applyPromptBudget(`# Session Zero
 
 Before the story begins, this guide helps you and the game master agree on the
 shape of the adventure. It is a creative check and a safety check — the choices
@@ -8504,7 +8516,7 @@ you describe what your character does. You can refine anything here at any time.
 ## 8. Between stories
 Characters can grow between sessions — refine personality, voice, dialogue, and
 advancement when your rules provide it. The world you build is kept for the next
-session.`,
+session.`),
       },
     }],
   };
@@ -8527,7 +8539,7 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
       role: "user",
       content: {
         type: "text" as const,
-        text: `# Novel Setup
+        text: applyPromptBudget(`# Novel Setup
 
 A guided setup for your world. Complete each step in order; the markers show
 where you are.
@@ -8551,7 +8563,7 @@ Run the session zero guide to agree on tone, difficulty, pace, focus, and
 boundaries, and to confirm the opening scene.
 
 When all three steps show [✓], the world is ready. A summary follows describing
-what is ready and how to begin your first scene.`,
+what is ready and how to begin your first scene.`),
       },
     }],
   };
@@ -8580,7 +8592,7 @@ from the live registry, not hardcoded strings.
 - **Lookup**: ruleset (search), session (health), command (suggest)
 
 Select the tool whose registered action classification matches the intent.`;
-  return { messages: [{ role: "user", content: { type: "text" as const, text } }] };
+  return { messages: [{ role: "user", content: { type: "text" as const, text: applyPromptBudget(text) } }] };
 });
 
 // ── Transport ──────────────────────────────────────────────────────

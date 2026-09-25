@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-25 — Prompt budget for every prompt; register reconciliation
+
+- The per-prompt length budget now applies to all five prompts (`intro`,
+  `badge_briefing`, `session_zero`, `novel_setup`, `run_workflow`), not just the
+  badge briefing. The truncator also handles `##`-structured and structure-less
+  prompts, so a small configured budget truncates every prompt while preserving
+  headers and the never-truncated contract elements. (REQ-118)
+- The review register's stale REQ-372/373 entry (supplementary import "blocked")
+  is reconciled with ROADMAP.md: N1 shipped 2026-09-24 and REQ-373 is a recorded
+  waiver.
+
 ## 2026-09-25 — Coverage-integrity residuals and ruleset-hydration hardening
 
 - The coverage-integrity audit is now driven by a new

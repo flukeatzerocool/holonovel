@@ -167,6 +167,17 @@ async function main() {
     await kill(p);
   });
 
+  // ── REQ-118 budget applies to every prompt, not only badge_briefing ──
+  await test("T123/REQ-118: session_zero, novel_setup, and run_workflow respect the budget", async () => {
+    const p = await boot({ TTRPG_PROMPT_BUDGET: "400" });
+    await call(p, "manage_novel", { action: "create",  name: "w1e2" });
+    for (const name of ["session_zero", "novel_setup", "run_workflow"]) {
+      const text = await proto(p, "prompts/get", { name });
+      assertContains(text, "[truncated", `REQ-118 ${name} truncation marker`);
+    }
+    await kill(p);
+  });
+
   // ── REQ-184 anti-slop resource + REQ-070 badge filtering ──
   await test("T223/REQ-184 + REQ-070: guidance anti-slop resource badge-filtered", async () => {
     const p = await boot();

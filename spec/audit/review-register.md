@@ -17,6 +17,11 @@ the tracking surfaces for the coverage backlog.
   names, and made the briefing budget honor `TTRPG_MAX_BRIEFING_TOKENS`.
   SC-7 (comment-only citations) is `Closed-P3` below. `--impl-audit=strict`
   passes at A0/B0/C385/E113, 0 errors.
+- **REQ-372/373 — supplementary ruleset import & dynamic tool registration**
+  (2026-09-25): SHIPPED/closed. N1 shipped 2026-09-24 under the REQ-372d
+  dynamic-registration waiver; Pattern Buffer S30/S31 now execute, and REQ-373
+  is recorded as a waived intended gap in `holonovel/DECISIONS.md`. Reconciled
+  with `ROADMAP.md` §"Supplementary ruleset import (REQ-372/373) — SHIPPED".
 - **Residual remediation SC-6/SC-9** (2026-09-25, session 2): the
   `compare-spec-code.ts --bundles` report isolated the 6 falsely-C
   bundle-dependent REQs (123, 160, 175, 380, 389, 390). Added
@@ -119,11 +124,7 @@ the tracking surfaces for the coverage backlog.
 
 ## Scheduled-roadmap
 
-- **REQ-372/373 — supplementary ruleset import & dynamic tool registration**
-  (Pattern Buffer close-out, 2026-09-06): bucket-E intended gap. S30/S31
-  recorded `blocked` in `run_ruleset_pattern_buffer.ts`. Plan filed at
-  `plans/2026-09-06-supplementary-import.md`; ROADMAP.md entry added. Open
-  until the subsystem ships and S30/S31 un-block.
+— none.
 
 ## Closed-P3 (recorded, no action)
 
