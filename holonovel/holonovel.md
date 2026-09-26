@@ -2541,10 +2541,10 @@ Materialization delegates to the entry's tool. `npc` maps to `manage_npc (action
 For kind `adventure`, `manage_codex (action: import)` SHALL materialize the adventure scaffold into the active Novel. The import populates the world-model tier from the stored `## World` section data (rooms, things, and exits per REQ-079). The import creates NPCs from extracted NPC data, sets factions from extracted faction data, creates lore entries from extracted location descriptions, and activates synthesis linkages per REQ-229.
 
 **REQ-321f — Codex (Part f).**
-The adventure data payload holds `title`, `slug`, `premise`, `overview`, and `hook` as strings. The `source` field holds one of `generated`, `loaded:<adventure_slug>`, or `captured:<novel_slug>`. The `locations` field holds an array of `{heading, flavor_text}`. The `npc_suggestions` field holds an array of `{name, description}`. The `encounter_seeds` field holds an array of free-text entries. The `genre_tags` field holds an array of strings. The `sections` field holds the parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, and `## Scenes`, plus `## NPCs`, `## Lore`, and `## Seeds`. The `manage_codex (action: capture, kind, source_id)` tool SHALL pull an existing Novel artifact into the codex — the captured entry carries a `source_novel` field tracing origin.
+A Codex adventure entry SHALL carry the adventure data payload defined in Appendix O.10. Its `source` field SHALL hold `generated`, `loaded:<adventure_slug>`, or `captured:<novel_slug>`. A captured entry SHALL carry a `source_novel` field tracing its origin. The supported capture kinds and their parameters are owned by the per-kind REQs (REQ-321g adventure; REQ-347a voice profile); capture by an arbitrary kind and source identifier is not specified.
 
 **REQ-321g — Codex (Part g).**
-The captured entry SHALL default its `ruleset` field to the source Novel's ruleset scope (REQ-387). The `manage_codex (action: capture, "adventure")` tool SHALL pull the active Novel's adventure content (loaded or generated) into the Codex as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure data payload defined above. When the active Novel has no adventure content, `manage_codex (action: capture, "adventure")` SHALL return `[STATE_CONFLICT]` with corrective action `"No adventure content in the active Novel. Load an adventure via manage_adventure (action: load) or generate one via manage_adventure (action: generate)."`
+The captured entry SHALL default its `ruleset` field to the source Novel's ruleset scope (REQ-387). The `manage_codex (action: capture, "adventure")` tool SHALL pull the active Novel's adventure content (loaded or generated) into the Codex as kind `adventure` with `source: captured:<novel_slug>`, carrying the full adventure data payload defined in Appendix O.10. When the active Novel has no adventure content, `manage_codex (action: capture, "adventure")` SHALL return `[STATE_CONFLICT]` with corrective action `"No adventure content in the active Novel. Load an adventure via manage_adventure (action: load) or generate one via manage_adventure (action: generate)."`
 
 **REQ-321h — Codex (Part h).**
 WHEN the caller invokes `manage_codex (action: capture)` with an `update_source` flag set to `true`, and the captured artifact originated from a prior `manage_codex (action: import)`, THE system SHALL update the source Codex entry in-place rather than creating a separate entry. REQ-332 defines the provenance field that detects the prior import.
@@ -10843,12 +10843,12 @@ build artifact — it is a spec-maintainer reference.
       by which surface owes the behavior, not by section title (§5.18 mixes
       both).
 - [ ] Mechanical consequences: a new server-runtime REQ or a `Behavioral`
-      configuration is shipped in the same change as its §5 section coverage-map
-      row, its `spec/audit/req-coverage.md` register entry (`npm run validate --
-      --write-register`), a direct test-name prefix carrying its ID, the runtime
-      behavioral-config list when a §7.6 `Behavioral` variable is added, and
-      fingerprint regeneration when the target section feeds one (`npm run
-      build-order`).
+      configuration is shipped in the same change as its section
+      REQ-coverage-map row, its `spec/audit/req-coverage.md` register entry
+      (`npm run validate -- --write-register`), a direct test-name prefix
+      carrying its ID, the runtime behavioral-config list when a `Behavioral`
+      variable is added, and fingerprint regeneration when the target section
+      feeds one (`npm run build-order`).
 
 These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,
@@ -11437,6 +11437,33 @@ Outcome: A clean strike past the guard.
 ```
 
 Verify with T91, T138.
+
+**O.9 — Structured result contracts:**
+
+Every tool response carries a machine-readable `structuredContent` object
+alongside its text envelope (REQ-548a). Field sets:
+
+| Field set | Fields | Contract |
+|-----------|--------|----------|
+| Structured result | `status`, `text` | REQ-548a |
+| Structured error | `category`, `corrective_action` | REQ-548c |
+| Decision option set | `options[].value`, `options[].label` | REQ-548d |
+| Narration grounding set | `entities`, `npcs`, `scene`, `rooms`, `things` | REQ-312e |
+
+The text envelope remains canonical (REQ-001); a client that ignores structured
+results observes unchanged output.
+
+**O.10 — Codex adventure payload (REQ-321f):**
+
+| Field | Shape |
+|-------|-------|
+| `title`, `slug`, `premise`, `overview`, `hook` | strings |
+| `source` | `generated`, `loaded:<adventure_slug>`, or `captured:<novel_slug>` |
+| `locations` | array of `{heading, flavor_text}` |
+| `npc_suggestions` | array of `{name, description}` |
+| `encounter_seeds` | array of free-text entries |
+| `genre_tags` | array of strings |
+| `sections` | parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, `## Scenes`, `## NPCs`, `## Lore`, `## Seeds` |
 
 ---
 

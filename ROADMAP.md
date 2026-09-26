@@ -6,14 +6,19 @@
   Update this file when planning a release.
 -->
 
-## Scheduled — Codex `capture` action-contract conflict (REQ-321f vs REQ-347a)
+## Scheduled — General codex capture (feature request)
 
-- REQ-321f defines `manage_codex (action: capture, kind, source_id)` (pull an
-  existing Novel artifact into the codex); REQ-347a and the implementation
-  define the same action as `capture, entity_id, update_source` (voice-profile
-  capture). The general capture path is unimplemented.
-- Reconcile: narrow REQ-321f to the voice-profile contract, or schedule general
-  capture as a feature. Found by `scripts/action-conflicts.ts`.
+- REQ-321f originally specified `manage_codex (action: capture, kind, source_id)`
+  to pull an arbitrary Novel artifact into the codex; the implementation provides
+  per-kind capture only (adventure via REQ-321g, voice profile via REQ-347a).
+  REQ-321f is narrowed to the provenance contract and the general path is
+  recorded here as a feature request. Found by `scripts/action-conflicts.ts`.
+
+## Deferred — §6.7 update self-invocation
+
+- `scripts/update-server.ts` prints the `opencode run` command but does not
+  execute it; the update remains human/CI-invoked. Revisit if unattended
+  updates are required.
 
 ## Deferred — action-contract conflict error gate (REQ authoring guard)
 

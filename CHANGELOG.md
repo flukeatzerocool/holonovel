@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-26 — Loop closure: Codex capture reconciliation and register hygiene
+
+- Reconciled the Codex `capture` action contract: REQ-321f now states the
+  provenance contract only, with per-kind capture parameters owned by REQ-321g
+  (adventure) and REQ-347a (voice profile); general capture is scheduled on
+  ROADMAP.md as a feature request. (REQ-321f)
+- Documented the structured-result field catalog and the Codex adventure payload
+  in Appendix O (O.9, O.10). (REQ-548a–d, REQ-312e, REQ-321f)
+- Added the spec-addition mechanical-consequences rule to Appendix M, so a new
+  server-runtime requirement or behavioral configuration ships with its
+  coverage-map row, register entry, direct test name, runtime behavioral list,
+  and fingerprint regeneration.
+- Recorded the tool-surface consolidation deferral in DECISIONS.md; reconciled
+  the proofread register to 158 accepted warnings; moved the Codex-capture
+  conflict to `Resolved` and deferred §6.7 self-invocation on ROADMAP.md.
+- Prepared the dated Spec Update narrative and synced the stored spec hash.
+
 ## 2026-09-26 — Authoring rule: spec-addition mechanical consequences
 
 - Appendix M now requires a new server-runtime requirement or a `Behavioral`

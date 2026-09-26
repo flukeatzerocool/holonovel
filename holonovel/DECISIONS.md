@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 0a444e3bf0a3bce0dfcd69a8e2c65d51bb7eec10ca365e4ad2478f0c6de5a4d8
+**Spec hash:** b845af574fda439b7c35499943c0f31bae74c41fc02c3d087b16a201d6272ad3
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -11,6 +11,12 @@
 - REQ-551a extractor divergence flags: disposition — per-entry divergence recorded with both source anchors; the builder's value stands until a disposition is recorded.
 - REQ-548b protocol: pinned MCP protocol version advanced to a version supporting `outputSchema`; structured results mirror the text envelope (REQ-548a).
 - REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
+- Tool-surface consolidation (34 tools) deferred: the surface already satisfies REQ-429's recorded budget; the routing benefit ships via REQ-067d / REQ-114c, and merging tools would churn the §5 tool corpus, the REQ-429 budget, and this gate-classification table. Revisit when a demonstrated routing failure survives the discovery changes.
+
+### Holonovel Spec Update — 2026-09-26
+
+- **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
+- **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
 ## Gate classification (REQ-137a)
 

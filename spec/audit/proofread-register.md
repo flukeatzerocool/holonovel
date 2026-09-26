@@ -221,3 +221,18 @@ strength outrank the prose heuristics.
 accepted items are split opportunistically on future edits to their sections. No
 contract-bearing rewrite was made.
 
+## Batch 4 — lean-narrator integration + loop closure (2026-09-26)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 158 warnings**.
+This batch adds ~25 warnings to the 133 accepted baseline — the same heuristic
+families (passive voice, REQ-body readability, modal drift, sentence length)
+applied to the REQs touched by the lean-narrator integration (REQ-548a–d,
+REQ-312e, REQ-412a, REQ-067d, REQ-114c, REQ-551/551a) and the Codex-capture
+reconciliation, plus Appendix M and Appendix O reference prose now scored by the
+reference-prose pass. One warning introduced here (Appendix M "magic number"
+from a digit-adjacent phrase) was **Fixed** by rewording.
+
+**Disposition: all 158 warnings `Accepted` by policy** — lexical heuristics below
+the contract-bearing threshold; open items are split opportunistically on future
+edits to their sections. No contract-bearing rewrite was made.
+

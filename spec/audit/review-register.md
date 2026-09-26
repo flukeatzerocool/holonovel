@@ -8,6 +8,13 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **Codex `capture` action-contract conflict (REQ-321f vs REQ-347a)** (resolved
+  2026-09-26): REQ-321f's `capture, kind, source_id` binding is narrowed to the
+  provenance contract; per-kind capture is owned by REQ-321g (adventure) and
+  REQ-347a (voice profile). General capture is scheduled on ROADMAP.md as a
+  feature request, so `scripts/action-conflicts.ts` no longer reports two
+  contracts for the `capture` action.
+
 - **Conformance-gap remediation + prevention program** (2026-09-26, commit
   `65146ab` + follow-on): resolved the config-drift class and the false-C
   evidence class found by the spec↔code audit (REQ-129, REQ-097, REQ-239,
@@ -178,15 +185,7 @@ the tracking surfaces for the coverage backlog.
 
 ## Scheduled-roadmap
 
-- **Codex `capture` action-contract conflict (REQ-321f vs REQ-347a)** (P2,
-  scheduled): REQ-321f defines `manage_codex (action: capture, kind,
-  source_id)` (pull an existing Novel artifact), while REQ-347a defines
-  `manage_codex (action: capture, entity_id, update_source)` (voice-profile
-  capture). The implementation (`holonovel/src/index.ts` `case "capture"`)
-  implements the voice-profile path only, so REQ-321f's general capture is
-  unimplemented. Needs a spec decision: narrow REQ-321f to the implemented
-  voice-profile contract, or schedule the general capture as a feature. Found
-  by the report-only action-conflict lint (`scripts/action-conflicts.ts`).
+None.
 
 ## Closed-P3 (recorded, no action)
 
