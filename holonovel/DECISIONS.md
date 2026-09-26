@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 8ca64b0ef7729e249cca220fb8d611e83a3b6e45bb6d948303321ff07fd3a54e
+**Spec hash:** 64fb213d681ec8963b235e8f4f60955327f077030288fa6193634298a0f7a0a6
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -85,6 +85,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Reused | source, config, extraction, lockfile, surfaces |
 | Verification | assemble + check:fast 0 errors; full validate 0 errors / 133 warnings (baseline); typecheck 0 errors; test:tool-definitions 8/8 (T151 badge filter, T450); test:corpus 9/9 (T628); test:all 0 failures; data_format fingerprint advanced (§5.28) — persisted artifacts re-stamp and load |
 | Follow-up | REQ-373 (dynamic tool registration) remains a build-scope waived intended gap. |
+
+### Holonovel Spec Update — 2026-09-25 (synthesis activation model reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec only — resolves the activation-model ambiguity found by the post-change spec-review (SR-1–SR-9). New REQ-260e declares the per-item active model: Tier-1 `[ruleset]`/`[vendor]` items active by default with a `synthesis_deactivated` opt-out list, `[supplementary]` items inert until their key enters `synthesis_activated`, player items carrying an `active` boolean; activation arity (key present vs omitted) and opt-out persistence across reversion/re-synthesis are stated. REQ-231a references the §11.3 module set instead of an in-body catalogue; REQ-231b separates module enablement from item activation; REQ-159a names the `[ruleset]`/`[vendor]`/`[player]` tier tags in the briefing block; REQ-080b qualifies the Ruleset Wisdom presence claim for ruleset-free mode; T319 separates module toggle from item activation in its description. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + `validate:sdd --sdd-strict` 0 errors (140 pre-existing warnings); check:fast 0 errors/0 warnings; fingerprints in sync; REQ count 5.8 127→128 |
+| Follow-up | None — spec-review findings SR-1–SR-9 addressed. |
 
 ### Holonovel Spec Update — 2026-09-25 (synthesis activation gating)
 

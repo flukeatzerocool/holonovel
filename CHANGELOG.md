@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-25 — Synthesis activation model reconciliation
+
+- The spec now defines when a Ruleset Wisdom or synthesis item is active.
+  Previously two readings coexisted — "modules default enabled" versus
+  "items are inert until activated" — so a builder could not tell whether a
+  freshly extracted item appears without an activation call. (REQ-260)
+- Deactivation is now specified: which items are active by default, how an
+  opt-out is recorded, and that it survives reversion and re-synthesis.
+  (REQ-260, REQ-103, REQ-265)
+- The module toggle is stated as wholescale gating, distinct from per-item
+  activation. (REQ-231)
+- The briefing integration names every provenance tag that appears in the
+  synthesis block, not only `[supplementary]`. (REQ-159)
+- The claim that Ruleset Wisdom is always present is scoped to ruleset-bound
+  Novels. (REQ-225, REQ-080)
+
 ## 2026-09-25 — Synthesis activation gating
 
 - Ruleset Wisdom and synthesis now honor the GM's controls on every surface.

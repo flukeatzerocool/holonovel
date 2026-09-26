@@ -235,7 +235,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-257 | List Novels (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T316 | — |
 | REQ-258 | Novel info (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T317, T384 | — |
 | REQ-259 | Update Novel description | 5.9 Novel Persistence and Transport | C | T318 | — |
-| REQ-260 | Granular synthesis activation (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T319, T321, T326 | — |
+| REQ-260 | Granular synthesis activation (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T319, T321, T326 | — |
 | REQ-261 | Player synthesis (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T320 | — |
 | REQ-262 | Synthesis tool (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321 | — |
 | REQ-263 | Synthesis auto-trigger (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T322 | — |
