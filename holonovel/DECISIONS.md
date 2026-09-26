@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** bd9a7b82260d1883a74a80c05edf8fc63f61cf0cf13a50e240d4d0bffcfec5ed
+**Spec hash:** 0a444e3bf0a3bce0dfcd69a8e2c65d51bb7eec10ca365e4ad2478f0c6de5a4d8
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -65,6 +65,74 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Behavioral | TTRPG_AUTONOMY, TTRPG_PACING_WINDOW, TTRPG_NPC_AUTONOMY, TTRPG_NPC_MIND, TTRPG_MAX_AVAILABLE_ACTIONS, TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS, TTRPG_WORLD_REACTIVITY, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE, TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER |
 | Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
 | System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
+
+### Holonovel Spec Update — 2026-09-26 (full update: M1–M3/N1–N3 reconciliation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | major |
+| Spec version | 2026.09.26 |
+| Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
+| Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
+| Reused | none — all five implementation-fingerprint components changed |
+| Verification | assemble + `npm run check` 0 errors / 0 warnings; `check:fast` 0 errors (18 informational Appendix F warnings, pre-existing); root + `holonovel` typecheck 0 errors; `test:all` 36 harnesses / 384 assertions / 0 failures; Holonovel Pattern Buffer I1–I18 18/18, Ruleset Pattern Buffer S1–S37 22 passed / 0 failed / 6 skipped / 2 stubbed / 7 follow-on, 0 blocking failures; conformance, fingerprint-sync, script-discipline gates PASS |
+| Follow-up | None. |
+
+**Fingerprint delta summary (REQ-313 / REQ-314), recorded before the gap audit.** All five
+implementation-fingerprint components changed against the stored baseline; no component was
+reusable, so the update ran full-scope — full gap audit plus the full Pattern Buffer, with no
+sub-workflow skipped under REQ-314:
+
+| Component | Stored (2026-09-11) | Current (2026-09-26) |
+|-----------|---------------------|----------------------|
+| source | `5807261d47d9c5fb…` | `2003f788e57ebcd1…` |
+| config | `80124ab361cb266c…` | `38a457d70a73dda1…` |
+| lockfile | `b1c6064bb9d7e2a2…` | `436c8ac9dd9e5d96…` |
+| extraction | `df0935fcb6b00072…` | `3f00d7932636cd74…` |
+| surfaces | `4697a8daa4c0b281…` | `0ea47c6c8286bad8…` |
+
+**Gap audit (REQ-098).** The server's live registrations were compared against the §7.3 output
+contracts, §7.4 tool-surface conventions, §7.7 state model, and REQ-032 badge gating; behavioral
+contracts were re-verified by Pattern Buffer re-run. The implementation-coverage audit reports
+500 REQs, 479 source-cited, 448 exercised test IDs, buckets A0 / B0 / C388 / D0 / E112 — zero
+gap-class (bucket A) rows — and the conformance gate reports no bundle-dependent REQs. One row
+per affected surface, with its disposition:
+
+| Surface | REQ | Disposition |
+|---------|-----|-------------|
+| Temporal event log + branching | REQ-455–460 | implemented — Novel `event_log`/`branch_lineage`; T545–T550 |
+| Belief and evidence reconciliation | REQ-461–472 | implemented — Novel `evidence`/`belief_state`; T551–T562 |
+| Character identity firewall | REQ-473–483 | implemented — `RosterEntity.identity`; T563–T573 |
+| Causal transition validation | REQ-484–495 | implemented — Novel `causal_slots`/`transition_ledger`; T574–T585 |
+| Knowledge corpus + access control | REQ-496–503 | implemented — Novel `corpus_documents`/`corpus_access`/`corpus_consumption`; T586–T593 |
+| Build-time semantic index | REQ-504–509 | implemented — session-scoped, non-persisting; T594–T599 |
+| Knowledge-graph projection | REQ-510–514 | implemented — session-scoped, non-persisting; T600–T604 |
+| Durable agent tasks | REQ-522–530 | implemented — Novel `agent_tasks`; T605–T613 |
+| Perception ledger | REQ-540–545 | implemented — Novel `perception_ledger`; T614–T619 |
+| Briefing consistency | REQ-515–521 | implemented — derived read-only surface; T620–T626 |
+| Supplementary ruleset import | REQ-372 | implemented — T423/T424 waiver branch (REQ-372d/373 build scope) |
+| Tool budget + annotations + badge-filtered catalog | REQ-429, REQ-450, REQ-137b | implemented — 34-tool budget, four-hint map, wrapped `tools/list`; T536, T151 |
+| Config classification + `holodeck_config` | REQ-388b/c | implemented — §7.6 ↔ `HOLODECK_BEHAVIORAL`; T-cited parity |
+| Package-format / data-format fingerprints | REQ-420, REQ-423, REQ-424 | implemented — `check-fingerprint-sync` in sync |
+| Cardinality limits, audit compaction, health fields, checkpoint/adventure/compression surfaces | REQ-129, REQ-239, REQ-097, REQ-241, REQ-096h, REQ-092g/h | implemented — `src/core/limits.ts`, `compactAuditLog`, `buildSpecHealth`; T-cited |
+| Declared-but-inert configs implemented and bounded | REQ-465/468, REQ-473/479, REQ-547, REQ-546 | implemented — `recomputeBeliefs` honoring disablement, identity candidate cap, corpus bounds; T629–T631, T628 |
+
+**User-data disposition.** Package contract (§5.16, §5.17, §6.3, §6.4.2): `PACKAGE_FORMAT`
+unchanged (`5fcbdf6f…`) — ruleset packages need no rebuild (`update-rulesets` not recommended,
+REQ-422). State model (§7.7): `DATA_FORMAT` advanced `0e997a32…` → `28c23a48…` — Novels, roster,
+codex, and server notes re-stamp and load (action **migrate/re-stamp**, REQ-424); artifacts load
+per REQ-065 with inert fields preserved and defaults added, and staleness does not block loading
+(REQ-423).
+
+**Synthesis consistency check (REQ-228).** Ran after the gap audit and before Pattern Buffer
+re-execution; a cross-reference scan only, with no web research. No tool, resource, or prompt was
+renamed or removed in this delta (additions only), so no orphan references were found across the
+ruleset-native or vendor tiers — no `auto-repairable`, `GM-review`, or `stale-reference`
+classification was produced. Result recorded against the gap-audit table above.
+
+**Synthesis population (REQ-243).** The reference build is ruleset-free (no `RULESET_MODEL.md`, no
+bound ruleset), so there are no source ruleset sections to re-classify. Recorded as
+"no ruleset bound — skipped"; added item count per module = 0 (REQ-243d).
 
 ### Holonovel Spec Update — 2026-09-26 (roadmap close-out, latent defects, report-only lint)
 

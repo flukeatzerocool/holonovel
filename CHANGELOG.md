@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-26 — Update-workflow reconciliation record
+
+- Record the §6.7 Update workflow for the M1–M3/N1–N3 feature-parity delta
+  in `holonovel/DECISIONS.md`, and advance the stored spec hash
+  `bd9a7b82…` → `0a444e3b…` to match the assembled spec. (REQ-098)
+- The delta classifies **major** — all five implementation-fingerprint
+  components changed — so the update ran full-scope: a surface-by-surface
+  gap audit (every row dispositioned `implemented`), the full Pattern
+  Buffer, and the ruleset-free build's synthesis consistency and population
+  checks. (REQ-313, REQ-314, REQ-228, REQ-243)
+- User-data disposition: `DATA_FORMAT` advanced, so existing Novels, roster,
+  codex, and server notes migrate and re-stamp on load; ruleset packages
+  need no rebuild (`PACKAGE_FORMAT` unchanged). (REQ-423, REQ-424)
+- Verification: assemble plus full `check` with zero errors; root and
+  holonovel typechecks clean; `test:all` 36 harnesses with zero failures;
+  Pattern Buffers I1–I18 and S1–S37 with no blocking failures.
+
 ## 2026-09-26 — Roadmap close-out: gating resolution, latent defects, report-only lint
 
 - World in Motion gating resolved: `TTRPG_WORLD_REACTIVITY` gates the section
