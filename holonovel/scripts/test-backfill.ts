@@ -23,6 +23,12 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assertContains(hay: string, needle: string): void {
   if (!hay.toLowerCase().includes(needle.toLowerCase())) throw new Error(`expected to contain "${needle}", got: ${hay.substring(0, 300)}`);
 }
+function assertNotContains(hay: string, needle: string): void {
+  if (hay.toLowerCase().includes(needle.toLowerCase())) throw new Error(`expected NOT to contain "${needle}", got: ${hay.substring(0, 300)}`);
+}
+function assert(cond: any, msg: string): void {
+  if (!cond) throw new Error(msg);
+}
 
 // ── MCP client ──────────────────────────────────────────────────────
 
@@ -696,6 +702,86 @@ async function main() {
       await call(proc, "set_badge", { badge: "player" });
       const look = await call(proc, "run_command", { command: "look" });
       assertContains(look, "rf-room");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await kill(proc);
+  }
+
+  // ── §5.8 synthesis activation gating (REQ-159/231/260/265, REQ-084b/115) ──
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "synth-gate" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_synthesis", { action: "run" });
+
+    await test("T307/REQ-231: module toggle suppresses briefing and module resource", async () => {
+      const on = await getPrompt(proc, "badge_briefing", {});
+      assertContains(on, "### Synthesis");
+      assertContains(on, "Lore templates");
+      await call(proc, "manage_synthesis", { action: "toggle", module: "lore_templates", enabled: false });
+      const off = await getPrompt(proc, "badge_briefing", {});
+      assertNotContains(off, "Lore templates");
+      const resOff = (await readResource(proc, "synthesis://lore_templates")).replace(/\s/g, "");
+      if (resOff !== "[]") throw new Error(`disabled module resource not empty: ${resOff.substring(0, 120)}`);
+      await call(proc, "manage_synthesis", { action: "toggle", module: "lore_templates", enabled: true });
+      const resOn = await readResource(proc, "synthesis://lore_templates");
+      assertContains(resOn, "worldbuilding");
+    });
+
+    await test("T319/T326/REQ-260/265: per-item deactivate hides, activate shows", async () => {
+      const list = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "lore_templates" }));
+      const key = list[0]?.key;
+      const preview = String(list[0]?.preview ?? "").slice(0, 30);
+      assert(key && preview, "no lore template key/preview in list");
+      assert(list[0].activated === true, "vendor item should default active");
+      await call(proc, "manage_synthesis", { action: "deactivate", module: "lore_templates", key });
+      const list2 = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "lore_templates" }));
+      const row = list2.find((r: any) => r.key === key);
+      assert(row && row.activated === false, "deactivated item still reported active");
+      const res = JSON.parse(await readResource(proc, "synthesis://lore_templates"));
+      assert(!res.some((i: any) => i.key === key), "deactivated item still in module resource");
+      const offBrief = await getPrompt(proc, "badge_briefing", {});
+      assertNotContains(offBrief, preview);
+      await call(proc, "manage_synthesis", { action: "activate", module: "lore_templates", key });
+      const res2 = JSON.parse(await readResource(proc, "synthesis://lore_templates"));
+      assert(res2.some((i: any) => i.key === key), "reactivated item missing from module resource");
+    });
+
+    await test("T319/REQ-260: module toggle state persists in list output", async () => {
+      await call(proc, "manage_synthesis", { action: "toggle", module: "voice_examples", enabled: false });
+      const list = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "voice_examples" }));
+      assert(list.length > 0 && list.every((r: any) => r.module_enabled === false), "module_enabled not reported");
+      await call(proc, "manage_synthesis", { action: "toggle", module: "voice_examples", enabled: true });
+    });
+
+    await test("T96/T119/REQ-084b/115: action-pattern toggle gates suggestions", async () => {
+      const t = await call(proc, "manage_synthesis", { action: "toggle_action" });
+      if (t.includes("enabled")) await call(proc, "manage_synthesis", { action: "toggle_action" });
+      const off = await call(proc, "run_command", { action: "suggest", intent: "present choices" });
+      assertNotContains(off, "synthesis pattern");
+      await call(proc, "manage_synthesis", { action: "toggle_action" });
+      const on = await call(proc, "run_command", { action: "suggest", intent: "present choices" });
+      assertContains(on, "synthesis pattern");
+      await call(proc, "manage_synthesis", { action: "toggle_action" });
+    });
+
+    await test("T326/REQ-265: Player badge excludes GM-scoped synthesis content", async () => {
+      await call(proc, "set_badge", { badge: "player" });
+      const brief = await getPrompt(proc, "badge_briefing", {});
+      assertNotContains(brief, "Imported Wisdom");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T319/REQ-260c/261: Player manages only own synthesis items", async () => {
+      await call(proc, "set_badge", { badge: "player" });
+      await call(proc, "manage_synthesis", { action: "player_add", module: "lore_templates", key: "p1", content: "Player lore seed." });
+      const forbidden = await call(proc, "manage_synthesis", { action: "activate", module: "lore_templates", key: "not-mine" });
+      assertContains(forbidden, "FORBIDDEN");
+      const own = await call(proc, "manage_synthesis", { action: "deactivate", module: "lore_templates", key: "p1" });
+      assertContains(own, "[OK]");
+      const pl = JSON.parse(await call(proc, "manage_synthesis", { action: "player_list", module: "lore_templates" }));
+      assert(pl.length === 1 && pl[0].activated === false, `player deactivate not reflected: ${JSON.stringify(pl)}`);
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

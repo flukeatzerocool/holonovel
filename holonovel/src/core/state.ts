@@ -452,10 +452,14 @@ export interface NovelState {
   relationships: Relationship[];
   gm_context: GMContext;
   constraint_overrides: { type: string; name?: string; source?: string; prerequisites?: string[]; slots_remaining?: number; match_all?: boolean }[];
-  synthesis_activated: Record<string, number>;
+  // REQ-260a — per-module list of explicitly activated item keys (Tier-2 inert
+  // items the GM opted in). REQ-260c/265 — explicit deactivations for items that
+  // are active by default (Tier-1 vendor/ruleset, player-authored).
+  synthesis_activated: Record<string, string[]>;
+  synthesis_deactivated: Record<string, string[]>;
   synthesis_module_enabled: Record<string, boolean>;
   // REQ-261 — player-authored synthesis items, per module, tagged [player].
-  player_synthesis: Record<string, Array<{ key: string; content: string; triggers?: string[]; badge_scope: string; created_at: string }>>;
+  player_synthesis: Record<string, Array<{ key: string; content: string; triggers?: string[]; badge_scope: string; created_at: string; active?: boolean }>>;
   // REQ-310 — campaign memory: engine-recorded per-NPC/thread/location facts
   // derived from state-changing tool calls, surviving restart and rebuild.
   campaign_memory: Array<{ category: "npcs" | "threads" | "locations"; text: string; at: string; badge_scope: "game_master" | "shared" | "discovered"; scene: string }>;
@@ -567,6 +571,19 @@ function normalizeSceneType(raw: unknown): SceneType[] {
     return [raw as SceneType];
   }
   return ["neutral"];
+}
+
+// REQ-260a — migrate older Novels that stored a single numeric/string value per
+// module to the explicit key-list model. Numeric legacy values carried no item
+// key, so they migrate to an empty list (nothing addressable).
+function normalizeActivationMap(raw: unknown): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [module, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (Array.isArray(value)) out[module] = value.map(String);
+    else if (typeof value === "string" && value) out[module] = [value];
+  }
+  return out;
 }
 
 function worldToJSON(world: WorldModel): any {
@@ -794,6 +811,7 @@ export class StateManager {
       gm_context: {},
       constraint_overrides: [],
       synthesis_activated: {},
+      synthesis_deactivated: {},
       synthesis_module_enabled: {},
       player_synthesis: {},
       campaign_memory: [],
@@ -1093,7 +1111,8 @@ export class StateManager {
       relationships: data.relationships ?? [],
       gm_context: data.gm_context ?? {},
       constraint_overrides: data.constraint_overrides ?? [],
-      synthesis_activated: data.synthesis_activated ?? {},
+      synthesis_activated: normalizeActivationMap(data.synthesis_activated),
+      synthesis_deactivated: normalizeActivationMap(data.synthesis_deactivated),
       synthesis_module_enabled: data.synthesis_module_enabled ?? {},
       player_synthesis: data.player_synthesis ?? {},
       campaign_memory: data.campaign_memory ?? [],
@@ -2086,6 +2105,7 @@ function novelToJSON(novel: NovelState): any {
     gm_context: novel.gm_context,
     constraint_overrides: novel.constraint_overrides,
     synthesis_activated: novel.synthesis_activated,
+    synthesis_deactivated: novel.synthesis_deactivated,
     synthesis_module_enabled: novel.synthesis_module_enabled,
     player_synthesis: novel.player_synthesis,
     campaign_memory: novel.campaign_memory,
@@ -2209,9 +2229,10 @@ function novelFromJSON(data: any): NovelState {
     relationships: data.relationships ?? [],
     gm_context: data.gm_context ?? {},
     constraint_overrides: data.constraint_overrides ?? [],
-    synthesis_activated: data.synthesis_activated ?? {},
+    synthesis_activated: normalizeActivationMap(data.synthesis_activated),
+    synthesis_deactivated: normalizeActivationMap(data.synthesis_deactivated),
     synthesis_module_enabled: data.synthesis_module_enabled ?? {},
-    campaign_memory: data.campaign_memory ?? [],
+    campaign_memory: data.campaign_memory ?? {},
     player_synthesis: data.player_synthesis ?? {},
     notes: data.notes ?? [],
     vows: data.vows ?? [],
@@ -2315,6 +2336,7 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.gm_context = source.gm_context;
   target.constraint_overrides = source.constraint_overrides;
   target.synthesis_activated = source.synthesis_activated;
+  target.synthesis_deactivated = source.synthesis_deactivated;
   target.synthesis_module_enabled = source.synthesis_module_enabled;
   target.notes = source.notes;
   target.vows = source.vows;

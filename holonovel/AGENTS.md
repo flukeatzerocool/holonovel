@@ -38,7 +38,7 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 34 action-discriminator tools, 32 resources and 21 resource templates, 5 prompts.
+src/index.ts            McpServer: 34 action-discriminator tools, 38 resources and 21 resource templates, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
                         Narrative-intent verbs (ask/tell/give/show/throw) and

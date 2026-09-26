@@ -10,6 +10,7 @@ const SPEC_VERSION: string = JSON.parse(
 ).version;
 
 export interface WisdomItem {
+  key?: string;
   content: string;
   source_url: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
@@ -19,13 +20,16 @@ export interface WisdomItem {
 }
 
 export interface ActionPattern {
+  key?: string;
   intent: string;
   expected_categories: string[];
   ruleset_section: string;
   source_url?: string;
+  suggested_actions?: string[];
 }
 
 export interface NarrativeVoice {
+  key?: string;
   name: string;
   source: string;
   media_title: string;
@@ -126,48 +130,56 @@ export const DEFAULT_WISDOM: WisdomManifest = {
       expected_categories: ["Command"],
       ruleset_section: "Guidance — DMCP player interaction",
       source_url: "narrative_world_model/narrative/dmcp/README.md",
+      suggested_actions: ["manage_scene (action: choices)"],
     },
     {
       intent: "manage combat with initiative, conditions, and turn order",
       expected_categories: ["Resolution", "Command"],
       ruleset_section: "Guidance — DMCP combat management",
       source_url: "narrative_world_model/narrative/dmcp/README.md",
+      suggested_actions: ["manage_combat (action: init)", "manage_combat (action: advance)"],
     },
     {
       intent: "interact with world objects using parser commands",
       expected_categories: ["Command"],
       ruleset_section: "World Model — parser command dispatch (REQ-319)",
       source_url: "narrative_world_model/world/world-model-provider.md",
+      suggested_actions: ["run_command (action: execute, \"look\")", "run_command (action: execute, \"examine <thing>\")"],
     },
     {
       intent: "turn devices and machines on or off",
       expected_categories: ["Command"],
       ruleset_section: "World Model — device kind (REQ-316)",
       source_url: "narrative_world_model/world/world-model-provider.md",
+      suggested_actions: ["run_command (action: execute, \"switch on <device>\")", "run_command (action: execute, \"switch off <device>\")"],
     },
     {
       intent: "enter, exit, or navigate aboard a vehicle",
       expected_categories: ["Command"],
       ruleset_section: "World Model — vehicle kind (REQ-317)",
       source_url: "narrative_world_model/world/world-model-provider.md",
+      suggested_actions: ["run_command (action: execute, \"enter <vehicle>\")", "run_command (action: execute, \"exit <vehicle>\")"],
     },
     {
       intent: "wear, remove, eat, drink, or climb an object",
       expected_categories: ["Command"],
       ruleset_section: "World Model — extended property commands (REQ-318)",
       source_url: "narrative_world_model/world/world-model-provider.md",
+      suggested_actions: ["run_command (action: execute, \"wear <thing>\")", "run_command (action: execute, \"eat <thing>\")"],
     },
     {
       intent: "read text or inspect readable objects",
       expected_categories: ["Command"],
       ruleset_section: "World Model — readable property (REQ-318)",
       source_url: "narrative_world_model/world/world-model-provider.md",
+      suggested_actions: ["run_command (action: execute, \"read <thing>\")"],
     },
     {
       intent: "ask, tell, give, show, or throw something at an NPC",
       expected_categories: ["Command"],
       ruleset_section: "World Model — narrative-intent verbs (REQ-320)",
       source_url: "narrative_world_model/world/world-model-provider.md",
+      suggested_actions: ["run_command (action: execute, \"ask <npc> about <topic>\")", "run_command (action: execute, \"tell <npc> ...\")"],
     },
   ],
   supplementary_guidance: [
@@ -314,3 +326,34 @@ export const DEFAULT_WISDOM: WisdomManifest = {
     },
   ],
 };
+
+// REQ-260a / §11.3 — every Wisdom item carries a stable key so activation and
+// deactivation address a specific item. Keys derive deterministically from the
+// item's own content, so re-extraction of identical content reproduces them.
+function wisdomSlug(s: string): string {
+  return String(s)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "item";
+}
+
+export function withWisdomKeys(manifest: WisdomManifest): WisdomManifest {
+  const out: WisdomManifest = JSON.parse(JSON.stringify(manifest));
+  const assign = (arr: any[] | undefined, prefix: string, pick: (i: any) => string): void => {
+    (arr ?? []).forEach((item: any, i: number) => {
+      if (!item.key) item.key = `${prefix}-${wisdomSlug(pick(item) || String(i + 1))}`;
+    });
+  };
+  assign(out.voice_examples, "voice", (i) => i.category ?? i.content ?? "");
+  assign(out.lore_templates, "lore", (i) => i.category ?? i.content ?? "");
+  assign(out.supplementary_guidance, "guide", (i) => i.category ?? i.content ?? "");
+  assign(out.action_patterns, "pattern", (i) => i.intent ?? "");
+  assign(out.narrative_voices, "voice-profile", (i) => i.name ?? "");
+  if (out.adventure_advice) {
+    assign(out.adventure_advice.templates, "adv", (i) => i.content ?? "");
+    assign(out.adventure_advice.scenario_starters, "seed", (i) => i.content ?? "");
+    assign(out.adventure_advice.table_expansions, "table", (i) => i.content ?? "");
+  }
+  return out;
+}

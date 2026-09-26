@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-25 — Synthesis activation gating
+
+- Ruleset Wisdom and synthesis now honor the GM's controls on every surface.
+  Disabling a module or deactivating an item removes it from the badge
+  briefing, its resource, and the lore/action suggestions; previously the
+  toggle and activation state were written but nothing read them.
+  (REQ-159, REQ-231, REQ-260, REQ-265)
+- Per-item activation is now real: items carry stable keys, activating more
+  than one item per module works, and the reported activated count matches the
+  activated items rather than a scalar. (REQ-230, REQ-260)
+- The `synthesis://<module>` resource family the requirements name is now
+  registered and badge-filtered. (REQ-231, REQ-022)
+- The action-pattern toggle now gates synthesis-derived suggestions in
+  `run_command (action: suggest)`. (REQ-084, REQ-115)
+- Activation, deactivation, and toggle calls are audited. (REQ-040)
+- REQ-225a now names the stable item `key` that activation addresses.
+
 ## 2026-09-25 — Config-default alignment
 
 - The belief-reconciliation setting now works: disabling it retains admitted
