@@ -4910,10 +4910,17 @@ function beliefOptions() {
   };
 }
 
+// REQ-465 — reconciliation enablement. When disabled, admitted evidence is
+// retained but no stance is materialized or refreshed.
+function beliefReconciliationEnabled(): boolean {
+  return (process.env.TTRPG_BELIEF_RECONCILIATION ?? "true") !== "false";
+}
+
 // REQ-468 — recompute every belief question from the entity's evidence records.
 // REQ-466 — idempotent: an unchanged stance keeps its prior timestamp, so a
 // repeated reconcile is reproducible.
 function recomputeBeliefs(novel: NovelState, entityId?: string): void {
+  if (!beliefReconciliationEnabled()) return;
   const at = new Date().toISOString();
   const entities = entityId ? [entityId] : [...new Set(novel.evidence.map((e) => e.entity_id))];
   const previous = new Map(novel.belief_state.map((b) => [`${b.entity_id}|${b.question}`, b]));
@@ -5064,6 +5071,7 @@ server.registerTool("manage_belief", {
       const novel = requireNovel();
       if (!args.entity_id) return err("INVALID_INPUT", "entity_id is required for reconcile.");
       const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
+      if (!beliefReconciliationEnabled()) return ok(`Belief reconciliation is disabled (TTRPG_BELIEF_RECONCILIATION=false); no stances materialized for '${args.entity_id}'.`);
       recomputeBeliefs(novel, args.entity_id);
       state.saveNovel(novel);
       return ok(`Reconciled beliefs for '${args.entity_id}'.`);
@@ -5083,6 +5091,16 @@ function identityFor(characterId: string): IdentityState | null {
   if (!entity) return null;
   if (!entity.identity) entity.identity = emptyIdentity(characterId);
   return entity.identity;
+}
+
+// REQ-547 — identity candidate retention bound. Oldest candidates are evicted
+// first when the configured cap is exceeded; accepted facets (identity.facets)
+// and the compiled kernel are unaffected.
+function enforceIdentityCandidateCap(identity: IdentityState): void {
+  const cap = parseInt(process.env.TTRPG_IDENTITY_MAX_CANDIDATES ?? "0", 10);
+  if (cap > 0 && identity.candidates.length > cap) {
+    identity.candidates.splice(0, identity.candidates.length - cap);
+  }
 }
 
 function identityReadGate(characterId: string) {
@@ -5141,6 +5159,7 @@ server.registerTool("manage_identity", {
         proposed_at: new Date().toISOString(),
       };
       identity.candidates.push(candidate);
+      enforceIdentityCandidateCap(identity);
       state.saveRoster();
       audit("identity_stage", { character_id: args.character_id, candidate_id: candidate.id, facet: candidate.facet, stability: candidate.stability });
       return ok(`Identity candidate ${candidate.id} staged for '${args.character_id}'.`);
@@ -5186,6 +5205,7 @@ server.registerTool("manage_identity", {
           c.status = "accepted";
         }
       }
+      enforceIdentityCandidateCap(identity);
       state.saveRoster();
       audit("identity_bootstrap", { character_id: args.character_id, staged: staged.length, auto_accept: autoAccept });
       return ok(`Bootstrapped ${staged.length} identity candidate(s) for '${args.character_id}'.`);

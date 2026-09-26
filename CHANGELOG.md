@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-25 — Config-default alignment
+
+- The belief-reconciliation setting now works: disabling it retains admitted
+  evidence without materializing a stance, and the requirements that govern
+  materialization and refresh state the condition. Previously the setting was
+  documented but had no effect. (REQ-465, REQ-468)
+- Identity candidates are now bounded by a retention cap, evicting the oldest
+  first while accepted facets and the compiled kernel are unaffected. (REQ-547)
+- The character-card bootstrap contract now admits the non-developmental
+  authored-field acceptance that the default bootstrap policy performs,
+  removing the contradiction between the requirements and the documented
+  default. (REQ-473, REQ-479)
+- Configuration docs now define a retention cap of `0` as eviction-disabled.
+- Decision recorded: causal validation stays on by default, aligned with
+  "the rules govern every outcome".
+
 ## 2026-09-25 — Terminology consistency remediation
 
 - Terminology now reads consistently across the feature-parity additions: the

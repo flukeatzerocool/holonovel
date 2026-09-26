@@ -184,6 +184,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 
 ¹ Optional. Sets the initial active Novel on startup.
 
+A retention cap of `0` disables eviction for that surface (unbounded).
+
 All configuration is namespaced with the `TTRPG_` prefix to avoid collision with MCP
 client environment variables. The prefix is product-agnostic and does not constrain
 the ruleset or adventure content served.
