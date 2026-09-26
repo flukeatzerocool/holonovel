@@ -10842,6 +10842,13 @@ build artifact — it is a spec-maintainer reference.
       builder-side (bucket E — owed by tooling, not `holonovel/src`). Classify
       by which surface owes the behavior, not by section title (§5.18 mixes
       both).
+- [ ] Mechanical consequences: a new server-runtime REQ or a `Behavioral`
+      configuration is shipped in the same change as its §5 section coverage-map
+      row, its `spec/audit/req-coverage.md` register entry (`npm run validate --
+      --write-register`), a direct test-name prefix carrying its ID, the runtime
+      behavioral-config list when a §7.6 `Behavioral` variable is added, and
+      fingerprint regeneration when the target section feeds one (`npm run
+      build-order`).
 
 These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,

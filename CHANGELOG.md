@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-26 — Authoring rule: spec-addition mechanical consequences
+
+- Appendix M now requires a new server-runtime requirement or a `Behavioral`
+  configuration to ship with its coverage-map row, coverage-register entry,
+  direct test-name prefix, runtime behavioral-config list, and fingerprint
+  regeneration — so a plan cannot land the requirement body alone. This closes
+  the authoring-convention gap surfaced by the lean-narrator integration.
+
 ## 2026-09-26 — Lean-narrator integration: structured results, live routing, orientation
 
 - Tools now return a machine-readable structured result alongside their text
