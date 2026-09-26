@@ -1857,6 +1857,10 @@ const INTENDED_GAP_REQS = new Set([
   // guard (REQ-454) are builder/verifier tooling, not server-runtime
   // behavior.
   "REQ-452", "REQ-453", "REQ-454",
+  // Lean-narrator integration (2026-09-26): extraction structural verification
+  // (REQ-551) and extractor divergence flags (REQ-551a) are builder/verifier
+  // pipeline contracts owed by the build tooling, not the runtime server.
+  "REQ-551",
   "REQ-100", "REQ-146", "REQ-148", "REQ-149", "REQ-150",
   "REQ-158", "REQ-273", "REQ-274", "REQ-354",
   "REQ-369", "REQ-370", "REQ-371", "REQ-374", "REQ-375", "REQ-376",

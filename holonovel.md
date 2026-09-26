@@ -405,6 +405,7 @@ do not alter meaning are editorial and do not require a version bump.
 | AI Role           | The narrative role the AI plays — derived as the counterpart of the active badge by default, or locked to `game_master` / `player` via `TTRPG_AI_ROLE` (REQ-304). Determines the orientation content in `badge_briefing` (foundations, anti-slop, tone, behavioral boundaries). When the human is the Game Master, the AI's role is Player — the AI inhabits a character. When the human is the Observer, the AI plays both roles. |
 | Observer          | Spectator mode (REQ-305). The human wears the Observer badge (`set_badge("observer")`) — read-only access to the Novel. The AI plays both Player and Game Master. The human watches the AI write the Novel, stepping in for mechanical decisions at the configured autonomy level (REQ-306). Maps to Holodeck objective mode. |
 | Autonomy          | Configurable AI decision delegation (REQ-306). Four independent sliders: `level` (full/mechanical_prompt/manual), `confirmation` (auto/confirm/prompt), `safety` (safe/moderate/hardcore), `creativity` (predictable/standard/chaotic). Novel-scoped, GM-only, persisted to disk. Controls how much the AI auto-plays vs. defers to the human. `mechanical_prompt` only pauses for TTRPG ruleset mechanics — world-model and narrative actions are never paused. |
+| Guidance profile  | The runtime guidance and presentation posture selected by `TTRPG_GUIDANCE_PROFILE` — `full` (standard scaffolding) or `lean` (orientation-first, terse defaults for constrained narrators). REQ-388, REQ-412a. |
 | Presence          | Entity presence tracking (REQ-307). Each entity carries a `present` flag and `last_location` field, derived from the `characters_present` parameter on `manage_scene (action: set)`. Non-present entities are marked `[not present]` in `badge_briefing` and the party resource. The GM controls presence with `manage_scene (action: presence)`. |
 | Knowledge Gating  | Presence-scoped knowledge (REQ-308). An entity only learns percepts from scenes where it was present. Knowledge gained from attended scenes is retained regardless of current presence. The `knowledge_state` briefing section shows only what the active entity knows based on scenes it attended. The GM controls information sharing across characters via `manage_lore (action: reveal)`. |
 | Narrative         | The story-content layer, grouped by function: Scene & Tone (scene state, scene type, narrative directive), Cast & Characters (NPCs, personality, voice examples, relationships), World State (lore, factions, countdowns, secrets), Player Interaction (choices, action suggestions, player signals), Story Journal & Session Recap, Session Management (briefing ordering, adventure load/generation), and Synthesis Controls (revert, granular activation, player suppression). Ruleset-derived tools (canonical lookups, dice resolution, conditions) are not infrastructure. |
@@ -461,10 +462,10 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
-| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425 |
-| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454 |
+| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450 |
-| 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399 |
+| 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449 |
@@ -519,6 +520,18 @@ The tool raises `[WARNING]` when the operation succeeds but hits a condition tha
 
 **REQ-001a2 — Warning and Partial semantics (Part a2).**
 Neither `[WARNING]` nor `[PARTIAL]` uses `isError: true`. *Acceptance criterion:* A corrupted Novel on disk produces `[WARNING]` in `spec_health` with the Novel slug enumerated; a search returning contradictory ruleset texts produces `[PARTIAL]` with both texts cited. _Check:_ T175.
+
+**REQ-548a — Structured tool-result payload.**
+Every successful tool response SHALL carry a machine-readable structured result alongside its text envelope, derived from the same live state that produced the text. The structured result SHALL report the fields the text envelope reports, SHALL validate against the tool's declared output schema (REQ-548b), and SHALL NOT replace the text contract of REQ-001. A client that ignores structured results SHALL observe output identical to the text-only contract.
+*Acceptance criterion:* a canonical lookup, a dice roll, and a drained decision each return a structured result matching their text envelope. _Check:_ T632.
+
+**REQ-548b — Output-schema declaration.**
+Every registered tool SHALL declare an output schema in `tools/list` describing the structured result of REQ-548a. The schema SHALL derive from the live result contract at call time, SHALL remain stable across calls producing the same result shape (REQ-411), and SHALL NOT be a separately maintained catalog. A summary listing MAY omit the schema body while retaining its presence indicator.
+*Acceptance criterion:* every listed tool declares an output schema; a schema detail request returns it; adding a tool updates the listing without restart. _Check:_ T633.
+
+**REQ-548c — Structured error results.**
+Every error response SHALL carry a machine-readable structured result naming the error category (REQ-002), the corrective action, and, where the enumeration is badge-visible, the valid values. The structured error SHALL remain badge-filtered per REQ-002c and REQ-445 and SHALL NOT disclose values the caller's badge cannot access.
+*Acceptance criterion:* an unknown canonical name returns a structured error carrying its category, corrective action, and badge-filtered values; a GM-only value stays absent. _Check:_ T634.
 **REQ-277 — Fixture evolution contract.** When a specification change breaks a
 golden transcript assertion (Appendix B.3, N.3, W.3, X.3), the maintainer SHALL
 version-bump the fixture. The maintainer SHALL also record the citing REQ that caused
@@ -1024,6 +1037,15 @@ mechanically verified by `scripts/validate.ts`. When a spec revision adds a new
 | REQ-452 | T542 (conversion-evidence checker) |
 | REQ-453 | T543 (validated by scripts/validate.ts) |
 | REQ-454 | T544 (validated by scripts/validate.ts) |
+| REQ-551 | builder-side — assembly-time structural checks (scripts/validate.ts) |
+
+**REQ-551 — Extraction structural verification.**
+Before a ruleset package is assembled, the builder SHALL run deterministic structural checks over the extracted model: every indexed anchor SHALL resolve to a source heading, every extracted entry SHALL carry a source anchor, and every declared cross-reference SHALL close against the index. A failed check SHALL block assembly and name the offending entries. The checks SHALL run without model inference.
+*Acceptance criterion:* a model with an unresolved anchor or an open cross-reference blocks assembly with the entries named. _Check:_ T638.
+
+**REQ-551a — Extractor divergence flags (Part a).**
+WHEN independent verification (REQ-275, REQ-276) re-extracts ruleset content, per-entry divergence between the builder's model and the verifier's model SHALL be recorded as a disposition item rather than silently reconciled. A divergence record SHALL name the entry, the differing fields, and both source anchors. An entry at or above the confidence floor (REQ-011) SHALL NOT be overwritten without the recorded disposition.
+*Acceptance criterion:* a re-extraction differing on one field records that entry with both anchors; the builder's value stands until a disposition is recorded. _Check:_ T639.
 
 ### 5.3 Tools, Resources, and Lookups
 
@@ -1286,6 +1308,10 @@ Output is badge-filtered. When a Novel is active, tool listings and query result
 
 **REQ-067c — Help and tool discovery (Part c).**
 An empty mapping restores builder defaults. *Acceptance criterion:* `manage_session (action: discover)` returns an intro pointer, task-map with one-line descriptions, and a `badge_briefing` pointer; `manage_session (action: discover, query="combat")` returns the most relevant combat tools with example invocations. _Check:_ T62, T118.
+
+**REQ-067d — Task-map intent routing.**
+`manage_session (action: discover)` SHALL include, for each task-map category, at least one example intent paired with the tool and action serving it, derived from the live registry and extraction model at call time. The examples SHALL show only tools visible to the caller per REQ-067b and SHALL NOT be a separately maintained list. A discovery query SHALL return the same example form for matching tools.
+*Acceptance criterion:* discovery returns an example invocation per category reflecting live registrations; adding a tool updates its category example without restart. _Check:_ T636.
 **REQ-063a — Connection introduction (Part a).**
 The server provides an `intro` prompt, listed first in `prompts/list`. The prompt takes no arguments, is visible to all badges, and serves as a conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next actions a player can take. The tone is engaging and energetic; the anti-slop catalogue (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding prompts. The `manage_session (action: discover)` action and `badge_briefing` each point to it. For intent-to-tool mapping, callers are directed to `run_command (action: suggest)` (REQ-084) — no `use_tool` or `lookup_rule` prompt is provided.
 
@@ -1415,6 +1441,10 @@ a character creation step, `manage_history (action: undo)` is callable,
 `pending_workflow` is null, and the next
 `manage_character (action: create)` call starts a fresh workflow.
 _Check:_ T138.
+
+**REQ-548d — Machine-readable decision options.**
+WHEN a pending workflow decision presents enumerable options, THE response SHALL carry a machine-readable option set pairing each canonical option value with its display label per REQ-191, alongside the text option list. The structured option set SHALL be badge-filtered and SHALL NOT pre-select an option (REQ-058). When the connected client advertises the MCP elicitation capability and the decision awaits the operator rather than the AI narrator, the server MAY request the choice through elicitation while preserving `respond_decision` as the fallback.
+*Acceptance criterion:* a `[NEED_INPUT]` decision returns a structured option set matching its text options; a non-eliciting client drains the decision through respond_decision. _Check:_ T635.
 
 **REQ-191 — Option display-label pairs.** Every option in a `[NEED_INPUT]`
 decision SHALL be presented as a display-label pair: a kebab-cased option
@@ -1659,7 +1689,7 @@ The badge model is a convenience and narrative-integrity feature, not a security
 The total size of `badge_briefing` output is bounded by a configurable limit. When the briefing would exceed this limit, content is truncated from lowest-priority sections first. Sections are truncated in full — no section is partially rendered. Each truncated section includes a marker and a resource URI pointer for full retrieval. Badge foundations (REQ-062) and the intro pointer (REQ-063) are never truncated. The builder records the truncation priority order and the default limit in DECISIONS.md.
 
 **REQ-135b — Badge briefing size budget (Part b).**
-The truncation priority order SHALL respect three tiers. Tier 1 is never-truncated: badge foundations (REQ-062), badge boundary directive (REQ-064), the intro pointer (REQ-063), and the POV directive (REQ-220). Tier 2 is last-truncated: the decision-critical groups per REQ-109. Tier 3 is first-truncated: the supplementary guidance and navigation groups per REQ-109.
+The truncation priority order SHALL respect three tiers. Tier 1 is never-truncated: badge foundations (REQ-062), badge boundary directive (REQ-064), the intro pointer (REQ-063), the play-loop orientation token (REQ-412a), and the POV directive (REQ-220). Tier 2 is last-truncated: the decision-critical groups per REQ-109. Tier 3 is first-truncated: the supplementary guidance and navigation groups per REQ-109.
 
 **REQ-135c — Badge briefing size budget (Part c).**
 Within each tier, the builder determines the relative truncation order and records it in DECISIONS.md. *Acceptance criterion:* With a small briefing budget, invoke `badge_briefing` — assert some low-priority sections are truncated with resource URI pointers; assert badge foundations and the intro pointer are always present regardless of budget. _Check:_ T149.
@@ -2754,6 +2784,10 @@ _Check:_ T357.
 *Out of scope:* Validation of narrative style, tone, or prose quality — these are AI
 judgment, not mechanical integrity.
 
+**REQ-312e — Narration grounding set (Part e).**
+WHEN `TTRPG_NARRATION_VALIDATION` is enabled, a state-mutating tool response SHALL carry a machine-readable grounding set naming the entities, values, and conditions the response establishes. Narration asserting state outside the grounding set and the current Novel state SHALL be rejected with a corrective suggestion per REQ-312d1. The grounding set SHALL remain badge-filtered and SHALL NOT expose GM-only state to a Player surface.
+*Acceptance criterion:* narration inventing an entity absent from the grounding set is rejected and increments the rejection count; grounded narration passes. _Check:_ T641.
+
 **REQ-444 — Import-channel inertness.** Imported content — Novel JSON, codex entries, lore imports, and ruleset package content — SHALL be treated as untrusted data. Embedded directives in imported content (instruction-framing text, HTML comments, tool-shaped commands) SHALL stay verbatim, inert, and logged as findings. They SHALL never execute or take effect. The capability surface, badge gating, and tool registry SHALL NOT change after import. *Acceptance criterion:* importing a Novel whose scene description contains "ignore all previous instructions" stores and echoes it verbatim with no behavior change, no new tools, and a logged finding. _Check:_ T530.
 
 **REQ-445 — Error-value disclosure control.** Error responses SHALL NOT reveal the existence or content of badge-invisible surfaces. Validation hints and "did you mean" suggestions SHALL enumerate only values visible to the caller's active badge. A Player-badge caller receiving `[FORBIDDEN]`, `[NOT_FOUND]`, or `[AMBIGUOUS]` SHALL get no hint naming a GM-only tool, resource, lore key, or secret. *Acceptance criterion:* a Player-badge call for a GM-only lore key returns an error that does not echo the key's existence, while the same call under the Game Master badge returns the key-specific corrective action. _Check:_ T531.
@@ -2932,6 +2966,10 @@ The builder tests action suggestion coverage against a curated intent set spanni
 
 **REQ-114b — Suggestion coverage (Part b).**
 The builder records coverage below 80% — fewer than 80% of curated intents for which `run_command (action: suggest)` returns at least one tool matching the expected action categories — as a suggestion-coverage finding in DECISIONS.md (5), naming the uncovered categories and their intents. Coverage testing is a build-time audit; suggestion mappings do not change at runtime. *Acceptance criterion:* The curated intent set in RULESET_MODEL.md covers every discovered action category; coverage below 80% records the uncovered categories and their intents in DECISIONS.md (5) with named uncovered categories. _Check:_ T117.
+
+**REQ-114c — Tool-selection coverage (Part c).**
+The builder SHALL evaluate tool selection against a curated intent set spanning every registered tool and action, and SHALL record the per-tool selection result in DECISIONS.md. Coverage below the recorded threshold SHALL record the unselected tools and their intents as a finding. The evaluation SHALL be deterministic and repeatable without model inference.
+*Acceptance criterion:* the curated intent set exercises every registered action; an action with no selecting intent is recorded as a finding naming the action. _Check:_ T637.
 **REQ-103a — Synthesis reversion (Part a).**
 The server provides a `manage_synthesis (action: revert)` tool — Game Master only. Removes all synthesis items (external web-sourced and internal Novel-state-synthesized, `[supplementary]`-tagged) from the Novel. Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) persists — `manage_synthesis (action: revert)` SHALL NOT remove or alter Ruleset Wisdom content. Player items (`[player]`-tagged) persist. Does not mutate mechanical fields, build-derived tool registrations, badge gating rules, or DECISIONS.md — the synthesis manifest and verification results remain for audit.
 
@@ -4236,6 +4274,10 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 ### 5.20 Narrative Turn Conventions
 
 **REQ-412 — Turn-handoff directive.** WHEN the AI's narrative role is Game Master and a Player or Observer badge is active, `badge_briefing` orientation SHALL include a turn-handoff directive. The directive instructs the narrator to close each narrated turn by inviting the player's next action in plain English — a question or prompt to act, never a tool signature. The directive SHALL render in the never-truncated tier (REQ-135). Under an AI-Player role, the directive SHALL instruct closing turns with an in-character offer that hands initiative back to the human Game Master. *Acceptance criterion:* `badge_briefing` under the GM role includes the turn-handoff directive; under the AI-Player role it instructs handing initiative back. _Check:_ T482.
+
+**REQ-412a — Play-loop orientation token (Part a).**
+`badge_briefing` SHALL render a play-loop orientation token describing the act-resolve-narrate order: read current state, resolve mechanics through tools, then narrate the validated result. The token SHALL appear in the never-truncated tier (REQ-135), SHALL use plain English without tool signatures (Standing Rule 10), and SHALL adapt its wording to the active AI role (REQ-304).
+*Acceptance criterion:* badge_briefing includes the orientation token under each AI role and it survives a minimal briefing budget. _Check:_ T640.
 
 ### 5.21 Fate Base Capabilities
 
@@ -6559,6 +6601,8 @@ are `entity://<id>`. Both are stable across sessions.
 | Lookup result | Full entry + `---`-separated source block with `<file>#<anchor>` | REQ-060, REQ-061 |
 | Error | `[ERROR] [<CATEGORY>] <explanation>` + `Corrective action: <action>` | REQ-002 |
 | Macro | `{{<path>}}` → live state value; nonexistent → literal; no expansion in audit log | REQ-085 |
+| Structured result | Machine-readable result mirroring the text envelope, conforming to the tool's declared output schema | REQ-548a, REQ-548b |
+| Structured error | Machine-readable category, corrective action, and badge-visible valid values | REQ-548c |
 
 Bracket tags and markers (`[tag]`) are lowercase with hyphen word separators
 (e.g., `[session-boundary]`, `[pending-fire]`). Uppercase is reserved for the
@@ -6640,6 +6684,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). `none` is the Editor badge — full access, default on Novel creation and resume. |
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
+| `TTRPG_GUIDANCE_PROFILE` | No | Runtime guidance and presentation posture — `full` (default) or `lean`. `lean` prioritizes orientation scaffolding, terse enumeration defaults, and summary-first catalogs for constrained narrators (REQ-388, REQ-412a). Behavioral — couples per P58. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
@@ -7056,6 +7101,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → Campaign Memory | P56 | Directive campaign-memory keywords ("more campaign notes", "fewer campaign notes") adjust TTRPG_CAMPAIGN_MEMORY_MAX_FACTS | The GM controls how much the briefing remembers — directive keywords adjust the fact budget | GM-only | Mechanical | REQ-081, REQ-310 |
 | Narrative Directive → Story Journal | P57 | Directive recording keywords ("auto-record moments", "stop auto-recording") toggle TTRPG_AUTO_RECORD | The GM controls what the story remembers — directive keywords toggle automatic journaling | GM-only | Mechanical | REQ-081, REQ-405 |
 | Narrative Directive → Available Actions [non-property] | P58 | Directive action-quantity keywords ("more options", "fewer options") adjust TTRPG_MAX_AVAILABLE_ACTIONS | The GM controls how many choices the story offers — directive keywords adjust the action budget | GM-only | Mechanical | REQ-081, REQ-084 |
+| Narrative Directive → Guidance Profile [non-property] | P58 | Directive guidance keywords ("keep it lean", "full guidance") select TTRPG_GUIDANCE_PROFILE | The GM sets how much scaffolding the narrator receives — directive keywords select the guidance profile | GM-only | Navigational | REQ-081, REQ-412a |
 | Narrative Directive → Narration Validation [non-property] | P59 | Directive validation keywords ("validate my narration", "narrate freely") toggle TTRPG_NARRATION_VALIDATION | The GM tunes the server's safety gates in plain English — directive keywords toggle pre-narration validation | GM-only | Mechanical | REQ-081, REQ-312 |
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
 | Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
@@ -8396,6 +8442,10 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   per JSON-RPC). Verify: call a canonical lookup with a known-absent name — the
   response is a `result` object with `isError: true` and `[ERROR] [NOT_FOUND]` in
   `content[0].text`, not a JSON-RPC `error` object.
+- `tools/list` output schemas and `tools/call` structured results (REQ-548a, REQ-548b):
+  every registered tool declares an output schema; every result carries a
+  machine-readable structured result. A client that ignores structured results observes
+  unchanged text output. The pinned protocol version SHALL support `outputSchema`.
 - `resources/list` and `resources/read`: `ruleset://`, `entities://`, `entity://<id>`,
   `audit://novel`, `roster://<type>`, `roster://<id>`, and `guidance://<badge>` retrievable
   per badge gating rules (REQ-032). `resources/read` returns Markdown text with a small
@@ -9556,7 +9606,17 @@ date-stamps matching CHANGELOG entries.
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
 | REQ-546 | Corpus retention bound | 2026-09-25 |
-| REQ-547 | Identity candidate retention bound | 2026-09-25 |
+| REQ-547 | Identity candidate retention bound | 2026-09-26 |
+| REQ-548a | Structured tool-result payload | 2026-09-26 |
+| REQ-548b | Output-schema declaration | 2026-09-26 |
+| REQ-548c | Structured error results | 2026-09-26 |
+| REQ-548d | Machine-readable decision options | 2026-09-26 |
+| REQ-067d | Task-map intent routing | 2026-09-26 |
+| REQ-114c | Tool-selection coverage (Part c) | 2026-09-26 |
+| REQ-551 | Extraction structural verification | 2026-09-26 |
+| REQ-551a | Extractor divergence flags (Part a) | 2026-09-26 |
+| REQ-412a | Play-loop orientation token (Part a) | 2026-09-26 |
+| REQ-312e | Narration grounding set (Part e) | 2026-09-26 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
 | REQ-517 | Derived-surface freshness | 2026-09-24 |
@@ -10219,6 +10279,16 @@ diet.
 | T629 | Automated | Reconciliation enablement: with TTRPG_BELIEF_RECONCILIATION=false, admitting evidence retains the record and materializes no belief stance; with it enabled, the stance is materialized. | REQ-465, REQ-468 |
 | T630 | Automated | Identity candidate retention bound: with TTRPG_IDENTITY_MAX_CANDIDATES=2, staging a third candidate evicts the oldest while accepted facets and the kernel are unaffected. | REQ-547 |
 | T631 | Automated | Authored bootstrap acceptance: with the bootstrap policy accepting authored fields, a card's non-developmental fields become facets while its candidates record acceptance; with the policy staging-only, every field remains a pending candidate and no facet is created. | REQ-473, REQ-479 |
+| T632 | Automated | Structured tool results: a lookup, a roll, and a drained decision each return a structured result matching the text envelope. | REQ-548a |
+| T633 | Automated | Output-schema declaration: every tool in `tools/list` declares an output schema; a detail request returns it. | REQ-548b |
+| T634 | Automated | Structured error results: an unknown canonical name returns a structured error with category, corrective action, and badge-filtered values. | REQ-548c |
+| T635 | Automated | Machine-readable decision options: a `[NEED_INPUT]` decision carries a structured option set matching its text options. | REQ-548d |
+| T636 | Automated | Task-map intent routing: discovery returns an example invocation per category reflecting live registrations. | REQ-067d |
+| T637 | Automated | Tool-selection coverage: DECISIONS.md records the per-tool selection result and the recorded threshold. | REQ-114c |
+| T638 | Automated | Extraction structural verification: DECISIONS.md records the structural-check disposition. | REQ-551 |
+| T639 | Automated | Extractor divergence flags: DECISIONS.md records the divergence-disposition policy. | REQ-551a |
+| T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
+| T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
 
 ---
 

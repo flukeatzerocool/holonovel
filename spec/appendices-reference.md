@@ -70,6 +70,10 @@ Record the pinned specification version in `DECISIONS.md`, then verify:
   per JSON-RPC). Verify: call a canonical lookup with a known-absent name — the
   response is a `result` object with `isError: true` and `[ERROR] [NOT_FOUND]` in
   `content[0].text`, not a JSON-RPC `error` object.
+- `tools/list` output schemas and `tools/call` structured results (REQ-548a, REQ-548b):
+  every registered tool declares an output schema; every result carries a
+  machine-readable structured result. A client that ignores structured results observes
+  unchanged text output. The pinned protocol version SHALL support `outputSchema`.
 - `resources/list` and `resources/read`: `ruleset://`, `entities://`, `entity://<id>`,
   `audit://novel`, `roster://<type>`, `roster://<id>`, and `guidance://<badge>` retrievable
   per badge gating rules (REQ-032). `resources/read` returns Markdown text with a small
@@ -1230,7 +1234,17 @@ date-stamps matching CHANGELOG entries.
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
 | REQ-546 | Corpus retention bound | 2026-09-25 |
-| REQ-547 | Identity candidate retention bound | 2026-09-25 |
+| REQ-547 | Identity candidate retention bound | 2026-09-26 |
+| REQ-548a | Structured tool-result payload | 2026-09-26 |
+| REQ-548b | Output-schema declaration | 2026-09-26 |
+| REQ-548c | Structured error results | 2026-09-26 |
+| REQ-548d | Machine-readable decision options | 2026-09-26 |
+| REQ-067d | Task-map intent routing | 2026-09-26 |
+| REQ-114c | Tool-selection coverage (Part c) | 2026-09-26 |
+| REQ-551 | Extraction structural verification | 2026-09-26 |
+| REQ-551a | Extractor divergence flags (Part a) | 2026-09-26 |
+| REQ-412a | Play-loop orientation token (Part a) | 2026-09-26 |
+| REQ-312e | Narration grounding set (Part e) | 2026-09-26 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
 | REQ-517 | Derived-surface freshness | 2026-09-24 |
@@ -1893,6 +1907,16 @@ diet.
 | T629 | Automated | Reconciliation enablement: with TTRPG_BELIEF_RECONCILIATION=false, admitting evidence retains the record and materializes no belief stance; with it enabled, the stance is materialized. | REQ-465, REQ-468 |
 | T630 | Automated | Identity candidate retention bound: with TTRPG_IDENTITY_MAX_CANDIDATES=2, staging a third candidate evicts the oldest while accepted facets and the kernel are unaffected. | REQ-547 |
 | T631 | Automated | Authored bootstrap acceptance: with the bootstrap policy accepting authored fields, a card's non-developmental fields become facets while its candidates record acceptance; with the policy staging-only, every field remains a pending candidate and no facet is created. | REQ-473, REQ-479 |
+| T632 | Automated | Structured tool results: a lookup, a roll, and a drained decision each return a structured result matching the text envelope. | REQ-548a |
+| T633 | Automated | Output-schema declaration: every tool in `tools/list` declares an output schema; a detail request returns it. | REQ-548b |
+| T634 | Automated | Structured error results: an unknown canonical name returns a structured error with category, corrective action, and badge-filtered values. | REQ-548c |
+| T635 | Automated | Machine-readable decision options: a `[NEED_INPUT]` decision carries a structured option set matching its text options. | REQ-548d |
+| T636 | Automated | Task-map intent routing: discovery returns an example invocation per category reflecting live registrations. | REQ-067d |
+| T637 | Automated | Tool-selection coverage: DECISIONS.md records the per-tool selection result and the recorded threshold. | REQ-114c |
+| T638 | Automated | Extraction structural verification: DECISIONS.md records the structural-check disposition. | REQ-551 |
+| T639 | Automated | Extractor divergence flags: DECISIONS.md records the divergence-disposition policy. | REQ-551a |
+| T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
+| T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
 
 ---
 

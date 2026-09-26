@@ -152,10 +152,25 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_perception: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
+// REQ-548b — every registered tool declares an output schema in `tools/list`
+// describing its structured result. The shared schema is permissive so
+// ruleset-derived result fields remain unconstrained. REQ-548a — a handler that
+// returns text only is given a structured result derived from that text.
+const OUTPUT_SCHEMA = z.looseObject({ status: z.string(), text: z.string().optional() });
+function ensureStructured(handler: any) {
+  return async (...args: any[]) => {
+    const result = await handler(...args);
+    if (result && typeof result === "object" && Array.isArray(result.content) && result.structuredContent === undefined) {
+      const text = result.content.map((c: any) => c?.text ?? "").join("\n");
+      result.structuredContent = { status: "OK", text };
+    }
+    return result;
+  };
+}
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
-  return _registerTool(name, { ...config, annotations }, withForbiddenAudit(handler, name) as any);
+  return _registerTool(name, { ...config, annotations, outputSchema: config.outputSchema ?? OUTPUT_SCHEMA }, withForbiddenAudit(ensureStructured(handler), name) as any);
 }) as unknown as typeof server.registerTool;
 
 // REQ-137a/REQ-137b — gate classification. The DECISIONS.md gate table records
@@ -997,8 +1012,37 @@ function resolveEntityOrNpc(id?: string): any {
   return state.resolveEntity(id);
 }
 
+// REQ-548a — structured tool-result payload: every response carries a
+// machine-readable result alongside its text envelope. REQ-312e — narration
+// grounding set: with validation enabled, the result names the entities,
+// values, and conditions it establishes. REQ-548d — enumerable decisions carry
+// a machine-readable option set.
+function groundingSet(): Record<string, any> | undefined {
+  if (!narrationValidationOn()) return undefined;
+  const novel = state.activeNovel;
+  if (!novel) return undefined;
+  return {
+    entities: [...novel.entities.keys()],
+    npcs: [...novel.npcs.keys()],
+    scene: novel.scene_description ?? null,
+    rooms: novel.world.rooms.size,
+    things: novel.world.things.size,
+  };
+}
+function structured(status: string, text: string, extra?: Record<string, any>) {
+  const fields: Record<string, any> = { status, text, ...(extra ?? {}) };
+  const g = groundingSet();
+  if (g) fields.grounding = g;
+  return fields;
+}
+function parseDecisionOptions(text: string): Array<{ value: string; label: string }> {
+  const m = text.match(/Options:\s*(.+)/);
+  if (!m) return [];
+  return m[1].split(",").map((s) => s.trim()).filter(Boolean).map((v) => ({ value: v, label: v === "cancel" ? "Cancel" : v }));
+}
 function ok(text: string) {
-  return { content: [{ type: "text" as const, text: `[OK] ${expandMacros(text, buildMacroContext())}` }] };
+  const expanded = expandMacros(text, buildMacroContext());
+  return { content: [{ type: "text" as const, text: `[OK] ${expanded}` }], structuredContent: structured("OK", expanded) };
 }
 
 // REQ-002 — error taxonomy: every failure surfaces [ERROR] [CODE] + corrective
@@ -1018,7 +1062,7 @@ function err(code: string, msg: string, correctiveAction?: string) {
   const expanded = expandMacros(msg, buildMacroContext());
   const action = correctiveAction ?? CORRECTIVE_ACTIONS[code];
   const text = action ? `[ERROR] [${code}] ${expanded}\nCorrective action: ${action}` : `[ERROR] [${code}] ${expanded}`;
-  return { content: [{ type: "text" as const, text }] };
+  return { content: [{ type: "text" as const, text }], structuredContent: structured("ERROR", expanded, { category: code, corrective_action: action ?? null }) };
 }
 
 // REQ-129a/c — cardinality refusal naming the affected group and the current
@@ -1040,6 +1084,9 @@ let narrationRejectionCount = 0;
 // controls mechanical-claim validation of AI narration; rejected proposals
 // increment narration_rejection_count and surface a [REJECTED] corrective.
 function narrationValidationOn(): boolean { return (process.env.TTRPG_NARRATION_VALIDATION ?? "off") === "on"; }
+// REQ-388 / REQ-412a — guidance profile: `full` (default) or `lean`. `lean`
+// tightens briefing scaffolding for constrained narrators.
+function guidanceProfile(): "full" | "lean" { return (process.env.TTRPG_GUIDANCE_PROFILE ?? "full") === "lean" ? "lean" : "full"; }
 function validateNarration(claim: string, novel: NovelState): string | null {
   if (!narrationValidationOn()) return null;
   const t = claim.toLowerCase();
@@ -1060,15 +1107,18 @@ function validateNarration(claim: string, novel: NovelState): string | null {
 }
 
 function raw(text: string) {
-  return { content: [{ type: "text" as const, text: expandMacros(text, buildMacroContext()) }] };
+  const expanded = expandMacros(text, buildMacroContext());
+  return { content: [{ type: "text" as const, text: expanded }], structuredContent: structured("RAW", expanded) };
 }
 
 function warn(text: string) {
-  return { content: [{ type: "text" as const, text: `[WARNING] ${expandMacros(text, buildMacroContext())}` }] };
+  const expanded = expandMacros(text, buildMacroContext());
+  return { content: [{ type: "text" as const, text: `[WARNING] ${expanded}` }], structuredContent: structured("WARNING", expanded) };
 }
 
 function needInput(text: string) {
-  return { content: [{ type: "text" as const, text: `[NEED_INPUT] ${expandMacros(text, buildMacroContext())}` }] };
+  const expanded = expandMacros(text, buildMacroContext());
+  return { content: [{ type: "text" as const, text: `[NEED_INPUT] ${expanded}` }], structuredContent: structured("NEED_INPUT", expanded, { options: parseDecisionOptions(expanded) }) };
 }
 
 // ── §5.1 Output and Error Contracts ────────────────────────────────
@@ -1924,6 +1974,7 @@ async function toolDiscovery(query?: string) {
   // Player badge always reflects builder-assigned categories.
   const overrides: Record<string, string> = novel?.help_category_overrides ?? {};
   const overriddenTools = new Set(Object.keys(overrides));
+  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
   let result = "## Holonovel MCP Server\n\n### Tool Categories\n\n";
   for (const [cat, tools] of Object.entries(builderCategories)) {
     let displayTools = [...tools];
@@ -1933,7 +1984,11 @@ async function toolDiscovery(query?: string) {
       displayTools = displayTools.filter(t => !GMToolsSet.has(t) && !(t === "run_command" && novel?.ruleset));
     }
     if (displayTools.length > 0) {
+      // REQ-067d — task-map intent routing: each category carries an example
+      // invocation derived from the live registry, not a maintained list.
       result += `**${cat}:** ${displayTools.join(", ")}\n`;
+      const leadDef = registeredTools[displayTools[0]];
+      if (leadDef) result += `Example: ${buildExampleInvocation(displayTools[0], leadDef.inputSchema)}\n`;
     }
   }
   if (isGM) {
@@ -8624,6 +8679,16 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
 
   const badge = novel.badge;
   const entity = state.getActiveEntity();
+  // REQ-412a — play-loop orientation token: the act-resolve-narrate order,
+  // adapted to the active AI role. Rendered in the never-truncated tier
+  // (REQ-135) alongside the badge foundations.
+  const loopRole = (novel as any).ai_role ?? (badge === "game_master" ? "player" : "game_master");
+  const profile = guidanceProfile();
+  const orientation = profile === "lean"
+    ? "**Play loop:** State, then tools, then narration."
+    : loopRole === "player"
+      ? "**Play loop:** Read the current state, resolve mechanics through tools, then act in character once the engine validates the result."
+      : "**Play loop:** Read the current state, resolve mechanics through tools, then narrate the validated result to the table.";
 
   // REQ-336/351 — advancing the pacing counter on each briefing render; the
   // pacing signal fires (and pacing autonomy triggers) when it exceeds the window.
@@ -8632,6 +8697,7 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
 
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
+${orientation}
 ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}`;
 
   // REQ-250 — adventure scene waypoint: surface the adventure scene as a

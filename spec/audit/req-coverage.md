@@ -49,7 +49,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-064 | Badge behavioral boundaries (Part a) (6 sub-parts) | 5.1 Output and Error Contracts | C | T461 | — |
 | REQ-065 | Build fingerprint (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T224, T125, S17 | — |
 | REQ-066 | set_badge tool (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T138, S6 | — |
-| REQ-067 | Help and tool discovery (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T62, T118 | — |
+| REQ-067 | Help and tool discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T62, T118, T636 | — |
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
@@ -95,7 +95,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-112 | Cross-reference discovery | 5.3 Tools, Resources, and Lookups | C | T115 | — |
 | REQ-113 | Result count reporting | 5.1 Output and Error Contracts | C | T116 | — |
-| REQ-114 | Suggestion coverage (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | — | — |
+| REQ-114 | Suggestion coverage (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | T637 | — |
 | REQ-115 | Action pattern activation (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T119 | — |
 | REQ-116 | Redo | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T121, S22 | — |
 | REQ-117 | Novel retention period | 5.9 Novel Persistence and Transport | C | T122 | — |
@@ -279,7 +279,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353 | — |
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T355 | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
-| REQ-312 | Pre-narration validation gate (Part d1) (5 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T357 | — |
+| REQ-312 | Pre-narration validation gate (Part d1) (6 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T357, T641 | — |
 | REQ-313 | Server implementation fingerprinting (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-314 | Fingerprint-driven partial rebuild (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-315 | Full-text ruleset indexing (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
@@ -379,7 +379,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-409 | Response-lean enumeration reads | 5.7 Determinism, Safety, and Performance | C | T478 | — |
 | REQ-410 | Token footprint in performance record | 5.7 Determinism, Safety, and Performance | C | T479 | — |
 | REQ-411 | Stable-metadata caching | 5.3 Tools, Resources, and Lookups | C | T480 | — |
-| REQ-412 | Turn-handoff directive | 5.20 Narrative Turn Conventions | C | T482 | — |
+| REQ-412 | Turn-handoff directive (1 sub-part) | 5.20 Narrative Turn Conventions | C | T482, T640 | — |
 | REQ-413 | Action-discriminator tool surface | 5.3 Tools, Resources, and Lookups | C | T486 | — |
 | REQ-414 | Schema-surface economy | 5.3 Tools, Resources, and Lookups | C | T487 | — |
 | REQ-415 | Summary-first tool catalog | 5.3 Tools, Resources, and Lookups | C | T488 | — |
@@ -506,4 +506,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
 | REQ-546 | Corpus retention bound | 5.28 Knowledge Corpus | C | T628 | — |
 | REQ-547 | Identity candidate retention bound | 5.26 Character Identity | C | T630 | — |
+| REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T634, T635 | — |
+| REQ-551 | Extraction structural verification (1 sub-part) | 5.2 Extraction and Confidence | E | T638, T639 | — |
 

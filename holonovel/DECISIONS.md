@@ -4,6 +4,14 @@
 
 **Recorded tool budget:** 34 (REQ-429)
 
+### Lean-narrator integration — 2026-09-26
+
+- REQ-114c tool-selection coverage: threshold recorded at 0.80; every registered action carries at least one selecting intent. Finding: none below threshold.
+- REQ-551 extraction structural verification: disposition — anchor resolution, per-entry source anchors, and cross-reference closure run before package assembly; report-only baseline recorded, blocking on failure.
+- REQ-551a extractor divergence flags: disposition — per-entry divergence recorded with both source anchors; the builder's value stands until a disposition is recorded.
+- REQ-548b protocol: pinned MCP protocol version advanced to a version supporting `outputSchema`; structured results mirror the text envelope (REQ-548a).
+- REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
+
 ## Gate classification (REQ-137a)
 
 Every registered host tool is assigned one gate classification: **un-gated**

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-26 — Lean-narrator integration: structured results, live routing, orientation
+
+- Tools now return a machine-readable structured result alongside their text
+  envelope, and `tools/list` declares an output schema per tool, so a caller
+  can validate results without parsing prose. Errors carry a structured
+  category and corrective action; enumerable decisions carry a machine-readable
+  option set. (REQ-548a–d)
+- State-mutating responses now name the entities, values, and conditions they
+  establish, so the pre-narration gate can reject narration that invents state.
+  (REQ-312e)
+- The discovery task map now shows a live-derived example invocation for each
+  tool category, and `badge_briefing` opens with a play-loop orientation token
+  that survives truncation. (REQ-067d, REQ-412a)
+- Added a guidance-profile setting (`TTRPG_GUIDANCE_PROFILE`, `full` or `lean`)
+  so an operator can tighten briefing scaffolding for constrained narrators;
+  its natural-language access path and coupling row are registered. (REQ-388,
+  REQ-412a)
+- Recorded builder-side dispositions for tool-selection coverage and extraction
+  structural and divergence verification in `DECISIONS.md`. (REQ-114c, REQ-551,
+  REQ-551a)
+- The traceability drift check is now a blocking gate, and a new
+  `test-lean-narrator` harness exercises the structured-result, routing,
+  orientation, and grounding contracts. (REQ-548, REQ-412a, REQ-312e)
+
 ## 2026-09-26 — Update-workflow reconciliation record
 
 - Record the §6.7 Update workflow for the M1–M3/N1–N3 feature-parity delta

@@ -39,6 +39,8 @@ are `entity://<id>`. Both are stable across sessions.
 | Lookup result | Full entry + `---`-separated source block with `<file>#<anchor>` | REQ-060, REQ-061 |
 | Error | `[ERROR] [<CATEGORY>] <explanation>` + `Corrective action: <action>` | REQ-002 |
 | Macro | `{{<path>}}` → live state value; nonexistent → literal; no expansion in audit log | REQ-085 |
+| Structured result | Machine-readable result mirroring the text envelope, conforming to the tool's declared output schema | REQ-548a, REQ-548b |
+| Structured error | Machine-readable category, corrective action, and badge-visible valid values | REQ-548c |
 
 Bracket tags and markers (`[tag]`) are lowercase with hyphen word separators
 (e.g., `[session-boundary]`, `[pending-fire]`). Uppercase is reserved for the
@@ -120,6 +122,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). `none` is the Editor badge — full access, default on Novel creation and resume. |
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
+| `TTRPG_GUIDANCE_PROFILE` | No | Runtime guidance and presentation posture — `full` (default) or `lean`. `lean` prioritizes orientation scaffolding, terse enumeration defaults, and summary-first catalogs for constrained narrators (REQ-388, REQ-412a). Behavioral — couples per P58. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
@@ -536,6 +539,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → Campaign Memory | P56 | Directive campaign-memory keywords ("more campaign notes", "fewer campaign notes") adjust TTRPG_CAMPAIGN_MEMORY_MAX_FACTS | The GM controls how much the briefing remembers — directive keywords adjust the fact budget | GM-only | Mechanical | REQ-081, REQ-310 |
 | Narrative Directive → Story Journal | P57 | Directive recording keywords ("auto-record moments", "stop auto-recording") toggle TTRPG_AUTO_RECORD | The GM controls what the story remembers — directive keywords toggle automatic journaling | GM-only | Mechanical | REQ-081, REQ-405 |
 | Narrative Directive → Available Actions [non-property] | P58 | Directive action-quantity keywords ("more options", "fewer options") adjust TTRPG_MAX_AVAILABLE_ACTIONS | The GM controls how many choices the story offers — directive keywords adjust the action budget | GM-only | Mechanical | REQ-081, REQ-084 |
+| Narrative Directive → Guidance Profile [non-property] | P58 | Directive guidance keywords ("keep it lean", "full guidance") select TTRPG_GUIDANCE_PROFILE | The GM sets how much scaffolding the narrator receives — directive keywords select the guidance profile | GM-only | Navigational | REQ-081, REQ-412a |
 | Narrative Directive → Narration Validation [non-property] | P59 | Directive validation keywords ("validate my narration", "narrate freely") toggle TTRPG_NARRATION_VALIDATION | The GM tunes the server's safety gates in plain English — directive keywords toggle pre-narration validation | GM-only | Mechanical | REQ-081, REQ-312 |
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
 | Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
