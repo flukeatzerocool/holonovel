@@ -66,6 +66,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
 | System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
 
+### Holonovel Spec Update — 2026-09-25 (config-default alignment)
+
+| Field | Value |
+|-------|-------|
+| Delta class | patch |
+| Changed | spec + implementation — aligned the §7.6 config defaults introduced by the 27 commits since `origin/main` with the solo-play north star and their REQ contracts. (1) `TTRPG_BELIEF_RECONCILIATION` was declared but inert: REQ-465/REQ-468 now carry the disablement contract and `recomputeBeliefs` honors it (T629). (2) `TTRPG_IDENTITY_MAX_CANDIDATES` was declared but unimplemented: new REQ-547 bounds the candidate set with oldest-first eviction, leaving accepted facets and the kernel unaffected; `enforceIdentityCandidateCap` applied on stage and bootstrap (T630). (3) REQ-473/REQ-479 now admit the configured non-developmental authored-card acceptance that `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED=true` implements (T631). (4) §7.6 defines a retention cap of `0` as eviction-disabled. (5) Decision: `TTRPG_CAUSAL_VALIDATION` stays default-on — causal refusal is aligned with "the rules govern every outcome"; no tri-state. (6) Out-of-range pre-existing drift recorded Closed-P3 in the review register. |
+| Reused | source, config, lockfile, extraction, surfaces |
+| Verification | assemble + check:fast 0 errors; typecheck 0 errors; test:belief 13/13 (T629); test:identity 13/13 (T630/T631); full validate 0 errors; version-check OK |
+| Follow-up | None — F1–F6 closed; F7 recorded Closed-P3. |
+
 ### Holonovel Spec Update — 2026-09-25 (feature-parity residual remediation)
 
 | Field | Value |

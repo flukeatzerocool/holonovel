@@ -1,6 +1,6 @@
 # REQ Coverage Register
 
-Generated: 2026-09-25
+Generated: 2026-09-26
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -432,21 +432,21 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-462 | Evidence provenance | 5.25 Belief and Evidence | C | T552 | — |
 | REQ-463 | Polarity-independent question identity | 5.25 Belief and Evidence | C | T553 | — |
 | REQ-464 | Evidence admission states | 5.25 Belief and Evidence | C | T554 | — |
-| REQ-465 | Belief stance materialization | 5.25 Belief and Evidence | C | T555 | — |
+| REQ-465 | Belief stance materialization | 5.25 Belief and Evidence | C | T555, T629 | — |
 | REQ-466 | Independent corroboration | 5.25 Belief and Evidence | C | T556 | — |
 | REQ-467 | Contradiction preservation | 5.25 Belief and Evidence | C | T557 | — |
-| REQ-468 | Belief refresh | 5.25 Belief and Evidence | C | T558 | — |
+| REQ-468 | Belief refresh | 5.25 Belief and Evidence | C | T558, T629 | — |
 | REQ-469 | Belief family policies | 5.25 Belief and Evidence | C | T559 | — |
 | REQ-470 | Single-value predicates | 5.25 Belief and Evidence | C | T560 | — |
 | REQ-471 | Belief branch inheritance | 5.25 Belief and Evidence | C | T561 | — |
 | REQ-472 | Belief visibility and badge gating | 5.25 Belief and Evidence | C | T562 | — |
-| REQ-473 | Identity candidate staging | 5.26 Character Identity | C | T563 | — |
+| REQ-473 | Identity candidate staging | 5.26 Character Identity | C | T563, T631 | — |
 | REQ-474 | Identity stability classes | 5.26 Character Identity | C | T564 | — |
 | REQ-475 | Identity perspective | 5.26 Character Identity | C | T565 | — |
 | REQ-476 | Compiled identity kernel | 5.26 Character Identity | C | T566 | — |
 | REQ-477 | Identity write-authority isolation | 5.26 Character Identity | C | T567 | — |
 | REQ-478 | Identity revision | 5.26 Character Identity | C | T568 | — |
-| REQ-479 | Character-card bootstrap exclusions | 5.26 Character Identity | C | T569 | — |
+| REQ-479 | Character-card bootstrap exclusions | 5.26 Character Identity | C | T569, T631 | — |
 | REQ-480 | Identity kernel exposure | 5.26 Character Identity | C | T570 | — |
 | REQ-481 | Identity visibility and badge gating | 5.26 Character Identity | C | T571 | — |
 | REQ-482 | Developmental proposal-only | 5.26 Character Identity | C | T572 | — |
@@ -505,4 +505,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-544 | Persistence | 5.32 Perception Ledger | C | T618 | — |
 | REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
 | REQ-546 | Corpus retention bound | 5.28 Knowledge Corpus | C | T628 | — |
+| REQ-547 | Identity candidate retention bound | 5.26 Character Identity | C | T630 | — |
 

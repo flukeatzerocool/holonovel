@@ -191,6 +191,24 @@ async function main() {
     await kill(p);
   });
 
+  // ── T629: reconciliation enablement (REQ-465, REQ-468) ───────────────
+  await test("T629/REQ-465: disabling reconciliation retains evidence without a stance", async () => {
+    process.env.TTRPG_BELIEF_RECONCILIATION = "false";
+    const p = await boot(); await newNovel(p, "bel13");
+    await admit(p, { entity_id: "hero", subject: "the door", predicate: "is", object: "locked", polarity: "positive", weight: 0.9, source: "witness" });
+    const ev = JSON.parse(await call(p, "manage_belief", { action: "evidence", entity_id: "hero" }));
+    const offBeliefs = await listBeliefs(p, "hero");
+    await kill(p);
+    delete process.env.TTRPG_BELIEF_RECONCILIATION;
+    assert(ev.length === 1, "evidence was not retained while reconciliation was disabled");
+    assert(offBeliefs.length === 0, "a stance was materialized while reconciliation was disabled: " + JSON.stringify(offBeliefs));
+    const p2 = await boot(); await newNovel(p2, "bel14");
+    await admit(p2, { entity_id: "hero", subject: "the door", predicate: "is", object: "locked", polarity: "positive", weight: 0.9, source: "witness" });
+    const onBeliefs = await listBeliefs(p2, "hero");
+    await kill(p2);
+    assert(onBeliefs.length === 1 && onBeliefs[0].accepted === true, "stance not materialized when reconciliation enabled: " + JSON.stringify(onBeliefs));
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

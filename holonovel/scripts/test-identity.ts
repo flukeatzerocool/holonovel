@@ -3,7 +3,8 @@
 // (stability classes), REQ-475 (perspective), REQ-476 (compiled kernel),
 // REQ-477 (write-authority isolation), REQ-478 (revision audit), REQ-479
 // (card-bootstrap exclusions), REQ-480 (kernel exposure), REQ-481 (visibility
-// gating), REQ-482 (developmental proposal-only), REQ-483 (source provenance).
+// gating), REQ-482 (developmental proposal-only), REQ-483 (source provenance),
+// and REQ-547 (candidate retention bound).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -182,6 +183,43 @@ async function main() {
     assert(manual.source === "wiki", "manual source not recorded");
     assert(carded && carded.source === "character_card", "card source not recorded: " + JSON.stringify(carded));
     await kill(p);
+  });
+
+  // ── T630: candidate retention bound (REQ-547) ────────────────────────
+  await test("T630/REQ-547: the candidate cap evicts the oldest candidate", async () => {
+    process.env.TTRPG_IDENTITY_MAX_CANDIDATES = "2";
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id12" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await stage(p, cid, "calling", "first");
+    await stage(p, cid, "calling", "second");
+    await stage(p, cid, "calling", "third");
+    const id = await listIdentity(p, cid);
+    await kill(p);
+    delete process.env.TTRPG_IDENTITY_MAX_CANDIDATES;
+    assert(id.candidates.length === 2, "expected 2 candidates after cap, got " + id.candidates.length);
+    const values = id.candidates.map((c: any) => c.value);
+    assert(!values.includes("first") && values.includes("second") && values.includes("third"), "oldest not evicted: " + JSON.stringify(values));
+    assert(id.facets.length === 0, "accepted facets changed by eviction: " + JSON.stringify(id.facets));
+  });
+
+  // ── T631: authored bootstrap acceptance (REQ-473, REQ-479) ───────────
+  await test("T631/REQ-473: bootstrap acceptance toggles between facets and pending candidates", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id13" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_identity", { action: "bootstrap", character_id: cid, card: { name: "Alice", description: "a wanderer" } });
+    const accepted = await listIdentity(p, cid);
+    await kill(p);
+    assert(accepted.facets.length === 2, "authored fields were not accepted as facets: " + JSON.stringify(accepted.facets));
+    assert(accepted.candidates.every((c: any) => c.status === "accepted"), "candidates not marked accepted: " + JSON.stringify(accepted.candidates));
+    process.env.TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED = "false";
+    const p2 = await boot(); await call(p2, "manage_novel", { action: "create", name: "id14" }); await call(p2, "set_badge", { badge: "game_master" });
+    const cid2 = await makeCharacter(p2, "Bob");
+    await call(p2, "manage_identity", { action: "bootstrap", character_id: cid2, card: { name: "Bob", description: "a tinker" } });
+    const staged = await listIdentity(p2, cid2);
+    await kill(p2);
+    delete process.env.TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED;
+    assert(staged.facets.length === 0, "staging-only bootstrap created facets: " + JSON.stringify(staged.facets));
+    assert(staged.candidates.every((c: any) => c.status === "pending"), "staging-only bootstrap accepted candidates: " + JSON.stringify(staged.candidates));
   });
 
   harnessComplete();

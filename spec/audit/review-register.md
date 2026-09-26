@@ -8,6 +8,19 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **§7.6 config-default alignment, commits since `origin/main`** (2026-09-25):
+  audited the 15 configs added and 4 re-annotated by the 27 unpushed commits
+  against the solo-play north star and their REQ/coupling/classification
+  surfaces. Resolved: (F1) `TTRPG_BELIEF_RECONCILIATION` was a phantom — REQ-465
+  and REQ-468 now carry the disablement contract and `recomputeBeliefs` honors it
+  (T629); (F2) `TTRPG_IDENTITY_MAX_CANDIDATES` was a phantom — new REQ-547 bounds
+  the candidate set with oldest-first eviction (T630); (F3) REQ-473/REQ-479 now
+  admit the configured non-developmental authored-card acceptance that
+  `TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED=true` implements (T631); (F5) §7.6 defines
+  `0` as eviction-disabled. (F4) causal validation stays default-on — aligned with
+  "the rules govern every outcome"; (F6) the `Required` column is uniformly `No`,
+  already zero-config-aligned. F7 below is Closed-P3.
+
 - **Feature-parity residual remediation** (2026-09-25): (1) N1 — the behavioral-
   config contract was reconciled: Standing Rule 11 now distinguishes
   natural-language-tunable (`Behavioral`, Session-source coupling row) from
@@ -142,6 +155,16 @@ the tracking surfaces for the coverage backlog.
 — none.
 
 ## Closed-P3 (recorded, no action)
+
+- **Pre-existing config drift outside the unpushed range** (2026-09-25): the
+  §7.6-vs-code scan also surfaced out-of-range items not introduced by the 27
+  unpushed commits — undeclared code reads (`TTRPG_AUTONOMY_MUTATION_CEILING`,
+  `TTRPG_AUDIT_MAX_ENTRIES`, `TTRPG_OUTPUT_LIMIT`, `TTRPG_OUTPUT_SESSION_LIMIT`,
+  `TTRPG_SPEC_REPO_URL`, `TTRPG_ADVENTURE_DIR`, the `TTRPG_PROMPT_BUDGET`
+  fallback) and spec-declared-but-unread (`TTRPG_NPC_URGENCY_THRESHOLD`,
+  `TTRPG_MAX_AVAILABLE_ACTIONS`, `TTRPG_MAX_LORE_TOKENS`). Recorded Closed-P3:
+  outside the "commits since the last push" scope; each is a candidate for the
+  spec↔code comparison tool.
 
 - **SC-7 comment-only source citations** (spec↔code comparison SC-7, 2026-09-25):
   sampled 2026-09-25 — 12 of the 105 REQs flagged `weak-cite-only-comments`

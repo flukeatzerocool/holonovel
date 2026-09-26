@@ -1229,6 +1229,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-544 | Persistence | 2026-09-24 |
 | REQ-545 | Perception badge gating | 2026-09-24 |
 | REQ-546 | Corpus retention bound | 2026-09-25 |
+| REQ-547 | Identity candidate retention bound | 2026-09-25 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
 | REQ-517 | Derived-surface freshness | 2026-09-24 |
@@ -1888,6 +1889,9 @@ diet.
 | T626 | Automated | Staleness advisory: a stale surface produces an advisory and the briefing still renders its consistency line. | REQ-521 |
 | T627 | Automated | Harness fail-loud: a harness whose spawned process terminates unexpectedly and never completes exits non-zero with a diagnostic; a harness that completes exits zero with its summary. | REQ-141m |
 | T628 | Automated | Corpus retention bound: with TTRPG_CORPUS_MAX_DOCUMENTS=2, registering a third document evicts the oldest; with TTRPG_CORPUS_MAX_ACQUISITIONS=2, consuming beyond the cap evicts the oldest acquisition for that entity. | REQ-546 |
+| T629 | Automated | Reconciliation enablement: with TTRPG_BELIEF_RECONCILIATION=false, admitting evidence retains the record and materializes no belief stance; with it enabled, the stance is materialized. | REQ-465, REQ-468 |
+| T630 | Automated | Identity candidate retention bound: with TTRPG_IDENTITY_MAX_CANDIDATES=2, staging a third candidate evicts the oldest while accepted facets and the kernel are unaffected. | REQ-547 |
+| T631 | Automated | Authored bootstrap acceptance: with the bootstrap policy accepting authored fields, a card's non-developmental fields become facets while its candidates record acceptance; with the policy staging-only, every field remains a pending candidate and no facet is created. | REQ-473, REQ-479 |
 
 ---
 

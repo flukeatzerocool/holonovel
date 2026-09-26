@@ -31,7 +31,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 | 5.24   | Temporal Event Log and Branching                        | 455–460 |
 | 5.25   | Belief and Evidence                                     | 461–472 |
-| 5.26   | Character Identity                                      | 473–483 |
+| 5.26   | Character Identity                                      | 473–483, 547 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
 | 5.28   | Knowledge Corpus                                        | 496–503, 546 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
@@ -3830,13 +3830,13 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-464 — Evidence admission states.** Each acquisition SHALL carry an admission status of usable, unresolved, or suppressed. Unresolved and suppressed evidence SHALL be preserved and retrievable and SHALL NOT contribute to a belief stance while in that status. *Acceptance criterion:* suppressed evidence creates no stance yet remains listable. _Check:_ T554.
 
-**REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win. _Check:_ T555.
+**REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. WHEN belief reconciliation is disabled by its configuration setting, the server SHALL retain admitted evidence without materializing a stance. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win, and with reconciliation disabled evidence is retained with no stance materialized. _Check:_ T555, T629.
 
 **REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound. Independent acquisitions SHALL accumulate. Reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
 
 **REQ-467 — Contradiction preservation.** Contradictory evidence SHALL remain retrievable after a stance is materialized, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
 
-**REQ-468 — Belief refresh.** WHEN evidence is admitted, retracted, or reclassified for an entity, the server SHALL recompute that entity's belief stances from its evidence records before returning the result. *Acceptance criterion:* admitting opposing evidence weakens or flips the stance in the same call. _Check:_ T558.
+**REQ-468 — Belief refresh.** WHEN evidence is admitted, retracted, or reclassified for an entity and reconciliation is enabled, the server SHALL recompute that entity's belief stances from its evidence records before returning the result. *Acceptance criterion:* admitting opposing evidence weakens or flips the stance in the same call. _Check:_ T558.
 
 **REQ-469 — Belief family policies.** Each predicate SHALL map to a belief family whose reconciliation policy is either durable or volatile; durable predicates SHALL accumulate support across acquisitions, volatile predicates SHALL reflect the most recent acquisition, and the mapping used SHALL be deterministic and reported per belief. *Acceptance criterion:* two matching durable facts both contribute, while a later volatile acquisition supersedes an earlier one. _Check:_ T559.
 
@@ -3848,7 +3848,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 ### 5.26 Character Identity
 
-**REQ-473 — Identity candidate staging.** Imported or authored identity material — character-card fields, biography, wiki text, or manual entries — SHALL enter a staging boundary as candidates and SHALL NOT become durable identity except through explicit acceptance. *Acceptance criterion:* staging a candidate leaves the accepted facets and identity version unchanged. _Check:_ T563.
+**REQ-473 — Identity candidate staging.** Imported or authored identity material — character-card fields, biography, wiki text, or manual entries — SHALL enter a staging boundary as candidates and SHALL NOT become durable identity except through explicit acceptance, except that non-developmental authored character-card fields MAY be accepted at bootstrap under the configured bootstrap policy. *Acceptance criterion:* staging a candidate leaves the accepted facets and identity version unchanged, while a bootstrap with authored acceptance enabled applies the card's non-developmental fields. _Check:_ T563, T631.
 
 **REQ-474 — Identity stability classes.** Every identity facet SHALL carry a stability class from structural, constitutional, core, or developmental, recorded at acceptance and preserved in the compiled kernel. *Acceptance criterion:* a facet accepted as core is reported as core in the kernel. _Check:_ T564.
 
@@ -3860,7 +3860,7 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-478 — Identity revision.** WHEN a facet is accepted again, THE server SHALL replace its prior value and advance that facet's revision, retaining the acceptance time and source. *Acceptance criterion:* re-accepting a facet reports revision two carrying the new value. _Check:_ T568.
 
-**REQ-479 — Character-card bootstrap exclusions.** Bootstrapping identity from a character card SHALL stage the card's identity fields as candidates and SHALL exclude scenario, first-message, and example-dialogue fields. *Acceptance criterion:* a card's scenario and first message are not staged, while its name and description are. _Check:_ T569.
+**REQ-479 — Character-card bootstrap exclusions.** Bootstrapping identity from a character card SHALL stage the card's identity fields as candidates and SHALL exclude scenario, first-message, and example-dialogue fields; non-developmental authored fields MAY be accepted as facets under the configured bootstrap policy, while developmental fields SHALL remain candidates. *Acceptance criterion:* a card's scenario and first message are not staged, while its name and description are. _Check:_ T569.
 
 **REQ-480 — Identity kernel exposure.** The compiled identity kernel SHALL be served through `manage_identity (action: snapshot)` and an `identity://<character>` resource for consumption by the character sheet and briefing surfaces. *Acceptance criterion:* snapshot and the identity resource return the same kernel grouped by stability class. _Check:_ T570.
 
@@ -3869,6 +3869,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-482 — Developmental proposal-only.** Identity candidates whose stability class is developmental SHALL remain proposals; the server SHALL NOT apply them to durable identity without explicit acceptance, and bootstrap SHALL NOT auto-accept them. *Acceptance criterion:* a developmental candidate leaves the version unchanged until explicitly accepted. _Check:_ T572.
 
 **REQ-483 — Identity source provenance.** Every identity candidate SHALL record its provenance — character card, manual entry, or another named source — preserved on the accepted facet. *Acceptance criterion:* a manual candidate and a card candidate report their distinct sources. _Check:_ T573.
+
+**REQ-547 — Identity candidate retention bound.** Identity candidates retained per character SHALL be bounded by a configured cap, and exceeding the cap SHALL evict the oldest candidates first while accepted facets and the compiled kernel are unaffected. *Acceptance criterion:* with a cap of 2, staging a third candidate evicts the oldest and the accepted facets remain. _Check:_ T630.
 
 ### 5.27 Causal Transition Validation
 
