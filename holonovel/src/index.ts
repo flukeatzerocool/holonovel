@@ -16,7 +16,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -50,6 +50,7 @@ import {
 } from "./core/character-creation.js";
 import { createRng, sessionRoll } from "./core/rng.js";
 import { deriveAnchor } from "./core/anchors.js";
+import { groupCaps, capRefusal } from "./core/limits.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 //
@@ -87,7 +88,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.09.25",
+  version: "2026.09.26",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -384,6 +385,19 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
     if (!goal || goal.length < vowSuggestionMinChars()) continue;
     const alreadyVowed = novel.vows.some((v) => v.state === "active" && (v.description ?? "").toLowerCase().includes(goal.toLowerCase()));
     if (!alreadyVowed) out.push(`Vow-creation suggestion: ${npc.name} seeks "${goal}" — create a vow via manage_vow (action: set) or ignore.`);
+  }
+
+  // REQ-077 / §7.7.1a P4 (NPC → Countdown) — goal-carrying NPCs in the current
+  // scene produce a countdown-advancement advisory when their goal-text length
+  // is at or above TTRPG_NPC_URGENCY_THRESHOLD.
+  const urgencyThreshold = configInt("TTRPG_NPC_URGENCY_THRESHOLD", 40);
+  const currentSceneLoc = (novel.scene_location ?? "").toLowerCase();
+  for (const [, npc] of novel.npcs) {
+    const goal = npc.personality?.goals;
+    if (!goal || goal.length < urgencyThreshold) continue;
+    const inScene = !currentSceneLoc || (npc.location ?? "").toLowerCase() === currentSceneLoc || (npc.room_id ?? "") === currentSceneLoc;
+    if (!inScene) continue;
+    out.push(`Countdown-advancement advisory: ${npc.name}'s urgent goal "${goal}" — advance a countdown or ignore.`);
   }
 
   // REQ-362 — faction-vow: faction goal intersecting known entities/locations prompts vow.
@@ -870,6 +884,36 @@ function recordCampaignMemory(novel: NovelState, category: "npcs" | "threads" | 
   if (novel.campaign_memory.length > 200) novel.campaign_memory.shift();
 }
 
+// REQ-084a1/a2 — proactive Available Actions: mechanically legal actions for
+// the active entity from scene type, capabilities, and active countdowns,
+// capped at TTRPG_MAX_AVAILABLE_ACTIONS (default 8) and badge-filtered.
+function availableActionsSection(novel: NovelState): string[] {
+  const entity = state.getActiveEntity();
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none";
+  const sceneTypes = novel.scene_type ?? [];
+  const actions: string[] = [];
+  if (novel.combat?.active || sceneTypes.includes("combat")) {
+    actions.push("manage_combat (action: advance — resolve the round)");
+    actions.push("resolve an attack or skill check for the active entity");
+  } else if (sceneTypes.includes("social")) {
+    actions.push("resolve a persuasion, deception, or intimidation check with a present NPC");
+    actions.push("manage_relationship (action: set — record a social outcome)");
+  } else {
+    actions.push("run_command (action: execute, \"look\")");
+    actions.push("run_command (action: execute, \"go <direction>\")");
+    actions.push("run_command (action: execute, \"examine <thing>\")");
+    if (novel.world.things.size > 0) actions.push("run_command (action: execute, \"take <thing>\")");
+  }
+  const inv = entity?.inventory ?? [];
+  if (inv.length > 0) actions.push(`manage_character (action: sheet — use held item: ${inv.slice(0, 3).join(", ")})`);
+  const activeCd = [...novel.countdowns.values()].filter((c) => c.ticks > 0);
+  if (activeCd.length > 0) actions.push(`manage_countdown (action: advance — ${activeCd[0].name}, ${activeCd[0].ticks} ticks)`);
+  if (isGM) actions.push("manage_story (action: record — commit a story beat)");
+  const cap = configInt("TTRPG_MAX_AVAILABLE_ACTIONS", 8);
+  return actions.slice(0, Math.max(0, cap));
+}
+
 function composeCampaignMemorySection(novel: NovelState, badge: string): string {
   const facts = novel.campaign_memory ?? [];
   if (facts.length === 0) return "";
@@ -967,6 +1011,17 @@ function err(code: string, msg: string, correctiveAction?: string) {
   const action = correctiveAction ?? CORRECTIVE_ACTIONS[code];
   const text = action ? `[ERROR] [${code}] ${expanded}\nCorrective action: ${action}` : `[ERROR] [${code}] ${expanded}`;
   return { content: [{ type: "text" as const, text }] };
+}
+
+// REQ-129a/c — cardinality refusal naming the affected group and the current
+// and maximum counts; a configured maximum of zero disables the group.
+function capGuard(group: string, current: number) {
+  const r = capRefusal(group, current);
+  if (!r) return null;
+  const detail = r.max === 0
+    ? `${r.group} is disabled (configured maximum 0).`
+    : `${r.group} at maximum (${r.current}/${r.max}).`;
+  return err("STATE_CONFLICT", detail);
 }
 
 // REQ-054 — input safety: all tool inputs are validated server-side (Zod);
@@ -1746,6 +1801,15 @@ Character '${build.name}' created as ${entity.id} with derived statistics.`);
     state.saveNovel(novel);
     return ok(`Checkpoint '${label}' restore cancelled.`);
   }
+  // REQ-239c — irreversible audit compaction confirmation.
+  if (kind.startsWith("compress_audit:")) {
+    const keep = Number(pw.payload?.keep ?? 3);
+    const result = state.compactAuditLog(novel, keep);
+    novel.pending_workflow = null;
+    state.saveNovel(novel);
+    audit("compress_audit", { sessions: result.sessions, entries: result.entries });
+    return ok(`Audit log compacted: ${result.sessions} session(s), ${result.entries} entries archived into audit_archive.`);
+  }
   // REQ-140 — End-Novel confirmation dispatch: a mismatched decision against an
   // open workflow returns [NOT_FOUND] with the open decision's canonical text.
   return err("NOT_FOUND", `Unrecognized decision '${decision}'. Canonical decision: '${pw.decision}'.`);
@@ -2018,6 +2082,15 @@ server.registerTool("manage_character", {
         return needInput(creationStepPrompt(workflow));
       }
 
+      // REQ-129b2 — entity cardinality, and roster cardinality when staging,
+      // are checked before any state mutation.
+      const entityRefusal = capGuard("entities", novel.entities.size);
+      if (entityRefusal) return entityRefusal;
+      if (stage_to_roster) {
+        const rosterRefusal = capGuard("roster", state.roster.size);
+        if (rosterRefusal) return rosterRefusal;
+      }
+
       if (!rules) {
         if (classes || effAbilityScores || stat_method) {
           return err("INVALID_INPUT", "This Novel has no character-creation rules. Bind a ruleset whose package defines character creation to use classes or mechanical stats.");
@@ -2088,6 +2161,9 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       const entity = resolveEntity(args.entity_id);
       if (!entity) return err("NOT_FOUND", "No entity to stage.");
+      // REQ-129b2 — roster cardinality.
+      const rosterRefusal = capGuard("roster", state.roster.size);
+      if (rosterRefusal) return rosterRefusal;
       const id = state.addToRoster(entity);
       state.saveNovel(novel);
       return ok(`Character '${entity.name}' staged to roster as ${id}.`);
@@ -2097,6 +2173,9 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       const rosterEntity = state.roster.get(args.roster_id);
       if (!rosterEntity) return err("NOT_FOUND", `Roster entity '${args.roster_id}' not found.`);
+      // REQ-129b2 — entity cardinality.
+      const importRefusal = capGuard("entities", novel.entities.size);
+      if (importRefusal) return importRefusal;
       state.addEntity(novel, { ...rosterEntity, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
       state.saveNovel(novel);
       return ok(`Character '${rosterEntity.name}' imported.`);
@@ -3563,6 +3642,9 @@ server.registerTool("manage_npc", {
       if (goals) npc.personality = { goals };
       // REQ-075f — NPC mind (GM-only journal/directive/auto_play).
       if (args.mind) npc.mind = args.mind;
+      // REQ-129b1 — NPC cardinality.
+      const npcRefusal = capGuard("npcs", novel.npcs.size);
+      if (npcRefusal) return npcRefusal;
       novel.npcs.set(id, npc);
       // REQ-327 — NPC-world coupling.
       const roomMatch = [...novel.world.rooms.values()].find((r) => location && r.name.toLowerCase() === location.toLowerCase());
@@ -3651,6 +3733,11 @@ server.registerTool("manage_countdown", {
       const novel = requireNovel();
       novelSnapshot();
       const { name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect } = args;
+      // REQ-129b1 — countdown cardinality applies to new countdowns only.
+      if (!novel.countdowns.has(name)) {
+        const cdRefusal = capGuard("countdowns", novel.countdowns.size);
+        if (cdRefusal) return cdRefusal;
+      }
       novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers, world_effect });
       state.recordMutation(novel, "set_countdown", "countdown");
       state.saveNovel(novel);
@@ -3752,6 +3839,11 @@ server.registerTool("manage_lore", {
         group,
         world_target,
       };
+      // REQ-129b1 — lore cardinality applies to new entries; updates upsert.
+      if (!novel.lore.has(key)) {
+        const loreRefusal = capGuard("lore", novel.lore.size);
+        if (loreRefusal) return loreRefusal;
+      }
       novel.lore.set(key, entry);
       state.saveNovel(novel);
       audit("set_lore_entry", { key });
@@ -4617,6 +4709,9 @@ server.registerTool("manage_story", {
       requireGM();
       const novel = requireNovel();
       const { type, entry } = args;
+      // REQ-129b1 — story journal cardinality refusal.
+      const storyRefusal = capGuard("story", novel.story_journal.length);
+      if (storyRefusal) return storyRefusal;
       const index = novel.story_journal.length;
       // REQ-331 — story journal-world coupling.
       const sceneLoc = novel.scene_location ?? "";
@@ -4662,7 +4757,10 @@ server.registerTool("manage_story", {
       if (args.filter) entries = entries.filter(e => e.type === args.filter);
       if (args.offset) entries = entries.slice(args.offset);
       if (args.limit) entries = entries.slice(0, args.limit);
-      if (wantsDetail(args.detail)) return raw(JSON.stringify(entries, null, 2));
+      // REQ-246a / §7.6 — TTRPG_STORY_JOURNAL_DISPLAY=full forces the full view.
+      if (wantsDetail(args.detail) || (process.env.TTRPG_STORY_JOURNAL_DISPLAY ?? "summary") === "full") {
+        return raw(JSON.stringify(entries, null, 2));
+      }
       return raw(JSON.stringify(entries.map(e => ({ type: e.type, timestamp: e.timestamp, preview: (e.entry ?? "").substring(0, 120) })), null, 2));
     }
     case "promote": {
@@ -4852,6 +4950,7 @@ function loadNovelFromStateData(data: any): NovelState {
     player_signals: data.player_signals ?? {}, adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,
     audit_log: data.audit_log ?? [],
+    audit_archive: data.audit_archive ?? [],
     undo_stacks: { player: [], game_master: [], observer: [], none: [] },
     redo_stacks: { player: [], game_master: [], observer: [], none: [] },
     briefing_order: data.briefing_order ?? [],
@@ -4873,7 +4972,7 @@ function loadNovelFromStateData(data: any): NovelState {
     pacing_autonomy_fired: data.pacing_autonomy_fired ?? false, scene_transition_count: data.scene_transition_count ?? 0,
     faction_autonomous_ticks: data.faction_autonomous_ticks ?? {}, npc_goal_suggestions: data.npc_goal_suggestions ?? [],
     voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
-    auto_record: data.auto_record ?? true,
+    auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
     session_no_mutation_windows: data.session_no_mutation_windows ?? [],
     state_regression: data.state_regression ?? null,
     last_mutation_at: data.last_mutation_at ?? null,
@@ -5869,13 +5968,15 @@ server.registerTool("manage_perception", {
 
 server.registerTool("manage_session", {
   title: "Session",
-  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment and event append mutate Novel-scoped state and persist; recap/verbosity/briefing_order/compress/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries; recap — gm_notes; subscribe — topics; discover — query; category — tool_name, category; event — text, source, supersede; history — through_ordinal, include_superseded.",
+  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries (summarize) or sessions (compact); recap — gm_notes, session_id; subscribe — topics; discover — query; category — tool_name, category; event — text, source, supersede; history — through_ordinal, include_superseded.",
   inputSchema: {
     action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress, health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
-    max_entries: z.number().optional().describe("Maximum audit entries (compress)."),
+    max_entries: z.number().optional().describe("Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress)."),
+    sessions: z.number().optional().describe("Number of recent sessions to retain live; triggers irreversible compaction (compress; default TTRPG_AUDIT_RETENTION_SESSIONS)."),
     gm_notes: z.string().optional().describe("GM-only free-text notes returned only to the Game Master badge (recap)."),
+    session_id: z.string().optional().describe("Archived session id to include in recap (recap)."),
     topics: z.array(z.string()).optional().describe("Notification topics to subscribe to (subscribe)."),
     query: z.string().optional().describe("Optional search term matched against tool name, description, and title (discover)."),
     tool_name: z.string().optional().describe("Registered tool name to reassign (category)."),
@@ -5934,7 +6035,7 @@ server.registerTool("manage_session", {
     case "briefing_order": {
       requireGM();
       const novel = requireNovel();
-      const VALID_TOKENS = ["scene_state", "entities", "combat_state", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal"];
+      const VALID_TOKENS = ["scene_state", "entities", "combat_state", "available_actions", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal"];
       if (args.sections.length > 0) {
         const unknown = args.sections.filter((s: string) => !VALID_TOKENS.includes(s));
         if (unknown.length > 0) return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_TOKENS.join(", ")}.`);
@@ -5945,18 +6046,38 @@ server.registerTool("manage_session", {
     }
     case "compress": {
       const novel = requireNovel();
-      const max = args.max_entries ?? 20;
-      if (max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
-      const recent = novel.audit_log.slice(-max);
-      const isGM = novel.badge === "game_master";
-      const filtered = isGM ? recent : recent.filter(e => e.badge !== "game_master");
-      if (filtered.length === 0) return ok("Compressed audit log (summarize into a single paragraph):\n(no entries)");
-      const lines = filtered.map(e => {
-        const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
-        const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
-        return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
-      });
-      return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+      // REQ-086 — `max_entries` selects the non-mutating summarize prompt: a
+      // Markdown prompt listing recent chained entries, badge-filtered.
+      if (args.max_entries !== undefined) {
+        const max = args.max_entries;
+        if (typeof max !== "number" || max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+        const recent = novel.audit_log.slice(-max);
+        const isGM = novel.badge === "game_master" || novel.badge === "none";
+        const filtered = isGM ? recent : recent.filter((e) => e.badge !== "game_master");
+        const lines = filtered.map((e) => {
+          const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
+          const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
+          return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
+        });
+        return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+      }
+      // REQ-239a/c — audit-log compaction is GM-only and irreversible, so it
+      // proceeds through a [NEED_INPUT] confirmation. `sessions` (minimum 1)
+      // sets the number of most-recent sessions retained live; when omitted the
+      // TTRPG_AUDIT_RETENTION_SESSIONS default applies.
+      requireGM();
+      if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+      const keep = args.sessions ?? parseInt(process.env.TTRPG_AUDIT_RETENTION_SESSIONS ?? "3", 10);
+      if (!Number.isInteger(keep) || keep < 1) return err("INVALID_INPUT", "sessions must be a positive integer.");
+      novel.pending_workflow = {
+        decision: `compress_audit:${keep}`,
+        snapshot: state.captureWorkflowSnapshot(novel),
+        payload: { keep },
+      };
+      state.saveNovel(novel);
+      return needInput(`Decision: -compress audit log-
+Question: Compact audit entries for sessions older than the most recent ${keep} into per-session summaries? This removes the raw entries and is irreversible.
+Options: yes, cancel`);
     }
     case "recap": {
       const novel = requireNovel();
@@ -6028,6 +6149,13 @@ server.registerTool("manage_session", {
       // REQ-072h — GM-only notes are structurally excluded from Player output.
       if (args.gm_notes && (getBadge() === "game_master" || getBadge() === "none")) {
         recap += `\ngm_notes: ${args.gm_notes}`;
+      }
+      // REQ-239b — a recap targeting an archived session derives from its summary.
+      if (args.session_id) {
+        const summary = (novel.audit_archive ?? []).find((s) => s.session_id === args.session_id);
+        recap += summary
+          ? `\narchived_session: ${summary.session_id} (${summary.entry_count} entries, ${summary.timespan_start} → ${summary.timespan_end}; confrontations ${summary.confrontations}, significant_rolls ${summary.significant_rolls}, condition_changes ${summary.condition_changes}, roster_changes ${summary.roster_changes}, scene_transitions ${summary.scene_transitions})`
+          : `\narchived_session: '${args.session_id}' not found in the audit archive.`;
       }
       return ok(recap);
     }
@@ -6335,9 +6463,29 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 // create/resume/switch/end/export/import/rename/description/list/archive/
 // unarchive/info/genre/clone surface.
 const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
+
+// REQ-096h/i1 — embed loaded adventure module content inline on export when
+// TTRPG_EXPORT_EMBED_ADVENTURES is true (default false). Generated adventures
+// live only in the Novel; indexed modules re-read their Markdown source.
+function embeddedAdventureContent(novel: NovelState): { slug: string; content: string; content_hash: string } | null {
+  if ((process.env.TTRPG_EXPORT_EMBED_ADVENTURES ?? "false") !== "true") return null;
+  if (!novel.adventure_slug && !novel.generated_adventure) return null;
+  if (novel.generated_adventure) {
+    const content = JSON.stringify(novel.generated_adventure);
+    return { slug: novel.adventure_slug ?? "generated", content, content_hash: crypto.createHash("sha256").update(content).digest("hex") };
+  }
+  const slug = novel.adventure_slug;
+  if (!slug) return null;
+  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+  try {
+    const content = fs.readFileSync(path.join(adventureDir, `${slug}.md`), "utf-8");
+    return { slug, content, content_hash: crypto.createHash("sha256").update(content).digest("hex") };
+  } catch { return null; /* module not present on disk — nothing to embed */ }
+}
+
 server.registerTool("manage_novel", {
   title: "Novel",
-  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name; branch — source_slug, new_name, from_event; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope, include_checkpoints; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name; branch — source_slug, new_name, from_event; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
   inputSchema: {
     action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
@@ -6363,6 +6511,7 @@ server.registerTool("manage_novel", {
     short_term_plans: z.string().optional().describe("Short-term plans (save_context)."),
     long_term_plans: z.string().optional().describe("Long-term plans (save_context)."),
     player_goals: z.string().optional().describe("Player goals (save_context)."),
+    include_checkpoints: z.boolean().optional().describe("Include checkpoints in export (default false; export)."),
     label: z.string().optional().describe("Checkpoint label (checkpoint_set/list/restore/remove)."),
   },
 }, async (args: any) => {
@@ -6459,6 +6608,8 @@ Options: yes, cancel`);
         return raw(md);
       }
       const full = exportNovelJSON(novel);
+      // REQ-096h/i1 — embed adventure content when configured.
+      const embedded = embeddedAdventureContent(novel);
       const data: any = {
         format_version: 2,
         manifest: {
@@ -6467,12 +6618,15 @@ Options: yes, cancel`);
           ruleset_hash: novel.ruleset ?? null,
           builder_implementation: { name: "holonovel", version: state.buildFingerprint.specVersion },
           adventure_module_slugs: novel.adventure_slug ? [novel.adventure_slug] : [],
-          adventures_embedded: false,
+          adventures_embedded: !!embedded,
           property_groups_present: ["slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows"],
           waiver_dependent_mechanics: [],
         },
         novel: full,
       };
+      if (embedded) data.adventure = embedded;
+      // REQ-241b — checkpoints are excluded from export unless requested.
+      if (!args.include_checkpoints) delete data.novel.checkpoints;
       if (args.scope && args.scope !== "full") {
         const keep: Record<string, string[]> = {
           lore: ["lore"], world_model: ["world"], npcs: ["npcs"], factions: ["factions"], secrets: ["secrets"],
@@ -6728,6 +6882,12 @@ Options: yes, cancel`);
       requireGM();
       const novel = requireNovel();
       novel.checkpoints.push({ label: args.label, timestamp: new Date().toISOString(), state: JSON.parse(JSON.stringify(novelToJSONState(novel))) });
+      // REQ-241b — when at the configured capacity, the oldest is discarded.
+      const cpRaw = parseInt(process.env.TTRPG_MAX_CHECKPOINTS ?? "0", 10);
+      const cpMax = Number.isNaN(cpRaw) ? 0 : cpRaw;
+      if (cpMax > 0 && novel.checkpoints.length > cpMax) {
+        novel.checkpoints.splice(0, novel.checkpoints.length - cpMax);
+      }
       state.saveNovel(novel);
       return ok(`Checkpoint '${args.label}' saved.`);
     }
@@ -6981,6 +7141,7 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "lore://{key}", title: "Lore Entry" },
   { template: "lore://templates", title: "Lore Templates" },
   { template: "audit://novel", title: "Audit Log" },
+  { template: "audit://novel/archive", title: "Audit Archive" },
   { template: "guidance://player", title: "Player Guidance" },
   { template: "guidance://game_master", title: "GM Guidance" },
   { template: "guidance://{badge}/anti-slop", title: "Anti-Slop Guidance" },
@@ -7109,6 +7270,54 @@ function buildSpecHealth(): Record<string, unknown> {
   const synthesisCounts = synthesisModuleCounts();
   const synthesis_active = state.enriched;
 
+  // REQ-129c / REQ-097a1 — per-group count/max/overflow, health warnings, and
+  // the `healthy` flag.
+  const caps = groupCaps();
+  const groupCount = (g: string): number => {
+    switch (g) {
+      case "npcs": return npcs;
+      case "lore": return loreCount;
+      case "countdowns": return countdowns;
+      case "synthesis": return novel ? Object.values(novel.synthesis_activated ?? {}).reduce<number>((a, b) => a + (Array.isArray(b) ? b.length : 0), 0) : 0;
+      case "story": return novel ? novel.story_journal.length : 0;
+      case "entities": return entities;
+      case "roster": return state.roster.size;
+      case "snapshots": return novel ? Math.max(0, ...Object.values(novel.undo_stacks ?? {}).map((s) => s.length)) : 0;
+      default: return 0;
+    }
+  };
+  const cardinality: Record<string, { count: number; max: number; overflow: boolean }> = {};
+  for (const [g, cap] of Object.entries(caps)) {
+    const count = groupCount(g);
+    cardinality[g] = { count, max: cap.max, overflow: cap.max > 0 && count >= cap.max };
+  }
+  const storyChars = novel ? novel.story_journal.reduce((n, s) => n + (s.entry?.length ?? 0), 0) : 0;
+  const snapshotDepthUsed = groupCount("snapshots");
+  const novelFilePath = novel ? path.join(DATA_DIR, "novels", `${novel.slug}.json`) : null;
+  let fileSize = 0;
+  try { if (novelFilePath) fileSize = fs.statSync(novelFilePath).size; } catch { /* file may not exist before the first write */ }
+  // REQ-097a1 — activated Tier 1 keys that no longer resolve against the build.
+  const synthesis_gap_count = (() => {
+    if (!novel) return 0;
+    let gaps = 0;
+    for (const [module, keys] of Object.entries(novel.synthesis_activated ?? {})) {
+      if (!Array.isArray(keys)) continue;
+      const available = new Set(moduleItemKeys(module));
+      for (const k of keys) if (!available.has(k)) gaps++;
+    }
+    return gaps;
+  })();
+  const health_warnings: string[] = [];
+  for (const g of ["npcs", "lore", "snapshots", "entities", "countdowns", "synthesis", "story", "roster"]) {
+    if (cardinality[g].overflow) health_warnings.push(`${g} at maximum (${cardinality[g].count}/${cardinality[g].max}).`);
+  }
+  if (caps.entities.max > 0 && entities > caps.entities.max * 0.8 && !cardinality.entities.overflow) {
+    health_warnings.push(`entities above 80% of maximum (${entities}/${caps.entities.max}).`);
+  }
+  if (fileSize > 4 * 1024 * 1024) health_warnings.push(`Novel file size ${fileSize} bytes exceeds the 4 MB ceiling.`);
+  if (novel && fileSize === 0) health_warnings.push("Novel file size is zero after write (durability failure).");
+  const healthy = health_warnings.length === 0;
+
   const health: Record<string, unknown> = {
     // REQ-106 — spec repository URL (informational; identical for both badges).
     spec_repo_url: specRepoUrl(),
@@ -7146,7 +7355,7 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-423 — [data-stale] artifacts, advisory (never block loading);
     // REQ-001a — [WARNING] enumeration of corrupted Novels (corruptData).
     data_health: isGM
-      ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData), corrupted: Object.fromEntries(state.corruptData) }
+      ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData), corrupted: Object.fromEntries(state.corruptData), compression_mismatch: Object.fromEntries(state.compressionMismatch) }
       : undefined,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
@@ -7208,6 +7417,18 @@ function buildSpecHealth(): Record<string, unknown> {
       reported: true,
     },
     entities, npcs, lore_entries: loreCount, countdowns,
+    // REQ-097a1 / REQ-129c — Novel health: counts, maxima, overflow, warnings.
+    healthy,
+    health_warnings,
+    synthesis_gap_count,
+    story_journal_entries: novel ? novel.story_journal.length : 0,
+    story_journal_chars: storyChars,
+    snapshot_depth: snapshotDepthUsed,
+    file_size: fileSize,
+    cardinality,
+    // REQ-241c — checkpoint count and storage size.
+    checkpoint_count: novel ? novel.checkpoints.length : 0,
+    checkpoint_bytes: novel ? JSON.stringify(novel.checkpoints).length : 0,
     // REQ-311f — NPC memory count across all NPCs in the active Novel.
     npc_memory_count: novel ? [...novel.npcs.values()].reduce((n, npc) => n + (npc.memory ? Object.keys(npc.memory.contacts ?? {}).length + (npc.memory.witnessed_events?.length ?? 0) : 0), 0) : 0,
     // REQ-224b / REQ-193a — pending workflow staleness surfaced to operators.
@@ -7279,6 +7500,7 @@ function buildSpecHealth(): Record<string, unknown> {
       { token: "scene_state", group: "current scene state", has_content: !!(novel?.scene_description) },
       { token: "entities", group: "active entities", has_content: !!(novel && novel.entities.size > 0) },
       { token: "combat_state", group: "active combat state", has_content: !!(novel?.combat?.active) },
+      { token: "available_actions", group: "proactive available actions", has_content: !!(novel) },
       { token: "npcs", group: "active NPCs", has_content: !!(novel && novel.npcs.size > 0) },
       { token: "countdowns", group: "active countdowns", has_content: !!(novel && novel.countdowns.size > 0) },
       { token: "lore", group: "active lore entries", has_content: !!(novel && novel.lore.size > 0) },
@@ -7506,6 +7728,13 @@ server.registerResource("audit-novel", "audit://novel", { title: "Audit Log" }, 
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "audit://novel", text: "[]", mimeType: "application/json" }] };
   return { contents: [{ uri: "audit://novel", text: JSON.stringify(novel.audit_log.slice(-50)), mimeType: "application/json" }] };
+});
+
+// REQ-239b — compacted per-session summaries, retrievable as structured objects.
+server.registerResource("audit-novel-archive", "audit://novel/archive", { title: "Audit Archive" }, async () => {
+  const novel = state.activeNovel;
+  if (!novel) return { contents: [{ uri: "audit://novel/archive", text: "[]", mimeType: "application/json" }] };
+  return { contents: [{ uri: "audit://novel/archive", text: JSON.stringify(novel.audit_archive ?? [], null, 2), mimeType: "application/json" }] };
 });
 
 // Guidance resources
@@ -8264,7 +8493,9 @@ server.registerTool("manage_synthesis", {
       if (!PLAYER_SYNTH_MODULES.includes(args.module)) return err("INVALID_INPUT", `Module '${args.module}' is not a player synthesis module. Valid: ${PLAYER_SYNTH_MODULES.join(", ")}.`);
       novel.player_synthesis = novel.player_synthesis ?? {};
       const items = novel.player_synthesis[args.module] ?? [];
-      if (items.length >= 15) return err("STATE_CONFLICT", "Player synthesis per-module cap (15) reached.");
+      // REQ-129b1 — synthesis items per output module cardinality.
+      const synthRefusal = capGuard("synthesis", items.length);
+      if (synthRefusal) return synthRefusal;
       if (items.some((i: any) => i.key === args.key)) return err("STATE_CONFLICT", `Item '${args.key}' already exists in module '${args.module}'.`);
       items.push({ key: args.key, content: args.content, triggers: args.triggers, badge_scope: args.badge_scope ?? "shared", created_at: new Date().toISOString(), active: true });
       novel.player_synthesis[args.module] = items;
@@ -8309,10 +8540,23 @@ server.registerTool("manage_synthesis", {
 // ── Prompts ────────────────────────────────────────────────────────
 
 server.prompt("intro", "Introduction and Getting Started", async () => {
-  const novels = [...state.novels.entries()].map(([slug, n]) => ({ slug, name: n.name, description: n.description, modified: n.metadata.modified }));
+  // REQ-063b — preview truncation at TTRPG_NOVEL_PREVIEW_CHARS (default 120),
+  // session count, last-played date, and synthesis status per Novel.
+  const previewChars = configInt("TTRPG_NOVEL_PREVIEW_CHARS", 120);
+  const previewOf = (d: string): string => {
+    const firstSentence = (d || "").trim().split(/(?<=[.!?])\s/)[0] ?? "";
+    const base = firstSentence || (d || "").trim();
+    return base.length > previewChars ? base.slice(0, previewChars) + "…" : base;
+  };
+  const synthesisStatus = (n: NovelState): string => {
+    const activated = Object.values(n.synthesis_activated ?? {}).reduce<number>((a, b) => a + (Array.isArray(b) ? b.length : 0), 0);
+    const player = Object.values(n.player_synthesis ?? {}).reduce<number>((a, b) => a + (Array.isArray(b) ? b.length : 0), 0);
+    return `synthesis ${activated} activated, ${player} player`;
+  };
+  const novels = [...state.novels.entries()].map(([slug, n]) => ({ slug, name: n.name, description: n.description, modified: n.metadata.modified, sessions: n.metadata.session_count, synthesis: synthesisStatus(n) }));
 
   const libraryLines = novels.length > 0
-    ? novels.map((n) => `- ${n.name} — ${n.description || "no description yet"} (last played ${n.modified})`).join("\n")
+    ? novels.map((n) => `- ${n.name} — ${previewOf(n.description) || "no description yet"} (sessions ${n.sessions}, last played ${n.modified}, ${n.synthesis})`).join("\n")
     : "";
 
   const library = novels.length > 0
@@ -8390,6 +8634,12 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel
     briefing += `\n**Active entity:** ${entity.name}`;
     if (entity.current_room) briefing += ` — ${entity.current_room}`;
     if (entity.inventory.length > 0) briefing += ` — holding: ${entity.inventory.join(", ")}`;
+  }
+
+  // REQ-084a1/a2 — proactive Available Actions section (token: available_actions).
+  const availableActions = availableActionsSection(novel);
+  if (availableActions.length > 0) {
+    briefing += `\n\n### Available Actions (available_actions)\n${availableActions.map((a) => `- ${a}`).join("\n")}`;
   }
 
   // REQ-320 — Player Intent: recent narrative-intent verbs surfaced for the GM.

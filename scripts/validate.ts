@@ -1510,6 +1510,43 @@ function checkTestNameInflation(): string[] {
   return issues;
 }
 
+// SC-6 residual guard (REQ-113 evidence integrity): a bucket-C REQ whose only
+// exercised evidence is a bundled test name — the ID appears after a colon and
+// the REQ's own ID is not in the name prefix — is a false-C candidate. Warning
+// only; the exercised-ID mechanism cannot judge whether the test asserts the
+// REQ's contract, so this surfaces the review pool.
+function checkBundledEvidence(rows: CoverageRow[]): string[] {
+  const names: { file: string; name: string; prefix: string[]; all: string[] }[] = [];
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
+      const name = m[1];
+      const colon = name.indexOf(":");
+      const prefix = colon === -1 ? name : name.slice(0, colon);
+      names.push({
+        file: path.basename(f),
+        name,
+        prefix: [...prefix.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
+        all: [...name.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
+      });
+    }
+  }
+  const issues: string[] = [];
+  for (const row of rows) {
+    if (row.bucket !== "C") continue;
+    for (const id of row.exercisedTests) {
+      const occ = names.filter((n) => n.all.includes(id));
+      if (occ.length === 0) continue;
+      const direct = occ.some((n) => n.prefix.includes(id) || n.prefix.some((p) => p === row.reqId));
+      if (!direct) {
+        issues.push(`${row.reqId}: exercised ID ${id} appears only in a bundled test name where ${row.reqId} is not the prefix ("${occ[0].name.slice(0, 50)}…" in ${occ[0].file})`);
+      }
+    }
+  }
+  return issues;
+}
+
 // Placeholder-stub detection (REQ-090/091 guard). Returns the stub sentinel
 // strings still present in the server source. A registered tool body that
 // returns a sentinel string (e.g. "(Placeholder" or "no ruleset mechanics
@@ -2129,6 +2166,12 @@ function main(): void {
     for (const issue of inflationIssues) console.log(`WARNING: ${issue}`);
     warnings += inflationIssues.length;
   } else console.log("PASS: No over-stuffed test names (<= 4 IDs per name)");
+
+  const bundledIssues = checkBundledEvidence(implRows);
+  if (bundledIssues.length > 0) {
+    for (const issue of bundledIssues) console.log(`WARNING: bundled-only evidence — ${issue}`);
+    warnings += bundledIssues.length;
+  } else console.log("PASS: No bundled-only bucket-C evidence");
 
   const intendedGapIssues = checkIntendedGapDispositions(sourceCites);
   if (intendedGapIssues.length > 0) { for (const issue of intendedGapIssues) console.log(issue); errors += intendedGapIssues.length; }

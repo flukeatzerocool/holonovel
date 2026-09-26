@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 64fb213d681ec8963b235e8f4f60955327f077030288fa6193634298a0f7a0a6
+**Spec hash:** 3cd1062856a01ebccd5bd38596dbcb60104d759d1123ffd89e551744165cf0b8
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -65,6 +65,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Behavioral | TTRPG_AUTONOMY, TTRPG_PACING_WINDOW, TTRPG_NPC_AUTONOMY, TTRPG_NPC_MIND, TTRPG_MAX_AVAILABLE_ACTIONS, TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS, TTRPG_WORLD_REACTIVITY, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE, TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER |
 | Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
 | System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
+
+### Holonovel Spec Update — 2026-09-26 (implementation conformance remediation)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — closed the implementation-conformance gaps found by a spec↔code audit. Implementation: REQ-129 cardinality enforcement (`src/core/limits.ts`); REQ-097/REQ-129c health fields (healthy/health_warnings/synthesis_gap_count/story_journal/snapshot_depth/file_size/cardinality); REQ-239 real audit compaction (`compactAuditLog`, `audit_archive`, hash-chain re-anchor, `[NEED_INPUT]`, `audit://novel/archive`, recap-from-archive) with REQ-086 `max_entries` retained; REQ-241 checkpoint cap + `include_checkpoints` + health count/size; REQ-096h adventure embedding; REQ-092g/h Novel gzip + `[compression-mismatch]`; REQ-084a2 `available_actions` briefing section; REQ-030/REQ-055a `TTRPG_BADGE`; REQ-063b intro preview; REQ-405/REQ-246a env defaults; REQ-077 NPC urgency advisory. Spec: §7.6 adds the undeclared runtime variables and marks `TTRPG_AUTONOMY_MUTATION_CEILING` storage; DECISIONS.md gains the REQ-129d maximums table and the builder-side/optional config dispositions. Validator: `checkBundledEvidence` warns on bundled-only bucket-C evidence (SC-6 residual). Tests: new `holonovel/scripts/test-limits.ts`; T277/T279 updated to the Appendix F definitions. |
+| Reused | source, config, extraction, lockfile, surfaces |
+| Verification | assemble + check:fast 0 errors; validate:sdd --impl-audit=strict 0 errors (140 informational warnings); typecheck 0 errors; holonovel test:all 31 harnesses 0 failures; buckets A0/B0/C388/E112; fingerprints in sync |
+| Follow-up | Residual: clone/branch `novelToJSONState` omits the audit tier (REQ-240a) — recorded for a follow-on increment; not in this remediation's scope. |
 
 ### Holonovel Spec Update — 2026-09-25 (config-default alignment)
 
@@ -1018,7 +1028,7 @@ No server source change — coupling contracts are normative, not tool behavior.
 
 | Field | Value |
 |-------|-------|
-| Spec version | 2026.09.25 |
+| Spec version | 2026.09.26 |
 | Build fingerprint | recomputed at startup from embedded holonovel.md |
 | Delta class | major |
 | Changed | source, surfaces (all tools/resource/prompt surface changed) |
@@ -1168,3 +1178,35 @@ Surface hash: 0f9d1b3f (tools: 17, resources: 4, prompts: 4).
 - Prompts: intro (world-model-only notice), badge_briefing (player/GM guidance
   with triggered lore; observer mode adds a dual-role instruction), session_zero,
   novel_setup.
+
+## Cardinality maximums (REQ-129d)
+
+Every configured property-group maximum is read from its §7.6 variable at call
+time with the default below; a maximum of `0` disables the group's mutating
+tools (REQ-129c), and `spec_health` reports each group's count, maximum, and
+overflow flag.
+
+| Group | Configuration | Default |
+|-------|---------------|---------|
+| NPCs | `TTRPG_MAX_NPCS` | 500 |
+| Lore entries | `TTRPG_MAX_LORE_ENTRIES` | 500 |
+| Countdowns | `TTRPG_MAX_COUNTDOWNS` | 100 |
+| Synthesis items per module | `TTRPG_MAX_SYNTHESIS_ITEMS` | 15 |
+| Story journal entries | `TTRPG_MAX_STORY_ENTRIES` | 1000 |
+| Entities per Novel | `TTRPG_MAX_ENTITIES` | 50 |
+| Roster entities | `TTRPG_MAX_ROSTER_ENTITIES` | 100 |
+| Undo snapshots | `TTRPG_MAX_SNAPSHOT_DEPTH` | 10 (minimum per REQ-041) |
+
+## Intended-gap configuration dispositions
+
+The following §7.6 variables are builder-side or optional and are consumed
+outside the host runtime. The host never reads ruleset or adventure Markdown at
+runtime (REQ-389a), so these are intended gaps, not host conformance gaps.
+
+| Variable | Disposition | Basis |
+|----------|-------------|-------|
+| `TTRPG_RULESET` | Builder-side | Build-time single-ruleset fixture path list (Appendices B/N); consumed by the fixture-build tooling, not the host. |
+| `TTRPG_ADVENTURE` | Builder-side | Build-time adventure Markdown path list (REQ-079); the runtime host reads the directory via `TTRPG_ADVENTURE_DIR`. |
+| `TTRPG_CONFIDENCE_FLOOR` | Builder-side | Supplementary-ruleset import admission floor (REQ-100); applied during build-time extraction. |
+| `TTRPG_WORLD_PROMINENCE` | Builder-side | World-model prominence tier selected at build time (REQ-309). |
+| `TTRPG_PORT` | Intended gap (optional) | Optional inbound HTTP transport; the reference host ships the stdio transport only. Inbound-only; does not affect REQ-051. |
