@@ -6,6 +6,15 @@
   Update this file when planning a release.
 -->
 
+## Deferred — action-contract conflict lint (REQ authoring guard)
+
+A validator check that flags two REQs binding the same tool action with
+disjoint parameter sets (the REQ-086 `compress max_entries` versus REQ-239
+`compress sessions` class). Held by user decision 2026-09-26 until a vetted
+parser for `tool (action: X, params…)` bindings exists — the current parse is
+heuristic and would produce false positives. The Appendix M action-contract
+uniqueness item covers the convention in the interim.
+
 ## Feature parity — M2 Knowledge Corpus, Semantic Index, Knowledge Graph
 
 ### M2a Knowledge Corpus — SHIPPED 2026-09-24 (REQ-496–503)

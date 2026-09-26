@@ -1510,13 +1510,12 @@ function checkTestNameInflation(): string[] {
   return issues;
 }
 
-// SC-6 residual guard (REQ-113 evidence integrity): a bucket-C REQ whose only
-// exercised evidence is a bundled test name — the ID appears after a colon and
-// the REQ's own ID is not in the name prefix — is a false-C candidate. Warning
-// only; the exercised-ID mechanism cannot judge whether the test asserts the
-// REQ's contract, so this surfaces the review pool.
-function checkBundledEvidence(rows: CoverageRow[]): string[] {
-  const names: { file: string; name: string; prefix: string[]; all: string[] }[] = [];
+// Harness test names with their pre-colon (prefix) IDs and all IDs. Shared by
+// the bundled-evidence ratchet (B2), the direct-test guard (B3), and the
+// Appendix F assertion check (B4).
+interface HarnessTest { file: string; name: string; prefix: string[]; all: string[]; }
+function collectHarnessTestNames(): HarnessTest[] {
+  const names: HarnessTest[] = [];
   for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
@@ -1532,6 +1531,13 @@ function checkBundledEvidence(rows: CoverageRow[]): string[] {
       });
     }
   }
+  return names;
+}
+
+// B2 (REQ-113 evidence integrity): a bucket-C REQ whose only exercised evidence
+// is a bundled test name — the ID appears after a colon and the REQ's own ID is
+// not in the name prefix — is a false-C candidate, ratcheted by baseline.
+function checkBundledEvidence(rows: CoverageRow[], names: HarnessTest[]): string[] {
   const issues: string[] = [];
   for (const row of rows) {
     if (row.bucket !== "C") continue;
@@ -1545,6 +1551,132 @@ function checkBundledEvidence(rows: CoverageRow[]): string[] {
     }
   }
   return issues;
+}
+
+// B3 (direct-test guard): a REQ newly added since the committed register that
+// buckets to C must have at least one exercised test whose name PREFIX carries
+// its ID — a bundled suffix is not evidence for a new contract.
+function checkDirectEvidenceForNewReqs(rows: CoverageRow[], knownReqs: Set<string>, names: HarnessTest[]): string[] {
+  const issues: string[] = [];
+  for (const row of rows) {
+    if (row.bucket !== "C" || knownReqs.has(row.reqId)) continue;
+    const direct = names.some((n) => n.prefix.includes(row.reqId));
+    if (!direct) {
+      issues.push(`new bucket-C REQ ${row.reqId} has no direct test (its ID must appear in a test-name prefix, not only in a bundled name)`);
+    }
+  }
+  return issues;
+}
+
+// B1 (config-surface parity): every TTRPG_* read in holonovel/src is declared
+// in the §7.6 table or dispositioned in DECISIONS.md, and every declared var is
+// read or dispositioned. Closes the config-drift class the spec↔code audit found.
+const DECISIONS_PATH = path.resolve(__dirname, "..", "holonovel", "DECISIONS.md");
+function declaredConfigVars(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const line of text.split("\n")) {
+    const m = line.match(/^\|\s*`(TTRPG_[A-Z0-9_]+)`\s*\|/);
+    if (m) out.add(m[1]);
+  }
+  return out;
+}
+function codeConfigVars(): Set<string> {
+  const out = new Set<string>();
+  for (const f of walkTsFiles(IMPL_SRC_DIR)) {
+    let c = "";
+    try { c = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of c.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) out.add(m[0]);
+  }
+  return out;
+}
+function dispositionedConfigVars(): Set<string> {
+  const out = new Set<string>();
+  let c = "";
+  try { c = fs.readFileSync(DECISIONS_PATH, "utf-8"); } catch { return out; }
+  let inTable = false;
+  for (const line of c.split("\n")) {
+    if (/^## Intended-gap configuration dispositions/.test(line)) { inTable = true; continue; }
+    if (inTable && /^## /.test(line)) inTable = false;
+    if (inTable) {
+      const m = line.match(/^\|\s*`(TTRPG_[A-Z0-9_]+)`\s*\|/);
+      if (m) out.add(m[1]);
+    }
+  }
+  return out;
+}
+function checkConfigSurfaceParity(text: string): string[] {
+  const declared = declaredConfigVars(text);
+  const code = codeConfigVars();
+  const dispositioned = dispositionedConfigVars();
+  const issues: string[] = [];
+  for (const v of code) {
+    if (!declared.has(v) && !dispositioned.has(v)) {
+      issues.push(`config-surface: ${v} is read in holonovel/src but not declared in §7.6 nor dispositioned in DECISIONS.md`);
+    }
+  }
+  for (const v of declared) {
+    if (!code.has(v) && !dispositioned.has(v)) {
+      issues.push(`config-surface: ${v} is declared in §7.6 but never read in holonovel/src nor dispositioned in DECISIONS.md`);
+    }
+  }
+  return issues;
+}
+
+// B4 (Appendix F assertion alignment): when an exercised test's Appendix F
+// definition names a TTRPG_* variable, some harness must reference it — a test
+// spec that requires a config the harness never sets is nominal evidence.
+function parseAppendixFTestText(text: string): Map<string, string> {
+  const map = new Map<string, string>();
+  const start = text.indexOf("| #     | Type     | Test");
+  if (start === -1) return map;
+  const end = text.indexOf("\n##", start + 1);
+  const slice = end === -1 ? text.slice(start) : text.slice(start, end);
+  for (const line of slice.split("\n")) {
+    const cells = line.split("|");
+    if (cells.length < 5) continue;
+    const tid = cells[1].trim();
+    if (!/^T\d+[a-z0-9]*$/.test(tid)) continue;
+    map.set(tid, cells[3]);
+  }
+  return map;
+}
+function checkAppendixFAssertions(text: string, exercisedIds: Set<string>): string[] {
+  const defs = parseAppendixFTestText(text);
+  // All TTRPG_* tokens referenced anywhere under holonovel/scripts.
+  const harnessVars = new Set<string>();
+  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+    let c = "";
+    try { c = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const m of c.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) harnessVars.add(m[0]);
+  }
+  const issues: string[] = [];
+  for (const tid of exercisedIds) {
+    const def = defs.get(tid);
+    if (!def) continue;
+    for (const m of def.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) {
+      if (!harnessVars.has(m[0])) {
+        issues.push(`Appendix F ${tid} names ${m[0]} but no harness references it`);
+      }
+    }
+  }
+  return issues;
+}
+
+// B2 ratchet baseline: recorded in spec/audit/conformance-baseline.json. A
+// count above the baseline is an error (no new nominal evidence); below is fine.
+const BASELINE_PATH = path.resolve(__dirname, "..", "spec", "audit", "conformance-baseline.json");
+interface ConformanceBaseline { bundledOnlyBucketC: number; appendixFAssertionMiss: number; }
+function loadBaseline(): ConformanceBaseline | null {
+  try { return JSON.parse(fs.readFileSync(BASELINE_PATH, "utf-8")); } catch { return null; }
+}
+function saveBaseline(b: ConformanceBaseline): void {
+  fs.mkdirSync(path.dirname(BASELINE_PATH), { recursive: true });
+  fs.writeFileSync(BASELINE_PATH, JSON.stringify(b, null, 2) + "\n");
+}
+function applyRatchet(name: string, current: number, baseline: number | undefined): string | null {
+  if (baseline === undefined) return null;
+  if (current > baseline) return `${name}: ${current} exceeds the recorded baseline of ${baseline} — new nominal evidence is not allowed`;
+  return null;
 }
 
 // Placeholder-stub detection (REQ-090/091 guard). Returns the stub sentinel
@@ -2148,6 +2280,7 @@ function main(): void {
 
   const implStrict = process.argv.includes("--impl-audit=strict");
   const writeRegister = process.argv.includes("--write-register");
+  const writeBaseline = process.argv.includes("--write-baseline");
 
   const stubIssues = checkPlaceholderStubs();
   if (stubIssues.length > 0) { for (const issue of stubIssues) console.log(`ERROR: ${issue}`); errors += stubIssues.length; }
@@ -2167,11 +2300,33 @@ function main(): void {
     warnings += inflationIssues.length;
   } else console.log("PASS: No over-stuffed test names (<= 4 IDs per name)");
 
-  const bundledIssues = checkBundledEvidence(implRows);
-  if (bundledIssues.length > 0) {
-    for (const issue of bundledIssues) console.log(`WARNING: bundled-only evidence — ${issue}`);
-    warnings += bundledIssues.length;
-  } else console.log("PASS: No bundled-only bucket-C evidence");
+  // B2/B4 — nominal-evidence ratchet. Bundled-only bucket-C evidence and
+  // Appendix F assertion misses are warnings, but their counts may not rise
+  // above the recorded baseline (no new nominal evidence).
+  const harnessNames = collectHarnessTestNames();
+  const bundledIssues = checkBundledEvidence(implRows, harnessNames);
+  const appendixFIssues = checkAppendixFAssertions(text, exercisedIds);
+  const baseline = loadBaseline();
+  if (writeBaseline) {
+    saveBaseline({ bundledOnlyBucketC: bundledIssues.length, appendixFAssertionMiss: appendixFIssues.length });
+    console.log(`Baseline written: bundledOnlyBucketC=${bundledIssues.length}, appendixFAssertionMiss=${appendixFIssues.length}`);
+  }
+  for (const issue of bundledIssues) console.log(`WARNING: bundled-only evidence — ${issue}`);
+  for (const issue of appendixFIssues) console.log(`WARNING: Appendix F assertion miss — ${issue}`);
+  warnings += bundledIssues.length + appendixFIssues.length;
+  const bundledRatchet = applyRatchet("bundled-only bucket-C evidence", bundledIssues.length, baseline?.bundledOnlyBucketC);
+  const appendixRatchet = applyRatchet("Appendix F assertion misses", appendixFIssues.length, baseline?.appendixFAssertionMiss);
+  if (bundledRatchet) { console.log(`ERROR: ${bundledRatchet}`); errors++; }
+  if (appendixRatchet) { console.log(`ERROR: ${appendixRatchet}`); errors++; }
+  if (bundledIssues.length === 0 && appendixFIssues.length === 0) console.log("PASS: No bundled-only or assertion-miss evidence");
+
+  // B1 — config-surface parity: every runtime config read is declared or
+  // dispositioned, and every declared runtime config is read or dispositioned.
+  const configSurfaceIssues = checkConfigSurfaceParity(text);
+  if (configSurfaceIssues.length > 0) {
+    for (const issue of configSurfaceIssues) console.log(`ERROR: ${issue}`);
+    errors += configSurfaceIssues.length;
+  } else console.log("PASS: Config surface parity (§7.6 ↔ holonovel/src)");
 
   const intendedGapIssues = checkIntendedGapDispositions(sourceCites);
   if (intendedGapIssues.length > 0) { for (const issue of intendedGapIssues) console.log(issue); errors += intendedGapIssues.length; }
@@ -2194,6 +2349,16 @@ function main(): void {
     errors += newGapIssues.length;
   } else {
     console.log("PASS: No un-cited REQs newly added since the committed register");
+  }
+
+  // B3 — a REQ new since the committed register that buckets to C must have a
+  // direct test (its ID in a test-name prefix), not merely a bundled mention.
+  const directEvidenceIssues = checkDirectEvidenceForNewReqs(implRows, knownReqs, harnessNames);
+  if (directEvidenceIssues.length > 0) {
+    for (const issue of directEvidenceIssues) console.log(`ERROR: ${issue}`);
+    errors += directEvidenceIssues.length;
+  } else {
+    console.log("PASS: New bucket-C REQs carry direct test evidence");
   }
 
   console.log(`Source-cited REQs: ${sourceCites.size}; exercised test IDs: ${exercisedIds.size}; total REQs: ${implRows.length}`);

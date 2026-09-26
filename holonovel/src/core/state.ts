@@ -1686,6 +1686,16 @@ export class StateManager {
     return { sessions: archived.length, entries: totalEntries };
   }
 
+  // REQ-240b — keep only the most recent `keepSessions` sessions' audit entries.
+  // Used by `manage_novel (action: clone, trim_audit_sessions)`.
+  trimAuditLogToSessions(log: AuditEntry[], keepSessions: number): AuditEntry[] {
+    if (!Number.isInteger(keepSessions) || keepSessions < 1) return log;
+    const boundaries: number[] = [];
+    for (let i = 0; i < log.length; i++) if (log[i].tool === "[session-boundary]") boundaries.push(i);
+    if (boundaries.length <= keepSessions) return log;
+    return log.slice(boundaries[boundaries.length - keepSessions]);
+  }
+
   verifyAuditChain(novel: NovelState): { valid: boolean; entries: number; first_broken_index?: number } {
     const entries = novel.audit_log;
     if (entries.length === 0) return { valid: true, entries: 0 };

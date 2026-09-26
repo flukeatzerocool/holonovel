@@ -295,6 +295,21 @@ async function main() {
       const recap = await call(p, "manage_session", { action: "recap", session_id: "s1" });
       assertContains(recap, "archived_session: s1");
     });
+
+    await test("T278/REQ-240a: clone copies the audit tier and honors trim_audit_sessions", async () => {
+      const before = await health(p);
+      const clone = await call(p, "manage_novel", { action: "clone", source_slug: "compact-novel", new_name: "clone-audit" });
+      assertContains(clone, "[OK]");
+      await call(p, "manage_novel", { action: "resume", slug: "clone-audit" });
+      const after = await health(p);
+      if (after.audit_log_entries < before.audit_log_entries) {
+        throw new Error(`clone dropped audit entries: ${after.audit_log_entries} < ${before.audit_log_entries}`);
+      }
+      const archive = JSON.parse(await readResource(p, "audit://novel/archive"));
+      if (!Array.isArray(archive) || archive.length !== 1 || archive[0].session_id !== "s1") {
+        throw new Error(`clone did not inherit audit_archive: ${JSON.stringify(archive)}`);
+      }
+    });
     await kill(p);
     rmSync(dir, { recursive: true, force: true });
   }

@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 3cd1062856a01ebccd5bd38596dbcb60104d759d1123ffd89e551744165cf0b8
+**Spec hash:** 5949258f5d4a758e8ae1bc7785cb48a18a0500a57c1c74703e92678563c700e5
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -65,6 +65,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Behavioral | TTRPG_AUTONOMY, TTRPG_PACING_WINDOW, TTRPG_NPC_AUTONOMY, TTRPG_NPC_MIND, TTRPG_MAX_AVAILABLE_ACTIONS, TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS, TTRPG_WORLD_REACTIVITY, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE, TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER |
 | Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
 | System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
+
+### Holonovel Spec Update — 2026-09-26 (conformance-gap prevention)
+
+| Field | Value |
+|-------|-------|
+| Delta class | patch |
+| Changed | spec + validator + implementation — actions the AAR recommendations and installs conformance-gap prevention. Spec: Appendix M gains action-contract uniqueness, assertion-relevance, and config-declaration items. Validator: B1 config-surface parity (`checkConfigSurfaceParity` — every `TTRPG_*` read is declared in §7.6 or dispositioned, and vice versa); B2 false-C + B4 Appendix F assertion ratchet with `spec/audit/conformance-baseline.json`; B3 direct-test requirement for new bucket-C REQs; B5 `scripts/compare-spec-code.ts --gate` wired as `check:conformance` into `check`/`check:fast`/pre-push. Implementation: clone/branch copy the audit tier and `clone` honors `trim_audit_sessions` (REQ-240a/REQ-240b); `TTRPG_WORLD_REACTIVITY` gates the World in Motion cycle with directive overrides (REQ-233a/REQ-081, closing a phantom config the new B1 gate surfaced). `TTRPG_PROMPT_BUDGET` disposition added; the action-contract conflict lint (B6) deferred to ROADMAP.md pending a vetted parser. |
+| Reused | source, config, extraction, lockfile, surfaces |
+| Verification | assemble + check:fast 0 errors (18 B4 warnings baselined); validate:sdd --impl-audit=strict 0 errors; typecheck 0 errors (both trees); holonovel test:all 31 harnesses 0 failures; check:conformance --gate PASS; config-surface parity PASS; fingerprints in sync |
+| Follow-up | ROADMAP.md — action-contract conflict lint held until a vetted `tool (action:, params)` parser exists. |
 
 ### Holonovel Spec Update — 2026-09-26 (implementation conformance remediation)
 
@@ -1210,3 +1220,4 @@ runtime (REQ-389a), so these are intended gaps, not host conformance gaps.
 | `TTRPG_CONFIDENCE_FLOOR` | Builder-side | Supplementary-ruleset import admission floor (REQ-100); applied during build-time extraction. |
 | `TTRPG_WORLD_PROMINENCE` | Builder-side | World-model prominence tier selected at build time (REQ-309). |
 | `TTRPG_PORT` | Intended gap (optional) | Optional inbound HTTP transport; the reference host ships the stdio transport only. Inbound-only; does not affect REQ-051. |
+| `TTRPG_PROMPT_BUDGET` | Legacy fallback | Pre-rename alias for `TTRPG_MAX_BRIEFING_TOKENS`, honored when the new variable is unset so existing callers keep working. |

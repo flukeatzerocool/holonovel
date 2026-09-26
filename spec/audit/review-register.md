@@ -8,6 +8,16 @@ the tracking surfaces for the coverage backlog.
 
 ## Resolved
 
+- **Conformance-gap remediation + prevention program** (2026-09-26, commit
+  `65146ab` + follow-on): resolved the config-drift class and the false-C
+  evidence class found by the spec↔code audit (REQ-129, REQ-097, REQ-239,
+  REQ-241, REQ-096, REQ-092, REQ-084, REQ-030/REQ-055a, REQ-063b, REQ-405,
+  REQ-246a, REQ-077). Prevention wired: config-surface parity gate (B1),
+  false-C + Appendix F assertion ratchet with baseline (B2/B4), direct-test
+  requirement for new bucket-C REQs (B3), and the conformance dossier in
+  `check:fast`/pre-push (B5). The "Pre-existing config drift outside the
+  unpushed range" and "SC-7 comment-only source citations" Closed-P3 entries
+  below are superseded: both classes are now mechanically caught.
 - **§7.6 config-default alignment, commits since `origin/main`** (2026-09-25):
   audited the 15 configs added and 4 re-annotated by the 27 unpushed commits
   against the solo-play north star and their REQ/coupling/classification
@@ -156,27 +166,14 @@ the tracking surfaces for the coverage backlog.
 
 ## Closed-P3 (recorded, no action)
 
-- **Pre-existing config drift outside the unpushed range** (2026-09-25): the
-  §7.6-vs-code scan also surfaced out-of-range items not introduced by the 27
-  unpushed commits — undeclared code reads (`TTRPG_AUTONOMY_MUTATION_CEILING`,
-  `TTRPG_AUDIT_MAX_ENTRIES`, `TTRPG_OUTPUT_LIMIT`, `TTRPG_OUTPUT_SESSION_LIMIT`,
-  `TTRPG_SPEC_REPO_URL`, `TTRPG_ADVENTURE_DIR`, the `TTRPG_PROMPT_BUDGET`
-  fallback) and spec-declared-but-unread (`TTRPG_NPC_URGENCY_THRESHOLD`,
-  `TTRPG_MAX_AVAILABLE_ACTIONS`, `TTRPG_MAX_LORE_TOKENS`). Recorded Closed-P3:
-  outside the "commits since the last push" scope; each is a candidate for the
-  spec↔code comparison tool.
-
-- **SC-7 comment-only source citations** (spec↔code comparison SC-7, 2026-09-25):
-  sampled 2026-09-25 — 12 of the 105 REQs flagged `weak-cite-only-comments`
-  (REQ-001, 020, 041, 052, 074, 085, 165, 198, 219, 235, 255, 286) were read at
-  their comment-only cite sites; every one has real implementing code adjacent
-  to the comment (response contract at `index.ts:930`, path containment at
-  `index.ts:61`, entities/party resources at `index.ts:7463`, macro expansion at
-  `macros.ts:20`, choice advance at `index.ts:1604`, boundary advisory at
-  `index.ts:872`, world model at `model.ts:5`, and so on). No false bucket-C
-  found. The class is recorded Closed-P3: a comment-only citation is a citation-
-  *location* weakness, not missing behavior, and a full 105-REQ code read is not
-  warranted.
+- **Config drift + comment-only-citation false-C** (superseded 2026-09-26): the
+  prior Closed-P3 dispositions for "pre-existing config drift" and "SC-7
+  comment-only source citations" are withdrawn. The config items are fixed or
+  dispositioned and gated (B1); the SC-7 12-REQ sample understated the class —
+  the full audit found seven false-C REQs whose only exercised test asserted
+  nothing relevant. This is a methodology finding: nominal evidence (an ID
+  inside a bundled test name) is not evidence. Closed by the prevention
+  mechanisms above.
 - **DECISIONS.md gate-classification table absent** (content-integration scan,
   2026-09-04): RESOLVED 2026-09-25 — DECISIONS.md carries the REQ-137a table
   enumerating all 34 tools, and REQ-137b badge-filtered `tools/list` is

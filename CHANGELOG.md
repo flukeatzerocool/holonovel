@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-26 — Conformance-gap prevention + follow-through
+
+- The validator now closes the config-drift class: a `TTRPG_*` variable read
+  in the server must be declared in §7.6 or dispositioned in DECISIONS.md, and
+  a declared variable must be read or dispositioned. (REQ-388, REQ-454)
+- Nominal evidence is ratcheted: bundled-only bucket-C citations and Appendix F
+  assertion misses are counted against a recorded baseline, so new regressions
+  fail the gate while the historical pool stays visible. (REQ-113)
+- A REQ added since the committed register must carry a direct test — its ID in
+  a test-name prefix, not a bundled mention.
+- `check:conformance` runs the spec↔code dossier's bundle-dependent-REQ gate
+  and is wired into `check` and `check:fast`.
+- Clone and branch now copy the source Novel's audit log and archive; `clone`
+  honors `trim_audit_sessions`. (REQ-240a, REQ-240b)
+- `TTRPG_WORLD_REACTIVITY` is honored — it gates the World in Motion cycle,
+  with narrative-directive keyword overrides. (REQ-233a, REQ-081)
+- Appendix M adds action-contract uniqueness, assertion-relevance, and
+  config-declaration authoring items.
+- Deferred: the action-contract conflict lint is held on ROADMAP.md until a
+  vetted `tool (action:, params)` parser exists.
+
 ## 2026-09-26 — Implementation conformance remediation
 
 - Property-group cardinality is enforced: `TTRPG_MAX_NPCS`,
