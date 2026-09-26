@@ -2471,12 +2471,12 @@ build artifact — it is a spec-maintainer reference.
       by which surface owes the behavior, not by section title (§5.18 mixes
       both).
 - [ ] Mechanical consequences: a new server-runtime REQ or a `Behavioral`
-      configuration is shipped in the same change as its §5 section coverage-map
-      row, its `spec/audit/req-coverage.md` register entry (`npm run validate --
-      --write-register`), a direct test-name prefix carrying its ID, the runtime
-      behavioral-config list when a §7.6 `Behavioral` variable is added, and
-      fingerprint regeneration when the target section feeds one (`npm run
-      build-order`).
+      configuration is shipped in the same change as its section
+      REQ-coverage-map row, its `spec/audit/req-coverage.md` register entry
+      (`npm run validate -- --write-register`), a direct test-name prefix
+      carrying its ID, the runtime behavioral-config list when a `Behavioral`
+      variable is added, and fingerprint regeneration when the target section
+      feeds one (`npm run build-order`).
 
 These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,
@@ -2672,6 +2672,33 @@ Outcome: A clean strike past the guard.
 ```
 
 Verify with T91, T138.
+
+**O.9 — Structured result contracts:**
+
+Every tool response carries a machine-readable `structuredContent` object
+alongside its text envelope (REQ-548a). Field sets:
+
+| Field set | Fields | Contract |
+|-----------|--------|----------|
+| Structured result | `status`, `text` | REQ-548a |
+| Structured error | `category`, `corrective_action` | REQ-548c |
+| Decision option set | `options[].value`, `options[].label` | REQ-548d |
+| Narration grounding set | `entities`, `npcs`, `scene`, `rooms`, `things` | REQ-312e |
+
+The text envelope remains canonical (REQ-001); a client that ignores structured
+results observes unchanged output.
+
+**O.10 — Codex adventure payload (REQ-321f):**
+
+| Field | Shape |
+|-------|-------|
+| `title`, `slug`, `premise`, `overview`, `hook` | strings |
+| `source` | `generated`, `loaded:<adventure_slug>`, or `captured:<novel_slug>` |
+| `locations` | array of `{heading, flavor_text}` |
+| `npc_suggestions` | array of `{name, description}` |
+| `encounter_seeds` | array of free-text entries |
+| `genre_tags` | array of strings |
+| `sections` | parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, `## Scenes`, `## NPCs`, `## Lore`, `## Seeds` |
 
 ---
 
