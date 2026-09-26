@@ -104,8 +104,8 @@ Verification harnesses (`npm run test:*`) include the Holonovel Pattern Buffer
 the Ruleset-scope suite (`test:pattern-buffer-ruleset`, §6.6 sub-workflows
 S1–S37 — in-tree scaffolding for ruleset builds; server-native ones execute;
 mechanics-fidelity ones record `skipped — ruleset hash unchanged`; S30/S31
-record `blocked` (REQ-372/373 bucket-E gap, see ROADMAP.md); the rest are
-`follow-on` increments, all summarized in the emitted
+execute (REQ-372 supplementary import; REQ-373 is a terminal builder-scope
+non-goal); the rest are `follow-on` increments, all summarized in the emitted
 `ruleset-pattern-buffer-manifest.json`).
 
 Tests live in `scripts/test-*.ts` and run as tsx harnesses via `npm run test:all`.

@@ -66,6 +66,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
 | System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
 
+### Holonovel Spec Update — 2026-09-26 (roadmap close-out, latent defects, report-only lint)
+
+| Field | Value |
+|-------|-------|
+| Delta class | patch |
+| Changed | spec + tooling + docs — actions the AAR recommendations. Spec: REQ-233a2/233a3 state the World in Motion two-gate model (`TTRPG_WORLD_REACTIVITY` gates the section; `TTRPG_NPC_AUTONOMY` additionally gates NPC goal pursuit) and T358 is amended to match; REQ-156 parameter drift fixed (`npc_id` → `entity_id`, matching REQ-077b–d and `src/index.ts`); Appendix M action-contract-uniqueness item gains the binding grammar and the definitional-vs-cumulative-decomposition distinction; T424 notes the waiver branch is the reference build's permanent path. Tooling: new report-only `scripts/action-conflicts.ts` (informational; deliberately not gate-wired) plus `extractActionBindings` in `parse-spec.ts` with unit tests; REQ-373 disposition updated to a terminal builder-scope non-goal in `INTENDED_GAP_CITED_DISPOSITIONS`. Docs: ROADMAP pruned to open items only (codex `capture` conflict scheduled; error-gate deferred); review-register dispositions updated; S30/S31 stale `blocked` notes corrected; build-review §7 and plan-review §2 skills updated (external). |
+| Reused | source, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors; test:validators 18/18; action-conflicts report-only; fingerprints in sync |
+| Follow-up | ROADMAP.md — codex `capture` action-contract conflict (REQ-321f vs REQ-347a). |
+
 ### Holonovel Spec Update — 2026-09-26 (conformance gating follow-through)
 
 | Field | Value |

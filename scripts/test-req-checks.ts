@@ -4,7 +4,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts } from "./lib/req-checks.js";
-import { extractReferenceProse } from "./lib/parse-spec.js";
+import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
 
 let passed = 0;
 let failed = 0;
@@ -153,6 +153,49 @@ test("reference prose includes §6 and appendix paragraphs", () => {
   if (!joined.includes("summarizes the reference material")) {
     throw new Error(`appendix prose missing from reference prose; got: ${JSON.stringify(paragraphs)}`);
   }
+});
+
+test("action bindings: named parameters are extracted", () => {
+  const text = "**REQ-910a — Compress (Part a).**\n`manage_session (action: compress, max_entries)` renders a prompt. _Check:_ T1.";
+  const b = extractActionBindings(text);
+  if (b.length !== 1 || b[0].tool !== "manage_session" || b[0].action !== "compress" || b[0].params.join(",") !== "max_entries") {
+    throw new Error(`unexpected bindings: ${JSON.stringify(b)}`);
+  }
+});
+
+test("action bindings: optional `?` parameter is normalized", () => {
+  const text = "**REQ-911a — Compact (Part a).**\n`manage_session (action: compress, sessions?)` compacts. _Check:_ T2.";
+  const b = extractActionBindings(text);
+  if (b.length !== 1 || b[0].params.join(",") !== "sessions") {
+    throw new Error(`unexpected bindings: ${JSON.stringify(b)}`);
+  }
+});
+
+test("action bindings: positional arguments are ignored", () => {
+  const text = "**REQ-912a — Search (Part a).**\n`manage_ruleset (action: search, \"grapple\")` searches. _Check:_ T3.";
+  const b = extractActionBindings(text);
+  if (b.length !== 1 || b[0].params.length !== 0) {
+    throw new Error(`unexpected bindings: ${JSON.stringify(b)}`);
+  }
+});
+
+test("action bindings: an action list yields one binding per action", () => {
+  const text = "**REQ-913a — Import (Part a).**\n`manage_ruleset (action: import_supplementary/remove_supplementary)` imports. _Check:_ T4.";
+  const b = extractActionBindings(text);
+  if (b.length !== 2 || b.map((x) => x.action).sort().join(",") !== "import_supplementary,remove_supplementary") {
+    throw new Error(`unexpected bindings: ${JSON.stringify(b)}`);
+  }
+});
+
+test("action bindings: acceptance-criterion calls are not bindings", () => {
+  const text = [
+    "**REQ-914a — Body (Part a).**",
+    "The server SHALL do work.",
+    "*Acceptance criterion:* `manage_session (action: compress, max_entries)` renders a prompt.",
+    "_Check:_ T5.",
+  ].join("\n");
+  const b = extractActionBindings(text);
+  if (b.length !== 0) throw new Error(`expected no bindings; got: ${JSON.stringify(b)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

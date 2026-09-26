@@ -6,8 +6,8 @@
 // `ruleset_pattern_buffer_manifest` (H13 handoff artifact) to stdout as JSON on
 // `--json` and to `<data-dir>/ruleset-pattern-buffer-manifest.json`.
 // Host-tree scaffolding for ruleset (TTRPG) builds: mechanics-fidelity
-// sub-workflows record `skip` (ruleset-free host), S30/S31 record `blocked`
-// (REQ-372/373 bucket-E gap, see ROADMAP.md).
+// sub-workflows record `skip` (ruleset-free host); S30/S31 execute (REQ-372
+// supplementary import; REQ-373 is a terminal builder-scope non-goal).
 //
 // Sub-workflow modes:
 //   execute  — steps run against the server; PASS/FAIL from assertions

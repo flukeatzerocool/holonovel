@@ -159,20 +159,34 @@ the tracking surfaces for the coverage backlog.
   (room/container/supporter), and parser `take` scans supporter/container
   things. Historical DECISIONS.md entries left as immutable build records; no
   open action.
+- **World in Motion gating tension (T358 vs T389)** (2026-09-26): RESOLVED by
+  spec decision — the two-gate model is canonical. `TTRPG_WORLD_REACTIVITY`
+  (default active) gates the World in Motion section and its non-NPC entries;
+  NPC goal-pursuit suggestions (REQ-339) additionally require
+  `TTRPG_NPC_AUTONOMY=on` (default off). REQ-233a2 states the two gates,
+  REQ-233a3's acceptance criterion sets both variables for the goal-pursuit
+  assertion and adds the `NPC_AUTONOMY=off` negative case, and T358 was
+  amended to match. No code change — `holonovel/src/index.ts:8969` gates the
+  section on `worldReactivityOn()` and `:8970` seeds goal pursuit under
+  `npcAutonomyOn()`. Surfaced by the B1 config-surface parity gate.
+- **build-review skill §7 edit** (prior AAR Item 6): RESOLVED — §7 "Spec hash
+  drift" gains a dated-narrative-entry check (confirm the human-readable
+  `### Holonovel Spec Update — <date>` entry exists after assembly, not only
+  the synced hash line). build-review `metadata.version` 2.3 → 2.4. External
+  file, not in this repo. The same pass added a heuristic-check
+  false-positive-budget item to plan-review §2 (version 2.3 → 2.4).
 
 ## Scheduled-roadmap
 
-- **World in Motion gating tension (T358 vs T389)** (2026-09-26, P2, needs a
-  spec decision): T358 asserts that `TTRPG_WORLD_REACTIVITY=on` alone surfaces
-  an NPC goal-pursuit entry in `## World in Motion`, while T389 asserts
-  `TTRPG_NPC_AUTONOMY=off` suppresses goal-pursuit suggestions (and its default
-  is off per REQ-339). The two cannot both hold if goal pursuit requires
-  `NPC_AUTONOMY`. The implementation gates the section on `worldReactivityOn()`
-  and seeds goal pursuit under `npcAutonomyOn()` — satisfying T389 and the
-  `off` half of T358, but not T358's `WORLD_REACTIVITY=on / NPC_AUTONOMY=off`
-  case. Resolution requires a spec decision naming one gating owner and default
-  for the World in Motion section; tracked on ROADMAP.md. Surfaced by the B1
-  config-surface parity gate.
+- **Codex `capture` action-contract conflict (REQ-321f vs REQ-347a)** (P2,
+  scheduled): REQ-321f defines `manage_codex (action: capture, kind,
+  source_id)` (pull an existing Novel artifact), while REQ-347a defines
+  `manage_codex (action: capture, entity_id, update_source)` (voice-profile
+  capture). The implementation (`holonovel/src/index.ts` `case "capture"`)
+  implements the voice-profile path only, so REQ-321f's general capture is
+  unimplemented. Needs a spec decision: narrow REQ-321f to the implemented
+  voice-profile contract, or schedule the general capture as a feature. Found
+  by the report-only action-conflict lint (`scripts/action-conflicts.ts`).
 
 ## Closed-P3 (recorded, no action)
 
@@ -194,9 +208,15 @@ the tracking surfaces for the coverage backlog.
   (P55–P59 coupling rows; TTRPG_WORLD_PROMINENCE / TTRPG_NOVEL_PREVIEW_CHARS
   reclassified non-behavioral; TTRPG_CLIMAX_ACCELERATION and
   TTRPG_SYNTHESIS_AUTO_TRIGGER had already gained P1 / P47 rows). See Resolved.
-- **REQ-373 (dynamic tool registration) intended gap** — remains a recorded
-  waiver under REQ-372d; the waiver rationale was corrected 2026-09-25 to a
-  build-scope basis (the MCP SDK supports runtime registration).
+- **REQ-373 (dynamic tool registration) intended gap** — terminal builder-scope
+  non-goal. The reference `holonovel` build registers ruleset-derived tools
+  statically by design; the MCP SDK's runtime-registration capability is
+  acknowledged and deliberately unused (the 2026-09-25 correction established
+  the limitation is build scope, not stack capability). Recorded in
+  `holonovel/DECISIONS.md` (a dated build record; the historical Waiver (5)
+  entry is left immutable), dispositioned in `scripts/validate.ts`
+  `INTENDED_GAP_CITED_DISPOSITIONS`, and exercised by T424's waiver branch. No
+  re-activation trigger.
 - **Counting-surface drift** (2026-09-08 evaluation, F3): the three prior
   instances (§5 index drift, build-phase-map subsection count, AGENTS.md
   tool-surface drift) are Resolved and now mechanically enforced
@@ -228,4 +248,4 @@ the tracking surfaces for the coverage backlog.
 
 ## Deferred-by-user
 
-- **build-review skill §7 edit** (prior AAR Item 6): excluded by user decision.
+None.

@@ -1572,12 +1572,12 @@ The server surfaces the fields in `badge_briefing` and at `npc://<id>/personalit
 **REQ-156 — NPC description field.** The `description` field listed in
 REQ-075 and the `description` personality field in REQ-122 refer to the same
 NPC property. Setting description via either `manage_npc (action: create, description=...)`
-or `manage_character (action: personality, npc_id, {description: ...})` SHALL write to the same
+or `manage_character (action: personality, entity_id, {description: ...})` SHALL write to the same
 field. The most recent write wins.
 A read via `npc://<id>`, `manage_character (action: sheet)`, or `npc://<id>/personality`
 SHALL return the same value from all surfaces.
 *Acceptance criterion:* `manage_npc (action: create, "Guard", description="Tall")` then
-`manage_character (action: personality, npc_id, {description: "Suspicious"})` produces an NPC
+`manage_character (action: personality, entity_id, {description: "Suspicious"})` produces an NPC
 whose description reads "Suspicious" at `npc://<id>`, `manage_character (action: sheet)`,
 and `npc://<id>/personality`.
 _Check:_ T191.
@@ -1977,10 +1977,10 @@ When the caller sets a relationship between a faction and an entity (REQ-236), t
 WHEN scene_transition (REQ-125) fires, THE engine SHALL autonomously advance the world state beyond faction clocks. FOR each NPC with `goals` whose last-known location differs from a goal-relevant entity's current scene, the engine SHALL check goal progress — success produces a campaign memory fact (REQ-310), failure produces a stalled-pursuit fact. WHEN a player action triggers a state change in a connected entity (relationship change, secret revelation, faction clock filling), the engine SHALL trace ripple effects through directly connected entities one hop.
 
 **REQ-233a2 — World reactivity (Part a2).**
-The GM SHALL see a World in Motion section in `badge_briefing` listing pending world changes with source, summary, and accept/modify/defer labels. Accept applies the change to canonical state. Modify raises a `[NEED_INPUT]` workflow. Defer suppresses the change (max 3 deferrals; fourth escalates to `[WARNING]` in `spec_health`). A setting `TTRPG_WORLD_REACTIVITY` (defaults to active) controls whether the reactivity cycle runs.
+The GM SHALL see a World in Motion section in `badge_briefing` listing pending world changes with source, summary, and accept/modify/defer labels. Accept applies the change to canonical state. Modify raises a `[NEED_INPUT]` workflow. Defer suppresses the change (max 3 deferrals; fourth escalates to `[WARNING]` in `spec_health`). A setting `TTRPG_WORLD_REACTIVITY` (defaults to active) controls whether the reactivity cycle runs. NPC goal-pursuit suggestions (REQ-339) SHALL additionally require `TTRPG_NPC_AUTONOMY=on` (default off); the reactivity cycle's non-NPC entries run under `TTRPG_WORLD_REACTIVITY` alone.
 
 **REQ-233a3 — World reactivity (Part a3).**
-When `off`, scene transitions advance faction clocks only (current behavior). *Acceptance criterion:* With `TTRPG_WORLD_REACTIVITY=on`, an NPC with `goals="Steal the crown"` produces a World in Motion entry at scene transition showing goal pursuit progress. A relationship change on entity A (`ally` → `rival` with entity B) produces a campaign memory fact on entity B. The GM accepts a proposed change — it appears in campaign memory. The GM defers a change — it re-appears at the next scene transition. _Check:_ T358.
+When `off`, scene transitions advance faction clocks only (current behavior). *Acceptance criterion:* With `TTRPG_WORLD_REACTIVITY=on` and `TTRPG_NPC_AUTONOMY=on`, an NPC with `goals="Steal the crown"` produces a World in Motion entry at scene transition showing goal pursuit progress. With `TTRPG_WORLD_REACTIVITY=on` and `TTRPG_NPC_AUTONOMY=off`, no NPC goal-pursuit entry appears. A relationship change on entity A (`ally` → `rival` with entity B) produces a campaign memory fact on entity B. The GM accepts a proposed change — it appears in campaign memory. The GM defers a change — it re-appears at the next scene transition. _Check:_ T358.
 **REQ-236a — Entity relationships (Part a).**
 The Game Master may set directed relationships between entities, NPCs, and factions. `manage_relationship (action: set, entity_a, entity_b, type, value?, description?)` sets a directed relationship. Relationship types: `ally`, `rival`, `neutral`, `mentor` and `dependent`, `suspicious`. `manage_relationship (action: get, entity_id)` returns all relationships for an entity (both outgoing and incoming). Relationships SHALL appear on `manage_character (action: sheet)` output in a "Relationships" section. When an entity's relationship type changes between `ally` and `rival` (in either direction), the GM SHALL be prompted via `badge_briefing` to consider a lore entry.
 
