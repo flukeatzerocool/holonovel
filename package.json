@@ -15,6 +15,7 @@
     "typecheck": "npx tsc --noEmit",
     "validate-readme": "npx tsx scripts/validate-readme.ts",
     "detect-dupes": "npx tsx scripts/detect-near-dupes.ts",
+    "action-conflicts": "npx tsx scripts/action-conflicts.ts",
     "check-traceability": "npx tsx scripts/check-traceability.ts",
     "check-script-discipline": "npx tsx scripts/check-script-discipline.ts",
     "check-fingerprint-sync": "npx tsx scripts/check-fingerprint-sync.ts",

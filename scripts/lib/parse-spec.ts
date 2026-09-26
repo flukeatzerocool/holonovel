@@ -68,6 +68,52 @@ export function splitSentences(text: string): string[] {
   return parts.filter((s) => s.trim().length > 0);
 }
 
+export interface ActionBinding {
+  reqId: string;
+  tool: string;
+  action: string;
+  params: string[];
+}
+
+// Matches `tool (action: name[/name2], param, param?)` bindings in REQ bodies.
+// The parameter tail stops at the first `)`, so values containing nested
+// parentheses are parsed heuristically — acceptable because the tail is only
+// scanned for identifier-shaped parameter names.
+const ACTION_BINDING_RE = /\b([a-z][a-z0-9_]*) \(action: ([a-z][a-z0-9_]*(?:\/[a-z][a-z0-9_]*)*)([^)]*)\)/g;
+
+// A parameter token is an identifier with an optional `?` and optional
+// `=literal` value. Positional arguments (quoted strings, numbers, arrays)
+// yield null and are ignored.
+function parseParamToken(tok: string): string | null {
+  const match = tok.trim().match(/^([a-z][a-z0-9_]*)\??(?:=.*)?$/);
+  return match ? match[1] : null;
+}
+
+// Extracts every `tool (action: …, params…)` binding from REQ bodies. An
+// action list (`import_supplementary/remove_supplementary`) yields one entry
+// per action, each carrying the same parameter set.
+export function extractActionBindings(text: string): ActionBinding[] {
+  const bindings: ActionBinding[] = [];
+  for (const [reqId, entry] of extractReqBodies(text)) {
+    // Scan only the normative body — acceptance-criterion calls are
+    // illustrative examples, not contract definitions.
+    const acIdx = entry.body.indexOf("*Acceptance criterion:*");
+    const body = acIdx >= 0 ? entry.body.slice(0, acIdx) : entry.body;
+    const re = new RegExp(ACTION_BINDING_RE.source, "g");
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(body)) !== null) {
+      const params = match[3]
+        .split(",")
+        .map(parseParamToken)
+        .filter((p): p is string => p !== null);
+      for (const action of match[2].split("/")) {
+        bindings.push({ reqId, tool: match[1], action, params });
+      }
+    }
+  }
+  return bindings;
+}
+
 export interface ReqBodyEntry {
   id: string;
   body: string;

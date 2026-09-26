@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-09-26 — Roadmap close-out: gating resolution, latent defects, report-only lint
+
+- World in Motion gating resolved: `TTRPG_WORLD_REACTIVITY` gates the section
+  and its non-NPC entries, while `TTRPG_NPC_AUTONOMY` additionally gates NPC
+  goal pursuit. REQ-233a2/233a3 state the two-gate model and T358 is amended to
+  set both variables. (REQ-233a, REQ-339)
+- Fixed a parameter drift: `manage_character (action: personality)` used
+  `npc_id` in REQ-156 but `entity_id` in REQ-077b–d and `src/index.ts`.
+  (REQ-156)
+- Added report-only `scripts/action-conflicts.ts`, which flags candidate
+  action-contract conflicts (`tool (action: …, params…)` bindings across REQs)
+  for Appendix M review. It is deliberately not gate-wired — a corpus-wide dry
+  run showed the heuristic cannot separate operation overload from cumulative
+  requirement decomposition. The error gate stays deferred.
+- REQ-373 is recorded as a terminal builder-scope non-goal; the reference build
+  statically registers ruleset-derived tools by design. The validator
+  disposition and the T424 note were updated. (REQ-373)
+- ROADMAP pruned to open items only; the codex `capture` action-contract
+  conflict (REQ-321f vs REQ-347a) is scheduled.
+- Appendix M action-contract-uniqueness item documents the binding grammar and
+  the definitional-versus-decomposition distinction.
+- Corrections: S30/S31 stale `blocked` notes (holonovel AGENTS.md and the
+  pattern-buffer header); review-register dispositions.
+- External skills: build-review §7 gains a dated-narrative-entry check;
+  plan-review §2 gains a heuristic-check false-positive-budget item.
+
 ## 2026-09-26 — Conformance gating follow-through
 
 - Recorded the World in Motion gating tension (T358 versus T389) as a

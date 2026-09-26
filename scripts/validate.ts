@@ -1775,7 +1775,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-247": "adventure structure extraction — §6.3 discovery heuristic",
   "REQ-225": "Ruleset Wisdom extraction — build-time; cited for build-time provenance in wisdom.ts",
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
-  "REQ-373": "dynamic tool registration waived per REQ-372d — the reference stack statically registers MCP tools; recorded in DECISIONS.md (5) and exercised by T424's waiver branch",
+  "REQ-373": "terminal builder-scope non-goal — the reference holonovel build statically registers ruleset-derived tools by design (the MCP SDK's runtime registration is acknowledged and deliberately unused); recorded in DECISIONS.md and exercised by T424's waiver branch; no re-activation trigger",
   "REQ-124": "§5.6 ruleset-dependent NPC damage resolution — needs a ruleset with a defensive-stat/damage model and zero-health threshold, which the ruleset-free reference host does not provide; re-activate with such a package (spec-code comparison SC-2)",
   "REQ-123": "§5.6 builder-defined NPC stat fields — derived from a ruleset's own stat-block conventions at discovery; the ruleset-free reference host's package format carries no stat-block schema, so the NPC surface exposes narrative fields only. Re-activate with a stat-block ruleset (spec-code comparison SC-6)",
 };
@@ -1829,9 +1829,10 @@ const INTENDED_GAP_REQS = new Set([
   // REQ-388 holodeck_config was implemented 2026-09-25 — removed from this list.
   "REQ-107",
   // REQ-372 (supplementary import, Wisdom-only) is now server-runtime and
-  // cited — NOT whitelisted. REQ-373 (dynamic tool registration) remains an
-  // intended gap under the REQ-372d waiver (the reference stack registers MCP
-  // tools statically) — see INTENDED_GAP_CITED_DISPOSITIONS.
+  // cited — NOT whitelisted. REQ-373 (dynamic tool registration) is a terminal
+  // builder-scope non-goal: the reference stack registers MCP tools statically
+  // by design, so the REQ is never implemented and has no re-activation trigger
+  // — see INTENDED_GAP_CITED_DISPOSITIONS.
   "REQ-373",
   "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
   "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
