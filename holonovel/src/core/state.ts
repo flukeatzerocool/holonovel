@@ -13,7 +13,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
+import * as zlib from "zlib";
 import { createRng } from "./rng.js";
+import { snapshotDepth } from "./limits.js";
 import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 
@@ -172,6 +174,20 @@ export interface AuditEntry {
   output_prefix: string;
   hash: string;
   security_event?: boolean; // REQ-448 — security-relevant events carry a tag
+}
+
+// REQ-239 — a compacted audit session: the per-session summary that replaces
+// the raw entries removed from `audit_log`.
+export interface AuditArchiveSummary {
+  session_id: string;
+  timespan_start: string;
+  timespan_end: string;
+  entry_count: number;
+  confrontations: number;
+  significant_rolls: number;
+  condition_changes: number;
+  roster_changes: number;
+  scene_transitions: number;
 }
 
 export interface StoryEntry {
@@ -401,6 +417,20 @@ export function autonomyDefaultsFromEnv(): AutonomyState {
   return normalizeAutonomy({ ...DEFAULT_AUTONOMY, ...seeded });
 }
 
+// REQ-030 / REQ-055a — TTRPG_BADGE sets the initial active badge for a new or
+// unbadged Novel; a persisted Novel badge always takes precedence on resume.
+// REQ-405 / §7.6 — TTRPG_AUTO_RECORD supplies the default auto-moment flag for
+// a new or unflagged Novel (true unless explicitly "false").
+export function autoRecordDefaultFromEnv(): boolean {
+  return (process.env.TTRPG_AUTO_RECORD ?? "true") !== "false";
+}
+
+export function initialBadgeFromEnv(): Badge {
+  const raw = process.env.TTRPG_BADGE;
+  if (raw === "player" || raw === "game_master" || raw === "observer" || raw === "none") return raw;
+  return "none";
+}
+
 export const DIFFICULTY_TRACKS: Record<string, number> = {
   troublesome: 12, dangerous: 8, formidable: 4, extreme: 2, epic: 1,
 };
@@ -429,6 +459,8 @@ export interface NovelState {
   adventure_slug: string | null;
   generated_adventure: any | null;
   audit_log: AuditEntry[];
+  // REQ-239 — per-session summaries of compacted audit entries.
+  audit_archive: AuditArchiveSummary[];
   undo_stacks: Record<string, NovelState[]>;
   redo_stacks: Record<string, NovelState[]>;
   briefing_order: string[];
@@ -493,6 +525,8 @@ export interface NovelState {
     session_count: number;
     total_combat_rounds: number;
     last_scene_anchor: string;
+    // REQ-092h1 — compression state recorded for integrity verification on resume.
+    compression?: boolean;
     // REQ-237 — session segmentation: per-session metadata derived from
     // `[session-boundary]` audit markers (entry_count, combat rounds,
     // significant rolls, scene transitions, timespan).
@@ -680,6 +714,9 @@ export class StateManager {
   // resume (unparseable JSON, checksum mismatch, or data-migration failure),
   // surfaced as a [WARNING] in spec_health.data_health.corrupted.
   corruptData = new Map<string, string>();
+  // REQ-092h1 — Novels whose on-disk compression state disagrees with the
+  // active TTRPG_NOVEL_COMPRESS setting, surfaced as [compression-mismatch].
+  compressionMismatch = new Map<string, string>();
   // REQ-238 — slugs loaded from a backup this session. The first save after a
   // backup restore skips copying the (corrupt/stale) on-disk primary into
   // `.bak.1`, so a good backup is never overwritten and corruption is never
@@ -770,7 +807,7 @@ export class StateManager {
       slug,
       name,
       ruleset: ruleset ?? null,
-      badge: "none",
+      badge: initialBadgeFromEnv(),
       entities: new Map(),
       active_entity_id: null,
       npcs: new Map(),
@@ -790,6 +827,7 @@ export class StateManager {
       adventure_slug: null,
       generated_adventure: null,
       audit_log: [],
+      audit_archive: [],
       undo_stacks: { player: [], game_master: [], observer: [], none: [] },
       redo_stacks: { player: [], game_master: [], observer: [], none: [] },
       briefing_order: [],
@@ -830,7 +868,7 @@ export class StateManager {
       faction_autonomous_ticks: {},
       npc_goal_suggestions: [],
       voice_corrections_this_session: 0,
-      auto_record: true,
+      auto_record: autoRecordDefaultFromEnv(),
       session_no_mutation_windows: [],
       state_regression: null,
       last_mutation_at: null,
@@ -907,18 +945,46 @@ export class StateManager {
     return computed === data._checksum;
   }
 
+  // REQ-092g — gzip compression toggled by TTRPG_NOVEL_COMPRESS.
+  private compressionEnabled(): boolean {
+    return (process.env.TTRPG_NOVEL_COMPRESS ?? "false") === "true";
+  }
+
+  // REQ-092g/h1 — read a Novel (or backup) file transparently, detecting gzip
+  // by magic bytes so a compressed file loads under either setting.
+  private readNovelData(filePath: string): { data: any; compressed: boolean } {
+    const buf = fs.readFileSync(filePath);
+    const gz = buf.length > 1 && buf[0] === 0x1f && buf[1] === 0x8b;
+    const text = gz ? zlib.gunzipSync(buf).toString("utf-8") : buf.toString("utf-8");
+    const data = JSON.parse(text);
+    return { data, compressed: gz || data?.metadata?.compression === true };
+  }
+
+  // REQ-092h1 — a compressed Novel loaded with compression disabled warns.
+  private noteCompressionMismatch(slug: string, compressed: boolean): void {
+    if (compressed && !this.compressionEnabled()) {
+      this.compressionMismatch.set(slug, "compressed Novel loaded with TTRPG_NOVEL_COMPRESS disabled");
+    } else {
+      this.compressionMismatch.delete(slug);
+    }
+  }
+
   resumeNovel(slug: string): NovelState {
     const filePath = path.join(this.stateDir, "novels", `${slug}.json`);
     if (!fs.existsSync(filePath)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' does not exist on disk.`);
 
     let data: any;
     let primaryData: any = null;
+    let compressedPrimary = false;
     try {
-      data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      const read = this.readNovelData(filePath);
+      data = read.data;
       primaryData = data;
+      compressedPrimary = read.compressed;
     } catch {
       data = null; // structurally corrupt primary — fall through to backup restore
     }
+    if (data !== null) this.noteCompressionMismatch(slug, compressedPrimary);
 
     // REQ-238a — restore triggers on a structural JSON error or a checksum
     // mismatch (REQ-092); the first valid backup wins and its index is audited.
@@ -996,12 +1062,16 @@ export class StateManager {
       const filePath = path.join(dir, file);
       let data: any;
       let primaryData: any = null;
+      let compressedPrimary = false;
       try {
-        data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+        const read = this.readNovelData(filePath);
+        data = read.data;
         primaryData = data;
+        compressedPrimary = read.compressed;
       } catch {
         data = null; // structurally corrupt primary — fall through to backup restore
       }
+      if (data !== null) this.noteCompressionMismatch(fileSlug, compressedPrimary);
       let restoredIndex: number | null = null;
       // REQ-238a — a structural JSON error or checksum mismatch triggers the
       // rotated-backup restore chain; no valid backup → the corrupt-novel path.
@@ -1081,6 +1151,7 @@ export class StateManager {
       adventure_slug: data.adventure_slug ?? null,
       generated_adventure: data.generated_adventure ?? null,
       audit_log: data.audit_log ?? [],
+      audit_archive: data.audit_archive ?? [],
       undo_stacks: {
         player: data.undo_stacks?.player ?? [],
         game_master: data.undo_stacks?.game_master ?? [],
@@ -1131,7 +1202,7 @@ export class StateManager {
       faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
       npc_goal_suggestions: data.npc_goal_suggestions ?? [],
       voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
-      auto_record: data.auto_record ?? true,
+      auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
       session_no_mutation_windows: data.session_no_mutation_windows ?? [],
       state_regression: data.state_regression ?? null,
       last_mutation_at: data.last_mutation_at ?? null,
@@ -1370,7 +1441,9 @@ export class StateManager {
     const clone = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
     const stackKey = badge;
     novel.undo_stacks[stackKey].push(clone);
-    if (novel.undo_stacks[stackKey].length > 10) {
+    // REQ-041/REQ-129 — stack depth from TTRPG_MAX_SNAPSHOT_DEPTH (min 10).
+    const depth = snapshotDepth();
+    if (novel.undo_stacks[stackKey].length > depth) {
       novel.undo_stacks[stackKey].shift();
     }
     novel.redo_stacks[stackKey] = [];
@@ -1567,6 +1640,50 @@ export class StateManager {
   markStateRegression(novel: NovelState, auditEntryCountGap: number, timestampGapMs: number): void {
     novel.state_regression = { audit_gap: auditEntryCountGap, timestamp_gap_ms: timestampGapMs, recorded_at: new Date().toISOString() };
     this.saveNovel(novel);
+  }
+
+  // REQ-239 — compact audit entries for sessions older than the retained
+  // window into per-session summaries, remove the raw entries from `audit_log`,
+  // and re-anchor the live segment's hash chain so verifyAuditChain stays valid.
+  compactAuditLog(novel: NovelState, keepSessions: number): { sessions: number; entries: number } {
+    novel.audit_archive = novel.audit_archive ?? [];
+    const log = novel.audit_log;
+    const boundaries: number[] = [];
+    for (let i = 0; i < log.length; i++) if (log[i].tool === "[session-boundary]") boundaries.push(i);
+    if (boundaries.length <= keepSessions) return { sessions: 0, entries: 0 };
+    const cutIndex = boundaries[boundaries.length - keepSessions];
+    const archived = boundaries.slice(0, boundaries.length - keepSessions);
+    const significantRoll = (t: string) =>
+      t === "fate_roll" || t === "ironsworn_move" || t === "ironsworn_progress_test" ||
+      t === "forged_action_roll" || (t.includes("roll") && !t.includes("table"));
+    let totalEntries = 0;
+    for (let b = 0; b < archived.length; b++) {
+      const start = archived[b];
+      const end = b + 1 < archived.length ? archived[b + 1] : cutIndex;
+      const slice = log.slice(start, end);
+      const body = slice.filter((e) => e.tool !== "[session-boundary]");
+      let sid = `session-${b + 1}`;
+      try { sid = JSON.parse(slice[0]?.args ?? "{}").session_id ?? sid; } catch { /* malformed marker args → fallback id */ }
+      novel.audit_archive.push({
+        session_id: sid,
+        timespan_start: slice[0]?.timestamp ?? "",
+        timespan_end: slice[slice.length - 1]?.timestamp ?? "",
+        entry_count: body.length,
+        confrontations: body.filter((e) => e.tool === "end_combat").length,
+        significant_rolls: body.filter((e) => significantRoll(e.tool)).length,
+        condition_changes: body.filter((e) => e.tool.includes("condition")).length,
+        roster_changes: body.filter((e) => e.tool.includes("roster") || e.tool === "import_character" || e.tool === "create_character").length,
+        scene_transitions: body.filter((e) => e.tool === "set_scene_state").length,
+      });
+      totalEntries += slice.length;
+    }
+    novel.audit_log = log.slice(cutIndex);
+    let prevHash = "00000000";
+    for (const e of novel.audit_log) {
+      e.hash = crypto.createHash("sha256").update(prevHash + e.tool + e.args).digest("hex").substring(0, 8);
+      prevHash = e.hash;
+    }
+    return { sessions: archived.length, entries: totalEntries };
   }
 
   verifyAuditChain(novel: NovelState): { valid: boolean; entries: number; first_broken_index?: number } {
@@ -1810,8 +1927,7 @@ ${turnOrder}`;
     for (const cand of this.backupCandidates(filePath)) {
       if (!fs.existsSync(cand.path)) continue;
       try {
-        const raw = fs.readFileSync(cand.path, "utf-8");
-        const data = JSON.parse(raw);
+        const { data } = this.readNovelData(cand.path);
         if (!this.hasValidChecksum(data)) continue;
         return { data, index: cand.index };
       } catch {
@@ -1872,6 +1988,10 @@ ${turnOrder}`;
     // REQ-423 — stamp the data-format fingerprint and spec version at write time.
     payload.data_format = DATA_FORMAT;
     payload.spec_version = SPEC_VERSION;
+    // REQ-092h1 — record the compression setting in Novel metadata; it is part
+    // of the checksummed payload so an integrity check covers it.
+    if (!payload.metadata) payload.metadata = {};
+    payload.metadata.compression = this.compressionEnabled();
     payload._checksum = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 
     const out = JSON.stringify(payload, null, 2);
@@ -1898,8 +2018,11 @@ ${turnOrder}`;
       if (!fs.existsSync(stale)) break;
       fs.unlinkSync(stale);
     }
+    // REQ-092g — gzip the primary (and therefore its copied backups) when
+    // TTRPG_NOVEL_COMPRESS is true.
+    const outBuf = this.compressionEnabled() ? zlib.gzipSync(Buffer.from(out, "utf-8")) : Buffer.from(out, "utf-8");
     const fd = fs.openSync(tmpPath, "w");
-    fs.writeFileSync(fd, out, "utf-8");
+    fs.writeFileSync(fd, outBuf);
     fs.fsyncSync(fd);
     fs.closeSync(fd);
     fs.renameSync(tmpPath, filePath);
@@ -2112,6 +2235,7 @@ function novelToJSON(novel: NovelState): any {
     notes: novel.notes,
     vows: novel.vows,
     checkpoints: novel.checkpoints,
+    audit_archive: novel.audit_archive,
     description: novel.description,
     genre: novel.genre,
     adventure_index: novel.adventure_index,
@@ -2199,6 +2323,7 @@ function novelFromJSON(data: any): NovelState {
     adventure_slug: data.adventure_slug ?? null,
     generated_adventure: data.generated_adventure ?? null,
     audit_log: data.audit_log ?? [],
+    audit_archive: data.audit_archive ?? [],
     undo_stacks: {
       player: data.undo_stacks?.player ?? [],
       game_master: data.undo_stacks?.game_master ?? [],
@@ -2249,7 +2374,7 @@ function novelFromJSON(data: any): NovelState {
     faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
     npc_goal_suggestions: data.npc_goal_suggestions ?? [],
 voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
-      auto_record: data.auto_record ?? true,
+      auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
       session_no_mutation_windows: data.session_no_mutation_windows ?? [],
       state_regression: data.state_regression ?? null,
       last_mutation_at: data.last_mutation_at ?? null,

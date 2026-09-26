@@ -273,10 +273,12 @@ async function main() {
       assertContains(roll, "[NOT_FOUND]");
     });
 
-    await test("T277/T239: compact_audit_log summarizes recent entries", async () => {
+    await test("T277/T239: compress requires confirmation and cancels cleanly", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "audit-room", description: "Audit." });
-      const summary = await call(proc, "manage_session", { action: "compress",  max_entries: 5 });
-      assertContains(summary, "Audit");
+      const ni = await call(proc, "manage_session", { action: "compress",  sessions: 1 });
+      assertContains(ni, "[NEED_INPUT]");
+      const cancelled = await call(proc, "respond_decision", { decision: "compress_audit:1", option: "cancel" });
+      assertContains(cancelled, "[OK]");
     });
 
     await test("T319/T321/T326/T260: granular synthesis activation toggles modules", async () => {

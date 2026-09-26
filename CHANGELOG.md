@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-09-26 — Implementation conformance remediation
+
+- Property-group cardinality is enforced: `TTRPG_MAX_NPCS`,
+  `TTRPG_MAX_LORE_ENTRIES`, `TTRPG_MAX_COUNTDOWNS`,
+  `TTRPG_MAX_SYNTHESIS_ITEMS`, `TTRPG_MAX_STORY_ENTRIES`,
+  `TTRPG_MAX_ENTITIES`, and `TTRPG_MAX_ROSTER_ENTITIES` now refuse over-max
+  creates with `[ERROR] [STATE_CONFLICT]` naming the group and counts, and a
+  maximum of `0` disables a group. (REQ-129)
+- `spec_health` reports Novel health — `healthy`, `health_warnings`,
+  `synthesis_gap_count`, story-journal count/characters, snapshot depth, file
+  size, and a per-group `cardinality` count/max/overflow. (REQ-097, REQ-129c)
+- Audit-log compaction is real: `manage_session (action: compress, sessions?)`
+  archives older sessions into `audit_archive` summaries, removes raw entries,
+  re-anchors the hash chain, requires `[NEED_INPUT]` confirmation, is GM-only,
+  and exposes `audit://novel/archive`. The `max_entries` parameter retains the
+  non-mutating summarize prompt. (REQ-239, REQ-086)
+- Checkpoints honor `TTRPG_MAX_CHECKPOINTS` with oldest-discard, export
+  includes them only with `include_checkpoints=true`, and `spec_health`
+  reports checkpoint count and storage size. (REQ-241)
+- Export embeds adventure content when `TTRPG_EXPORT_EMBED_ADVENTURES=true`.
+  (REQ-096)
+- `TTRPG_NOVEL_COMPRESS` gzips the Novel on disk, records the setting in
+  metadata, and surfaces `[compression-mismatch]` when a compressed Novel loads
+  with compression disabled. (REQ-092)
+- `badge_briefing` carries the proactive `available_actions` section, capped
+  at `TTRPG_MAX_AVAILABLE_ACTIONS`. (REQ-084)
+- `TTRPG_BADGE` sets the initial badge on a new Novel; the `intro` prompt
+  honors `TTRPG_NOVEL_PREVIEW_CHARS` and lists session and synthesis status;
+  `TTRPG_AUTO_RECORD` and `TTRPG_STORY_JOURNAL_DISPLAY` are read; the NPC
+  urgency advisory honors `TTRPG_NPC_URGENCY_THRESHOLD`. (REQ-030, REQ-055a,
+  REQ-063b, REQ-405, REQ-246, REQ-077)
+- New `test-limits` harness exercises T143/T101/T160/T277/T279/T100/T475 and
+  the briefing/intro/badge surfaces; the coverage audit warns on bundled-only
+  bucket-C evidence. (REQ-113)
+- §7.6 declares previously undeclared runtime configuration
+  (`TTRPG_AUDIT_MAX_ENTRIES`, `TTRPG_ADVENTURE_DIR`, `TTRPG_OUTPUT_LIMIT`,
+  `TTRPG_OUTPUT_SESSION_LIMIT`, `TTRPG_MAX_LORE_TOKENS`,
+  `TTRPG_AUTONOMY_MUTATION_CEILING`, `TTRPG_SPEC_REPO_URL`); builder-side and
+  optional variables are dispositioned in DECISIONS.md.
+
 ## 2026-09-25 — Synthesis activation model reconciliation
 
 - The spec now defines when a Ruleset Wisdom or synthesis item is active.

@@ -137,15 +137,22 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_COUNTDOWNS` | No      | Maximum countdowns per Novel (default 100) |
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
 | `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
-| `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded |
+| `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded (0 = unlimited; REQ-241b) |
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
-| `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. Presentation. |
+| `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compress)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
-| `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_novel (action: export)` output |
+| `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_novel (action: export)` output (default `false`; REQ-096h) |
+| `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
+| `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
+| `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
+| `TTRPG_OUTPUT_SESSION_LIMIT` | No | Maximum truncated full-output payloads retained per session (default 20; REQ-004). Presentation. |
+| `TTRPG_MAX_LORE_TOKENS` | No | Maximum lore tokens recalled into a prompt (REQ-083). Presentation. |
+| `TTRPG_AUTONOMY_MUTATION_CEILING` | No | Per-turn ceiling on AI-initiated mutations when autonomy is `full`/`auto` (0 = unlimited; REQ-449). Storage. |
+| `TTRPG_SPEC_REPO_URL` | No | Spec repository URL surfaced in `spec_health` and the `intro` prompt (REQ-106). Informational. |
 | `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`). Presentation. |
 | `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
 | `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Build-time. |
