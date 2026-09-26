@@ -1,10 +1,10 @@
 #!/usr/bin/env npx tsx
 /**
- * check-traceability.ts — DECISIONS.md traceability drift check. [informational]
+ * check-traceability.ts — DECISIONS.md traceability drift check. [gate]
  *
  * Cross-references Deferred/Waived traceability rows against tools and
  * resources registered in the server source, reporting stale entries as
- * warnings. Exit codes: 0 always (findings are warnings, not failures).
+ * warnings. Exit codes: 0 = clean, 1 = stale entries found.
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -160,4 +160,4 @@ if (totalWarnings > 0) {
 } else {
   console.log("\nNo stale traceability entries found.");
 }
-process.exit(0);
+process.exit(totalWarnings > 0 ? 1 : 0);
