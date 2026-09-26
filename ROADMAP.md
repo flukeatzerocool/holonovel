@@ -6,6 +6,16 @@
   Update this file when planning a release.
 -->
 
+## Scheduled — World in Motion gating decision (T358 vs T389)
+
+The spec must name one gating owner and default for the `## World in Motion`
+section. T358 expects `TTRPG_WORLD_REACTIVITY=on` alone to surface an NPC
+goal-pursuit entry; T389 expects `TTRPG_NPC_AUTONOMY=off` to suppress goal
+pursuit (default off per REQ-339). The current implementation gates the section
+on reactivity and seeds goal pursuit under NPC autonomy — pending a spec
+decision. Surfaced by the config-surface parity gate (B1); recorded in
+`spec/audit/review-register.md` Scheduled-roadmap.
+
 ## Deferred — action-contract conflict lint (REQ authoring guard)
 
 A validator check that flags two REQs binding the same tool action with

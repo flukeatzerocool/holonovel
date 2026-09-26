@@ -2428,6 +2428,10 @@ build artifact — it is a spec-maintainer reference.
 - [ ] Config declaration: a runtime configuration the REQ introduces is declared
       in the §7.6 table, or recorded as a builder-side/optional disposition in
       DECISIONS.md
+- [ ] Gating consistency: when two REQs govern one gated surface, they name the
+      same gating variable and default, or the difference is stated explicitly
+      (T358 `TTRPG_WORLD_REACTIVITY` versus T389 `TTRPG_NPC_AUTONOMY` precedent:
+      one owner per gated surface)
 - [ ] Procedural/algorithmic content is in §6 or §7, not in the REQ body
 - [ ] REQ body contains ≤ 8 sentences
 - [ ] REQ body contains no more than 5 backtick-delimited enumerated tokens

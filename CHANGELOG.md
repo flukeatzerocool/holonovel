@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-26 — Conformance gating follow-through
+
+- Recorded the World in Motion gating tension (T358 versus T389) as a
+  scheduled spec decision in the review register and roadmap, with the current
+  implementation's gating documented.
+- Appendix M gains a gating-consistency authoring item — one gating variable
+  and default per gated surface.
+
 ## 2026-09-26 — Conformance-gap prevention + follow-through
 
 - The validator now closes the config-drift class: a `TTRPG_*` variable read

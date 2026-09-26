@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 5949258f5d4a758e8ae1bc7785cb48a18a0500a57c1c74703e92678563c700e5
+**Spec hash:** bd9a7b82260d1883a74a80c05edf8fc63f61cf0cf13a50e240d4d0bffcfec5ed
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -65,6 +65,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Behavioral | TTRPG_AUTONOMY, TTRPG_PACING_WINDOW, TTRPG_NPC_AUTONOMY, TTRPG_NPC_MIND, TTRPG_MAX_AVAILABLE_ACTIONS, TTRPG_STORY_BEAT_WINDOW, TTRPG_CAMPAIGN_MEMORY_MAX_FACTS, TTRPG_WORLD_REACTIVITY, TTRPG_NARRATION_VALIDATION, TTRPG_STATE_GATE, TTRPG_AUTO_RECORD, TTRPG_SYNTHESIS_AUTO_TRIGGER |
 | Behavioral (mechanical) | TTRPG_CLIMAX_ACCELERATION, TTRPG_FACTION_AUTONOMY_INTERVAL, TTRPG_NPC_URGENCY_THRESHOLD, TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS, TTRPG_BELIEF_RECONCILIATION, TTRPG_BELIEF_ACCEPT_THRESHOLD, TTRPG_BELIEF_DECISION_MARGIN, TTRPG_CAUSAL_VALIDATION, TTRPG_CAUSAL_LATENT_TRANSITIONS, TTRPG_AGENT_AUTONOMY |
 | System / presentation | storage caps, file paths, build parameters, seed values, and display budgets (non-behavioral §7.6 annotations) |
+
+### Holonovel Spec Update — 2026-09-26 (conformance gating follow-through)
+
+| Field | Value |
+|-------|-------|
+| Delta class | patch |
+| Changed | spec only — actions the AAR follow-through. Appendix M gains a gating-consistency authoring item: when two REQs govern one gated surface they name the same gating variable and default, or state the difference (T358 `TTRPG_WORLD_REACTIVITY` versus T389 `TTRPG_NPC_AUTONOMY` precedent). The World in Motion gating tension is recorded with a terminal disposition — `spec/audit/review-register.md` Scheduled-roadmap and a ROADMAP.md entry — rather than resolved, because it needs a spec decision. The plan-review skill gained an error-gate dry-run requirement (external, not in this repo). |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors (18 baselined B4 warnings); build-order complete; fingerprints in sync |
+| Follow-up | ROADMAP.md — World in Motion gating decision (T358 vs T389). |
 
 ### Holonovel Spec Update — 2026-09-26 (conformance-gap prevention)
 

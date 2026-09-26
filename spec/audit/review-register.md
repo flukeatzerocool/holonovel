@@ -162,7 +162,17 @@ the tracking surfaces for the coverage backlog.
 
 ## Scheduled-roadmap
 
-— none.
+- **World in Motion gating tension (T358 vs T389)** (2026-09-26, P2, needs a
+  spec decision): T358 asserts that `TTRPG_WORLD_REACTIVITY=on` alone surfaces
+  an NPC goal-pursuit entry in `## World in Motion`, while T389 asserts
+  `TTRPG_NPC_AUTONOMY=off` suppresses goal-pursuit suggestions (and its default
+  is off per REQ-339). The two cannot both hold if goal pursuit requires
+  `NPC_AUTONOMY`. The implementation gates the section on `worldReactivityOn()`
+  and seeds goal pursuit under `npcAutonomyOn()` — satisfying T389 and the
+  `off` half of T358, but not T358's `WORLD_REACTIVITY=on / NPC_AUTONOMY=off`
+  case. Resolution requires a spec decision naming one gating owner and default
+  for the World in Motion section; tracked on ROADMAP.md. Surfaced by the B1
+  config-surface parity gate.
 
 ## Closed-P3 (recorded, no action)
 
