@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 893566239baf5ee6aee957e26eb952f843ce636109615df82257d2e571eb9e9e
+**Spec hash:** 8ca64b0ef7729e249cca220fb8d611e83a3b6e45bb6d948303321ff07fd3a54e
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -85,6 +85,16 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Reused | source, config, extraction, lockfile, surfaces |
 | Verification | assemble + check:fast 0 errors; full validate 0 errors / 133 warnings (baseline); typecheck 0 errors; test:tool-definitions 8/8 (T151 badge filter, T450); test:corpus 9/9 (T628); test:all 0 failures; data_format fingerprint advanced (§5.28) — persisted artifacts re-stamp and load |
 | Follow-up | REQ-373 (dynamic tool registration) remains a build-scope waived intended gap. |
+
+### Holonovel Spec Update — 2026-09-25 (synthesis activation gating)
+
+| Field | Value |
+|-------|-------|
+| Delta class | minor |
+| Changed | spec + implementation — Ruleset Wisdom and synthesis activation, per-module toggle, and action-pattern state now govern every read surface through one read-time resolver (`isModuleEnabled` / `isWisdomItemActive` / `effectiveWisdomItems`). `synthesis_module_enabled` and the new `synthesis_deactivated` opt-out map gate `badge_briefing`, `lore://templates`, `manage_lore (action: suggest)`, the `synthesis://<module>` resource family, `synthesis://narrative_voices`, and `manage_synthesis (action: list)`. `synthesis_activated` migrated from a per-module scalar to per-item key lists (REQ-260a) with deterministic item keys (`withWisdomKeys`); `activate`/`deactivate` are per-item for the GM and for `[player]` owners (REQ-260c), and `deactivate` without a key disables the module. `run_command (action: suggest)` merges active action patterns when `action_patterns_enabled` is set (REQ-084b4, REQ-115). Mutators are audited (REQ-040a). Spec: REQ-225a now names the stable item `key`. |
+| Reused | spec, extraction, lockfile |
+| Verification | assemble + check:fast 0 errors; typecheck 0 errors; test:backfill 70/70 (T307/T319/T321/T326/T96/T119 strengthened to assert surface suppression); test-output-contracts 221/221; test:briefing 7/7 |
+| Follow-up | None — the strengthened tests evidence REQ-159/231/260/265, promoting them out of bucket C. |
 
 ### Holonovel Spec Update — 2026-09-25 (feature-parity integration remediation)
 

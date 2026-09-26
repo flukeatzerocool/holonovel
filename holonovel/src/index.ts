@@ -30,7 +30,7 @@ import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
 } from "./core/server.js";
-import { DEFAULT_WISDOM } from "./core/wisdom.js";
+import { DEFAULT_WISDOM, withWisdomKeys } from "./core/wisdom.js";
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   createEmptyWorldModel, convertSource, worldMap, worldKinds, verbCatalog,
@@ -2348,6 +2348,20 @@ server.registerTool("run_command", {
         }
       }
     }
+    // REQ-084b3/b4, REQ-115 — synthesis action patterns supplement the matching
+    // index only when the action-pattern toggle is enabled and the module is
+    // active; GM-only patterns are excluded from Player results.
+    if (novel.action_patterns_enabled) {
+      const words = intentLower.split(/[^a-z0-9]+/).filter((w: string) => w.length >= 4);
+      const patterns = effectiveWisdomItems("action_patterns").filter(badgeCanSeeWisdom);
+      for (const p of patterns) {
+        const ptext = String(p.intent ?? "").toLowerCase();
+        if (words.length === 0 || !words.some((w: string) => ptext.includes(w))) continue;
+        for (const a of (p.suggested_actions ?? [String(p.intent)])) {
+          domains.mechanical.push(`${a} — synthesis pattern: ${p.intent}`);
+        }
+      }
+    }
     if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
       domains.spatial.push(`${spatialTool}("look")`, `command("go <direction>")`, `command("examine <thing>")`);
     }
@@ -3792,9 +3806,10 @@ server.registerTool("manage_lore", {
     }
     case "suggest": {
       requireGM();
-      const novel = requireNovel();
-      const templates = state.wisdomManifest?.lore_templates ?? [];
-      if (templates.length === 0) return ok("No lore templates available (Ruleset Wisdom not loaded).");
+      requireNovel();
+      // REQ-231/REQ-260 — only active, enabled lore templates are suggested.
+      const templates = effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom);
+      if (templates.length === 0) return ok("No lore templates available (Ruleset Wisdom not loaded or module inactive).");
       const sample = templates.slice(0, 3).map((t: any) => `- ${t.content?.substring(0, 120)}${(t.content?.length ?? 0) > 120 ? "..." : ""}`);
       return raw(sample.join("\n"));
     }
@@ -4775,7 +4790,7 @@ function novelToJSONState(novel: NovelState): any {
     briefing_order: novel.briefing_order, action_patterns_enabled: novel.action_patterns_enabled,
     story_journal: novel.story_journal, factions: novel.factions, secrets: novel.secrets,
     relationships: novel.relationships, gm_context: novel.gm_context, notes: novel.notes,
-    constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_module_enabled: novel.synthesis_module_enabled,
+    constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_deactivated: novel.synthesis_deactivated, synthesis_module_enabled: novel.synthesis_module_enabled,
     characters_present_ids: novel.characters_present_ids,
     autonomy: novel.autonomy,
     vows: novel.vows, checkpoints: novel.checkpoints, description: novel.description,
@@ -4850,7 +4865,7 @@ function loadNovelFromStateData(data: any): NovelState {
     gm_context: data.gm_context ?? data.dm_context ?? {}, notes: data.notes ?? [], vows: data.vows ?? [],
     checkpoints: data.checkpoints ?? [], description: data.description ?? "",
     constraint_overrides: data.constraint_overrides ?? [],
-    synthesis_activated: data.synthesis_activated ?? {}, synthesis_module_enabled: data.synthesis_module_enabled ?? {},
+    synthesis_activated: data.synthesis_activated ?? {}, synthesis_deactivated: data.synthesis_deactivated ?? {}, synthesis_module_enabled: data.synthesis_module_enabled ?? {},
     autonomy: normalizeAutonomy(data.autonomy),
     genre: data.genre ?? "", adventure_index: data.adventure_index ?? null,
     adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
@@ -6985,6 +7000,13 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "factions://", title: "All Factions" },
   { template: "secrets://active", title: "Active Secrets" },
   { template: "synthesis://status", title: "Synthesis Status" },
+  { template: "synthesis://voice_examples", title: "Synthesis Voice Examples" },
+  { template: "synthesis://briefing_order", title: "Synthesis Briefing Order" },
+  { template: "synthesis://lore_templates", title: "Synthesis Lore Templates" },
+  { template: "synthesis://action_patterns", title: "Synthesis Action Patterns" },
+  { template: "synthesis://supplementary_guidance", title: "Synthesis Supplementary Guidance" },
+  { template: "synthesis://adventure_advice", title: "Synthesis Adventure Advice" },
+  { template: "synthesis://narrative_voices", title: "Synthesis Narrative Voices" },
   { template: "constraints://active", title: "Constraint Overrides" },
 ];
 
@@ -7202,7 +7224,7 @@ function buildSpecHealth(): Record<string, unknown> {
       synthesis_active,
       module_counts: synthesisCounts,
       stale_count: 0,
-      activated_count: novel ? (novel.synthesis_activated ? Object.values(novel.synthesis_activated).reduce<number>((a, b) => a + (typeof b === "number" ? b : 0), 0) : 0) : 0,
+      activated_count: novel ? Object.values(novel.synthesis_activated ?? {}).reduce<number>((a, b) => a + (Array.isArray(b) ? b.length : 0), 0) : 0,
       fingerprint: state.wisdomManifest ? SPEC_HASH : "",
     },
     // REQ-388a–d — behavioral-config coverage, available to every badge and
@@ -7766,9 +7788,92 @@ server.registerResource("constraints-active", "constraints://active", { title: "
   return { contents: [{ uri: "constraints://active", text: JSON.stringify(overrides, null, 2), mimeType: "application/json" }] };
 });
 
-// Lore templates (REQ-159)
+// REQ-260/231/265 — single read-time resolver consulted by every synthesis
+// surface: module toggle (REQ-231), per-item activation (REQ-260), and badge
+// scope (REQ-265). This is the "effective view" the whole subsystem reads.
+const SYNTHESIS_MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
+
+// REQ-231b — modules default to enabled; only an explicit disable turns one off.
+function isModuleEnabled(module: string): boolean {
+  return state.activeNovel?.synthesis_module_enabled?.[module] !== false;
+}
+
+// REQ-260/265 — an item is active when it is not explicitly deactivated and it
+// either defaults active (Tier-1 ruleset/vendor, player-authored) or was
+// explicitly activated (Tier-2 supplementary, inert by default).
+function isWisdomItemActive(module: string, item: any): boolean {
+  if (!isModuleEnabled(module)) return false;
+  const key = String(item?.key ?? "");
+  if (!key) return false;
+  const novel = state.activeNovel;
+  if ((novel?.synthesis_deactivated?.[module] ?? []).includes(key)) return false;
+  // §11.3.4 — action patterns are gated by the Novel-scoped action-pattern
+  // toggle (REQ-115), not per-item activation, so they default active here.
+  if (module === "action_patterns") return true;
+  const tag = String(item?.tag ?? "");
+  if (tag === "vendor" || tag === "ruleset" || tag === "player") return true;
+  return (novel?.synthesis_activated?.[module] ?? []).includes(key);
+}
+
+// Flattened, activation- and module-gated item view. `briefing_order` is a
+// single object, not an array, and carries its own synthetic key.
+function effectiveWisdomItems(module: string): any[] {
+  const manifest: any = state.wisdomManifest;
+  if (!manifest) return [];
+  if (module === "briefing_order") {
+    const bo: any = manifest.briefing_order;
+    if (!bo) return [];
+    return isWisdomItemActive(module, { ...bo, key: bo.key ?? "briefing-order", tag: bo.tag ?? "vendor" }) ? [bo] : [];
+  }
+  let items: any[];
+  if (module === "adventure_advice") {
+    const adv = manifest.adventure_advice ?? {};
+    items = [...(adv.templates ?? []), ...(adv.scenario_starters ?? []), ...(adv.table_expansions ?? [])];
+  } else {
+    items = manifest[module] ?? [];
+  }
+  return (Array.isArray(items) ? items : []).filter((i) => isWisdomItemActive(module, i));
+}
+
+// Every addressable key in a module (manifest items plus player-authored items),
+// used for bulk activation (REQ-260a) and for list/detail output.
+function moduleItemKeys(module: string): string[] {
+  const manifest: any = state.wisdomManifest;
+  const novel = state.activeNovel;
+  const keys: string[] = [];
+  if (manifest) {
+    if (module === "briefing_order") keys.push("briefing-order");
+    else if (module === "adventure_advice") {
+      const adv = manifest.adventure_advice ?? {};
+      [...(adv.templates ?? []), ...(adv.scenario_starters ?? []), ...(adv.table_expansions ?? [])].forEach((i: any) => i?.key && keys.push(i.key));
+    } else {
+      (manifest[module] ?? []).forEach((i: any) => i?.key && keys.push(i.key));
+    }
+  }
+  (novel?.player_synthesis?.[module] ?? []).forEach((i: any) => i?.key && keys.push(i.key));
+  return keys;
+}
+
+// REQ-265a — GM sees every item; Player/observer badges see non-GM-scoped items.
+function badgeCanSeeWisdom(item: any): boolean {
+  const badge = getBadge();
+  if (badge === "game_master" || badge === "none") return true;
+  return item?.badge_scope !== "game_master";
+}
+
+// Provenance tag rendered in the briefing (§11.3, REQ-159). Unknown tags are
+// Tier-2 supplementary.
+function wisdomTag(item: any): string {
+  const t = String(item?.tag ?? "");
+  if (t === "vendor") return "[vendor]";
+  if (t === "ruleset") return "[ruleset]";
+  if (t === "player") return "[player]";
+  return "[supplementary]";
+}
+
+// Lore templates (REQ-159, REQ-231, REQ-265)
 server.registerResource("lore-templates", "lore://templates", { title: "Lore Templates" }, async () => {
-  const templates = state.wisdomManifest?.lore_templates ?? [];
+  const templates = effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom);
   return { contents: [{ uri: "lore://templates", text: JSON.stringify(templates, null, 2), mimeType: "application/json" }] };
 });
 
@@ -7781,30 +7886,44 @@ server.registerResource("guidance-gm-foundations", "guidance://game_master/found
 }));
 
 // Synthesis status + per-module resources (REQ-230, REQ-160)
+// total = full module size; activated = items the effective view exposes.
 function synthesisModuleCounts(): Record<string, { total: number; activated: number }> {
   const manifest = state.wisdomManifest;
-  const modules = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
   const out: Record<string, { total: number; activated: number }> = {};
-  for (const m of modules) out[m] = { total: 0, activated: 0 };
+  for (const m of SYNTHESIS_MODULES) out[m] = { total: 0, activated: 0 };
   if (!manifest) return out;
-  const activated = state.activeNovel?.synthesis_activated ?? {};
   if (manifest.voice_examples) out.voice_examples.total = manifest.voice_examples.length;
   if (manifest.lore_templates) out.lore_templates.total = manifest.lore_templates.length;
   if (manifest.action_patterns) out.action_patterns.total = manifest.action_patterns.length;
   if (manifest.supplementary_guidance) out.supplementary_guidance.total = manifest.supplementary_guidance.length;
   if (manifest.adventure_advice) out.adventure_advice.total = (manifest.adventure_advice.templates?.length ?? 0) + (manifest.adventure_advice.scenario_starters?.length ?? 0) + (manifest.adventure_advice.table_expansions?.length ?? 0);
   if (manifest.narrative_voices) out.narrative_voices.total = manifest.narrative_voices.length;
-  for (const m of Object.keys(out)) out[m].activated = activated[m] ?? 0;
+  for (const m of SYNTHESIS_MODULES) out[m].activated = effectiveWisdomItems(m).length;
   return out;
 }
 
 // REQ-226 — narrative voice profiles: media-cited narrative voice profiles
 // stored at synthesis://narrative_voices; ruleset-free/vendor-absent → empty.
 server.registerResource("synthesis-narrative-voices", "synthesis://narrative_voices", { title: "Narrative Voice Profiles" }, async () => {
-  const profiles = (state.wisdomManifest?.narrative_voices ?? DEFAULT_WISDOM.narrative_voices) ?? [];
+  const profiles = effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom);
   const list = (Array.isArray(profiles) ? profiles : []).map((p: any) => `## ${p?.name ?? "voice"}\n${p?.description ?? ""}`).join("\n\n");
   return { contents: [{ uri: "synthesis://narrative_voices", text: `# Narrative Voice Profiles\n\n${list || "(no profiles — module empty)"}`, mimeType: "text/markdown" }] };
 });
+
+// REQ-231b / §11.3 — per-module synthesis resource family, gated by module
+// toggle, per-item activation, and badge scope. narrative_voices is registered
+// above with its own Markdown rendering.
+for (const module of SYNTHESIS_MODULES.filter((m) => m !== "narrative_voices")) {
+  server.registerResource(
+    `synthesis-${module}`,
+    `synthesis://${module}`,
+    { title: `Synthesis ${module}` },
+    async () => {
+      const items = effectiveWisdomItems(module).filter(badgeCanSeeWisdom);
+      return { contents: [{ uri: `synthesis://${module}`, text: JSON.stringify(items, null, 2), mimeType: "application/json" }] };
+    },
+  );
+}
 
 server.registerResource("synthesis-status", "synthesis://status", { title: "Synthesis Status" }, async () => {
   const counts = synthesisModuleCounts();
@@ -8013,7 +8132,7 @@ server.registerTool("manage_synthesis", {
         return ok(`Synthesis up to date (${state.wisdomManifest?.collected_at ?? "unknown"}). Use force=true to re-synthesize.`);
       }
       state.enriched = true;
-      state.wisdomManifest = DEFAULT_WISDOM;
+      state.wisdomManifest = withWisdomKeys(DEFAULT_WISDOM);
       state.saveNovel(novel);
       const counts = synthesisModuleCounts();
       return ok(`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`);
@@ -8030,49 +8149,113 @@ server.registerTool("manage_synthesis", {
       const novel = state.activeNovel;
       const manifest = state.wisdomManifest;
       // REQ-372 — supplementary imports surface as Wisdom even before synthesis runs.
-      const supplementary = (novel?.supplementary_rulesets ?? []).flatMap((s) => s.wisdom.map((w) => ({ module: w.module, tag: `supplementary:${s.slug}`, content: w.content, badge_scope: "game_master" })));
+      const supplementary = (novel?.supplementary_rulesets ?? []).flatMap((s) => s.wisdom.map((w) => ({ module: w.module, tag: `supplementary:${s.slug}`, content: w.content, badge_scope: "game_master", key: String(w.key) })));
       if (!manifest && supplementary.length === 0) return ok("No synthesis items (synthesis not run; no supplementary imports).");
+      const row = (module: string, item: any, content: string): any => ({
+        module,
+        key: item?.key,
+        tag: item?.tag ?? "vendor",
+        badge_scope: item?.badge_scope,
+        content,
+        activated: isWisdomItemActive(module, item),
+        module_enabled: isModuleEnabled(module),
+      });
+      const adv = manifest?.adventure_advice ?? {};
+      const playerRows = Object.entries(novel?.player_synthesis ?? {}).flatMap(([m, items]) => (items as any[]).map((i) => ({ module: m, key: i.key, tag: "player", badge_scope: i.badge_scope, content: i.content, activated: i.active !== false, module_enabled: isModuleEnabled(m) })));
       const all = [
-        ...(manifest?.voice_examples ?? []).map((i: any) => ({ module: "voice_examples", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-        ...(manifest?.lore_templates ?? []).map((i: any) => ({ module: "lore_templates", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-        ...(manifest?.action_patterns ?? []).map((i: any) => ({ module: "action_patterns", tag: i.tag ?? "vendor", content: i.intent, badge_scope: "game_master" })),
-        ...(manifest?.supplementary_guidance ?? []).map((i: any) => ({ module: "supplementary_guidance", tag: i.tag ?? "vendor", content: i.content, badge_scope: i.badge_scope })),
-        ...(manifest?.narrative_voices ?? []).map((i: any) => ({ module: "narrative_voices", tag: i.tag ?? "vendor", content: i.name, badge_scope: i.badge_scope })),
-        ...supplementary,
+        ...(manifest?.voice_examples ?? []).map((i: any) => row("voice_examples", i, i.content)),
+        ...(manifest?.lore_templates ?? []).map((i: any) => row("lore_templates", i, i.content)),
+        ...(manifest?.action_patterns ?? []).map((i: any) => row("action_patterns", i, i.intent)),
+        ...(manifest?.supplementary_guidance ?? []).map((i: any) => row("supplementary_guidance", i, i.content)),
+        ...(manifest?.narrative_voices ?? []).map((i: any) => row("narrative_voices", i, i.name)),
+        ...(manifest?.briefing_order ? [row("briefing_order", { key: "briefing-order", tag: "vendor" }, manifest.briefing_order.reason)] : []),
+        ...((adv.templates ?? []).map((i: any) => row("adventure_advice", i, i.content))),
+        ...((adv.scenario_starters ?? []).map((i: any) => row("adventure_advice", i, i.content))),
+        ...supplementary.map((s: any) => ({ module: s.module, key: s.key, tag: s.tag, badge_scope: s.badge_scope, content: s.content, activated: (novel?.synthesis_activated?.[s.module] ?? []).includes(s.key), module_enabled: isModuleEnabled(s.module) })),
+        ...playerRows,
       ];
       const filtered = args.module ? all.filter((i: any) => i.module === args.module) : all;
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
-      const summary = filtered.map((i: any) => ({ module: i.module, tag: i.tag, badge_scope: i.badge_scope, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
+      const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, activated: i.activated, module_enabled: i.module_enabled, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
       return raw(JSON.stringify(summary, null, 2));
     }
     case "activate": {
-      requireGM();
       const novel = requireNovel();
-      if (!state.enriched) return err("STATE_CONFLICT", "Synthesis has not been run. Corrective action: run manage_synthesis (action: run) first.");
+      const module = String(args.module ?? "");
+      if (!SYNTHESIS_MODULES.includes(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      const key = typeof args.key === "string" ? args.key : undefined;
+      const playerKeys = (novel.player_synthesis?.[module] ?? []).map((i: any) => i.key);
+      // REQ-260c — Player badge may activate only its own [player] items.
+      if (getBadge() !== "game_master" && getBadge() !== "none") {
+        if (!key || !playerKeys.includes(key)) return err("FORBIDDEN", "Player badge may activate only its own [player] items.");
+        const item = (novel.player_synthesis?.[module] ?? []).find((i: any) => i.key === key);
+        if (item) item.active = true;
+        const d = novel.synthesis_deactivated ?? {};
+        d[module] = (d[module] ?? []).filter((k) => k !== key);
+        novel.synthesis_deactivated = d;
+        state.saveNovel(novel);
+        audit("synthesis_activate", { module, key });
+        return ok(`Player synthesis item '${key}' activated.`);
+      }
+      requireGM();
+      if (!state.enriched && !(novel.supplementary_rulesets?.length)) return err("STATE_CONFLICT", "Synthesis has not been run. Corrective action: run manage_synthesis (action: run) first.");
+      const keys = key ? [key] : moduleItemKeys(module);
       const activated = novel.synthesis_activated ?? {};
-      activated[args.module] = args.key;
+      activated[module] = [...new Set([...(activated[module] ?? []), ...keys])];
       novel.synthesis_activated = activated;
+      const d = novel.synthesis_deactivated ?? {};
+      d[module] = (d[module] ?? []).filter((k) => !keys.includes(k));
+      novel.synthesis_deactivated = d;
       state.saveNovel(novel);
-      return ok(`Synthesis module '${args.module}' activated (${args.key} items).`);
+      audit("synthesis_activate", { module, key: key ?? "(all)", count: keys.length });
+      return ok(`Synthesis module '${module}' activated (${key ? `key ${key}` : `${keys.length} items`}).`);
     }
     case "deactivate": {
-      requireGM();
       const novel = requireNovel();
-      const activated = novel.synthesis_activated ?? {};
-      delete activated[args.module];
-      novel.synthesis_activated = activated;
+      const module = String(args.module ?? "");
+      if (!SYNTHESIS_MODULES.includes(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      const key = typeof args.key === "string" ? args.key : undefined;
+      const playerKeys = (novel.player_synthesis?.[module] ?? []).map((i: any) => i.key);
+      // REQ-260c — Player badge may deactivate only its own [player] items.
+      if (getBadge() !== "game_master" && getBadge() !== "none") {
+        if (!key || !playerKeys.includes(key)) return err("FORBIDDEN", "Player badge may deactivate only its own [player] items.");
+        const item = (novel.player_synthesis?.[module] ?? []).find((i: any) => i.key === key);
+        if (item) item.active = false;
+        state.saveNovel(novel);
+        audit("synthesis_deactivate", { module, key });
+        return ok(`Player synthesis item '${key}' deactivated.`);
+      }
+      requireGM();
+      if (key) {
+        // Per-item deactivation: opt a default-active item out, or drop an
+        // explicit activation (REQ-260a/265).
+        const activated = novel.synthesis_activated ?? {};
+        activated[module] = (activated[module] ?? []).filter((k) => k !== key);
+        novel.synthesis_activated = activated;
+        const d = novel.synthesis_deactivated ?? {};
+        d[module] = [...new Set([...(d[module] ?? []), key])];
+        novel.synthesis_deactivated = d;
+        state.saveNovel(novel);
+        audit("synthesis_deactivate", { module, key });
+        return ok(`Synthesis item '${key}' in module '${module}' deactivated.`);
+      }
+      // Module-level deactivation: disable the module.
+      const m = novel.synthesis_module_enabled ?? {};
+      m[module] = false;
+      novel.synthesis_module_enabled = m;
       state.saveNovel(novel);
-      return ok(`Synthesis module '${args.module}' deactivated.`);
+      audit("synthesis_deactivate", { module, key: "(module)" });
+      return ok(`Synthesis module '${module}' deactivated.`);
     }
     case "toggle": {
       requireGM();
       const novel = requireNovel();
-      const MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
-      if (!MODULES.includes(args.module)) return err("INVALID_INPUT", `Unknown synthesis module '${args.module}'. Valid modules: ${MODULES.join(", ")}.`);
+      if (!SYNTHESIS_MODULES.includes(args.module)) return err("INVALID_INPUT", `Unknown synthesis module '${args.module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
       const m = novel.synthesis_module_enabled ?? {};
-      if (args.enabled) m[args.module] = true; else delete m[args.module];
+      m[args.module] = !!args.enabled;
       novel.synthesis_module_enabled = m;
       state.saveNovel(novel);
+      audit("synthesis_toggle", { module: args.module, enabled: !!args.enabled });
       return ok(`Synthesis module '${args.module}' ${args.enabled ? "enabled" : "disabled"}.`);
     }
     case "player_add": {
@@ -8083,7 +8266,7 @@ server.registerTool("manage_synthesis", {
       const items = novel.player_synthesis[args.module] ?? [];
       if (items.length >= 15) return err("STATE_CONFLICT", "Player synthesis per-module cap (15) reached.");
       if (items.some((i: any) => i.key === args.key)) return err("STATE_CONFLICT", `Item '${args.key}' already exists in module '${args.module}'.`);
-      items.push({ key: args.key, content: args.content, triggers: args.triggers, badge_scope: args.badge_scope ?? "shared", created_at: new Date().toISOString() });
+      items.push({ key: args.key, content: args.content, triggers: args.triggers, badge_scope: args.badge_scope ?? "shared", created_at: new Date().toISOString(), active: true });
       novel.player_synthesis[args.module] = items;
       state.saveNovel(novel);
       audit("player_synthesize", { module: args.module, key: args.key });
@@ -8098,13 +8281,14 @@ server.registerTool("manage_synthesis", {
       items.splice(idx, 1);
       novel.player_synthesis[args.module] = items;
       state.saveNovel(novel);
+      audit("player_synthesis_remove", { module: args.module, key: args.key });
       return ok(`Player synthesis item '${args.key}' removed.`);
     }
     case "player_list": {
       requirePlayer();
       const novel = requireNovel();
       const ps = novel.player_synthesis ?? {};
-      const flat = Object.entries(ps).flatMap(([m, items]) => (args.module && m !== args.module ? [] : (items as any[]).map((i) => ({ module: m, key: i.key, preview: i.content.slice(0, 60), scope: i.badge_scope, activated: true }))));
+      const flat = Object.entries(ps).flatMap(([m, items]) => (args.module && m !== args.module ? [] : (items as any[]).map((i) => ({ module: m, key: i.key, preview: i.content.slice(0, 60), scope: i.badge_scope, activated: i.active !== false }))));
       if (flat.length === 0) return ok("[No player synthesis items.]");
       return raw(JSON.stringify(flat, null, 2));
     }
@@ -8113,6 +8297,7 @@ server.registerTool("manage_synthesis", {
       const novel = requireNovel();
       novel.action_patterns_enabled = !novel.action_patterns_enabled;
       state.saveNovel(novel);
+      audit("action_pattern_toggle", { enabled: novel.action_patterns_enabled });
       return ok(`Action patterns ${novel.action_patterns_enabled ? "enabled" : "disabled"}.`);
     }
     default:
@@ -8249,18 +8434,41 @@ You are in the story. Confine tool use and responses to the current Novel. To st
   // narrative voice. Ruleset-free builds provide a ruleset-agnostic sample.
   briefing += `\n\n### Narrative tone\n[narrative-tone] Describe the world through grounded, sensory detail. Let consequences follow from the fiction — every mechanical outcome lands in the scene you narrate.`;
 
-  // REQ-265 — synthesis in badge_briefing: active synthesis items render under
-  // their sections tagged [supplementary] with confidence, badge-filtered; no
-  // empty section when none are active.
-  if (badge === "game_master" && state.enriched) {
+  // REQ-159/265 — active synthesis and Ruleset Wisdom content, gated by module
+  // toggle, per-item activation, and badge scope. Rendered with provenance tag,
+  // confidence, and source. No empty section when nothing is active (REQ-265b).
+  {
     const synthLines: string[] = [];
-    const manifest = state.wisdomManifest;
-    if (manifest?.voice_examples?.length) synthLines.push(`[supplementary] [MEDIUM] voice examples: ${manifest.voice_examples.length}`);
-    if (manifest?.lore_templates?.length) synthLines.push(`[supplementary] [MEDIUM] lore templates: ${manifest.lore_templates.length}`);
-    if (manifest?.action_patterns?.length) synthLines.push(`[supplementary] [MEDIUM] action patterns: ${manifest.action_patterns.length}`);
-    const playerItems = Object.entries(novel.player_synthesis ?? {}).flatMap(([m, items]) => (items as any[]).filter((i: any) => i.badge_scope !== "player").map((i: any) => `[player] ${m}: ${i.key}`));
-    if (synthLines.length > 0 || playerItems.length > 0) {
-      briefing += `\n\n### Synthesis\n${[...synthLines, ...playerItems].join("\n")}`;
+    const renderItems = (label: string, items: any[], pick: (i: any) => string): void => {
+      if (items.length === 0) return;
+      synthLines.push(`${label}:`);
+      items.slice(0, 5).forEach((i: any) => {
+        const conf = i.confidence ? ` [${i.confidence}]` : "";
+        const src = i.source_url ? ` (${i.source_url})` : "";
+        synthLines.push(`- ${wisdomTag(i)}${conf} ${pick(i)}${src}`);
+      });
+    };
+    renderItems("Supplementary guidance", effectiveWisdomItems("supplementary_guidance").filter(badgeCanSeeWisdom), (i) => i.content);
+    renderItems("Lore templates", effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom), (i) => i.content);
+    renderItems("Voice examples", effectiveWisdomItems("voice_examples").filter(badgeCanSeeWisdom), (i) => i.content);
+    renderItems("Narrative voices", effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom), (i) => i.name);
+    renderItems("Action patterns", effectiveWisdomItems("action_patterns").filter(badgeCanSeeWisdom), (i) => i.intent);
+    if (novel.adventure_set || novel.adventure_slug) {
+      renderItems("Adventure advice", effectiveWisdomItems("adventure_advice").filter(badgeCanSeeWisdom), (i) => i.content);
+    }
+    // REQ-372 — supplementary imports surface as Wisdom even before synthesis.
+    const imported = (novel.supplementary_rulesets ?? [])
+      .flatMap((s: any) => (s.wisdom ?? []).map((w: any) => ({ ...w, tag: "supplementary" })))
+      .filter((i: any) => isModuleEnabled(i.module) && badgeCanSeeWisdom(i));
+    renderItems("Imported Wisdom", imported, (i) => i.content);
+    // REQ-261 — player-authored items, active unless deactivated, badge-filtered.
+    const playerItems = Object.entries(novel.player_synthesis ?? {}).flatMap(([m, items]) =>
+      (items as any[])
+        .filter((i: any) => i.active !== false && isModuleEnabled(m) && badgeCanSeeWisdom(i))
+        .map((i: any) => `- [player] ${m}: ${i.key}`));
+    synthLines.push(...playerItems);
+    if (synthLines.length > 0) {
+      briefing += `\n\n### Synthesis\n${synthLines.join("\n")}`;
     }
   }
 
