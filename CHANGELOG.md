@@ -15,8 +15,8 @@
   that survives truncation. (REQ-067d, REQ-412a)
 - Added a guidance-profile setting (`TTRPG_GUIDANCE_PROFILE`, `full` or `lean`)
   so an operator can tighten briefing scaffolding for constrained narrators;
-  its natural-language access path and coupling row are registered. (REQ-388,
-  REQ-412a)
+  its natural-language access path and coupling row are registered, and it
+  reports in `holodeck_config` behavioral coverage. (REQ-388, REQ-412a)
 - Recorded builder-side dispositions for tool-selection coverage and extraction
   structural and divergence verification in `DECISIONS.md`. (REQ-114c, REQ-551,
   REQ-551a)

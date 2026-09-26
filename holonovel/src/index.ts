@@ -7280,6 +7280,7 @@ const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
   { variable: "story_beat_window", tunable: true, path: "manage_scene (action: directive, 'keep more beats')" },
   { variable: "campaign_memory_max_facts", tunable: true, path: "manage_scene (action: directive, 'more campaign notes')" },
   { variable: "world_reactivity", tunable: true, path: "manage_scene (action: directive, 'the world reacts')" },
+  { variable: "guidance_profile", tunable: true, path: "manage_scene (action: directive, 'keep it lean')" },
   { variable: "narration_validation", tunable: true, path: "manage_scene (action: directive, 'validate my narration')" },
   { variable: "state_gate", tunable: true, path: "manage_scene (action: directive, 'warn on state drift')" },
   { variable: "auto_record", tunable: true, path: "manage_scene (action: directive, 'auto-record moments')" },
