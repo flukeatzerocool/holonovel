@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
- * compare-spec-code.ts — spec-to-code conformance evidence map. [informational]
+ * compare-spec-code.ts — spec-to-code conformance evidence map. [informational;
+ * gate with --gate]
  *
  * Joins the assembled spec's REQ bodies, the committed coverage register
  * (`spec/audit/req-coverage.md`), the server source's REQ citation sites
@@ -13,7 +14,7 @@
  *   npx tsx scripts/compare-spec-code.ts [--section 5.1] [--out FILE]
  *                                        [--json FILE] [--check] [--bundles] [--help]
  *
- * Exit codes: 0 = dossier produced, 1 = --check parity mismatch, 2 = fatal
+ * Exit codes: 0 = dossier produced / --gate clean, 1 = --gate failure, 2 = fatal
  * unexpected error.
  */
 import * as fs from "node:fs";
@@ -561,17 +562,29 @@ function printSummary(rows: Dossier[]): void {
 
 function main(): void {
   const argv = process.argv.slice(2);
-  handleHelp(argv, `Usage: npx tsx scripts/compare-spec-code.ts [--section 5.1] [--out FILE] [--json FILE] [--check] [--help]\n`);
+  handleHelp(argv, `Usage: npx tsx scripts/compare-spec-code.ts [--section 5.1] [--out FILE] [--json FILE] [--check] [--bundles] [--gate] [--help]\n`);
   const onlySection = parseValueFlag(argv, "--section");
   const onlySignal = parseValueFlag(argv, "--signals");
   const outPath = parseValueFlag(argv, "--out");
   const jsonPath = parseValueFlag(argv, "--json");
   const check = parseFlag(argv, "--check");
   const bundles = parseFlag(argv, "--bundles");
+  const gate = parseFlag(argv, "--gate");
 
   if (bundles) {
     process.stdout.write(renderBundleReport());
     return;
+  }
+
+  // --gate: exit non-zero when any REQ is bundle-dependent (sole evidence is a
+  // bundled, over-stuffed test name). Wired into `check:conformance`.
+  if (gate) {
+    const report = renderBundleReport();
+    process.stdout.write(report);
+    const m = report.match(/Bundle-dependent REQs \((\d+)\)/);
+    const n = m ? parseInt(m[1], 10) : 0;
+    process.stdout.write(n > 0 ? `FAIL: ${n} bundle-dependent REQ(s)\n` : "PASS: no bundle-dependent REQs\n");
+    process.exit(n > 0 ? 1 : 0);
   }
 
   const all = buildDossiers();

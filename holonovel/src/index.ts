@@ -215,6 +215,14 @@ function climaxAcceleration(): number { return configInt("TTRPG_CLIMAX_ACCELERAT
 function factionAutonomyInterval(): number { return configInt("TTRPG_FACTION_AUTONOMY_INTERVAL", 0); }
 function npcAutonomyOn(): boolean { return (process.env.TTRPG_NPC_AUTONOMY ?? "off") === "on"; }
 function npcMindOn(): boolean { return (process.env.TTRPG_NPC_MIND ?? "off") === "on"; }
+// REQ-233a — World in Motion reactivity master switch (default active). A
+// narrative directive carrying reactivity keywords overrides it for the
+// session (P46: "the world reacts" enables, "freeze the world" disables).
+let worldReactivityOverride: boolean | null = null;
+function worldReactivityOn(): boolean {
+  if (worldReactivityOverride !== null) return worldReactivityOverride;
+  return (process.env.TTRPG_WORLD_REACTIVITY ?? "true") !== "false";
+}
 function worldGenMaxRooms(): number { return configInt("TTRPG_WORLD_GEN_MAX_ROOMS", 20); }
 function maxVoiceCorrections(): number { return configInt("TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION", 3); }
 function vowSuggestionMinChars(): number { return configInt("TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS", 20); }
@@ -3520,6 +3528,10 @@ server.registerTool("manage_scene", {
       const novel = requireNovel();
       novelSnapshot();
       novel.narrative_directive = args.directive;
+      // REQ-081 / P46 — reactivity keywords toggle the World in Motion cycle.
+      const directiveText = String(args.directive ?? "").toLowerCase();
+      if (directiveText.includes("the world reacts") || directiveText.includes("living world")) worldReactivityOverride = true;
+      if (directiveText.includes("freeze the world") || directiveText.includes("stop the world reacting") || directiveText.includes("world is still")) worldReactivityOverride = false;
       state.saveNovel(novel);
       return ok(`Narrative directive set.`);
     }
@@ -6485,7 +6497,7 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
 
 server.registerTool("manage_novel", {
   title: "Novel",
-  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope, include_checkpoints; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name; branch — source_slug, new_name, from_event; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope, include_checkpoints; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name, trim_audit_sessions; branch — source_slug, new_name, from_event; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
   inputSchema: {
     action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
@@ -6512,6 +6524,7 @@ server.registerTool("manage_novel", {
     long_term_plans: z.string().optional().describe("Long-term plans (save_context)."),
     player_goals: z.string().optional().describe("Player goals (save_context)."),
     include_checkpoints: z.boolean().optional().describe("Include checkpoints in export (default false; export)."),
+    trim_audit_sessions: z.number().optional().describe("Keep only the most recent N sessions' audit entries in the clone (clone; default full copy)."),
     label: z.string().optional().describe("Checkpoint label (checkpoint_set/list/restore/remove)."),
   },
 }, async (args: any) => {
@@ -6819,6 +6832,13 @@ Options: yes, cancel`);
       clone.name = args.new_name;
       clone.metadata.created = new Date().toISOString();
       clone.metadata.modified = new Date().toISOString();
+      // REQ-240a — the audit tier (log + archive) copies with the clone;
+      // REQ-240b — trim_audit_sessions keeps only the most recent N sessions.
+      clone.audit_log = state.trimAuditLogToSessions(
+        source.audit_log.map((e) => ({ ...e })),
+        args.trim_audit_sessions ?? 0,
+      );
+      clone.audit_archive = (source.audit_archive ?? []).map((s) => ({ ...s }));
       const novel = loadNovelFromStateData(clone);
       state.novels.set(slug, novel);
       state.saveNovel(novel);
@@ -6837,6 +6857,9 @@ Options: yes, cancel`);
       branch.name = args.new_name;
       branch.metadata.created = new Date().toISOString();
       branch.metadata.modified = new Date().toISOString();
+      // REQ-240a — a branch carries the source's audit tier like a clone.
+      branch.audit_log = source.audit_log.map((e) => ({ ...e }));
+      branch.audit_archive = (source.audit_archive ?? []).map((s) => ({ ...s }));
       // REQ-458 — share the source event log up to the branch point; the parent
       // Novel is never modified. REQ-459 — record parent and branch point.
       const lastOrdinal = source.event_log.length ? source.event_log[source.event_log.length - 1].ordinal : null;
@@ -8941,14 +8964,17 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       briefing += `\n\n### Narrative threads\n[No unresolved threads.]`;
     }
 
-    // REQ-339 — World in Motion: goal-pursuit suggestions (GM only).
-    if (badge === "game_master" && npcAutonomyOn()) {
-      for (const [, npc] of novel.npcs) {
-        const goal = npc.personality?.goals;
-        if (!goal) continue;
-        const prevSuggestion = novel.npc_goal_suggestions.find((s) => s.npc_id === npc.id);
-        if (prevSuggestion?.state === "dismissed" || prevSuggestion?.state === "accepted") continue;
-        ensureGoalSuggestion(novel, npc.id, npc.name, goal);
+    // REQ-339 — World in Motion: goal-pursuit suggestions (GM only);
+    // REQ-233a — the reactivity cycle runs only while world reactivity is on.
+    if (badge === "game_master" && worldReactivityOn()) {
+      if (npcAutonomyOn()) {
+        for (const [, npc] of novel.npcs) {
+          const goal = npc.personality?.goals;
+          if (!goal) continue;
+          const prevSuggestion = novel.npc_goal_suggestions.find((s) => s.npc_id === npc.id);
+          if (prevSuggestion?.state === "dismissed" || prevSuggestion?.state === "accepted") continue;
+          ensureGoalSuggestion(novel, npc.id, npc.name, goal);
+        }
       }
       const active = novel.npc_goal_suggestions.filter((s) => s.state !== "dismissed" && s.state !== "accepted");
       if (active.length > 0) {

@@ -10743,6 +10743,17 @@ build artifact — it is a spec-maintainer reference.
 - [ ] REQ body is ≤ 800 characters
 - [ ] REQ contains exactly one logical contract — if it has multiple SHALL clauses
       covering distinct concerns, split it
+- [ ] Action-contract uniqueness: a tool action's parameter set and contract are
+      owned by exactly one REQ — a second REQ binding the same action with a
+      different parameter set is a spec defect (REQ-086 `compress max_entries`
+      versus REQ-239 `compress sessions` precedent: disambiguate by parameter, or
+      consolidate)
+- [ ] Assertion relevance: the `_Check:_` test asserts the REQ's contract, not
+      merely appears inside a bundled test name — a test that passes without
+      exercising the contract is nominal evidence
+- [ ] Config declaration: a runtime configuration the REQ introduces is declared
+      in the §7.6 table, or recorded as a builder-side/optional disposition in
+      DECISIONS.md
 - [ ] Procedural/algorithmic content is in §6 or §7, not in the REQ body
 - [ ] REQ body contains ≤ 8 sentences
 - [ ] REQ body contains no more than 5 backtick-delimited enumerated tokens
