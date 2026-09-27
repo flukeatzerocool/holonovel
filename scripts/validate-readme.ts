@@ -84,7 +84,6 @@ function checkHeadingOrder(text: string): Issue[] {
     { level: 2, title: "Run a server" },
     { level: 2, title: "How it works" },
     { level: 2, title: "How it compares" },
-    { level: 2, title: "Contribute" },
   ];
 
   let expIdx = 0;
@@ -395,6 +394,86 @@ function checkSectionLengths(text: string): Issue[] {
   return issues;
 }
 
+function checkWordBudget(text: string): Issue[] {
+  const issues: Issue[] = [];
+  const lines = text.split("\n");
+
+  // Design comment range (excluded — author guidance, not prose).
+  let commentStart = -1;
+  let commentEnd = -1;
+  let inComment = false;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!inComment && trimmed.startsWith("<!--")) {
+      commentStart = i;
+      inComment = true;
+      if (trimmed.endsWith("-->")) {
+        commentEnd = i;
+        break;
+      }
+      continue;
+    }
+    if (inComment && trimmed.endsWith("-->")) {
+      commentEnd = i;
+      break;
+    }
+  }
+
+  // Table of contents range (excluded — navigation, not prose).
+  let tocStart = -1;
+  let tocEnd = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().startsWith("## Table of contents")) {
+      tocStart = i;
+      continue;
+    }
+    if (tocStart !== -1 && /^##\s/.test(lines[i].trim())) {
+      tocEnd = i;
+      break;
+    }
+  }
+
+  // Footer range (excluded — attribution, RSS, date).
+  let lastHeading = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^#{1,3}\s+/.test(lines[i])) lastHeading = i;
+  }
+  let footerStart = -1;
+  for (let i = lastHeading + 1; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith("Canonical origin:") || trimmed.startsWith("License:")) {
+      footerStart = i;
+      break;
+    }
+  }
+
+  let words = 0;
+  let inBlock = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (i >= commentStart && i <= commentEnd) continue;
+    if (tocStart !== -1 && i >= tocStart && i < tocEnd) continue;
+    if (footerStart !== -1 && i >= footerStart) continue;
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith("```")) {
+      inBlock = !inBlock;
+      continue;
+    }
+    if (inBlock) continue;
+    if (trimmed.startsWith(">")) continue;
+    if (/^\s*\|/.test(lines[i])) continue;
+    words += trimmed.split(/\s+/).filter((w) => w.length > 0).length;
+  }
+
+  if (words > 1500) {
+    issues.push({
+      error: true,
+      msg: `README prose is ${words} words — exceeds the 1,500-word budget (README DESIGN 'Word budget.')`,
+    });
+  }
+
+  return issues;
+}
+
 function checkTocSync(text: string): Issue[] {
   const issues: Issue[] = [];
   const headings = extractHeadings(text);
@@ -426,7 +505,7 @@ function checkTocSync(text: string): Issue[] {
     }
   }
 
-  const audienceTags = ["operators", "evaluators", "contributors"];
+  const audienceTags = ["operators", "evaluators"];
   for (const tag of audienceTags) {
     if (!tocBlock.includes(tag)) {
       issues.push({ error: false, msg: `TOC missing audience tag '${tag}' on an h2 entry` });
@@ -454,6 +533,7 @@ function main(): void {
     { name: "External links", run: checkExternalLinks, severity: "soft" },
     { name: "Comparison table", run: checkComparisonTable, severity: "soft" },
     { name: "Section lengths", run: checkSectionLengths, severity: "soft" },
+    { name: "Word budget", run: checkWordBudget, severity: "hard" },
   ];
 
   for (const { name, run, severity } of checks) {
