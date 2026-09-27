@@ -147,7 +147,10 @@ harness is a gate role; it must be wired into a `package.json` script
   reject unknown flags (diagnostic to stderr, exit 1). Scripts with more than
   one flag parse through `scripts/lib/args.ts`.
 - Deterministic by default: no wall-clock-dependent output, no network, no
-  hidden state. Mutating scripts offer `--dry-run` (or document why not).
+  hidden state. Mutating scripts offer `--dry-run` (or document why not). A
+  generated artifact that is committed and freshness-gated SHALL be
+  byte-deterministic — no wall-clock or version stamp the gate cannot
+  reproduce; carry provenance in the spec hash, not the run time.
 - REQ traceability: a script implementing a spec contract cites the REQ ID in
   its header; a behavioral change to a gate requires a CHANGELOG entry and a
   re-run of the gates it feeds.

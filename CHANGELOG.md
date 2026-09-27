@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-26 — Determinism convention for freshness-gated artifacts
+
+- `AGENTS.md` script discipline now states that a generated artifact which is
+  committed and freshness-gated SHALL be byte-deterministic — no wall-clock or
+  version stamp the gate cannot reproduce; provenance belongs in the spec hash,
+  not the run time. Surfaced when the coverage-register freshness gate met a
+  wall-clock `Generated:` line.
+- External `plan-review` §3 (asset audit) gains a gate-surface-scope check (a
+  gate must target a tracked file inside the plan's surface) and a
+  freshness-determinism check; skill version 2.4 → 2.5.
+
 ## 2026-09-26 — Review-loop follow-through automated (markers, record, registers, coverage)
 
 - **Marker freshness gate.** `check-markers` wires `cross-property-couple.ts
