@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-27 — migrate-user-data integrity: recompute `_checksum` on re-stamp
+
+- **Bug: re-stamped Novels stayed `[data-stale]`.** `migrate-user-data`
+  re-stamped a Novel's `data_format` but did not recompute its embedded
+  `_checksum`; the host's `hasValidChecksum` (`state.ts`) then rejected the
+  migrated primary and silently restored the pre-migration `.bak`, leaving the
+  Novel flagged despite a reported successful migration. Observed on host
+  2026.09.27 against the three persisted Novels.
+- **Fix.** `reStamp` recomputes `_checksum` over the re-stamped payload for any
+  artifact that carries one (REQ-092/REQ-424). Novels are the only checksummed
+  artifact today; flat-map artifacts (roster/codex/server-notes) are unaffected.
+- **Spec.** REQ-424 gains an integrity-preservation clause and a checksummed-
+  Novel acceptance criterion. §5.18 is excluded from both contract fingerprints
+  (`scripts/lib/contract-fingerprint.ts`), so `PACKAGE_FORMAT`/`DATA_FORMAT` are
+  unchanged.
+- **Test.** `test-fingerprints` T502 extended with a checksummed fixture case;
+  it fails against the pre-fix script and passes after.
+
 ## 2026-09-27 — Push-pipeline review fixes and runtime efficiency
 
 - **Critical: every run aborted at delta classification.** `classify_delta()`

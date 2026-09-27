@@ -13,6 +13,7 @@
  */
 
 import { readdirSync, existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
 
@@ -64,6 +65,16 @@ function reStamp(artifact: Artifact): void {
     data.data_format = current;
   } else {
     data[META_KEY] = { ...(data[META_KEY] ?? {}), data_format: current };
+  }
+  // REQ-092/REQ-424 — a checksummed artifact (Novel payloads carry `_checksum`;
+  // state.ts writePayload stamps it) must have its checksum recomputed over the
+  // re-stamped payload. Otherwise the host's hasValidChecksum rejects the
+  // primary write and silently restores the pre-migration `.bak`, so the
+  // artifact stays [data-stale] despite the re-stamp.
+  if (data._checksum !== undefined) {
+    const payload = { ...data };
+    delete payload._checksum;
+    data._checksum = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
   }
   const tmp = artifact.path + `.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", "utf-8");
