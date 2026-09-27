@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 37feb37bf6329acd5896e80ddd068916ce566bf6d69bc50883a3cfc55ac9de40
+**Spec hash:** 6478c2415f767fe7efb097ea89eddffe3dd750a39d20f90cc19020f593af0f8e
 
 **Recorded tool budget:** 34 (REQ-429)
 
