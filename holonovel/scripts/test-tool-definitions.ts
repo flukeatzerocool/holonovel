@@ -11,6 +11,11 @@
 // "Use when:", "Do NOT use when:") and that every advertised input parameter
 // carries a non-empty description in its JSON Schema.
 //
+// T642 (REQ-024c + REQ-548b): asserts the tool-definition authoring standard —
+// no schema-restating parameter enumeration, a title at least as long as the
+// tool name, a description within the recorded byte budget, and a documented
+// output-schema field set.
+//
 // T510 (REQ-428): asserts holonovel/server.json's version and package version
 // equal the npm-canonical host version, and that the root version-check gate
 // passes against the committed manifest.
@@ -46,6 +51,15 @@ function recordedToolBudget(): number {
   const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
   const m = md.match(/\*\*Recorded tool budget:\*\*\s*(\d+)/);
   if (!m) throw new Error("DECISIONS.md is missing the REQ-429 'Recorded tool budget' line");
+  return parseInt(m[1], 10);
+}
+
+// REQ-024c — the description-size budget recorded in DECISIONS.md is the
+// single source of truth; read it rather than hardcoding a byte count.
+function recordedDescriptionBudget(): number {
+  const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
+  const m = md.match(/\*\*Recorded description budget:\*\*\s*(\d+)/);
+  if (!m) throw new Error("DECISIONS.md is missing the REQ-024c 'Recorded description budget' line");
   return parseInt(m[1], 10);
 }
 
@@ -216,6 +230,31 @@ async function main() {
     assert(toolsWithDescription === tools.length, "not every tool has a three-clause description");
   });
   console.log(`    (${toolsWithDescription}/${tools.length} tools conformant; ${describedParams} parameters described)`);
+
+  // ── T642 (REQ-024c, REQ-548b): tool-definition authoring standard — no
+  // schema-restating parameter enumeration, title length, description budget,
+  // and documented output-schema fields.
+  await test(`T642/REQ-024c+REQ-548b: all ${tools.length} tools meet the authoring standard`, () => {
+    const budget = recordedDescriptionBudget();
+    const defects: string[] = [];
+    for (const t of tools) {
+      const desc = typeof t.description === "string" ? t.description : "";
+      const title = typeof t.title === "string" ? t.title : "";
+      const bytes = Buffer.byteLength(desc, "utf-8");
+      if (desc.includes("Parameters by action")) defects.push(`${t.name}: restates schema parameters (REQ-024c)`);
+      if (bytes > budget) defects.push(`${t.name}: description ${bytes}B exceeds budget ${budget}B`);
+      if (title.length < t.name.length) defects.push(`${t.name}: title '${title}' shorter than name`);
+      const out: any = t.outputSchema;
+      const props: Record<string, any> = out && typeof out === "object" ? (out.properties ?? {}) : {};
+      if (Object.keys(props).length === 0) defects.push(`${t.name}: output schema has no documented fields`);
+      for (const [k, v] of Object.entries(props)) {
+        const d = v?.description;
+        if (typeof d !== "string" || d.trim() === "") defects.push(`${t.name}: output field '${k}' undocumented`);
+      }
+    }
+    assert(defects.length === 0, `${defects.length} authoring-standard defects:\n  ${defects.slice(0, 20).join("\n  ")}`);
+    console.log(`    (${tools.length} tools within ${budget}B budget; output fields documented)`);
+  });
 
   // ── T151 (REQ-137a/REQ-137b): the DECISIONS.md gate-classification table
   // enumerates every registered tool exactly once with a valid gate, and the

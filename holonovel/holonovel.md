@@ -526,8 +526,8 @@ Every successful tool response SHALL carry a machine-readable structured result 
 *Acceptance criterion:* a canonical lookup, a dice roll, and a drained decision each return a structured result matching their text envelope. _Check:_ T632.
 
 **REQ-548b — Output-schema declaration.**
-Every registered tool SHALL declare an output schema in `tools/list` describing the structured result of REQ-548a. The schema SHALL derive from the live result contract at call time, SHALL remain stable across calls producing the same result shape (REQ-411), and SHALL NOT be a separately maintained catalog. A summary listing MAY omit the schema body while retaining its presence indicator.
-*Acceptance criterion:* every listed tool declares an output schema; a schema detail request returns it; adding a tool updates the listing without restart. _Check:_ T633.
+Every registered tool SHALL declare an output schema in `tools/list` describing the structured result of REQ-548a. The schema SHALL document each reported field with a description, not merely declare the envelope, so the description need not explain return values (REQ-024c). The schema SHALL derive from the live result contract at call time, SHALL remain stable across calls producing the same result shape (REQ-411), and SHALL NOT be a separately maintained catalog. A summary listing MAY omit the schema body while retaining its presence indicator.
+*Acceptance criterion:* every listed tool declares an output schema whose reported fields carry descriptions; a schema detail request returns it; adding a tool updates the listing without restart. _Check:_ T633.
 
 **REQ-548c — Structured error results.**
 Every error response SHALL carry a machine-readable structured result naming the error category (REQ-002), the corrective action, and, where the enumeration is badge-visible, the valid values. The structured error SHALL remain badge-filtered per REQ-002c and REQ-445 and SHALL NOT disclose values the caller's badge cannot access.
@@ -1153,11 +1153,14 @@ Every tool carries a `title` field with the ruleset's own term for that action. 
 **REQ-024b — Tool documentation (Part b).**
 The server truncates descriptions longer than three sentences in `tools/list`; the full text remains available at `resources/read`. *Acceptance criterion:* Every tool's description contains all three clauses; overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name each other in their disambiguation clauses; a verifier can map a natural-language player intent to the correct tool using only the tool descriptions. _Check:_ T3, T49.
 
+**REQ-024c — Tool documentation (Part c).**
+A tool `description` carries only information the input schema, output schema, and annotations do not — cross-parameter interactions, allowed ranges, or formats a schema cannot express — and SHALL NOT restate parameter guidance the schema already carries (REQ-392), such as a per-action parameter enumeration. The description SHALL fit the description-size budget recorded in DECISIONS.md. A tool `title` SHALL be a human-readable expansion at least as long as the tool name. *Acceptance criterion:* every registered tool's description fits the recorded budget, repeats no schema-carried parameter guidance, and its title is at least as long as its name; a description enumerating per-action parameters is a definition defect. _Check:_ T642.
+
 **REQ-427 — Tool parameter semantics.**
 Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
 
 **REQ-450 — TDQS-conformant tool definitions.**
-Every host tool SHALL meet the Glama TDQS standard. Its description SHALL enumerate every action, declare a mutation-class annotation (read-only, destructive, idempotent, or open-world), disclose side effects (persistence, audit, badge gating, reversibility) for each mutating action, and state the return or error behavior for each action. Tools with four or more parameters SHALL state which parameters apply to each action. *Acceptance criterion:* every registered tool carries an annotation matching its mutation class and a description naming all of its actions with side-effect and return behavior. A mutating action lacking side-effect disclosure is a definition defect. _Check:_ T536.
+Every host tool SHALL meet the Glama TDQS standard. Its description SHALL enumerate every action, declare a mutation-class annotation (read-only, destructive, idempotent, or open-world), disclose side effects (persistence, audit, badge gating, reversibility) for each mutating action, and state the return or error behavior for each action. Parameter guidance belongs to the input schema (REQ-427); the description adds only what the schema cannot express (REQ-024c). *Acceptance criterion:* every registered tool carries an annotation matching its mutation class and a description naming all of its actions with side-effect and return behavior. A mutating action lacking side-effect disclosure is a definition defect. _Check:_ T536.
 
 **REQ-025a — spec_health (Part a).**
 The `spec_health` report — produced by the `session` tool's `health` action — reports build-health metrics derived from live registrations at call time, not from hardcoded numeric literals.
@@ -8580,6 +8583,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-023b | Prompts (Part b) | 2026-08-11 |
 | REQ-024a | Tool documentation (Part a) | 2026-08-11 |
 | REQ-024b | Tool documentation (Part b) | 2026-08-11 |
+| REQ-024c | Tool documentation (Part c) | 2026-09-26 |
 | REQ-025a | spec_health (Part a) | 2026-08-11 |
 | REQ-025b1 | spec_health (Part b1) | 2026-08-11 |
 | REQ-025b2 | spec_health (Part b2) | 2026-08-11 |
@@ -10289,6 +10293,7 @@ diet.
 | T639 | Automated | Extractor divergence flags: DECISIONS.md records the divergence-disposition policy. | REQ-551a |
 | T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
 | T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
+| T642 | Automated | Tool-definition authoring standard: every registered tool's description fits the recorded byte budget, restates no schema-carried parameter guidance, carries a title at least as long as its name, and documents its output-schema fields. | REQ-024c, REQ-548b |
 
 ---
 
@@ -11710,6 +11715,32 @@ surface SHALL support every format marked mandatory for its role.
 Presentation formats (`html`, `ascii`, `lonelog`) are not interchange formats
 and are not importable; requesting one on an interchange-only surface returns
 `[INVALID_INPUT]` per REQ-425b. _Check:_ T505, T506, T507.
+
+### T.2 Tool Definition Authoring Standard
+
+This standard operationalizes the six TDQS dimensions (REQ-450) for every host
+and ruleset-derived tool. A definition is conformant when it satisfies every
+dimension below. The description's job is to add information the structured
+fields do not carry; it earns no credit for restating the schema or the
+annotations (REQ-024c, REQ-392).
+
+| Dimension | Rule | Defect |
+|---|---|---|
+| Purpose Clarity | One sentence naming verb + resource + scope, distinguishing the tool from its siblings | Purpose buried, or a title that merely restates the name |
+| Usage Guidelines | A "Use when:" clause and a "Do NOT use when:" clause naming the sibling to prefer instead | Missing disambiguation from a sibling tool |
+| Behavioral Transparency | Per mutating action, what persists, whether it is audited, and whether it is reversible; plus return/error behavior | A mutating action whose side effects are undisclosed |
+| Parameter Semantics | Schema owns per-parameter meaning, allowed values, format, range, and default (REQ-427); the description adds only cross-parameter interactions the schema cannot express | A per-action parameter enumeration duplicating the schema (REQ-024c) |
+| Conciseness & Structure | Front-loaded; no restatement of schema or annotations; within the recorded description budget | Padding, or an over-budget description |
+| Contextual Completeness | The output schema documents every reported field (REQ-548b) | A bare result envelope, or undocumented result fields |
+
+Titles are human-readable expansions of the tool name (REQ-024a) and SHALL be
+at least as long as the name. The description-size budget is recorded once in
+DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
+reports the aggregate listing size (REQ-392). A conformant definition is a
+prerequisite for the Appendices E and F entries and for the package-quality
+audit of REQ-430.
+
+_Check:_ T509, T536, T642.
 
 ---
 
