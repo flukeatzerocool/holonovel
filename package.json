@@ -38,6 +38,7 @@
     "spec-propagate": "npx tsx scripts/spec-propagate.ts",
     "version-bump": "npx tsx scripts/version-bump.ts",
     "version-check": "npx tsx scripts/version-check.ts",
+    "check-registry": "npx tsx scripts/check-registry-publish.ts",
     "refresh-properties": "npx tsx scripts/cross-property-couple.ts",
     "spec-delta": "npx tsx scripts/spec-delta.ts"
   },

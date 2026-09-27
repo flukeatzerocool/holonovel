@@ -255,6 +255,17 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Scheduled-roadmap
 
+- **Spec-delta misses REQ-body changes (REQ-417)** (scheduled 2026-09-27):
+  `scripts/spec-delta.ts:105` `extractReqBodies` uses `[^*]+?`, which cannot
+  cross the `*Acceptance criterion:*` emphasis in a REQ body before a paragraph
+  break; 610 of 1182 REQ IDs are never captured, so the comparison at
+  `scripts/spec-delta.ts:178-182` reports `modified: []` and a REQ-body edit
+  classifies `patch` — violating REQ-417 ("SHALL NOT classify a delta as patch
+  when any REQ body changed"). A candidate regex recovers 907/1182; the
+  remainder needs the sub-part and `###` boundary cases. Discovered while
+  publishing the MCP-Registry fix (no spec body changed in that increment).
+  Tracked on ROADMAP.md.
+
 - **Harness-suite runtime (`test:all` ≈244 s) — parallelize or REQ-314-scope**
   (scheduled 2026-09-27): the 36-command server suite runs sequentially and in
   full for every minor/major delta. The isolation audit rules out naive

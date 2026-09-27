@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-27 — MCP Registry publication: npm-race fix, self-heal, freshness check
+
+- **Bug: the MCP Registry has been stale since 2026-09-10.** The `Publish
+  Server` workflow's `Publish to MCP Registry` step failed with registry HTTP
+  400 — the just-published npm version read back as 404 (npm CDN propagation
+  lag). npm carried `2026.9.10`/`2026.9.27`; the registry stopped at `2026.9.7`.
+  Glama ("a superset of the official MCP Registry") and M8ven index the
+  registry, so both stayed stale.
+- **Root cause: registry publish coupled to npm-absent.** `should_publish` was
+  true only when npm lacked the version, so a registry step that failed after
+  `npm publish` could never run again for that version — no self-heal.
+- **Fix (`.github/workflows/publish.yml`).** State detection is decoupled:
+  `publish_npm` (npm lacks the version) and `publish_registry` (npm has it,
+  registry does not) are computed independently against the canonical version
+  (leading zeros stripped per segment). Adds a bounded wait-for-npm step before
+  registration and a 3-attempt retry around `mcp-publisher publish`.
+- **Self-heal.** `workflow_dispatch`, a daily `schedule`, and the workflow's own
+  path in the push filter let a missed registration be re-attempted without a
+  code change.
+- **Loop closure.** New `scripts/check-registry-publish.ts` verifies the
+  registry lists the published version (`--wait`, `--json`; network-dependent,
+  so deliberately outside `check`/`check:fast`). `push-pipeline.sh` step 9c
+  polls it non-fatally after the mirror push; `npm run check-registry` runs it
+  on demand.
+- **Discovered (filed, not fixed).** `spec-delta.ts`'s `extractReqBodies`
+  (`scripts/spec-delta.ts:105`) cannot cross `*Acceptance criterion:*` emphasis,
+  so 610 of 1182 REQ IDs are invisible to body-change detection and a REQ-body
+  edit classifies `patch` — violating REQ-417. Filed Scheduled-roadmap
+  (`spec/audit/review-register.md`, ROADMAP.md); no spec body was changed in
+  this increment.
+
 ## 2026-09-27 — migrate-user-data integrity: recompute `_checksum` on re-stamp
 
 - **Bug: re-stamped Novels stayed `[data-stale]`.** `migrate-user-data`
