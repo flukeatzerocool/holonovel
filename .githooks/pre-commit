@@ -12,9 +12,17 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 echo "Running pre-commit checks..."
-npm run assemble
-npx tsx scripts/version-check.ts
-npx tsx scripts/spec-delta.ts --report-only
+# When invoked by scripts/push-pipeline.sh (HOLONOVEL_PIPELINE=1), build-order has
+# already run assemble, version-check, spec-delta, fingerprint-sync, lint, and
+# validate-readme, so only the guarded-rule-change check (unique to this hook)
+# still needs to run. A direct `git commit` runs the full set.
+if [[ "${HOLONOVEL_PIPELINE:-0}" == "1" ]]; then
+    echo "  (push pipeline already ran assemble/version/lint — running the unique guarded-rule-change check)"
+else
+    npm run assemble
+    npx tsx scripts/version-check.ts
+    npx tsx scripts/spec-delta.ts --report-only
+    npm run check-fingerprint-sync
+    npm run lint && npm run validate-readme
+fi
 npx tsx scripts/check-guarded-rule-change.ts
-npm run check-fingerprint-sync
-npm run lint && npm run validate-readme

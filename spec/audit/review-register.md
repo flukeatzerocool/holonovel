@@ -11,6 +11,23 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Push-pipeline delta-classification regression + fail-open server list**
+  (resolved 2026-09-27): (1) `classify_delta()` in `scripts/push-pipeline.sh`
+  captured `spec-delta` with `2>&1`, merging its stderr summary (`\nSpec delta:
+  …`, `scripts/spec-delta.ts`) into the JSON on stdout; strict `JSON.parse` then
+  rejected the trailing text and the run aborted at step 3 — the same
+  code-identical defect blocked every push in `.githooks/pre-push`. Both now
+  read stdout only and parse the first balanced JSON object. (2)
+  `read -r -a SERVERS` yielded an empty array with exit 0 when `node` or
+  `scripts/lib/servers.json` failed, silently skipping the REQ-394 gate, the
+  hash sync, and REQ-418 verification; replaced with `mapfile` plus a non-empty
+  guard that aborts. Also: deploy `npm ci`/`build` is scoped to lockfile/source
+  changes, a failed deploy step emits a server-naming REQ-418 notice, the
+  harness suite is gated on delta class (§6.7 Patch/Editorial = G0 only,
+  `--full-tests` to force), and `HOLONOVEL_PIPELINE=1` stops the hooks re-running
+  gates build-order already ran. Evidence: extracted `classify_delta` returns
+  `minor`; missing `servers.json` → exit 1; `npm run check:fast` → PASS.
+
 - **Spec↔code conformance assessment 2026-09-27 (F1–F5)** (resolved
   2026-09-27): (F1) `manage_codex (action: import)` implemented per REQ-321d —
   per-kind materialization, batch atomicity (REQ-321c/REQ-321m3), badge scoping
@@ -238,11 +255,26 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Scheduled-roadmap
 
-None. (The general codex import materialization and the
-`manage_session (action: compress)` contract conflict shipped 2026-09-27 — see
-the Resolved entry for findings F1–F5.)
+- **Harness-suite runtime (`test:all` ≈244 s) — parallelize or REQ-314-scope**
+  (scheduled 2026-09-27): the 36-command server suite runs sequentially and in
+  full for every minor/major delta. The isolation audit rules out naive
+  parallelism: 33 of the suite's scripts isolate state under
+  `mkdtempSync(join(tmpdir(), …))` and the two `check:*` scripts are read-only,
+  but `holonovel/scripts/test-update-workflow.ts` reads and save/restores the
+  live baseline `ROOT/.holonovel-state/pipeline-fingerprints.json` (lines 59,
+  118-119) and spawns `update-server.ts`, which writes the same file. Bounded
+  first step: point that harness's `STATE_DIR` at a temp dir (or run it
+  serially), then add a bounded-concurrency runner; optionally scope the suite
+  per changed surface (REQ-314). Tracked on ROADMAP.md.
 
 ## Closed-P3 (recorded, no action)
+
+- **Push-pipeline B4 — consolidate the step-5b Spec Update re-check** (closed
+  2026-09-27): the pipeline's step 5b re-invokes `spec-delta` (~0.4 s) after
+  step 5's generator already wrote the dated entry. That backstop is the
+  Appendix V.4 guard against a hand-edited `**Spec hash:**` line; the saving
+  does not justify weakening it. Record and close; reopen only if the backstop
+  is shown reducible without loss.
 
 - **Changed-REQ gap-audit gate (AAR follow-through G3)** (closed 2026-09-27):
   declined. A "changed REQ must carry a non-comment citation" predicate collides

@@ -13,51 +13,66 @@ fi
 
 echo "Running pre-push checks..."
 
-echo "  version sync..."
-npx tsx scripts/version-check.ts
+# When invoked by scripts/push-pipeline.sh (HOLONOVEL_PIPELINE=1), build-order
+# has already run version-check and the full `npm run check` suite, the pending
+# update gate (REQ-394), and spec propagation, so those are skipped here. The
+# implementation-coverage strict gate below is unique to this hook and always
+# runs. A direct `git push` runs the full set.
+if [[ "${HOLONOVEL_PIPELINE:-0}" == "1" ]]; then
+    echo "  (push pipeline already ran version sync, the pending-update gate, spec/server sync, and the check suite — skipping)"
+else
+    echo "  version sync..."
+    npx tsx scripts/version-check.ts
 
-echo "  pending-update gate..."
-spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
-if ! raw_delta=$(npx tsx scripts/spec-delta.ts --server holonovel --report-only 2>&1); then
-    echo ""
-    echo "BLOCKED: spec-delta failed — cannot classify the pending update."
-    echo "$raw_delta"
-    echo ""
-    exit 1
-fi
-if ! delta_class=$(node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$raw_delta"); then
-    echo ""
-    echo "BLOCKED: spec-delta output could not be parsed — cannot classify the pending update."
-    echo "$raw_delta"
-    echo ""
-    exit 1
-fi
-if ! npx tsx scripts/update-server.ts --server holonovel --spec-hash "$spec_hash" --delta-class "$delta_class" --check >/dev/null 2>&1; then
-    echo ""
-    echo "BLOCKED: A spec update is pending — the implementation has not been updated to match the spec."
-    echo "To fix: run the push pipeline (or the opencode Update workflow first)."
-    echo "  ./scripts/push-pipeline.sh"
-    echo ""
-    exit 1
-fi
+    echo "  pending-update gate..."
+    spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+    # Capture stdout (JSON) separately from stderr (the human summary): merging
+    # them with 2>&1 leaves trailing text that JSON.parse rejects, blocking every
+    # push. Parse the first balanced JSON object instead.
+    delta_err=$(mktemp)
+    if ! raw_delta=$(npx tsx scripts/spec-delta.ts --server holonovel --report-only 2>"$delta_err"); then
+        echo ""
+        echo "BLOCKED: spec-delta failed — cannot classify the pending update."
+        cat "$delta_err"
+        echo ""
+        rm -f "$delta_err"
+        exit 1
+    fi
+    rm -f "$delta_err"
+    if ! delta_class=$(node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{'),j=s.lastIndexOf('}');try{const c=JSON.parse(s.slice(i,j+1)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$raw_delta"); then
+        echo ""
+        echo "BLOCKED: spec-delta output could not be parsed — cannot classify the pending update."
+        echo "$raw_delta"
+        echo ""
+        exit 1
+    fi
+    if ! npx tsx scripts/update-server.ts --server holonovel --spec-hash "$spec_hash" --delta-class "$delta_class" --check >/dev/null 2>&1; then
+        echo ""
+        echo "BLOCKED: A spec update is pending — the implementation has not been updated to match the spec."
+        echo "To fix: run the push pipeline (or the opencode Update workflow first)."
+        echo "  ./scripts/push-pipeline.sh"
+        echo ""
+        exit 1
+    fi
 
-echo "  spec/server sync..."
-root_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
-embedded_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel/holonovel.md')).digest('hex'))")
+    echo "  spec/server sync..."
+    root_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+    embedded_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel/holonovel.md')).digest('hex'))")
 
-if [ "$root_spec_hash" != "$embedded_spec_hash" ]; then
-    echo ""
-    echo "BLOCKED: The assembled spec (holonovel.md) does not match the embedded server copy"
-    echo "(holonovel/holonovel.md). The spec has not been propagated to the server."
-    echo ""
-    echo "To fix: run the push pipeline (propagate step)."
-    echo "  ./scripts/push-pipeline.sh"
-    echo ""
-    exit 1
+    if [ "$root_spec_hash" != "$embedded_spec_hash" ]; then
+        echo ""
+        echo "BLOCKED: The assembled spec (holonovel.md) does not match the embedded server copy"
+        echo "(holonovel/holonovel.md). The spec has not been propagated to the server."
+        echo ""
+        echo "To fix: run the push pipeline (propagate step)."
+        echo "  ./scripts/push-pipeline.sh"
+        echo ""
+        exit 1
+    fi
+
+    echo "  spec checks (lint, validate, audit, scan)..."
+    npm run check
 fi
-
-echo "  spec checks (lint, validate, audit, scan)..."
-npm run check
 
 echo "  implementation-coverage strict gate..."
 npm run validate:sdd -- --impl-audit=strict || {

@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-09-27 — Push-pipeline review fixes and runtime efficiency
+
+- **Critical: every run aborted at delta classification.** `classify_delta()`
+  captured `spec-delta` with `2>&1`, merging its trailing stderr summary
+  (`\nSpec delta: …`) into the JSON payload; strict `JSON.parse` then rejected
+  the trailing text and the pipeline aborted at step 3. The same code-identical
+  bug blocked every push in `.githooks/pre-push`. Both now read stdout only,
+  keep stderr for diagnostics, and parse the first balanced JSON object.
+  Verified: the extracted `classify_delta` returns `minor` on the current delta.
+- **Fail-closed server list.** `read -r -a SERVERS` yielded an empty array with
+  exit 0 when `node`/`servers.json` failed, silently skipping the REQ-394 gate,
+  the hash sync, and REQ-418 verification. Replaced with `mapfile` plus a
+  non-empty guard that aborts.
+- **Deploy install/build scoped and fail-loud.** Step 9 runs `npm ci` only when
+  `package-lock.json` changed and `npm run build` only when `$server/src` or
+  `tsconfig*` changed between the pre/post-pull revisions (a docs/spec-only pull
+  now skips both). A failed install/build emits a deploy-failed notice naming
+  the server (REQ-418) instead of dying silently under `set -e`.
+- **Delta-gated server harness suite.** §6.7 scopes Patch/Editorial to G0 only
+  (no Pattern Buffer); the pipeline ran `test:all` unconditionally before it
+  even classified the delta. The suite now runs after the pending-update gate
+  and is skipped for a patch/editorial delta whose contract fingerprint is
+  unchanged; `--full-tests` forces it. Measured suite cost: ~244s.
+- **No duplicate gate passes.** `push-pipeline.sh` exports
+  `HOLONOVEL_PIPELINE=1`; `pre-commit` and `pre-push` skip only the steps
+  build-order already ran (assemble, version-check, spec-delta, fingerprint
+  sync, lint, validate-readme, spec/server sync, and `npm run check`), while
+  always running their unique checks (`check-guarded-rule-change`,
+  `--impl-audit=strict`). Direct `git commit`/`git push` still runs the full set.
+- **Minor.** Removed the no-op `fingerprint.ts … > /dev/null` call and the
+  redundant second `git fetch origin main`; added a `--full-tests` flag.
+
 ## 2026-09-27 — Push-pipeline hardening and shell-discipline enforcement
 
 - **Dry-run restores on failure.** `push-pipeline.sh` installs an `EXIT` trap
