@@ -173,6 +173,8 @@ This runs:
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 | `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
 | `npm run check-script-discipline` | Script standards (shebang, header, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` |
+| `npm run check-markers` | `@spec:` marker freshness — README (and wiki with `--include-wiki`) values must equal the spec-derived values (`cross-property-couple.ts --check`) |
+| `npm run check-registers` | Review/proofread register structure — terminal dispositions, Scheduled-roadmap↔ROADMAP traceability, proofread disposition tokens (report-only; `check-registers:strict` gates in `check`) |
 
 Also available separately:
 
@@ -196,12 +198,14 @@ invocation. Two optional flags extend it:
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.
 
-`scripts/push-pipeline.sh` syncs only the `**Spec hash:**` line in
-`holonovel/DECISIONS.md`. The human-readable `### Holonovel Spec Update — <date>`
-narrative entry (delta class, changed surfaces, verification) must be added
-manually before a spec-changing push — see Appendix V.4. The pipeline warns
-(does not block) when the hash changed with no dated entry; REQ-394's gate is
-the hard block.
+`scripts/push-pipeline.sh` syncs the `**Spec hash:**` line in
+`holonovel/DECISIONS.md` and, before it, runs `scripts/spec-update-record.ts`
+to insert the dated `### Holonovel Spec Update — <date>` narrative entry
+(delta class and changed-surface summary prefilled from the CHANGELOG;
+operator fills the verification line — Appendix V.4). The entry is keyed by a
+`@spec-update:<hash>` marker, so an unchanged spec re-run is a no-op. Step 5b
+runs `spec-update-record.ts --check` and blocks publication when an unpublished
+delta has no dated entry; REQ-394's pending-update gate stays the hard block.
 
 ## Review-loop governance
 
@@ -230,6 +234,11 @@ the coverage backlog itself is cleared (bucket-A reflects intended coverage;
   `file:line` of the condition — not a gate's emitted message. A finding raised
   from a message alone is provisional until the predicate is confirmed; a
   gate's success or failure message is not itself evidence.
+- **External skill maintenance.** The harness skills (`build-review`,
+  `plan-review`, and the rest) live outside this repo. Route every edit through
+  the `skill-improvement-loop` and version it in the skill's own front matter,
+  so a harness change is a reviewed, traceable step rather than an ad-hoc edit
+  discovered mid-session.
 - **Loop status.** Every AAR ends with `LOOP PAUSED` or `LOOP OPEN`. PAUSED
   requires: gates green, deployed verified, no open P0/P1 beyond the scheduled
   roadmap. When PAUSED, the AAR lists zero new action items; the next plan
@@ -274,6 +283,13 @@ remaining items before committing:
 - [ ] Add the CHANGELOG entry, then run `npm run build-order` (or
       `npm run version-bump`) — the CalVer, AGENTS.md, DECISIONS.md, index.ts,
       lockfile, and server.json advance together (REQ-107a)
+- [ ] README `@spec:` markers and the coverage register are current — both are
+      gated by `check:fast`/`check` (`check-markers`; the coverage-register
+      freshness check inside `validate`); regenerate with
+      `npm run refresh-properties` and `npm run validate -- --write-register`
+- [ ] For a spec-changing push, the `### Holonovel Spec Update — <date>` entry
+      exists and its verification line is filled — the push pipeline generates
+      the scaffold (`npm run spec-update-record`); see Appendix V.4
 - [ ] README license footer lists any newly borrowed mechanics source
 
 Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).

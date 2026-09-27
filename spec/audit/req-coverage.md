@@ -1,6 +1,5 @@
 # REQ Coverage Register
 
-Generated: 2026-09-26
 
 Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).
 
@@ -23,7 +22,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-022 | Resources (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T16 | — |
 | REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T26, T49, T50, T155, T480 | — |
-| REQ-024 | Tool documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T509, T488 | — |
+| REQ-024 | Tool documentation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T509, T488, T642 | — |
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
@@ -506,6 +505,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
 | REQ-546 | Corpus retention bound | 5.28 Knowledge Corpus | C | T628 | — |
 | REQ-547 | Identity candidate retention bound | 5.26 Character Identity | C | T630 | — |
-| REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T634, T635 | — |
+| REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T642, T634, T635 | — |
 | REQ-551 | Extraction structural verification (1 sub-part) | 5.2 Extraction and Confidence | E | T638, T639 | — |
 

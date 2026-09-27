@@ -152,26 +152,26 @@ done
 # ── 5. Update stored spec hashes in DECISIONS.md ──
 
 echo -e "${GREEN}=== 5. Update stored spec hashes in DECISIONS.md ===${NC}"
+# Generate the dated Spec Update record before syncing the hash, so the
+# narrative entry (delta class, changed surfaces) is present per Appendix V.4.
+npx tsx scripts/spec-update-record.ts || { echo -e "${RED}Spec Update record generation FAILED${NC}"; exit 1; }
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
     OLD_HASH=$(grep -oP '\*\*Spec hash:\*\*\s*\K[a-f0-9]+' "$server/DECISIONS.md" | head -1)
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
     echo "  Updated spec hash in $server/DECISIONS.md → $SPEC_HASH"
-    # ── 5b. Traceability guard: warn if the spec hash changed but no dated
-    #         Spec Update entry exists for today. (REQ-394 enforces the hard
-    #         block; this closes the narrative-record gap.)
-    if [[ -n "$OLD_HASH" && "$OLD_HASH" != "$SPEC_HASH" ]]; then
-      STAMP=$(date +%Y-%m-%d)
-      if ! grep -q "### Holonovel Spec Update — $STAMP" "$server/DECISIONS.md" 2>/dev/null; then
-        echo -e "${YELLOW}  WARNING: spec hash changed but no '### Holonovel Spec Update — $STAMP'${NC}"
-        echo -e "${YELLOW}           entry in $server/DECISIONS.md. Add the narrative entry (delta${NC}"
-        echo -e "${YELLOW}           class, changed surfaces, verification) per Appendix V.4.${NC}"
-      fi
-    fi
   else
     echo -e "${YELLOW}  WARNING: $server/DECISIONS.md missing '**Spec hash:**' line${NC}"
   fi
 done
+# ── 5b. Narrative-record gate: an unpublished spec delta must carry a dated
+#         Spec Update entry. The generator above writes one; this is the
+#         backstop for a hand-edited hash line. (REQ-394 is the hard block.)
+if ! npx tsx scripts/spec-update-record.ts --check; then
+  echo -e "${RED}  Spec Update narrative missing for an unpublished delta — publication blocked.${NC}"
+  echo -e "${YELLOW}  Add the entry per Appendix V.4, or run the generator: npm run spec-update-record${NC}"
+  exit 1
+fi
 
 # ── Dry-run exit ──
 

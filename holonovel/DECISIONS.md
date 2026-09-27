@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 88030ebdbcebc560f4ee4086df3b8c55ff4a067a87004ba8587ef0611856cfb4
+**Spec hash:** a542bcb8cd7059d8e2f77012d1b6c8dc6b109e60b03778eb389c03a525d29fb6
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -22,6 +22,13 @@
 - REQ-548b protocol: pinned MCP protocol version advanced to a version supporting `outputSchema`; structured results mirror the text envelope (REQ-548a).
 - REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
 - Tool-surface consolidation (34 tools) deferred: the surface already satisfies REQ-429's recorded budget; the routing benefit ships via REQ-067d / REQ-114c, and merging tools would churn the §5 tool corpus, the REQ-429 budget, and this gate-classification table. Revisit when a demonstrated routing failure survives the discovery changes.
+
+### Holonovel Spec Update — 2026-09-26 (Review-loop follow-through automated markers, record, registers, coverage)
+
+- **Delta class:** minor. Changed surfaces: Review-loop follow-through automated (markers, record, registers, coverage); Review-loop: predicate-citation rule for gate findings; Review-register closure: pipeline pending-gate flag; Tool-definition authoring standard and registry hygiene; Loop closure: Codex capture reconciliation and register hygiene.
+- **Verification:** `npm run assemble` ok; `npm run build-order` ok (assemble → full `check` → propagate → version sync; contract fingerprints unchanged); `npm run check:fast` 0 errors (18 accepted warnings); `npm run typecheck` clean; validator self-tests 22/22; `check-markers` and the coverage-register freshness check pass. New gates: `spec-update-record --check` in push-pipeline step 5b; `check-registers` (report-only in `check:fast`, strict in `check`).
+
+<!-- @spec-update:a542bcb8cd7059d8e2f77012d1b6c8dc6b109e60b03778eb389c03a525d29fb6 -->
 
 ### Holonovel Spec Update — 2026-09-26
 

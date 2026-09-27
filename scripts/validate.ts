@@ -1987,28 +1987,46 @@ function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCi
   return rows;
 }
 
-function writeCoverageRegister(rows: CoverageRow[], specHash: string | null): string {
-  const outDir = path.resolve(__dirname, "..", "spec", "audit");
-  fs.mkdirSync(outDir, { recursive: true });
-  const outPath = path.join(outDir, "req-coverage.md");
-  const date = new Date().toISOString().slice(0, 10);
+// Render the register deterministically: no wall-clock stamp, so the committed
+// artifact can be freshness-gated by byte comparison. The only provenance line
+// is the spec hash, which changes with spec content, not with time or version.
+function renderCoverageRegister(rows: CoverageRow[], specHash: string | null): string {
   const lines: string[] = [];
   lines.push("# REQ Coverage Register");
   lines.push("");
-  lines.push(`Generated: ${date}`);
   if (specHash) lines.push(`Spec hash: ${specHash}`);
   lines.push("");
   lines.push("Bucket legend: A = certain gap (no source citation) · B = needs review (cited, no exercised test) · C = evidenced (cited + exercised) · D = spec-side (no `Check:` citation) · E = intended gap (builder/verifier-side, exempt from strict).");
   lines.push("");
   lines.push("| REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |");
   lines.push("|-----|-------|---------|--------|-----------------|-------------------|");
-  for (const r of rows.sort((a, b) => reqNumeric(a.reqId) - reqNumeric(b.reqId))) {
+  for (const r of [...rows].sort((a, b) => reqNumeric(a.reqId) - reqNumeric(b.reqId))) {
     const title = r.subParts.length > 0 ? `${r.title} (${r.subParts.length} sub-part${r.subParts.length > 1 ? "s" : ""})` : r.title;
     lines.push(`| ${r.reqId} | ${title} | ${r.section} | ${r.bucket} | ${r.exercisedTests.join(", ") || "—"} | ${r.disposition ?? "—"} |`);
   }
   lines.push("");
-  fs.writeFileSync(outPath, lines.join("\n") + "\n");
+  return lines.join("\n") + "\n";
+}
+
+function writeCoverageRegister(rows: CoverageRow[], specHash: string | null): string {
+  const outDir = path.resolve(__dirname, "..", "spec", "audit");
+  fs.mkdirSync(outDir, { recursive: true });
+  const outPath = path.join(outDir, "req-coverage.md");
+  fs.writeFileSync(outPath, renderCoverageRegister(rows, specHash));
   return outPath;
+}
+
+// Freshness gate: the committed register must equal what the current audit
+// renders. A stale register means a REQ, citation, or test-evidence change
+// landed without regenerating the tracking surface (G4/B3 read it as baseline).
+function checkCoverageRegisterFresh(rendered: string): string | null {
+  const regPath = path.resolve(__dirname, "..", "spec", "audit", "req-coverage.md");
+  let committed = "";
+  try { committed = fs.readFileSync(regPath, "utf-8"); } catch { return "spec/audit/req-coverage.md is missing"; }
+  if (committed !== rendered) {
+    return "spec/audit/req-coverage.md is stale — regenerate with `npm run validate -- --write-register`";
+  }
+  return null;
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────
@@ -2377,10 +2395,15 @@ function main(): void {
     else if (r.bucket === "A" || r.bucket === "B" || r.bucket === "D") warnings++;
   }
 
+  const specHashMatch = text.match(/Spec hash:\s*([0-9a-f]{64})/i);
+  const specHash = specHashMatch ? specHashMatch[1] : null;
   if (writeRegister) {
-    const specHashMatch = text.match(/Spec hash:\s*([0-9a-f]{64})/i);
-    const outPath = writeCoverageRegister(implRows, specHashMatch ? specHashMatch[1] : null);
+    const outPath = writeCoverageRegister(implRows, specHash);
     console.log(`Register written: ${outPath}`);
+  } else {
+    const staleRegister = checkCoverageRegisterFresh(renderCoverageRegister(implRows, specHash));
+    if (staleRegister) { console.log(`ERROR: ${staleRegister}`); errors++; }
+    else console.log("PASS: Coverage register is current");
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);

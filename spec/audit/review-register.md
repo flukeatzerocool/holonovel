@@ -260,6 +260,15 @@ None.
   a §8 pointer distinguishing verifier-persona from the deprecated runtime
   sense is the optional mitigation.
 
+- **Canonical tool-name guard (P7, review 2026-09-26): no automated guard added.**
+  `scripts/validate.ts` already emits `termDrift` warnings against the §4
+  Terminology table (`scripts/validate.ts:457-466,606`); the only recurrence was
+  the 2026-09-25 terminology sweep (commit `acfc069`), and no bare-tool-name
+  drift has been demonstrated since. Per AGENTS.md P3 ("open-ended 'worth a
+  guard' with no demonstrated recurrence → record-and-close"), no gate is added.
+  Reopen on a demonstrated bare `manage_X` reference where the canonical
+  `manage_X (action: …)` form is required.
+
 ## Deferred-by-user
 
 None.
