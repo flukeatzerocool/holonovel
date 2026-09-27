@@ -6,6 +6,9 @@ entry carries a terminal disposition: `Resolved`, `Scheduled-roadmap`,
 restate it. The REQ-coverage register (`req-coverage.md`) and ROADMAP.md are
 the tracking surfaces for the coverage backlog.
 
+Each finding cites the predicate it rests on — the `file:line` of the
+condition — not a gate's emitted message; a message alone is not evidence.
+
 ## Resolved
 
 - **Codex `capture` action-contract conflict (REQ-321f vs REQ-347a)** (resolved
