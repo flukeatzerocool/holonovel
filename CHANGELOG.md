@@ -21,9 +21,12 @@
   code change.
 - **Loop closure.** New `scripts/check-registry-publish.ts` verifies the
   registry lists the published version (`--wait`, `--json`; network-dependent,
-  so deliberately outside `check`/`check:fast`). `push-pipeline.sh` step 9c
-  polls it non-fatally after the mirror push; `npm run check-registry` runs it
-  on demand.
+  so deliberately outside `check`/`check:fast`). It queries the per-server
+  `/v0/servers/{name}/versions` endpoint — deterministic and newest-first — not
+  the `?search=` listing, which is eventually consistent and intermittently
+  omits a just-registered version. `push-pipeline.sh` step 9c polls it
+  non-fatally after the mirror push; `npm run check-registry` runs it on
+  demand.
 - **Discovered (filed, not fixed).** `spec-delta.ts`'s `extractReqBodies`
   (`scripts/spec-delta.ts:105`) cannot cross `*Acceptance criterion:*` emphasis,
   so 610 of 1182 REQ IDs are invisible to body-change detection and a REQ-body
