@@ -5,6 +5,7 @@
 
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
+import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
 
 let passed = 0;
@@ -348,6 +349,35 @@ test("base-capability defaults: a restated value citing Appendix O passes", () =
   const issues = checkBaseCapabilityDefaults(text);
   if (issues.some((i) => i.includes("REQ-910a"))) {
     throw new Error(`REQ-910a wrongly flagged despite Appendix O citation; got ${JSON.stringify(issues)}`);
+  }
+});
+
+// ── Guarded-rule-change helpers ──
+
+test("guarded-rule: Appendix M slice ends before Appendix N", () => {
+  const text = "## Appendix M:\nrule\n\n## Appendix N:\nnext\n";
+  const m = extractAppendixM(text);
+  if (m === null || !m.includes("rule") || m.includes("next")) {
+    throw new Error(`unexpected slice: ${JSON.stringify(m)}`);
+  }
+});
+
+test("guarded-rule: co-change without acknowledgment is blocked", () => {
+  const decision = decideGuardedRuleChange({ ruleChanged: true, validatorChanged: true, registerAcknowledges: false });
+  if (decision === null) throw new Error("expected a failure message");
+});
+
+test("guarded-rule: co-change with a register acknowledgment passes", () => {
+  const decision = decideGuardedRuleChange({ ruleChanged: true, validatorChanged: true, registerAcknowledges: true });
+  if (decision !== null) throw new Error(`unexpected failure: ${decision}`);
+});
+
+test("guarded-rule: a one-sided change passes", () => {
+  for (const input of [
+    { ruleChanged: true, validatorChanged: false, registerAcknowledges: false },
+    { ruleChanged: false, validatorChanged: true, registerAcknowledges: false },
+  ]) {
+    if (decideGuardedRuleChange(input) !== null) throw new Error(`unexpected failure for ${JSON.stringify(input)}`);
   }
 });
 

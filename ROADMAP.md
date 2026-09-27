@@ -6,16 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Scheduled — Guarded-rule-change check (push-review tooling)
-
-- A change that edits a normative spec authoring rule and, in the same commit,
-  the validator pattern implementing it is self-attesting — the rule and its
-  gate move together (e.g., Appendix M's `_Check:` rule relaxed to family scope
-  alongside the new `checkFamilyCheckCoverage` gate). Add a check that flags
-  such a commit and requires a review-register entry naming the rule. Predicate:
-  a diff touching both a `spec/` normative rule and `scripts/lib/req-checks.ts`
-  or `scripts/validate.ts`. Found 2026-09-27 during push-review hardening.
-
 ## Scheduled — General codex import materialization (feature gap)
 
 - The Codex import path materializes only `voice_profile` (REQ-347b) and
