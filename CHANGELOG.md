@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-09-26 — Review-loop: predicate-citation rule for gate findings
+
+- Findings now cite the predicate they rest on — the `file:line` of the
+  condition — rather than a gate's emitted message. A finding raised from a
+  message alone is provisional until the predicate is confirmed; a gate's
+  success or failure message is not itself evidence.
+- Recorded in the review-register header and AGENTS.md review-loop governance,
+  so a message-only finding no longer drives an investigation cycle.
+
 ## 2026-09-26 — Review-register closure: pipeline pending-gate flag
 
 - Closed the `push-pipeline.sh --dry-run` step-4 "full Build workflow required"

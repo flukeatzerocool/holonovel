@@ -226,6 +226,10 @@ the coverage backlog itself is cleared (bucket-A reflects intended coverage;
   `Deferred-by-user`. The REQ-coverage register (`spec/audit/req-coverage.md`)
   and ROADMAP.md are the tracking surfaces; the AAR references them and never
   restates them as recommendations.
+- **Finding evidence.** A finding cites the predicate it rests on — the
+  `file:line` of the condition — not a gate's emitted message. A finding raised
+  from a message alone is provisional until the predicate is confirmed; a
+  gate's success or failure message is not itself evidence.
 - **Loop status.** Every AAR ends with `LOOP PAUSED` or `LOOP OPEN`. PAUSED
   requires: gates green, deployed verified, no open P0/P1 beyond the scheduled
   roadmap. When PAUSED, the AAR lists zero new action items; the next plan
