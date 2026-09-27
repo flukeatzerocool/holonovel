@@ -11861,9 +11861,12 @@ Update workflow (§6.7) driven manually.
    computed from the live server source tree (REQ-313d), never read from the
    historical fingerprint lines recorded in earlier `DECISIONS.md` entries.
 5. Record the Spec Update entry in `DECISIONS.md` — delta class, changed
-   surfaces, and verification — before pushing. The push pipeline syncs only
-   the `Spec hash` line; it does not write the narrative entry. An Editorial
-   delta additionally records the repaired REQ set in the entry.
+   surfaces, and verification — before pushing. The push pipeline generates the
+   scaffold (`scripts/spec-update-record.ts`): it prefills the delta class, the
+   changed-surface summary from the CHANGELOG, and the spec hash, and inserts
+   the dated entry; the operator fills the verification line. Step 5b blocks
+   publication when an unpublished delta has no dated entry. An Editorial delta
+   additionally records the repaired REQ set in the entry.
 6. Record the deployed server location the gate evaluated, if it differs from
    the current working directory — the pending-update gate (REQ-394) reads
    fingerprints from the live server tree, not the spec repo.

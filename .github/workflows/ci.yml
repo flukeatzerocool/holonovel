@@ -26,3 +26,8 @@ jobs:
         run: npx tsx scripts/version-check.ts
       - name: Pending-update gate smoke (REQ-394 / T462)
         run: npx tsx scripts/spec-delta.ts --server holonovel --report-only
+      - name: Audit root production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit server production dependencies
+        working-directory: holonovel
+        run: npm audit --omit=dev --audit-level=high

@@ -5,6 +5,7 @@
 
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
+import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
 
 let passed = 0;
 let failed = 0;
@@ -196,6 +197,46 @@ test("action bindings: acceptance-criterion calls are not bindings", () => {
   ].join("\n");
   const b = extractActionBindings(text);
   if (b.length !== 0) throw new Error(`expected no bindings; got: ${JSON.stringify(b)}`);
+});
+
+// ── Register-structure checks ──
+
+test("review findings: a multi-line finding keeps its date", () => {
+  const md = [
+    "## Resolved",
+    "",
+    "- **A finding** (terminology sweep,",
+    "  2026-09-07): fixed.",
+  ].join("\n");
+  const issues = checkReviewFindings(parseFindings(md), "");
+  if (issues.some((i) => !i.startsWith("INFO:"))) {
+    throw new Error(`expected no structural issue; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("review findings: bullet before any disposition heading is flagged", () => {
+  const md = ["# Register", "", "- **Orphan finding**: no section."].join("\n");
+  const issues = checkReviewFindings(parseFindings(md), "");
+  if (!issues.some((i) => i.includes("outside a disposition section"))) {
+    throw new Error(`expected outside-section flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("review findings: Scheduled-roadmap traces to ROADMAP.md", () => {
+  const md = ["## Scheduled-roadmap", "", "- **Thing** (2026-09-26): REQ-321f stays."].join("\n");
+  const issues = checkReviewFindings(parseFindings(md), "# Roadmap\n\n## Scheduled — other\n");
+  if (!issues.some((i) => i.includes("ROADMAP.md has no matching entry"))) {
+    throw new Error(`expected traceability flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("proofread dispositions: allowed tokens pass, others flag", () => {
+  const ok = "| PR-1 | `spec/x.md:1` | Fix. | Fixed — done. |";
+  const bad = "| PR-2 | `spec/x.md:2` | Fix. | Maybe later. |";
+  const issues = checkProofreadDispositions([ok, bad].join("\n"));
+  if (issues.length !== 1 || !issues[0].startsWith("PR-2")) {
+    throw new Error(`expected only PR-2 flagged; got ${JSON.stringify(issues)}`);
+  }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

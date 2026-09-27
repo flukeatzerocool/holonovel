@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
 import { extractH2Headings, extractReqBodies } from "./lib/parse-spec";
+import { handleHelp, parseFlag } from "./lib/args.js";
 
 const root = join(import.meta.dirname, "..");
 
@@ -41,7 +42,9 @@ function extractServerSurface(): { tool_count: number; resource_count: number; p
   const zero = { tool_count: 0, resource_count: 0, prompt_count: 0 };
   if (!existsSync(SERVER_AGENTS_PATH)) return zero;
   const text = readFileSync(SERVER_AGENTS_PATH, "utf-8");
-  const m = text.match(/(\d+)\s+action-discriminator tools,\s*~?(\d+)\s+resources,\s*(\d+)\s+prompts/);
+  const m = text.match(
+    /(\d+)\s+action-discriminator tools,\s*~?(\d+)\s+resources(?:\s+and\s+\d+\s+resource templates)?,\s*(\d+)\s+prompts/
+  );
   if (!m) return zero;
   return { tool_count: Number(m[1]), resource_count: Number(m[2]), prompt_count: Number(m[3]) };
 }
@@ -125,6 +128,26 @@ const VALUE_TOKEN =
   `|\\d+\\.\\d+\\.\\d+` +
   `|\\d[\\d,]*`;
 
+const MARKER_PATTERN = `<!--\\s*@spec:(\\w+)\\s*-->( ?)((?:${VALUE_TOKEN}))?`;
+
+// Compare the marker values in a file against the expected property values
+// without writing. Used by --check to fail when a marker has drifted from the
+// spec-derived value (e.g. a hand-edited README date).
+function findStaleMarkers(
+  filePath: string,
+  props: SpecProperties
+): { prop: string; expected: string; actual: string | undefined }[] {
+  const content = readFileSync(filePath, "utf-8");
+  const stale: { prop: string; expected: string; actual: string | undefined }[] = [];
+  for (const m of content.matchAll(new RegExp(MARKER_PATTERN, "g"))) {
+    const propName = m[1];
+    if (!(propName in props)) continue;
+    const expected = propertyDisplay(propName, props[propName]);
+    if (m[3] !== expected) stale.push({ prop: propName, expected, actual: m[3] });
+  }
+  return stale;
+}
+
 // Idempotent marker injection. A marker `<!-- @spec:NAME -->` persists; the
 // value lives immediately after it. On first injection the value is inserted
 // between the marker and the following prose; on later runs the existing value
@@ -135,10 +158,7 @@ const VALUE_TOKEN =
 function injectMarkers(filePath: string, props: SpecProperties): { changed: boolean; matched: boolean } {
   const content = readFileSync(filePath, "utf-8");
 
-  const markerRe = new RegExp(
-    `<!--\\s*@spec:(\\w+)\\s*-->( ?)((?:${VALUE_TOKEN}))?`,
-    "g"
-  );
+  const markerRe = new RegExp(MARKER_PATTERN, "g");
   let changed = false;
   let matched = false;
 
@@ -243,7 +263,23 @@ function validateWikiCommandTable(filePath: string): { ok: boolean; issues: stri
   return { ok: issues.length === 0, issues };
 }
 
+const USAGE = `Usage: npx tsx scripts/cross-property-couple.ts [--check] [--include-wiki]
+
+  --check         Verify @spec markers match the spec-derived values; report
+                  drift and exit 1 without writing.
+  --include-wiki  Also check wiki pages under .holonovel-state/wiki (off by
+                  default: the wiki is a separate repo the push pipeline
+                  refreshes, so it is not a commit-gate surface).
+  --help, -h      Show this message.
+
+Exit codes: 0 = refreshed / markers fresh, 1 = a property, command, or marker
+was missing or stale.
+`;
+
 function main(): void {
+  handleHelp(process.argv, USAGE);
+  const checkMode = parseFlag(process.argv, "--check");
+  const includeWiki = parseFlag(process.argv, "--include-wiki");
   const props = extractProperties();
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -258,6 +294,26 @@ function main(): void {
   console.log(`  Tool surface:      ${props.tool_count} tools, ${props.resource_count} resources, ${props.prompt_count} prompts`);
   console.log(`  Version:           ${props.version}`);
   console.log(`  Date:              ${props.date}`);
+
+  if (checkMode) {
+    console.log("\n=== Checking markers ===\n");
+    const wikiFiles = includeWiki ? getWikiPageFiles().map((f) => join(WIKI_DIR, f)) : [];
+    const filesToCheck = [README_PATH, ...wikiFiles].filter(existsSync);
+    for (const fp of filesToCheck) {
+      for (const s of findStaleMarkers(fp, props)) {
+        console.log(
+          `  STALE  ${fp.replace(root + "/", "")}: @spec:${s.prop} = ${s.actual ?? "(missing)"}, expected ${s.expected}`
+        );
+        errors.push(`stale @spec:${s.prop} in ${fp}`);
+      }
+    }
+    if (errors.length === 0) {
+      console.log(`  OK   ${filesToCheck.length} file(s): all @spec markers match`);
+      process.exit(0);
+    }
+    console.log(`\n${errors.length} stale marker(s). Run \`npm run refresh-properties\` to update.`);
+    process.exit(1);
+  }
 
   console.log("\n=== Injecting markers ===\n");
 

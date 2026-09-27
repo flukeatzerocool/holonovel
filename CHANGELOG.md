@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-09-26 — Review-loop follow-through automated (markers, record, registers, coverage)
+
+- **Marker freshness gate.** `check-markers` wires `cross-property-couple.ts
+  --check` into `check`/`check:fast`: README `@spec:` values must equal the
+  spec-derived values. The wiki is opt-in (`--include-wiki`) because it is a
+  separate, pipeline-refreshed repo. Fixed a latent defect where
+  `extractServerSurface()` returned zero tools/resources/prompts against the
+  current `holonovel/AGENTS.md` tool-surface line.
+- **Spec Update record generator.** `scripts/spec-update-record.ts` prefills the
+  dated `### Holonovel Spec Update` entry (delta class from `spec-delta.ts`,
+  changed surfaces from the CHANGELOG, spec hash) and inserts it before
+  publication; the operator fills the verification line. The push pipeline runs
+  it in step 5 and step 5b blocks publication when an unpublished delta has no
+  dated entry. Idempotent via a `@spec-update:<hash>` marker (Appendix V.4).
+- **Coverage-register freshness.** `req-coverage.md` is now rendered
+  deterministically (no wall-clock stamp) and `validate` fails when the
+  committed register differs from the live audit — regenerate with
+  `npm run validate -- --write-register`.
+- **Register validator.** `scripts/check-registers.ts` checks terminal
+  dispositions, Scheduled-roadmap↔ROADMAP traceability, and proofread
+  disposition tokens; report-only in `check:fast`, strict in `check`. Parsers
+  live in `scripts/lib/register-checks.ts` with self-tests (22/22).
+- **Report-only lints surfaced.** `action-conflicts` now runs in `check` and
+  `check:fast`, so action-contract candidates appear each session.
+- **Disposition.** The canonical tool-name guard is recorded `Closed-P3`
+  (`validate.ts` already emits `termDrift`; no recurrence since `acfc069`).
+- **CI audit.** `.github/workflows/ci.yml` audits production dependencies for
+  the root and `holonovel/` (`npm audit --omit=dev --audit-level=high`).
+- **Standard.** External harness-skill edits route through
+  `skill-improvement-loop` and are versioned (AGENTS.md review-loop governance).
+
 ## 2026-09-26 — Review-loop: predicate-citation rule for gate findings
 
 - Findings now cite the predicate they rest on — the `file:line` of the
