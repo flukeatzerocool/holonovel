@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-27 — Push-review rigor: validators and dupe scan in the push path, enforced content guards
+
+- **Push path runs the validators' own tests.** `npm run check` now includes
+  `test:validators`, so `build-order`, CI, and pre-push exercise the validator
+  self-tests; `check:full` inherits it.
+- **Validator changes re-trigger the check.** `build-order` fingerprints
+  `scripts/` and re-runs step 2 when either `spec/` or `scripts/` changes, and
+  adds an informational near-duplicate scan (detect-dupes).
+- **Visible review output.** `build-order` prints the check's
+  `N error(s), M warning(s)` summary and `WARNING:` findings on success instead
+  of swallowing piped stdio.
+- **Content guards enforced.** The procedural, worked-example, and
+  unbounded-threshold REQ-body scans are now errors, not report-only;
+  `checkBaseCapabilityDefaults` also flags a §5.21–§5.23 body that restates an
+  Appendix O.11 tuning value without citing Appendix O (REQ-440 corrected to
+  cite the appendix).
+- **Threshold homes.** Added Appendix O.12 (health and verification contract
+  constants); REQ-097, REQ-129, and REQ-273 cite it, REQ-102 and REQ-452 cite
+  the Appendix H fidelity thresholds; `THRESHOLD_REF_RE` drops the bare
+  `Confidence` escape hatch and adds Appendix H.
+- **Pipeline reporting.** `push-pipeline.sh` step 3 prints the per-server delta
+  classification before the pending-update gate.
+
 ## 2026-09-27 — R5 passive-voice cleanup, skill size-limit rule
 
 - **Passive-voice cleanup (R5).** Rewrote 18 REQ bodies to active voice without

@@ -182,7 +182,8 @@ This runs:
 | Command                    | What it checks                                    |
 |----------------------------|---------------------------------------------------|
 | `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
-| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, REQ-family `_Check:` coverage, the REQ-body content scan (procedural / worked-example / unbounded-threshold; report-only), and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
+| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, REQ-family `_Check:` coverage, the REQ-body content scan (procedural / worked-example / unbounded-threshold — all enforced as errors), and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
+| `npm run test:validators`  | Validator self-tests (`scripts/test-req-checks.ts`) — guards the REQ-integrity checks against regression |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 | `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
 | `npm run check-script-discipline` | Script standards (shebang, header, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` |
@@ -195,7 +196,7 @@ Also available separately:
 |----------------------|---------------------------------------------------|
 | `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`)         |
 | `npm run build-order` | Assemble + check + propagate + source-propagate + typecheck + version sync — the holonovel→dnd5e pipeline (fingerprint-scoped) |
-| `npm run check`      | Full gate including proofreading pass (passive voice, readability, sentence analysis) — use for CI and pre-push |
+| `npm run check`      | Full gate including proofreading pass (passive voice, readability, sentence analysis) and the validator self-tests — use for CI and pre-push |
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
 | `npm run validate:sdd` | Full validation including proofreading |
 | `npm run validate:quick` | Fast iteration — skips heavy coupling/patterning checks |
@@ -210,6 +211,13 @@ invocation. Two optional flags extend it:
 
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.
+
+`npm run build-order` re-runs the full `check` gate when either `spec/` or
+`scripts/` changes (a validator change is a review-surface change), adds an
+informational near-duplicate scan, and prints the check summary
+(`N error(s), M warning(s)` plus `WARNING:` findings) instead of swallowing it.
+`push-pipeline.sh` therefore runs `test:validators` and `detect-dupes` as part
+of its review; the same changes are covered by `check:full` for CI.
 
 `scripts/push-pipeline.sh` syncs the `**Spec hash:**` line in
 `holonovel/DECISIONS.md` and, before it, runs `scripts/spec-update-record.ts`

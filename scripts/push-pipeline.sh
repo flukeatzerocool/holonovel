@@ -130,10 +130,16 @@ echo -e "${GREEN}=== 1b. Server harness suite (test:all) ===${NC}"
 echo -e "${GREEN}=== 2. Refresh README and wiki from spec ===${NC}"
 npm run refresh-properties
 
-# ── 3. Spec-delta report (serial — capture classification) ──
+# ── 3. Spec hash + delta report (classification printed before the gate) ──
 
-echo -e "${GREEN}=== 3. Spec-delta report ===${NC}"
+echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+declare -A DELTA_CLASS_OF
+for server in "${SERVERS[@]}"; do
+  DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
+  DELTA_CLASS_OF[$server]="$DELTA_CLASS"
+  echo "  $server: delta class = $DELTA_CLASS"
+done
 
 # ── 4. Fingerprint and scoped spec-driven update (pending-update gate) ──
 
@@ -143,8 +149,7 @@ if $AUTO_UPDATE; then
   echo -e "${YELLOW}--auto-update: the §6.7 update command will be executed (requires opencode on PATH).${NC}"
 fi
 for server in "${SERVERS[@]}"; do
-  DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
-  echo "  $server: delta class = $DELTA_CLASS"
+  DELTA_CLASS="${DELTA_CLASS_OF[$server]}"
   npx tsx scripts/fingerprint.ts --server "$server" > /dev/null
   EXTRA_ARGS=("--delta-class" "$DELTA_CLASS")
   if $ALLOW_PENDING; then EXTRA_ARGS+=(--allow-pending); fi

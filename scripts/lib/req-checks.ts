@@ -214,7 +214,7 @@ export function checkReqWorkedExamples(text: string): string[] {
   return issues;
 }
 
-const THRESHOLD_REF_RE = /§6\.5|§6\.2|§7\.6|Appendix O|Appendix S|Appendix G|Confidence|TTRPG_/;
+const THRESHOLD_REF_RE = /§6\.5|§6\.2|§7\.6|Appendix O|Appendix S|Appendix G|Appendix H|TTRPG_/;
 const THRESHOLD_PATTERNS: RegExp[] = [
   /\b\d+\s*%/,
   /\b\d+\s*\/\s*\d+\s+(?:items|sections|categories)/,
@@ -234,16 +234,55 @@ export function checkReqThresholds(text: string): string[] {
 }
 
 // Base-capability tuning values live in Appendix O.11 (Appendix M ↔ Appendix S
-// reconciliation). No §5.21–§5.23 REQ body may restate a default value.
+// reconciliation). No §5.21–§5.23 REQ body may restate a default or a tuning
+// value the appendix owns.
+
+// Number words (value >= 4 only) that restate an Appendix O.11 tuning value.
+// Small words like "one"/"two"/"three" occur in ordinary counts and examples
+// ("two challenge dice"), so they are excluded to keep the false-positive rate
+// at zero; the digit form still catches literal restatements.
+const O11_NUMBER_WORDS: Record<string, number> = {
+  four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12,
+};
+
 export function checkBaseCapabilityDefaults(text: string): string[] {
   const issues: string[] = [];
   const start = text.indexOf("### 5.21");
   const end = text.indexOf("### 5.24");
   if (start === -1 || end === -1 || end < start) return issues;
   const region = text.slice(start, end);
+
+  // Values owned by the Appendix O.11 tuning table. A §5.21–§5.23 REQ body that
+  // restates one without citing Appendix O leaks a tuning value the appendix
+  // owns (Appendix M ↔ Appendix S). The table is parsed so the check tracks it.
+  const oStart = text.indexOf("**O.11 —");
+  const oEnd = oStart === -1 ? -1 : text.indexOf("\n---", oStart);
+  const o11 = oStart === -1 ? "" : text.slice(oStart, oEnd === -1 ? undefined : oEnd);
+  const owned = new Set<string>();
+  for (const line of o11.split("\n")) {
+    const cells = line.split("|").map((c) => c.trim());
+    if (cells.length < 5) continue;
+    for (const m of cells[3].matchAll(/\d+/g)) owned.add(m[0]);
+  }
+
   for (const { id, body } of extractBodies(region)) {
     const m = body.match(/\bdefaults? to\b|\(default\b/gi);
-    if (m) issues.push(`${id}: default value in base-capability REQ body ("${m[0]}") — move to Appendix O.11`);
+    if (m) {
+      issues.push(`${id}: default value in base-capability REQ body ("${m[0]}") — move to Appendix O.11`);
+      continue;
+    }
+    if (/Appendix O/.test(body)) continue;
+    const tokens = new Set<string>();
+    for (const d of body.matchAll(/\b\d+\b/g)) tokens.add(d[0]);
+    for (const w of body.matchAll(/\b[a-z]+\b/gi)) {
+      const n = O11_NUMBER_WORDS[w[0].toLowerCase()];
+      if (n !== undefined) tokens.add(String(n));
+    }
+    const hit = [...tokens].find((t) => owned.has(t));
+    if (hit) {
+      issues.push(`${id}: restates an Appendix O.11 tuning value ("${hit}") without citing Appendix O`);
+    }
   }
   return issues;
 }

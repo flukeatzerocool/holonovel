@@ -2171,18 +2171,18 @@ function main(): void {
     errors += familyCheckIssues.length;
   } else { console.log("PASS: Every REQ family carries a _Check: trailer"); }
 
-  console.log("\n=== REQ-BODY CONTENT SCAN (report-only) ===\n");
+  console.log("\n=== REQ-BODY CONTENT SCAN ===\n");
   const proceduralIssues = checkReqProceduralContent(text);
   const workedExampleIssues = checkReqWorkedExamples(text);
   const thresholdIssues = checkReqThresholds(text);
-  for (const issue of proceduralIssues) console.log(`WARNING: ${issue}`);
-  for (const issue of workedExampleIssues) console.log(`WARNING: ${issue}`);
-  for (const issue of thresholdIssues) console.log(`WARNING: ${issue}`);
-  warnings += proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length;
+  for (const issue of proceduralIssues) console.log(`ERROR: ${issue}`);
+  for (const issue of workedExampleIssues) console.log(`ERROR: ${issue}`);
+  for (const issue of thresholdIssues) console.log(`ERROR: ${issue}`);
+  errors += proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length;
   if (proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length === 0) {
     console.log("PASS: No procedural, worked-example, or unbounded-threshold content in REQ bodies");
   } else {
-    console.log(`REQ-body content scan: ${proceduralIssues.length} procedural, ${workedExampleIssues.length} worked-example, ${thresholdIssues.length} unbounded-threshold (report-only)`);
+    console.log(`REQ-body content scan: ${proceduralIssues.length} procedural, ${workedExampleIssues.length} worked-example, ${thresholdIssues.length} unbounded-threshold`);
   }
 
   console.log("\n=== AMBIGUITY SCAN ===\n");
