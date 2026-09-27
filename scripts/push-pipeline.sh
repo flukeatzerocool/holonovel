@@ -15,8 +15,10 @@
 # spec-changing push — see Appendix V.4. Step 5b warns when it is missing.
 #
 # NOTE: step 2b fetches origin before the delta classification (step 3) so the
-# comparison base is current; step 4b prints the conformance-evidence report
-# (report-only) to surface the false-C risk pool.
+# comparison base is current; step 4b runs the server harness suite unless the
+# delta is patch/editorial with an unchanged contract fingerprint (§6.7
+# Patch/Editorial = G0 only; --full-tests forces it); step 4c prints the
+# conformance-evidence report (report-only) to surface the false-C risk pool.
 #
 # NOTE: the origin push (step 7) runs whenever local main has unpushed commits,
 # not only when this run created one. A clean working tree can still be ahead
@@ -28,13 +30,16 @@
 # auxiliary documentation push must not block it.
 #
 # Usage:
-#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]
+#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
 #   --yes (-y)   Skip confirmation prompt before push/deploy.
 #   --allow-pending  Override the pending-update block (REQ-394) — operator escape hatch.
 #   --no-push    Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
 #   --auto-update  Run outside a session: execute the §6.7 update command
 #                  (HOLONOVEL_INVOKE_UPDATE=1) instead of only printing it.
+#   --full-tests  Always run the server harness suite, even for a patch/editorial
+#                 delta. Default: skip it when the delta is patch/editorial and no
+#                 contract fingerprint changed (§6.7 Patch/Editorial = G0 only).
 #   --help (-h)  Show this message.
 
 set -euo pipefail
@@ -43,13 +48,14 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]
+Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests]
 
   --dry-run        Full pipeline including file writes — skip git commit, push, deploy.
   --yes (-y)       Skip confirmation prompt before push/deploy.
   --allow-pending  Override the pending-update block (REQ-394).
   --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
   --auto-update    Execute the §6.7 update command (HOLONOVEL_INVOKE_UPDATE=1).
+  --full-tests     Always run the server harness suite (skip the patch/editorial exemption).
   --help (-h)      Show this message.
 EOF
 }
@@ -61,6 +67,7 @@ SKIP_CONFIRM=false
 ALLOW_PENDING=false
 NO_PUSH=false
 AUTO_UPDATE=false
+FULL_TESTS=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -69,6 +76,7 @@ for arg in "$@"; do
     --allow-pending) ALLOW_PENDING=true ;;
     --no-push) NO_PUSH=true ;;
     --auto-update) AUTO_UPDATE=true ;;
+    --full-tests) FULL_TESTS=true ;;
     --help|-h)
       usage
       exit 0
@@ -93,8 +101,21 @@ else
   RED=''
   NC=''
 fi
-# Canonical server list — single source of truth in scripts/lib/servers.json
-read -r -a SERVERS <<< "$(node -e "process.stdout.write(require('./scripts/lib/servers.json').join(' '))")"
+# Canonical server list — single source of truth in scripts/lib/servers.json.
+# Fail closed: an empty or unreadable list would silently skip the pending-update
+# gate (REQ-394), the hash sync, and deploy verification (REQ-418), so a missing
+# list is an error, not a no-op.
+mapfile -t SERVERS < <(node -e "process.stdout.write(require('./scripts/lib/servers.json').join('\n'))")
+if [[ ${#SERVERS[@]} -eq 0 ]]; then
+  echo -e "${RED}Could not load the server list from scripts/lib/servers.json — aborting.${NC}" >&2
+  exit 1
+fi
+
+# Marker honored by .githooks/pre-commit and .githooks/pre-push: this pipeline
+# already runs the full gate (build-order → npm run check), so the hooks skip
+# only the steps it covered. Direct `git commit`/`git push` outside the pipeline
+# still runs every hook.
+export HOLONOVEL_PIPELINE=1
 
 # Snapshot the gitignored state files the pipeline may mutate, so --dry-run
 # can restore them (tracked files are reverted via `git checkout -- .`).
@@ -168,10 +189,14 @@ if $DRY_RUN; then snapshot_state; fi
 echo -e "${GREEN}=== 1. Build order (assemble → check → propagate → typecheck → version) ===${NC}"
 npm run build-order || { echo -e "${RED}Build order FAILED${NC}"; exit 1; }
 
-# ── 1b. Server harness suite (a red harness blocks the push) ──
-
-echo -e "${GREEN}=== 1b. Server harness suite (test:all) ===${NC}"
-(cd holonovel && npm run test:all) || { echo -e "${RED}Server harness suite FAILED${NC}"; exit 1; }
+# Whether the assembled spec regenerated the package-format contract
+# fingerprint (holonovel/src/generated/contract-fingerprints.ts). A change here
+# is a server-source change, so the harness suite must run regardless of delta
+# class. Any other spec-driven holonovel source change is not produced here.
+CONTRACT_CHANGED=false
+if ! git diff --quiet -- holonovel/src/generated/contract-fingerprints.ts 2>/dev/null; then
+  CONTRACT_CHANGED=true
+fi
 
 # ── 2. Cross-property coupling ──
 
@@ -201,13 +226,20 @@ fi
 # unparseable payload must not silently masquerade as a 'major' delta and
 # under-scope the update.
 classify_delta() {
-  local server="$1" out
-  if ! out=$(npx tsx scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>&1); then
+  # Capture stdout (the JSON report) separately from stderr (the human summary),
+  # so the parser sees only the JSON. spec-delta prints a trailing "\nSpec delta:
+  # …" summary on stderr; merging streams with 2>&1 makes JSON.parse reject the
+  # trailing text and blocks every run.
+  local server="$1" out err
+  err="$(mktemp)"
+  if ! out=$(npx tsx scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>"$err"); then
     echo -e "${RED}  spec-delta failed for $server:${NC}" >&2
-    echo "$out" >&2
+    cat "$err" >&2
+    rm -f "$err"
     return 1
   fi
-  node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$out"
+  rm -f "$err"
+  node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{'),j=s.lastIndexOf('}');try{const c=JSON.parse(s.slice(i,j+1)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$out"
 }
 
 echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
@@ -231,7 +263,6 @@ if $AUTO_UPDATE; then
 fi
 for server in "${SERVERS[@]}"; do
   DELTA_CLASS="${DELTA_CLASS_OF[$server]}"
-  npx tsx scripts/fingerprint.ts --server "$server" > /dev/null
   EXTRA_ARGS=("--delta-class" "$DELTA_CLASS")
   if $ALLOW_PENDING; then EXTRA_ARGS+=(--allow-pending); fi
   if ! npx tsx scripts/update-server.ts --server "$server" \
@@ -244,12 +275,34 @@ for server in "${SERVERS[@]}"; do
   fi
 done
 
-# ── 4b. Conformance evidence report (informational) ──
+# ── 4b. Server harness suite (a red harness blocks the push) ──
+# §6.7 scopes a Patch/Editorial delta to G0 only (no Pattern Buffer), so the
+# suite is skipped when every server's delta is patch/editorial and no contract
+# fingerprint changed. The pending-update gate above has already passed, so the
+# implementation fingerprints match the spec. --full-tests forces the suite.
+
+NEED_TESTS=false
+for server in "${SERVERS[@]}"; do
+  DELTA_CLASS="${DELTA_CLASS_OF[$server]}"
+  if [[ "$DELTA_CLASS" == "minor" || "$DELTA_CLASS" == "major" ]] || $CONTRACT_CHANGED || $FULL_TESTS; then
+    NEED_TESTS=true
+  fi
+done
+
+if $NEED_TESTS; then
+  echo -e "${GREEN}=== 4b. Server harness suite (test:all) ===${NC}"
+  (cd holonovel && npm run test:all) || { echo -e "${RED}Server harness suite FAILED${NC}"; exit 1; }
+else
+  echo -e "${GREEN}=== 4b. Server harness suite (test:all) ===${NC}"
+  echo -e "${YELLOW}  Skipped: patch/editorial delta with unchanged contract fingerprint (§6.7 G0-only). Use --full-tests to force.${NC}"
+fi
+
+# ── 4c. Conformance evidence report (informational) ──
 # Surfaces bucket-C REQs whose exercised evidence is entirely shared with other
 # REQs — the false-C risk pool (REQ-321d class). Report-only: the detector has a
 # high false-positive rate on the current corpus, so it does not block.
 
-echo -e "${GREEN}=== 4b. Conformance evidence report (informational) ===${NC}"
+echo -e "${GREEN}=== 4c. Conformance evidence report (informational) ===${NC}"
 if ! npx tsx scripts/compare-spec-code.ts --dedicated; then
   echo -e "${YELLOW}  Conformance report exited non-zero — treat the pool as incomplete, not clean.${NC}"
 fi
@@ -350,7 +403,9 @@ fi
 #          be ahead of origin after a prior session committed directly, and
 #          skipping the origin push leaves the deploy target stale (REQ-418). ──
 
-git fetch origin main --quiet 2>/dev/null || true
+# Step 2b already fetched origin main; the remote-tracking ref is current enough
+# for the pending count. A push that races a concurrent remote update fails
+# loudly on the non-fast-forward rather than corrupting anything.
 PENDING_PUSH=0
 if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
   PENDING_PUSH=$(git rev-list --count origin/main..main 2>/dev/null || echo 0)
@@ -452,15 +507,34 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
     echo "  Deployed copy updated ($DEPLOY_PREV → $DEPLOY_NEW)"
     for server in "${SERVERS[@]}"; do
       if [[ -d "$DEPLOY_DIR/$server" ]]; then
-        # npm ci installs strictly from package-lock.json and never rewrites it.
-        # A bare `npm install` under a different npm rewrites the lockfile,
-        # invalidating the REQ-313 lockfile fingerprint and failing REQ-418
-        # verification (recurrence: 2026-08-24). Guard: revert any lockfile
-        # drift the toolchain still produces before the build.
-        (cd "$DEPLOY_DIR/$server" && npm ci --quiet --no-audit --no-fund && npm run build --if-present)
-        if [[ -n "$(git -C "$DEPLOY_DIR/$server" status --porcelain -- package-lock.json)" ]]; then
-          echo -e "${RED}    $server: package-lock.json drifted during install — reverting.${NC}"
-          git -C "$DEPLOY_DIR/$server" checkout -- package-lock.json
+        # Install only when the lockfile changed and build only when the source
+        # or build config changed; a docs/spec-only pull needs neither. First
+        # deploy (empty DEPLOY_PREV) always installs and builds.
+        CHANGED="$(git -C "$DEPLOY_DIR" diff --name-only "$DEPLOY_PREV" "$DEPLOY_NEW" -- "$server" 2>/dev/null || true)"
+        if [[ -z "$DEPLOY_PREV" ]] || grep -q "^$server/package-lock.json$" <<<"$CHANGED"; then
+          # npm ci installs strictly from package-lock.json and never rewrites it.
+          # A bare `npm install` under a different npm rewrites the lockfile,
+          # invalidating the REQ-313 lockfile fingerprint and failing REQ-418
+          # verification (recurrence: 2026-08-24). Guard: revert any lockfile
+          # drift the toolchain still produces before the build.
+          if ! (cd "$DEPLOY_DIR/$server" && npm ci --quiet --no-audit --no-fund); then
+            echo -e "${RED}    $server: dependency install FAILED — deploy incomplete (REQ-418).${NC}"
+            exit 1
+          fi
+          if [[ -n "$(git -C "$DEPLOY_DIR/$server" status --porcelain -- package-lock.json)" ]]; then
+            echo -e "${RED}    $server: package-lock.json drifted during install — reverting.${NC}"
+            git -C "$DEPLOY_DIR/$server" checkout -- package-lock.json
+          fi
+        else
+          echo "    $server: lockfile unchanged — skipping npm ci"
+        fi
+        if [[ -z "$DEPLOY_PREV" ]] || grep -qE "^$server/(src/|tsconfig)" <<<"$CHANGED"; then
+          if ! (cd "$DEPLOY_DIR/$server" && npm run build --if-present); then
+            echo -e "${RED}    $server: build FAILED — deploy incomplete (REQ-418).${NC}"
+            exit 1
+          fi
+        else
+          echo "    $server: source unchanged — skipping build"
         fi
         echo "    $server: deps and build updated"
       fi
