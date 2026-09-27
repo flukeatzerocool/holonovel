@@ -561,6 +561,24 @@ else
   echo -e "${YELLOW}  Deploy directory not found; skipping verification.${NC}"
 fi
 
+# ── 9c. Registry publication check (non-fatal, REQ-428) ──
+# The GitHub mirror's CI publishes to npm and the MCP Registry asynchronously.
+# Give it a bounded window, then report whether the registry lists the pushed
+# version. Placed after deploy (not after step 7b) so the wait does not delay
+# the deploy; the registry and the npm CDN are outside this run's control, so a
+# miss warns rather than failing the pipeline (REQ-418 deploy gate still holds).
+
+echo -e "${GREEN}=== 9c. Registry publication check (REQ-428) ===${NC}"
+if $DID_MIRROR; then
+  if npx tsx scripts/check-registry-publish.ts --wait 120; then
+    echo "  MCP Registry lists the published version."
+  else
+    echo -e "${YELLOW}  MCP Registry does not list the published version yet — re-run 'npm run check-registry' after the mirror CI finishes (REQ-428).${NC}"
+  fi
+else
+  echo -e "${YELLOW}  Skipped: no mirror push this run.${NC}"
+fi
+
 # ── Summary ──
 
 summary_flag() { if $1; then echo "yes"; else echo "no"; fi; }

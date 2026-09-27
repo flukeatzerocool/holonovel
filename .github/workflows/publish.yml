@@ -9,6 +9,12 @@ on:
       - "holonovel/bin/**"
       - "holonovel/tsconfig*.json"
       - "holonovel/server.json"
+      - ".github/workflows/publish.yml"
+  # Daily self-heal: register a version that reached npm but not the MCP
+  # Registry (the npm-propagation race). No-op when both are in sync.
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,35 +29,50 @@ jobs:
         with:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
       - name: Install server dependencies
         working-directory: holonovel
         run: npm ci
-      - name: Determine if version is already published
+      - name: Determine publish state
         id: check
-        working-directory: holonovel
         run: |
-          LOCAL_VERSION=$(node -e "console.log(require('./package.json').version)")
-          PUBLISHED_VERSION=$(npm view holonovel version 2>/dev/null || echo "")
-          echo "local=$LOCAL_VERSION"
-          echo "published=$PUBLISHED_VERSION"
-          if [ "$LOCAL_VERSION" = "$PUBLISHED_VERSION" ]; then
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-            echo "Already published — skipping."
+          CANONICAL=$(node -e "const v=require('./holonovel/package.json').version;console.log(v.split('.').map((p,i)=>i===0?p:String(parseInt(p,10))).join('.'))")
+          echo "canonical=$CANONICAL"
+          if npm view "holonovel@$CANONICAL" version >/dev/null 2>&1; then
+            NPM_HAS=true
           else
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            NPM_HAS=false
           fi
+          REGISTRY_JSON=$(curl -fsSL "https://registry.modelcontextprotocol.io/v0/servers?search=holonovel" 2>/dev/null || true)
+          REGISTRY_HAS=$(printf '%s' "$REGISTRY_JSON" | node -e "
+            let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+              let j;try{j=JSON.parse(s)}catch{process.stdout.write('unknown');return}
+              const want=process.argv[1];const arr=j.servers||[];
+              const hit=arr.some(e=>e.server&&e.server.name==='io.github.flukeatzerocool/holonovel'&&e.server.version===want);
+              process.stdout.write(hit?'true':'false');
+            })" "$CANONICAL")
+          # publish_npm: the version is not on npm. publish_registry: npm has it
+          # but the registry does not — decoupled so a failed registry step can
+          # heal on a later run without republishing the npm package.
+          PUBLISH_NPM=false; [[ "$NPM_HAS" == "false" ]] && PUBLISH_NPM=true
+          PUBLISH_REGISTRY=true; [[ "$REGISTRY_HAS" == "true" ]] && PUBLISH_REGISTRY=false
+          echo "npm_has=$NPM_HAS registry_has=$REGISTRY_HAS publish_npm=$PUBLISH_NPM publish_registry=$PUBLISH_REGISTRY"
+          {
+            echo "canonical=$CANONICAL"
+            echo "publish_npm=$PUBLISH_NPM"
+            echo "publish_registry=$PUBLISH_REGISTRY"
+          } >> "$GITHUB_OUTPUT"
       - name: Build
+        if: steps.check.outputs.publish_npm == 'true'
         working-directory: holonovel
         run: npm run build
       - name: Publish to npm
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.publish_npm == 'true'
         working-directory: holonovel
         run: npm publish --provenance --access public
       - name: Sync server.json version with package.json
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.publish_npm == 'true' || steps.check.outputs.publish_registry == 'true'
         run: |
-          CANONICAL=$(node -e "console.log(require('./holonovel/package.json').version.split('.').map((p,i)=>i===0?p:String(parseInt(p,10))).join('.'))")
+          CANONICAL="${{ steps.check.outputs.canonical }}"
           node -e "
             const fs = require('fs');
             const p = 'holonovel/server.json';
@@ -61,13 +82,36 @@ jobs:
             fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
           " "$CANONICAL"
       - name: Validate server.json
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.publish_npm == 'true' || steps.check.outputs.publish_registry == 'true'
         run: |
           curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
           chmod +x mcp-publisher
           ./mcp-publisher validate holonovel/server.json
+      - name: Wait for the version to appear on npm
+        if: steps.check.outputs.publish_registry == 'true'
+        run: |
+          CANONICAL="${{ steps.check.outputs.canonical }}"
+          for i in $(seq 1 12); do
+            if npm view "holonovel@$CANONICAL" version >/dev/null 2>&1; then
+              echo "npm exposes holonovel@$CANONICAL"
+              exit 0
+            fi
+            echo "npm has not exposed holonovel@$CANONICAL yet ($i/12); waiting 15s..."
+            sleep 15
+          done
+          echo "Timed out waiting for npm to expose holonovel@$CANONICAL" >&2
+          exit 1
       - name: Publish to MCP Registry
-        if: steps.check.outputs.should_publish == 'true'
+        if: steps.check.outputs.publish_registry == 'true'
         run: |
           ./mcp-publisher login github-oidc
-          ./mcp-publisher publish holonovel/server.json
+          for attempt in 1 2 3; do
+            if ./mcp-publisher publish holonovel/server.json; then
+              echo "Registry publish succeeded (attempt $attempt)."
+              exit 0
+            fi
+            echo "Registry publish attempt $attempt failed; retrying in $((attempt * 30))s..."
+            sleep $((attempt * 30))
+          done
+          echo "Registry publish failed after 3 attempts." >&2
+          exit 1
