@@ -1,5 +1,10 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+# pre-commit — run the fast structural gates before commit. [gate]
+#
+# Role: git pre-commit gate. Blocks the commit (exit 1) when assembly, version
+# sync, delta reporting, the guarded-rule-change check, fingerprint sync, lint,
+# or the README guardrail fails. Exit codes: 0 = all pass, 1 = a gate failed.
+set -euo pipefail
 
 if ! command -v node >/dev/null 2>&1; then
     echo "ERROR: node is required to run pre-commit checks but was not found in PATH"

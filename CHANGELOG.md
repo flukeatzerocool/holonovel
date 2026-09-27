@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-09-27 — Push-pipeline hardening and shell-discipline enforcement
+
+- **Dry-run restores on failure.** `push-pipeline.sh` installs an `EXIT` trap
+  that restores the working tree (tracked edits reverted, run-created untracked
+  files removed by a before/after `git ls-files -o` diff) and always removes
+  the state-snapshot temp dir; previously a mid-run `--dry-run` failure left a
+  dirty tree and every normal run leaked a `mktemp -d`.
+- **Fail-loud decision path.** `classify_delta()` aborts the run when
+  `spec-delta` fails or its payload is unparseable (was: `2>/dev/null` and a
+  silent `major` default); a failed `git fetch` now warns that the delta base
+  may be stale; the conformance report warns instead of swallowing non-zero.
+  The same fail-loud delta parse is applied in `.githooks/pre-push`.
+- **Non-fatal wiki push.** Step 8 (wiki) warns on failure and continues to the
+  REQ-418 deploy, which stays the hard gate.
+- **Shell discipline is now mechanically enforced.**
+  `check-script-discipline.ts` additionally scans `scripts/**/*.sh` and
+  `.githooks/pre-commit`/`pre-push` for allowed shebang, header comment,
+  `set -euo pipefail`, exit codes 0–2, no hardcoded server list, and a
+  TTY-guarded color use. Corpus dry run: 0 findings after remediating both
+  hooks (`#!/bin/sh` + `set -e` → `#!/usr/bin/env bash` + `set -euo pipefail`
+  + header). AGENTS.md §Script discipline updated accordingly.
+- **Ergonomics.** Single `usage()` helper (was three copies), unknown-flag
+  diagnostic to stderr, non-interactive guard before the confirmation prompt,
+  colors gated on `[[ -t 1 ]]`, removed the dead `OLD_HASH`, `read -a` for the
+  server list, and an end-of-run outcome summary.
+
 ## 2026-09-27 — AAR recommendation remediation
 
 - **Review-skill guards (external, vetted via `skill-improvement-loop`).**

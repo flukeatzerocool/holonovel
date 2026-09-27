@@ -13,10 +13,14 @@ import { join } from "node:path";
 const ROOT = join(import.meta.dirname, "..");
 const DIRS = [join(ROOT, "scripts"), join(ROOT, "holonovel", "scripts")];
 const LIB_DIRS = [join(ROOT, "scripts", "lib"), join(ROOT, "holonovel", "scripts", "lib")];
+// Shell discipline applies to entry points and hooks (AGENTS.md §Script
+// discipline). `.opencode/` agent tooling is deliberately out of scope.
+const SHELL_DIRS = [join(ROOT, "scripts"), join(ROOT, ".githooks")];
 
 const issues: string[] = [];
+const VALID_EXIT = new Set(["0", "1", "2"]);
 
-function walkTsFiles(dir: string): string[] {
+function walkFiles(dir: string, ext: string): string[] {
   const out: string[] = [];
   let entries;
   try {
@@ -27,13 +31,73 @@ function walkTsFiles(dir: string): string[] {
   for (const e of entries) {
     if (e.name === "node_modules" || e.name === "dist" || e.name === ".git") continue;
     const p = join(dir, e.name);
-    if (e.isDirectory()) out.push(...walkTsFiles(p));
-    else if (e.isFile() && e.name.endsWith(".ts")) out.push(p);
+    if (e.isDirectory()) out.push(...walkFiles(p, ext));
+    else if (e.isFile() && e.name.endsWith(ext)) out.push(p);
   }
   return out;
 }
 
-const VALID_EXIT = new Set(["0", "1", "2"]);
+function walkTsFiles(dir: string): string[] {
+  return walkFiles(dir, ".ts");
+}
+
+// Allowed shell interpreters (AGENTS.md: sh/bash entry points).
+const ALLOWED_SHEBANGS = new Set([
+  "#!/usr/bin/env bash",
+  "#!/bin/bash",
+  "#!/usr/bin/env sh",
+  "#!/bin/sh",
+]);
+
+function checkShellFile(file: string): void {
+  const rel = file.slice(ROOT.length + 1);
+  const content = readFileSync(file, "utf-8");
+  const lines = content.split("\n");
+
+  const shebang = (lines[0] ?? "").trim();
+  if (!shebang.startsWith("#!")) {
+    issues.push(`${rel}: missing shebang on first line`);
+  } else if (!ALLOWED_SHEBANGS.has(shebang)) {
+    issues.push(`${rel}: disallowed shebang '${shebang}' (use #!/usr/bin/env bash or #!/bin/sh)`);
+  }
+
+  const firstReal = lines.findIndex((l) => l.trim() !== "" && !l.trim().startsWith("#!"));
+  if (firstReal === -1 || !lines[firstReal]!.trim().startsWith("#")) {
+    issues.push(`${rel}: missing header comment`);
+  }
+
+  if (!content.includes("set -euo pipefail")) {
+    issues.push(`${rel}: missing 'set -euo pipefail'`);
+  }
+
+  for (const m of content.matchAll(/\bexit\s+(\d+)/g)) {
+    if (!VALID_EXIT.has(m[1]!)) {
+      issues.push(`${rel}: non-standard exit code ${m[1]} (allowed: 0, 1, 2)`);
+    }
+  }
+
+  if (/\[\s*["']holonovel["']\s*\]/.test(content)) {
+    issues.push(`${rel}: hardcoded server list — read scripts/lib/servers.json`);
+  }
+
+  // Colors must be gated on a TTY (AGENTS.md: "color only on TTY"). Heuristic:
+  // an ANSI escape or tput with no `-t 0/1` test is unguarded.
+  const usesColor = /\\033\[|\\e\[|\\x1b\[/.test(content) || /\btput\b/.test(content);
+  const ttyGuarded = /-t\s+[01]|isatty/.test(content);
+  if (usesColor && !ttyGuarded) {
+    issues.push(`${rel}: color without a TTY guard (add [[ -t 1 ]] or isatty)`);
+  }
+}
+
+for (const dir of SHELL_DIRS) {
+  for (const file of walkFiles(dir, ".sh")) {
+    checkShellFile(file);
+  }
+}
+// .githooks/ files have no .sh extension.
+for (const file of walkFiles(join(ROOT, ".githooks"), "")) {
+  if (/[/\\]pre-(commit|push)$/.test(file)) checkShellFile(file);
+}
 
 // Literals assembled to keep this file's own source from tripping its own
 // detectors.
@@ -82,5 +146,5 @@ if (issues.length > 0) {
   process.exit(1);
 }
 
-console.log(`PASS: script discipline — ${DIRS.length} trees, no violations`);
+console.log(`PASS: script discipline — ${DIRS.length} TS trees + shell entry points, no violations`);
 process.exit(0);
