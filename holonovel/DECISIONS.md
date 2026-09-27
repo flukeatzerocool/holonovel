@@ -23,6 +23,13 @@
 - REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
 - Tool-surface consolidation (34 tools) deferred: the surface already satisfies REQ-429's recorded budget; the routing benefit ships via REQ-067d / REQ-114c, and merging tools would churn the §5 tool corpus, the REQ-429 budget, and this gate-classification table. Revisit when a demonstrated routing failure survives the discovery changes.
 
+### Holonovel Spec Update — 2026-09-27 (migrate-user-data integrity: recompute `_checksum` on re-stamp)
+
+- **Delta class:** patch. Changed surfaces: migrate-user-data integrity: recompute `_checksum` on re-stamp; Push-pipeline review fixes and runtime efficiency; Push-pipeline hardening and shell-discipline enforcement; AAR recommendation remediation; Spec↔code conformance follow-up (F1–F5).
+- **Verification:** `npm run assemble` → spec SHA 6478c241…; `npm run build-order` → 0 errors / 159 accepted warnings, contract fingerprints unchanged (package `ac3c57e8…`, data `1587832812e6…`); `npm run typecheck` (root + `holonovel`) → 0 errors; `cd holonovel && npm run test:fingerprints` → 8/8 (T502 extended case FAILS pre-fix, PASSES post-fix); `npm run validate:quick` → 0 errors; `check-guarded-rule-change` → PASS; `check-script-discipline`/`check-traceability`/`check-fingerprint-sync`/`check-registers:strict`/`check-markers` → 0 errors.
+
+<!-- @spec-update:6478c2415f767fe7efb097ea89eddffe3dd750a39d20f90cc19020f593af0f8e -->
+
 ### Holonovel Spec Update — 2026-09-27 (Push-pipeline review fixes and runtime efficiency)
 
 - **Delta class:** minor. Changed surfaces: Push-pipeline review fixes and runtime efficiency; Push-pipeline hardening and shell-discipline enforcement; AAR recommendation remediation; Spec↔code conformance follow-up (F1–F5); Guarded-rule-change gate.

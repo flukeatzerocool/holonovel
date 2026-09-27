@@ -303,6 +303,29 @@ async function main() {
       if (apply.status !== 0) throw new Error(`apply failed: ${apply.stdout} ${apply.stderr}`);
       const after = JSON.parse(readFileSync(join(DATA_DIR, "novels", "prior-novel.json"), "utf-8"));
       if (after.data_format !== DATA_FORMAT) throw new Error(`not re-stamped: ${after.data_format}`);
+
+      // Integrity preservation: a checksummed novel (real current-format writes
+      // carry `_checksum`, state.ts writePayload) must have its checksum
+      // recomputed when re-stamped — otherwise the host's hasValidChecksum
+      // rejects the primary and silently restores the pre-migration `.bak`.
+      const base = JSON.parse(readFileSync(join(STATE_FIXTURE_DIR, "novel-prior.json"), "utf-8"));
+      base.slug = "checksummed-novel";
+      const seedPayload: any = { ...base };
+      delete seedPayload._checksum;
+      base._checksum = createHash("sha256").update(JSON.stringify(seedPayload)).digest("hex");
+      const checksummedPath = join(DATA_DIR, "novels", "checksummed-novel.json");
+      writeFileSync(checksummedPath, JSON.stringify(base, null, 2) + "\n");
+
+      const apply2 = runRootScript("migrate-user-data.ts", ["--apply"]);
+      if (apply2.status !== 0) throw new Error(`apply (checksummed) failed: ${apply2.stdout} ${apply2.stderr}`);
+      const struck = JSON.parse(readFileSync(checksummedPath, "utf-8"));
+      if (struck.data_format !== DATA_FORMAT) throw new Error(`checksummed novel not re-stamped: ${struck.data_format}`);
+      const struckPayload: any = { ...struck };
+      delete struckPayload._checksum;
+      const expected = createHash("sha256").update(JSON.stringify(struckPayload)).digest("hex");
+      if (struck._checksum !== expected) {
+        throw new Error("re-stamp did not recompute _checksum — host would fall back to .bak (would report [data-stale])");
+      }
     });
 
     await test("T504/REQ-424: corrupt stale artifact aborts migration without replacing, names it", async () => {
