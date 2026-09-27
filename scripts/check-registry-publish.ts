@@ -31,6 +31,9 @@ import { join } from "node:path";
 import { handleHelp, parseFlag, parseValueFlag } from "./lib/args.js";
 
 const root = join(import.meta.dirname, "..");
+// Per-server versions endpoint (deterministic, newest-first). The `?search=`
+// listing endpoint is eventually consistent and intermittently omits a
+// just-registered version, so it cannot gate freshness.
 const REGISTRY_ENDPOINT = "https://registry.modelcontextprotocol.io/v0/servers";
 
 const USAGE = `Usage: npx tsx scripts/check-registry-publish.ts [--wait <seconds>] [--json] [--help]
@@ -77,21 +80,21 @@ function canonicalVersion(raw: string): string {
     .join(".");
 }
 
-function readManifest(): { identifier: string; mcpName: string; canonical: string } {
+function readManifest(): { mcpName: string; canonical: string } {
   const pkg = JSON.parse(readFileSync(join(root, "holonovel", "package.json"), "utf-8")) as {
     name: string;
     version: string;
     mcpName?: string;
   };
   return {
-    identifier: pkg.name,
     mcpName: pkg.mcpName ?? pkg.name,
     canonical: canonicalVersion(pkg.version),
   };
 }
 
-async function fetchRegistry(identifier: string): Promise<RegistryServer[]> {
-  const res = await fetch(`${REGISTRY_ENDPOINT}?search=${encodeURIComponent(identifier)}`);
+async function fetchRegistry(mcpName: string): Promise<RegistryServer[]> {
+  const url = `${REGISTRY_ENDPOINT}/${encodeURIComponent(mcpName)}/versions`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`registry returned HTTP ${res.status}`);
   const body = (await res.json()) as { servers?: Array<{ server?: RegistryServer }> };
   return (body.servers ?? [])
@@ -99,13 +102,33 @@ async function fetchRegistry(identifier: string): Promise<RegistryServer[]> {
     .filter((s): s is RegistryServer => Boolean(s));
 }
 
-function latestVersion(servers: RegistryServer[], mcpName: string): string | null {
-  const matching = servers.filter((s) => s.name === mcpName);
-  return matching.length > 0 ? (matching[matching.length - 1].version ?? null) : null;
+// Numeric-segment maximum, independent of the API's ordering.
+function compareVersions(a: number[], b: number[]): number {
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+function latestVersion(servers: RegistryServer[]): string | null {
+  let best: string | null = null;
+  let bestParts: number[] | null = null;
+  for (const s of servers) {
+    if (typeof s.version !== "string") continue;
+    const parts = s.version.split(".").map((p) => parseInt(p, 10));
+    if (parts.some((n) => Number.isNaN(n))) continue;
+    if (bestParts === null || compareVersions(parts, bestParts) > 0) {
+      bestParts = parts;
+      best = s.version;
+    }
+  }
+  return best;
 }
 
 async function main(): Promise<number> {
-  const { identifier, mcpName, canonical } = readManifest();
+  const { mcpName, canonical } = readManifest();
   const deadline = Date.now() + waitSeconds * 1000;
   let present = false;
   let latest: string | null = null;
@@ -113,8 +136,8 @@ async function main(): Promise<number> {
 
   for (;;) {
     try {
-      const servers = await fetchRegistry(identifier);
-      latest = latestVersion(servers, mcpName);
+      const servers = await fetchRegistry(mcpName);
+      latest = latestVersion(servers);
       present = servers.some((s) => s.name === mcpName && s.version === canonical);
       lastError = null;
     } catch (err) {
