@@ -2413,6 +2413,10 @@ build artifact — it is a spec-maintainer reference.
       that asserts an observable outcome is permitted; a worked computation,
       equation, or fully enumerated fixture belongs in Appendix F or the golden
       fixture (§B.3)
+- [ ] A change to these authoring rules made alongside the validator patterns
+      that enforce them (`scripts/lib/req-checks.ts`, `scripts/validate.ts`)
+      carries a `spec/audit/review-register.md` entry naming the rule
+      (`npm run check-guarded-rule-change`)
 - [ ] Trust-the-loop test: would the convergence loop catch this deviation?
 - [ ] Red-team test: answered four questions from §4 Standing Rule 8
 - [ ] Holodeck archetypes: new property group assigned archetypes in §7.7; coupling table

@@ -219,6 +219,12 @@ informational near-duplicate scan, and prints the check summary
 `push-pipeline.sh` therefore runs `test:validators` and `detect-dupes` as part
 of its review; the same changes are covered by `check:full` for CI.
 
+`.githooks/pre-commit` runs `npm run check-guarded-rule-change`: a change that
+edits Appendix M's authoring rules and, in the same staged diff, the validator
+patterns that enforce them (`scripts/lib/req-checks.ts`, `scripts/validate.ts`)
+is blocked unless it adds a `spec/audit/review-register.md` entry naming the
+rule. `--base <ref>` scans `<ref>..HEAD` for an opt-in CI/PR run.
+
 `scripts/push-pipeline.sh` syncs the `**Spec hash:**` line in
 `holonovel/DECISIONS.md` and, before it, runs `scripts/spec-update-record.ts`
 to insert the dated `### Holonovel Spec Update — <date>` narrative entry

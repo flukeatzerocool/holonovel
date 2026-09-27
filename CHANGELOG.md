@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-27 — Guarded-rule-change gate
+
+- **Self-attesting rule changes blocked.** A commit that edits Appendix M's
+  authoring rules and, in the same change, the validator patterns that enforce
+  them (`scripts/lib/req-checks.ts`, `scripts/validate.ts`) is refused unless it
+  records a `spec/audit/review-register.md` entry naming the rule. Wired into
+  `.githooks/pre-commit` via `npm run check-guarded-rule-change`; `--base <ref>`
+  supports an opt-in CI/PR range scan.
+- Appendix M adds the matching checklist rule; the ROADMAP deferred entry is
+  retired.
+
 ## 2026-09-27 — Push-review rigor: validators and dupe scan in the push path, enforced content guards
 
 - **Push path runs the validators' own tests.** `npm run check` now includes
