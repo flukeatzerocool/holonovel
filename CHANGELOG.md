@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-09-27 — AAR recommendation remediation
+
+- **Review-skill guards (external, vetted via `skill-improvement-loop`).**
+  `plan-review` §2 gains a register-coupling check (a plan retiring a tracked
+  item must name same-step cross-referencing register updates); `build-review`
+  §2 gains the matching precondition (run the register cross-reference check
+  before a cascading edit). Versions bumped 2.6→2.7 and 2.5→2.6.
+- **Methodology note (Appendix M).** The false-C class is not reliably
+  detectable mechanically; `compare-spec-code --dedicated` over-flags and is
+  report-only — the assertion-relevance checklist rule is the durable guard.
+- **Plan/register coupling convention.** `plans/README.md` and AGENTS.md
+  review-loop governance state that retiring a ROADMAP entry updates the
+  matching review-register Scheduled-roadmap row in the same increment.
+- **Spec-tooling self-tests.** New `scripts/test-spec-tooling.ts` guards
+  `spec-delta --base` and `compare-spec-code --dedicated`/`--bundles`; wired
+  into `check` and `check:fast`.
+- AAR follow-through G3 (changed-REQ gap-audit gate) and G4 (deployed semantic
+  check) closed with recorded rationale.
+
+## 2026-09-27 — Spec↔code conformance follow-up (F1–F5)
+
+- **Codex import materialization (REQ-321d).** `manage_codex (action: import)`
+  now materializes every kind (npc, character, scene, encounter, lore_entry,
+  faction, countdown, room, thing, equipment/spell/relationship templates,
+  voice_profile, adventure); batch imports are atomic (one undo snapshot, one
+  audit entry, `[NOT_FOUND]` naming the failing index on partial failure);
+  badge scoping per REQ-321k; the `id` parameter is accepted (alias `entry_id`).
+  Appendix F T382/T383/T384 and T366 restored.
+- **`manage_session (action: compress)` overload resolved.** The irreversible
+  compactor is now a distinct `compact` action (REQ-239a); `compress` remains
+  the REQ-086a non-mutating summary prompt. Removes the `known-conflict`
+  baseline entry; `action-conflicts --check` also fails when a known-conflict
+  entry is absent from ROADMAP.md.
+- **Conformance-evidence report.** `compare-spec-code --dedicated` reports
+  bucket-C REQs with no dedicated exercised test (the false-C class). Dry-run
+  measured 131 findings on the current corpus — report-only (high
+  false-positive rate); surfaced in push-pipeline step 4b.
+- **Bundle guard enforced under strict.** `checkTestNameInflation` errors under
+  `--impl-audit=strict`.
+- **Delta base.** `spec-delta --base <ref>`; push-pipeline fetches origin before
+  classifying the delta (new step 2b, `--base origin/main`).
+
 ## 2026-09-27 — Guarded-rule-change gate
 
 - **Self-attesting rule changes blocked.** A commit that edits Appendix M's

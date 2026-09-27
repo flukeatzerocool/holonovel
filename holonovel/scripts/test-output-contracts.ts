@@ -522,17 +522,87 @@ async function main() {
     await kill(p);
   });
 
-  // ── REQ-332 codex provenance ──
-  await test("T384/REQ-332: codex import records provenance and reports stale", async () => {
+  // ── REQ-321d codex import materialization + REQ-332 provenance ──
+  await test("T382/REQ-321: batch codex import is atomic", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w4batch" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Sturdy smith" } });
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Innkeeper", content: { description: "Cheery host" } });
+    const batch = await call(p, "manage_codex", { action: "import",  id: ["npc_blacksmith", "npc_innkeeper"] });
+    assertContains(batch, "[OK]", "T382 batch import");
+    const list = await call(p, "manage_npc", { action: "list" });
+    assertContains(list, "Blacksmith", "T382 first NPC created");
+    assertContains(list, "Innkeeper", "T382 second NPC created");
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Guard", content: { description: "Watchful" } });
+    const bad = await call(p, "manage_codex", { action: "import",  id: ["npc_guard", "npc_missing"] });
+    assertContains(bad, "[NOT_FOUND]", "T382 missing entry");
+    assertContains(bad, "index 1", "T382 failing index reported");
+    const list2 = await call(p, "manage_npc", { action: "list" });
+    if (/Guard/.test(list2)) throw new Error("T382 atomic rollback failed: Guard imported");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T383/REQ-321: bidirectional codex sync updates source in place", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w4sync" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Gruff" } });
+    const imp = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
+    assertContains(imp, "[OK]", "T383 import");
+    const cap = await call(p, "manage_codex", { action: "capture",  kind: "npc", source_id: "Blacksmith", update_source: true });
+    assertContains(cap, "[OK]", "T383 capture update_source");
+    const got = JSON.parse(await call(p, "manage_codex", { action: "get",  id: "npc_blacksmith" }));
+    if (got.source !== "captured:w4sync") throw new Error(`T383 source not updated: ${got.source}`);
+    await call(p, "manage_npc", { action: "create",  name: "Guard Captain" });
+    const conflict = await call(p, "manage_codex", { action: "capture",  kind: "npc", source_id: "Guard Captain", update_source: true });
+    assertContains(conflict, "[STATE_CONFLICT]", "T383 no-provenance conflict");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T366/REQ-321: badge-scoped codex import and materialization", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w4gate" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Gruff, scarred" } });
+    await call(p, "manage_codex", { action: "set",  kind: "character", name: "Fighter", content: { description: "Bold" }, visibility: "shared" });
+    const gmImport = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
+    assertContains(gmImport, "[OK]", "T366 GM import");
+    const gmList = await call(p, "manage_npc", { action: "list" });
+    assertContains(gmList, "Blacksmith", "T366 NPC materialized");
+    await call(p, "set_badge", { badge: "player" });
+    const playerChar = await call(p, "manage_codex", { action: "import",  id: "character_fighter" });
+    assertContains(playerChar, "[OK]", "T366 Player shared-character import");
+    const playerNpc = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
+    assertContains(playerNpc, "[FORBIDDEN]", "T366 Player npc import forbidden");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T384/REQ-332: codex import materializes provenance and reports stale", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4h" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Sturdy smith" } });
-    await call(p, "manage_codex", { action: "import",  entry_id: "npc_blacksmith" });
+    const imp = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
+    assertContains(imp, "[OK]", "T384 import");
+    const list = JSON.parse(await call(p, "manage_npc", { action: "list" }));
+    const smith = list.find((n: any) => n.name === "Blacksmith");
+    if (!smith || !smith.codex_source || smith.codex_source.id !== "npc_blacksmith") {
+      throw new Error(`T384 codex_source missing: ${JSON.stringify(list)}`);
+    }
     const info = JSON.parse(await call(p, "manage_novel", { action: "info" }));
-    assertContains(JSON.stringify(info), "codex_sources", "REQ-332 codex_sources in novel_info");
+    assertContains(JSON.stringify(info.codex_sources), "npc_blacksmith", "T384 codex_sources in novel_info");
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Renamed smith" } });
+    await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
+    const list2 = JSON.parse(await call(p, "manage_npc", { action: "list" }));
+    const smith2 = list2.filter((n: any) => n.name === "Blacksmith");
+    if (smith2.length !== 1) throw new Error(`T384 duplicate NPCs: ${smith2.length}`);
+    if (smith2[0].description !== "Renamed smith") throw new Error(`T384 in-place update failed: ${smith2[0].description}`);
     const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
-    assertContains(JSON.stringify(health), "npc_blacksmith", "REQ-332 provenance registered");
+    assertContains(JSON.stringify(health), "codex", "T384 health codex counts");
     passed++;
     await kill(p);
   });

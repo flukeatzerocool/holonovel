@@ -277,8 +277,8 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_note", { action: "set", key: "n3", content: "three" });
 
-    await test("T277/REQ-239: compress archives old sessions and keeps the hash chain valid", async () => {
-      const ni = await call(p, "manage_session", { action: "compress", sessions: 2 });
+    await test("T277/REQ-239: compact archives old sessions and keeps the hash chain valid", async () => {
+      const ni = await call(p, "manage_session", { action: "compact", sessions: 2 });
       assertContains(ni, "[NEED_INPUT]");
       const done = await call(p, "respond_decision", { decision: "compress_audit:2", option: "yes" });
       assertContains(done, "[OK]");

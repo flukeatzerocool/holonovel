@@ -200,6 +200,9 @@ Also available separately:
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
 | `npm run validate:sdd` | Full validation including proofreading |
 | `npm run validate:quick` | Fast iteration — skips heavy coupling/patterning checks |
+| `npm run check:conformance` | Bundle-dependence gate (`compare-spec-code --gate`) |
+| `npm run check:conformance -- --dedicated` | Conformance-evidence report: bucket-C REQs whose exercised evidence is entirely shared with other REQs (the REQ-321d false-C class). Report-only — the detector over-flags on the current corpus |
+| `npm run spec-delta -- --base <ref>` | Classify the spec delta against a specific git ref instead of `origin/main` |
 
 The implementation-coverage audit runs unconditionally inside every `validate`
 invocation. Two optional flags extend it:
@@ -256,7 +259,9 @@ the coverage backlog itself is cleared (bucket-A reflects intended coverage;
   terminal dispositions: `Resolved` / `Scheduled-roadmap` / `Closed-P3` /
   `Deferred-by-user`. The REQ-coverage register (`spec/audit/req-coverage.md`)
   and ROADMAP.md are the tracking surfaces; the AAR references them and never
-  restates them as recommendations.
+  restates them as recommendations. A plan that retires or renames a ROADMAP
+  entry updates the matching Scheduled-roadmap row in the same increment
+  (`check-registers` gates the cross-reference).
 - **Finding evidence.** A finding cites the predicate it rests on — the
   `file:line` of the condition — not a gate's emitted message. A finding raised
   from a message alone is provisional until the predicate is confirmed; a

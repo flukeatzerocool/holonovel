@@ -1137,11 +1137,11 @@ four items is incomplete and blocks handoff.
     with session IDs and timestamps; `manage_session (action: recap, session_id="s1")` returns only s1
     entries; `manage_session (action: recap, session_id="s2")` returns only s2 entries; `manage_session (action: recap)`
     returns all entries; `spec_health` reports per-session metrics array. With
-    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_session (action: compress)` prompts `[NEED_INPUT]`
+    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_session (action: compact)` prompts `[NEED_INPUT]`
     confirmation; on confirm, session 1 entries removed from live log,
     `audit://novel/archive` returns session 1 summary; `manage_session (action: recap, session_id="s1")`
     returns the summary from archive; `manage_session (action: recap)` returns only session 2 entries.
-    Player badge `manage_session (action: compress)` returns `[FORBIDDEN]`. (Non-blocking.)
+    Player badge `manage_session (action: compact)` returns `[FORBIDDEN]`. (Non-blocking.)
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
     files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with

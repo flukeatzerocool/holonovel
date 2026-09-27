@@ -154,7 +154,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
-| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compress)` archives older entries |
+| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
@@ -598,7 +598,7 @@ Notes) couple per their pattern rules (P17, P23, P32); pairs not covered by
 those rules produce no couplings. Input-validation workflows —
 character-creation step-by-step decisions (REQ-104, REQ-151, REQ-152),
 confirmation prompts (`manage_novel (action: end)` REQ-140, `manage_novel (action: checkpoint_restore)` REQ-241,
-`manage_session (action: compress)` REQ-239), and parser command disambiguation (§5.10) — are
+`manage_session (action: compact)` REQ-239), and parser command disambiguation (§5.10) — are
 single-property input workflows, not cross-property couplings; they produce no
 coupling rows.
 

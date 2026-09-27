@@ -10,6 +10,10 @@
 # class, changed surfaces, verification) must be added manually before a
 # spec-changing push — see Appendix V.4. Step 5b warns when it is missing.
 #
+# NOTE: step 2b fetches origin before the delta classification (step 3) so the
+# comparison base is current; step 4b prints the conformance-evidence report
+# (report-only) to surface the false-C risk pool.
+#
 # NOTE: the origin push (step 7) runs whenever local main has unpushed commits,
 # not only when this run created one. A clean working tree can still be ahead
 # of origin after a prior session committed directly; skipping the push leaves
@@ -130,13 +134,28 @@ echo -e "${GREEN}=== 1b. Server harness suite (test:all) ===${NC}"
 echo -e "${GREEN}=== 2. Refresh README and wiki from spec ===${NC}"
 npm run refresh-properties
 
+# ── 2b. Fetch origin so the delta base is current (REQ-418) ──
+# The delta classification and the pending-push count both compare against
+# origin/main; fetch before either so a stale remote-tracking ref cannot
+# misclassify the delta (or hide commits).
+
+echo -e "${GREEN}=== 2b. Fetch origin (delta base) ===${NC}"
+git fetch origin main --quiet 2>/dev/null || true
+DELTA_BASE="origin/main"
+if git rev-parse --verify --quiet "$DELTA_BASE" >/dev/null 2>&1; then
+  echo "  delta base: $DELTA_BASE ($(git rev-parse --short "$DELTA_BASE"))"
+else
+  DELTA_BASE="HEAD"
+  echo -e "${YELLOW}  origin/main unavailable — using HEAD as the delta base${NC}"
+fi
+
 # ── 3. Spec hash + delta report (classification printed before the gate) ──
 
 echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
 declare -A DELTA_CLASS_OF
 for server in "${SERVERS[@]}"; do
-  DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
+  DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
   DELTA_CLASS_OF[$server]="$DELTA_CLASS"
   echo "  $server: delta class = $DELTA_CLASS"
 done
@@ -162,6 +181,14 @@ for server in "${SERVERS[@]}"; do
     exit 1
   fi
 done
+
+# ── 4b. Conformance evidence report (informational) ──
+# Surfaces bucket-C REQs whose exercised evidence is entirely shared with other
+# REQs — the false-C risk pool (REQ-321d class). Report-only: the detector has a
+# high false-positive rate on the current corpus, so it does not block.
+
+echo -e "${GREEN}=== 4b. Conformance evidence report (informational) ===${NC}"
+npx tsx scripts/compare-spec-code.ts --dedicated || true
 
 # ── 5. Update stored spec hashes in DECISIONS.md ──
 

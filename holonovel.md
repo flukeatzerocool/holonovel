@@ -2501,16 +2501,16 @@ Markers SHALL be badge-filtered: the Player badge sees only session boundary tim
 **REQ-073a2 — Clock types (Part a2).**
 The existing `type` parameter (`round`/`narrative`) controls tick timing — `clock_type` controls the clock's interaction model. Both parameters coexist: a clock may be `clock_type: "racing"` with `type: "round"`. *Acceptance criterion:* A `racing` clock pair with `opposes` resolves correctly; a `linked` clock chain triggers the child on parent completion; a `tug_of_war` clock retreated to zero does not trigger. _Check:_ T271.
 **REQ-239a — Audit log compaction (Part a).**
-`manage_session (action: compress, sessions?)` tool (Game Master only) that archives audit entries older than a configurable session window into per-session metadata summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS` — sessions are identified by `[session-boundary]` markers (REQ-237). For each archived session, the compaction produces a summary containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`, `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174), `condition_changes`, `roster_changes`, and `scene_transitions`.
+`manage_session (action: compact, sessions?)` tool (Game Master only) that archives audit entries older than a configurable session window into per-session metadata summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS` — sessions are identified by `[session-boundary]` markers (REQ-237). For each archived session, the compaction produces a summary containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`, `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174), `condition_changes`, `roster_changes`, and `scene_transitions`.
 
 **REQ-239b — Audit log compaction (Part b).**
 Summaries live in the Novel JSON under an `audit_archive` key. The server removes raw audit entries for archived sessions from the `audit_log` array in the Novel JSON (REQ-040). The hash chain stays intact — the server re-anchors it at the first live entry after compaction, and entries after the compaction boundary form a new segment. The `manage_session (action: recap)` tool (REQ-072) SHALL derive from live entries plus archive summaries when a `session_id` targets an archived session. Summarized sessions are retrievable via `audit://novel/archive` as structured objects.
 
 **REQ-239c — Audit log compaction (Part c).**
-Compaction is irreversible — confirmation proceeds through a `[NEED_INPUT]` workflow. Calling `manage_session (action: compress)` with a `sessions` parameter (minimum 1) sets the number of recent sessions to retain as live; when omitted, the `TTRPG_AUDIT_RETENTION_SESSIONS` default is used. Sessions currently active (no `ended_at` marker) SHALL NOT be compacted.
+Compaction is irreversible — confirmation proceeds through a `[NEED_INPUT]` workflow. Calling `manage_session (action: compact, sessions)` (minimum 1) sets the number of recent sessions to retain as live; when omitted, the `TTRPG_AUDIT_RETENTION_SESSIONS` default is used. Sessions currently active (no `ended_at` marker) SHALL NOT be compacted.
 
 **REQ-239d — Audit log compaction (Part d).**
-Player badge attempts return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* With `TTRPG_AUDIT_RETENTION_SESSIONS=1`, after two sessions, `manage_session (action: compress)` archives session 1 — audit log shows only session 2 entries, `audit://novel/archive` returns session 1 summary, `manage_session (action: recap, session_id="s1")` returns the summary, session 2 entries remain live. A third call to `manage_session (action: compress, sessions=2)` retains both sessions 2 and 3. _Check:_ T277.
+Player badge attempts return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* With `TTRPG_AUDIT_RETENTION_SESSIONS=1`, after two sessions, `manage_session (action: compact)` archives session 1 — audit log shows only session 2 entries, `audit://novel/archive` returns session 1 summary, `manage_session (action: recap, session_id="s1")` returns the summary, session 2 entries remain live. A third call to `manage_session (action: compact, sessions=2)` retains both sessions 2 and 3. _Check:_ T277.
 **REQ-241a — Checkpoints (Part a).**
 The server SHALL provide checkpoints. `manage_novel (action: checkpoint_set, label)` saves a named Novel-state snapshot. The snapshot includes all §7.7 property groups, host base-capability state, NPC mind (REQ-075f), world-model tier, combat state, pending workflows, gm_context, metadata, and undo stacks. `manage_novel (action: checkpoint_list)` returns checkpoint labels with ISO 8601 timestamps. The `manage_novel (action: checkpoint_restore, label)` reverts the Novel to the checkpoint state — emits a `[NEED_INPUT]` workflow decision with options `yes` and `cancel` (on `yes`: restores the snapshot and records a `[checkpoint-restored]` audit entry; on `cancel`: restores pre-invocation state unchanged). The `manage_novel (action: checkpoint_remove, label)` removes one checkpoint.
 
@@ -5669,11 +5669,11 @@ four items is incomplete and blocks handoff.
     with session IDs and timestamps; `manage_session (action: recap, session_id="s1")` returns only s1
     entries; `manage_session (action: recap, session_id="s2")` returns only s2 entries; `manage_session (action: recap)`
     returns all entries; `spec_health` reports per-session metrics array. With
-    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_session (action: compress)` prompts `[NEED_INPUT]`
+    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_session (action: compact)` prompts `[NEED_INPUT]`
     confirmation; on confirm, session 1 entries removed from live log,
     `audit://novel/archive` returns session 1 summary; `manage_session (action: recap, session_id="s1")`
     returns the summary from archive; `manage_session (action: recap)` returns only session 2 entries.
-    Player badge `manage_session (action: compress)` returns `[FORBIDDEN]`. (Non-blocking.)
+    Player badge `manage_session (action: compact)` returns `[FORBIDDEN]`. (Non-blocking.)
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
     files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
@@ -6779,7 +6779,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
-| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compress)` archives older entries |
+| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
@@ -7223,7 +7223,7 @@ Notes) couple per their pattern rules (P17, P23, P32); pairs not covered by
 those rules produce no couplings. Input-validation workflows —
 character-creation step-by-step decisions (REQ-104, REQ-151, REQ-152),
 confirmation prompts (`manage_novel (action: end)` REQ-140, `manage_novel (action: checkpoint_restore)` REQ-241,
-`manage_session (action: compress)` REQ-239), and parser command disambiguation (§5.10) — are
+`manage_session (action: compact)` REQ-239), and parser command disambiguation (§5.10) — are
 single-property input workflows, not cross-property couplings; they produce no
 coupling rows.
 
@@ -10042,7 +10042,7 @@ diet.
 | T274  | Automated | Secrets and knowledge: call `manage_lore (action: set_secret, "confession", "The butler killed Lord Ashworth")` — assert GM-only lore entry created. Call `manage_lore (action: reveal, "confession", "pc_detective")` — assert `manage_character (action: sheet, "pc_detective")` includes "Known Information" section. Call `manage_lore (action: knowledge, "pc_detective")` — assert returns the secret. Call `manage_lore (action: knowledge, "pc_guard")` — assert does not return the secret. | REQ-234 |
 | T275  | Automated | Session segmentation: run two sessions with different `TTRPG_SESSION_ID` values — assert audit log contains two `[session-boundary]` markers with session IDs and timestamps. Call `manage_session (action: recap, session_id="s1")` — assert returns only entries from session s1. Call `manage_session (action: recap, session_id="s2")` — assert returns only entries from session s2. Call `manage_session (action: recap)` with no session_id — assert returns all entries. Call `manage_session (action: health)` — assert per-session metrics array includes entry counts, timespans, and combat rounds for both sessions. | REQ-237 |
 | T276  | Automated | Backup rotation: set `TTRPG_NOVEL_BACKUP_COUNT=3` — after 10 mutations, assert three rotated backup files exist (`.bak.1`, `.bak.2`, `.bak.3`) with descending modification times. Corrupt the primary `.json` file and `.bak.1` — restart the server, assert it restores from `.bak.2` and the audit log contains a `[restored-from-backup]` entry naming backup index 2. Call `manage_novel (action: end)` — assert all backup files and the primary are moved to `.trash/`. | REQ-238 |
-| T277  | Automated | Audit log compaction: with `TTRPG_AUDIT_RETENTION_SESSIONS=1`, run two sessions — assert audit log has entries for both. Call `manage_session (action: compress)` — assert `[NEED_INPUT]` confirmation prompt. Confirm with `respond_decision(decision, "yes")` — assert session 1 entries are gone from live audit log, `audit://novel/archive` contains session 1 summary with timespan, entry_count, confrontations, and significant_rolls. Call `manage_session (action: recap, session_id="s1")` — assert returns the summary from archive. Call `manage_session (action: recap)` with no session_id — assert returns only session 2 entries. Call `manage_session (action: compress, sessions=2)` — assert prompt to retain both sessions. Player badge `manage_session (action: compress)` returns `[FORBIDDEN]`. | REQ-239 |
+| T277  | Automated | Audit log compaction: with `TTRPG_AUDIT_RETENTION_SESSIONS=1`, run two sessions — assert audit log has entries for both. Call `manage_session (action: compact)` — assert `[NEED_INPUT]` confirmation prompt. Confirm with `respond_decision(decision, "yes")` — assert session 1 entries are gone from live audit log, `audit://novel/archive` contains session 1 summary with timespan, entry_count, confrontations, and significant_rolls. Call `manage_session (action: recap, session_id="s1")` — assert returns the summary from archive. Call `manage_session (action: recap)` with no session_id — assert returns only session 2 entries. Call `manage_session (action: compact, sessions=2)` — assert prompt to retain both sessions. Player badge `manage_session (action: compact)` returns `[FORBIDDEN]`. | REQ-239 |
 | T278  | Automated | Clone Novel: call `manage_novel (action: clone, "my-novel", "my-novel-fork")` — assert new Novel created at `novels/my-novel-fork.json`, `spec_health` lists both Novels, source Novel's active flag unchanged. Set Fate point and momentum state in the source before cloning — assert the clone preserves both (REQ-434–443). Give the source NPC a populated mind — assert the clone preserves the NPC mind object (REQ-075f). Mutate the clone (add NPC) — assert source Novel unaffected. Call `manage_novel (action: clone, "my-novel", "my-novel-fork")` again — assert `[STATE_CONFLICT]`. Call `manage_novel (action: clone, "my-novel", "trimmed", trim_audit_sessions=2)` — assert cloned audit log contains only 2 most recent sessions. Player badge `manage_novel (action: clone)` returns `[FORBIDDEN]`. | REQ-240 |
 | T279  | Automated | Checkpoints: call `manage_novel (action: checkpoint_set, "before-ritual")` — assert checkpoint created, `manage_novel (action: checkpoint_list)` returns `{label: "before-ritual", ...}`. Set Fate point state before the checkpoint — after restore, assert the base-capability state is reverted with the rest of the snapshot (REQ-434–443). Give an NPC a populated mind before the checkpoint — after restore, assert the NPC mind is reverted with the snapshot (REQ-075f). Perform 5 mutations. Call `manage_novel (action: checkpoint_restore, "before-ritual")` — assert `[NEED_INPUT]`, confirm `yes`, assert all 5 mutations reversed. Call `manage_novel (action: checkpoint_remove, "before-ritual")` — assert `manage_novel (action: checkpoint_list)` is empty. Set `TTRPG_MAX_CHECKPOINTS=1`, create two checkpoints — assert oldest discarded. Call `manage_novel (action: end)` — assert checkpoints cleared. `manage_novel (action: export, "json", include_checkpoints=true)` — assert `checkpoints` key present. Player badge returns `[FORBIDDEN]`. | REQ-241 |
 | T280  | Automated | Notes: call `manage_note (action: set, "twist", "The king is the dragon")` — assert stored with default `game_master` scope. Call `manage_note (action: set, "clue", "The key is in the clock", "player")` — assert stored with `player` scope. Call `manage_note (action: list)` under Game Master badge — assert returns both notes with their badge_scope values. Switch to Player badge — assert `manage_note (action: list)` returns only the `player`-scoped note; `notes://twist` returns `[FORBIDDEN]`; `notes://clue` returns full content. Assert Player `badge_briefing` `notes` section shows only the player-scoped note. Assert GM `badge_briefing` `notes` section shows both notes. Call `manage_note (action: set, "gm_only", "secret", "game_master")` under Player badge — assert `[FORBIDDEN]`. Call `manage_note (action: remove, "twist")` — assert note removed. `manage_novel (action: export, "json")` — assert `notes` key present with `{content, badge_scope}` objects. `manage_novel (action: end)` — assert notes cleared. | REQ-242 |
@@ -10905,16 +10905,22 @@ build artifact — it is a spec-maintainer reference.
       covering distinct concerns, split it
 - [ ] Action-contract uniqueness: a tool action's parameter set and contract are
       owned by exactly one REQ — a second REQ binding the same action with a
-      different parameter set is a spec defect (REQ-086 `compress max_entries`
-      versus REQ-239 `compress sessions` precedent: disambiguate by parameter, or
-      consolidate). A binding has the form `tool (action: name[, params])`.
+      different parameter set is a spec defect (resolved precedent: the
+       REQ-086 `manage_session (action: compress)` prompt generator and the
+       REQ-239 `manage_session (action: compact)` compactor were split into
+       distinct actions rather than overloaded on one). A binding has the form
+       `tool (action: name[, params])`.
       Parameters may be introduced across several REQs for one operation
       (cumulative decomposition) — only a later REQ that redefines the
       operation's contract is a conflict. `scripts/action-conflicts.ts` reports
       candidates for manual review (report-only; not a gate)
 - [ ] Assertion relevance: the `_Check:_` test asserts the REQ's contract, not
       merely appears inside a bundled test name — a test that passes without
-      exercising the contract is nominal evidence
+      exercising the contract is nominal evidence. This class (a bucket-C REQ
+      held by a comment-only citation and a shared test ID) is **not** reliably
+      detectable mechanically: the `compare-spec-code --dedicated` detector
+      over-flags on the current corpus and is report-only. This checklist rule
+      is the durable guard; treat the detector as a review pointer, not a gate.
 - [ ] Config declaration: a runtime configuration the REQ introduces is declared
       in the §7.6 table, or recorded as a builder-side/optional disposition in
       DECISIONS.md

@@ -24,12 +24,6 @@
       "action": "set",
       "disposition": "decomposition",
       "justification": "REQ-076b1 defines description; REQ-352b/REQ-363b/REQ-364b add optional beat/location parameters. Cumulative, not an overload."
-    },
-    {
-      "tool": "manage_session",
-      "action": "compress",
-      "disposition": "known-conflict",
-      "justification": "REQ-086a defines compress(max_entries) as a non-mutating prompt generator; REQ-239a defines compress(sessions?) as an audit-log compactor that removes entries. Two normative contracts for one action — needs an operation discriminator. Tracked on ROADMAP.md."
     }
   ]
 }

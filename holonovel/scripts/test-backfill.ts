@@ -273,9 +273,9 @@ async function main() {
       assertContains(roll, "[NOT_FOUND]");
     });
 
-    await test("T277/T239: compress requires confirmation and cancels cleanly", async () => {
+    await test("T277/T239: compact requires confirmation and cancels cleanly", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "audit-room", description: "Audit." });
-      const ni = await call(proc, "manage_session", { action: "compress",  sessions: 1 });
+      const ni = await call(proc, "manage_session", { action: "compact",  sessions: 1 });
       assertContains(ni, "[NEED_INPUT]");
       const cancelled = await call(proc, "respond_decision", { decision: "compress_audit:1", option: "cancel" });
       assertContains(cancelled, "[OK]");
