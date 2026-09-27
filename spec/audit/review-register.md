@@ -189,6 +189,18 @@ None.
 
 ## Closed-P3 (recorded, no action)
 
+- **Pipeline step-4 "full Build workflow required" flag** (`scripts/push-pipeline.sh
+  --dry-run`, 2026-09-26): the step-4 message is REQ-314 rebuild-scoping output, not
+  the REQ-394 pending-update block. The gate correctly permitted publication — the
+  REQ-394 pending condition is a non-patch delta with *unchanged* fingerprints, and
+  all five components had advanced. The confusing output came from the machine
+  baseline (`.holonovel-state/pipeline-fingerprints.json`, `spec_hash 0a444e3b…`)
+  lagging the hand-edited `**Spec hash:**` line in `holonovel/DECISIONS.md`
+  (`88030ebd…`, commit `83f405e`). REQ-394 requires classifying against a
+  machine-recorded baseline, never a hand-edited value, so the divergence is
+  expected; a real pipeline run rewrites the baseline and self-heals. No
+  demonstrated gate failure; reopen only if a Minor/Major delta with unchanged
+  fingerprints is observed to publish.
 - **Config drift + comment-only-citation false-C** (superseded 2026-09-26): the
   prior Closed-P3 dispositions for "pre-existing config drift" and "SC-7
   comment-only source citations" are withdrawn. The config items are fixed or
