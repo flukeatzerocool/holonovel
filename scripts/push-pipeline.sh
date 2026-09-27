@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# push-pipeline.sh — assemble spec, sync server, push.
+# push-pipeline.sh — assemble spec, sync server, push. [entry point]
 #
-# This script handles the mechanical parts: build-order (spec assembly + checks
-# + propagation + typecheck + version sync) then hash update, fingerprint,
-# commit, and push.
+# Role: shell entry point implementing the publication contracts §6.7 /
+# REQ-394 (pending-update gate) and REQ-418 (deployment verification).
+# Purpose: run the mechanical parts — build-order (spec assembly + checks +
+# propagation + typecheck + version sync), hash update, fingerprint, commit,
+# and push.
+# Exit codes: 0 = pipeline completed (or dry-run/--no-push stopped cleanly);
+# 1 = any build, gate, push, or deploy failure.
 #
 # NOTE: step 5 syncs only the "**Spec hash:**" line in DECISIONS.md. The
 # human-readable "### Holonovel Spec Update — <date>" narrative entry (delta
@@ -19,6 +23,10 @@
 # of origin after a prior session committed directly; skipping the push leaves
 # the deploy target stale and fails REQ-418.
 #
+# NOTE: step 8 (wiki) is non-fatal — a wiki push failure warns and the run
+# continues to the step 9 deploy. Deploy (REQ-418) is the hard gate; an
+# auxiliary documentation push must not block it.
+#
 # Usage:
 #   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
@@ -30,6 +38,21 @@
 #   --help (-h)  Show this message.
 
 set -euo pipefail
+
+# ── Usage ──
+
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]
+
+  --dry-run        Full pipeline including file writes — skip git commit, push, deploy.
+  --yes (-y)       Skip confirmation prompt before push/deploy.
+  --allow-pending  Override the pending-update block (REQ-394).
+  --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
+  --auto-update    Execute the §6.7 update command (HOLONOVEL_INVOKE_UPDATE=1).
+  --help (-h)      Show this message.
+EOF
+}
 
 # ── Flag parsing ──
 
@@ -47,38 +70,43 @@ for arg in "$@"; do
     --no-push) NO_PUSH=true ;;
     --auto-update) AUTO_UPDATE=true ;;
     --help|-h)
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]"
-      echo ""
-      echo "  --dry-run        Full pipeline including file writes — skip git commit, push, deploy."
-      echo "  --yes (-y)       Skip confirmation prompt before push/deploy."
-      echo "  --allow-pending  Override the pending-update block (REQ-394)."
-      echo "  --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy."
-      echo "  --auto-update    Execute the §6.7 update command (HOLONOVEL_INVOKE_UPDATE=1)."
-      echo "  --help (-h)      Show this message."
+      usage
       exit 0
       ;;
     *)
-      echo "Unknown flag: $arg"
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]"
+      echo "Unknown flag: $arg" >&2
+      usage >&2
       exit 1
       ;;
   esac
 done
 
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
+# Colors only on a TTY, so piped/redirected output stays clean.
+if [[ -t 1 ]]; then
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  RED='\033[0;31m'
+  NC='\033[0m'
+else
+  GREEN=''
+  YELLOW=''
+  RED=''
+  NC=''
+fi
 # Canonical server list — single source of truth in scripts/lib/servers.json
-SERVERS=($(node -e "process.stdout.write(require('./scripts/lib/servers.json').join(' '))"))
+read -r -a SERVERS <<< "$(node -e "process.stdout.write(require('./scripts/lib/servers.json').join(' '))")"
 
 # Snapshot the gitignored state files the pipeline may mutate, so --dry-run
 # can restore them (tracked files are reverted via `git checkout -- .`).
 # refresh-properties also rewrites wiki pages in the separate wiki repo
 # (.holonovel-state/wiki/.git, pushed by step 8) — snapshot those .md pages too
 # so a --dry-run restores the wiki working tree to its pre-run bytes.
-STATE_SNAPSHOT="$(mktemp -d)"
+STATE_SNAPSHOT=""
+BEFORE_UNTRACKED=""
 snapshot_state() {
+  STATE_SNAPSHOT="$(mktemp -d)"
+  BEFORE_UNTRACKED="$STATE_SNAPSHOT/untracked-before"
+  git ls-files --others --exclude-standard > "$BEFORE_UNTRACKED" 2>/dev/null || true
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
     if [[ -f "$f" ]]; then cp "$f" "$STATE_SNAPSHOT/$(basename "$f")"; fi
   done
@@ -88,8 +116,17 @@ snapshot_state() {
     done
   fi
 }
-restore_state() {
+# Restore tracked files and remove untracked files the run created (those not
+# present before the snapshot), then restore the gitignored state files.
+restore_worktree() {
   git checkout -- . 2>/dev/null || true
+  if [[ -n "$BEFORE_UNTRACKED" && -f "$BEFORE_UNTRACKED" ]]; then
+    local after="$STATE_SNAPSHOT/untracked-after"
+    git ls-files --others --exclude-standard > "$after" 2>/dev/null || true
+    while IFS= read -r p; do
+      [[ -n "$p" ]] && rm -rf -- "$p"
+    done < <(comm -13 <(sort "$BEFORE_UNTRACKED") <(sort "$after"))
+  fi
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
     local b="$(basename "$f")"
     if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
@@ -100,8 +137,15 @@ restore_state() {
       if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
     done
   fi
-  rm -rf "$STATE_SNAPSHOT"
 }
+# EXIT trap: always remove the temp dir; on --dry-run also restore the tree,
+# so a mid-run failure cannot leave a dirty working tree blocking the next run.
+cleanup() {
+  if $DRY_RUN && [[ -n "$STATE_SNAPSHOT" ]]; then restore_worktree; fi
+  if [[ -n "$STATE_SNAPSHOT" ]]; then rm -rf "$STATE_SNAPSHOT"; fi
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
 
 # ── Preflight: clean working tree ──
 
@@ -140,7 +184,9 @@ npm run refresh-properties
 # misclassify the delta (or hide commits).
 
 echo -e "${GREEN}=== 2b. Fetch origin (delta base) ===${NC}"
-git fetch origin main --quiet 2>/dev/null || true
+if ! git fetch origin main --quiet 2>/dev/null; then
+  echo -e "${YELLOW}  origin fetch failed — delta base may be stale (network/remote issue).${NC}"
+fi
 DELTA_BASE="origin/main"
 if git rev-parse --verify --quiet "$DELTA_BASE" >/dev/null 2>&1; then
   echo "  delta base: $DELTA_BASE ($(git rev-parse --short "$DELTA_BASE"))"
@@ -151,11 +197,27 @@ fi
 
 # ── 3. Spec hash + delta report (classification printed before the gate) ──
 
+# Classify one server's delta. Fails loud: a broken spec-delta or an
+# unparseable payload must not silently masquerade as a 'major' delta and
+# under-scope the update.
+classify_delta() {
+  local server="$1" out
+  if ! out=$(npx tsx scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>&1); then
+    echo -e "${RED}  spec-delta failed for $server:${NC}" >&2
+    echo "$out" >&2
+    return 1
+  fi
+  node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$out"
+}
+
 echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
 declare -A DELTA_CLASS_OF
 for server in "${SERVERS[@]}"; do
-  DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
+  if ! DELTA_CLASS=$(classify_delta "$server"); then
+    echo -e "${RED}Delta classification failed for $server — aborting.${NC}"
+    exit 1
+  fi
   DELTA_CLASS_OF[$server]="$DELTA_CLASS"
   echo "  $server: delta class = $DELTA_CLASS"
 done
@@ -188,7 +250,9 @@ done
 # high false-positive rate on the current corpus, so it does not block.
 
 echo -e "${GREEN}=== 4b. Conformance evidence report (informational) ===${NC}"
-npx tsx scripts/compare-spec-code.ts --dedicated || true
+if ! npx tsx scripts/compare-spec-code.ts --dedicated; then
+  echo -e "${YELLOW}  Conformance report exited non-zero — treat the pool as incomplete, not clean.${NC}"
+fi
 
 # ── 5. Update stored spec hashes in DECISIONS.md ──
 
@@ -198,7 +262,6 @@ echo -e "${GREEN}=== 5. Update stored spec hashes in DECISIONS.md ===${NC}"
 npx tsx scripts/spec-update-record.ts || { echo -e "${RED}Spec Update record generation FAILED${NC}"; exit 1; }
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
-    OLD_HASH=$(grep -oP '\*\*Spec hash:\*\*\s*\K[a-f0-9]+' "$server/DECISIONS.md" | head -1)
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
     echo "  Updated spec hash in $server/DECISIONS.md → $SPEC_HASH"
   else
@@ -219,13 +282,16 @@ fi
 if $DRY_RUN; then
   echo -e "${YELLOW}[DRY RUN] All checks passed. Would commit and push.${NC}"
   echo -e "${YELLOW}[DRY RUN] Restoring working tree state.${NC}"
-  restore_state
   exit 0
 fi
 
 # ── Confirmation prompt ──
 
 if ! $SKIP_CONFIRM; then
+  if [[ ! -t 0 ]]; then
+    echo -e "${RED}Non-interactive stdin and no --yes — refusing to guess. Re-run with --yes.${NC}" >&2
+    exit 1
+  fi
   echo ""
   read -r -p "Commit, push, and deploy? (y/N) " confirm
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -233,6 +299,15 @@ if ! $SKIP_CONFIRM; then
     exit 0
   fi
 fi
+
+# ── Outcome tracking (for the end-of-run summary) ──
+
+DID_COMMIT=false
+DID_TAG=false
+DID_PUSH=false
+DID_MIRROR=false
+DID_WIKI=false
+DID_DEPLOY=false
 
 # ── 6. Stage and commit ──
 
@@ -260,6 +335,7 @@ if $HAS_COMMIT; then
   Build-order: spec assembled, checked, propagated to server, server
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
+  DID_COMMIT=true
 fi
 
 # ── 6b. Early exit on --no-push: local work is done; leave the commit unpushed. ──
@@ -294,12 +370,14 @@ if [[ "$PENDING_PUSH" -gt 0 ]]; then
     git tag -f "$TAG"
     echo -e "${GREEN}  Tagging $TAG at HEAD${NC}"
     TAG_TO_PUSH="$TAG"
+    DID_TAG=true
   fi
 
   # ── 7. Push main ──
 
   echo -e "${GREEN}=== 7. Push main ===${NC}"
   git push origin main || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
+  DID_PUSH=true
   if [[ -n "$TAG_TO_PUSH" ]]; then
     git push origin "$TAG_TO_PUSH" || { echo -e "${RED}Tag push FAILED — aborting deploy.${NC}"; exit 1; }
   fi
@@ -311,7 +389,7 @@ fi
 
 echo -e "${GREEN}=== 7b. Mirror sync (github) ===${NC}"
 if git config --get remote.github.url >/dev/null 2>&1; then
-  git push github main || echo -e "${YELLOW}  Mirror push (main) FAILED — GitHub mirror is behind origin.${NC}"
+  if git push github main; then DID_MIRROR=true; else echo -e "${YELLOW}  Mirror push (main) FAILED — GitHub mirror is behind origin.${NC}"; fi
   if [[ -n "$TAG_TO_PUSH" ]]; then
     git push github "$TAG_TO_PUSH" || echo -e "${YELLOW}  Mirror tag push FAILED.${NC}"
   fi
@@ -337,7 +415,11 @@ if [[ -d "$WIKI_DIR/.git" ]]; then
     echo -e "${YELLOW}  No wiki changes.${NC}"
   else
     git -C "$WIKI_DIR" commit -m "Wiki refresh $(date +%Y-%m-%d)"
-    git -C "$WIKI_DIR" push origin main
+    if git -C "$WIKI_DIR" push origin main; then
+      DID_WIKI=true
+    else
+      echo -e "${YELLOW}  Wiki push FAILED — non-fatal; continuing to deploy.${NC}"
+    fi
   fi
 else
   echo -e "${YELLOW}  Wiki directory not found, skipping.${NC}"
@@ -400,8 +482,12 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
       exit 1
     fi
   done
+  DID_DEPLOY=true
 else
   echo -e "${YELLOW}  Deploy directory not found; skipping verification.${NC}"
 fi
 
-echo -e "${GREEN}Done.${NC}"
+# ── Summary ──
+
+summary_flag() { if $1; then echo "yes"; else echo "no"; fi; }
+echo -e "${GREEN}Done.${NC} commit=$(summary_flag $DID_COMMIT) tag=$(summary_flag $DID_TAG) push=$(summary_flag $DID_PUSH) mirror=$(summary_flag $DID_MIRROR) wiki=$(summary_flag $DID_WIKI) deploy=$(summary_flag $DID_DEPLOY)"

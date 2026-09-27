@@ -1,5 +1,10 @@
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+# pre-push — run the publication gates before any push. [gate]
+#
+# Role: git pre-push gate. Blocks the push (exit 1) when the pending-update
+# gate, spec/server sync, the check suite, or the implementation-coverage
+# strict gate fails. Exit codes: 0 = all gates pass, 1 = a gate failed.
+set -euo pipefail
 
 if ! command -v node >/dev/null 2>&1; then
     echo "ERROR: node is required to run pre-push checks but was not found in PATH"
@@ -13,7 +18,20 @@ npx tsx scripts/version-check.ts
 
 echo "  pending-update gate..."
 spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
-delta_class=$(npx tsx scripts/spec-delta.ts --server holonovel --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
+if ! raw_delta=$(npx tsx scripts/spec-delta.ts --server holonovel --report-only 2>&1); then
+    echo ""
+    echo "BLOCKED: spec-delta failed — cannot classify the pending update."
+    echo "$raw_delta"
+    echo ""
+    exit 1
+fi
+if ! delta_class=$(node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$raw_delta"); then
+    echo ""
+    echo "BLOCKED: spec-delta output could not be parsed — cannot classify the pending update."
+    echo "$raw_delta"
+    echo ""
+    exit 1
+fi
 if ! npx tsx scripts/update-server.ts --server holonovel --spec-hash "$spec_hash" --delta-class "$delta_class" --check >/dev/null 2>&1; then
     echo ""
     echo "BLOCKED: A spec update is pending — the implementation has not been updated to match the spec."

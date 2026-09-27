@@ -138,6 +138,10 @@ harness is a gate role; it must be wired into a `package.json` script
   `fileURLToPath(import.meta.url)` boilerplate.
 - Empty `catch {}` blocks carry a comment explaining why the error is safely
   ignored.
+- Shell entry points (`scripts/**/*.sh`, `.githooks/pre-commit`,
+  `.githooks/pre-push`) start with an allowed shebang (`#!/usr/bin/env bash`
+  or `#!/bin/sh`), carry a header comment, set `set -euo pipefail`, use only
+  exit codes 0–2, and gate color on a TTY (`[[ -t 1 ]]`/`isatty`).
 
 **Conventions (documented, not mechanically checked):**
 
@@ -161,7 +165,9 @@ harness is a gate role; it must be wired into a `package.json` script
   conflicts; `checkSectionIndexCompleteness` covers §5 map coverage).
 - Shell discipline: `set -euo pipefail`, a case-based flag parser, `--help`,
   color only on TTY. CI workflow steps rely on script exit codes and never
-  swallow them.
+  swallow them. (Shebang, header, `set -euo pipefail`, exit codes, and the
+  color-on-TTY guard are mechanically enforced; the flag parser and `--help`
+  remain conventions.)
 
 ## Gates
 
