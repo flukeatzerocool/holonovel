@@ -1,6 +1,6 @@
 # holonovel
 
-**Build the Holodeck. Load your campaign.**
+**The Holodeck for your rulebooks — rules enforced, worlds remembered.**
 
 A world-model MCP server for tabletop RPG play: rooms, things, exits, a
 parser command layer, and narrative tools, with out-of-the-box mechanics from

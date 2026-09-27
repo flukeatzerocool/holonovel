@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-26 — README restructure, accuracy pass, word-budget gate
+
+- **README tagline and orientation.** Replaced the tagline with "The Holodeck
+  for your rulebooks — rules enforced, worlds remembered" and stacked the
+  m8ven badge below the glama badge instead of beside it; the tagline is synced
+  in `holonovel/README.md`.
+- **README §1 trimmed.** Removed the "Build your own rulebook" subsection and
+  its TOC entry; corrected the ruleset install-directory description to match
+  the state-directory contract (REQ-397) rather than naming a fixed path.
+- **README §2 accuracy pass.** Corrected the Convert wording (multi-column
+  reading order and multi-page table reassembly are distinct; OCR is a scan
+  fallback), softened the Build completeness claims to the extraction floor
+  with searchable residue, replaced the false "powered by Inform" claim with
+  convention provenance, dropped an unsupported competitor assertion, and
+  rewrote the four slogan stage-closings as factual sentences.
+- **README §4 removed.** Deleted the Contribute section and its "Improve the
+  spec" subsection because the canonical repository accepts no contributions;
+  the canonical-origin line and project-wiki link moved into the license
+  footer.
+- **Word-budget gate.** `scripts/validate-readme.ts` now enforces the README
+  DESIGN 1,500-word cap as a hard error (excluding code, tables, blockquotes,
+  the TOC, and the footer), and its expected-heading and audience-tag lists no
+  longer reference the removed Contribute section. README DESIGN comment
+  updated to match (structure §1–§3, one table, two §1 subsections).
+
 ## 2026-09-26 — Roadmap action: general codex capture, §6.7 self-invocation, action-conflict gate
 
 - **General codex capture (REQ-321n).** `manage_codex (action: capture,

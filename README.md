@@ -27,17 +27,17 @@ README DESIGN:
 
   Structure.
     Orientation → Table of contents → Run a server (§1) → How it works
-    (§2) → How it compares (§3) → Contribute (§4) → Footer. No other
-    ordering. Section headings use canonical numbering (§1–§4) matching
+    (§2) → How it compares (§3) → Footer. No other
+    ordering. Section headings use canonical numbering (§1–§3) matching
     the TOC and cross-reference links. The TOC is a bulleted list of
     every h2 and h3 heading with Markdown anchor links, each h2 entry
     tagged by audience. It does not link to itself or the Orientation.
 
   Audience split.
     §1 is for operators who want a server now — one copy-paste
-    quick-start sequence, plus installing and building rulesets. §2
+    quick-start sequence, plus installing rulesets. §2
     describes capabilities to an evaluator. §3 is the competitive
-    landscape — one row per competitor category. §4 is for contributors.
+    landscape — one row per competitor category.
 
   Orientation.
     Exactly four elements: h1 heading, bold tagline on its own line,
@@ -52,18 +52,17 @@ README DESIGN:
   Table of contents.
     Bulleted list of every h2 and h3 heading with Markdown anchor links.
     Appears between the Orientation and §1. Each h2 entry carries a
-    trailing audience tag — operators, evaluators, or contributors —
+    trailing audience tag — operators or evaluators —
     outside the link. h3 entries are untagged. No prose, no descriptions.
     The validator enforces TOC-to-heading consistency.
 
   Run a server (§1).
-    Three h3 subsections. No introductory prose under the h2.
+    Two h3 subsections. No introductory prose under the h2.
     Install: one descriptive sentence, prerequisite (Node.js 20+), shell
     code block for install, and copy-paste JSON config block with
     `<path>` placeholder.
     Install a ruleset: drop-in packages, lazy loading, and the
-    `.holonovel-state/` location.
-    Build your own rulebook: the build-ruleset entry point.
+    state-directory location.
     Config blocks use `json` language tag. Shell blocks use `sh`.
     No blockquotes, no tool names in prose.
 
@@ -113,15 +112,9 @@ README DESIGN:
     and the refrain as the product's central metaphor. Additional prose
     uses are permissible where the metaphor drives meaning.
 
-  Contribute (§4).
-    One h3 subsection — Improve the spec. No introductory prose under
-    the h2. Prerequisite sentence, four-row commands table, closing
-    assemble sentence, canonical-origin note, project-wiki link. No
-    duplicated instructions from §1. License footer follows immediately
-    — no heading.
-
   License footer.
-    Three attribution lines: MIT, sources (Inform, four narrative
+    Canonical-origin line, project-wiki link, then three attribution
+    lines: MIT, sources (Inform, four narrative
     frameworks), Inform credit. RSS link. "Last updated: YYYY-MM-DD."
     Date matches package.json version date. Update both or neither.
 
@@ -139,10 +132,9 @@ README DESIGN:
     or type.
 
   Table convention.
-    Exactly two tables: the comparison table (§3) and the Contribute
-    commands table (§4). No other tables. No tables in prose.
-    Pipe-delimited Markdown. No inline formatting beyond bold. Column
-    widths are author-managed.
+    Exactly one table: the comparison table (§3). No other tables. No
+    tables in prose. Pipe-delimited Markdown. No inline formatting beyond
+    bold. Column widths are author-managed.
 
   No repetition.
     One story vector per section. Don't explain the same concept in two
@@ -163,7 +155,7 @@ README DESIGN:
   Word budget.
     Total prose ≤ 1,500 words (excludes code blocks, config JSON,
     tables, blockquotes, TOC, and footer). Orientation ≤ 80 words. §3
-    closing prose ≤ 80 words.
+    closing prose ≤ 80 words. The validator enforces the 1,500-word cap.
 
   Validator.
     All rules marked "The validator enforces" SHALL be checked by
@@ -180,9 +172,10 @@ README DESIGN:
 
 # Holonovel
 
-**Build the Holodeck. Load your campaign.**
+**The Holodeck for your rulebooks — rules enforced, worlds remembered.**
 
 [![holonovel MCP server](https://glama.ai/mcp/servers/flukeatzerocool/holonovel/badges/card.svg)](https://glama.ai/mcp/servers/flukeatzerocool/holonovel)
+
 [![M8ven Live Monitored](https://m8ven.ai/badge/mcp/flukeatzerocool-holonovel-1n5aoa)](https://m8ven.ai/mcp/flukeatzerocool-holonovel-1n5aoa)
 
 A *holonovel* is a Star Trek holodeck program — an interactive story where you
@@ -196,7 +189,6 @@ Your Holodeck.
 - [Run a server](#run-a-server) — operators
   - [Install](#install)
   - [Install a ruleset](#install-a-ruleset)
-  - [Build your own rulebook](#build-your-own-rulebook)
 - [How it works](#how-it-works) — evaluators
   - [Convert](#convert)
   - [Build](#build)
@@ -204,8 +196,6 @@ Your Holodeck.
   - [Novel](#novel)
   - [Synthesis](#synthesis)
 - [How it compares](#how-it-compares) — evaluators
-- [Contribute](#contribute) — contributors
-  - [Improve the spec](#improve-the-spec)
 
 ## Run a server
 
@@ -240,24 +230,16 @@ Add to your MCP client:
 ### Install a ruleset
 
 The Build workflow turns a rulebook into a declarative package. Drop the package
-into the install directory — `.holonovel-state/rulesets/<slug>/` by default — and
-the running server registers it. Packages load lazily: a ruleset's tools and index
+into the server's ruleset install directory and the running server registers it.
+That directory lives inside the server's state directory, which defaults to a
+per-user data location outside the project tree (or `.holonovel-state/` when the
+server runs outside one). Packages load lazily: a ruleset's tools and index
 hydrate only when you open a campaign bound to that ruleset, so stacking many
 packages costs you nothing up front. Install, remove, and list packages from the
 server tools, or just move files and restart.
 
-Your campaign data and installed packages live under `.holonovel-state/`, outside
+Your campaign data and installed packages live in that state directory, outside
 the server tree — updating holonovel never touches them.
-
-### Build your own rulebook
-
-To start a build, run the entry point — it records the intake and prints the
-workflow to follow (see the spec's Workflow Runbooks appendix for the full happy
-path):
-
-```sh
-npm run build-ruleset dnd5e=ruleset/dnd5e/
-```
 
 ## How it works
 
@@ -268,46 +250,45 @@ server-side.
 ### Convert
 
 Convert takes PDFs, HTML, and web scrapes and turns them into clean Markdown.
-Column detection reassembles tables across page breaks. OCR catches text
-embedded in images. The output is structurally sound — every heading resolved,
-every reference traced.
+Multi-column pages are read in the right order, and tables split across page
+breaks are reassembled. Scanned pages fall back to OCR. The output is
+structurally sound — headings resolve and references trace.
 
 > "Take the Dungeon Master's Guide — every chapter, every table, every sidebar —
 > and make it a clean source file the server can build from."
 > "Convert this PDF to Markdown, and reassemble the tables that break across
 > pages."
 
-Clean Markdown, ready to build.
+Clean, indexed Markdown ready for the build.
 
 ### Build
 
-Build reads that Markdown and extracts every mechanic. Dice procedures, combat
-systems, spell catalogues, equipment tables, condition tracks — every structured
-element becomes a tool, resource, or prompt in a declarative ruleset package.
-Guidance prose becomes narrative material. The discovery engine samples the
-source, measures extraction confidence, and iterates until every mechanical
-section is accounted for. What can't be modeled stays searchable — nothing is
+Build reads that Markdown and extracts the mechanics. Dice procedures, combat
+systems, spell catalogues, equipment tables, condition tracks — modeled elements
+become tools, resources, or prompts in a declarative ruleset package, while
+anything that can't be modeled stays searchable. Guidance prose becomes narrative
+material. The discovery engine reads the source in chunks, measures extraction
+confidence, and works until the mechanical sections are accounted for. Nothing is
 fabricated to fill a gap.
 
 > "Build me a ruleset package from these files."
 > "Extract every mechanic from this rulebook — the dice, the combat, the spells —
 > into a ruleset package."
 
-One spec. Any rulebook. Zero code.
+One spec reads any rulebook, and the build produces zero hand-written code.
 
 ### World
 
 The world model is a spatial simulation layer — rooms, exits, containers,
 supports, doors. Every object knows where it is and what it contains. The server
 maintains a real containment graph, not a paragraph of prose it hopes the AI
-remembers. The world model is powered by the Inform programming language — the
-same engine behind decades of interactive fiction classics.
+remembers. Its conventions are drawn from Inform, the interactive-fiction
+language behind decades of text-adventure classics.
 
 Parser commands navigate the world with real containment logic. Go north. The
 room is there. Take the lantern. It moves from the sarcophagus to your
 inventory. Open containers, lock doors, examine surroundings. Exits connect
-automatically in both directions. Most AI RPG tools have no spatial model — the
-AI pretends to remember where things are.
+automatically in both directions.
 
 > "Go north."
 > "Take the lantern from the sarcophagus."
@@ -315,7 +296,7 @@ AI pretends to remember where things are.
 > "Open the iron door."
 > "Examine the runes carved into the altar."
 
-Your map is real.
+The map is real state, not narration.
 
 ### Novel
 
@@ -348,7 +329,7 @@ secrets, lore entries, and narrative directives never leak to the Player badge.
 > "Switch to the Game Master badge. I need to set up the next scene."
 > "Pace: I want things to move faster."
 
-Your campaign. On the server. Forever.
+The campaign persists on the server as structured, queryable state.
 
 ### Synthesis
 
@@ -386,26 +367,7 @@ stop there. AI storytellers improvise mechanics as they go. Holonovel doesn't
 pick. The server enforces every mechanic. The AI narrates. The Novel preserves
 everything — D&D 5e, Starfinder, or your own rulebook.
 
-## Contribute
-
-### Improve the spec
-
-```sh
-npm install && npm run check   # lint + validate + assumption audit + ambiguity
-                                # scan + cross-ref check + dupe detection
-```
-
-| Command | What it checks |
-|---------|---------------|
-| `npm run fmea` | REQ-level failure mode and effects |
-| `npm run validate --traceability` | Full REQ↔test↔workflow traceability |
-| `npm run graph-deps` | REQ dependency graph (DOT/Graphviz) |
-
-Edit files in `spec/`. Run `npm run assemble` before committing. Do not edit
-`holonovel.md` directly — it is generated from `spec/` source files.
-
-Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel). This GitHub repository is a push-only mirror (synced by `scripts/push-pipeline.sh`) that also hosts the npm and MCP-registry publish workflow (`.github/workflows/publish.yml`).
-
+Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel).
 Guides for players, Game Masters, and builders live in the [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki).
 
 License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
