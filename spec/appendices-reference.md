@@ -2581,7 +2581,10 @@ be justified by its domain complexity.
 - Sort orders, algorithms, and trigger-scan caps → builder's implementation judgment
 - Default starting values → builder determines; verified by verification workflow thresholds
 - Base-capability tuning values (fixed infrastructure per Appendix S) → Appendix O
-  (Behavioral Contracts), not REQ bodies
+  (Behavioral Contracts O.11), not REQ bodies
+- Health and verification contract constants (size ceiling, growth window,
+  mismatch and overflow tolerances, verification count/word tolerances) →
+  Appendix O.12, referenced from the REQ body, not restated in it
 - Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
   live registries; the REQ states the category
 - State-machine transition rules → state model table (§7.7) is canonical
@@ -2762,6 +2765,24 @@ references this table for the tuning value.
 | Forged | Stress track maximum | 8 |
 | Forged | Resist default cost | 2 |
 | Forged | Downtime recover default | 2 |
+
+---
+
+**O.12 — Health and verification contract constants:**
+
+These constants are fixed contract values the health report and the independent
+verification workflow consume. Like O.11 they are referenced from a REQ body,
+not restated in it: a REQ states the contract and cites this table for the
+value.
+
+| Surface | Constant | Value |
+|---------|----------|-------|
+| Novel health | On-disk size ceiling (REQ-097) | 4 MB |
+| Novel health | Size-growth projection window (REQ-097) | 3 sessions |
+| Novel health | On-disk size mismatch tolerance (REQ-097) | 1% |
+| Novel health | Property-group overflow warning ratio (REQ-129) | 80% |
+| Independent verification | Prose word-count tolerance (REQ-273) | ±20% |
+| Independent verification | Open-ended count tolerance (REQ-273) | ±1 |
 
 ---
 

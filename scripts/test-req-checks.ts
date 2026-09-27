@@ -289,6 +289,20 @@ test("threshold scan: percentage without a reference is flagged, with a referenc
   }
 });
 
+test("threshold scan: bare 'Confidence' no longer suppresses the scan", () => {
+  const text = "**REQ-908b — Threshold (Part b).**\nConfidence below 80% blocks the build. _Check:_ T989.";
+  if (!checkReqThresholds(text).some((i) => i.includes("REQ-908b"))) {
+    throw new Error("expected REQ-908b flagged; bare 'Confidence' must not skip the scan");
+  }
+});
+
+test("threshold scan: an Appendix H fidelity reference is accepted", () => {
+  const text = "**REQ-908c — Threshold (Part c).**\nBelow the Appendix H fidelity threshold. _Check:_ T988.";
+  if (checkReqThresholds(text).some((i) => i.includes("REQ-908c"))) {
+    throw new Error("REQ-908c wrongly flagged despite Appendix H reference");
+  }
+});
+
 test("base-capability defaults: a default in §5.21 is flagged", () => {
   const text = [
     "### 5.21 Fate Base Capabilities",
@@ -299,6 +313,41 @@ test("base-capability defaults: a default in §5.21 is flagged", () => {
   const issues = checkBaseCapabilityDefaults(text);
   if (!issues.some((i) => i.includes("REQ-908a"))) {
     throw new Error(`expected REQ-908a default flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+const O11_FIXTURE_TAIL = [
+  "### 5.24 Temporal Event Log and Branching",
+  "**O.11 — Base-capability tuning values:**",
+  "| Capability | Setting | Value |",
+  "| --- | --- | --- |",
+  "| Ironsworn | Progress track boxes | 10 |",
+  "---",
+];
+
+test("base-capability defaults: a restated O.11 value without a citation is flagged", () => {
+  const text = [
+    "### 5.21 Fate Base Capabilities",
+    "**REQ-909a — Restates (Part a).**",
+    "The track holds ten boxes. _Check:_ T991.",
+    ...O11_FIXTURE_TAIL,
+  ].join("\n");
+  const issues = checkBaseCapabilityDefaults(text);
+  if (!issues.some((i) => i.includes("REQ-909a"))) {
+    throw new Error(`expected REQ-909a restatement flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("base-capability defaults: a restated value citing Appendix O passes", () => {
+  const text = [
+    "### 5.21 Fate Base Capabilities",
+    "**REQ-910a — Cites (Part a).**",
+    "The track holds ten boxes, per Appendix O. _Check:_ T990.",
+    ...O11_FIXTURE_TAIL,
+  ].join("\n");
+  const issues = checkBaseCapabilityDefaults(text);
+  if (issues.some((i) => i.includes("REQ-910a"))) {
+    throw new Error(`REQ-910a wrongly flagged despite Appendix O citation; got ${JSON.stringify(issues)}`);
   }
 });
 

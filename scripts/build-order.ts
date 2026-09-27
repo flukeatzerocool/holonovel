@@ -52,6 +52,7 @@ function hashFile(path: string): string {
 
 interface Fingerprint {
   spec_hash: string;
+  scripts_hash: string;
   holonovel_src_hash: string;
   holonovel_world_hash: string;
   holonovel_vendor_hash: string;
@@ -75,6 +76,7 @@ function computeCurrent(): Fingerprint {
   const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
   return {
     spec_hash: hashDir(join(root, "spec")),
+    scripts_hash: hashDir(join(root, "scripts")),
     holonovel_src_hash: hashDir(join(root, "holonovel", "src")),
     holonovel_world_hash: hashDir(join(root, "holonovel", "src", "world")),
     holonovel_vendor_hash: hashDir(join(root, "holonovel", "narrative_world_model")),
@@ -87,6 +89,29 @@ function run(label: string, cmd: string, cwd?: string): boolean {
   try {
     execSync(cmd, { cwd: cwd ?? root, stdio: "pipe" });
     console.log("OK");
+    return true;
+  } catch (e: unknown) {
+    console.log("FAILED");
+    const err = e as { stderr?: Buffer; stdout?: Buffer; status?: number };
+    const output = err.stderr?.toString().trim() || err.stdout?.toString().trim() || err.status;
+    console.error(`  ${output}`);
+    return false;
+  }
+}
+
+// Run a check step and surface its assignable summary — the terminal
+// "N error(s), M warning(s)" line and any WARNING: findings — so the review is
+// visible on success rather than swallowed by the piped stdio.
+function runChecked(label: string, cmd: string): boolean {
+  process.stdout.write(`\n${label} ... `);
+  try {
+    const out = execSync(cmd, { cwd: root, stdio: "pipe" }).toString();
+    console.log("OK");
+    for (const line of out.split("\n")) {
+      if (/^\d+ error\(s\), \d+ warning\(s\)/.test(line) || line.startsWith("WARNING:")) {
+        console.log(`  ${line.length > 160 ? line.slice(0, 160) + "…" : line}`);
+      }
+    }
     return true;
   } catch (e: unknown) {
     console.log("FAILED");
@@ -114,6 +139,7 @@ const saved = loadFingerprint();
 const firstRun = !saved;
 
 const specChanged = firstRun || current.spec_hash !== saved.spec_hash;
+const scriptsChanged = firstRun || current.scripts_hash !== saved.scripts_hash;
 const holoSrcChanged = firstRun || current.holonovel_src_hash !== saved.holonovel_src_hash;
 
 const steps: Step[] = [];
@@ -145,11 +171,20 @@ if (specChanged) {
   steps.push({ label: "1b. Regenerate contract fingerprints", fn: () => skip("1b. Regenerate contract fingerprints", "spec/ unchanged") });
 }
 
-// Step 2: Check spec (depends on spec/)
-if (specChanged) {
-  steps.push({ label: "2. Check spec", fn: () => run("2. Check spec", "npm run check") });
+// Step 2: Check spec (depends on spec/ or scripts/ — a validator change is a
+// review-surface change and must re-run the check even when spec/ is untouched).
+if (specChanged || scriptsChanged) {
+  steps.push({ label: "2. Check spec", fn: () => runChecked("2. Check spec", "npm run check") });
 } else {
-  steps.push({ label: "2. Check spec", fn: () => skip("2. Check spec", "spec/ unchanged") });
+  steps.push({ label: "2. Check spec", fn: () => skip("2. Check spec", "spec/ and scripts/ unchanged") });
+}
+
+// Step 2b: Near-duplicate scan (informational — detect-near-dupes exits 0
+// always; a crash still surfaces as FAILED and blocks the push).
+if (specChanged) {
+  steps.push({ label: "2b. Near-duplicate scan", fn: () => run("2b. Near-duplicate scan", "npm run detect-dupes") });
+} else {
+  steps.push({ label: "2b. Near-duplicate scan", fn: () => skip("2b. Near-duplicate scan", "spec/ unchanged") });
 }
 
 // Step 3: Spec-propagate (depends on spec/)
