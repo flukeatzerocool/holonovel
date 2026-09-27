@@ -185,10 +185,30 @@ condition — not a gate's emitted message; a message alone is not evidence.
   the synced hash line). build-review `metadata.version` 2.3 → 2.4. External
   file, not in this repo. The same pass added a heuristic-check
   false-positive-budget item to plan-review §2 (version 2.3 → 2.4).
+- **General codex capture (Scheduled feature request)** (resolved 2026-09-26):
+  REQ-321n now specifies `manage_codex (action: capture, kind, source_id,
+  update_source?)`; the tool dispatches capture by kind, REQ-321f points at the
+  new contract, and the ROADMAP entry is removed. New evidence T397b/T397c/T402c.
+- **§6.7 update self-invocation** (resolved 2026-09-26): `scripts/update-server.ts`
+  executes the printed update command when `HOLONOVEL_INVOKE_UPDATE=1` (default
+  off, never under `--check`); `push-pipeline.sh --auto-update` sets it.
+  Exercised by T84c/T84d. ROADMAP entry removed.
+- **Action-contract conflict error gate** (resolved 2026-09-26):
+  `scripts/action-conflicts.ts --check` fails on any candidate group not in
+  `spec/audit/action-conflicts-baseline.json`; report-only stays in `check:fast`
+  and `--check` is wired into `check`. The five known groups are dispositioned;
+  the one genuine overload (REQ-086a vs REQ-239a) is Scheduled-roadmap.
+  ROADMAP entry removed.
 
 ## Scheduled-roadmap
 
-None.
+- **General codex import materialization** (2026-09-26): ROADMAP.md
+  §"General codex import materialization". REQ-321d per-kind import is
+  unimplemented — only REQ-347b voice_profile and REQ-321e adventure import.
+- **manage_session (action: compress) contract conflict** (2026-09-26):
+  ROADMAP.md §"manage_session (action: compress) contract conflict". REQ-086a
+  vs REQ-239a own one action with incompatible contracts; baselined in
+  `spec/audit/action-conflicts-baseline.json`.
 
 ## Closed-P3 (recorded, no action)
 

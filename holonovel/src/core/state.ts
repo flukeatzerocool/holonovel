@@ -274,6 +274,10 @@ export interface CodexEntry {
   tags?: string[];
   imported_at: string;
   codex_modified_at: string;
+  // REQ-321f — adventure/capture provenance: `generated`, `loaded:<slug>`, or
+  // `captured:<novel_slug>`; a captured entry also records its origin Novel.
+  source?: string;
+  source_novel?: string;
 }
 
 export interface VowState {

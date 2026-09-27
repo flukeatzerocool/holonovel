@@ -6,27 +6,19 @@
   Update this file when planning a release.
 -->
 
-## Scheduled — General codex capture (feature request)
+## Scheduled — General codex import materialization (feature gap)
 
-- REQ-321f originally specified `manage_codex (action: capture, kind, source_id)`
-  to pull an arbitrary Novel artifact into the codex; the implementation provides
-  per-kind capture only (adventure via REQ-321g, voice profile via REQ-347a).
-  REQ-321f is narrowed to the provenance contract and the general path is
-  recorded here as a feature request. Found by `scripts/action-conflicts.ts`.
+- The Codex import path materializes only `voice_profile` (REQ-347b) and
+  `adventure` (REQ-321e) entries; the general per-kind materialization contract
+  in REQ-321d (npc, character, scene, encounter, lore_entry, faction, countdown,
+  room, thing, and the template kinds) is unimplemented. Predicate: the
+  `manage_codex` import case in `holonovel/src/index.ts` branches only on
+  `voice_profile`/`adventure`. Found 2026-09-26 while shipping general capture.
 
-## Deferred — §6.7 update self-invocation
+## Deferred — manage_session (action: compress) contract conflict
 
-- `scripts/update-server.ts` prints the `opencode run` command but does not
-  execute it; the update remains human/CI-invoked. Revisit if unattended
-  updates are required.
-
-## Deferred — action-contract conflict error gate (REQ authoring guard)
-
-- A corpus-wide dry run shows the `tool (action: …, params…)` heuristic yields
-  ~7 candidate groups, only ~2 of which are genuine defects; the rest are
-  requirement decomposition (an action's parameters legitimately introduced
-  across multiple REQs).
-- The report-only lint ships as `scripts/action-conflicts.ts`; the Appendix M
-  action-contract-uniqueness item documents the convention. Error-gating stays
-  deferred until a semantic discriminator separates operation overload from
-  decomposition.
+- REQ-086a defines `compress(max_entries)` as a non-mutating prompt generator;
+  REQ-239a defines `compress(sessions?)` as an audit-log compactor that removes
+  entries. Two normative contracts own one action. Baselined as `known-conflict`
+  in `spec/audit/action-conflicts-baseline.json`; reopen when an operation
+  discriminator (distinct action or mode parameter) is chosen.

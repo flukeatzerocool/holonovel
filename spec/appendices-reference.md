@@ -622,6 +622,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-321m2 | Codex (Part m2) | 2026-08-11 |
 | REQ-321m3 | Codex (Part m3) | 2026-08-11 |
 | REQ-321m4 | Codex (Part m4) | 2026-08-11 |
+| REQ-321n | Codex (Part n) | 2026-09-26 |
 | REQ-332a | Codex provenance (Part a) | 2026-08-11 |
 | REQ-332b | Codex provenance (Part b) | 2026-08-11 |
 | REQ-332c | Codex provenance (Part c) | 2026-08-11 |

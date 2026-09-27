@@ -16,11 +16,13 @@
 # the deploy target stale and fails REQ-418.
 #
 # Usage:
-#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push]
+#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
 #   --yes (-y)   Skip confirmation prompt before push/deploy.
 #   --allow-pending  Override the pending-update block (REQ-394) — operator escape hatch.
 #   --no-push    Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
+#   --auto-update  Run outside a session: execute the §6.7 update command
+#                  (HOLONOVEL_INVOKE_UPDATE=1) instead of only printing it.
 #   --help (-h)  Show this message.
 
 set -euo pipefail
@@ -31,6 +33,7 @@ DRY_RUN=false
 SKIP_CONFIRM=false
 ALLOW_PENDING=false
 NO_PUSH=false
+AUTO_UPDATE=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -38,19 +41,21 @@ for arg in "$@"; do
     --yes|-y) SKIP_CONFIRM=true ;;
     --allow-pending) ALLOW_PENDING=true ;;
     --no-push) NO_PUSH=true ;;
+    --auto-update) AUTO_UPDATE=true ;;
     --help|-h)
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push]"
+      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]"
       echo ""
       echo "  --dry-run        Full pipeline including file writes — skip git commit, push, deploy."
       echo "  --yes (-y)       Skip confirmation prompt before push/deploy."
       echo "  --allow-pending  Override the pending-update block (REQ-394)."
       echo "  --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy."
+      echo "  --auto-update    Execute the §6.7 update command (HOLONOVEL_INVOKE_UPDATE=1)."
       echo "  --help (-h)      Show this message."
       exit 0
       ;;
     *)
       echo "Unknown flag: $arg"
-      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending]"
+      echo "Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update]"
       exit 1
       ;;
   esac
@@ -133,6 +138,10 @@ SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=r
 # ── 4. Fingerprint and scoped spec-driven update (pending-update gate) ──
 
 echo -e "${GREEN}=== 4. Fingerprint and scoped spec-driven update ===${NC}"
+if $AUTO_UPDATE; then
+  export HOLONOVEL_INVOKE_UPDATE=1
+  echo -e "${YELLOW}--auto-update: the §6.7 update command will be executed (requires opencode on PATH).${NC}"
+fi
 for server in "${SERVERS[@]}"; do
   DELTA_CLASS=$(npx tsx scripts/spec-delta.ts --server "$server" --report-only 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{');try{const c=JSON.parse(s.slice(i)).classification;console.log(c==='none'?'patch':c)}catch{console.log('major')}})")
   echo "  $server: delta class = $DELTA_CLASS"

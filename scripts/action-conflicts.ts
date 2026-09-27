@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * action-conflicts.ts — report candidate action-contract conflicts. [informational]
+ * action-conflicts.ts — report candidate action-contract conflicts. [gate]
  *
  * Extracts `tool (action: …, params…)` bindings from REQ normative bodies and
  * reports each tool/action bound by two or more REQs whose parameter sets are
@@ -8,32 +8,64 @@
  *
  * The heuristic cannot distinguish an operation overload (a genuine defect)
  * from cumulative requirement decomposition (an action's parameters introduced
- * across several REQs), so this reports candidates for manual review and is
- * deliberately NOT wired into a gate. Exit codes: 0 always.
+ * across several REQs). Known groups are dispositioned in
+ * `spec/audit/action-conflicts-baseline.json`; report-only by default, while
+ * `--check` fails on any group not listed there so a NEW candidate is caught.
+ * Exit codes: 0 = clean / report-only, 1 = unbaselined candidate under --check
+ * or a missing baseline file.
  *
- * Flags: --json (machine-readable payload to stdout), --help/-h.
+ * Flags: --check, --json (machine-readable payload to stdout), --help/-h.
  */
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { readSpec, extractActionBindings } from "./lib/parse-spec.js";
 import { handleHelp } from "./lib/args.js";
 
+const BASELINE_PATH = join(import.meta.dirname, "..", "spec", "audit", "action-conflicts-baseline.json");
+
 const USAGE = `action-conflicts — report candidate action-contract conflicts
 
-Usage: npx tsx scripts/action-conflicts.ts [--json]
+Usage: npx tsx scripts/action-conflicts.ts [--check] [--json]
 
+  --check  Exit 1 when a candidate group is not in the baseline
+           (spec/audit/action-conflicts-baseline.json).
   --json   Emit the findings as JSON to stdout (default: text report)
   --help   Show this help
 
-Report-only: exits 0 regardless of findings.`;
+Report-only unless --check is passed.`;
 
 const argv = process.argv.slice(2);
 handleHelp(argv, USAGE);
 for (const flag of argv) {
-  if (flag !== "--json") {
+  if (flag !== "--json" && flag !== "--check") {
     console.error(`action-conflicts: unknown flag '${flag}' (see --help)`);
     process.exit(1);
   }
 }
 const asJson = argv.includes("--json");
+const checkMode = argv.includes("--check");
+
+interface BaselineEntry {
+  tool: string;
+  action: string;
+  disposition: string;
+  justification: string;
+}
+
+function loadBaseline(): Set<string> {
+  if (!existsSync(BASELINE_PATH)) {
+    console.error(`action-conflicts: baseline not found at ${BASELINE_PATH}`);
+    process.exit(1);
+  }
+  let parsed: { baseline?: BaselineEntry[] };
+  try {
+    parsed = JSON.parse(readFileSync(BASELINE_PATH, "utf-8"));
+  } catch (e: any) {
+    console.error(`action-conflicts: could not parse baseline: ${e.message}`);
+    process.exit(1);
+  }
+  return new Set((parsed.baseline ?? []).map((b) => `${b.tool}\u0000${b.action}`));
+}
 
 const bindings = extractActionBindings(readSpec());
 
@@ -72,18 +104,34 @@ for (const [key, reqs] of [...groups.entries()].sort()) {
   }
 }
 
+const baseline = checkMode ? loadBaseline() : new Set<string>();
+const unbaselined = candidates.filter((c) => !baseline.has(`${c.tool}\u0000${c.action}`));
+
 if (asJson) {
-  process.stdout.write(JSON.stringify({ candidates, bindingCount: bindings.length }, null, 2) + "\n");
-  process.exit(0);
+  process.stdout.write(JSON.stringify({ candidates, unbaselined: unbaselined.map((c) => `${c.tool} (action: ${c.action})`), bindingCount: bindings.length }, null, 2) + "\n");
+  process.exit(checkMode && unbaselined.length > 0 ? 1 : 0);
+}
+
+if (checkMode && unbaselined.length > 0) {
+  console.error("=== UNBASELINED ACTION-CONTRACT CANDIDATES ===\n");
+  for (const c of unbaselined) {
+    console.error(`${c.tool} (action: ${c.action})`);
+    for (const p of c.pairs) console.error(`  - ${p.reqA}{${p.paramsA.join(",")}} vs ${p.reqB}{${p.paramsB.join(",")}}`);
+  }
+  console.error(`\n${unbaselined.length} unbaselined candidate(s) across ${bindings.length} bindings.`);
+  console.error("Resolve the conflict or add a disposition to spec/audit/action-conflicts-baseline.json.");
+  process.exit(1);
 }
 
 console.log("=== ACTION-CONTRACT CONFLICT CANDIDATES (report-only) ===\n");
 for (const c of candidates) {
-  console.log(`${c.tool} (action: ${c.action})`);
+  const status = checkMode ? "baselined" : "candidate";
+  console.log(`${c.tool} (action: ${c.action}) [${status}]`);
   for (const p of c.pairs) {
     console.log(`  - ${p.reqA}{${p.paramsA.join(",")}} vs ${p.reqB}{${p.paramsB.join(",")}}`);
   }
 }
 console.log(`\n${candidates.length} candidate(s) across ${bindings.length} bindings.`);
-console.log("Review against Appendix M action-contract uniqueness (report-only; not a gate).");
+if (checkMode) console.log("All candidates are baselined (spec/audit/action-conflicts-baseline.json).");
+else console.log("Review against Appendix M action-contract uniqueness (report-only; use --check to gate).");
 process.exit(0);
