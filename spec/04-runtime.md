@@ -11,6 +11,16 @@ identifiers for ruleset content in the following surfaces:
 | Guidance resource URIs | `guidance://<badge>/<anchor>` | REQ-022 |
 | Adventure resource URIs | `adventure://<slug>/<anchor>` | REQ-079 |
 
+**Derivation.** An anchor is derived from heading text deterministically: lowercase
+the text, strip punctuation and symbol characters, replace whitespace and
+hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens;
+non-ASCII word characters (CJK and similar) are preserved. Explicit IDs (`{#id}`)
+take precedence over the derived anchor. Role-scoping markers — the ruleset's
+adjudicator/player terms in asterisk or underscore emphasis, such as `*Keeper only*`
+or `_GM only_` — are stripped before derivation. Duplicate derived anchors within a
+source file append `-1`, `-2`, and so on; duplicate explicit IDs across files are an
+authoring defect. Re-indexing the same source reproduces identical anchors (REQ-194).
+
 ### 7.1a Slugs (filename-safe identifiers)
 
 Slugs share REQ-194's core derivation algorithm (lowercase, strip punctuation,
@@ -262,6 +272,10 @@ discarded by `manage_novel (action: end)`):
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
+
+**Conflict ordering.** Initiative ties resolve deterministically by participant
+type — entity before named NPC before danger — and then alphabetically by name.
+The combat round counter is cumulative across the Novel's lifetime (REQ-043).
 
 The build fingerprint — specification version, ruleset hash, and build
 timestamp — is stored in the state directory. On startup with existing state,

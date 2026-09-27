@@ -2404,9 +2404,15 @@ build artifact — it is a spec-maintainer reference.
 **REQ Authoring Checklist** (apply before committing any new or modified REQ):
 
 - [ ] States *what*, not *how* — no parameter types, sort orders, or algorithms
-- [ ] No "Default:" clauses — defaults are the builder's domain
+- [ ] No "Default:" clauses — defaults are the builder's domain. Base-capability
+      tuning values (Fate, Ironsworn, Forged in the Dark) are the exception:
+      they are fixed infrastructure in Appendix O.11, referenced from the REQ
+      body, not restated as defaults (Appendix S)
 - [ ] No enumerated catalogs (>5 tokens) — use categories, not lists
-- [ ] No worked examples disguised as requirements
+- [ ] No worked examples disguised as requirements. An `*Acceptance criterion:*`
+      that asserts an observable outcome is permitted; a worked computation,
+      equation, or fully enumerated fixture belongs in Appendix F or the golden
+      fixture (§B.3)
 - [ ] Trust-the-loop test: would the convergence loop catch this deviation?
 - [ ] Red-team test: answered four questions from §4 Standing Rule 8
 - [ ] Holodeck archetypes: new property group assigned archetypes in §7.7; coupling table
@@ -2542,7 +2548,9 @@ commit time via `npm run check`:
 - No REQ body shall span more than one paragraph (no blank lines).
 - No REQ body shall exceed 8 sentences.
 - No REQ body shall contain more than 8 SHALL clauses.
-- Every REQ body shall end with `_Check:` citing at least one test ID.
+- Every REQ family — a base REQ or its lettered parts — SHALL carry at least
+  one `_Check:` trailer citing at least one test ID. The check attaches to the
+  family, not to every lettered part.
 - No REQ body shall enumerate more than 5 backtick-delimited tokens.
 - No REQ ID shall exceed three base digits or use a bare-digit suffix — sub-REQ
   IDs are `REQ-NNN`, `REQ-NNNl`, or `REQ-NNNlN` (letter-first, optional counter).
@@ -2572,6 +2580,8 @@ be justified by its domain complexity.
 - Parameter shapes and tool signatures → builder discovery + convergence loop
 - Sort orders, algorithms, and trigger-scan caps → builder's implementation judgment
 - Default starting values → builder determines; verified by verification workflow thresholds
+- Base-capability tuning values (fixed infrastructure per Appendix S) → Appendix O
+  (Behavioral Contracts), not REQ bodies
 - Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
   live registries; the REQ states the category
 - State-machine transition rules → state model table (§7.7) is canonical
@@ -2725,6 +2735,33 @@ A monster lookup returns a full stat block, not a file pointer:
   STR 8 (-1) | DEX 14 (+2) | CON 10 (+0) | INT 10 (+0) | WIS 8 (-1) | CHA 8 (-1)
 
 Verify with T47.
+
+---
+
+**O.11 — Base-capability tuning values:**
+
+These values are fixed base-server infrastructure attributed in Appendix S; they
+are licensing-pinned and never waived. A REQ body states the contract and
+references this table for the tuning value.
+
+| Capability | Setting | Value |
+|------------|---------|-------|
+| Fate | Starting refresh (Fate points) | 3 |
+| Fate | Fudge dice | a bare `dF` rolls four dice |
+| Fate | Ladder | Fail below the difficulty, Tie at equal, Succeed above, Succeed with style at least three above |
+| Ironsworn | Momentum range | −6 … +10 |
+| Ironsworn | Momentum starting/reset value | +2 |
+| Ironsworn | Progress track boxes | 10 |
+| Ironsworn | Oracle ladder thresholds | almost_certain ≥ 11, likely ≥ 26, 50_50 ≥ 51, unlikely ≥ 76, small_chance ≥ 91 |
+| Ironsworn | Oracle default likelihood | 50_50 |
+| Ironsworn | Oracle exceptional rule | doubles on the d100 (11, 22, …, 99) produce an exceptional result |
+| Forged | Action-roll dice | default 2d6, keep highest; a zero-dice pool rolls 2d6 and keeps the lower |
+| Forged | Position values | controlled, risky, desperate; default risky |
+| Forged | Effect values | limited, standard, great; default standard |
+| Forged | Result bands | 6 Critical success, 4–5 Partial success, 1–3 Miss |
+| Forged | Stress track maximum | 8 |
+| Forged | Resist default cost | 2 |
+| Forged | Downtime recover default | 2 |
 
 ---
 
@@ -2904,7 +2941,8 @@ license.
 - **Ask-the-Oracle ladder** — the `almost_certain`/`likely`/`50_50`/`unlikely`/
   `small_chance` likelihood bands with their d100 thresholds (11/26/51/76/91)
   and the doubles-to-exceptional rule — retained from Ironsworn's oracle move
-  (REQ-291).
+  (REQ-291; surfaced as `manage_scene (action: oracle)`, the general
+  uncertainty-resolution tool, rather than `resolve_ironsworn`).
 - **Momentum**, the **action-roll move** (d6 action die plus adds against two
   d10 challenge dice), and **progress tracks** — retained from Ironsworn's core
   resolution; surfaced in Holonovel as the `ironsworn` tool (REQ-438, REQ-439,
@@ -2943,7 +2981,7 @@ content, always present in `tools/list`. These are never waived.
 | **Badges & Workflow** | Badge switching, workflow response (`respond_decision`), history (`manage_history`), and discovery (`manage_session (action: discover)`) — the identity and permission layer |
 | **Narrative** | Story-content tools, grouped: Scene & Tone, Cast & Characters, World State, Player Interaction, Story Journal, Session Management, Synthesis Controls |
 
-The `manage_session (action: discover)` action SHALL present these categories as the base grouping. The builder
+The `manage_session (action: discover)` action SHALL present these categories as the base grouping. The canonical exhaustive enumeration of infrastructure tools is the state-persistence guardrail list in §5.19 (REQ-407); the four categories here are a display grouping, not a registry. The builder
 MAY subdivide or rename categories for runtime display, but every tool in the
 infrastructure enumeration SHALL appear under exactly one help category. The
 mapping from infrastructure category to help category name SHALL be recorded in

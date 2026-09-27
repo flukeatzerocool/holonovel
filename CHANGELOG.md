@@ -1,5 +1,66 @@
 # Changelog
 
+## 2026-09-27 — R5 passive-voice cleanup, skill size-limit rule
+
+- **Passive-voice cleanup (R5).** Rewrote 18 REQ bodies to active voice without
+  changing their contracts — §5.1, §5.2, §5.6, and §5.25–§5.28 (the
+  belief/identity/causal surfaces plus the prose introduced by the earlier
+  remediation). The proofreading passive-voice check now passes. Data-format
+  fingerprint advanced (`2d192a6a…`→`29d4eda2…`→`18a53816…`).
+- **Skill size-limit rule.** `skill-improvement-loop` (v2.1) now requires a
+  net-reducing edit or an explicit recorded waiver when a target file sits at or
+  over the 500-line self-check limit, and prefers folding a change into an
+  existing section over adding a new one. Applied to `plan-review` (2.6) and
+  `spec-engineering-loop` (1.4).
+
+## 2026-09-27 — AAR follow-through: gate verdict signal, methodology guard, layer-map freshness
+
+- **Gate exit-code signal.** `check:fast` now prints a terminal
+  `check:fast: PASS` / `check:fast: FAIL` line, so a piped run cannot hide the
+  aggregate result behind a sub-job's tally; AGENTS.md documents the
+  exit-code-capture discipline.
+- **Methodology guard (Appendix M ↔ Appendix S).** Appendix M's default-value
+  rule now names the base-capability exception (fixed infrastructure in
+  Appendix O.11); `checkBaseCapabilityDefaults` errors on any default restated
+  in a §5.21–§5.23 REQ body.
+- **Layer-map freshness.** `checkAgentsMapFreshness` verifies every appendix
+  present in `spec/appendices-*.md` is named in the AGENTS.md layer map.
+- **Deferred automation recorded.** E5 (tool-action registry) is an
+  intended-no-op — action-contract conflicts are already covered by
+  `action-conflicts.ts`; E6 (reading-guide coverage) is vacuous — the §5
+  section map is the canonical index and is gated by
+  `checkSectionIndexCompleteness`.
+- **Existing-check discovery convention.** AGENTS.md Script discipline now
+  requires confirming no existing script covers a finding class before adding a
+  gate; the planning skills (`plan-review` v2.6, `spec-engineering-loop` v1.4)
+  gained the matching precondition and plan-entry field. Routed through
+  `skill-improvement-loop`.
+
+## 2026-09-27 — Spec-review remediation: contract-clarity hardening, drift guards
+
+- **Contract clarity (D2).** Relocated method out of REQ bodies to §6/§7
+  (REQ-146b, REQ-194a/REQ-194b, REQ-215b, REQ-043d, REQ-279a, REQ-147a) and
+  worked computations to §6.5 (REQ-147b, REQ-164a/REQ-164b) per Appendix M;
+  added §6.3 `Authority resolution` / `Table classification` and §7.1
+  `Derivation` prose, plus §6.4.1 narrative-orientation inputs.
+- **Thresholds and defaults (D7).** Convergence-metric thresholds now
+  reference §6.5 (REQ-378a, REQ-375a/REQ-375b, REQ-374a, REQ-114b, REQ-207a–c,
+  REQ-099, REQ-209); base-capability tuning values (Fate, Ironsworn, Forged in
+  the Dark) moved to Appendix O.11 and the oracle ladder to Appendix O; no
+  `Default:` clauses remain in §5.21–§5.23 bodies.
+- **Consistency (D4).** Documented the deliberate `manage_scene (action:
+  oracle)` binding (REQ-291) in §5.22 and Appendix S; corrected the AGENTS.md
+  layer map (appendices W–Z).
+- **Coherence (D8).** §2 and the Quick Reference now name the base-capability
+  (§5.21–§5.23) and epistemic/causal (§5.24–§5.33) layers.
+- **Conventions (D1).** Appendix M's `_Check:` rule restated at REQ-family
+  scope; Appendix T now names §5.19 (REQ-407) as the canonical tool
+  enumeration.
+- **Drift guards.** `scripts/lib/req-checks.ts` gains REQ-family `_Check:`
+  coverage (error) and REQ-body content scans for procedural / worked-example /
+  unbounded-threshold leakage (report-only warnings), wired into `validate`
+  with self-tests in `scripts/test-req-checks.ts`.
+
 ## 2026-09-26 — README restructure, accuracy pass, word-budget gate
 
 - **README tagline and orientation.** Replaced the tagline with "The Holodeck

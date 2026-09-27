@@ -23,6 +23,13 @@
 - REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
 - Tool-surface consolidation (34 tools) deferred: the surface already satisfies REQ-429's recorded budget; the routing benefit ships via REQ-067d / REQ-114c, and merging tools would churn the §5 tool corpus, the REQ-429 budget, and this gate-classification table. Revisit when a demonstrated routing failure survives the discovery changes.
 
+### Holonovel Spec Update — 2026-09-27 (Spec-review remediation: contract-clarity hardening, drift guards)
+
+- **Delta class:** minor. Changed surfaces: Spec-review remediation: contract-clarity hardening, drift guards; README restructure, accuracy pass, word-budget gate; Roadmap action: general codex capture, §6.7 self-invocation, action-conflict gate; Determinism convention for freshness-gated artifacts; Review-loop follow-through automated (markers, record, registers, coverage).
+- **Verification:** `npm run assemble && npm run check:fast` → exit 0 (23 warnings, report-only content scan); `npm run check` → exit 0; `npm run build-order` → fingerprint advance OK (package 5fcbdf6f→ac3c57e8, data 2d192a6a→29d4eda2); `npm run test:validators` → 27/27.
+
+<!-- @spec-update:d0e620e92a3f6a8b24cd96fa0006a50cc0541f8c7d3e1338edd348f52bcb6b4a -->
+
 ### Holonovel Spec Update — 2026-09-26 (Review-loop follow-through automated markers, record, registers, coverage)
 
 - **Delta class:** minor. Changed surfaces: Review-loop follow-through automated (markers, record, registers, coverage); Review-loop: predicate-citation rule for gate findings; Review-register closure: pipeline pending-gate flag; Tool-definition authoring standard and registry hygiene; Loop closure: Codex capture reconciliation and register hygiene.
@@ -102,7 +109,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.09.26 |
+| Spec version | 2026.09.27 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

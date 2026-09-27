@@ -25,6 +25,11 @@ import {
   checkDecisionsCitations,
   checkPropertyGroupCount,
   checkBuildPhaseMapCounts,
+  checkFamilyCheckCoverage,
+  checkReqProceduralContent,
+  checkReqWorkedExamples,
+  checkReqThresholds,
+  checkBaseCapabilityDefaults,
 } from "./lib/req-checks.js";
 
 const __dirname = import.meta.dirname;
@@ -267,6 +272,8 @@ function checkAmbiguity(reqBodies: Map<string, { id: string; body: string }>): s
     { label: "vague qualifier", regex: /\b(appropriate|suitable|reasonable|proper)(?:\s+level|\s+amount)?\b/gi },
     { label: "hedge word", regex: /\b(typically|generally|usually|normally|often)\b/gi },
     { label: "unbounded extension", regex: /\b(as needed|if necessary|when required)\b/gi },
+    { label: "vague applicability", regex: /\b(as appropriate|where applicable|if applicable|where appropriate)\b/gi },
+    { label: "open-ended list", regex: /\b(and the like|etc\.)\b/gi },
     { label: "should (ambiguous obligation)", regex: /\bshould\b/gi },
     { label: "or equivalent", regex: /\bor equivalent\b/gi },
     { label: "sufficiently", regex: /\bsufficiently\b/gi },
@@ -2031,6 +2038,34 @@ function checkCoverageRegisterFresh(rendered: string): string | null {
 
 // ─── Main ────────────────────────────────────────────────────────────────
 
+// AGENTS.md's layer map must name every appendix, so the maintainer map cannot
+// silently drift as appendices move between spec files.
+function checkAgentsMapFreshness(): string[] {
+  const issues: string[] = [];
+  const agentsPath = path.resolve(__dirname, "..", "AGENTS.md");
+  if (!fs.existsSync(agentsPath)) return issues;
+  const specDir = path.resolve(__dirname, "..", "spec");
+  const actual = new Set<string>();
+  for (const name of fs.readdirSync(specDir)) {
+    if (!/^appendices-.*\.md$/.test(name)) continue;
+    for (const m of fs.readFileSync(path.join(specDir, name), "utf-8").matchAll(/^## Appendix ([A-Z]):/gm)) {
+      actual.add(m[1]);
+    }
+  }
+  const declared = new Set<string>();
+  for (const line of fs.readFileSync(agentsPath, "utf-8").split("\n")) {
+    if (!line.includes("appendices-")) continue;
+    for (const m of line.matchAll(/([A-Z])\s*[–-]\s*([A-Z])/g)) {
+      for (let c = m[1].charCodeAt(0); c <= m[2].charCodeAt(0); c++) declared.add(String.fromCharCode(c));
+    }
+    for (const m of line.matchAll(/\b([A-Z])\b/g)) declared.add(m[1]);
+  }
+  for (const l of [...actual].sort()) {
+    if (!declared.has(l)) issues.push(`Appendix ${l} exists in the spec but is not named in the AGENTS.md layer map`);
+  }
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -2129,6 +2164,27 @@ function main(): void {
     }
   } else { console.log("PASS: No spec authoring violations detected"); }
 
+  console.log("\n=== REQ FAMILY CHECK COVERAGE ===\n");
+  const familyCheckIssues = checkFamilyCheckCoverage(text);
+  if (familyCheckIssues.length > 0) {
+    for (const issue of familyCheckIssues) console.log(`ERROR: ${issue}`);
+    errors += familyCheckIssues.length;
+  } else { console.log("PASS: Every REQ family carries a _Check: trailer"); }
+
+  console.log("\n=== REQ-BODY CONTENT SCAN (report-only) ===\n");
+  const proceduralIssues = checkReqProceduralContent(text);
+  const workedExampleIssues = checkReqWorkedExamples(text);
+  const thresholdIssues = checkReqThresholds(text);
+  for (const issue of proceduralIssues) console.log(`WARNING: ${issue}`);
+  for (const issue of workedExampleIssues) console.log(`WARNING: ${issue}`);
+  for (const issue of thresholdIssues) console.log(`WARNING: ${issue}`);
+  warnings += proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length;
+  if (proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length === 0) {
+    console.log("PASS: No procedural, worked-example, or unbounded-threshold content in REQ bodies");
+  } else {
+    console.log(`REQ-body content scan: ${proceduralIssues.length} procedural, ${workedExampleIssues.length} worked-example, ${thresholdIssues.length} unbounded-threshold (report-only)`);
+  }
+
   console.log("\n=== AMBIGUITY SCAN ===\n");
   const ambiguityIssues = checkAmbiguity(reqsWithSentences);
   if (ambiguityIssues.length > 0) {
@@ -2216,6 +2272,17 @@ function main(): void {
     fs.readFileSync(path.resolve(import.meta.dirname, "..", "spec", "02-requirements.md"), "utf-8"),
   );
   if (phaseMapCountIssues.length > 0) { for (const issue of phaseMapCountIssues) console.log(`WARNING: ${issue}`); warnings += phaseMapCountIssues.length; }
+
+  console.log("\n=== BASE-CAPABILITY DEFAULTS ===\n");
+  const baseCapIssues = checkBaseCapabilityDefaults(text);
+  if (baseCapIssues.length > 0) {
+    for (const issue of baseCapIssues) console.log(`ERROR: ${issue}`);
+    errors += baseCapIssues.length;
+  } else { console.log("PASS: No default values in §5.21–§5.23 REQ bodies (Appendix O.11 owns tuning)"); }
+
+  const agentsMapIssues = checkAgentsMapFreshness();
+  if (agentsMapIssues.length > 0) { for (const issue of agentsMapIssues) console.log(`WARNING: ${issue}`); warnings += agentsMapIssues.length; }
+  else { console.log("PASS: AGENTS.md layer map names every appendix"); }
 
   reportSectionCounts(text);
 

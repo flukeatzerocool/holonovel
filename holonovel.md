@@ -29,7 +29,10 @@
 > presence (REQ-308): one adventure loads as a hybrid world-model
 > and prose modules (REQ-079). State tiers: roster, codex, Novel, and Session (§7.7);
 > world-model and lore data are Novel property groups; connections are ephemeral
-> transport; Novel audit logs persist. RNG is deterministic and seedable. Requirements state the contract; verification
+> transport; Novel audit logs persist. Base capabilities (Fate, Ironsworn, Forged
+> in the Dark) and the epistemic/causal layers (temporal event log, belief and
+> evidence, character identity, causal state, knowledge corpus) are specified in
+> §5.21–§5.33. RNG is deterministic and seedable. Requirements state the contract; verification
 > loops enforce quality.
 
 ## Contents
@@ -188,7 +191,14 @@ infrastructure. Four groups divide these concerns. World is the world-model laye
 rooms, things, exits, properties, parser commands, and hybrid source conversion. Novels
 is the save-file layer: lifecycle, exchange, checkpoints, notes, resume state, and
 archive. Badges & Workflow is the identity-and-permission layer. Narrative is the narrative layer: scenes, NPCs, factions, countdowns, and lore.
-It also holds the story journal, player choices, and all other REQ-020 base tools. Each
+It also holds the story journal, player choices, and all other REQ-020 base tools. Beyond
+those four, the base-capability layer (§5.21–§5.23) holds the Fate, Ironsworn, and
+Forged in the Dark resolution surfaces, and the epistemic/causal layer (§5.24–§5.33)
+holds the temporal event log and branching, belief and evidence, character identity,
+causal transition validation, knowledge corpus, semantic index, knowledge graph,
+durable agent tasks, perception ledger, and briefing consistency. The requirements
+preamble's section map lists every subsection.
+Each
 requirement is one paragraph in §5. The manifest is the packing list for the DECISIONS.md
 traceability table. `scripts/validate.ts` verifies it mechanically.
 
@@ -653,10 +663,11 @@ Anti-slop guidance is badge-filtered and appears in `badge_briefing` after found
 **REQ-184b — Anti-slop resource rendering (Part b).**
 Without synthesis, the resource SHALL contain only the Appendix J synopsis. *Acceptance criterion:* `guidance://<badge>/anti-slop` returns Markdown containing every Appendix J pattern for the requested badge, each tagged `[anti-slop]` and badge-filtered; synthesis-sourced items carry `[supplementary]` with source URL. _Check:_ T223.
 **REQ-194a — Anchor derivation (Part a).**
-Anchors SHALL be derived from heading text deterministically: lowercase the text, strip punctuation, replace whitespace and hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens. Explicit IDs (`{#id}`) take precedence over derived anchors. Role-scoping markers — the ruleset's adjudicator/player terms rendered in either asterisk or underscore emphasis (e.g., `*Keeper only*`, `_GM only_`, `*Player only*`, or the ruleset's discovered badge terms) — SHALL be stripped from the heading text before derivation. Duplicate derived anchors within a source file SHALL append `-1`, `-2`, etc. Duplicate explicit IDs across files SHALL be treated as an authoring defect. Re-indexing the same source SHALL reproduce identical anchors.
+The server SHALL derive anchors deterministically from heading text, with explicit IDs taking precedence and role-scoping markers stripped; §7.1 defines the derivation. Re-indexing the same source SHALL reproduce identical anchors.
 
 **REQ-194b — Anchor derivation (Part b).**
-Punctuation and symbol characters SHALL be stripped from the derived anchor; CJK and other non-ASCII word characters SHALL be preserved. *Acceptance criterion:* The same heading text processed twice through anchor derivation produces the same anchor. A heading with an explicit ID (`{#foo}`) uses `foo` regardless of its text. Two headings with identical derived text in the same file produce anchors suffixed `-1` and `-2`. _Check:_ T16, T236.
+Derived anchors SHALL remain stable across re-indexing and collision-distinct within a source file, preserving non-ASCII word characters; §7.1 defines the derivation. *Acceptance criterion:* Running the same heading text twice through anchor derivation produces the same anchor. A heading with an explicit ID (`{#foo}`) uses `foo` regardless of its text. Two headings with identical derived text in the same file produce anchors suffixed `-1` and `-2`. _Check:_ T16, T236.
+
 **REQ-071a — Narrative tone samples (Part a).**
 `[narrative-tone]`-tagged guidance items per badge — example-of-play prose extracted from the ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<badge>/tone`. Each carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a guidance subcategory. When the ruleset provides none, the Synthesis workflow (§11.1) may source community examples.
 
@@ -721,10 +732,10 @@ The builder identifies structured-procedural sequences using the same mechanical
 **REQ-011c — Confidence (Part c).**
 The builder computes player-filtered confidence by applying these exclusions before aggregation per REQ-147. *Acceptance criterion:* A spell extracted from a table cell at a ruleset-normative heading carries HIGH confidence; an image-conveyed mechanic carries LOW. _Check:_ T15, T182.
 **REQ-147a — Confidence aggregation (Part a).**
-Per-section confidence is the percentage of extracted items in that section carrying HIGH or MEDIUM labels, excluding items marked as guidance (REQ-016) from the per-section count. The overall player-filtered confidence — the Phase 1 gate metric — is the mean of per-section confidence scores, weighted by each section's extracted item count. LOW items count against the section total but do not contribute positively. A section with zero extracted mechanical items is excluded from the mean. The formula is: Σ(section_items × section_score) / Σ(section_items) where section_score = (HIGH + MEDIUM items) / total extracted items in section.
+Per-section confidence is the percentage of extracted items in that section carrying HIGH or MEDIUM labels, excluding items marked as guidance (REQ-016). The overall player-filtered confidence — the Phase 1 gate metric — is the mean of per-section confidence scores weighted by each section's extracted item count; LOW items count against the section total but do not contribute positively, and a section with zero extracted mechanical items is excluded from the mean. The aggregation formula is defined in §6.5.
 
 **REQ-147b — Confidence aggregation (Part b).**
-`spec_health` expresses the overall score as a percentage. *Acceptance criterion:* A ruleset with three sections — Section A: 8 HIGH, 2 MEDIUM, 0 LOW; Section B: 3 HIGH, 3 MEDIUM, 4 LOW; Section C (guidance-only, 5 extracted guidance items) — produces per-section scores of Section A = 100%, Section B = 60%. Section C's guidance items are excluded from the mean per REQ-016. Overall = ((10 × 1.0) + (10 × 0.6)) / 20 = 80%. _Check:_ T181.
+`spec_health` expresses the overall score as a percentage. *Acceptance criterion:* Per-section scores are the HIGH-plus-MEDIUM share of each section's non-guidance items; guidance-only sections are excluded from the mean per REQ-016; the overall score is the mean of the per-section scores. _Check:_ T181.
 **REQ-153 — AGENTS.md troubleshooting.** Every build's AGENTS.md includes a
 `## Troubleshooting` section documenting at minimum four failure classes —
 config mismatch, corrupted state file, badge confusion, and missing
@@ -779,24 +790,24 @@ defects.
 _Check:_ T291.
 
 **REQ-099 — Confidence-floor acknowledgment.** When the overall confidence threshold drops
-below 80% — whether via the convergence loop's adjusted-threshold provision or acceptance of
+below the convergence confidence floor (§6.5.3) — whether via the convergence loop's adjusted-threshold provision or acceptance of
 residual gaps — the builder records the drop in DECISIONS.md (5) with the adjusted threshold,
 the justification, and a field requiring explicit operator approval. The build does not proceed
 past the convergence loop without this approval. The operator may accept, reject, or request a
 specific remediation target.
-*Acceptance criterion:* When confidence drops below 80%, DECISIONS.md (5) records
+*Acceptance criterion:* When confidence drops below the §6.5.3 floor, DECISIONS.md (5) records
 the adjusted threshold, justification, and explicit operator approval before
 construction continues.
 _Check:_ T86.
 
 **REQ-207a — Core-mechanic identification (Part a).**
-The builder SHALL identify the ruleset's core resolution mechanic — the primary dice/outcome procedure. Three criteria, in priority order: (a) the mechanic the ruleset's own introduction or "how to play" section designates as the central resolution procedure; (b) the mechanic cited by the most other sections in cross-references; (c) the mechanic with the most distinct dice-roll invocations across the ruleset's examples of play. The builder SHALL record the criterion used, alongside the identified mechanic, in DECISIONS.md (5).
+The builder SHALL identify the ruleset's core resolution mechanic — the primary dice/outcome procedure — by applying the criteria defined in §6.5.3, and SHALL record the criterion used, alongside the identified mechanic, in DECISIONS.md (5).
 
 **REQ-207b — Core-mechanic identification (Part b).**
-If (a)–(c) produce a tie, the builder SHALL record all tied candidates and flag an `[ambiguous-core-mechanic]` finding. The core mechanic SHALL maintain at least 85% confidence independently of the overall threshold. WHEN the build operates in ruleset-free mode THE core-mechanic identification SHALL be skipped. The builder SHALL record "ruleset-free — no core mechanic" in the core-mechanic field of DECISIONS.md (5).
+If the criteria produce a tie, the builder SHALL record all tied candidates and flag an `[ambiguous-core-mechanic]` finding. The core mechanic SHALL maintain the §6.5.3 confidence floor independently of the overall threshold. WHEN the build operates in ruleset-free mode THE core-mechanic identification SHALL be skipped, and the builder SHALL record "ruleset-free — no core mechanic" in the core-mechanic field of DECISIONS.md (5).
 
 **REQ-207c — Core-mechanic identification (Part c).**
-The builder produces no `[ambiguous-core-mechanic]` or `[core-mechanic-block]` finding — the absence is intentional and not a defect. *Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md (5) records the criterion used and the mechanic's confidence meets ≥85%. _Check:_ T251.
+The builder produces no `[ambiguous-core-mechanic]` or `[core-mechanic-block]` finding — the absence is intentional and not a defect. *Acceptance criterion:* A build against a ruleset whose introduction names "d20 + stat vs target number" as the core mechanic correctly identifies it via criterion (a). DECISIONS.md (5) records the criterion used and the mechanic's confidence meets the §6.5.3 floor. _Check:_ T251.
 **REQ-012 — Graceful fallback.** A section that cannot be modeled as a tool or state remains
 searchable via `manage_ruleset (action: search)` and retrievable as a `ruleset://` resource.
 The builder never fabricates mechanics to fill a gap. Missing triggers do not invalidate the modeled portion.
@@ -908,7 +919,7 @@ checkpoint.
 When the ruleset restates a mechanic across multiple sections (e.g., a procedure and a summary table disagree), every source SHALL be recorded.
 
 **REQ-146b — Reconciliation authority (Part b).**
-The builder SHALL determine authority by applying these criteria in order, stopping at the first that yields a single candidate. Criterion (a) is the section the ruleset's own index or table of contents designates as the primary reference. Criterion (b) is the section whose heading text best matches the mechanic name. Criterion (c) is the section within the ruleset's core-mechanics chapter — the chapter at the shallowest heading depth containing the highest proportion of mechanical sections. Criterion (d) is the section with the most explicit procedural text, measured as the highest count of imperative verbs (roll, add, subtract, compare, apply) within the section's mechanics paragraphs.
+The builder SHALL resolve a mechanic's authoritative source from the ruleset's own structure; §6.3 defines the resolution order. When no single criterion resolves it, the builder SHALL record the co-canonical sources per REQ-146c.
 
 **REQ-146c — Reconciliation authority (Part c).**
 If (a)–(d) produce a tie, all tied sections SHALL be recorded as co-canonical (MEDIUM confidence) and the ambiguity flagged as an `[authority-tie]` defect. The builder SHALL record which criterion resolved each reconciliation in the defect log. The most authoritative section SHALL be treated as canonical; other sources SHALL be LOW confidence. *Acceptance criterion:* A mechanic restated in three sections — one in the core-mechanics chapter, one in a summary table, and one in a supplement — assigns canonical status via criterion (c). With a ruleset whose index points to the summary table, criterion (a) overrides.
@@ -916,14 +927,13 @@ If (a)–(d) produce a tie, all tied sections SHALL be recorded as co-canonical 
 **REQ-146d — Reconciliation authority (Part d).**
 The builder produces an `[authority-tie]` defect when (a)–(d) all produce a tie. _Check:_ T174.
 **REQ-209 — Cross-format consistency.** Before server construction begins, the builder
-SHALL sample 10 items at random from the extraction model, spanning at least three of the
-seven extraction categories (§6.3). For each sampled
-item, the builder SHALL verify that RULESET_MODEL.md and ruleset_model.json
-agree on name, source anchor, confidence label, and action classification.
-A mismatch counts as a discovery defect, recorded in the defect log with both values, and
-SHALL be resolved before construction begins.
+SHALL sample items from the extraction model and verify that RULESET_MODEL.md and
+ruleset_model.json agree on name, source anchor, confidence label, and action
+classification for each. A mismatch counts as a discovery defect, recorded in the defect
+log with both values, and SHALL be resolved before construction begins. The sample size
+and required category span are defined in §6.5.
 *Acceptance criterion:* After extraction, RULESET_MODEL.md and ruleset_model.json agree on
-all four fields for 100% of sampled items. A single mismatch blocks construction until
+all four fields for every sampled item. A single mismatch blocks construction until
 resolved.
 _Check:_ T252.
 
@@ -936,7 +946,7 @@ A cross-category reference that cannot resolve against the inventory of earlier 
 The builder SHALL extract generation table content from the ruleset and register it as `manage_ruleset (action: roll)` entries. For each generation table, the builder SHALL produce five fields. A canonical `key` (snake_case slug derived from the source heading). A `dice_expression`. A `ranges` array (min/max/result tuples). A `badge_scope` (derived from source location — tables in GM-only chapters are `game_master`, otherwise `shared`). A `source_anchor` (heading and file path). Table content extraction follows the same confidence labeling and traceability rules as other extraction categories (REQ-011, REQ-010).
 
 **REQ-215b — Table content extraction (Part b).**
-The builder SHALL detect dice-range tables from Markdown table cells containing `d100`, `d%`, `d8`, `d20`, or explicit numeric ranges (`01-10`, `11-25`). A row whose first column is a numeric range is a generation result row. A row whose first column is a name or label (not a numeric range) is a lookup row.
+The builder SHALL classify each ruleset table as generation or lookup from its first column: a numeric-range first column marks a generation result row, and a name or label column marks a lookup row. §6.3 defines the token patterns that identify a dice-range table.
 
 **REQ-215c — Table content extraction (Part c).**
 Each generation table entry SHALL be stored in the ruleset model under `generation_tables` with its full content, and the server SHALL serve it via `manage_ruleset (action: roll)` at runtime. *Acceptance criterion:* The D&D 5e build extracts at minimum the Short-Term Madness, Long-Term Madness, Indefinite Madness, Reincarnate Race, Wand of Wonder, and Trinkets tables. Each table entry includes dice_expression, ranges with result text, and a source_anchor. `spec_health` reports the count of extracted generation tables. _Check:_ T256.
@@ -1299,10 +1309,10 @@ After writing the MCP client configuration entry, the builder SHALL fetch the ta
 **REQ-163b — Client config verification (Part b).**
 When B7 is `yes`, the builder SHALL write the server entry into the client's config file and immediately verify the server launches via the client's documented invocation: the initialize handshake SHALL succeed with `serverInfo.name` matching the `mcpServers` key. A `server unavailable` error SHALL stop the line. *Acceptance criterion:* A config entry with `workdir` targeting a client expecting `cwd` produces an F6 defect and blocks the build. After correction, the initialize handshake succeeds with matching `serverInfo.name`. _Check:_ H11, T198.
 **REQ-164a — Viability pre-check (Part a).**
-After G0 structural integrity passes but before chunked discovery begins, the builder SHALL count mechanical sections — headings containing procedures, tables, bold-labeled fields, or definition lists — as a proportion of total `##`-level sections. If mechanical sections are below 30% of total sections, the builder SHALL warn the operator: "This ruleset is below the mechanical-density threshold (X% mechanical). Discovery may not produce a playable server." The operator MAY proceed, select a different source, or abort. The builder SHALL record the pre-check count and operator decision in DECISIONS.md (4).
+After G0 structural integrity passes but before chunked discovery begins, the builder SHALL run the viability pre-check defined in §6.2; a ruleset below the mechanical-density threshold SHALL warn the operator, who MAY proceed, select a different source, or abort. The builder SHALL record the pre-check count and operator decision in DECISIONS.md (4).
 
 **REQ-164b — Viability pre-check (Part b).**
-Guidance-only sections SHALL be excluded from the mechanical count but SHALL be included in the total-section denominator. *Acceptance criterion:* A ruleset with 15 mechanical sections out of 60 total sections (25%) triggers the warning. The builder records the count (15/60 = 25%) and the operator's decision in DECISIONS.md (4). A ruleset with 25/60 (42%) proceeds without warning. _Check:_ T199.
+Guidance-only sections SHALL be excluded from the mechanical count but SHALL be included in the total-section denominator. *Acceptance criterion:* A ruleset whose mechanical-section share falls below the viability threshold (§6.2) triggers the warning and records the count and the operator's decision in DECISIONS.md (4); a ruleset at or above the threshold proceeds without warning. _Check:_ T199.
 **REQ-067a — Help and tool discovery (Part a).**
 The server provides tool discovery through the `manage_session (action: discover)` action, listed alongside `manage_ruleset (action: search)`, `respond_decision`, `manage_history (action: undo)`, and `spec_health`. `manage_session (action: discover)` accepts an optional `query` parameter. With no query, it returns: (1) a pointer to the `intro` prompt, (2) a categorized task map — tools grouped by task domain (characters, dice and resolution, combat, lookups, state, adventure) with one-line descriptions, and (3) a pointer to `badge_briefing` for badge-specific guidance. With a query, it searches tool descriptions, prompt summaries, and guidance text and returns the most relevant matches with example invocations.
 
@@ -1832,7 +1842,7 @@ When the ruleset delegates mechanical resolution to separate tools (attack, dama
 The builder selects the reporting strategy at build time and records the choice in RULESET_MODEL.md. Participants with no turn-defining mechanical stats — dangers and NPCs created without stat fields — advance automatically on their turn. The `manage_combat (action: advance)` tool reports the participant name with an `[auto]` marker, describes the participant's narrative action using the participant's description field (if any), applies no mechanical changes, and advances to the next turn. No separate tool call is required from the caller.
 
 **REQ-043d — Conflict lifecycle (Part d).**
-Initiative ties resolve by participant type (entity before NPC before danger), then alphabetically by name. The Novel's total combat rounds counter increments by one each time the combat round wraps (last participant's turn completes and the turn order returns to the first participant). The counter is cumulative across all combats in the Novel's lifetime. `manage_combat (action: end)` does not additionally adjust the counter — it records the outcome and tears down the combat state. The counter is included in novel metadata (REQ-093) and reported in `manage_session (action: recap)` (REQ-072) and `spec_health` (REQ-025).
+Initiative ties SHALL resolve deterministically; §7.7 defines the ordering rule. The Novel's total combat rounds counter SHALL increment by one each time the combat round wraps and SHALL remain cumulative across the Novel's lifetime; `manage_combat (action: end)` SHALL NOT adjust the counter. The server includes the counter in novel metadata (REQ-093) and reports it in `manage_session (action: recap)` (REQ-072) and `spec_health` (REQ-025).
 
 **REQ-043e — Conflict lifecycle (Part e).**
 Snapshot/load operations work within one connection. Active combat state is visible in `badge_briefing` as a dedicated group containing the round number, the turn order list with the current turn clearly marked, and the current participant name. The Game Master sees the full turn order and all participant names; the Player badge sees entity turn positions only (NPC and danger positions are redacted).
@@ -1916,7 +1926,7 @@ Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]` with t
 *Acceptance criterion:* a recap carrying `gm_notes` returns them under the GM badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. _Check:_ T518.
 
 **REQ-279a — Narrative orientation (Part a).**
-`manage_session (action: recap)` SHALL include a `narrative_orientation` field — a prose paragraph (2–4 sentences) derived from the active Novel state. The paragraph SHALL synthesize five inputs. The first input is the last 3 story journal entries of type `decision` or `bond` (REQ-246). The second input is the active NPC dispositions that differ from their creation default. The third input is the current narrative directive (REQ-081). The fourth input is the active countdown names with their remaining ticks in narrative form ("The ritual completes in 2 rounds"). The fifth input is the active vow names and milestone counts when vow tracking holds data (REQ-289).
+`manage_session (action: recap)` SHALL include a `narrative_orientation` field — a prose paragraph (2–4 sentences) that synthesizes the active Novel state; §6.4.1 defines the inputs. The field SHALL appear when any source data is non-empty.
 
 **REQ-279b — Narrative orientation (Part b).**
 The paragraph SHALL use plain English without tool names, status prefixes, or structured field syntax — it reads as a "Previously on…" summary a returning player can understand immediately. The field SHALL be present when any of its source data is non-empty. When all source data is empty (new Novel with no play), the field SHALL contain the empty-state marker "[No narrative history yet — your story begins here.]" `manage_session (action: recap)` SHALL include `narrative_orientation` as its first field, before the structured data blocks.
@@ -2621,7 +2631,7 @@ A generation table entry defines: `dice_expression` (e.g., `1d100`, `1d8`), a li
 **REQ-213c — Weighted table result mapping (Part c).**
 A generation table SHALL NOT interleave dice-range rows with static lookup rows. At extraction, the builder classifies each table as either generation or lookup; any table containing a dice-range row is a generation table. *Acceptance criterion:* `manage_ruleset (action: roll, table="wand_of_wonder", seed="42")` produces the same result row on two separate server restarts, with output including dice notation, individual die face, matched range, and result text. _Check:_ T254.
 **REQ-291a — Oracle tool (Part a).**
-The server provides an `manage_scene (action: oracle)` tool (accepting a free-text `question` and an optional per-call `seed`) for uncertainty resolution. The tool accepts a `likelihood` value — `almost_certain` (d100 ≥ 11), `likely` (d100 ≥ 26), `50_50` (d100 ≥ 51), `unlikely` (d100 ≥ 76), or `small_chance` (d100 ≥ 91) — the Ask-the-Oracle ladder, defaulting to `50_50` when omitted. The tool draws from the PRNG (REQ-050) and returns one of `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. Doubles on the d100 (11, 22, 33, ..., 99) produce an exceptional result — an `EXCEPTIONAL_YES` or `EXCEPTIONAL_NO` — which signals a stronger, more intense version of the answer. The `question` parameter is recorded in the audit log; the draw is deterministic and seedable.
+The server provides an `manage_scene (action: oracle)` tool (accepting a free-text `question` and an optional per-call `seed`) for uncertainty resolution. The tool accepts a `likelihood` value from the Ask-the-Oracle ladder, whose bands, d100 thresholds, default, and exceptional-result rule are defined in Appendix O, and returns one of `[YES]`, `[NO]`, `[EXCEPTIONAL_YES]`, or `[EXCEPTIONAL_NO]`. The tool draws from the PRNG (REQ-050); the `question` is recorded in the audit log; the draw is deterministic and seedable.
 
 **REQ-291b — Oracle tool (Part b).**
 The server positions the oracle as an uncertainty-resolution aid for both badges. The oracle resolves an outcome when the caller cannot determine what happens next, and it SHALL NOT replace the AI narrator's judgment. The Player badge SHALL be permitted to call `manage_scene (action: oracle)`. In solo play, the human Player consults the oracle directly, and the AI Game Master remains the interpreter of the result.
@@ -2971,7 +2981,7 @@ Player badge returns `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* `manage_synt
 The builder tests action suggestion coverage against a curated intent set spanning every ruleset-defined action category identified during discovery. Each curated intent entry records: the natural-language intent text, the expected action categories per REQ-015 that the intent SHALL map to, and the ruleset section or synthesis source that defines the category. The full curated set and its derivation are recorded in RULESET_MODEL.md.
 
 **REQ-114b — Suggestion coverage (Part b).**
-The builder records coverage below 80% — fewer than 80% of curated intents for which `run_command (action: suggest)` returns at least one tool matching the expected action categories — as a suggestion-coverage finding in DECISIONS.md (5), naming the uncovered categories and their intents. Coverage testing is a build-time audit; suggestion mappings do not change at runtime. *Acceptance criterion:* The curated intent set in RULESET_MODEL.md covers every discovered action category; coverage below 80% records the uncovered categories and their intents in DECISIONS.md (5) with named uncovered categories. _Check:_ T117.
+The builder records suggestion coverage below the §6.5 threshold — the share of curated intents for which `run_command (action: suggest)` returns at least one tool matching the expected action categories — as a finding in DECISIONS.md (5), naming the uncovered categories and their intents. Coverage testing is a build-time audit; suggestion mappings do not change at runtime. *Acceptance criterion:* The curated intent set in RULESET_MODEL.md covers every discovered action category; coverage below the §6.5 threshold records the uncovered categories and their intents in DECISIONS.md (5). _Check:_ T117.
 
 **REQ-114c — Tool-selection coverage (Part c).**
 The builder SHALL evaluate tool selection against a curated intent set spanning every registered tool and action, and SHALL record the per-tool selection result in DECISIONS.md. Coverage below the recorded threshold SHALL record the unselected tools and their intents as a finding. The evaluation SHALL be deterministic and repeatable without model inference.
@@ -3999,15 +4009,15 @@ Ruleset Wisdom content the server carries at runtime — `[vendor]`-tagged items
 **REQ-371b — Ruleset Wisdom as rendered reality (Part b).**
 Wisdom items the host carries whose Mechanical coupling remains unimplemented SHALL render as Navigational suggestions until the builder implements the coupling. *Acceptance criterion:* An NPC created in a Novel with active Ruleset Wisdom carries voice_examples, goals, and personality patterns without manual GM activation. A countdown created from Wisdom pacing patterns advances automatically on scene transitions. Deactivating the responsible Wisdom item suppresses the mechanical behavior. _Check:_ T422, T428, T496.
 **REQ-374a — Archetype coverage (Part a).**
-Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither an archetype nor the `[content source]` marker produces zero couplings — the coupling completeness metric in Phase 2 cannot detect this gap. The metric threshold is 100%: all 38 property groups classified.
+Builder SHALL verify during convergence Phase 1 that every Novel property group defined in §7.7 carries at least one Holodeck archetype from the set defined in §7.7.0, or the `[content source]` marker for groups populated by content sources per REQ-369b. A property group with neither produces zero couplings, which the Phase 2 coupling metric cannot detect. The Archetype coverage metric owns the threshold (§6.5).
 
 **REQ-374b — Archetype coverage (Part b).**
 Missing archetype assignments SHALL be resolved by re-reading §7.7.0 definitions and reassigning archetypes per the coupling pattern rules that govern each group's behavioral nature. *Acceptance criterion:* Every property group in §7.7 carries ≥1 archetype. A group missing an archetype causes this metric to fail, directing the builder to re-read and re-classify before proceeding to Phase 2. _Check:_ T425, T439.
 **REQ-375a — Wisdom mechanical coupling rate (Part a).**
-Synthesis population meets its threshold, the builder SHALL verify that Wisdom items extracted from the ruleset include Mechanical couplings — not exclusively Navigational ones. The metric measures Wisdom items classified with Mechanical coupling nature per §7.7.1a divided by the total Wisdom items extracted. The threshold is ≥30% Mechanical. A build where all Wisdom items are Navigational meets the Synthesis population metric but violates REQ-371's intent — the ruleset's guidance SHALL render as server behavior.
+Synthesis population meets its threshold, the builder SHALL verify that Wisdom items extracted from the ruleset include Mechanical couplings — not exclusively Navigational ones. The metric measures Wisdom items classified with Mechanical coupling nature per §7.7.1a divided by the total Wisdom items extracted, with its threshold defined in §6.5. A build where all Wisdom items are Navigational meets the Synthesis population metric but violates REQ-371's intent — the ruleset's guidance SHALL render as server behavior.
 
 **REQ-375b — Wisdom mechanical coupling rate (Part b).**
-The builder SHALL improve the rate by re-reading ruleset source sections where the text carries strong behavioral language (procedures, pacing directives, structural patterns). The builder then re-classifies items from Navigational to Mechanical where the coupling contract supports it. *Acceptance criterion:* At least 30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational causes this metric to fail, directing the builder to re-classify. _Check:_ T426.
+The builder SHALL improve the rate by re-reading ruleset source sections where the text carries strong behavioral language (procedures, pacing directives, structural patterns). The builder then re-classifies items from Navigational to Mechanical where the coupling contract supports it. *Acceptance criterion:* The Wisdom mechanical coupling rate meets the §6.5 threshold. A build with Wisdom items exclusively Navigational causes this metric to fail, directing the builder to re-classify. _Check:_ T426.
 **REQ-376a1 — Holonovel Pattern Buffer traceability (Part a1).**
 The builder SHALL ensure at least one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck Coupling Model), §5.15 (Mechanical Coupling), and the world-model error contracts of REQ-367 (World-model property contracts). The builder records a Holonovel sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a holonovel package version advance, the builder re-examines every sub-workflow mapped to it.
 
@@ -4057,7 +4067,7 @@ Confidence labels apply per coupling entry. The HIGH label applies when the rule
 **REQ-377d — Mechanical coupling extraction (Part d).**
 A ruleset-free build produces `[ruleset-free]` annotation. _Check:_ T432.
 **REQ-378a — Mechanical coupling verification (Part a).**
-The convergence loop SHALL verify three conditions. Condition (a): at least one mechanical tool per extraction category (Concepts, Entities, Actions, Tables, Resolution, Roles) carries coupling metadata — a category with zero coupling entries is a finding. Condition (b): the total coupling entries meet the threshold of at least one coupling entry per 50 indexed mechanical items, with a floor of 5 and a ceiling of 50. Condition (c): at least 10% of mechanical couplings are Mechanical (automatic) rather than Navigational (advisory) — a build where every mechanical coupling requires GM confirmation is a finding. *Acceptance criterion:* A build against D&D 5e SRD (200+ indexed mechanical items) produces at least 4 mechanical coupling entries that meet the thresholds.
+The convergence loop SHALL verify Mechanical coupling population: at least one mechanical tool per extraction category (Concepts, Entities, Actions, Tables, Resolution, Roles) carries coupling metadata; the total coupling entries meet the §6.5 threshold; and Mechanical (automatic) couplings meet the §6.5 share — a category with zero coupling entries is a finding. *Acceptance criterion:* A build against a ruleset with 200+ indexed mechanical items produces mechanical coupling entries that meet the §6.5 thresholds.
 
 **REQ-378b — Mechanical coupling verification (Part b).**
 At least one coupling is Mechanical (automatic), not Navigational. A ruleset-free build produces `[ruleset-free]` annotation for all mechanical coupling metrics. _Check:_ T433.
@@ -4287,17 +4297,22 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 ### 5.21 Fate Base Capabilities
 
-**REQ-434 — Fudge dice.** `resolve_fate (action: roll)` SHALL roll Fudge dice expressed in `dF` notation — `NdF` rolls N Fudge dice, each face returning −1, 0, or +1, and a bare `dF` defaults to four. The result SHALL report the notation, each die face, a `skill` label and `modifier` when supplied, and the total against an optional `difficulty` (default 0), honoring the roll-transparency contract (REQ-003) and the per-call seed (REQ-050). The total SHALL be classified on the Fate ladder — Fail below the difficulty, Tie when equal, Succeed above, and Succeed with style at least three above. *Acceptance criterion:* `resolve_fate (action: roll, skill="Fight", modifier=2, difficulty=2, seed="42")` returns four faces in {−1, 0, +1}, a total, and a ladder band; the same seed reproduces the same faces. _Check:_ T520.
+**REQ-434 — Fudge dice.** `resolve_fate (action: roll)` SHALL roll Fudge dice expressed in `dF` notation — `NdF` rolls N Fudge dice, each face returning −1, 0, or +1, and a bare `dF` rolls the default count in Appendix O. The result SHALL report the notation, each die face, a `skill` label and `modifier` when supplied, and the total against an optional `difficulty` (absent treated as zero), honoring the roll-transparency contract (REQ-003) and the per-call seed (REQ-050). The total SHALL be classified on the Fate ladder defined in Appendix O. *Acceptance criterion:* `resolve_fate (action: roll, skill="Fight", modifier=2, difficulty=2, seed="42")` returns four faces in {−1, 0, +1}, a total, and a ladder band; the same seed reproduces the same faces. _Check:_ T520.
 
 **REQ-435 — Fate aspects.** `resolve_fate (action: aspect)` SHALL create, invoke, compel, remove, and list aspects — free-form narrative phrases attached to a scene, entity, or NPC. Creating an aspect requires a `name` and a `target` and is a Game Master operation; invoking an aspect SHALL consume one Fate point from the invoking entity (REQ-436) and report the invoke; compelling an aspect SHALL grant one Fate point to the compelled entity. Listing SHALL return active aspects with their targets and is readable by any badge. Aspects persist with the Novel (REQ-092). *Acceptance criterion:* creating a scene aspect then invoking it with an entity holding Fate points consumes one; invoking with zero Fate points is refused with the corrective action named. _Check:_ T521.
 
-**REQ-436 — Fate points.** `resolve_fate (action: fate_point)` SHALL spend, grant, refresh, and list Fate points per character, keyed by entity identifier. A character's Fate points start at a refresh value of three and SHALL NOT fall below zero on a spend; spending below zero is refused. Refreshing SHALL return the character to the refresh value. Spend, grant, and refresh are Game Master operations; listing SHALL be readable by any badge. Fate points persist with the Novel. *Acceptance criterion:* spending one Fate point on an entity reduces three to two; a spend exceeding the balance is refused; a refresh returns three. _Check:_ T522.
+**REQ-436 — Fate points.** `resolve_fate (action: fate_point)` SHALL spend, grant, refresh, and list Fate points per character, keyed by entity identifier. A character's Fate points start at the refresh value in Appendix O and SHALL NOT fall below zero on a spend; spending below zero is refused. Refresh SHALL return the character to the refresh value. Spend, grant, and refresh are Game Master operations; listing SHALL be readable by any badge. Fate points persist with the Novel. *Acceptance criterion:* a spend reduces the balance; a spend exceeding the balance is refused; a refresh returns the character to the refresh value. _Check:_ T522.
 
 **REQ-437 — Stress and consequences.** `resolve_fate (action: stress)` SHALL mark, clear, and list stress and consequences per character. The stress covers both physical and mental tracks. Marking SHALL record a number of shifts against a physical or mental track. Marking SHALL also record a consequence — mild, moderate, or severe — when declared. Clearing SHALL empty a named track or consequence slot. Listing SHALL report each entity's physical stress, mental stress, and consequence slots, readable by any badge. Mark and clear are Game Master operations; stress persists with the Novel. *Acceptance criterion:* marking two physical stress on an entity reports a two-box track; marking a moderate consequence records it; clearing a track empties it. _Check:_ T523.
 
 ### 5.22 Ironsworn Base Capabilities
 
-**REQ-438 — Ironsworn momentum.** `resolve_ironsworn (action: momentum)` SHALL set, gain, lose, reset, and list momentum — a per-character resource in the range −6 to +10 that defaults to +2. Setting, gaining, losing, and resetting are Game Master operations; listing SHALL be readable by any badge. Momentum SHALL be clamped to the −6..+10 range on every write. Momentum persists with the Novel (REQ-092). *Acceptance criterion:* setting momentum to 5 then gaining 1 and losing 2 reports 4; resetting returns 2; a set above 10 clamps to 10. _Check:_ T524.
+The Ask-the-Oracle ladder (REQ-291) is an Ironsworn-derived mechanic surfaced as
+the general uncertainty-resolution tool `manage_scene (action: oracle)`, not as
+`resolve_ironsworn` — its tuning is in Appendix O and its attribution in
+Appendix S.
+
+**REQ-438 — Ironsworn momentum.** `resolve_ironsworn (action: momentum)` SHALL set, gain, lose, reset, and list momentum — a per-character resource bounded to the momentum range in Appendix O, starting at its reset value. Setting, gaining, losing, and resetting are Game Master operations; listing SHALL be readable by any badge. Momentum SHALL be clamped to that range on every write. Momentum persists with the Novel (REQ-092). *Acceptance criterion:* a set within range then a gain and loss reports the adjusted value; resetting returns the reset value; a set above the maximum clamps to the maximum. _Check:_ T524.
 
 **REQ-439 — Ironsworn move framework.** `resolve_ironsworn (action: move)` SHALL resolve the Ironsworn action roll — an action die (d6) plus a stat-and-bonus `adds` modifier, compared against two challenge dice (d10). The result SHALL report the action die, the challenge dice, and a band — Strong hit when the action score beats both challenge dice, Weak hit when it beats exactly one, and Miss otherwise. With `burn` set, the action score SHALL be replaced by the burning entity's current momentum (REQ-438), after which momentum resets to its default. The draw SHALL honor the per-call seed (REQ-050). *Acceptance criterion:* a seeded move reports an action die, two challenge dice, and a hit band; the same seed reproduces the same band. _Check:_ T525.
 
@@ -4305,11 +4320,11 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 ### 5.23 Forged in the Dark Base Capabilities
 
-**REQ-441 — Action roll with position and effect.** `resolve_forged (action: action_roll)` SHALL resolve the Forged in the Dark action roll — a pool of `dice` d6s (default two; a zero-dice pool rolls two d6 and keeps the lower), taking the highest. The result SHALL report the dice, the highest, a `position`, an `effect`, and a band. The `position` is controlled, risky, or desperate (default risky). The `effect` is limited, standard, or great (default standard). The band is Critical success on a 6, Partial success on 4–5, or Miss on 1–3. The draw SHALL honor the per-call seed (REQ-050). *Acceptance criterion:* a seeded roll with three dice reports the position, effect, highest die, and a band; the same seed reproduces the same result. _Check:_ T527.
+**REQ-441 — Action roll with position and effect.** `resolve_forged (action: action_roll)` SHALL resolve the Forged in the Dark action roll — a pool of `dice` d6s, taking the highest; the pool size, the zero-dice case, the position and effect values, and the result band mapping are defined in Appendix O. The result SHALL report the dice, the highest, a `position`, an `effect`, and a band. The draw SHALL honor the per-call seed (REQ-050). *Acceptance criterion:* a seeded roll with three dice reports the position, effect, highest die, and a band; the same seed reproduces the same result. _Check:_ T527.
 
-**REQ-442 — Stress, trauma, and resistance.** `resolve_forged (action: stress)` SHALL mark, clear, resist, and list stress — a per-character track from 0 to 8. Marking adds `amount` stress; when the track fills, the character SHALL gain a trauma and the stress resets to 0. Resisting SHALL spend `cost` stress (default two) to reduce a named consequence and SHALL be refused when the cost would exceed the track. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress and trauma persist with the Novel. *Acceptance criterion:* marking two stress reports a two-box track; a resist spends two; filling the track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
+**REQ-442 — Stress, trauma, and resistance.** `resolve_forged (action: stress)` SHALL mark, clear, resist, and list stress — a per-character track whose maximum is defined in Appendix O. Marking adds `amount` stress; when the track fills, the character SHALL gain a trauma and the stress resets. Resisting SHALL spend `cost` stress, defaulting to the cost in Appendix O, to reduce a named consequence, and SHALL be refused when the cost would exceed the track. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress and trauma persist with the Novel. *Acceptance criterion:* marking stress reports the track; a resist spends the cost; filling the track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
 
-**REQ-443 — Downtime.** `resolve_forged (action: downtime)` SHALL recover and indulge a character's vice, and list character stress and trauma. Recovering SHALL reduce stress by `amount` boxes (default two); indulging a vice SHALL clear stress to 0. Recover and indulge are Game Master operations; listing SHALL be readable by any badge. Downtime state persists with the Novel. *Acceptance criterion:* recovering after marking three stress reduces the track; indulging a vice clears it to 0. _Check:_ T529.
+**REQ-443 — Downtime.** `resolve_forged (action: downtime)` SHALL recover and indulge a character's vice, and list character stress and trauma. Recovering SHALL reduce stress by `amount` boxes, defaulting to the amount in Appendix O; indulging a vice SHALL clear stress. Recover and indulge are Game Master operations; listing SHALL be readable by any badge. Downtime state persists with the Novel. *Acceptance criterion:* recovering after marking stress reduces the track; indulging a vice clears it. _Check:_ T529.
 
 ### 5.24 Temporal Event Log and Branching
 
@@ -4335,13 +4350,16 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-464 — Evidence admission states.** Each acquisition SHALL carry an admission status of usable, unresolved, or suppressed. Unresolved and suppressed evidence SHALL be preserved and retrievable and SHALL NOT contribute to a belief stance while in that status. *Acceptance criterion:* suppressed evidence creates no stance yet remains listable. _Check:_ T554.
 
-**REQ-465 — Belief stance materialization.** For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, accepted only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. WHEN belief reconciliation is disabled by its configuration setting, the server SHALL retain admitted evidence without materializing a stance. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win, and with reconciliation disabled evidence is retained with no stance materialized. _Check:_ T555, T629.
+**REQ-465 — Belief stance materialization.**
+For each entity and question the server SHALL materialize a belief stance of positive, negative, or unresolved, and SHALL accept that stance only when the supporting weight reaches a configured acceptance threshold and exceeds the opposing weight by a configured decision margin. WHEN its configuration setting disables belief reconciliation, the server SHALL retain admitted evidence without materializing a stance. *Acceptance criterion:* strong opposing evidence yields an unresolved stance rather than a recency win, and with reconciliation disabled the server retains evidence with no stance materialized. _Check:_ T555, T629.
 
 **REQ-466 — Independent corroboration.** Evidence correlated by source and event coordinate SHALL NOT compound. Independent acquisitions SHALL accumulate. Reconciliation SHALL be deterministic and reproducible from the event log and evidence records. *Acceptance criterion:* two copies of one source do not outrank one independent second source, and a repeated reconciliation returns identical stances. _Check:_ T556.
 
-**REQ-467 — Contradiction preservation.** Contradictory evidence SHALL remain retrievable after a stance is materialized, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
+**REQ-467 — Contradiction preservation.**
+Contradictory evidence SHALL remain retrievable after the server materializes a stance, and reconciliation SHALL NOT delete or average away disagreement. *Acceptance criterion:* an unresolved stance retains the records for both supporting and opposing evidence. _Check:_ T557.
 
-**REQ-468 — Belief refresh.** WHEN evidence is admitted, retracted, or reclassified for an entity and reconciliation is enabled, the server SHALL recompute that entity's belief stances from its evidence records before returning the result. *Acceptance criterion:* admitting opposing evidence weakens or flips the stance in the same call. _Check:_ T558.
+**REQ-468 — Belief refresh.**
+WHEN the server admits, retracts, or reclassifies evidence for an entity and reconciliation applies, the server SHALL recompute that entity's belief stances from its evidence records before returning the result. *Acceptance criterion:* admitting opposing evidence weakens or flips the stance in the same call. _Check:_ T558.
 
 **REQ-469 — Belief family policies.** Each predicate SHALL map to a belief family whose reconciliation policy is either durable or volatile; durable predicates SHALL accumulate support across acquisitions, volatile predicates SHALL reflect the most recent acquisition, and the mapping used SHALL be deterministic and reported per belief. *Acceptance criterion:* two matching durable facts both contribute, while a later volatile acquisition supersedes an earlier one. _Check:_ T559.
 
@@ -4363,7 +4381,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-477 — Identity write-authority isolation.** Conversation, belief reconciliation, memory, and runtime state SHALL NOT write durable identity; identity acceptance is the mutation path for durable identity. *Acceptance criterion:* a session of observations, beliefs, and scene changes leaves the identity version unchanged. _Check:_ T567.
 
-**REQ-478 — Identity revision.** WHEN a facet is accepted again, THE server SHALL replace its prior value and advance that facet's revision, retaining the acceptance time and source. *Acceptance criterion:* re-accepting a facet reports revision two carrying the new value. _Check:_ T568.
+**REQ-478 — Identity revision.**
+WHEN the server accepts a facet again, THE server SHALL replace its prior value and advance that facet's revision, retaining the acceptance time and source. *Acceptance criterion:* re-accepting a facet reports revision two carrying the new value. _Check:_ T568.
 
 **REQ-479 — Character-card bootstrap exclusions.** Bootstrapping identity from a character card SHALL stage the card's identity fields as candidates and SHALL exclude scenario, first-message, and example-dialogue fields; non-developmental authored fields MAY be accepted as facets under the configured bootstrap policy, while developmental fields SHALL remain candidates. *Acceptance criterion:* a card's scenario and first message are not staged, while its name and description are. _Check:_ T569.
 
@@ -4375,15 +4394,18 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-483 — Identity source provenance.** Every identity candidate SHALL record its provenance — character card, manual entry, or another named source — preserved on the accepted facet. *Acceptance criterion:* a manual candidate and a card candidate report their distinct sources. _Check:_ T573.
 
-**REQ-547 — Identity candidate retention bound.** Identity candidates retained per character SHALL be bounded by a configured cap, and exceeding the cap SHALL evict the oldest candidates first while accepted facets and the compiled kernel are unaffected. *Acceptance criterion:* with a cap of 2, staging a third candidate evicts the oldest and the accepted facets remain. _Check:_ T630.
+**REQ-547 — Identity candidate retention bound.**
+The server SHALL bound the identity candidates it retains per character by a configured cap; exceeding the cap SHALL evict the oldest candidates first without affecting accepted facets and the compiled kernel. *Acceptance criterion:* with a cap of 2, staging a third candidate evicts the oldest and the accepted facets remain. _Check:_ T630.
 
 ### 5.27 Causal Transition Validation
 
-**REQ-484 — Transition proposal.** A proposed change to objective world state SHALL be recorded as a proposal carrying its scope coordinate, domain, target entity and key, proposed value, optional expected prior value, and originating event-log ordinal before it is applied, and SHALL NOT change state until admitted. *Acceptance criterion:* proposing a transition leaves the admitted state unchanged and records the proposal. _Check:_ T574.
+**REQ-484 — Transition proposal.**
+The server SHALL record a proposed change to objective world state as a proposal carrying its scope coordinate, domain, target entity and key, proposed value, optional expected prior value, and originating event-log ordinal before applying it, and SHALL NOT change state until it admits the proposal. *Acceptance criterion:* proposing a transition leaves the admitted state unchanged and records the proposal. _Check:_ T574.
 
 **REQ-485 — Admission decision.** Each proposal SHALL receive an admission decision drawn from the admission-decision catalog defined in the state model and recorded in the transition ledger. *Acceptance criterion:* a valid proposal is admitted and an incompatible one is refused with a named decision. _Check:_ T575.
 
-**REQ-486 — Location exclusivity.** An entity SHALL occupy at most one admitted value for a location key within one scope coordinate; a proposal whose expected prior value does not match the admitted value SHALL be refused as a conflict unless a latent transition is permitted. *Acceptance criterion:* two incompatible location writes do not both become current. _Check:_ T576.
+**REQ-486 — Location exclusivity.**
+An entity SHALL occupy at most one admitted value for a location key within one scope coordinate; the server SHALL refuse a proposal whose expected prior value does not match the admitted value as a conflict unless it permits a latent transition. *Acceptance criterion:* two incompatible location writes do not both become current. _Check:_ T576.
 
 **REQ-487 — Ordered scalar transitions.** Ordered scalar state SHALL admit a proposed value at least the current value and SHALL refuse a lower incompatible value as a conflict rather than applying it. *Acceptance criterion:* a higher scalar value is admitted and a lower one is refused. _Check:_ T577.
 
@@ -4391,13 +4413,15 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-489 — Transition idempotency and version.** Re-admitting an already-current value SHALL be idempotent and SHALL NOT advance the state version; WHEN a proposal carries an expected version that does not match the admitted version, THE server SHALL refuse it as a conflict. *Acceptance criterion:* a repeated value leaves the version unchanged, and a stale expected version is refused. _Check:_ T579.
 
-**REQ-490 — Latent transition handling.** WHEN latent transitions are enabled and a proposal is incompatible with the admitted value, THE server SHALL admit it and record the decision as a latent transition rather than silently overwriting. *Acceptance criterion:* an incompatible proposal with latent transitions enabled is admitted and flagged. _Check:_ T580.
+**REQ-490 — Latent transition handling.**
+WHEN the server enables latent transitions and a proposal conflicts with the admitted value, THE server SHALL admit it and record the decision as a latent transition rather than silently overwriting. *Acceptance criterion:* with latent transitions enabled the server admits an incompatible proposal and flags it. _Check:_ T580.
 
 **REQ-491 — Rejected-transition evidence.** A refused proposal SHALL be retained in the transition ledger as auditable evidence and SHALL NOT delete its originating claim. *Acceptance criterion:* a refused proposal remains listable with its decision after the refusal. _Check:_ T581.
 
 **REQ-492 — Causal-epistemic firewall.** The causal layer SHALL NOT write belief, evidence, or identity state, and those layers SHALL NOT write causal state. *Acceptance criterion:* admitting a transition leaves belief and identity state unchanged. _Check:_ T582.
 
-**REQ-493 — Deterministic machine ingress.** Machine-originated state SHALL be submitted through a deterministic ingress action whose proposals carry a machine origin and are recorded in the transition ledger like any other proposal. *Acceptance criterion:* an ingress submission is recorded with a machine origin and applied when admitted. _Check:_ T583.
+**REQ-493 — Deterministic machine ingress.**
+The server SHALL submit machine-originated state through a deterministic ingress action whose proposals carry a machine origin, and SHALL record them in the transition ledger like any other proposal. *Acceptance criterion:* the server records an ingress submission with a machine origin and applies it when admitted. _Check:_ T583.
 
 **REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through `manage_causal` and a causal-state resource for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
 
@@ -4417,7 +4441,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-501 — Cold until consumed.** A corpus document SHALL remain cold, contributing no knowledge, until a successful consumption records an acquisition for an entity. *Acceptance criterion:* an entity's acquisition ledger is empty before consumption and holds one entry after. _Check:_ T591.
 
-**REQ-502 — Reference deixis.** WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the material is not attributed to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
+**REQ-502 — Reference deixis.**
+WHEN a consumed document contains first- or second-person reference, THE acquisition SHALL mark its deixis unresolved so the server does not attribute the material to the consuming entity as self-knowledge. *Acceptance criterion:* consuming a first-person document records an unresolved deixis. _Check:_ T592.
 
 **REQ-503 — Corpus visibility and badge gating.** Corpus registration, routing, and access-policy changes SHALL require the Game Master badge; a Player SHALL consume only for the active entity; and the Observer SHALL read without consuming. *Acceptance criterion:* a Player consumption for another entity is refused, and an Observer consumption is refused. _Check:_ T593.
 
@@ -4447,7 +4472,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-513 — Rebuild idempotency and staleness.** The projection SHALL record a source fingerprint and build time and SHALL report itself stale when the current source fingerprint differs; recomputing with unchanged sources SHALL be idempotent. *Acceptance criterion:* changing a source marks the graph stale, a rebuild clears it, and repeated builds are identical. _Check:_ T603.
 
-**REQ-514 — Read-only scope-filtered exposure.** Knowledge-graph reads SHALL be read-only, SHALL NOT mutate Novel state, and SHALL be filtered by the active badge so a node the caller cannot read is not exposed. *Acceptance criterion:* a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. _Check:_ T604.
+**REQ-514 — Read-only scope-filtered exposure.**
+Knowledge-graph reads SHALL remain read-only, SHALL NOT mutate Novel state, and SHALL return only nodes the active badge permits, so the caller never sees a node it cannot read. *Acceptance criterion:* a graph read leaves the Novel unchanged, and a Game Master-scope node is absent from a Player read. _Check:_ T604.
 
 ### 5.31 Durable Agent Tasks
 
@@ -4489,7 +4515,8 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 
 **REQ-516 — Consistency declaration.** The consistency report SHALL declare its availability and the readiness cursor it reflects, so a caller can tell which committed state a briefing describes. *Acceptance criterion:* the report is available and carries a numeric cursor. _Check:_ T621.
 
-**REQ-517 — Derived-surface freshness.** The report SHALL state, for each derived advisory surface, whether it is unbuilt, current, or stale relative to its sources. *Acceptance criterion:* a surface is unbuilt before its build, current after, and stale once sources change. _Check:_ T622.
+**REQ-517 — Derived-surface freshness.**
+The report SHALL state, for each advisory surface it derives, whether that surface stands unbuilt, current, or stale relative to its sources. *Acceptance criterion:* a surface begins unbuilt, becomes current after its build, and turns stale once sources change. _Check:_ T622.
 
 **REQ-518 — Consistency determinism.** Given unchanged state, repeated consistency reports SHALL be identical. *Acceptance criterion:* two consecutive reports are equal. _Check:_ T623.
 
@@ -4708,6 +4735,20 @@ mechanical-section count SHALL be recorded as zero.
 
 *Prepare:* Load files from `build-phase-map.md` Discovery row: 03-build.md §6.3,
 02-requirements.md §5.2.
+
+**Authority resolution.** When a mechanic is restated across ruleset sections, the
+builder resolves its authoritative source by applying, in order, stopping at the
+first criterion that yields a single candidate: (a) the section the ruleset's own
+index or table of contents designates as the primary reference; (b) the section
+whose heading text best matches the mechanic name; (c) the section within the
+core-mechanics chapter — the shallowest-depth chapter holding the highest
+proportion of mechanical sections; (d) the section with the densest procedural
+text. A tie at any criterion records the co-canonical sections per REQ-146c.
+
+**Table classification.** A table is a generation table when it contains at least
+one dice-range result row. A row whose first column is a numeric range (`01-10`,
+`11-25`) or a dice expression (`d100`, `d%`, `d8`, `d20`) is a generation result
+row; a row whose first column is a name or label is a lookup row (REQ-215).
 
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
 builder's context window. The builder records the chunking strategy in
@@ -4990,6 +5031,12 @@ live state. The builder constructs prompts from these sources, in this order:
     those elements before any truncation. Standing Rule 10 applies — prompt
     bodies SHALL contain no tool names or technical syntax.
 
+6. **Narrative orientation.** The `narrative_orientation` paragraph (REQ-279)
+   synthesizes the last three `decision`/`bond` story-journal entries (REQ-246),
+   active NPC dispositions differing from their creation default, the current
+   narrative directive (REQ-081), active countdown names with remaining ticks,
+   and active vow names with milestone counts (REQ-289).
+
 Prompts use the ruleset's own terminology for mechanics, tool names, and
 categories — the builder does not invent terms. The prompt length budget
 (REQ-118) applies to every prompt.
@@ -5158,6 +5205,16 @@ cannot raise a mechanical category above 50%, the builder records a
 category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit.
+
+**Cross-format consistency** samples ten items spanning at least three of the seven
+extraction categories and requires RULESET_MODEL.md and ruleset_model.json to agree
+on name, source anchor, confidence label, and action classification for every
+sampled item (REQ-209).
+
+**Confidence aggregation.** The overall player-filtered confidence is the weighted
+mean of per-section scores: Σ(section_items × section_score) / Σ(section_items),
+where section_score = (HIGH + MEDIUM items) / total extracted items in the section
+(REQ-147).
 
 **Archetype coverage** measures whether every Novel property group defined in §7.7
 is classified with at least one Holodeck archetype. A group without an archetype
@@ -6579,6 +6636,16 @@ identifiers for ruleset content in the following surfaces:
 | Guidance resource URIs | `guidance://<badge>/<anchor>` | REQ-022 |
 | Adventure resource URIs | `adventure://<slug>/<anchor>` | REQ-079 |
 
+**Derivation.** An anchor is derived from heading text deterministically: lowercase
+the text, strip punctuation and symbol characters, replace whitespace and
+hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens;
+non-ASCII word characters (CJK and similar) are preserved. Explicit IDs (`{#id}`)
+take precedence over the derived anchor. Role-scoping markers — the ruleset's
+adjudicator/player terms in asterisk or underscore emphasis, such as `*Keeper only*`
+or `_GM only_` — are stripped before derivation. Duplicate derived anchors within a
+source file append `-1`, `-2`, and so on; duplicate explicit IDs across files are an
+authoring defect. Re-indexing the same source reproduces identical anchors (REQ-194).
+
 ### 7.1a Slugs (filename-safe identifiers)
 
 Slugs share REQ-194's core derivation algorithm (lowercase, strip punctuation,
@@ -6830,6 +6897,10 @@ discarded by `manage_novel (action: end)`):
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
+
+**Conflict ordering.** Initiative ties resolve deterministically by participant
+type — entity before named NPC before danger — and then alphabetically by name.
+The combat round counter is cumulative across the Novel's lifetime (REQ-043).
 
 The build fingerprint — specification version, ruleset hash, and build
 timestamp — is stored in the state directory. On startup with existing state,
@@ -10782,9 +10853,15 @@ build artifact — it is a spec-maintainer reference.
 **REQ Authoring Checklist** (apply before committing any new or modified REQ):
 
 - [ ] States *what*, not *how* — no parameter types, sort orders, or algorithms
-- [ ] No "Default:" clauses — defaults are the builder's domain
+- [ ] No "Default:" clauses — defaults are the builder's domain. Base-capability
+      tuning values (Fate, Ironsworn, Forged in the Dark) are the exception:
+      they are fixed infrastructure in Appendix O.11, referenced from the REQ
+      body, not restated as defaults (Appendix S)
 - [ ] No enumerated catalogs (>5 tokens) — use categories, not lists
-- [ ] No worked examples disguised as requirements
+- [ ] No worked examples disguised as requirements. An `*Acceptance criterion:*`
+      that asserts an observable outcome is permitted; a worked computation,
+      equation, or fully enumerated fixture belongs in Appendix F or the golden
+      fixture (§B.3)
 - [ ] Trust-the-loop test: would the convergence loop catch this deviation?
 - [ ] Red-team test: answered four questions from §4 Standing Rule 8
 - [ ] Holodeck archetypes: new property group assigned archetypes in §7.7; coupling table
@@ -10920,7 +10997,9 @@ commit time via `npm run check`:
 - No REQ body shall span more than one paragraph (no blank lines).
 - No REQ body shall exceed 8 sentences.
 - No REQ body shall contain more than 8 SHALL clauses.
-- Every REQ body shall end with `_Check:` citing at least one test ID.
+- Every REQ family — a base REQ or its lettered parts — SHALL carry at least
+  one `_Check:` trailer citing at least one test ID. The check attaches to the
+  family, not to every lettered part.
 - No REQ body shall enumerate more than 5 backtick-delimited tokens.
 - No REQ ID shall exceed three base digits or use a bare-digit suffix — sub-REQ
   IDs are `REQ-NNN`, `REQ-NNNl`, or `REQ-NNNlN` (letter-first, optional counter).
@@ -10950,6 +11029,8 @@ be justified by its domain complexity.
 - Parameter shapes and tool signatures → builder discovery + convergence loop
 - Sort orders, algorithms, and trigger-scan caps → builder's implementation judgment
 - Default starting values → builder determines; verified by verification workflow thresholds
+- Base-capability tuning values (fixed infrastructure per Appendix S) → Appendix O
+  (Behavioral Contracts), not REQ bodies
 - Tool name lists and resource URI catalogs → `tools/list` and `resources/list` are the
   live registries; the REQ states the category
 - State-machine transition rules → state model table (§7.7) is canonical
@@ -11652,7 +11733,8 @@ license.
 - **Ask-the-Oracle ladder** — the `almost_certain`/`likely`/`50_50`/`unlikely`/
   `small_chance` likelihood bands with their d100 thresholds (11/26/51/76/91)
   and the doubles-to-exceptional rule — retained from Ironsworn's oracle move
-  (REQ-291).
+  (REQ-291; surfaced as `manage_scene (action: oracle)`, the general
+  uncertainty-resolution tool, rather than `resolve_ironsworn`).
 - **Momentum**, the **action-roll move** (d6 action die plus adds against two
   d10 challenge dice), and **progress tracks** — retained from Ironsworn's core
   resolution; surfaced in Holonovel as the `ironsworn` tool (REQ-438, REQ-439,
@@ -11691,7 +11773,7 @@ content, always present in `tools/list`. These are never waived.
 | **Badges & Workflow** | Badge switching, workflow response (`respond_decision`), history (`manage_history`), and discovery (`manage_session (action: discover)`) — the identity and permission layer |
 | **Narrative** | Story-content tools, grouped: Scene & Tone, Cast & Characters, World State, Player Interaction, Story Journal, Session Management, Synthesis Controls |
 
-The `manage_session (action: discover)` action SHALL present these categories as the base grouping. The builder
+The `manage_session (action: discover)` action SHALL present these categories as the base grouping. The canonical exhaustive enumeration of infrastructure tools is the state-persistence guardrail list in §5.19 (REQ-407); the four categories here are a display grouping, not a registry. The builder
 MAY subdivide or rename categories for runtime display, but every tool in the
 infrastructure enumeration SHALL appear under exactly one help category. The
 mapping from infrastructure category to help category name SHALL be recorded in

@@ -29,8 +29,8 @@ spec/                    Source files — edit here, not holonovel.md directly
   ├── 06-artifacts.md    §9 artifacts and handoff
   ├── 07-independent.md  §10 independent verification
   ├── 08-synthesis.md    §11 optional workflows (Synthesis)
-  ├── appendices-reference.md  # Appendices heading + A, D–S (reference material)
-  ├── appendices-fixtures.md   B, C, N (golden, injection, complex fixtures)
+  ├── appendices-reference.md  # Appendices heading + A, D–S, T (reference material)
+  ├── appendices-fixtures.md   B, C, N, W–Z (golden, injection, complex, world, social fixtures)
   ├── appendices-licenses.md   U (content licenses)
   ├── appendices-runbooks.md   V (workflow runbooks)
   └── build-phase-map.md Build-phase-to-file dependency table (per-phase loading)
@@ -48,7 +48,8 @@ tsconfig.json           TypeScript configuration
 scripts/validate.ts     Cross-reference checker with --traceability flag
                           (REQ citations, test IDs, TOC sync, heading separators,
                           block shape, traceability matrix, coverage completeness,
-                          phase-map consistency; ambiguity and assumption audits
+                          phase-map consistency; REQ-family _Check: coverage;
+                          REQ-body content scan; ambiguity and assumption audits
                           merged here)
 scripts/fmea.ts               REQ-level failure mode and effects skeleton
 scripts/graph-deps.ts         REQ dependency graph (DOT/Graphviz output)
@@ -154,6 +155,10 @@ harness is a gate role; it must be wired into a `package.json` script
 - REQ traceability: a script implementing a spec contract cites the REQ ID in
   its header; a behavioral change to a gate requires a CHANGELOG entry and a
   re-run of the gates it feeds.
+- Existing-check discovery: before adding a gate, harness, or pattern-based
+  check, confirm no existing script covers its finding class — extend rather
+  than duplicate (`action-conflicts.ts` already covers action-contract
+  conflicts; `checkSectionIndexCompleteness` covers §5 map coverage).
 - Shell discipline: `set -euo pipefail`, a case-based flag parser, `--help`,
   color only on TTY. CI workflow steps rely on script exit codes and never
   swallow them.
@@ -167,12 +172,17 @@ local iteration; save `check` (full proofreading pass) for CI and pre-push:
 npm run assemble && npm run check:fast
 ```
 
+Capture the exit code of the un-piped command. A piped `check:fast` (e.g.
+`| tail`) discards the aggregate exit status, so a sub-job's "0 errors" can
+mask a sibling failure (fingerprint-stale, marker drift). The trailing
+`check:fast: PASS` / `check:fast: FAIL` line is the tell.
+
 This runs:
 
 | Command                    | What it checks                                    |
 |----------------------------|---------------------------------------------------|
 | `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
-| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
+| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, REQ-family `_Check:` coverage, the REQ-body content scan (procedural / worked-example / unbounded-threshold; report-only), and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 | `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
 | `npm run check-script-discipline` | Script standards (shebang, header, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` |
