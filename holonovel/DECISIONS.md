@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** a542bcb8cd7059d8e2f77012d1b6c8dc6b109e60b03778eb389c03a525d29fb6
+**Spec hash:** 37feb37bf6329acd5896e80ddd068916ce566bf6d69bc50883a3cfc55ac9de40
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -22,6 +22,13 @@
 - REQ-548b protocol: pinned MCP protocol version advanced to a version supporting `outputSchema`; structured results mirror the text envelope (REQ-548a).
 - REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
 - Tool-surface consolidation (34 tools) deferred: the surface already satisfies REQ-429's recorded budget; the routing benefit ships via REQ-067d / REQ-114c, and merging tools would churn the §5 tool corpus, the REQ-429 budget, and this gate-classification table. Revisit when a demonstrated routing failure survives the discovery changes.
+
+### Holonovel Spec Update — 2026-09-27 (Push-pipeline review fixes and runtime efficiency)
+
+- **Delta class:** minor. Changed surfaces: Push-pipeline review fixes and runtime efficiency; Push-pipeline hardening and shell-discipline enforcement; AAR recommendation remediation; Spec↔code conformance follow-up (F1–F5); Guarded-rule-change gate.
+- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+
+<!-- @spec-update:37feb37bf6329acd5896e80ddd068916ce566bf6d69bc50883a3cfc55ac9de40 -->
 
 ### Holonovel Spec Update — 2026-09-27 (Spec-review remediation: contract-clarity hardening, drift guards)
 
