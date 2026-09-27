@@ -4,8 +4,9 @@
  *
  * Compares the assembled spec to the last-published revision and classifies
  * the change as none/patch/editorial/minor/major, reporting requirements
- * added/removed/modified. Exit codes: 0 = classified (in/out of sync), 1 =
- * unknown server.
+ * added/removed/modified. `--base <ref>` classifies against the given git ref
+ * instead of `origin/main` (useful on an unpushed branch). Exit codes: 0 =
+ * classified (in/out of sync), 1 = unknown server.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,6 +22,9 @@ const SPEC_PATH = join(root, "holonovel.md");
 const server = process.argv.includes("--server")
   ? process.argv[process.argv.indexOf("--server") + 1]
   : SERVERS[0];
+const baseRef = process.argv.includes("--base")
+  ? process.argv[process.argv.indexOf("--base") + 1]
+  : null;
 
 if (!SERVERS.includes(server)) {
   console.error(`Usage: npm run spec-delta -- --server <${SERVERS.join("|")}>`);
@@ -63,11 +67,13 @@ const report: DeltaReport = {
   raw_diff_lines: 0,
 };
 
-function lastPublishedSpec(): string | null {
-  const cmds = [
-    `git show origin/main:holonovel.md`,
-    `git show $(git rev-list -n 1 HEAD -- holonovel.md):holonovel.md`,
-  ];
+function lastPublishedSpec(baseRef: string | null): string | null {
+  const cmds = baseRef
+    ? [`git show ${baseRef}:holonovel.md`]
+    : [
+        `git show origin/main:holonovel.md`,
+        `git show $(git rev-list -n 1 HEAD -- holonovel.md):holonovel.md`,
+      ];
   for (const cmd of cmds) {
     try {
       const out = execSync(cmd, { cwd: root, encoding: "utf-8", timeout: 10000, maxBuffer: 64 * 1024 * 1024 });
@@ -77,11 +83,13 @@ function lastPublishedSpec(): string | null {
   return null;
 }
 
-function lastPublishedStoredHash(): string | null {
-  const cmds = [
-    `git show origin/main:holonovel/DECISIONS.md`,
-    `git show HEAD:holonovel/DECISIONS.md`,
-  ];
+function lastPublishedStoredHash(baseRef: string | null): string | null {
+  const cmds = baseRef
+    ? [`git show ${baseRef}:holonovel/DECISIONS.md`]
+    : [
+        `git show origin/main:holonovel/DECISIONS.md`,
+        `git show HEAD:holonovel/DECISIONS.md`,
+      ];
   for (const cmd of cmds) {
     try {
       const out = execSync(cmd, { cwd: root, encoding: "utf-8", timeout: 10000 });
@@ -115,7 +123,7 @@ function hasEditorialDisposition(decisions: string, modified: string[]): boolean
 
 const decisions = readFileSync(DECISIONS_PATH, "utf-8");
 const workingStored = grepInFile(DECISIONS_PATH, /\*\*Spec hash:\*\*\s*([a-f0-9]+)/m);
-report.stored_hash = lastPublishedStoredHash() ?? workingStored;
+report.stored_hash = lastPublishedStoredHash(baseRef) ?? workingStored;
 
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
 report.version_changed.to = rootPkg.version;
@@ -155,7 +163,7 @@ if (!report.in_sync) {
   const currentReqs = [...currentSpec.matchAll(/\*\*REQ-([0-9]+[a-z0-9]*)/g)].map(m => m[1]);
   const currentSections = extractH2Headings(currentSpec).map(h => h.split(" ")[0]);
 
-  const storedSpec = lastPublishedSpec();
+  const storedSpec = lastPublishedSpec(baseRef);
 
   if (storedSpec) {
     const storedReqs = [...storedSpec.matchAll(/\*\*REQ-([0-9]+[a-z0-9]*)/g)].map(m => m[1]);

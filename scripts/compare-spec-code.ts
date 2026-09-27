@@ -476,6 +476,31 @@ function renderBundleReport(): string {
   return lines.join("\n") + "\n";
 }
 
+// REQ-321d-class detector — a bucket-C REQ whose exercised evidence is
+// entirely shared with other REQs (no test that exercises it exclusively)
+// rests on bundled evidence the coverage audit cannot distinguish from real
+// verification. Comment-only citations are reported separately as advisory.
+function renderDedicatedReport(rows: Dossier[]): string {
+  const ownersOf = new Map<string, string[]>();
+  for (const r of rows) for (const t of r.exercisedTests) {
+    const owners = ownersOf.get(t) ?? [];
+    owners.push(r.reqId);
+    ownersOf.set(t, owners);
+  }
+  const noDedicated = rows.filter((r) =>
+    r.bucket === "C" && r.exercisedTests.length > 0 &&
+    r.exercisedTests.every((t) => (ownersOf.get(t) ?? []).length > 1));
+  const weakCite = rows.filter((r) => r.bucket === "C" && r.signals.includes("weak-cite-only-comments"));
+  const lines: string[] = [];
+  lines.push(`Dedicated-evidence report`);
+  lines.push(`  Bucket-C REQs with no dedicated exercised test: ${noDedicated.length}`);
+  for (const r of [...noDedicated].sort((a, b) => a.reqId.localeCompare(b.reqId))) {
+    lines.push(`  - ${r.reqId} (${r.section}) exercised only via shared: ${r.exercisedTests.join(", ")}`);
+  }
+  lines.push(`  Bucket-C REQs cited only in comments (advisory): ${weakCite.length}`);
+  return lines.join("\n") + "\n";
+}
+
 function sectionSort(a: string, b: string): number {
   const na = a.match(/^(\d+)\.(\d+)/);
   const nb = b.match(/^(\d+)\.(\d+)/);
@@ -562,14 +587,30 @@ function printSummary(rows: Dossier[]): void {
 
 function main(): void {
   const argv = process.argv.slice(2);
-  handleHelp(argv, `Usage: npx tsx scripts/compare-spec-code.ts [--section 5.1] [--out FILE] [--json FILE] [--check] [--bundles] [--gate] [--help]\n`);
+  handleHelp(argv, `Usage: npx tsx scripts/compare-spec-code.ts [--section 5.1] [--out FILE] [--json FILE] [--check] [--bundles] [--dedicated] [--gate] [--help]\n`);
   const onlySection = parseValueFlag(argv, "--section");
   const onlySignal = parseValueFlag(argv, "--signals");
   const outPath = parseValueFlag(argv, "--out");
   const jsonPath = parseValueFlag(argv, "--json");
   const check = parseFlag(argv, "--check");
   const bundles = parseFlag(argv, "--bundles");
+  const dedicated = parseFlag(argv, "--dedicated");
   const gate = parseFlag(argv, "--gate");
+
+  // --dedicated: report bucket-C REQs with no dedicated exercised test (the
+  // false-C class). With --gate, exit non-zero when any exist.
+  if (dedicated) {
+    const rows = buildDossiers();
+    const report = renderDedicatedReport(rows);
+    process.stdout.write(report);
+    const m = report.match(/no dedicated exercised test: (\d+)/);
+    const n = m ? parseInt(m[1], 10) : 0;
+    if (gate) {
+      process.stdout.write(n > 0 ? `FAIL: ${n} REQ(s) with no dedicated evidence\n` : "PASS: every bucket-C REQ has dedicated evidence\n");
+      process.exit(n > 0 ? 1 : 0);
+    }
+    return;
+  }
 
   if (bundles) {
     process.stdout.write(renderBundleReport());

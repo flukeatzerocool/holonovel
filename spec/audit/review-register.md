@@ -11,6 +11,28 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Spec↔code conformance assessment 2026-09-27 (F1–F5)** (resolved
+  2026-09-27): (F1) `manage_codex (action: import)` implemented per REQ-321d —
+  per-kind materialization, batch atomicity (REQ-321c/REQ-321m3), badge scoping
+  (REQ-321k), and the `id` alias. Predicate: the import branch in
+  `holonovel/src/index.ts` handled only `voice_profile`/`adventure`. Restored
+  Appendix F T382/T383/T384 plus T366. (F2) the `manage_session (action:
+  compress)` overload was split — the irreversible compactor moved to a distinct
+  `compact` action (REQ-239a), resolving the REQ-086a/REQ-239a conflict;
+  `action-conflicts` now carries no `known-conflict` entry and fails when one is
+  absent from ROADMAP.md. (F3) added the `compare-spec-code --dedicated` report
+  (bucket-C REQs with no dedicated exercised test). Dry-run measured **131
+  flagged / 0 confirmed defects** on the current corpus — a false-positive rate
+  above the gate budget, so it is report-only (surfaced in push-pipeline step
+  4b). (F4) `checkTestNameInflation` errors under `--impl-audit=strict`. (F5)
+   `spec-delta --base <ref>` added; push-pipeline now fetches origin before the
+   delta classification (step 2b) and passes `--base origin/main`. Spec
+   conventions changed in the same increment: the Appendix M action-contract
+   uniqueness precedent was rewritten for the compress/compact split, and the
+   Appendix M assertion-relevance rule gained the false-C methodology note that
+   the report-only detector complements.
+
+
 - **Spec-review 2026-09-27 remediation (SR-1…SR-8, SR-10)** (resolved
   2026-09-27): full-document spec review findings dispositioned in one
   increment. SR-1 (method in REQ bodies) and SR-2 (worked examples): relocated
@@ -216,16 +238,22 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Scheduled-roadmap
 
-- **General codex import materialization** (2026-09-26): ROADMAP.md
-  §"General codex import materialization". REQ-321d per-kind import is
-  unimplemented — only REQ-347b voice_profile and REQ-321e adventure import.
-- **manage_session (action: compress) contract conflict** (2026-09-26):
-  ROADMAP.md §"manage_session (action: compress) contract conflict". REQ-086a
-  vs REQ-239a own one action with incompatible contracts; baselined in
-  `spec/audit/action-conflicts-baseline.json`.
+None. (The general codex import materialization and the
+`manage_session (action: compress)` contract conflict shipped 2026-09-27 — see
+the Resolved entry for findings F1–F5.)
 
 ## Closed-P3 (recorded, no action)
 
+- **Changed-REQ gap-audit gate (AAR follow-through G3)** (closed 2026-09-27):
+  declined. A "changed REQ must carry a non-comment citation" predicate collides
+  with the repo's comment-citation convention (78 bucket-C REQs are comment-only
+  by design) and would over-flag; the report-only `compare-spec-code --dedicated`
+  signal covers the class.
+- **Deployed semantic evidence check (AAR follow-through G4)** (closed
+  2026-09-27): push-pipeline step 9b already gates the deploy on implementation
+  fingerprints (REQ-418); a deployed semantic check would require `--server-dir`
+  plumbing in `compare-spec-code` to surface a report-only signal with no gate
+  value. Reopen if a deployed-only conformance gap is demonstrated.
 - **Spec-review 2026-09-27 SR-9 (passive-voice proofreading warnings)** (closed
   2026-09-27): 158 proofreading warnings, concentrated in §5.25–§5.33
   belief/identity REQs. Appendix M frames proofreading flags as pointers, not

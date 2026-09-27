@@ -91,7 +91,7 @@ async function main(): Promise<void> {
 
   await test("REQ-548d T635 machine-readable decision options", async () => {
     await call(p, "set_badge", { badge: "game_master" });
-    const r = await raw(p, "manage_session", { action: "compress", sessions: 2 });
+    const r = await raw(p, "manage_session", { action: "compact", sessions: 2 });
     const sc = r.structuredContent ?? {};
     assert(sc.status === "NEED_INPUT", `status=${sc.status}`);
     assert(Array.isArray(sc.options) && sc.options.length > 0, "no options");

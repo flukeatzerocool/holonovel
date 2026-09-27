@@ -287,7 +287,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-318 | Extended property contracts (Part a) (2 sub-parts) | 5.10 World-Model Layer | C | T363 | — |
 | REQ-319 | Extended parser command vocabulary (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T364 | — |
 | REQ-320 | Narrative-intent parser verbs (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T365 | — |
-| REQ-321 | Codex (Part a) (17 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T397, T402, S17 | — |
+| REQ-321 | Codex (Part a) (17 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T366, T382, T383, T397, T402, S17 | — |
 | REQ-322 | Vow-countdown coupling (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T369 | — |
 | REQ-323 | command resolve action (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T370 | — |
 | REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | T371 | — |
@@ -298,7 +298,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-329 | Countdown-world coupling (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T376 | — |
 | REQ-330 | Knowledge-world coupling (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T377 | — |
 | REQ-331 | Story journal-world coupling (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T378 | — |
-| REQ-332 | Codex provenance (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T384 | — |
+| REQ-332 | Codex provenance (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T383, T384 | — |
 | REQ-333 | Story journal to lore promotion (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T380 | — |
 | REQ-334 | Novel archive (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T381 | — |
 | REQ-335 | Scene beat taxonomy (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T385, T404 | implemented |

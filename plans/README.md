@@ -33,3 +33,9 @@ A plan is complete when `npm run assemble && npm run check:fast` passes and
 the increment's REQ delta is reflected in the Appendix E manifest and
 Appendix F test catalogue. Superseded increments remain in place as the
 increment history.
+
+When an increment retires, renames, or re-disposes an item tracked in
+`ROADMAP.md`, it SHALL update the matching `spec/audit/review-register.md`
+Scheduled-roadmap row (and any other cross-referencing register) in the same
+increment — `npm run check-registers` gates this invariant, and the update
+belongs in the task list, not discovered at build time.

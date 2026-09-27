@@ -69,7 +69,7 @@ src/index.ts            McpServer: 34 action-discriminator tools, 38 resources a
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
 - **manage_ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
 - **manage_scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
-- **manage_session** (action: recap/verbosity/briefing_order/compress/health/subscribe/discover/category/event/history) — session recap, verbosity, briefing order, audit compression, event subscriptions, tool discovery/category reassignment, event-log append/read (REQ-455–457/REQ-460), and the `spec_health` report
+- **manage_session** (action: recap/verbosity/briefing_order/compress/compact/health/subscribe/discover/category/event/history) — session recap, verbosity, briefing order, audit summary prompt (compress), irreversible audit-log compaction (compact), event subscriptions, tool discovery/category reassignment, event-log append/read (REQ-455–457/REQ-460), and the `spec_health` report
 - **manage_belief** (action: list/get/evidence/admit/retract/conflicts/reconcile) — per-entity evidence and reconciled belief stances (REQ-461–REQ-472)
 - **manage_identity** (action: stage/accept/reject/list/snapshot/bootstrap) — Roster-tier character identity: staged candidates, accepted facets, versioned kernel (REQ-473–REQ-483)
 - **manage_causal** (action: propose/admit/reject/list/state/ingress) — objective-state transition validation and the transition ledger (REQ-484–REQ-495)

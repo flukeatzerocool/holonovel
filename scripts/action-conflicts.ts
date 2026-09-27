@@ -50,9 +50,10 @@ interface BaselineEntry {
   action: string;
   disposition: string;
   justification: string;
+  since?: string;
 }
 
-function loadBaseline(): Set<string> {
+function loadBaselineEntries(): BaselineEntry[] {
   if (!existsSync(BASELINE_PATH)) {
     console.error(`action-conflicts: baseline not found at ${BASELINE_PATH}`);
     process.exit(1);
@@ -64,7 +65,11 @@ function loadBaseline(): Set<string> {
     console.error(`action-conflicts: could not parse baseline: ${e.message}`);
     process.exit(1);
   }
-  return new Set((parsed.baseline ?? []).map((b) => `${b.tool}\u0000${b.action}`));
+  return parsed.baseline ?? [];
+}
+
+function loadBaseline(): Set<string> {
+  return new Set(loadBaselineEntries().map((b) => `${b.tool}\u0000${b.action}`));
 }
 
 const bindings = extractActionBindings(readSpec());
@@ -112,14 +117,30 @@ if (asJson) {
   process.exit(checkMode && unbaselined.length > 0 ? 1 : 0);
 }
 
-if (checkMode && unbaselined.length > 0) {
-  console.error("=== UNBASELINED ACTION-CONTRACT CANDIDATES ===\n");
-  for (const c of unbaselined) {
-    console.error(`${c.tool} (action: ${c.action})`);
-    for (const p of c.pairs) console.error(`  - ${p.reqA}{${p.paramsA.join(",")}} vs ${p.reqB}{${p.paramsB.join(",")}}`);
+// A `known-conflict` baseline entry records an unresolved operation overload;
+// it must stay named on ROADMAP.md until resolved, so it cannot silently
+// persist. (The `since` field, when present, records when it was opened.)
+const ROADMAP_PATH = join(import.meta.dirname, "..", "ROADMAP.md");
+const roadmap = existsSync(ROADMAP_PATH) ? readFileSync(ROADMAP_PATH, "utf-8") : "";
+const orphanConflicts = checkMode
+  ? loadBaselineEntries().filter((b) => b.disposition === "known-conflict" && !roadmap.includes(b.action))
+  : [];
+
+if (checkMode && (unbaselined.length > 0 || orphanConflicts.length > 0)) {
+  if (unbaselined.length > 0) {
+    console.error("=== UNBASELINED ACTION-CONTRACT CANDIDATES ===\n");
+    for (const c of unbaselined) {
+      console.error(`${c.tool} (action: ${c.action})`);
+      for (const p of c.pairs) console.error(`  - ${p.reqA}{${p.paramsA.join(",")}} vs ${p.reqB}{${p.paramsB.join(",")}}`);
+    }
+    console.error(`\n${unbaselined.length} unbaselined candidate(s) across ${bindings.length} bindings.`);
+    console.error("Resolve the conflict or add a disposition to spec/audit/action-conflicts-baseline.json.");
   }
-  console.error(`\n${unbaselined.length} unbaselined candidate(s) across ${bindings.length} bindings.`);
-  console.error("Resolve the conflict or add a disposition to spec/audit/action-conflicts-baseline.json.");
+  if (orphanConflicts.length > 0) {
+    console.error("=== KNOWN-CONFLICT BASELINE ENTRIES MISSING FROM ROADMAP.md ===");
+    for (const b of orphanConflicts) console.error(`  ${b.tool} (action: ${b.action})`);
+    console.error("A known-conflict entry must be tracked on ROADMAP.md until resolved.");
+  }
   process.exit(1);
 }
 

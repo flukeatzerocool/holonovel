@@ -5082,7 +5082,7 @@ function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "explorat
 // --- Guidance (GM) ---
 
 // Session (REQ-025, REQ-072, REQ-082, REQ-086, REQ-173, REQ-174, REQ-175, REQ-186, REQ-253, REQ-279) — consolidated recap/verbosity/
-// briefing_order/compress/health surface.
+// briefing_order/compress/compact/health surface.
 // --- Belief & Evidence ---
 
 // Belief & Evidence (REQ-461–REQ-472) — determine each entity's belief stances
@@ -6038,13 +6038,13 @@ server.registerTool("manage_perception", {
 
 server.registerTool("manage_session", {
   title: "Session Management",
-  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
+  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
   inputSchema: {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress, health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress)."),
-    sessions: z.number().optional().describe("Number of recent sessions to retain live; triggers irreversible compaction (compress; default TTRPG_AUDIT_RETENTION_SESSIONS)."),
+    sessions: z.number().optional().describe("Number of recent sessions to retain live; triggers irreversible compaction (compact; default TTRPG_AUDIT_RETENTION_SESSIONS)."),
     gm_notes: z.string().optional().describe("GM-only free-text notes returned only to the Game Master badge (recap)."),
     session_id: z.string().optional().describe("Archived session id to include in recap (recap)."),
     topics: z.array(z.string()).optional().describe("Notification topics to subscribe to (subscribe)."),
@@ -6115,26 +6115,31 @@ server.registerTool("manage_session", {
       return ok(`Briefing order set to: ${args.sections.join(", ")}.`);
     }
     case "compress": {
-      const novel = requireNovel();
-      // REQ-086 — `max_entries` selects the non-mutating summarize prompt: a
-      // Markdown prompt listing recent chained entries, badge-filtered.
-      if (args.max_entries !== undefined) {
-        const max = args.max_entries;
-        if (typeof max !== "number" || max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
-        const recent = novel.audit_log.slice(-max);
-        const isGM = novel.badge === "game_master" || novel.badge === "none";
-        const filtered = isGM ? recent : recent.filter((e) => e.badge !== "game_master");
-        const lines = filtered.map((e) => {
-          const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
-          const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
-          return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
-        });
-        return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+      // REQ-086 — `manage_session (action: compress, max_entries)` is the
+      // non-mutating summarize prompt: a Markdown prompt listing recent chained
+      // entries, badge-filtered. Distinct from `compact` (REQ-239).
+      if (args.max_entries === undefined) {
+        return err("INVALID_INPUT", "compress requires max_entries (positive integer). To compact the audit log use action 'compact'.");
       }
+      const novel = requireNovel();
+      const max = args.max_entries;
+      if (typeof max !== "number" || max <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+      const recent = novel.audit_log.slice(-max);
+      const isGM = novel.badge === "game_master" || novel.badge === "none";
+      const filtered = isGM ? recent : recent.filter((e) => e.badge !== "game_master");
+      const lines = filtered.map((e) => {
+        const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
+        const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
+        return `[${stamp}] [${e.badge ?? "·"}] ${e.tool}${marker}`;
+      });
+      return raw(`Compressed audit log (summarize into a single paragraph):\n${lines.join("\n")}`);
+    }
+    case "compact": {
       // REQ-239a/c — audit-log compaction is GM-only and irreversible, so it
       // proceeds through a [NEED_INPUT] confirmation. `sessions` (minimum 1)
       // sets the number of most-recent sessions retained live; when omitted the
       // TTRPG_AUDIT_RETENTION_SESSIONS default applies.
+      const novel = requireNovel();
       requireGM();
       if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
       const keep = args.sessions ?? parseInt(process.env.TTRPG_AUDIT_RETENTION_SESSIONS ?? "3", 10);
@@ -6145,7 +6150,7 @@ server.registerTool("manage_session", {
         payload: { keep },
       };
       state.saveNovel(novel);
-      return needInput(`Decision: -compress audit log-
+      return needInput(`Decision: -compact audit log-
 Question: Compact audit entries for sessions older than the most recent ${keep} into per-session summaries? This removes the raw entries and is irreversible.
 Options: yes, cancel`);
     }
@@ -6245,7 +6250,7 @@ Options: yes, cancel`);
       return ok(`Subscribed to notification topics: ${topics.join(", ") || "(none)"}. Subscriptions are session-scoped and drop on disconnect.`);
     }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, health, subscribe, discover, category, event, history.`);
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history.`);
   }
 });
 
@@ -8292,6 +8297,204 @@ server.registerResource("ui-novel", "ui://novel/current", { title: "Active Novel
 
 // ── Additional tools (REQ-307, REQ-213/214, REQ-321, REQ-103, REQ-239) ──
 
+// REQ-321d — resolve a Codex entry into the active Novel. Returns the
+// materialized artifact's id, or null when the kind cannot be materialized
+// (pre-checked before any mutation, so import stays atomic).
+function codexSlug(s: string): string {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function materializeCodexEntry(
+  novel: any,
+  entry: any,
+  provenance: { id: string; kind: string; imported_at: string; codex_modified_at: string },
+): string {
+  const content = (entry.content ?? {}) as any;
+  const kind = entry.kind;
+  const findInPlace = (pool: Map<string, any>): [string, any] | undefined =>
+    [...pool.entries()].find(([, a]) => a.codex_source?.id === entry.id);
+
+  switch (kind) {
+    case "npc": {
+      const existing = findInPlace(novel.npcs);
+      if (existing) {
+        const npc = existing[1];
+        if (content.name !== undefined) npc.name = content.name;
+        if (content.description !== undefined) npc.description = content.description;
+        if (content.disposition !== undefined) npc.disposition = content.disposition;
+        if (content.location !== undefined) npc.location = content.location;
+        if (content.goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals: content.goals };
+        npc.codex_source = provenance;
+        return existing[0];
+      }
+      const id = `npc_${Date.now().toString(36)}_${codexSlug(entry.name ?? content.name ?? "entry")}`;
+      const npc: any = {
+        id, name: content.name ?? entry.name, description: content.description,
+        disposition: content.disposition, location: content.location,
+        conditions: [], condition_rounds: {},
+        personality: content.personality ?? (content.goals ? { goals: content.goals } : undefined),
+        codex_source: provenance,
+      };
+      novel.npcs.set(id, npc);
+      const roomMatch = [...novel.world.rooms.values()].find((r: any) => npc.location && r.name.toLowerCase() === String(npc.location).toLowerCase());
+      if (roomMatch) npc.room_id = roomMatch.name.toLowerCase();
+      return id;
+    }
+    case "character": {
+      const existing = findInPlace(novel.entities);
+      if (existing) {
+        const ent = existing[1];
+        if (content.personality) ent.personality = { ...(ent.personality ?? {}), ...content.personality };
+        if (content.inventory) ent.inventory = content.inventory;
+        ent.codex_source = provenance;
+        return existing[0];
+      }
+      const id = `character_${codexSlug(entry.name ?? content.name ?? "entry")}`;
+      state.addEntity(novel, {
+        id, name: content.name ?? entry.name,
+        personality: content.personality,
+        voice_examples: content.voice_examples,
+        inventory: content.inventory ?? [],
+        current_room: content.current_room ?? null,
+        conditions: content.conditions ?? [],
+        condition_rounds: content.condition_rounds ?? {},
+        stats: content.stats,
+        codex_source: provenance,
+      } as any);
+      return id;
+    }
+    case "scene": {
+      if (content.description !== undefined) novel.scene_description = content.description;
+      if (content.location !== undefined) novel.scene_location = content.location;
+      if (content.time_of_day !== undefined) novel.scene_time_of_day = content.time_of_day;
+      if (content.atmosphere !== undefined) novel.scene_atmosphere = content.atmosphere;
+      if (content.beat !== undefined) novel.scene_beat = content.beat;
+      if (content.type !== undefined) novel.scene_type = content.type;
+      return "scene";
+    }
+    case "encounter": {
+      novel.combat = { ...(content.combat ?? content), codex_source: provenance };
+      return "combat";
+    }
+    case "lore_entry": {
+      const key = content.key ?? codexSlug(entry.name ?? "lore");
+      novel.lore.set(key, {
+        key, content: content.content ?? "", triggers: content.triggers ?? [],
+        badge_scope: content.badge_scope ?? "game_master",
+        priority: content.priority ?? 0, sticky: 0, sticky_remaining: 0,
+        enabled: true, codex_source: provenance,
+      });
+      return key;
+    }
+    case "faction": {
+      const faction = { ...(content as any), name: content.name ?? entry.name, codex_source: provenance };
+      novel.factions.push(faction);
+      return faction.name;
+    }
+    case "countdown": {
+      const name = content.name ?? entry.name;
+      novel.countdowns.set(name, {
+        name, ticks: content.ticks ?? content.total ?? 0,
+        total: content.total ?? content.ticks ?? 0, type: content.type ?? "narrative",
+        scope: content.scope, direction: content.direction,
+        on_scene_transition: content.on_scene_transition, triggers: content.triggers,
+        world_effect: content.world_effect, codex_source: provenance,
+      });
+      return name;
+    }
+    case "room": {
+      const lower = String(content.name ?? entry.name).toLowerCase();
+      novel.world.rooms.set(lower, {
+        name: content.name ?? entry.name, description: content.description ?? "",
+        exits: new Map(), doorRefs: new Map(), annotations: content.annotations ?? {},
+        codex_source: provenance,
+      });
+      return lower;
+    }
+    case "thing": {
+      const lower = String(content.name ?? entry.name).toLowerCase();
+      novel.world.things.set(lower, {
+        ...(content as any), name: content.name ?? entry.name,
+        kind: content.kind ?? "thing", codex_source: provenance,
+      });
+      return lower;
+    }
+    case "equipment_template": {
+      const target = novel.entities.get(content.entity_id) ?? novel.npcs.get(content.entity_id);
+      target.inventory = target.inventory ?? [];
+      if (content.item) target.inventory.push(String(content.item).toLowerCase());
+      return String(content.item ?? entry.name);
+    }
+    case "spell_template": {
+      const target = novel.entities.get(content.entity_id) ?? novel.npcs.get(content.entity_id);
+      if (!Array.isArray(target.spells)) target.spells = [];
+      target.spells.push(content.name ?? entry.name);
+      return String(content.name ?? entry.name);
+    }
+    case "relationship_template": {
+      novel.relationships.push({
+        entity_a: content.entity_a, entity_b: content.entity_b,
+        type: content.type, value: content.value, description: content.description,
+      });
+      return `${content.entity_a}:${content.entity_b}`;
+    }
+    case "voice_profile": {
+      const name = String(entry.name ?? "").toLowerCase();
+      const targetId = [...novel.entities.keys()].find((id) => id.includes(name) || (novel.entities.get(id)!.name ?? "").toLowerCase() === name)
+        ?? [...novel.entities.keys()].find((id) => id.includes(name.replace("voice_profile_", "")));
+      const target = targetId ? novel.entities.get(targetId)! : undefined;
+      if (!target) return "";
+      if (!target.voice_examples) target.voice_examples = [];
+      for (const v of content.corrected_text ?? []) {
+        target.voice_examples.push({ context: v.context ?? "codex import", dialogue: v.corrected_text, tag: "codex-corrected" });
+      }
+      target.codex_source = provenance;
+      return targetId!;
+    }
+    case "adventure": {
+      const suggested = content.suggested_beats;
+      if (Array.isArray(suggested)) {
+        novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const, codex_source: provenance })));
+        novel.adventure_set = true;
+      }
+      return `adventure_${entry.id}`;
+    }
+    default:
+      return "";
+  }
+}
+
+// REQ-321c/d/k — validate a Codex import before any mutation so a partial
+// failure leaves novel state untouched. Returns an error message, or null.
+function codexImportPrecheck(novel: any, entry: any, badge: string): string | null {
+  if (badge === "player") {
+    if (entry.kind !== "character" || entry.visibility !== "shared") {
+      return `Player import is limited to shared-visibility character entries; '${entry.id}' is kind '${entry.kind}'. Corrective action: ask the Game Master to import this entry.`;
+    }
+    return null;
+  }
+  const supported = ["npc", "character", "scene", "encounter", "lore_entry", "faction", "countdown", "room", "thing", "equipment_template", "spell_template", "relationship_template", "voice_profile", "adventure"];
+  if (!supported.includes(entry.kind)) return `kind '${entry.kind}' is not supported for import.`;
+  const content = (entry.content ?? {}) as any;
+  if (entry.kind === "npc" && ![...novel.npcs.values()].some((n: any) => n.codex_source?.id === entry.id) && capGuard("npcs", novel.npcs.size)) {
+    return "NPC cardinality cap reached.";
+  }
+  if (entry.kind === "character" && ![...novel.entities.values()].some((e: any) => e.codex_source?.id === entry.id) && capGuard("entities", novel.entities.size)) {
+    return "entity cardinality cap reached.";
+  }
+  if (entry.kind === "equipment_template" || entry.kind === "spell_template") {
+    if (!novel.entities.has(content.entity_id) && !novel.npcs.has(content.entity_id)) {
+      return `target entity '${content.entity_id}' not found for ${entry.kind}.`;
+    }
+  }
+  if (entry.kind === "voice_profile") {
+    const name = String(entry.name ?? "").toLowerCase();
+    const match = [...novel.entities.keys()].some((id) => id.includes(name) || (novel.entities.get(id)!.name ?? "").toLowerCase() === name);
+    if (!match) return `no matching entity for voice_profile '${entry.name}'.`;
+  }
+  return null;
+}
+
 // REQ-212/213 — generation-table rolling against the bound ruleset's weighted tables.
 // Codex (REQ-321, REQ-332, REQ-347, REQ-352) — consolidated tool with an `action` discriminator covering
 // the full persisted-object lifecycle: set (create/update), list, get, capture,
@@ -8305,7 +8508,8 @@ server.registerTool("manage_codex", {
     action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
     name: z.string().optional().describe("Entry name (for set)."),
-    entry_id: z.string().optional().describe("Entry identifier (for get/import/delete)."),
+    entry_id: z.string().optional().describe("Entry identifier (for get/import/delete); alias of `id`."),
+    id: z.union([z.string(), z.array(z.string())]).optional().describe("Entry identifier or array of identifiers (for import/get/delete)."),
     content: z.any().optional().describe("Entry content (for set)."),
     description: z.string().optional().describe("Optional description (for set)."),
     tags: z.array(z.string()).optional().describe("Optional tags (for set)."),
@@ -8342,8 +8546,9 @@ server.registerTool("manage_codex", {
       return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, visibility: e.visibility, tags: e.tags })), null, 2));
     }
     case "get": {
-      const entry = state.codex.get(args.entry_id);
-      if (!entry) return err("NOT_FOUND", `Codex entry '${args.entry_id}' not found.`);
+      const entryId = args.id ?? args.entry_id;
+      const entry = state.codex.get(entryId);
+      if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
       return raw(JSON.stringify(entry, null, 2));
     }
     case "capture": {
@@ -8363,7 +8568,7 @@ server.registerTool("manage_codex", {
       switch (kind) {
         case "npc": {
           const hit = [...novel.npcs.entries()].find(([id, n]) => id.toLowerCase() === sourceId.toLowerCase() || n.name.toLowerCase() === sourceId.toLowerCase());
-          if (hit) { captured.id = `npc_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { ...hit[1] }; found = true; }
+          if (hit) { captured.id = `npc_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { ...hit[1] }; captured.codexSource = hit[1].codex_source; found = true; }
           break;
         }
         case "character": {
@@ -8467,47 +8672,55 @@ server.registerTool("manage_codex", {
       return ok(`Codex entry '${entry.id}' captured (kind: ${kind}, source: captured:${novel.slug}).`);
     }
     case "import": {
-      // REQ-347/352 — import a Codex entry into the active Novel.
-      requireGM();
+      // REQ-321b/c/d/k — import one or more Codex entries into the active
+      // Novel. Batch is atomic: precheck every entry, then apply as one undo
+      // snapshot and one audit entry; a partial failure imports nothing.
+      requireNotObserver();
       const novel = requireNovel();
-      const entry = state.codex.get(args.entry_id);
-      if (!entry) return err("NOT_FOUND", `Codex entry '${args.entry_id}' not found.`);
-      const now = new Date().toISOString();
-      // REQ-332 — codex provenance: track every Codex-sourced artifact with the
-      // entry id, import timestamp, and the entry's codex_modified_at at import.
-      const provenance = { id: entry.id, kind: entry.kind, imported_at: now, codex_modified_at: entry.codex_modified_at ?? now };
-      if (entry.kind === "voice_profile") {
-        const name = (entry.name ?? args.entry_id).toLowerCase();
-        const targetId = [...novel.entities.keys()].find((id) => id.includes(name) || novel.entities.get(id)!.name.toLowerCase() === name) ?? [...novel.entities.keys()].find((id) => id.includes(String(args.entry_id).replace("voice_profile_", "")));
-        if (targetId) {
-          const target = novel.entities.get(targetId)!;
-          if (!target.voice_examples) target.voice_examples = [];
-          for (const v of (entry.content as any)?.corrected_text ?? []) {
-            target.voice_examples.push({ context: v.context ?? "codex import", dialogue: v.corrected_text, tag: "codex-corrected" });
-          }
-          target.codex_source = provenance;
-        }
-      } else if (entry.kind === "adventure") {
-        const suggested = (entry.content as any)?.suggested_beats;
-        if (Array.isArray(suggested)) {
-          novel.story_beats.push(...suggested.map((sb: any) => ({ beat: sb.beat, scene_preview: sb.scene_preview, source: "adventure-scaffold" as const, codex_source: provenance })));
-          novel.adventure_set = true;
-        }
+      const badge = getBadge();
+      const rawIds = args.id ?? args.entry_id;
+      const ids: string[] = Array.isArray(rawIds) ? rawIds : [rawIds];
+      if (ids.length === 0 || ids.some((x) => typeof x !== "string" || !x)) {
+        return err("INVALID_INPUT", "import requires id (a string or an array of strings).");
       }
-      if (!novel.codex_sources) novel.codex_sources = [];
-      const existingIdx = novel.codex_sources.findIndex((s) => s.id === entry.id);
-      if (existingIdx >= 0) novel.codex_sources[existingIdx] = provenance;
-      else novel.codex_sources.push(provenance);
+      const entries: any[] = [];
+      for (let i = 0; i < ids.length; i++) {
+        const entry = state.codex.get(ids[i]);
+        if (!entry) return err("NOT_FOUND", `Codex entry '${ids[i]}' not found (index ${i}). Nothing was imported.`);
+        const issue = codexImportPrecheck(novel, entry, badge);
+        if (issue) {
+          const code = badge === "player" ? "FORBIDDEN" : "STATE_CONFLICT";
+          return err(code, `Import of '${ids[i]}' rejected (index ${i}): ${issue} Nothing was imported.`);
+        }
+        entries.push(entry);
+      }
+      novelSnapshot();
+      const now = new Date().toISOString();
+      const applied: string[] = [];
+      for (const entry of entries) {
+        // REQ-332 — codex provenance: id, import timestamp, and the entry's
+        // codex_modified_at at import.
+        const provenance = { id: entry.id, kind: entry.kind, imported_at: now, codex_modified_at: entry.codex_modified_at ?? now };
+        materializeCodexEntry(novel, entry, provenance);
+        if (!novel.codex_sources) novel.codex_sources = [];
+        const existingIdx = novel.codex_sources.findIndex((s: any) => s.id === entry.id);
+        if (existingIdx >= 0) novel.codex_sources[existingIdx] = provenance;
+        else novel.codex_sources.push(provenance);
+        applied.push(entry.id);
+      }
+      state.recordMutation(novel, "codex_import", "codex");
       state.saveNovel(novel);
-      return ok(`Codex entry '${args.entry_id}' imported.`);
+      audit("codex_import", { ids: applied });
+      return ok(`Imported ${applied.length} Codex entr${applied.length === 1 ? "y" : "ies"}: ${applied.join(", ")}.`);
     }
     case "delete": {
       // REQ-321 — codex_delete: remove a Codex entry (previously absent).
       requireGM();
-      if (!state.codex.has(args.entry_id)) return err("NOT_FOUND", `Codex entry '${args.entry_id}' not found.`);
-      state.codex.delete(args.entry_id);
+      const delId = args.id ?? args.entry_id;
+      if (!state.codex.has(delId)) return err("NOT_FOUND", `Codex entry '${delId}' not found.`);
+      state.codex.delete(delId);
       state.saveCodex();
-      return ok(`Codex entry '${args.entry_id}' deleted.`);
+      return ok(`Codex entry '${delId}' deleted.`);
     }
     default:
       return err("INVALID_INPUT", `Unknown codex action '${args.action}'. Valid actions: set, list, get, capture, import, delete.`);

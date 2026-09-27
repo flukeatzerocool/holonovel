@@ -2386,8 +2386,10 @@ function main(): void {
 
   const inflationIssues = checkTestNameInflation();
   if (inflationIssues.length > 0) {
-    for (const issue of inflationIssues) console.log(`WARNING: ${issue}`);
-    warnings += inflationIssues.length;
+    // SC-6 — over-stuffed test names inflate bucket-C evidence. Under
+    // --impl-audit=strict this is an error, not a warning.
+    if (implStrict) { for (const issue of inflationIssues) console.log(`ERROR: ${issue}`); errors += inflationIssues.length; }
+    else { for (const issue of inflationIssues) console.log(`WARNING: ${issue}`); warnings += inflationIssues.length; }
   } else console.log("PASS: No over-stuffed test names (<= 4 IDs per name)");
 
   // B2/B4 — nominal-evidence ratchet. Bundled-only bucket-C evidence and

@@ -120,6 +120,9 @@ location?: string;
     goals?: string[];
     last_3_interactions: Array<{ entity: string; summary: string; at: string }>;
   };
+  // REQ-332 — codex provenance: records which Codex entry produced this NPC
+  // and when (id, imported_at, codex_modified_at).
+  codex_source?: { id: string; kind: string; imported_at: string; codex_modified_at: string };
 }
 
 export interface LoreEntry {
