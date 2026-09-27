@@ -139,3 +139,111 @@ export function checkBuildPhaseMapCounts(mapText: string, specText: string): str
   }
   return issues;
 }
+
+// ─── REQ-body content scans (Appendix M enforcement aids) ───────────────
+// Heuristic, report-only. They surface method and worked-example leakage into
+// REQ bodies that Appendix M routes to §6/§7 and the fixture appendices. Kept
+// as warnings until the false-positive rate is measured and baselined.
+
+const BODY_TERMINATOR_RE = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+|^---\s*$/gm;
+
+function extractBodies(text: string): { id: string; body: string }[] {
+  const out: { id: string; body: string }[] = [];
+  for (const h of text.matchAll(REQ_HEADER_RE)) {
+    const bodyStart = (h.index ?? 0) + h[0].length;
+    BODY_TERMINATOR_RE.lastIndex = bodyStart;
+    const t = BODY_TERMINATOR_RE.exec(text);
+    const body = t ? text.slice(bodyStart, t.index) : text.slice(bodyStart);
+    out.push({ id: h[1], body });
+  }
+  return out;
+}
+
+function baseOf(id: string): string {
+  return id.replace(/^REQ-(\d{3}).*$/, "REQ-$1");
+}
+
+// Every REQ family — a base REQ or its lettered parts — must carry at least one
+// _Check: trailer (Appendix M; see checkImplCoverage for the family model).
+export function checkFamilyCheckCoverage(text: string): string[] {
+  const issues: string[] = [];
+  const fam = new Map<string, boolean>();
+  for (const { id, body } of extractBodies(text)) {
+    const base = baseOf(id);
+    fam.set(base, (fam.get(base) ?? false) || /[*_]Check:[*_]/.test(body));
+  }
+  for (const [base, has] of [...fam].sort()) {
+    if (!has) issues.push(`${base} family has no _Check: trailer`);
+  }
+  return issues;
+}
+
+const PROCEDURAL_PATTERNS: { re: RegExp; label: string }[] = [
+  { re: /\bCriterion \([a-z]\)/g, label: "enumerated criterion" },
+  { re: /\bin order, stopping\b/gi, label: "ordered algorithm" },
+  { re: /\bsorted? by\b/gi, label: "sort order" },
+  { re: /\biterate[sd]?\b/gi, label: "iteration" },
+];
+
+export function checkReqProceduralContent(text: string): string[] {
+  const issues: string[] = [];
+  for (const { id, body } of extractBodies(text)) {
+    for (const { re, label } of PROCEDURAL_PATTERNS) {
+      const m = body.match(re);
+      if (m) issues.push(`${id}: ${label} ("${m[0]}") in REQ body — move to §6/§7`);
+    }
+  }
+  return issues;
+}
+
+const WORKED_EXAMPLE_PATTERNS: RegExp[] = [
+  /[×=]\s*\(/,
+  /\b\d+\s*\/\s*\d+\s*\(/,
+  /\b\d+\s+(?:HIGH|MEDIUM|LOW)\b/,
+  /\b\d+\s*[×x]\s*\d+\s*=/,
+];
+
+export function checkReqWorkedExamples(text: string): string[] {
+  const issues: string[] = [];
+  for (const { id, body } of extractBodies(text)) {
+    for (const re of WORKED_EXAMPLE_PATTERNS) {
+      const m = body.match(re);
+      if (m) issues.push(`${id}: worked computation ("${m[0].trim()}") in REQ body — move to Appendix F / §B.3`);
+    }
+  }
+  return issues;
+}
+
+const THRESHOLD_REF_RE = /§6\.5|§6\.2|§7\.6|Appendix O|Appendix S|Appendix G|Confidence|TTRPG_/;
+const THRESHOLD_PATTERNS: RegExp[] = [
+  /\b\d+\s*%/,
+  /\b\d+\s*\/\s*\d+\s+(?:items|sections|categories)/,
+  /\(default \d+[^)]*\)/,
+];
+
+export function checkReqThresholds(text: string): string[] {
+  const issues: string[] = [];
+  for (const { id, body } of extractBodies(text)) {
+    if (THRESHOLD_REF_RE.test(body)) continue;
+    for (const re of THRESHOLD_PATTERNS) {
+      const m = body.match(re);
+      if (m) issues.push(`${id}: unbounded threshold/default ("${m[0].trim()}") in REQ body — cite §6.5/§7.6/Appendix O`);
+    }
+  }
+  return issues;
+}
+
+// Base-capability tuning values live in Appendix O.11 (Appendix M ↔ Appendix S
+// reconciliation). No §5.21–§5.23 REQ body may restate a default value.
+export function checkBaseCapabilityDefaults(text: string): string[] {
+  const issues: string[] = [];
+  const start = text.indexOf("### 5.21");
+  const end = text.indexOf("### 5.24");
+  if (start === -1 || end === -1 || end < start) return issues;
+  const region = text.slice(start, end);
+  for (const { id, body } of extractBodies(region)) {
+    const m = body.match(/\bdefaults? to\b|\(default\b/gi);
+    if (m) issues.push(`${id}: default value in base-capability REQ body ("${m[0]}") — move to Appendix O.11`);
+  }
+  return issues;
+}

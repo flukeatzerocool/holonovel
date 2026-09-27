@@ -3,7 +3,7 @@
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
 
@@ -236,6 +236,69 @@ test("proofread dispositions: allowed tokens pass, others flag", () => {
   const issues = checkProofreadDispositions([ok, bad].join("\n"));
   if (issues.length !== 1 || !issues[0].startsWith("PR-2")) {
     throw new Error(`expected only PR-2 flagged; got ${JSON.stringify(issues)}`);
+  }
+});
+
+// ── REQ-body content scans ──
+
+test("family check coverage: family without _Check is flagged", () => {
+  const text = "**REQ-903a — No check (Part a).**\nThe server SHALL render.";
+  const issues = checkFamilyCheckCoverage(text);
+  if (!issues.some((i) => i.includes("REQ-903"))) {
+    throw new Error(`expected REQ-903 family flagged; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("family check coverage: family with a check on a later part passes", () => {
+  const text = [
+    "**REQ-904a — No check here (Part a).**",
+    "The server SHALL render.",
+    "**REQ-904b — Check here (Part b).**",
+    "The server SHALL persist. _Check:_ T996.",
+  ].join("\n");
+  const issues = checkFamilyCheckCoverage(text);
+  if (issues.some((i) => i.includes("REQ-904"))) {
+    throw new Error(`REQ-904 wrongly flagged; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("procedural scan: ordered criterion is flagged", () => {
+  const text = "**REQ-905a — Algorithm (Part a).**\nCriterion (a) is the primary section. _Check:_ T995.";
+  const issues = checkReqProceduralContent(text);
+  if (!issues.some((i) => i.includes("REQ-905a"))) {
+    throw new Error(`expected REQ-905a procedural flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("worked-example scan: arithmetic in body is flagged", () => {
+  const text = "**REQ-906a — Example (Part a).**\nOverall = (10 × 1.0) / 20 = 80%. _Check:_ T994.";
+  const issues = checkReqWorkedExamples(text);
+  if (!issues.some((i) => i.includes("REQ-906a"))) {
+    throw new Error(`expected REQ-906a worked-example flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("threshold scan: percentage without a reference is flagged, with a reference is not", () => {
+  const bad = "**REQ-907a — Threshold (Part a).**\nAt least 80% coverage. _Check:_ T993.";
+  const good = "**REQ-907b — Threshold (Part b).**\nAt least the §6.5 coverage threshold. _Check:_ T993.";
+  if (!checkReqThresholds(bad).some((i) => i.includes("REQ-907a"))) {
+    throw new Error("expected REQ-907a threshold flag");
+  }
+  if (checkReqThresholds(good).some((i) => i.includes("REQ-907b"))) {
+    throw new Error("REQ-907b wrongly flagged despite §6.5 reference");
+  }
+});
+
+test("base-capability defaults: a default in §5.21 is flagged", () => {
+  const text = [
+    "### 5.21 Fate Base Capabilities",
+    "**REQ-908a — Default (Part a).**",
+    "Momentum defaults to +2. _Check:_ T992.",
+    "### 5.24 Temporal Event Log and Branching",
+  ].join("\n");
+  const issues = checkBaseCapabilityDefaults(text);
+  if (!issues.some((i) => i.includes("REQ-908a"))) {
+    throw new Error(`expected REQ-908a default flag; got ${JSON.stringify(issues)}`);
   }
 });
 

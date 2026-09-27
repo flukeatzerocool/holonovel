@@ -1,6 +1,6 @@
 {
   "name": "holonovel-spec",
-  "version": "2026.09.26",
+  "version": "2026.09.27",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {
@@ -25,7 +25,7 @@
     "check-registers:strict": "npx tsx scripts/check-registers.ts --strict",
     "check:conformance": "npx tsx scripts/compare-spec-code.ts --gate",
     "check": "npm run lint && npm run validate:sdd && npm run validate-readme && npm run check-script-discipline && npm run check-traceability && npm run check-markers && npm run check-registers:strict && npm run check-fingerprint-sync && npm run check:conformance && npm run action-conflicts -- --check",
-    "check:fast": "npm run lint && ( npm run validate:fast & a=$!; npm run validate-readme & b=$!; npm run check-traceability & c=$!; npm run check-script-discipline & d=$!; npm run test:validators & e=$!; npm run check-fingerprint-sync & f=$!; npm run check:conformance & g=$!; npm run check-markers & h=$!; npm run check-registers & i=$!; npm run action-conflicts & j=$!; s=0; wait $a || s=1; wait $b || s=1; wait $c || s=1; wait $d || s=1; wait $e || s=1; wait $f || s=1; wait $g || s=1; wait $h || s=1; wait $i || s=1; wait $j || s=1; exit $s )",
+    "check:fast": "npm run lint && ( npm run validate:fast & a=$!; npm run validate-readme & b=$!; npm run check-traceability & c=$!; npm run check-script-discipline & d=$!; npm run test:validators & e=$!; npm run check-fingerprint-sync & f=$!; npm run check:conformance & g=$!; npm run check-markers & h=$!; npm run check-registers & i=$!; npm run action-conflicts & j=$!; s=0; wait $a || s=1; wait $b || s=1; wait $c || s=1; wait $d || s=1; wait $e || s=1; wait $f || s=1; wait $g || s=1; wait $h || s=1; wait $i || s=1; wait $j || s=1; if [ $s -eq 0 ]; then echo \"check:fast: PASS\"; else echo \"check:fast: FAIL\"; fi; exit $s )",
     "test:validators": "npx tsx scripts/test-req-checks.ts",
     "check:full": "npm run check && npm run detect-dupes",
     "assemble": "npx tsx scripts/assemble.ts",

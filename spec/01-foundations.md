@@ -29,7 +29,10 @@
 > presence (REQ-308): one adventure loads as a hybrid world-model
 > and prose modules (REQ-079). State tiers: roster, codex, Novel, and Session (§7.7);
 > world-model and lore data are Novel property groups; connections are ephemeral
-> transport; Novel audit logs persist. RNG is deterministic and seedable. Requirements state the contract; verification
+> transport; Novel audit logs persist. Base capabilities (Fate, Ironsworn, Forged
+> in the Dark) and the epistemic/causal layers (temporal event log, belief and
+> evidence, character identity, causal state, knowledge corpus) are specified in
+> §5.21–§5.33. RNG is deterministic and seedable. Requirements state the contract; verification
 > loops enforce quality.
 
 ## Contents
@@ -188,7 +191,14 @@ infrastructure. Four groups divide these concerns. World is the world-model laye
 rooms, things, exits, properties, parser commands, and hybrid source conversion. Novels
 is the save-file layer: lifecycle, exchange, checkpoints, notes, resume state, and
 archive. Badges & Workflow is the identity-and-permission layer. Narrative is the narrative layer: scenes, NPCs, factions, countdowns, and lore.
-It also holds the story journal, player choices, and all other REQ-020 base tools. Each
+It also holds the story journal, player choices, and all other REQ-020 base tools. Beyond
+those four, the base-capability layer (§5.21–§5.23) holds the Fate, Ironsworn, and
+Forged in the Dark resolution surfaces, and the epistemic/causal layer (§5.24–§5.33)
+holds the temporal event log and branching, belief and evidence, character identity,
+causal transition validation, knowledge corpus, semantic index, knowledge graph,
+durable agent tasks, perception ledger, and briefing consistency. The requirements
+preamble's section map lists every subsection.
+Each
 requirement is one paragraph in §5. The manifest is the packing list for the DECISIONS.md
 traceability table. `scripts/validate.ts` verifies it mechanically.
 

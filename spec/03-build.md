@@ -204,6 +204,20 @@ mechanical-section count SHALL be recorded as zero.
 *Prepare:* Load files from `build-phase-map.md` Discovery row: 03-build.md §6.3,
 02-requirements.md §5.2.
 
+**Authority resolution.** When a mechanic is restated across ruleset sections, the
+builder resolves its authoritative source by applying, in order, stopping at the
+first criterion that yields a single candidate: (a) the section the ruleset's own
+index or table of contents designates as the primary reference; (b) the section
+whose heading text best matches the mechanic name; (c) the section within the
+core-mechanics chapter — the shallowest-depth chapter holding the highest
+proportion of mechanical sections; (d) the section with the densest procedural
+text. A tie at any criterion records the co-canonical sections per REQ-146c.
+
+**Table classification.** A table is a generation table when it contains at least
+one dice-range result row. A row whose first column is a numeric range (`01-10`,
+`11-25`) or a dice expression (`d100`, `d%`, `d8`, `d20`) is a generation result
+row; a row whose first column is a name or label is a lookup row (REQ-215).
+
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
 builder's context window. The builder records the chunking strategy in
 DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
@@ -485,6 +499,12 @@ live state. The builder constructs prompts from these sources, in this order:
     those elements before any truncation. Standing Rule 10 applies — prompt
     bodies SHALL contain no tool names or technical syntax.
 
+6. **Narrative orientation.** The `narrative_orientation` paragraph (REQ-279)
+   synthesizes the last three `decision`/`bond` story-journal entries (REQ-246),
+   active NPC dispositions differing from their creation default, the current
+   narrative directive (REQ-081), active countdown names with remaining ticks,
+   and active vow names with milestone counts (REQ-289).
+
 Prompts use the ruleset's own terminology for mechanics, tool names, and
 categories — the builder does not invent terms. The prompt length budget
 (REQ-118) applies to every prompt.
@@ -653,6 +673,16 @@ cannot raise a mechanical category above 50%, the builder records a
 category, its current score, the sections contributing LOW items, and a
 recommendation. The finding requires operator disposition (accept, reject, or
 request targeted remediation) before Phase 1 exit.
+
+**Cross-format consistency** samples ten items spanning at least three of the seven
+extraction categories and requires RULESET_MODEL.md and ruleset_model.json to agree
+on name, source anchor, confidence label, and action classification for every
+sampled item (REQ-209).
+
+**Confidence aggregation.** The overall player-filtered confidence is the weighted
+mean of per-section scores: Σ(section_items × section_score) / Σ(section_items),
+where section_score = (HIGH + MEDIUM items) / total extracted items in the section
+(REQ-147).
 
 **Archetype coverage** measures whether every Novel property group defined in §7.7
 is classified with at least one Holodeck archetype. A group without an archetype

@@ -11,6 +11,20 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Spec-review 2026-09-27 remediation (SR-1…SR-8, SR-10)** (resolved
+  2026-09-27): full-document spec review findings dispositioned in one
+  increment. SR-1 (method in REQ bodies) and SR-2 (worked examples): relocated
+  to §6.3/§6.4.1/§6.5/§7.1/§7.7 and Appendix O.11 per Appendix M. SR-3
+  (thresholds/defaults): REQs now reference §6.5/Appendix O. SR-4 (oracle tool
+  binding): discovery confirmed the `manage_scene (action: oracle)` placement is
+  deliberate; documented in §5.22 and Appendix S. SR-5 (reading-guide drift) and
+  SR-10 (AGENTS map): §2, Quick Reference, and AGENTS.md updated. SR-6
+  (`_Check:` scope): Appendix M restated at REQ-family scope. SR-7
+  (property-group count): already guarded by `checkPropertyGroupCount`. SR-8
+  (Appendix T enumeration): §5.19 named as canonical. Prevention: REQ-family
+  `_Check:` coverage gate plus report-only REQ-body content scans in
+  `scripts/lib/req-checks.ts`.
+
 - **Codex `capture` action-contract conflict (REQ-321f vs REQ-347a)** (resolved
   2026-09-26): REQ-321f's `capture, kind, source_id` binding is narrowed to the
   provenance contract; per-kind capture is owned by REQ-321g (adventure) and
@@ -211,6 +225,19 @@ condition — not a gate's emitted message; a message alone is not evidence.
   `spec/audit/action-conflicts-baseline.json`.
 
 ## Closed-P3 (recorded, no action)
+
+- **Spec-review 2026-09-27 SR-9 (passive-voice proofreading warnings)** (closed
+  2026-09-27): 158 proofreading warnings, concentrated in §5.25–§5.33
+  belief/identity REQs. Appendix M frames proofreading flags as pointers, not
+  defects ("a flag is a pointer, not a verdict"); no demonstrated failure.
+  Record and close; targeted rewrites are a future Could.
+
+- **AAR follow-through deferred automation (E5, E6)** (closed 2026-09-27,
+  intended-no-op): E5 (tool-action registry) has no canonical registry to check
+  against and its target class — two contracts owning one action — is already
+  covered by `scripts/action-conflicts.ts`; E6 (reading-guide coverage) is
+  vacuous because the §5 section map is the canonical index and
+  `checkSectionIndexCompleteness` already gates it.
 
 - **Pipeline step-4 "full Build workflow required" flag** (`scripts/push-pipeline.sh
   --dry-run`, 2026-09-26): the step-4 message is REQ-314 rebuild-scoping output, not
