@@ -334,6 +334,14 @@ async function main() {
       assertContains(b, "[No beats completed.]");
     });
 
+    await test("T402c: adventure capture stores the active Novel's adventure", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "test-quest" });
+      const cap = await call(proc, "manage_codex", { action: "capture",  kind: "adventure" });
+      assertContains(cap, "[OK] Codex entry 'adventure_test_quest' captured");
+      assertContains(cap, "captured:test-quest");
+    });
+
     await kill(proc);
   }
 
@@ -450,10 +458,30 @@ async function main() {
 
     await test("T397: voice feedback captured to Codex as voice_profile", async () => {
       await call(proc, "manage_character", { action: "voice",  entity_id: "character_01", examples: [{ context: "greeting", dialogue: "Hello." }] });
-      const cap = await call(proc, "manage_codex", { action: "capture",  kind: "voice_profile", entity_id: "character_01", update_source: true });
-      assertContains(cap, "[OK] Voice profile");
+      const cap = await call(proc, "manage_codex", { action: "capture",  kind: "voice_profile", entity_id: "character_01" });
+      assertContains(cap, "[OK] Codex entry 'voice_profile_spatialchar' captured");
       const list = await call(proc, "manage_codex", { action: "list",  kind: "voice_profile" });
-      assertContains(list, "voice_profile_character_01");
+      assertContains(list, "voice_profile_spatialchar");
+    });
+
+    await test("T397b: update_source without provenance returns STATE_CONFLICT", async () => {
+      const conflict = await call(proc, "manage_codex", { action: "capture",  kind: "voice_profile", entity_id: "character_01", update_source: true });
+      assertContains(conflict, "STATE_CONFLICT");
+    });
+
+    await test("T397c: general capture resolves Novel artifacts by kind", async () => {
+      const npcCap = await call(proc, "manage_codex", { action: "capture",  kind: "npc", source_id: "Locke" });
+      assertContains(npcCap, "[OK] Codex entry 'npc_locke' captured");
+      const factionCap = await call(proc, "manage_codex", { action: "capture",  kind: "faction", source_id: "Thieves Guild" });
+      assertContains(factionCap, "faction_thieves_guild");
+      const roomCap = await call(proc, "manage_codex", { action: "capture",  kind: "room", source_id: "Throne Room" });
+      assertContains(roomCap, "room_throne_room");
+      const missing = await call(proc, "manage_codex", { action: "capture",  kind: "npc", source_id: "Nobody" });
+      assertContains(missing, "NOT_FOUND");
+      const badKind = await call(proc, "manage_codex", { action: "capture",  kind: "equipment_template", source_id: "x" });
+      assertContains(badKind, "not supported");
+      const noAdv = await call(proc, "manage_codex", { action: "capture",  kind: "adventure" });
+      assertContains(noAdv, "STATE_CONFLICT");
     });
 
     await test("T417: observer briefing renders omniscient surface", async () => {

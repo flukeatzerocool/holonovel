@@ -6,18 +6,18 @@
  * determines rebuild scope (full, partial, scoped, or skip). Records
  * fingerprint baselines for future delta comparisons.
  *
- * LIMITATION: This script prints `opencode run` commands but does NOT
- * invoke them. Opencode cannot recursively invoke itself — `opencode run`
- * from within an opencode session would deadlock. A human or CI with
- * opencode access must run the printed command manually.
- *
- * When running OUTSIDE of opencode (bare shell, CI pipeline), uncomment
- * the exec block at the bottom of this file to auto-invoke.
+ * LIMITATION: By default this script prints `opencode run` commands but does
+ * NOT invoke them — opencode cannot recursively invoke itself from within an
+ * opencode session (that would deadlock). Set `HOLONOVEL_INVOKE_UPDATE=1`
+ * when running OUTSIDE a session (bare shell, CI) to execute the printed
+ * command automatically. A human or CI with opencode access may otherwise run
+ * the printed command manually.
  */
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { execSync } from "node:child_process";
 import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
 
 const root = join(import.meta.dirname, "..");
@@ -51,6 +51,8 @@ const serverDirArg = process.argv.includes("--server-dir")
   ? process.argv[process.argv.indexOf("--server-dir") + 1]
   : null;
 const verifyDeployed = process.argv.includes("--verify-deployed");
+const invokeEnabled = process.env.HOLONOVEL_INVOKE_UPDATE === "1";
+let updateCommand: string | null = null;
 
 function loadStored(): Record<string, StoredRecord> {
   const path = join(root, FINGERPRINT_FILE);
@@ -178,6 +180,18 @@ function reconcile(spec_hash: string, fingerprints: Fingerprints): void {
   saveStored(stored);
 }
 
+// REQ-098/REQ-314 — when running outside an opencode session
+// (HOLONOVEL_INVOKE_UPDATE=1) the printed update command is executed here.
+function invokeUpdate(cmd: string): void {
+  console.log(`\nHOLONOVEL_INVOKE_UPDATE=1 — executing: ${cmd}`);
+  try {
+    execSync(cmd, { stdio: "inherit", cwd: root });
+  } catch (e: any) {
+    console.error(`Update invocation failed: ${e.message}`);
+    process.exit(1);
+  }
+}
+
 if ((scopeByFingerprint || checkOnly) && previous) {
   const delta = compareFingerprints(currentFingerprints, previous.fingerprints);
   console.log(`\nFingerprint delta: ${delta.changedCount} changed (${delta.changed.join(", ")}), ${delta.unchanged.length} unchanged (${delta.unchanged.join(", ")})`);
@@ -191,7 +205,13 @@ if ((scopeByFingerprint || checkOnly) && previous) {
 
   if (pendingUpdate) {
     console.log(`\nPENDING UPDATE: spec ${deltaClass} delta but no implementation fingerprints changed.`);
-    console.log(`Invoking: opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)} (${deltaClass} delta)."`);
+    updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)} (${deltaClass} delta)."`;
+    console.log(`Invoking: ${updateCommand}`);
+    if (invokeEnabled && !checkOnly) {
+      invokeUpdate(updateCommand);
+      reconcile(currentHash, currentFingerprints);
+      process.exit(0);
+    }
     if (checkOnly || !allowPending) {
       process.exit(1);
     }
@@ -211,21 +231,23 @@ if ((scopeByFingerprint || checkOnly) && previous) {
 
   if (delta.changedCount > 2) {
     console.log(`>2 components changed — full Build workflow required.`);
-    console.log(`Invoking: opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)}. Full rebuild needed."`);
+    updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)}. Full rebuild needed."`;
   } else if (delta.changedCount === 1) {
     console.log(`Only ${delta.changed[0]} changed — scoped rebuild (typecheck + affected Pattern Buffer sub-workflows).`);
-    console.log(`Invoking: opencode run --agent build "Perform scoped Update on ${server}. Only ${delta.changed[0]} changed. Typecheck and re-run affected Pattern Buffer sub-workflows."`);
+    updateCommand = `opencode run --agent build "Perform scoped Update on ${server}. Only ${delta.changed[0]} changed. Typecheck and re-run affected Pattern Buffer sub-workflows."`;
   } else {
     console.log(`${delta.changedCount} components changed — partial rebuild.`);
-    console.log(`Invoking: opencode run --agent build "Perform partial Update on ${server}. Changed: ${delta.changed.join(", ")}. Implement only changed surfaces and their dependents."`);
+    updateCommand = `opencode run --agent build "Perform partial Update on ${server}. Changed: ${delta.changed.join(", ")}. Implement only changed surfaces and their dependents."`;
   }
+  console.log(`Invoking: ${updateCommand}`);
 } else {
   if (checkOnly) {
     console.log(`\nNo stored fingerprints — cannot determine pending-update status.`);
     process.exit(1);
   }
   console.log(`\nFull update required (no stored fingerprints or unscoped mode).`);
-  console.log(`Invoking: opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${storedHash?.substring(0, 16) ?? "none"} to ${currentHash.substring(0, 16)}."`);
+  updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${storedHash?.substring(0, 16) ?? "none"} to ${currentHash.substring(0, 16)}."`;
+  console.log(`Invoking: ${updateCommand}`);
 }
 
 // Save current fingerprints (normal mode only — --check never writes)
@@ -233,14 +255,11 @@ if (!checkOnly) {
   reconcile(currentHash, currentFingerprints);
 }
 
-// The AI maintainer (opencode run) cannot be invoked from within opencode
-// (recursive invocation would deadlock). This script records the decision
-// and fingerprints; a human or CI with opencode access must run the command.
-//
-// When running OUTSIDE of opencode (bare shell, CI pipeline), uncomment:
-// ```
-// import { execSync } from "node:child_process";
-// execSync(updateCommand, { stdio: "inherit", cwd: root });
-// ```
-console.log("\nFingerprints saved. Next: run opencode to perform the actual update.");
+// Auto-invoke only when explicitly enabled and running outside a session.
+if (updateCommand && invokeEnabled && !checkOnly) {
+  invokeUpdate(updateCommand);
+  console.log("\nFingerprints saved. Update workflow invoked.");
+} else {
+  console.log("\nFingerprints saved. Next: run the printed `opencode run` command to perform the actual update.");
+}
 process.exit(0);

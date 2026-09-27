@@ -1,0 +1,35 @@
+{
+  "note": "Dispositions for known action-contract candidate groups. `action-conflicts --check` fails on any group not listed here, so a NEW candidate is caught while these stay dispositioned. `disposition`: decomposition = one action whose parameters are introduced across several REQs (benign); known-conflict = a genuine operation overload tracked on ROADMAP.md.",
+  "baseline": [
+    {
+      "tool": "manage_lore",
+      "action": "set_secret",
+      "disposition": "decomposition",
+      "justification": "REQ-363b adds the optional world_target coupling parameter to the set_secret action introduced by REQ-234a; not an overload."
+    },
+    {
+      "tool": "manage_novel",
+      "action": "create",
+      "disposition": "decomposition",
+      "justification": "REQ-088a/REQ-088f define create's name/description; REQ-352a adds the optional codex_adventure seeding parameter. Cumulative, not an overload."
+    },
+    {
+      "tool": "manage_npc",
+      "action": "create",
+      "disposition": "decomposition",
+      "justification": "REQ-075a names the create action and REQ-156 adds its description parameter; cumulative decomposition."
+    },
+    {
+      "tool": "manage_scene",
+      "action": "set",
+      "disposition": "decomposition",
+      "justification": "REQ-076b1 defines description; REQ-352b/REQ-363b/REQ-364b add optional beat/location parameters. Cumulative, not an overload."
+    },
+    {
+      "tool": "manage_session",
+      "action": "compress",
+      "disposition": "known-conflict",
+      "justification": "REQ-086a defines compress(max_entries) as a non-mutating prompt generator; REQ-239a defines compress(sessions?) as an audit-log compactor that removes entries. Two normative contracts for one action — needs an operation discriminator. Tracked on ROADMAP.md."
+    }
+  ]
+}

@@ -8302,7 +8302,7 @@ server.registerTool("manage_codex", {
   title: "Codex Library Management",
   description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
-    action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (voice profile), import (into active Novel), or delete."),
+    action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
     name: z.string().optional().describe("Entry name (for set)."),
     entry_id: z.string().optional().describe("Entry identifier (for get/import/delete)."),
@@ -8310,8 +8310,9 @@ server.registerTool("manage_codex", {
     description: z.string().optional().describe("Optional description (for set)."),
     tags: z.array(z.string()).optional().describe("Optional tags (for set)."),
     visibility: z.enum(["library", "shared", "private"]).optional().describe("library, shared, or private (for set)."),
-    entity_id: z.string().optional().describe("Entity whose voice to capture (for capture)."),
-    update_source: z.boolean().optional().describe("When true, update the source entity too (for capture)."),
+    entity_id: z.string().optional().describe("Entity whose voice to capture (for capture, voice_profile kind)."),
+    source_id: z.string().optional().describe("Novel artifact key/name/entity id to capture (for capture). Defaults per kind."),
+    update_source: z.boolean().optional().describe("When true, update the source Codex entry in place (for capture)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -8346,24 +8347,124 @@ server.registerTool("manage_codex", {
       return raw(JSON.stringify(entry, null, 2));
     }
     case "capture": {
-      // REQ-347 — voice feedback codex capture: store an entity's corrected
-      // voice profile as a `voice_profile` Codex entry.
+      // REQ-321n — general capture: pull a Novel artifact into the Codex as an
+      // entry of `kind`. `voice_profile` (REQ-347a) and `adventure` (REQ-321g)
+      // are two of the supported kinds. When `update_source` is true the source
+      // Codex entry (located via provenance, REQ-321h/i) is updated in place.
       requireGM();
       const novel = requireNovel();
-      const entity = novel.entities.get(args.entity_id);
-      if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
-      const id = `voice_profile_${String(args.entity_id).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
-      const corrected = (entity.voice_examples ?? []).filter((v: any) => v.tag === "player-corrected").map((v: any) => ({ corrected_text: v.dialogue, context: v.context }));
+      const kind = String(args.kind ?? "voice_profile");
+      const sourceId = String(args.source_id ?? args.entity_id ?? "");
+      const now = new Date().toISOString();
+      const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const captured: { id: string; name: string; content: any; codexSource?: any } = { id: "", name: "", content: null };
+      let found = false;
+
+      switch (kind) {
+        case "npc": {
+          const hit = [...novel.npcs.entries()].find(([id, n]) => id.toLowerCase() === sourceId.toLowerCase() || n.name.toLowerCase() === sourceId.toLowerCase());
+          if (hit) { captured.id = `npc_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { ...hit[1] }; found = true; }
+          break;
+        }
+        case "character": {
+          const hit = [...novel.entities.entries()].find(([id, e]) => id.toLowerCase() === sourceId.toLowerCase() || e.name.toLowerCase() === sourceId.toLowerCase());
+          if (hit) { captured.id = `character_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { ...hit[1] }; captured.codexSource = hit[1].codex_source; found = true; }
+          break;
+        }
+        case "scene": {
+          captured.id = `scene_${slugify((novel.scene_description || "current").slice(0, 32))}`;
+          captured.name = novel.scene_description.slice(0, 48) || "Current scene";
+          captured.content = { description: novel.scene_description, location: novel.scene_location, time_of_day: novel.scene_time_of_day, atmosphere: novel.scene_atmosphere, beat: novel.scene_beat, type: novel.scene_type };
+          found = true;
+          break;
+        }
+        case "encounter": {
+          if (novel.combat) { captured.id = `encounter_${slugify(novel.slug)}`; captured.name = `Encounter in ${novel.name}`; captured.content = { ...novel.combat }; found = true; }
+          break;
+        }
+        case "lore_entry": {
+          const hit = [...novel.lore.entries()].find(([k]) => k.toLowerCase() === sourceId.toLowerCase());
+          if (hit) { captured.id = `lore_entry_${slugify(hit[0])}`; captured.name = hit[0]; captured.content = { ...hit[1] }; found = true; }
+          break;
+        }
+        case "faction": {
+          const f = novel.factions.find((x) => x.id.toLowerCase() === sourceId.toLowerCase() || x.name.toLowerCase() === sourceId.toLowerCase());
+          if (f) { captured.id = `faction_${slugify(f.name)}`; captured.name = f.name; captured.content = { ...f }; found = true; }
+          break;
+        }
+        case "countdown": {
+          const hit = [...novel.countdowns.entries()].find(([k, c]) => k.toLowerCase() === sourceId.toLowerCase() || c.name.toLowerCase() === sourceId.toLowerCase());
+          if (hit) { captured.id = `countdown_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { ...hit[1] }; found = true; }
+          break;
+        }
+        case "room": {
+          const hit = [...novel.world.rooms.entries()].find(([k, r]) => k.toLowerCase() === sourceId.toLowerCase() || r.name.toLowerCase() === sourceId.toLowerCase());
+          if (hit) { captured.id = `room_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { name: hit[1].name, description: hit[1].description, exits: Object.fromEntries(hit[1].exits), annotations: hit[1].annotations }; found = true; }
+          break;
+        }
+        case "thing": {
+          const hit = [...novel.world.things.entries()].find(([k, t]) => k.toLowerCase() === sourceId.toLowerCase() || t.name.toLowerCase() === sourceId.toLowerCase());
+          if (hit) { captured.id = `thing_${slugify(hit[1].name)}`; captured.name = hit[1].name; captured.content = { ...hit[1] }; found = true; }
+          break;
+        }
+        case "relationship_template": {
+          const rel = novel.relationships.find((r) => `${r.entity_a}:${r.entity_b}`.toLowerCase() === sourceId.toLowerCase() || r.entity_b.toLowerCase() === sourceId.toLowerCase());
+          if (rel) { captured.id = `relationship_template_${slugify(`${rel.entity_a}_${rel.entity_b}`)}`; captured.name = `${rel.entity_a} → ${rel.entity_b}`; captured.content = { ...rel }; found = true; }
+          break;
+        }
+        case "voice_profile": {
+          const hit = [...novel.entities.entries()].find(([id, e]) => id.toLowerCase() === sourceId.toLowerCase() || e.name.toLowerCase() === sourceId.toLowerCase());
+          if (hit) {
+            const entity = hit[1];
+            const corrected = (entity.voice_examples ?? []).filter((v: any) => v.tag === "player-corrected").map((v: any) => ({ corrected_text: v.dialogue, context: v.context }));
+            captured.id = `voice_profile_${slugify(entity.name)}`;
+            captured.name = entity.name;
+            captured.content = { corrected_text: corrected, original_text: [], source_novel: novel.slug, background: entity.personality?.background };
+            captured.codexSource = entity.codex_source;
+            found = true;
+          }
+          break;
+        }
+        case "adventure": {
+          if (!(novel.adventure_set || novel.adventure_index || novel.generated_adventure || novel.adventure_slug)) {
+            return err("STATE_CONFLICT", "No adventure content in the active Novel. Load an adventure via manage_adventure (action: load) or generate one via manage_adventure (action: generate).");
+          }
+          const beats = novel.story_beats.map((b) => ({ beat: b.beat, scene_preview: b.scene_preview }));
+          captured.id = `adventure_${slugify(novel.slug)}`;
+          captured.name = `Adventure: ${novel.name}`;
+          captured.content = { title: novel.adventure_index?.premise ?? novel.name, sections: {}, adventure_index: novel.adventure_index, suggested_beats: beats, adventure_slug: novel.adventure_slug };
+          found = true;
+          break;
+        }
+        default:
+          return err("INVALID_INPUT", `Codex capture kind '${kind}' is not supported.`);
+      }
+
+      if (!found) return err("NOT_FOUND", `No ${kind} artifact '${sourceId}' in the active Novel. Corrective action: verify the source_id or list the artifact kind first.`);
+
+      if (args.update_source) {
+        if (!captured.codexSource) return err("STATE_CONFLICT", `Artifact '${sourceId}' has no Codex provenance. Corrective action: omit update_source to create a new entry.`);
+        const existing = state.codex.get(captured.codexSource.id);
+        if (!existing) return err("STATE_CONFLICT", `Source Codex entry '${captured.codexSource.id}' no longer exists. Corrective action: omit update_source to create a new entry.`);
+        existing.name = captured.name;
+        existing.content = captured.content;
+        existing.source = `captured:${novel.slug}`;
+        existing.source_novel = novel.slug;
+        existing.codex_modified_at = now;
+        state.codex.set(existing.id, existing);
+        state.saveCodex();
+        return ok(`Codex entry '${existing.id}' updated in place (kind: ${kind}).`);
+      }
+
       const entry: any = {
-        id, kind: "voice_profile", name: entity.name,
-        content: { corrected_text: corrected, original_text: [], source_novel: novel.slug, background: entity.personality?.background },
-        visibility: "library",
-        imported_at: new Date().toISOString(), codex_modified_at: new Date().toISOString(),
-        update_source: !!args.update_source,
+        id: captured.id, kind, name: captured.name, content: captured.content,
+        tags: [], visibility: "library",
+        source: `captured:${novel.slug}`, source_novel: novel.slug,
+        imported_at: now, codex_modified_at: now,
       };
-      state.codex.set(id, entry);
+      state.codex.set(entry.id, entry);
       state.saveCodex();
-      return ok(`Voice profile '${id}' captured to Codex.`);
+      return ok(`Codex entry '${entry.id}' captured (kind: ${kind}, source: captured:${novel.slug}).`);
     }
     case "import": {
       // REQ-347/352 — import a Codex entry into the active Novel.

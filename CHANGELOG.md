@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-26 — Roadmap action: general codex capture, §6.7 self-invocation, action-conflict gate
+
+- **General codex capture (REQ-321n).** `manage_codex (action: capture,
+  kind, source_id, update_source?)` now pulls any Novel artifact kind into the
+  Codex (npc, character, scene, encounter, lore_entry, faction, countdown,
+  room, thing, relationship_template, voice_profile, adventure); REQ-321f is
+  amended to point at the new contract. `update_source` updates the source
+  entry in place via provenance and returns `[STATE_CONFLICT]` when none exists
+  (REQ-321h/REQ-321i); an adventure capture with no adventure content returns
+  the REQ-321g `[STATE_CONFLICT]`. New evidence T397b/T397c/T402c. `CodexEntry`
+  gains `source`/`source_novel`. The previously-unimplemented adventure-capture
+  path is now covered by the generic dispatcher.
+- **§6.7 update self-invocation (REQ-098).** `scripts/update-server.ts` executes
+  the printed `opencode run` command when `HOLONOVEL_INVOKE_UPDATE=1` (default
+  off; never under `--check`); `push-pipeline.sh --auto-update` sets it.
+  Evidence T84c/T84d.
+- **Action-contract error gate.** `scripts/action-conflicts.ts --check` fails on
+  any candidate group not in `spec/audit/action-conflicts-baseline.json`; wired
+  into `check` while `check:fast` stays report-only. Five known groups are
+  dispositioned; REQ-086a vs REQ-239a is recorded as a tracked conflict.
+- **Registers.** ROADMAP.md's three entries are removed; two new entries are
+  added — the general codex-import gap and the compress contract conflict. The
+  review register is rescheduled accordingly.
+
 ## 2026-09-26 — Determinism convention for freshness-gated artifacts
 
 - `AGENTS.md` script discipline now states that a generated artifact which is

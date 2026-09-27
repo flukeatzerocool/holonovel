@@ -12,9 +12,10 @@
 // (gitignored runtime state) around its runs; no tracked file is mutated.
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -27,11 +28,12 @@ function sha256(p: string): string {
   return createHash("sha256").update(readFileSync(p)).digest("hex");
 }
 
-function runUpdate(args: string[]): { stdout: string; stderr: string; status: number } {
+function runUpdate(args: string[], env: Record<string, string> = {}): { stdout: string; stderr: string; status: number } {
   const r = spawnSync("npx", ["tsx", join(ROOT, "scripts", "update-server.ts"), ...args], {
     cwd: ROOT,
     encoding: "utf-8",
     timeout: 60000,
+    env: { ...process.env, ...env },
   });
   return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", status: r.status ?? -1 };
 }
@@ -79,6 +81,38 @@ function main(): void {
       if (r.status !== 0) throw new Error(`expected exit 0 for patch delta, got ${r.status}: ${r.stdout} ${r.stderr}`);
       assertContains(r.stdout, "patch-class");
     });
+
+    // REQ-098 self-invocation contract: the update command is printed but not
+    // executed unless HOLONOVEL_INVOKE_UPDATE=1 (unattended shell/CI only).
+    const fakeDir = mkdtempSync(join(tmpdir(), "holonovel-fake-opencode-"));
+    const fakeBin = join(fakeDir, "opencode");
+    writeFileSync(fakeBin, `#!/bin/sh\necho "$@" > "$FAKE_OPENCODE_MARKER"\n`, { mode: 0o755 });
+    const defaultMarker = join(fakeDir, "default-marker.txt");
+    const execMarker = join(fakeDir, "exec-marker.txt");
+
+    test("T84c/REQ-098: update command is printed, not executed, by default", () => {
+      const r = runUpdate(["--server", "holonovel", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint"], {
+        HOLONOVEL_INVOKE_UPDATE: "0",
+        PATH: `${fakeDir}:${process.env.PATH}`,
+        FAKE_OPENCODE_MARKER: defaultMarker,
+      });
+      if (r.status === 0) throw new Error(`expected non-zero exit for pending update: ${r.stdout}`);
+      assertContains(r.stdout, "Invoking: opencode run");
+      if (existsSync(defaultMarker)) throw new Error("update command executed without HOLONOVEL_INVOKE_UPDATE=1");
+    });
+
+    test("T84d/REQ-098: HOLONOVEL_INVOKE_UPDATE=1 executes the update command", () => {
+      const r = runUpdate(["--server", "holonovel", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint"], {
+        HOLONOVEL_INVOKE_UPDATE: "1",
+        PATH: `${fakeDir}:${process.env.PATH}`,
+        FAKE_OPENCODE_MARKER: execMarker,
+      });
+      if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
+      if (!existsSync(execMarker)) throw new Error("update command was not executed with HOLONOVEL_INVOKE_UPDATE=1");
+      const invoked = readFileSync(execMarker, "utf-8");
+      assertContains(invoked, "--agent build");
+    });
+    rmSync(fakeDir, { recursive: true, force: true });
   } finally {
     // Restore the prior fingerprint baseline.
     if (original !== null) writeFileSync(FP_FILE, original);
