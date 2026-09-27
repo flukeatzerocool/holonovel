@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-26 — Tool-definition authoring standard and registry hygiene
+
+- Tool descriptions no longer restate parameter details the input schema
+  already carries. Parameter guidance now lives in the schema, and a
+  description carries only what the schema cannot express — cross-parameter
+  interactions, allowed ranges, and formats. This resolves the conflict
+  between the description budget and the TDQS conformance rules. (REQ-024c,
+  REQ-392, REQ-450)
+- Every tool title is now a human-readable expansion at least as long as its
+  tool name.
+- The shared tool-result output schema now documents its fields, so an agent
+  does not have to infer return values from the description. (REQ-548b)
+- Adopted the Tool Definition Authoring Standard (Appendix T.2) mapping the
+  six Glama TDQS dimensions to Holonovel rules, enforced by the tool-definition
+  harness. (REQ-024c, REQ-450)
+- Cleared all production dependency vulnerabilities (`npm audit` reports 0).
+- Added a README for the server package (install, MCP client configuration,
+  configuration variables, state model).
+- Corrected the embedded spec-repository URL to the canonical location.
+- Recorded that the live M8ven grade is capped by project adoption, not code
+  quality — the code findings were already clean.
+
 ## 2026-09-26 — Loop closure: Codex capture reconciliation and register hygiene
 
 - Reconciled the Codex `capture` action contract: REQ-321f now states the

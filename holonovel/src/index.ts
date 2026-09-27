@@ -156,7 +156,10 @@ const _registerTool = server.registerTool.bind(server);
 // describing its structured result. The shared schema is permissive so
 // ruleset-derived result fields remain unconstrained. REQ-548a — a handler that
 // returns text only is given a structured result derived from that text.
-const OUTPUT_SCHEMA = z.looseObject({ status: z.string(), text: z.string().optional() });
+const OUTPUT_SCHEMA = z.looseObject({
+  status: z.string().describe("Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c)."),
+  text: z.string().optional().describe("Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."),
+});
 function ensureStructured(handler: any) {
   return async (...args: any[]) => {
     const result = await handler(...args);
@@ -223,7 +226,7 @@ function configInt(name: string, dflt: number): number {
 // (`spec_repo_url`) and the intro prompt. Informational — the embedded spec
 // copy (REQ-105) is authoritative.
 function specRepoUrl(): string {
-  return process.env.TTRPG_SPEC_REPO_URL ?? "https://github.com/anomalyco/Holonovel";
+  return process.env.TTRPG_SPEC_REPO_URL ?? "https://git.gay/flukeatzerocool/Holonovel";
 }
 function pacingWindow(): number { return configInt("TTRPG_PACING_WINDOW", 21); }
 function climaxAcceleration(): number { return configInt("TTRPG_CLIMAX_ACCELERATION", 2); }
@@ -1880,7 +1883,7 @@ function kwMatch(canonicalDecision: string, keywords: string[]): boolean {
 }
 
 server.registerTool("manage_history", {
-  title: "Undo and Redo",
+  title: "Undo and Redo History",
   description: "Undo or redo the most recent state mutation, restoring the prior per-badge snapshot. Undo reverts a mistaken or unwanted change; redo re-applies the most recently undone change. Both directions mutate Novel state and persist immediately (readOnlyHint false). Use when: reverting a mistaken change (action: undo) or restoring an undone change (action: redo). Do NOT use when: the target change is not the most recent mutation — use the entity tool that made it (e.g. manage_lore, manage_story, manage_world).",
   inputSchema: {
     action: z.enum(["undo", "redo"]).optional().describe("Which direction to move: undo (revert the last mutation) or redo (re-apply the last undone mutation). Defaults to undo.")
@@ -2087,8 +2090,8 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
 // consolidated create/stage/import/sheet/set_active/personality/voice/signal/
 // remove/roster_remove/roster_list surface.
 server.registerTool("manage_character", {
-  title: "Character",
-  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc. Parameters by action: create — name, species, classes, stat_method, seed, stage_to_roster, personality, details, description, voice, background, goals, ability_scores, skills, feats, talents, equipment; stage — entity_id; import — roster_id; sheet — entity_id, format; set_active — entity_id, pov; personality — entity_id, description, voice, background, goals; voice — entity_id, examples; signal — signal, value; remove — entity_id; roster_remove — roster_id.",
+  title: "Player Character Management",
+  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
   inputSchema: {
     action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, remove, roster_remove, or roster_list."),
     name: z.string().optional().describe("Character name; omit (create) to begin step-by-step."),
@@ -2436,8 +2439,8 @@ function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room"
 }
 
 server.registerTool("run_command", {
-  title: "Command",
-  description: "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state; resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore. Parameters by action: execute — command; resolve/suggest — intent; suggest — entity_id.",
+  title: "Parser Command",
+  description: "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state; resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
   inputSchema: {
     action: z.enum(["execute", "resolve", "suggest"]).optional().describe("execute (parser), resolve (non-mutating intent), or suggest (intent → tool calls). Defaults to execute."),
     command: z.string().optional().describe("The natural-language command (execute)."),
@@ -2924,8 +2927,8 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 // World (REQ-201, REQ-328, REQ-329, REQ-368) — consolidated room/thing/exit/convert surface with
 // the previously-missing update_room/update_thing lifecycle (completeness).
 server.registerTool("manage_world", {
-  title: "World",
-  description: "Manage the world model — rooms, things, and exits. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve). Parameters by action: create_room/update_room — name, description; remove_room/remove_thing — name; create_thing — name, description, kind, location, location_type; update_thing — name, description, location; create_thing/update_thing — fixed, openable, lockable, locked, lit, switched_on, switchable, transparent, readable, read_text, wearable, edible, drinkable, enterable, climbable; create_exit — direction, room_a, room_b; remove_exit — direction, room; convert — source; generate — seed.",
+  title: "World Model Management",
+  description: "Manage the world model — rooms, things, and exits. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve).",
   inputSchema: {
     action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert", "generate"]).describe("create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, convert, or generate."),
     name: z.string().optional().describe("Room/thing name (create/update/remove)."),
@@ -3245,8 +3248,8 @@ function composeRoomContext(room: WorldRoom, novel: NovelState, world: WorldMode
 
 // Combat (REQ-203, REQ-204, REQ-311) — consolidated init/advance/end/participant/status surface.
 server.registerTool("manage_combat", {
-  title: "Combat",
-  description: "Manage combat encounters in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply). Parameters by action: init — participants, dangers, seed; end — outcome; add_participant/remove_participant — participant_id.",
+  title: "Combat Encounter Management",
+  description: "Manage combat encounters in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
   inputSchema: {
     action: z.enum(["init", "advance", "end", "add_participant", "remove_participant", "status"]).describe("init, advance, end, add_participant, remove_participant, or status."),
     participants: z.array(z.string()).optional().describe("Entity identifiers participating (init)."),
@@ -3460,8 +3463,8 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
 // consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
 server.registerTool("manage_scene", {
-  title: "Scene",
-  description: "Manage the active scene and its narrative framing. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record). Parameters by action: set — description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward; directive — directive; presence — entity_ids; autonomy — level, confirmation, safety, creativity; choices — prompt, choices, allow_freeform, context; oracle — question, likelihood, seed.",
+  title: "Scene Management",
+  description: "Manage the active scene and its narrative framing. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
     description: z.string().optional().describe("Scene description (set)."),
@@ -3660,8 +3663,8 @@ server.registerTool("manage_scene", {
 
 // NPC (REQ-119, REQ-122, REQ-123, REQ-124, REQ-156, REQ-327) — consolidated create/update/remove/list/get surface.
 server.registerTool("manage_npc", {
-  title: "NPC",
-  description: "Manage non-player characters in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet). Parameters by action: create — name, description, disposition, location, goals, ruleset_reference, mind; update — npc_id, name, description, disposition, location, goals, mind; remove/get — npc_id.",
+  title: "NPC Management",
+  description: "Manage non-player characters in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list", "get"]).describe("create, update, remove, list, or get."),
     name: z.string().optional().describe("NPC name (create)."),
@@ -3773,8 +3776,8 @@ server.registerTool("manage_npc", {
 
 // Countdown (REQ-329, REQ-358, REQ-368) — consolidated set/advance/remove/list surface.
 server.registerTool("manage_countdown", {
-  title: "Countdown",
-  description: "Manage countdown timers in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Parameters by action: set — name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect; advance/remove — name.",
+  title: "Countdown Manager",
+  description: "Manage countdown timers in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone).",
   inputSchema: {
     action: z.enum(["set", "advance", "remove", "list"]).describe("set, advance, remove, or list."),
     name: z.string().optional().describe("Countdown name (set/advance/remove)."),
@@ -3871,8 +3874,8 @@ server.registerTool("manage_countdown", {
 
 // Lore (REQ-083, REQ-094, REQ-234, REQ-328) — consolidated CRUD + list/get + interchange surface.
 server.registerTool("manage_lore", {
-  title: "Lore",
-  description: "Manage the active Novel's lore entries (world facts the narrator recalls). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use manage_story (action: record). Parameters by action: set/update — key, content, triggers, badge_scope, priority, sticky, group; remove/toggle/get — key; group — key, group; set_secret — key, world_target; reveal/knowledge — entity_id; export — format; import — data, mode.",
+  title: "Lore Management",
+  description: "Manage the active Novel's lore entries (world facts the narrator recalls). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge"]).describe("set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge."),
     key: z.string().optional().describe("Lore key (set/update/remove/toggle/group/get)."),
@@ -4094,8 +4097,8 @@ function conditionCatalogue(novel: NovelState): string[] {
 }
 // Condition (REQ-217) — consolidated apply/remove/list surface.
 server.registerTool("manage_condition", {
-  title: "Condition",
-  description: "Manage mechanical or narrative conditions on entities. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance). Parameters by action: apply/remove — entity_id, condition; apply — rounds.",
+  title: "Condition Management",
+  description: "Manage mechanical or narrative conditions on entities. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
   inputSchema: {
     action: z.enum(["apply", "remove", "list"]).describe("apply, remove, or list."),
     entity_id: z.string().optional().describe("The entity to affect (apply/remove)."),
@@ -4155,8 +4158,8 @@ server.registerTool("manage_condition", {
 
 // Faction (REQ-338, REQ-364) — consolidated create/update/remove/list surface.
 server.registerTool("manage_faction", {
-  title: "Faction",
-  description: "Manage organizations in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room). Parameters by action: create/update — name, description, goals, resources, territory; update/remove — faction_id.",
+  title: "Faction Management",
+  description: "Manage organizations in the active Novel. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list"]).describe("create, update, remove, or list."),
     name: z.string().optional().describe("Faction name (create)."),
@@ -4218,8 +4221,8 @@ server.registerTool("manage_faction", {
 
 // Relationship (REQ-236) — consolidated set/get surface.
 server.registerTool("manage_relationship", {
-  title: "Relationship",
-  description: "Manage directed relationships between entities, NPCs, or factions. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use manage_faction (action: update). Parameters by action: set — entity_a, entity_b, type, value, description; get — entity_id.",
+  title: "Relationship Management",
+  description: "Manage directed relationships between entities, NPCs, or factions. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use manage_faction (action: update).",
   inputSchema: {
     action: z.enum(["set", "get"]).describe("set or get."),
     entity_a: z.string().optional().describe("The source entity (set)."),
@@ -4252,8 +4255,8 @@ server.registerTool("manage_relationship", {
 
 // Vow (REQ-322, REQ-358) — consolidated set/milestone/resolve/forsake/list surface.
 server.registerTool("manage_vow", {
-  title: "Vow",
-  description: "Track narrative vows, quests, and obligations with milestones. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set). Parameters by action: set — name, description, parties, difficulty, scope; milestone — vow_name; resolve — vow_name, outcome, consequences; forsake — vow_name, reason.",
+  title: "Vow Management",
+  description: "Track narrative vows, quests, and obligations with milestones. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
   inputSchema: {
     action: z.enum(["set", "milestone", "resolve", "forsake", "list"]).describe("set, milestone, resolve, forsake, or list."),
     name: z.string().optional().describe("Vow name (set)."),
@@ -4344,8 +4347,8 @@ server.registerTool("manage_vow", {
 // surface. Base capability: Fudge dice, aspects, Fate points, and stress are
 // Holonovel infrastructure (ruleset: null), never contingent on a bound package.
 server.registerTool("resolve_fate", {
-  title: "Fate",
-  description: "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or run_command (action: resolve). Parameters by action: roll — dice, skill, modifier, difficulty, seed; aspect — op, name, target, entity_id; fate_point — op, entity_id, amount; stress — op, entity_id, name, track, shifts, consequence.",
+  title: "Resolve Fate Actions",
+  description: "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or run_command (action: resolve).",
   inputSchema: {
     action: z.enum(["roll", "aspect", "fate_point", "stress"]).describe("roll, aspect, fate_point, or stress."),
     dice: z.string().optional().describe("Fudge dice notation (roll), e.g. '4dF'; defaults to 4dF."),
@@ -4509,8 +4512,8 @@ server.registerTool("resolve_fate", {
 // Ironsworn (REQ-438 through REQ-440) — momentum, the action-roll move
 // framework, and progress tracks. Base capability, ruleset: null.
 server.registerTool("resolve_ironsworn", {
-  title: "Ironsworn",
-  description: "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use manage_vow (action: set). Parameters by action: momentum — op, entity_id, amount; move — name, adds, burn, seed, entity_id; progress — op, name, rank, ticks, seed.",
+  title: "Resolve Ironsworn Moves",
+  description: "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use manage_vow (action: set).",
   inputSchema: {
     action: z.enum(["momentum", "move", "progress"]).describe("momentum, move, or progress."),
     op: z.string().optional().describe("Sub-operation: momentum (set, gain, lose, reset, list), progress (create, mark, test, list)."),
@@ -4642,7 +4645,7 @@ server.registerTool("resolve_ironsworn", {
 // and effect, stress/trauma with resistance, and downtime. Base capability.
 server.registerTool("resolve_forged", {
   title: "Forged in the Dark",
-  description: "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use manage_countdown (action: set). Parameters by action: action_roll — name, dice, position, effect, seed; stress — op, entity_id, amount, cost, name; downtime — op, entity_id, amount.",
+  description: "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use manage_countdown (action: set).",
   inputSchema: {
     action: z.enum(["action_roll", "stress", "downtime"]).describe("action_roll, stress, or downtime."),
     op: z.string().optional().describe("Sub-operation: stress (mark, clear, resist, list), downtime (recover, indulge_vice, list)."),
@@ -4758,8 +4761,8 @@ server.registerTool("resolve_forged", {
 
 // Story journal (REQ-246, REQ-331, REQ-333) — consolidated record/update/remove/list/promote surface.
 server.registerTool("manage_story", {
-  title: "Story",
-  description: "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use manage_lore (action: set). Parameters by action: record — type, entry; update — type, entry, index; remove — index; promote — index, key; list — filter, offset, limit.",
+  title: "Story Journal Management",
+  description: "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use manage_lore (action: set).",
   inputSchema: {
     action: z.enum(["record", "update", "remove", "list", "promote"]).describe("record, update, remove, list, or promote."),
     type: z.enum(["decision", "moment", "revelation", "bond", "consequence"]).optional().describe("Story entry type (record/update)."),
@@ -4863,8 +4866,8 @@ server.registerTool("manage_story", {
 
 // Note (REQ-242, REQ-285) — consolidated set/remove/list surface.
 server.registerTool("manage_note", {
-  title: "Note",
-  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set). Parameters by action: set — key, content, badge_scope; remove/remove_server — key; set_server — key, content, narrative_tag.",
+  title: "Note Management",
+  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set).",
   inputSchema: {
     action: z.enum(["set", "remove", "list", "set_server", "remove_server", "list_server"]).describe("set, remove, list, set_server, remove_server, or list_server."),
     key: z.string().optional().describe("The note key (set/remove/set_server/remove_server)."),
@@ -5139,8 +5142,8 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 }
 
 server.registerTool("manage_belief", {
-  title: "Belief",
-  description: "Manage per-entity evidence and reconciled belief stances. Mutating actions (admit, retract, reconcile) persist to the Novel and are audited; list/get/evidence/conflicts are read-only. Use when: recording what an entity has learned or believes (admit), suppressing a piece of evidence (retract), inspecting current stances (list), reading one question (get), listing supporting evidence (evidence), finding unresolved contradictions (conflicts), or forcing recomputation (reconcile). Do NOT use when: recording objective world truth — use manage_world; recording lore — use manage_lore; recording observations — use manage_session (action: event). Parameters by action: list/conflicts/reconcile — entity_id; get/evidence — entity_id, question; admit — entity_id, subject, predicate, object, polarity, weight, source, status, source_ordinal; retract — entity_id, evidence_id.",
+  title: "Belief Management",
+  description: "Manage per-entity evidence and reconciled belief stances. Mutating actions (admit, retract, reconcile) persist to the Novel and are audited; list/get/evidence/conflicts are read-only. Use when: recording what an entity has learned or believes (admit), suppressing a piece of evidence (retract), inspecting current stances (list), reading one question (get), listing supporting evidence (evidence), finding unresolved contradictions (conflicts), or forcing recomputation (reconcile). Do NOT use when: recording objective world truth — use manage_world; recording lore — use manage_lore; recording observations — use manage_session (action: event).",
   inputSchema: {
     action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile"]).describe("list, get, evidence, admit, retract, conflicts, or reconcile."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
@@ -5293,8 +5296,8 @@ function identityReadGate(characterId: string) {
 }
 
 server.registerTool("manage_identity", {
-  title: "Identity",
-  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. Mutation (stage, accept, reject, bootstrap) persists the roster and is audited; list/snapshot are read-only. Use when: importing or authoring identity material (stage), accepting or rejecting a candidate (accept/reject), seeding from a character card (bootstrap), inspecting candidates and facets (list), or reading the compiled kernel (snapshot). Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality). Parameters by action: stage — character_id, facet, value, stability, perspective, source; accept — character_id, candidate_id, perspective; reject — character_id, candidate_id; list — character_id; snapshot — character_id; bootstrap — character_id, card.",
+  title: "Identity Management",
+  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. Mutation (stage, accept, reject, bootstrap) persists the roster and is audited; list/snapshot are read-only. Use when: importing or authoring identity material (stage), accepting or rejecting a candidate (accept/reject), seeding from a character card (bootstrap), inspecting candidates and facets (list), or reading the compiled kernel (snapshot). Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
   inputSchema: {
     action: z.enum(["stage", "accept", "reject", "list", "snapshot", "bootstrap"]).describe("stage, accept, reject, list, snapshot, or bootstrap."),
     character_id: z.string().describe("Roster character id."),
@@ -5440,8 +5443,8 @@ function validateProposalArgs(args: any): string | null {
 }
 
 server.registerTool("manage_causal", {
-  title: "Causal",
-  description: "Validate objective-state transitions against committed history. Proposals are recorded in a ledger before admission; a proposal is not truth until admitted, and refused proposals are preserved as evidence. Mutating actions (propose, admit, reject, ingress) persist to the Novel and are audited; list/state are read-only. Use when: proposing an objective change (propose), admitting or refusing a recorded proposal (admit/reject), submitting machine-originated state (ingress), inspecting the transition ledger (list), or reading admitted objective state (state). Do NOT use when: recording what an entity believes — use manage_belief; editing the world model directly — use manage_world. Parameters by action: propose — scope, domain, entity, key, value, from, expected_version, origin_source, source_ordinal; admit/reject — proposal_id; ingress — scope, domain, entity, key, value, source_ordinal; list/state — (none).",
+  title: "Causal Transition Management",
+  description: "Validate objective-state transitions against committed history. Proposals are recorded in a ledger before admission; a proposal is not truth until admitted, and refused proposals are preserved as evidence. Mutating actions (propose, admit, reject, ingress) persist to the Novel and are audited; list/state are read-only. Use when: proposing an objective change (propose), admitting or refusing a recorded proposal (admit/reject), submitting machine-originated state (ingress), inspecting the transition ledger (list), or reading admitted objective state (state). Do NOT use when: recording what an entity believes — use manage_belief; editing the world model directly — use manage_world.",
   inputSchema: {
     action: z.enum(["propose", "admit", "reject", "list", "state", "ingress"]).describe("propose, admit, reject, list, state, or ingress."),
     scope: z.string().optional().describe("Scope coordinate (default the active Novel slug)."),
@@ -5546,8 +5549,8 @@ function corpusAccessGate(novel: NovelState, entityId: string, doc: CorpusDocume
 }
 
 server.registerTool("manage_corpus", {
-  title: "Corpus",
-  description: "Manage cold reference material and per-entity knowledge acquisition. Registered documents create no knowledge until consumed; consumption records exactly what an entity acquired. Mutation (register, route, grant, deny, access, consume) persists to the Novel and is audited; list/get/acquisitions are read-only. Use when: registering reference material (register), assigning its knowledge domain (route), opening or closing access (grant/deny), setting an entity's knowledge-domain profile (access), reading a document to acquire it (consume), or inspecting what an entity has acquired (acquisitions). Do NOT use when: recording beliefs — use manage_belief; registering a reusable gameplay artifact — use manage_codex. Parameters by action: register — title, body, domain, source_profile, access_public, access_domains, grants, denies; route — document_id, domain; grant/deny — document_id, entity_id; access — entity_id, domains; consume — entity_id, document_id, mode; get — document_id; list — domain; acquisitions — entity_id.",
+  title: "Knowledge Corpus Management",
+  description: "Manage cold reference material and per-entity knowledge acquisition. Registered documents create no knowledge until consumed; consumption records exactly what an entity acquired. Mutation (register, route, grant, deny, access, consume) persists to the Novel and is audited; list/get/acquisitions are read-only. Use when: registering reference material (register), assigning its knowledge domain (route), opening or closing access (grant/deny), setting an entity's knowledge-domain profile (access), reading a document to acquire it (consume), or inspecting what an entity has acquired (acquisitions). Do NOT use when: recording beliefs — use manage_belief; registering a reusable gameplay artifact — use manage_codex.",
   inputSchema: {
     action: z.enum(["register", "list", "get", "route", "grant", "deny", "access", "consume", "acquisitions"]).describe("register, list, get, route, grant, deny, access, consume, or acquisitions."),
     title: z.string().optional().describe("Document title (register)."),
@@ -5735,7 +5738,7 @@ function gatherIndexSources(novel: NovelState): IndexSourceItem[] {
 
 server.registerTool("manage_index", {
   title: "Semantic Index",
-  description: "Build and query a derived, offline semantic index over Novel sources. Ranking is advisory only: candidates never write state and must be promoted through their authoritative tool to become truth. Use when: building or rebuilding the index (build), checking staleness (status), listing indexed items (list), ranking candidates for a query (search), or reading item relations (relations). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore or manage_corpus. Parameters by action: search — query, limit; relations — item_id; build/list/status — (none).",
+  description: "Build and query a derived, offline semantic index over Novel sources. Ranking is advisory only: candidates never write state and must be promoted through their authoritative tool to become truth. Use when: building or rebuilding the index (build), checking staleness (status), listing indexed items (list), ranking candidates for a query (search), or reading item relations (relations). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore or manage_corpus.",
   inputSchema: {
     action: z.enum(["build", "status", "list", "search", "relations"]).describe("build, status, list, search, or relations."),
     query: z.string().optional().describe("Query text to rank candidates against (search)."),
@@ -5812,7 +5815,7 @@ function gatherGraphSources(novel: NovelState): GraphSourceSet {
 
 server.registerTool("manage_graph", {
   title: "Knowledge Graph",
-  description: "Build and read a derived JSON knowledge graph over Novel sources. The Novel file is authoritative; the projection is read-only and never mutates state. Use when: rebuilding the projection (build), checking staleness (status), reading nodes or edges (nodes/edges), reading the whole visible graph (get), or listing a node's neighbors (neighbors). Do NOT use when: ranking text candidates — use manage_index (action: search); recording relationships — use manage_relationship. Parameters by action: neighbors — node_id; build/status/get/nodes/edges — (none).",
+  description: "Build and read a derived JSON knowledge graph over Novel sources. The Novel file is authoritative; the projection is read-only and never mutates state. Use when: rebuilding the projection (build), checking staleness (status), reading nodes or edges (nodes/edges), reading the whole visible graph (get), or listing a node's neighbors (neighbors). Do NOT use when: ranking text candidates — use manage_index (action: search); recording relationships — use manage_relationship.",
   inputSchema: {
     action: z.enum(["build", "status", "get", "nodes", "edges", "neighbors"]).describe("build, status, get, nodes, edges, or neighbors."),
     node_id: z.string().optional().describe("Graph node id (neighbors)."),
@@ -5881,8 +5884,8 @@ function requireTask(novel: NovelState, taskId: string | undefined): AgentTask |
 }
 
 server.registerTool("manage_agent", {
-  title: "Agent",
-  description: "Manage durable NPC/agent tasks and their action lifecycle. Mutating actions (create, start, advance, complete, fail, cancel) persist to the Novel and are audited; list/get are read-only. Use when: creating a task (create), starting it (start), logging an action (advance), settling it (complete/fail/cancel), or inspecting tasks (list/get). Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc. Parameters by action: create — subject, goal, autonomy, source_goal; start/complete/fail/cancel — task_id; advance — task_id, description; get — task_id; list — subject.",
+  title: "Agent Task Management",
+  description: "Manage durable NPC/agent tasks and their action lifecycle. Mutating actions (create, start, advance, complete, fail, cancel) persist to the Novel and are audited; list/get are read-only. Use when: creating a task (create), starting it (start), logging an action (advance), settling it (complete/fail/cancel), or inspecting tasks (list/get). Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc.",
   inputSchema: {
     action: z.enum(["create", "list", "get", "start", "advance", "complete", "fail", "cancel"]).describe("create, list, get, start, advance, complete, fail, or cancel."),
     subject: z.string().optional().describe("Entity or NPC that owns the task (create/list)."),
@@ -5967,8 +5970,8 @@ server.registerTool("manage_agent", {
 // an entity perceived. Perception is the observed layer, distinct from belief;
 // it feeds evidence but is not itself belief.
 server.registerTool("manage_perception", {
-  title: "Perception",
-  description: "Record and read what an entity perceived — messages, scene changes, and observations — as an append-only ledger distinct from belief. Mutation (record) persists to the Novel and is audited; list/for_entity/for_event are read-only. Use when: recording that an entity perceived something (record), listing perceptions (list), or reading an entity's or an event's perceptions (for_entity/for_event). Do NOT use when: recording what an entity believes — use manage_belief; recording observations for provenance — use manage_session (action: event). Parameters by action: record — entity_id, kind, summary, event_ordinal; for_entity — entity_id; for_event — event_ordinal; list — (none).",
+  title: "Perception Ledger Management",
+  description: "Record and read what an entity perceived — messages, scene changes, and observations — as an append-only ledger distinct from belief. Mutation (record) persists to the Novel and is audited; list/for_entity/for_event are read-only. Use when: recording that an entity perceived something (record), listing perceptions (list), or reading an entity's or an event's perceptions (for_entity/for_event). Do NOT use when: recording what an entity believes — use manage_belief; recording observations for provenance — use manage_session (action: event).",
   inputSchema: {
     action: z.enum(["record", "list", "for_entity", "for_event"]).describe("record, list, for_entity, or for_event."),
     entity_id: z.string().optional().describe("Entity that perceived (record/for_entity)."),
@@ -6034,8 +6037,8 @@ server.registerTool("manage_perception", {
 });
 
 server.registerTool("manage_session", {
-  title: "Session",
-  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record). Parameters by action: verbosity — mode; briefing_order — sections; compress — max_entries (summarize) or sessions (compact); recap — gm_notes, session_id; subscribe — topics; discover — query; category — tool_name, category; event — text, source, supersede; history — through_ordinal, include_superseded.",
+  title: "Session Management",
+  description: "Manage session-level surfaces, diagnostics, and tool discovery. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), compressing the audit log (compress), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["recap", "verbosity", "briefing_order", "compress", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress, health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
@@ -6273,8 +6276,8 @@ function assessGenerationGuard(input: string): string | null {
 // (default otherwise), or both. No Novel is required for the codex target.
 // Adventure (REQ-090, REQ-091, REQ-132, REQ-229, REQ-247, REQ-251, REQ-292, REQ-295) — consolidated generate/generate_encounter/load/list surface.
 server.registerTool("manage_adventure", {
-  title: "Adventure",
-  description: "Generate, load, or list adventure content. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record). Parameters by action: generate — premise, target; generate_encounter — context; load — slug; list — filter.",
+  title: "Adventure Management",
+  description: "Generate, load, or list adventure content. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["generate", "generate_encounter", "load", "list"]).describe("generate, generate_encounter, load, or list."),
     premise: z.string().optional().describe("Adventure premise (generate)."),
@@ -6551,8 +6554,8 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
 }
 
 server.registerTool("manage_novel", {
-  title: "Novel",
-  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.). Parameters by action: create — name, ruleset, genre, description, codex_adventure; resume/switch/archive/unarchive/info — slug; export — format, scope, include_checkpoints; import — data, mode, strict; rename — new_slug; description — description; genre — genre; clone — source_slug, new_name, trim_audit_sessions; branch — source_slug, new_name, from_event; list — filter, detail; save_context — current_scene, immediate_situation, pending_player_action, short_term_plans, long_term_plans, player_goals; checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove — label.",
+  title: "Novel Save Management",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (npc, lore, faction, vow, story, note, etc.).",
   inputSchema: {
     action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
@@ -7035,8 +7038,8 @@ function extractSupplementaryWisdom(raw: string): Array<{ module: string; key: s
 }
 
 server.registerTool("manage_ruleset", {
-  title: "Ruleset",
-  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only. Parameters by action: search — query, max_results; install — slug, manifest, index, model, tools, resources, prompts; remove/bind — slug; roll — table, seed; import_supplementary — slug, source, wisdom; remove_supplementary — slug.",
+  title: "Ruleset Package Management",
+  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, roll, import_supplementary, or remove_supplementary."),
     query: z.string().optional().describe("Search query (search)."),
@@ -7232,10 +7235,10 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "graph://novel", title: "Knowledge Graph" },
   { template: "spec://build", title: "Build Specification" },
   { template: "output://{tool}/{counter}", title: "Tool Output" },
-  { template: "notes://{key}", title: "Note" },
+  { template: "notes://{key}", title: "Note Management" },
   { template: "server-notes://{key}", title: "Server Note" },
   { template: "codex://{id}", title: "Codex Entry" },
-  { template: "faction://{id}", title: "Faction" },
+  { template: "faction://{id}", title: "Faction Management" },
   { template: "factions://", title: "All Factions" },
   { template: "secrets://active", title: "Active Secrets" },
   { template: "synthesis://status", title: "Synthesis Status" },
@@ -7999,7 +8002,7 @@ server.registerResource("notes-single", new ResourceTemplate("notes://{key}", { 
   const novel = state.activeNovel;
   if (!novel) return { resources: [] };
   return { resources: novel.notes.map(n => ({ uri: `notes://${n.key}`, name: n.key })) };
-} }), { title: "Note" }, async (uri) => {
+} }), { title: "Note Management" }, async (uri) => {
   const novel = state.activeNovel;
   const key = decodeURIComponent(uri.href.split("/").pop() ?? "");
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
@@ -8054,7 +8057,7 @@ server.registerResource("faction-single", new ResourceTemplate("faction://{id}",
   const novel = state.activeNovel;
   if (!novel) return { resources: [] };
   return { resources: novel.factions.map(f => ({ uri: `faction://${f.id}`, name: f.name })) };
-} }), { title: "Faction" }, async (uri) => {
+} }), { title: "Faction Management" }, async (uri) => {
   const novel = state.activeNovel;
   const id = decodeURIComponent(uri.href.split("/").pop() ?? "");
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
@@ -8296,8 +8299,8 @@ server.registerResource("ui-novel", "ui://novel/current", { title: "Active Novel
 // codex_import tools and adds the spec-required codex_info/codex_delete surface
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
 server.registerTool("manage_codex", {
-  title: "Codex",
-  description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set). Parameters by action: set — kind, name, content, description, tags, visibility; list — kind; get/import/delete — entry_id; capture — entity_id, update_source.",
+  title: "Codex Library Management",
+  description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
     action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (voice profile), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
@@ -8418,8 +8421,8 @@ const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementar
 // Synthesis (REQ-103, REQ-115, REQ-231, REQ-260, REQ-261, REQ-262, REQ-263, REQ-264) — consolidated run/revert/list/activate/
 // deactivate/toggle/player_add/player_remove/player_list surface.
 server.registerTool("manage_synthesis", {
-  title: "Synthesis",
-  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list). Parameters by action: activate/deactivate/toggle — module; activate/player_add/player_remove — key; toggle — enabled; run — force; player_add — content, triggers, badge_scope; player_list/list — module; list — detail.",
+  title: "Synthesis Management",
+  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions persist to the Novel and are audited; list/get actions are read-only. Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
   inputSchema: {
     action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, or player_list."),
     module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list)."),

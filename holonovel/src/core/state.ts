@@ -733,7 +733,7 @@ export class StateManager {
     this.loadCodex();
     this.buildFingerprint = {
       specVersion: SPEC_VERSION,
-      specRepoUrl: "https://github.com/anomalyco/Holonovel",
+      specRepoUrl: "https://git.gay/flukeatzerocool/Holonovel",
       specHash: "unknown",
       sourceHash: computeSourceHash(),
       rulesetHash: "ruleset-free",

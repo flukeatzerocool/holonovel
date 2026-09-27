@@ -208,6 +208,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-023b | Prompts (Part b) | 2026-08-11 |
 | REQ-024a | Tool documentation (Part a) | 2026-08-11 |
 | REQ-024b | Tool documentation (Part b) | 2026-08-11 |
+| REQ-024c | Tool documentation (Part c) | 2026-09-26 |
 | REQ-025a | spec_health (Part a) | 2026-08-11 |
 | REQ-025b1 | spec_health (Part b1) | 2026-08-11 |
 | REQ-025b2 | spec_health (Part b2) | 2026-08-11 |
@@ -1917,6 +1918,7 @@ diet.
 | T639 | Automated | Extractor divergence flags: DECISIONS.md records the divergence-disposition policy. | REQ-551a |
 | T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
 | T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
+| T642 | Automated | Tool-definition authoring standard: every registered tool's description fits the recorded byte budget, restates no schema-carried parameter guidance, carries a title at least as long as its name, and documents its output-schema fields. | REQ-024c, REQ-548b |
 
 ---
 
@@ -2968,3 +2970,30 @@ surface SHALL support every format marked mandatory for its role.
 Presentation formats (`html`, `ascii`, `lonelog`) are not interchange formats
 and are not importable; requesting one on an interchange-only surface returns
 `[INVALID_INPUT]` per REQ-425b. _Check:_ T505, T506, T507.
+
+### T.2 Tool Definition Authoring Standard
+
+This standard operationalizes the six TDQS dimensions (REQ-450) for every host
+and ruleset-derived tool. A definition is conformant when it satisfies every
+dimension below. The description's job is to add information the structured
+fields do not carry; it earns no credit for restating the schema or the
+annotations (REQ-024c, REQ-392).
+
+| Dimension | Rule | Defect |
+|---|---|---|
+| Purpose Clarity | One sentence naming verb + resource + scope, distinguishing the tool from its siblings | Purpose buried, or a title that merely restates the name |
+| Usage Guidelines | A "Use when:" clause and a "Do NOT use when:" clause naming the sibling to prefer instead | Missing disambiguation from a sibling tool |
+| Behavioral Transparency | Per mutating action, what persists, whether it is audited, and whether it is reversible; plus return/error behavior | A mutating action whose side effects are undisclosed |
+| Parameter Semantics | Schema owns per-parameter meaning, allowed values, format, range, and default (REQ-427); the description adds only cross-parameter interactions the schema cannot express | A per-action parameter enumeration duplicating the schema (REQ-024c) |
+| Conciseness & Structure | Front-loaded; no restatement of schema or annotations; within the recorded description budget | Padding, or an over-budget description |
+| Contextual Completeness | The output schema documents every reported field (REQ-548b) | A bare result envelope, or undocumented result fields |
+
+Titles are human-readable expansions of the tool name (REQ-024a) and SHALL be
+at least as long as the name. The description-size budget is recorded once in
+DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
+reports the aggregate listing size (REQ-392). A conformant definition is a
+prerequisite for the Appendices E and F entries and for the package-quality
+audit of REQ-430.
+
+_Check:_ T509, T536, T642.
+

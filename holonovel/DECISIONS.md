@@ -1,8 +1,18 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** b845af574fda439b7c35499943c0f31bae74c41fc02c3d087b16a201d6272ad3
+**Spec hash:** 88030ebdbcebc560f4ee4086df3b8c55ff4a067a87004ba8587ef0611856cfb4
 
 **Recorded tool budget:** 34 (REQ-429)
+
+**Recorded description budget:** 800 bytes (REQ-024c)
+
+### Tool-Definition Authoring Standard — 2026-09-26
+
+- Adopted the Tool Definition Authoring Standard (Appendix T.2) and REQ-024c. Parameter guidance is schema-owned; descriptions carry only additive semantics (cross-parameter interactions, ranges, formats) and SHALL NOT enumerate per-action parameters. This resolves the REQ-392 ↔ REQ-450 conflict: the prior "Parameters by action" prose duplicated the per-property schema descriptions and, per the Glama TDQS rubric, earned no Parameter-Semantics credit while costing Conciseness.
+- Recorded description budget 800 bytes (REQ-024c); the longest host description is 726 bytes after the schema-restating tails were removed.
+- T536 re-scoped to assert no schema-restating parameter enumeration; T642 added (`test-tool-definitions.ts`) for the description budget, title length, and documented output-schema fields. The shared output schema now documents its `status` and `text` fields (REQ-548b).
+- Identity URLs reconciled to the canonical `git.gay/flukeatzerocool/Holonovel` in `specRepoUrl()` and the build fingerprint default.
+- M8ven reputation cap recorded: the live grade (B 89/100) is capped by adoption, not code — "grades remain capped until the project builds reputation through adoption" (0 stars, 0 forks, 2 contributors). Code findings were clean; no code change lifts the cap. Binding levers are stars/forks/contributors, readable registries, and publisher verification.
 
 ### Lean-narrator integration — 2026-09-26
 
