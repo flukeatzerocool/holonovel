@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-09-26 — Review-register closure: pipeline pending-gate flag
+
+- Closed the `push-pipeline.sh --dry-run` step-4 "full Build workflow required"
+  flag as P3. The REQ-394 pending-update gate correctly allowed publication: the
+  pending condition is a non-patch delta with unchanged fingerprints, and all
+  five implementation fingerprints had advanced. The message is REQ-314 rebuild
+  scoping, not the pending block.
+- The gate's machine-recorded baseline lagged the hand-edited `**Spec hash:**`
+  line in `holonovel/DECISIONS.md`; REQ-394 forbids classifying against a
+  hand-edited value, so the divergence is expected and self-heals on the next
+  real pipeline run.
+
 ## 2026-09-26 — Tool-definition authoring standard and registry hygiene
 
 - Tool descriptions no longer restate parameter details the input schema
