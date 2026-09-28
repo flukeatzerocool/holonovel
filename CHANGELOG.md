@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-09-28 — Publish Server false failure, Node 24 alignment, workflow guard
+
+- **Bug: the scheduled `Publish Server` run failed ("all jobs have failed").**
+  The `Determine publish state` step read registry presence through the
+  eventually-consistent `?search=` listing endpoint (`publish.yml:45`) and
+  treated any result other than the literal `"true"` — including `"unknown"`
+  from a failed fetch — as "needs publishing" (`publish.yml:56-57`). It
+  therefore attempted to re-register the already-live `2026.9.27`;
+  `mcp-publisher` rejects duplicates, the 3-attempt retry exhausted, and the
+  step exited 1. The daily self-heal job had kept the bug that `e5b03c0` fixed
+  only in `check-registry-publish.ts` — two copies of the presence logic had
+  diverged.
+- **Fix (`.github/workflows/publish.yml`).** Registry presence is now read
+  through the shared `scripts/check-registry-publish.ts --json` (deterministic
+  per-server `/versions` endpoint) — a single source of truth. An unreachable
+  registry (`error` in the probe) skips the registry publish with a
+  `::warning::` instead of failing; the daily schedule retries. The publish
+  step treats a `duplicate version` / `already exists` rejection as success
+  (already-published end-state), and a new `Verify registry listing` step
+  reads the record back as the actual pass/fail verdict.
+- **Node 24 alignment.** `actions/checkout@v4` and `actions/setup-node@v4`
+  (Node 20 runtime) bumped to `@v5` in both workflows, resolving the
+  Node.js 20 deprecation warning; `ci.yml` moves to `node-version: 24` (Node
+  20 reached EOL April 2026). Root `@types/node` `^20 → ^24`, `holonovel`'s
+  `^26.1.2 → ^24` to match the runtime, a root `.nvmrc` and
+  `engines.node: ">=24"` added. The constitution (`spec/01a-constitution.md`,
+  "Technology stack") and the README/AGENTS prerequisites now state Node 24+.
+- **Recurrence guard.** New `scripts/check-workflows.ts` gate (wired into
+  `check:fast` and `check`) rejects Node-runtime actions below `@v5`, a
+  `node-version` below 24, and any return of the `?search=` listing endpoint
+  or removal of the `check-registry-publish.ts` delegation in `publish.yml`.
+  Dry-run against the pre-fix tree reported 7 violations; 0 after the fix.
+- **Not changed (out-of-repo dependency).** `holonovel/package.json` gains no
+  `engines` constraint: the Glama-hosted build image is Node 20
+  (`holonovel/DECISIONS.md`), so an engine floor would surface there. Bumping
+  the Glama image precedes any published `engines` raise.
+
 ## 2026-09-27 — MCP Registry publication: npm-race fix, self-heal, freshness check
 
 - **Bug: the MCP Registry has been stale since 2026-09-10.** The `Publish

@@ -161,7 +161,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
 | Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
-**Technology stack.** TypeScript on Node.js 20+, with stdio transport. It is a single
+**Technology stack.** TypeScript on Node.js 24+, with stdio transport. It is a single
 process, with no database and no external services. This is the prescribed stack. The
 holonovel reference implementation uses it. Builders may pick another language, runtime,
 or transport. The result must still pass every verification workflow and the full

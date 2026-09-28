@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 6478c2415f767fe7efb097ea89eddffe3dd750a39d20f90cc19020f593af0f8e
+**Spec hash:** 0cfaa703dfac56443aa004aa1a80091f69a437c123db029eb5b5d6e988450e9e
 
 **Recorded tool budget:** 34 (REQ-429)
 
@@ -22,6 +22,13 @@
 - REQ-548b protocol: pinned MCP protocol version advanced to a version supporting `outputSchema`; structured results mirror the text envelope (REQ-548a).
 - REQ-388 config classification: `TTRPG_GUIDANCE_PROFILE` is Behavioral (couples per P58); default `full`. No new tools; tool budget unchanged.
 - Tool-surface consolidation (34 tools) deferred: the surface already satisfies REQ-429's recorded budget; the routing benefit ships via REQ-067d / REQ-114c, and merging tools would churn the §5 tool corpus, the REQ-429 budget, and this gate-classification table. Revisit when a demonstrated routing failure survives the discovery changes.
+
+### Holonovel Spec Update — 2026-09-28 (Publish Server false failure, Node 24 alignment, workflow guard)
+
+- **Delta class:** patch. Changed surfaces: Publish Server false failure, Node 24 alignment, workflow guard; MCP Registry publication: npm-race fix, self-heal, freshness check; migrate-user-data integrity: recompute `_checksum` on re-stamp; Push-pipeline review fixes and runtime efficiency; Push-pipeline hardening and shell-discipline enforcement.
+- **Verification:** `npm run assemble` → spec SHA 0cfaa703…; `npm run validate:fast -- --write-register` → 0 errors / 18 warnings, coverage register current; `npm run check:fast` → exit 0 (PASS, new `check-workflows` included); `npm run typecheck` (root) and `npx tsc --noEmit` (`holonovel`) → 0 errors; `check-fingerprint-sync` → in sync; `check-workflows` guard dry-run → 7 violations on the pre-fix tree, 0 after; both workflow YAML parse under js-yaml.
+
+<!-- @spec-update:0cfaa703dfac56443aa004aa1a80091f69a437c123db029eb5b5d6e988450e9e -->
 
 ### Holonovel Spec Update — 2026-09-27 (migrate-user-data integrity: recompute `_checksum` on re-stamp)
 
@@ -123,7 +130,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.09.27 |
+| Spec version | 2026.09.28 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |
