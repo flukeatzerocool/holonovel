@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-28 — Publish workflow: npm-exposure wait hardening
+
+- **Bug: the `Publish Server` workflow failed after a successful npm publish.**
+  Run `36440069199` (commit `a3e5d6e`) reached `Wait for the version to appear
+  on npm` and timed out: its window was 12 × 15 s = 180 s, but npm's trusted-
+  publishing processing exposed `2026.9.28` only at `15:05:19Z` — ≈6 min after
+  the publish step printed `+ holonovel@2026.9.28` (`14:59:08Z`). The step
+  `exit 1` skipped the MCP Registry publish, leaving the registry at `2026.9.27`.
+- **Fix (`.github/workflows/publish.yml`).** The wait is widened to 40 × 15 s
+  (10 min) and exposes an `npm_ready` step output. On timeout it emits
+  `::warning::` and exits 0; `Publish to MCP Registry` and `Verify registry
+  listing` are gated on `npm_ready`, so a slow npm skips registration (the daily
+  self-heal completes it) instead of failing the run. The npm publish step now
+  also tolerates npm's duplicate-version error (`cannot publish over the
+  previously published versions`) as already-published success, symmetric to the
+  registry step — making a re-run while npm is still exposing a version safe.
+- **Recovery.** `2026.9.28` is on npm; the registry registration is completed by
+  the self-heal (workflow dispatch or the daily schedule).
+
 ## 2026-09-28 — Publish Server false failure, Node 24 alignment, workflow guard
 
 - **Bug: the scheduled `Publish Server` run failed ("all jobs have failed").**

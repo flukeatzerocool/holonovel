@@ -83,7 +83,25 @@ jobs:
       - name: Publish to npm
         if: steps.check.outputs.publish_npm == 'true'
         working-directory: holonovel
-        run: npm publish --provenance --access public
+        run: |
+          set +e
+          OUTPUT=$(npm publish --provenance --access public 2>&1)
+          RC=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+          if [ "$RC" -eq 0 ]; then
+            exit 0
+          fi
+          # npm exposes a just-published version asynchronously. A re-run while
+          # it is still unexposed sees it as absent and re-publishes, which npm
+          # rejects as a duplicate. That is the already-published end-state, not
+          # a failure — the npm-exposure wait and the registry read-back are the
+          # verdicts.
+          if printf '%s' "$OUTPUT" | grep -qi "cannot publish over the previously published versions"; then
+            echo "::notice::holonovel already published to npm — treating as success."
+            exit 0
+          fi
+          exit "$RC"
       - name: Sync server.json version with package.json
         if: steps.check.outputs.publish_npm == 'true' || steps.check.outputs.publish_registry == 'true'
         run: |
@@ -103,21 +121,29 @@ jobs:
           chmod +x mcp-publisher
           ./mcp-publisher validate holonovel/server.json
       - name: Wait for the version to appear on npm
+        id: wait_npm
         if: steps.check.outputs.publish_registry == 'true'
         run: |
           CANONICAL="${{ steps.check.outputs.canonical }}"
-          for i in $(seq 1 12); do
+          # npm exposes a trusted-published version asynchronously: the publish
+          # step prints "+ pkg@version" before the registry serves it (observed
+          # exposure lag ~6 min). Wait up to 10 minutes; a still-slow npm must
+          # not fail the run. When it is not ready, skip the registry publish
+          # and let the daily self-heal complete it (REQ-428).
+          for i in $(seq 1 40); do
             if npm view "holonovel@$CANONICAL" version >/dev/null 2>&1; then
               echo "npm exposes holonovel@$CANONICAL"
+              echo "npm_ready=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-            echo "npm has not exposed holonovel@$CANONICAL yet ($i/12); waiting 15s..."
+            echo "npm has not exposed holonovel@$CANONICAL yet ($i/40); waiting 15s..."
             sleep 15
           done
-          echo "Timed out waiting for npm to expose holonovel@$CANONICAL" >&2
-          exit 1
+          echo "npm_ready=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::npm has not exposed holonovel@$CANONICAL within 10 minutes — skipping MCP Registry publish; the daily self-heal will register it (REQ-428)."
+          exit 0
       - name: Publish to MCP Registry
-        if: steps.check.outputs.publish_registry == 'true'
+        if: steps.check.outputs.publish_registry == 'true' && steps.wait_npm.outputs.npm_ready == 'true'
         run: |
           ./mcp-publisher login github-oidc
           publish_once() {
@@ -147,5 +173,5 @@ jobs:
           echo "Registry publish failed after 3 attempts." >&2
           exit 1
       - name: Verify registry listing
-        if: steps.check.outputs.publish_registry == 'true'
+        if: steps.check.outputs.publish_registry == 'true' && steps.wait_npm.outputs.npm_ready == 'true'
         run: npx tsx scripts/check-registry-publish.ts --wait 120
