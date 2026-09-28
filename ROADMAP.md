@@ -6,6 +6,15 @@
   Update this file when planning a release.
 -->
 
+## Glama image Node 24 + published `engines` floor (REQ-428)
+
+- Glama's hosted build image runs Node 20 (`holonovel/DECISIONS.md` — the
+  REQ-428 container-image path), so `holonovel/package.json` deliberately
+  carries no `engines` floor: adding one would surface on Glama's `npm ci`.
+- First step: verify the current Glama admin build-spec Node version and bump it
+  to 24. Then add `engines.node: ">=24"` to `holonovel/package.json`, refresh its
+  lockfile, and verify `npm ci` plus the npm/registry publish path.
+
 ## Spec-delta REQ-body change detection (REQ-417)
 
 - `spec-delta.ts`'s `extractReqBodies` regex (`scripts/spec-delta.ts:105`,

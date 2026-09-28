@@ -11,6 +11,23 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Publish Server scheduled-run false failure (resolved 2026-09-28):** the
+  `Determine publish state` step read MCP Registry presence through the
+  eventually-consistent `?search=` listing endpoint (`publish.yml:45`) and
+  treated every value but `"true"` — including `"unknown"` from a failed
+  fetch — as "needs publishing" (`publish.yml:56-57`), so it republished the
+  already-registered `2026.9.27`; `mcp-publisher` rejected the duplicate and
+  GitHub run `36433656516` step 11 exited 1. The workflow's copy of the
+  presence logic had diverged from `scripts/check-registry-publish.ts`, which
+  `e5b03c0` had already moved to the deterministic `/versions` endpoint. Fixed
+  by delegating presence to that script (single source of truth), treating an
+  unreachable registry as skip-with-warning, tolerating a duplicate-version
+  rejection as success, and adding a registry read-back verdict step.
+  Regression guard `scripts/check-workflows.ts` rejects the `?search=`
+  endpoint, missing delegation, Node-runtime actions below `@v5`, and
+  `node-version` below 24. Evidence: guard dry-run 7 violations on the pre-fix
+  tree / 0 after; `npm run check:fast` PASS; `npm run typecheck` clean.
+
 - **Push-pipeline delta-classification regression + fail-open server list**
   (resolved 2026-09-27): (1) `classify_delta()` in `scripts/push-pipeline.sh`
   captured `spec-delta` with `2>&1`, merging its stderr summary (`\nSpec delta:
@@ -255,6 +272,12 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Scheduled-roadmap
 
+- **Glama image Node 24 + published `engines` floor (REQ-428)** (scheduled
+  2026-09-28): Glama's hosted build image is Node 20 (`holonovel/DECISIONS.md`,
+  the REQ-428 container-image path), so the published `holonovel` package carries
+  no `engines` floor without breaking Glama's `npm ci`. Tracked on ROADMAP.md;
+  the `engines` change follows the Glama image bump.
+
 - **Spec-delta misses REQ-body changes (REQ-417)** (scheduled 2026-09-27):
   `scripts/spec-delta.ts:105` `extractReqBodies` uses `[^*]+?`, which cannot
   cross the `*Acceptance criterion:*` emphasis in a REQ body before a paragraph
@@ -279,6 +302,13 @@ condition — not a gate's emitted message; a message alone is not evidence.
   per changed surface (REQ-314). Tracked on ROADMAP.md.
 
 ## Closed-P3 (recorded, no action)
+
+- **Guard-before-fix sequencing for single-source-a-gate plans** (closed
+  2026-09-28): the Publish-Server recurrence guard (`scripts/check-workflows.ts`)
+  was authored after the workflow fix, so its red dry-run had to be reproduced
+  with a scoped `git stash`. A `plan-review` skill edit to order guard-before-fix
+  was declined — one occurrence, no demonstrated recurrence. Record and close;
+  reopen if a plan again reviews a fix whose guard step is authored after it.
 
 - **Push-pipeline B4 — consolidate the step-5b Spec Update re-check** (closed
   2026-09-27): the pipeline's step 5b re-invokes `spec-delta` (~0.4 s) after

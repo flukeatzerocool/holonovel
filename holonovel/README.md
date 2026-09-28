@@ -10,7 +10,7 @@ packages; each loads alongside the base and never modifies it.
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 24+
 
 ## Install
 

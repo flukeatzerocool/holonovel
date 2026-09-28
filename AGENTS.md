@@ -330,4 +330,4 @@ remaining items before committing:
       the scaffold (`npm run spec-update-record`); see Appendix V.4
 - [ ] README license footer lists any newly borrowed mechanics source
 
-Prerequisites: Node.js 20+ (for `markdownlint-cli`, `tsx`, and `typescript`).
+Prerequisites: Node.js 24+ (for `markdownlint-cli`, `tsx`, and `typescript`).

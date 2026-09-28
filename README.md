@@ -58,7 +58,7 @@ README DESIGN:
 
   Run a server (§1).
     Two h3 subsections. No introductory prose under the h2.
-    Install: one descriptive sentence, prerequisite (Node.js 20+), shell
+    Install: one descriptive sentence, prerequisite (Node.js 24+), shell
     code block for install, and copy-paste JSON config block with
     `<path>` placeholder.
     Install a ruleset: drop-in packages, lazy loading, and the
@@ -205,7 +205,7 @@ The base server — a world-model MCP with rooms, things, exits, parser commands
 narrative tools, and out-of-the-box mechanics from Fate, Ironsworn, and Blades in
 the Dark (Fudge dice, momentum, and stress tracks, no ruleset required). Install
 it, then install any number of ruleset packages — each drops in alongside the
-base and never modifies it. Node.js 20+ required.
+base and never modifies it. Node.js 24+ required.
 
 ```sh
 cd holonovel
@@ -374,4 +374,4 @@ License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
 if-craft-corpus (CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0),
 BitD SRD (CC BY 3.0, John Harper), Ironsworn SRD (CC BY 4.0, Shawn Tomkin),
 Fate SRD (CC BY 3.0, Evil Hat Productions).
-[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-09-27.
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-09-28.
