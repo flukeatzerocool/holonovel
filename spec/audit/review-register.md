@@ -11,6 +11,17 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Publish workflow npm-exposure timeout (resolved 2026-09-28):** the
+  `Wait for the version to appear on npm` step (`publish.yml`, `exit 1` after
+  12 × 15 s) failed run `36440069199` even though `npm publish` succeeded
+  (`+ holonovel@2026.9.28`, `14:59:08Z`); npm exposed the version at
+  `15:05:19Z` (≈6 min), past the 180 s window, so the registry publish was
+  skipped. Fixed by widening the wait to 10 min, making a timeout a
+  `::warning::` + exit 0 gated by an `npm_ready` output, and tolerating npm's
+  duplicate-version error as already-published success. Evidence: the version
+  is present on npm (`registry.npmjs.org/holonovel`, `dist-tags.latest` =
+  `2026.9.28`); `check-registers:strict` and `check:fast` PASS.
+
 - **Publish Server scheduled-run false failure (resolved 2026-09-28):** the
   `Determine publish state` step read MCP Registry presence through the
   eventually-consistent `?search=` listing endpoint (`publish.yml:45`) and
