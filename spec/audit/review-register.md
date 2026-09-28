@@ -11,6 +11,33 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Glama image Node 24 + published `engines` floor (REQ-428)** (resolved
+  2026-09-28): the operator bumped Glama's admin build-spec image to Node 24, so
+  `holonovel/package.json` now carries `engines.node: ">=24"` (lockfile root
+  entry refreshed) without surfacing `EBADENGINE` on Glama's `npm ci`. Evidence:
+  isolated `npm ci` under Node 24 → exit 0 (100 packages); ROADMAP entry removed.
+
+- **Spec-delta missed REQ-body changes (resolved 2026-09-28):**
+  `scripts/spec-delta.ts`'s private `extractReqBodies` used `[^*]+?`, which
+  stopped at the `*Acceptance criterion:*` emphasis, so 610 of 1182 REQ IDs were
+  never captured and a REQ-body edit classified `patch`. Replaced it with the
+  shared boundary parser (`scripts/lib/parse-spec.ts`, `changedReqBodies`),
+  which covers 1182/1182 headers; added a fixture test asserting an
+  acceptance-criterion body edit is detected and the diff is symmetric. The
+  citation is REQ-419 (the scheduled entry and ROADMAP mislabeled it REQ-417).
+  Evidence: `test-spec-tooling` 9/9 PASS; `spec-delta --base origin/main` →
+  NONE/in-sync.
+
+- **Harness-suite runtime (`test:all` ≈244 s) (resolved 2026-09-28):**
+  `holonovel/scripts/test-update-workflow.ts` read and save/restored the live
+  `.holonovel-state/pipeline-fingerprints.json`, ruling out parallel execution.
+  `scripts/update-server.ts` now honors `HOLONOVEL_STATE_DIR`; the harness points
+  it at a temp dir and drops the save/restore. New
+  `holonovel/scripts/run-test-suite.ts` runs the 36 commands at bounded
+  concurrency (default `min(4, CPUs)`); `test:all` is rewired to it. Evidence:
+  36/36 PASS, 70.6 s wall clock (was ≈244 s); live baseline hash byte-identical;
+  scratch failure-path run exits 1.
+
 - **Publish workflow npm-exposure timeout (resolved 2026-09-28):** the
   `Wait for the version to appear on npm` step (`publish.yml`, `exit 1` after
   12 × 15 s) failed run `36440069199` even though `npm publish` succeeded
@@ -280,37 +307,6 @@ condition — not a gate's emitted message; a message alone is not evidence.
   and `--check` is wired into `check`. The five known groups are dispositioned;
   the one genuine overload (REQ-086a vs REQ-239a) is Scheduled-roadmap.
   ROADMAP entry removed.
-
-## Scheduled-roadmap
-
-- **Glama image Node 24 + published `engines` floor (REQ-428)** (scheduled
-  2026-09-28): Glama's hosted build image is Node 20 (`holonovel/DECISIONS.md`,
-  the REQ-428 container-image path), so the published `holonovel` package carries
-  no `engines` floor without breaking Glama's `npm ci`. Tracked on ROADMAP.md;
-  the `engines` change follows the Glama image bump.
-
-- **Spec-delta misses REQ-body changes (REQ-417)** (scheduled 2026-09-27):
-  `scripts/spec-delta.ts:105` `extractReqBodies` uses `[^*]+?`, which cannot
-  cross the `*Acceptance criterion:*` emphasis in a REQ body before a paragraph
-  break; 610 of 1182 REQ IDs are never captured, so the comparison at
-  `scripts/spec-delta.ts:178-182` reports `modified: []` and a REQ-body edit
-  classifies `patch` — violating REQ-417 ("SHALL NOT classify a delta as patch
-  when any REQ body changed"). A candidate regex recovers 907/1182; the
-  remainder needs the sub-part and `###` boundary cases. Discovered while
-  publishing the MCP-Registry fix (no spec body changed in that increment).
-  Tracked on ROADMAP.md.
-
-- **Harness-suite runtime (`test:all` ≈244 s) — parallelize or REQ-314-scope**
-  (scheduled 2026-09-27): the 36-command server suite runs sequentially and in
-  full for every minor/major delta. The isolation audit rules out naive
-  parallelism: 33 of the suite's scripts isolate state under
-  `mkdtempSync(join(tmpdir(), …))` and the two `check:*` scripts are read-only,
-  but `holonovel/scripts/test-update-workflow.ts` reads and save/restores the
-  live baseline `ROOT/.holonovel-state/pipeline-fingerprints.json` (lines 59,
-  118-119) and spawns `update-server.ts`, which writes the same file. Bounded
-  first step: point that harness's `STATE_DIR` at a temp dir (or run it
-  serially), then add a bounded-concurrency runner; optionally scope the suite
-  per changed surface (REQ-314). Tracked on ROADMAP.md.
 
 ## Closed-P3 (recorded, no action)
 

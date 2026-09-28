@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-28 — Roadmap closure: spec-delta body detection, parallel suite, `engines` floor
+
+- **Spec-delta REQ-body detection (REQ-419).** `scripts/spec-delta.ts`'s private
+  `extractReqBodies` used `[^*]+?` and stopped at the `*Acceptance criterion:*`
+  emphasis, so 610 of 1182 REQ IDs were invisible to body-change detection and a
+  REQ-body edit classified `patch`. It now uses the shared boundary parser
+  (`scripts/lib/parse-spec.ts`, `changedReqBodies`), which captures 1182/1182
+  headers; a fixture test in `scripts/test-spec-tooling.ts` asserts an
+  acceptance-criterion body edit is detected and the diff is symmetric. The
+  scheduled citation is corrected from REQ-417 to REQ-419.
+- **Bounded-concurrency test suite (REQ-314).** `scripts/update-server.ts` now
+  honors `HOLONOVEL_STATE_DIR`; `holonovel/scripts/test-update-workflow.ts` points
+  it at a temp dir and drops its live-baseline save/restore, unblocking parallel
+  runs. New `holonovel/scripts/run-test-suite.ts` runs the 36-command suite at
+  bounded concurrency (default `min(4, CPUs)`); `test:all` is rewired to it. 36/36
+  pass in 70.6 s (was ≈244 s sequential); the live `.holonovel-state` baseline is
+  untouched.
+- **Published `engines` floor (REQ-428).** After the operator bumped Glama's
+  admin build-spec image to Node 24, `holonovel/package.json` gains
+  `engines.node: ">=24"` and the lockfile root entry is refreshed, so the floor
+  no longer surfaces `EBADENGINE` on Glama's `npm ci`. Isolated `npm ci` under
+  Node 24 → exit 0. The Glama ROADMAP entry is retired.
+
 ## 2026-09-28 — Publish workflow: npm-exposure wait hardening
 
 - **Bug: the `Publish Server` workflow failed after a successful npm publish.**

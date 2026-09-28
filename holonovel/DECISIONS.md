@@ -27,6 +27,7 @@
 
 - **Delta class:** patch. Changed surfaces: Publish Server false failure, Node 24 alignment, workflow guard; MCP Registry publication: npm-race fix, self-heal, freshness check; migrate-user-data integrity: recompute `_checksum` on re-stamp; Push-pipeline review fixes and runtime efficiency; Push-pipeline hardening and shell-discipline enforcement.
 - **Verification:** `npm run assemble` → spec SHA 0cfaa703…; `npm run validate:fast -- --write-register` → 0 errors / 18 warnings, coverage register current; `npm run check:fast` → exit 0 (PASS, new `check-workflows` included); `npm run typecheck` (root) and `npx tsc --noEmit` (`holonovel`) → 0 errors; `check-fingerprint-sync` → in sync; `check-workflows` guard dry-run → 7 violations on the pre-fix tree, 0 after; both workflow YAML parse under js-yaml.
+- **Published `engines` floor (REQ-428):** following the operator's bump of the Glama admin build-spec image to Node 24 (2026-09-28), `holonovel/package.json` gains `engines.node: ">=24"` and the lockfile root entry is refreshed, so the floor no longer surfaces `EBADENGINE` on Glama's `npm ci`. Isolated `npm ci` under Node 24 → exit 0 (100 packages). The earlier withholding note (`### Holonovel Spec Update — 2026-09-02`, Node 20) is superseded.
 
 <!-- @spec-update:0cfaa703dfac56443aa004aa1a80091f69a437c123db029eb5b5d6e988450e9e -->
 

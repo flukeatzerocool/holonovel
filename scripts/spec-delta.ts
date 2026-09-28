@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
-import { extractH2Headings } from "./lib/parse-spec.js";
+import { extractH2Headings, changedReqBodies } from "./lib/parse-spec.js";
 import { SERVERS } from "./lib/servers.js";
 
 const root = join(import.meta.dirname, "..");
@@ -100,18 +100,6 @@ function lastPublishedStoredHash(baseRef: string | null): string | null {
   return null;
 }
 
-function extractReqBodies(spec: string): Map<string, string> {
-  const bodies = new Map<string, string>();
-  const re = /\*\*REQ-([0-9]+[a-z0-9]*)\b[^*]*\*\*\s*([^*]+?)(?=\n\n\*\*REQ-|\n\n### |\n\n---|\n\n$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(spec)) !== null) {
-    const id = m[1];
-    const body = m[2].replace(/\s+/g, " ").trim();
-    if (body) bodies.set(id, body);
-  }
-  return bodies;
-}
-
 function hasEditorialDisposition(decisions: string, modified: string[]): boolean {
   const editorial = decisions.match(/\| Delta class\s*\|\s*editorial\s*\|/i);
   if (!editorial) return false;
@@ -172,14 +160,7 @@ if (!report.in_sync) {
     report.requirements_changed.added = currentReqs.filter(r => !storedReqs.includes(r));
     report.requirements_changed.removed = storedReqs.filter(r => !currentReqs.includes(r));
 
-    const currentBodies = extractReqBodies(currentSpec);
-    const storedBodies = extractReqBodies(storedSpec);
-    const modified: string[] = [];
-    for (const [id, body] of currentBodies) {
-      const prev = storedBodies.get(id);
-      if (prev !== undefined && prev !== body) modified.push(id);
-    }
-    report.requirements_changed.modified = modified;
+    report.requirements_changed.modified = changedReqBodies(currentSpec, storedSpec);
 
     report.sections_changed = currentSections.filter(s => !storedSections.includes(s));
   }
