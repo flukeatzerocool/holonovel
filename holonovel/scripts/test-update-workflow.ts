@@ -8,11 +8,12 @@
 // exempt and exits clean. Each test name carries the T-ID it exercises so the
 // coverage register can surface the evidence.
 //
-// The harness saves and restores `.holonovel-state/pipeline-fingerprints.json`
-// (gitignored runtime state) around its runs; no tracked file is mutated.
+// The harness isolates the pipeline-fingerprint baseline under a temp
+// HOLONOVEL_STATE_DIR (REQ-314) so its runs never read or write the live
+// `.holonovel-state/pipeline-fingerprints.json`; no tracked file is mutated.
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, mkdtempSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, rmSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -21,8 +22,8 @@ installHarnessGuard();
 
 const ROOT = join(import.meta.dirname!, "..", "..");
 const SPEC_PATH = join(ROOT, "holonovel.md");
-const STATE_DIR = join(ROOT, ".holonovel-state");
-const FP_FILE = join(STATE_DIR, "pipeline-fingerprints.json");
+// Temp state dir passed to the spawned update-server (REQ-314 isolation).
+const WORK_STATE_DIR = mkdtempSync(join(tmpdir(), "update-workflow-state-"));
 
 function sha256(p: string): string {
   return createHash("sha256").update(readFileSync(p)).digest("hex");
@@ -33,7 +34,7 @@ function runUpdate(args: string[], env: Record<string, string> = {}): { stdout: 
     cwd: ROOT,
     encoding: "utf-8",
     timeout: 60000,
-    env: { ...process.env, ...env },
+    env: { ...process.env, HOLONOVEL_STATE_DIR: WORK_STATE_DIR, ...env },
   });
   return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", status: r.status ?? -1 };
 }
@@ -52,12 +53,6 @@ function main(): void {
   console.log("=== §6.7 Update Workflow (REQ-098) ===\n");
   const currentHash = sha256(SPEC_PATH);
   const otherHash = "f".repeat(64);
-
-  // Save the prior fingerprint state (if any) so the reconcile run does not
-  // clobber a real baseline; restore it in the finally block.
-  let original: string | null = null;
-  if (existsSync(FP_FILE)) original = readFileSync(FP_FILE, "utf-8");
-  mkdirSync(STATE_DIR, { recursive: true });
 
   try {
     // Establish a stored baseline: current spec hash + current fingerprints.
@@ -114,9 +109,8 @@ function main(): void {
     });
     rmSync(fakeDir, { recursive: true, force: true });
   } finally {
-    // Restore the prior fingerprint baseline.
-    if (original !== null) writeFileSync(FP_FILE, original);
-    else rmSync(FP_FILE, { force: true });
+    // Drop the isolated temp baseline; the live .holonovel-state was never touched.
+    rmSync(WORK_STATE_DIR, { recursive: true, force: true });
   }
 
   harnessComplete();

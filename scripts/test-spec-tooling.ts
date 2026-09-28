@@ -11,6 +11,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { readSpec, extractReqBodies, changedReqBodies } from "./lib/parse-spec.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -40,6 +41,28 @@ function main(): void {
   // SC-6 — the bundle report runs and reports a count.
   const bundles = run(["scripts/compare-spec-code.ts", "--bundles"]);
   check(/Bundle-dependent REQs \(\d+\)/.test(bundles), "compare-spec-code --bundles reports a count");
+
+  // REQ-419 — the shared body parser captures the full REQ body past the
+  // `*Acceptance criterion:*` emphasis, so a body edit cannot classify patch.
+  const baseSpec = [
+    "**REQ-900 — Alpha.**",
+    "The system SHALL do alpha.",
+    "*Acceptance criterion:* alpha happens. _Check:_ T900.",
+    "",
+    "**REQ-901 — Beta.**",
+    "The system SHALL do beta.",
+    "*Acceptance criterion:* beta happens. _Check:_ T901.",
+  ].join("\n");
+  const editedSpec = baseSpec.replace("alpha happens", "alpha always happens");
+  const changed = changedReqBodies(editedSpec, baseSpec);
+  check(changed.length === 1 && changed[0] === "900", "REQ-body edit inside an acceptance criterion is detected (REQ-419)");
+  check(changedReqBodies(baseSpec, baseSpec).length === 0, "identical specs report no REQ-body changes");
+  check(changedReqBodies(baseSpec, editedSpec).length === 1, "REQ-body diff is symmetric");
+
+  // The shared parser must cover every canonical REQ header in the assembled spec.
+  const spec = readSpec();
+  const headerCount = (spec.match(/\*\*REQ-\d{3}[a-z0-9]*\s+—/g) ?? []).length;
+  check(extractReqBodies(spec).size === headerCount, `body parser covers every REQ header (${extractReqBodies(spec).size}/${headerCount})`);
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

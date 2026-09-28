@@ -21,7 +21,11 @@ import { execSync } from "node:child_process";
 import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
 
 const root = join(import.meta.dirname, "..");
-const FINGERPRINT_FILE = ".holonovel-state/pipeline-fingerprints.json";
+// State-dir override (REQ-314): the update-workflow harness points
+// HOLONOVEL_STATE_DIR at a temp dir so a test run never touches (or restores)
+// the live pipeline baseline. Default preserves the push-pipeline path.
+const STATE_DIR = process.env.HOLONOVEL_STATE_DIR ?? join(root, ".holonovel-state");
+const FINGERPRINT_FILE = join(STATE_DIR, "pipeline-fingerprints.json");
 
 interface StoredRecord {
   server: string;
@@ -55,16 +59,15 @@ const invokeEnabled = process.env.HOLONOVEL_INVOKE_UPDATE === "1";
 let updateCommand: string | null = null;
 
 function loadStored(): Record<string, StoredRecord> {
-  const path = join(root, FINGERPRINT_FILE);
+  const path = FINGERPRINT_FILE;
   if (!existsSync(path)) return {};
   try { return JSON.parse(readFileSync(path, "utf-8")); }
-  catch { return {}; }
+  catch { /* corrupt baseline: treat as absent and let the caller rebuild it */ return {}; }
 }
 
 function saveStored(records: Record<string, StoredRecord>): void {
-  const dir = join(root, ".holonovel-state");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "pipeline-fingerprints.json"), JSON.stringify(records, null, 2));
+  mkdirSync(STATE_DIR, { recursive: true });
+  writeFileSync(FINGERPRINT_FILE, JSON.stringify(records, null, 2));
 }
 
 function loadCurrent(serverDir: string): Fingerprints {

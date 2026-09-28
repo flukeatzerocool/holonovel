@@ -41,6 +41,29 @@ export function extractReqBodies(text: string): Map<string, { id: string; body: 
   return reqs;
 }
 
+// Whitespace-normalized REQ body: the shared boundary parser captures the full
+// body (including `*Acceptance criterion:*` and `_Check:_` clauses), so body
+// comparison must collapse line-wrapping differences before diffing (REQ-419).
+export function normalizeReqBody(body: string): string {
+  return body.replace(/\s+/g, " ").trim();
+}
+
+// REQ IDs whose body differs between two spec revisions. The boundary parser is
+// robust to the `*Acceptance criterion:*` emphasis that defeats an `[^*]+?`
+// body regex (REQ-419: a REQ-body edit SHALL NOT classify as patch).
+export function changedReqBodies(current: string, stored: string): string[] {
+  const currentBodies = extractReqBodies(current);
+  const storedBodies = extractReqBodies(stored);
+  const changed: string[] = [];
+  for (const [id, entry] of currentBodies) {
+    const prev = storedBodies.get(id);
+    if (prev !== undefined && normalizeReqBody(prev.body) !== normalizeReqBody(entry.body)) {
+      changed.push(id.replace(/^REQ-/, ""));
+    }
+  }
+  return changed;
+}
+
 export function extractH2Headings(text: string): string[] {
   const headings: string[] = [];
   let inFence = false;
