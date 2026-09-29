@@ -1,0 +1,1377 @@
+{
+  "schema_version": 1,
+  "tool_count": 33,
+  "tools_list_bytes": 83130,
+  "tools": [
+    {
+      "name": "manage_adventure",
+      "title": "Adventure Management",
+      "description": "Generate, load, or list adventure content. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). generate defaults target to novel when one is active; a !force prefix bypasses the guard. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 472,
+      "action_enum": [
+        "generate",
+        "generate_encounter",
+        "load",
+        "list"
+      ],
+      "param_count": 5,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "context": "Scene context (generate_encounter).",
+        "filter": "Optional genre filter (list).",
+        "premise": "Adventure premise (generate).",
+        "slug": "Adventure module slug (load).",
+        "target": "novel, codex, or both (generate)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_agent",
+      "title": "Agent Task Management",
+      "description": "Manage durable NPC/agent tasks and their action lifecycle. Mutating actions (create, start, advance, complete, fail, cancel) persist to the Novel and are audited; list/get are read-only. Revert the most recent mutation with manage_history (action: undo); terminal tasks are immutable. Use when: creating a task (create), starting it (start), logging an action (advance), settling it (complete/fail/cancel), or inspecting tasks (list/get). Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc.",
+      "description_bytes": 569,
+      "action_enum": [
+        "create",
+        "list",
+        "get",
+        "start",
+        "advance",
+        "complete",
+        "fail",
+        "cancel"
+      ],
+      "param_count": 6,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "autonomy": "advisory, prompt, or auto (create; default the TTRPG_AGENT_AUTONOMY setting).",
+        "description": "Action description (advance).",
+        "goal": "Task goal text (create).",
+        "source_goal": "Originating goal-pursuit suggestion (create).",
+        "subject": "Entity or NPC that owns the task (create/list).",
+        "task_id": "Task id (get/start/advance/complete/fail/cancel)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_belief",
+      "title": "Belief Management",
+      "description": "Manage per-entity evidence and reconciled belief stances — one entity's subjective epistemic state, distinct from objective truth, shared lore, and raw observation. Mutating actions (admit, retract, reconcile) persist to the Novel and are audited; list/get/evidence/conflicts are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing a piece of evidence (retract), inspecting current stances (list), reading one question (get), listing supporting evidence (evidence), finding unresolved contradictions (conflicts), or forcing recomputation (reconcile). Do NOT use when: recording objective world truth — use manage_causal or manage_world; recording shared lore — use manage_lore; recording raw observation — use manage_perception; recording consumed reference material — use manage_corpus.",
+      "description_bytes": 904,
+      "action_enum": [
+        "list",
+        "get",
+        "evidence",
+        "admit",
+        "retract",
+        "conflicts",
+        "reconcile"
+      ],
+      "param_count": 11,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "entity_id": "Entity whose beliefs are queried or mutated.",
+        "evidence_id": "Evidence record id (retract).",
+        "object": "Proposition object (admit).",
+        "polarity": "positive or negative (admit).",
+        "predicate": "Proposition predicate (admit).",
+        "question": "Belief question key, or subject|predicate|object (get/evidence).",
+        "source": "Source key used to correlate duplicate evidence (admit; default the active badge).",
+        "source_ordinal": "Contributing event-log ordinal (admit; default the latest event ordinal).",
+        "status": "active, unresolved, or suppressed (admit; default active).",
+        "subject": "Proposition subject (admit).",
+        "weight": "Evidence support weight 0..1 (admit; default 1)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_causal",
+      "title": "Causal Transition Management",
+      "description": "Validate objective-state transitions against committed history — what the world accepts as true, independent of any entity's belief. Proposals are recorded in a ledger before admission; a proposal is not truth until admitted, and refused proposals are preserved as evidence. Mutating actions (propose, admit, reject, ingress) persist to the Novel and are audited; list/state are read-only. origin_source is honored only by propose; ingress always records machine. Revert the most recent mutation with manage_history (action: undo). Use when: proposing an objective change (propose), admitting or refusing a recorded proposal (admit/reject), submitting machine-originated state (ingress), inspecting the transition ledger (list), or reading admitted objective state (state). Do NOT use when: recording what an entity believes — use manage_belief; recording raw observation — use manage_perception; editing the world model directly — use manage_world.",
+      "description_bytes": 957,
+      "action_enum": [
+        "propose",
+        "admit",
+        "reject",
+        "list",
+        "state",
+        "ingress"
+      ],
+      "param_count": 10,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "domain": "location or scalar (default location).",
+        "entity": "Entity whose objective state is proposed.",
+        "expected_version": "Optimistic version guard (proposal).",
+        "from": "Expected prior value (proposal).",
+        "key": "State key within the entity.",
+        "origin_source": "narrative, machine, or ruleset (proposal).",
+        "proposal_id": "Recorded proposal id (admit/reject).",
+        "scope": "Scope coordinate (default the active Novel slug).",
+        "source_ordinal": "Contributing event-log ordinal (default the latest event).",
+        "value": "Proposed value."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_character",
+      "title": "Player Character Management",
+      "description": "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
+      "description_bytes": 640,
+      "action_enum": [
+        "create",
+        "stage",
+        "import",
+        "sheet",
+        "set_active",
+        "personality",
+        "voice",
+        "signal",
+        "remove",
+        "roster_remove",
+        "roster_list"
+      ],
+      "param_count": 24,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "ability_scores": "Ability scores (create).",
+        "background": "Backstory (create/personality).",
+        "classes": "Class levels (create).",
+        "description": "Narrative description (create/personality).",
+        "details": "Grouped mechanical details (create).",
+        "entity_id": "Entity identifier (stage/sheet/set_active/personality/voice/remove).",
+        "equipment": "Starting equipment (create).",
+        "examples": "Voice examples (voice).",
+        "feats": "Feats (create).",
+        "format": "Output format (sheet).",
+        "goals": "Character goals (create/personality).",
+        "name": "Character name; omit (create) to begin step-by-step.",
+        "personality": "Grouped personality fields (create).",
+        "pov": "Point-of-view mode (set_active).",
+        "roster_id": "Roster identifier (import/roster_remove).",
+        "seed": "Deterministic seed (create).",
+        "signal": "Feedback category (signal).",
+        "skills": "Trained skills (create).",
+        "species": "Species (create).",
+        "stage_to_roster": "Also stage into the roster (create).",
+        "stat_method": "Stat-generation method (create).",
+        "talents": "Talents (create).",
+        "value": "Feedback text (signal).",
+        "voice": "Voice and speech pattern (create/personality)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_codex",
+      "title": "Codex Library Management",
+      "description": "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+      "description_bytes": 568,
+      "action_enum": [
+        "set",
+        "list",
+        "get",
+        "capture",
+        "import",
+        "delete"
+      ],
+      "param_count": 11,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "content": "Entry content (for set).",
+        "description": "Optional description (for set).",
+        "entity_id": "Entity whose voice to capture (for capture, voice_profile kind).",
+        "entry_id": "Entry identifier (for get/import/delete); alias of `id`.",
+        "id": "Entry identifier or array of identifiers (for import/get/delete).",
+        "kind": "Entry kind (for set/list/capture).",
+        "name": "Entry name (for set).",
+        "source_id": "Novel artifact key/name/entity id to capture (for capture). Defaults per kind.",
+        "tags": "Optional tags (for set).",
+        "update_source": "When true, update the source Codex entry in place (for capture).",
+        "visibility": "library, shared, or private (for set)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_combat",
+      "title": "Combat Encounter Management",
+      "description": "Manage combat encounters in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
+      "description_bytes": 447,
+      "action_enum": [
+        "init",
+        "advance",
+        "end",
+        "add_participant",
+        "remove_participant",
+        "status"
+      ],
+      "param_count": 5,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "dangers": "Optional non-entity combatants (init).",
+        "outcome": "Optional text describing how combat ended (end).",
+        "participant_id": "Entity identifier (add_participant/remove_participant).",
+        "participants": "Entity identifiers participating (init).",
+        "seed": "Optional deterministic seed (init)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_condition",
+      "title": "Condition Management",
+      "description": "Manage mechanical or narrative conditions on entities. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
+      "description_bytes": 365,
+      "action_enum": [
+        "apply",
+        "remove",
+        "list"
+      ],
+      "param_count": 3,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "condition": "The condition name (apply/remove).",
+        "entity_id": "The entity to affect (apply/remove).",
+        "rounds": "Optional duration in rounds (apply)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_corpus",
+      "title": "Knowledge Corpus Management",
+      "description": "Manage cold reference material and per-entity knowledge acquisition — what an entity has consumed from a registered document, distinct from belief and from lore. Registered documents create no knowledge until consumed; consumption records exactly what an entity acquired. Mutation (register, route, grant, deny, access, consume) persists to the Novel and is audited; list/get/acquisitions are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: registering reference material (register), assigning its knowledge domain (route), opening or closing access (grant/deny), setting an entity's knowledge-domain profile (access), reading a document to acquire it (consume), or inspecting what an entity has acquired (acquisitions). Do NOT use when: recording beliefs — use manage_belief; recording shared world facts — use manage_lore; registering a reusable gameplay artifact — use manage_codex.",
+      "description_bytes": 934,
+      "action_enum": [
+        "register",
+        "list",
+        "get",
+        "route",
+        "grant",
+        "deny",
+        "access",
+        "consume",
+        "acquisitions"
+      ],
+      "param_count": 12,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "access_domains": "Knowledge domains granted access (register).",
+        "access_public": "Whether every entity may consume it (register; default false).",
+        "body": "Document reference text (register).",
+        "denies": "Entity ids explicitly denied access (register).",
+        "document_id": "Corpus document id (get/route/grant/deny/consume).",
+        "domain": "Knowledge domain (register/route/list).",
+        "domains": "Knowledge domains the entity may access (access).",
+        "entity_id": "Entity acquiring or inspected (consume/acquisitions/access/grant/deny).",
+        "grants": "Entity ids explicitly granted access (register).",
+        "mode": "read, research, taught, or import (consume; default read).",
+        "source_profile": "Trusted source profile the domain is routed from (register; default manual).",
+        "title": "Document title (register)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_countdown",
+      "title": "Countdown Manager",
+      "description": "Manage countdown timers in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's direction shifts NPC dispositions only when scope is also set. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone).",
+      "description_bytes": 418,
+      "action_enum": [
+        "set",
+        "advance",
+        "remove",
+        "list"
+      ],
+      "param_count": 8,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "direction": "Optional direction: increment or decrement (set).",
+        "name": "Countdown name (set/advance/remove).",
+        "on_scene_transition": "When true, advance on each scene transition (set).",
+        "scope": "Optional scope name (set).",
+        "ticks": "Starting ticks (set).",
+        "triggers": "Optional world-model triggers (set).",
+        "type": "round or narrative (set).",
+        "world_effect": "Optional world-model effect applied when the countdown fires (set)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_faction",
+      "title": "Faction Management",
+      "description": "Manage organizations in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
+      "description_bytes": 388,
+      "action_enum": [
+        "create",
+        "update",
+        "remove",
+        "list"
+      ],
+      "param_count": 6,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "description": "Optional description.",
+        "faction_id": "Faction identifier (update/remove).",
+        "goals": "Optional goals.",
+        "name": "Faction name (create).",
+        "resources": "Optional resources.",
+        "territory": "Optional territory names."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_history",
+      "title": "Undo and Redo History",
+      "description": "Undo or redo the most recent state mutation, restoring the prior per-badge snapshot. Undo reverts a mistaken or unwanted change; redo re-applies the most recently undone change. Both directions mutate Novel state and persist immediately (readOnlyHint false). Use when: reverting a mistaken change (action: undo) or restoring an undone change (action: redo). Do NOT use when: the target change is not the most recent mutation — use the entity tool that made it (e.g. manage_lore, manage_story, manage_world).",
+      "description_bytes": 509,
+      "action_enum": [
+        "undo",
+        "redo"
+      ],
+      "param_count": 0,
+      "required": [],
+      "params": {},
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_identity",
+      "title": "Identity Management",
+      "description": "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. Mutation (stage, accept, reject, bootstrap) persists the roster and is audited; list/snapshot are read-only. accept's perspective defaults to the candidate's stored perspective. Revert the most recent mutation with manage_history (action: undo); the compiled kernel is versioned. Use when: importing or authoring identity material (stage), accepting or rejecting a candidate (accept/reject), seeding from a character card (bootstrap), inspecting candidates and facets (list), or reading the compiled kernel (snapshot). Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+      "description_bytes": 798,
+      "action_enum": [
+        "stage",
+        "accept",
+        "reject",
+        "list",
+        "snapshot",
+        "bootstrap"
+      ],
+      "param_count": 8,
+      "required": [
+        "action",
+        "character_id"
+      ],
+      "params": {
+        "candidate_id": "Identity candidate id (accept/reject).",
+        "card": "Character-card fields to stage (bootstrap).",
+        "character_id": "Roster character id.",
+        "facet": "Identity facet key, e.g. name or calling (stage).",
+        "perspective": "self, biographical, public_reputation, secret, or unknown (stage/accept; default self).",
+        "source": "Provenance label for the candidate (stage; default manual).",
+        "stability": "structural, constitutional, core, or developmental (stage; default core).",
+        "value": "Identity facet value (stage)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_knowledge",
+      "title": "Derived Knowledge",
+      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore or manage_corpus; recording a relationship — use manage_relationship.",
+      "description_bytes": 887,
+      "action_enum": [
+        "index_build",
+        "index_status",
+        "index_list",
+        "index_search",
+        "index_relations",
+        "graph_build",
+        "graph_status",
+        "graph_get",
+        "graph_nodes",
+        "graph_edges",
+        "graph_neighbors"
+      ],
+      "param_count": 4,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "item_id": "Indexed item id to filter relations (index_relations).",
+        "limit": "Maximum candidates to return (index_search; default 5).",
+        "node_id": "Graph node id (graph_neighbors).",
+        "query": "Query text to rank candidates against (index_search)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_lore",
+      "title": "Lore Management",
+      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; merge or replace writes. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs — use manage_belief; recording one entity's perceptions — use manage_perception.",
+      "description_bytes": 618,
+      "action_enum": [
+        "set",
+        "update",
+        "remove",
+        "toggle",
+        "group",
+        "suggest",
+        "list",
+        "get",
+        "export",
+        "import",
+        "set_secret",
+        "reveal",
+        "secret_list",
+        "knowledge"
+      ],
+      "param_count": 12,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "badge_scope": "game_master or shared (set/update).",
+        "content": "Lore content (set/update).",
+        "data": "JSON or Markdown lorebook data (import).",
+        "entity_id": "Entity to reveal to / whose knowledge to read (reveal/knowledge).",
+        "format": "Optional output format (export).",
+        "group": "Group name, or null to clear (set/update/group).",
+        "key": "Lore key (set/update/remove/toggle/group/get).",
+        "mode": "dry-run, merge, or replace (import).",
+        "priority": "Optional priority (set/update).",
+        "sticky": "Optional sticky weight (set/update).",
+        "triggers": "Optional recall triggers (set/update).",
+        "world_target": "Optional world-model target reference (set/set_secret)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_note",
+      "title": "Note Management",
+      "description": "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's badge_scope defaults to game_master. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set).",
+      "description_bytes": 434,
+      "action_enum": [
+        "set",
+        "remove",
+        "list",
+        "set_server",
+        "remove_server",
+        "list_server"
+      ],
+      "param_count": 4,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "badge_scope": "game_master, player, or shared (set).",
+        "content": "The note content (set/set_server).",
+        "key": "The note key (set/remove/set_server/remove_server).",
+        "narrative_tag": "Optional narrative tag (set_server)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_novel",
+      "title": "Novel Save Management",
+      "description": "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; strict turns a reference-validation failure into a hard block. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note).",
+      "description_bytes": 695,
+      "action_enum": [
+        "create",
+        "resume",
+        "switch",
+        "end",
+        "export",
+        "import",
+        "rename",
+        "description",
+        "list",
+        "archive",
+        "unarchive",
+        "info",
+        "genre",
+        "clone",
+        "branch",
+        "save_context",
+        "get_context",
+        "checkpoint_set",
+        "checkpoint_list",
+        "checkpoint_restore",
+        "checkpoint_remove"
+      ],
+      "param_count": 26,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "codex_adventure": "Codex adventure to seed from (create).",
+        "current_scene": "Current-scene summary (save_context).",
+        "data": "Exported Novel JSON (import).",
+        "description": "Description (create/description).",
+        "detail": "Return full metadata (list).",
+        "filter": "active, archived, or all (list).",
+        "format": "Output format (export).",
+        "from_event": "Event-log ordinal to branch from (branch; default latest).",
+        "genre": "Genre tag (create/genre).",
+        "immediate_situation": "Immediate situation (save_context).",
+        "include_checkpoints": "Include checkpoints in export (default false; export).",
+        "label": "Checkpoint label (checkpoint_set/list/restore/remove).",
+        "long_term_plans": "Long-term plans (save_context).",
+        "mode": "dry-run, merge, or replace (import).",
+        "name": "Novel name (create).",
+        "new_name": "Name for the copy or branch (clone/branch).",
+        "new_slug": "New slug (rename).",
+        "pending_player_action": "Pending player action (save_context).",
+        "player_goals": "Player goals (save_context).",
+        "ruleset": "Ruleset slug (create).",
+        "scope": "Export scope (export).",
+        "short_term_plans": "Short-term plans (save_context).",
+        "slug": "Novel slug (resume/switch/archive/unarchive/info).",
+        "source_slug": "Novel to copy or branch from (clone/branch).",
+        "strict": "Fail on any cross-reference mismatch (import).",
+        "trim_audit_sessions": "Keep only the most recent N sessions' audit entries in the clone (clone; default full copy)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_npc",
+      "title": "NPC Management",
+      "description": "Manage non-player characters in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+      "description_bytes": 380,
+      "action_enum": [
+        "create",
+        "update",
+        "remove",
+        "list",
+        "get"
+      ],
+      "param_count": 8,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "description": "Optional description.",
+        "disposition": "Optional disposition.",
+        "goals": "Optional goals.",
+        "location": "Optional location.",
+        "mind": "Optional GM-only NPC mind (create/update).",
+        "name": "NPC name (create).",
+        "npc_id": "NPC identifier (update/remove/get).",
+        "ruleset_reference": "Optional ruleset stat-block reference (create)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_perception",
+      "title": "Perception Ledger Management",
+      "description": "Record and read what an entity perceived — messages, scene changes, and observations — as an append-only ledger distinct from belief. Mutation (record) persists to the Novel and is audited; list/for_entity/for_event are read-only. Use when: recording that an entity perceived something (record), listing perceptions (list), or reading an entity's or an event's perceptions (for_entity/for_event). Do NOT use when: recording what an entity believes — use manage_belief; recording shared world facts — use manage_lore; recording observations for provenance — use manage_session (action: event).",
+      "description_bytes": 602,
+      "action_enum": [
+        "record",
+        "list",
+        "for_entity",
+        "for_event"
+      ],
+      "param_count": 4,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "entity_id": "Entity that perceived (record/for_entity).",
+        "event_ordinal": "Contributing event-log ordinal (record/for_event; defaults to the latest event).",
+        "kind": "message, scene, or observation (record; default observation).",
+        "summary": "What was perceived (record)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_relationship",
+      "title": "Relationship Management",
+      "description": "Manage directed relationships between entities, NPCs, or factions. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use manage_faction (action: update).",
+      "description_bytes": 365,
+      "action_enum": [
+        "set",
+        "get"
+      ],
+      "param_count": 6,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "description": "Optional description (set).",
+        "entity_a": "The source entity (set).",
+        "entity_b": "The target entity (set).",
+        "entity_id": "Entity whose relationships to list (get).",
+        "type": "Relationship type (set).",
+        "value": "Optional relationship strength (set)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_ruleset",
+      "title": "Ruleset Package Management",
+      "description": "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
+      "description_bytes": 813,
+      "action_enum": [
+        "search",
+        "install",
+        "remove",
+        "list",
+        "bind",
+        "roll",
+        "import_supplementary",
+        "remove_supplementary"
+      ],
+      "param_count": 13,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "index": "Search index (install).",
+        "manifest": "Package manifest (install).",
+        "max_results": "Maximum results (search).",
+        "model": "Extraction model (install).",
+        "prompts": "Prompts (install).",
+        "query": "Search query (search).",
+        "resources": "Resources (install).",
+        "seed": "Deterministic seed (roll).",
+        "slug": "Ruleset slug (install/remove/bind/import_supplementary/remove_supplementary).",
+        "source": "Supplementary Markdown source path (import_supplementary).",
+        "table": "Generation table to roll on (roll).",
+        "tools": "Tool schemas (install).",
+        "wisdom": "Inline supplementary Wisdom items (import_supplementary)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_scene",
+      "title": "Scene Management",
+      "description": "Manage the active scene and its narrative framing. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set derives the description from location only when description is omitted. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 536,
+      "action_enum": [
+        "set",
+        "directive",
+        "presence",
+        "autonomy",
+        "choices",
+        "oracle"
+      ],
+      "param_count": 22,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "adventure_scene": "Adventure-scene waypoint anchor; empty or null clears (set).",
+        "allow_freeform": "Allow free-form response (choices).",
+        "atmosphere": "Atmosphere (set).",
+        "beat": "Story-beat tag (set).",
+        "choices": "List of choices (choices).",
+        "confirmation": "Confirmation mode (autonomy).",
+        "context": "Context for the choice (choices).",
+        "creativity": "Creativity (autonomy).",
+        "description": "Scene description (set).",
+        "directive": "Narrative directive (directive).",
+        "entity_ids": "Entities present (presence).",
+        "fast_forward": "Narrative fast-forward (set).",
+        "level": "Autonomy level (autonomy).",
+        "likelihood": "Likelihood tier (oracle).",
+        "location": "Scene location (set).",
+        "prompt": "Choice prompt (choices).",
+        "question": "Question to resolve (oracle).",
+        "safety": "Safety tier (autonomy).",
+        "scene_type": "Scene-type tag or array (set).",
+        "seed": "Deterministic seed (oracle).",
+        "skip_transition_hook": "Skip the scene-transition hook (set).",
+        "time_of_day": "Time of day (set)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_session",
+      "title": "Session Management",
+      "description": "Manage session-level surfaces, diagnostics, and tool discovery. event with supersede appends a replacement and marks that ordinal superseded. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
+      "description_bytes": 844,
+      "action_enum": [
+        "recap",
+        "verbosity",
+        "briefing_order",
+        "compress",
+        "compact",
+        "health",
+        "subscribe",
+        "discover",
+        "category",
+        "event",
+        "history"
+      ],
+      "param_count": 15,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "category": "New category label, or null/empty to restore the default (category).",
+        "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
+        "include_superseded": "Include superseded events (history; default true).",
+        "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
+        "mode": "normal or terse (verbosity).",
+        "query": "Optional search term matched against tool name, description, and title (discover).",
+        "sections": "Ordered list of briefing sections (briefing_order).",
+        "session_id": "Archived session id to include in recap (recap).",
+        "sessions": "Number of recent sessions to retain live; triggers irreversible compaction (compact; default TTRPG_AUDIT_RETENTION_SESSIONS).",
+        "source": "Event source classification (event).",
+        "supersede": "Ordinal of an event this observation replaces (event).",
+        "text": "Observation text (event).",
+        "through_ordinal": "Return events up to and including this ordinal (history).",
+        "tool_name": "Registered tool name to reassign (category).",
+        "topics": "Notification topics to subscribe to (subscribe)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_story",
+      "title": "Story Journal Management",
+      "description": "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). promote uses index and writes lore under key (default derived). Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use manage_lore (action: set).",
+      "description_bytes": 488,
+      "action_enum": [
+        "record",
+        "update",
+        "remove",
+        "list",
+        "promote"
+      ],
+      "param_count": 7,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "entry": "Story entry text (record/update).",
+        "filter": "Optional type filter (list).",
+        "index": "Story entry index (update/remove/promote).",
+        "key": "Optional lore key (promote).",
+        "limit": "Optional page size (list).",
+        "offset": "Optional pagination offset (list).",
+        "type": "Story entry type (record/update)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_synthesis",
+      "title": "Synthesis Management",
+      "description": "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
+      "description_bytes": 510,
+      "action_enum": [
+        "run",
+        "revert",
+        "list",
+        "activate",
+        "deactivate",
+        "toggle",
+        "toggle_action",
+        "player_add",
+        "player_remove",
+        "player_list"
+      ],
+      "param_count": 8,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "badge_scope": "shared or player (player_add).",
+        "content": "Item content (player_add).",
+        "detail": "Return full entries (list).",
+        "enabled": "Enable or disable (toggle).",
+        "force": "Re-run even if unchanged (run).",
+        "key": "Item key (activate: number; player_add/player_remove: string).",
+        "module": "Synthesis module (activate/deactivate/toggle/player_*/list).",
+        "triggers": "Recall triggers (player_add)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_vow",
+      "title": "Vow Management",
+      "description": "Track narrative vows, quests, and obligations with milestones. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's difficulty sets the rank track and the linked countdown's ticks; scope defaults to shared. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
+      "description_bytes": 470,
+      "action_enum": [
+        "set",
+        "milestone",
+        "resolve",
+        "forsake",
+        "list"
+      ],
+      "param_count": 9,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "consequences": "Optional consequences (resolve).",
+        "description": "Vow description (set).",
+        "difficulty": "troublesome, dangerous, formidable, extreme, or epic (set).",
+        "name": "Vow name (set).",
+        "outcome": "The resolution outcome (resolve).",
+        "parties": "Parties bound by the vow (set).",
+        "reason": "The reason for abandoning (forsake).",
+        "scope": "game_master, shared, faction, or party (set).",
+        "vow_name": "Vow name (milestone/resolve/forsake)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_world",
+      "title": "World Model Management",
+      "description": "Manage the world model — rooms, things, and exits. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). create_thing honors location_type only when location is set; kind forces property defaults. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve).",
+      "description_bytes": 498,
+      "action_enum": [
+        "create_room",
+        "update_room",
+        "remove_room",
+        "create_thing",
+        "update_thing",
+        "remove_thing",
+        "create_exit",
+        "remove_exit",
+        "convert",
+        "generate"
+      ],
+      "param_count": 26,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "climbable": "When true the thing can be climbed (create_thing/update_thing).",
+        "description": "Optional description (create/update).",
+        "direction": "Direction (create_exit/remove_exit).",
+        "drinkable": "When true the thing can be drunk (create_thing/update_thing).",
+        "edible": "When true the thing can be eaten (create_thing/update_thing).",
+        "enterable": "When true the thing can be entered (create_thing/update_thing).",
+        "fixed": "When true the thing cannot be taken (create_thing/update_thing).",
+        "kind": "Optional thing kind (create_thing).",
+        "lit": "When true the thing is lit (create_thing/update_thing).",
+        "location": "Optional containing room or thing (create_thing/update_thing).",
+        "location_type": "Where the thing is placed (create_thing).",
+        "lockable": "When true the thing can be locked (create_thing/update_thing).",
+        "locked": "When true the thing starts locked (create_thing/update_thing).",
+        "name": "Room/thing name (create/update/remove).",
+        "openable": "When true the thing can be opened (create_thing/update_thing).",
+        "read_text": "Text revealed when the thing is read (create_thing/update_thing).",
+        "readable": "When true the thing can be read (create_thing/update_thing).",
+        "room": "Source room (create_exit/remove_exit).",
+        "room_a": "Source room (create_exit).",
+        "room_b": "Destination room (create_exit).",
+        "seed": "Deterministic seed (generate).",
+        "source": "Hybrid world-model source text (convert).",
+        "switchable": "When true the thing can be switched (create_thing/update_thing).",
+        "switched_on": "When true the thing is switched on (create_thing/update_thing).",
+        "transparent": "When true the thing is transparent (create_thing/update_thing).",
+        "wearable": "When true the thing can be worn (create_thing/update_thing)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "resolve_fate",
+      "title": "Resolve Fate Actions",
+      "description": "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. stress with neither track nor consequence clears all tracks and consequences. Rolls and their state writes are recorded and are not individually reversible. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or run_command (action: resolve).",
+      "description_bytes": 649,
+      "action_enum": [
+        "roll",
+        "aspect",
+        "fate_point",
+        "stress"
+      ],
+      "param_count": 13,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "amount": "Fate points to spend or grant (fate_point); defaults to 1.",
+        "consequence": "Consequence to record or clear (stress).",
+        "dice": "Fudge dice notation (roll), e.g. '4dF'; defaults to 4dF.",
+        "difficulty": "Opposition to beat (roll); defaults to 0.",
+        "entity_id": "Entity or NPC id (aspect/fate_point/stress).",
+        "modifier": "Skill rating added to the roll (roll).",
+        "name": "Aspect name (aspect); consequence label (stress).",
+        "op": "Sub-operation: aspect (create, invoke, compel, remove, list), fate_point (spend, grant, refresh, list), or stress (mark, clear, list).",
+        "seed": "Deterministic seed (roll).",
+        "shifts": "Shifts to mark on a stress track (stress); defaults to 1.",
+        "skill": "Skill name for the roll label (roll).",
+        "target": "Aspect target: 'scene' or an entity/NPC id (aspect); defaults to 'scene'.",
+        "track": "Stress track to mark or clear (stress)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "resolve_forged",
+      "title": "Forged in the Dark",
+      "description": "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. action_roll with dice 0 rolls the lower of two d6; stress name labels the resist consequence or the trauma mark. Rolls and their state writes are recorded and are not individually reversible. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use manage_countdown (action: set).",
+      "description_bytes": 675,
+      "action_enum": [
+        "action_roll",
+        "stress",
+        "downtime"
+      ],
+      "param_count": 9,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "amount": "Stress to mark or clear (stress/downtime); defaults to 1.",
+        "cost": "Stress cost to resist (stress); defaults to 2.",
+        "dice": "Dice pool size (action_roll); defaults to 2.",
+        "effect": "Effect (action_roll); defaults to standard.",
+        "entity_id": "Entity or NPC id (stress/downtime).",
+        "name": "Action name (action_roll) or consequence label (stress resist).",
+        "op": "Sub-operation: stress (mark, clear, resist, list), downtime (recover, indulge_vice, list).",
+        "position": "Position (action_roll); defaults to risky.",
+        "seed": "Deterministic seed (action_roll)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "resolve_ironsworn",
+      "title": "Resolve Ironsworn Moves",
+      "description": "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. move's burn replaces the action die with momentum and ignores adds; progress rank defaults to dangerous. Rolls and their state writes are recorded and are not individually reversible. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use manage_vow (action: set).",
+      "description_bytes": 616,
+      "action_enum": [
+        "momentum",
+        "move",
+        "progress"
+      ],
+      "param_count": 9,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "adds": "Stat and bonuses added to the action die (move).",
+        "amount": "Amount to set/gain/lose (momentum); defaults to 1.",
+        "burn": "Burn momentum to replace the action score (move).",
+        "entity_id": "Entity or NPC id (momentum, move burn).",
+        "name": "Move name (move) or progress-track name (progress).",
+        "op": "Sub-operation: momentum (set, gain, lose, reset, list), progress (create, mark, test, list).",
+        "rank": "Progress-track rank (progress).",
+        "seed": "Deterministic seed (move, progress test).",
+        "ticks": "Progress to mark (progress); defaults to 1."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "respond_decision",
+      "title": "Respond to Workflow Decision",
+      "description": "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
+      "description_bytes": 261,
+      "action_enum": [],
+      "param_count": 2,
+      "required": [
+        "decision",
+        "option"
+      ],
+      "params": {
+        "decision": "The canonical decision text the workflow is waiting on.",
+        "option": "The chosen option, or 'cancel' to abort the workflow and restore its snapshot."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "run_command",
+      "title": "Parser Command",
+      "description": "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state; resolve and suggest are read-only. execute persists to the Novel and is reversible with manage_history (action: undo); resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
+      "description_bytes": 542,
+      "action_enum": [
+        "execute",
+        "resolve",
+        "suggest"
+      ],
+      "param_count": 3,
+      "required": [],
+      "params": {
+        "command": "The natural-language command (execute).",
+        "entity_id": "Optional entity context (suggest).",
+        "intent": "The intent to resolve or map (resolve/suggest)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "set_badge",
+      "title": "Set Active Badge",
+      "description": "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
+      "description_bytes": 289,
+      "action_enum": [],
+      "param_count": 1,
+      "required": [
+        "badge"
+      ],
+      "params": {
+        "badge": "The badge to activate: player, game_master, observer, or none (Editor)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "category": "",
+      "gate": ""
+    }
+  ]
+}

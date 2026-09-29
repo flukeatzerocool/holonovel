@@ -23,6 +23,9 @@ else
     npx tsx scripts/version-check.ts
     npx tsx scripts/spec-delta.ts --report-only
     npm run check-fingerprint-sync
+    npm run check-tool-definitions-sync
+    npm run tool-definitions-lint
+    npm run tool-citation-check
     npm run lint && npm run validate-readme
 fi
 npx tsx scripts/check-guarded-rule-change.ts

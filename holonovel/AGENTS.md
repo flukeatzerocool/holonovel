@@ -38,7 +38,7 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 34 action-discriminator tools, 38 resources and 21 resource templates, 5 prompts.
+src/index.ts            McpServer: 33 action-discriminator tools, 38 resources and 21 resource templates, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
                         Narrative-intent verbs (ask/tell/give/show/throw) and
@@ -47,7 +47,7 @@ src/index.ts            McpServer: 34 action-discriminator tools, 38 resources a
                         [vehicle-entry]/[vehicle-exit] story-journal moments).
 ```
 
-## Tool Surface (34 tools — the REQ-429 recorded budget in DECISIONS.md)
+## Tool Surface (33 tools — the REQ-429 recorded budget in DECISIONS.md)
 
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
 - **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
@@ -74,8 +74,7 @@ src/index.ts            McpServer: 34 action-discriminator tools, 38 resources a
 - **manage_identity** (action: stage/accept/reject/list/snapshot/bootstrap) — Roster-tier character identity: staged candidates, accepted facets, versioned kernel (REQ-473–REQ-483)
 - **manage_causal** (action: propose/admit/reject/list/state/ingress) — objective-state transition validation and the transition ledger (REQ-484–REQ-495)
 - **manage_corpus** (action: register/list/get/route/grant/deny/access/consume/acquisitions) — cold reference material and per-entity knowledge acquisition (REQ-496–REQ-503)
-- **manage_index** (action: build/status/list/search/relations) — derived offline semantic index; advisory ranking only (REQ-504–REQ-509)
-- **manage_graph** (action: build/status/get/nodes/edges/neighbors) — derived JSON knowledge-graph projection; read-only (REQ-510–REQ-514)
+- **manage_knowledge** (action: index_build/index_status/index_list/index_search/index_relations/graph_build/graph_status/graph_get/graph_nodes/graph_edges/graph_neighbors) — derived semantic index (REQ-504–REQ-509) and knowledge-graph projection (REQ-510–REQ-514); in-memory, advisory, read-only reads
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)
 - **manage_perception** (action: record/list/for_entity/for_event) — per-entity perception ledger, observed not believed (REQ-540–REQ-545)
 - **resolve_fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
@@ -85,7 +84,7 @@ src/index.ts            McpServer: 34 action-discriminator tools, 38 resources a
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) as explicit booleans, set in the `TOOL_ANNOTATIONS` map in
-`src/index.ts`. All 34 tools are command/hybrid (`destructiveHint: true`);
+`src/index.ts`. All 33 tools are command/hybrid (`destructiveHint: true`);
 `openWorldHint` is `false` everywhere (REQ-051 — no network). Registering a host
 tool without a map entry throws at startup; ruleset-derived tools (REQ-379)
 compute their hints from `schema.kind`. Adding a tool requires a corresponding
