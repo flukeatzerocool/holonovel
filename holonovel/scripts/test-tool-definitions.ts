@@ -173,7 +173,7 @@ async function main() {
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
   await test("T511/REQ-429: server-wide action-discriminator surface within the recorded tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
-    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_index", "manage_graph", "manage_agent", "manage_perception", "manage_session"];
+    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_knowledge", "manage_agent", "manage_perception", "manage_session"];
     for (const name of requiredEntityTools) {
       assert(toolNames.has(name), `missing entity tool '${name}'`);
     }
@@ -184,7 +184,7 @@ async function main() {
       manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_fate: ["roll", "aspect", "fate_point", "stress"],
       resolve_ironsworn: ["momentum", "move", "progress"], resolve_forged: ["action_roll", "stress", "downtime"],
       manage_belief: ["list", "get"], manage_identity: ["list", "snapshot"], manage_causal: ["list", "state"],
-      manage_corpus: ["list", "get"], manage_index: ["status", "list"], manage_graph: ["status", "get", "nodes", "edges"],
+      manage_corpus: ["list", "get"], manage_knowledge: ["index_status", "index_list", "graph_status", "graph_get", "graph_nodes", "graph_edges"],
       manage_agent: ["list", "get"], manage_perception: ["list"], manage_session: ["event", "history"],
     };
     for (const [name, actions] of Object.entries(readActionHints)) {
@@ -234,7 +234,7 @@ async function main() {
   // ── T642 (REQ-024c, REQ-548b): tool-definition authoring standard — no
   // schema-restating parameter enumeration, title length, description budget,
   // and documented output-schema fields.
-  await test(`T642/REQ-024c+REQ-548b: all ${tools.length} tools meet the authoring standard`, () => {
+  await test(`T642/REQ-024c+REQ-548b: all ${tools.length} tools meet the authoring standard`, async () => {
     const budget = recordedDescriptionBudget();
     const defects: string[] = [];
     for (const t of tools) {
@@ -254,6 +254,11 @@ async function main() {
     }
     assert(defects.length === 0, `${defects.length} authoring-standard defects:\n  ${defects.slice(0, 20).join("\n  ")}`);
     console.log(`    (${tools.length} tools within ${budget}B budget; output fields documented)`);
+    // REQ-450/REQ-025 — runtime mirror of the static lint, reported in spec_health.
+    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const q = health.host_tool_quality;
+    assert(q && typeof q.checked === "number", "spec_health.host_tool_quality missing");
+    assert(q.defective === 0, `host tool quality defects: ${JSON.stringify(q.defects)}`);
   });
 
   // ── T151 (REQ-137a/REQ-137b): the DECISIONS.md gate-classification table

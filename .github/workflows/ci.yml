@@ -31,3 +31,9 @@ jobs:
       - name: Audit server production dependencies
         working-directory: holonovel
         run: npm audit --omit=dev --audit-level=high
+      - name: Install server dependencies
+        working-directory: holonovel
+        run: npm ci
+      - name: Server tool-definition + security harnesses (REQ-427/REQ-429/REQ-450)
+        working-directory: holonovel
+        run: npm run test:tool-definitions && npm run test:security

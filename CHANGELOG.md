@@ -1,5 +1,55 @@
 # Changelog
 
+## 2026-09-28 — TDQS conformance: description fixes, derived-surface merge, enforcement layer
+
+- **Tool-definition authoring fixes (REQ-024a, REQ-024c, REQ-450).** The blanket
+  "list/get actions are read-only" clause was inaccurate for the 17 tools whose
+  enums carry no `get`; it now reads "read-only actions do not mutate state."
+  Every mutating tool discloses reversibility ("Revert the most recent mutation
+  with manage_history (action: undo)"). The epistemic cluster (manage_lore,
+  manage_belief, manage_perception, manage_corpus, manage_causal) gained explicit
+  opening scope and cross-sibling "Do NOT use when" references; manage_character
+  names its `personality{}`/`details{}` alias groups; manage_novel names its
+  sibling entity tools. The description budget rises 800 → 900 bytes (recorded in
+  DECISIONS.md) to carry the additive semantics; longest host description is 866 B.
+- **Derived-surface merge (REQ-429).** `manage_index` and `manage_graph` — both
+  derived, session-scoped, non-persisted, read-only surfaces — merged into
+  `manage_knowledge` (action: index_build/index_status/index_list/index_search/
+  index_relations and graph_build/graph_status/graph_get/graph_nodes/graph_edges/
+  graph_neighbors). Recorded tool budget 34 → 33; the one-tool-per-persisted-
+  entity-type discipline is unchanged. The DECISIONS.md consolidation deferral is
+  resolved on the basis of the published Glama TDQS coherence finding.
+- **TDQS enforcement layer (REQ-024c, REQ-429, REQ-450).** New gates wired into
+  `check:fast`, `check`, `.githooks/pre-commit`, and `build-order`:
+  `check-tool-definitions-sync` (freshness of the committed
+  `holonovel/tool-definitions.json` snapshot, emitted by
+  `holonovel/scripts/generate-tool-definitions.ts`), `tool-definitions-lint`
+  (static three-clause, non-tautology, sibling-reference, `verb_noun` naming,
+  budget, and output-field checks), and `tool-citation-check` (every
+  `tool (action: …)` citation in the assembled spec resolves to a registered tool
+  and action). `spec_health.host_tool_quality` mirrors the static checks at
+  runtime. `scripts/tool-definitions-heuristics.ts` reports the behavioral-
+  disclosure and near-duplicate classes (12 and 1 findings; both assessed and kept
+  report-only). GitHub CI and `.githooks/pre-push` now run
+  `test:tool-definitions` and `test:security`.
+- **Disclosure gate + interaction clauses (REQ-024c, REQ-450).** The
+  behavioral-disclosure class was promoted from report-only to a deterministic
+  gate in `scripts/tool-definitions-lint.ts`: an action-bearing tool's
+  description must carry a persistence token and a reversibility token from the
+  recorded vocabulary, so a new tool cannot ship without disclosing side effects.
+  Handler-verified cross-parameter interaction clauses were added to 25 of 31
+  action tools (`manage_world` `location_type`/`location`; `resolve_ironsworn`
+  `burn`/`adds`; `manage_session` `supersede`; `manage_novel` `import`
+  `mode`/`strict`; `manage_vow` `difficulty`; `manage_ruleset`
+  `import_supplementary` `wisdom`/`source`; and others). Parameter Semantics
+  stays report-only at 25/31 coverage — a parameter-name predicate false-positives
+  on the required alias clause. Description budget 900 → 1000 bytes.
+- **Verification:** `cd holonovel && npm run test:tool-definitions` → 9/9 (33
+  tools); `test:index` 6/6, `test:graph` 5/5, `test:help` 7/7, `test:briefing` 7/7,
+  `test:persistence-guardrails` 12/12, `test:security` 7/7, `test:lean-narrator`
+  10/10, `test:output-contracts` 237/237, `npx tsc --noEmit` → 0 errors.
+
+
 ## 2026-09-28 — Roadmap closure: spec-delta body detection, parallel suite, `engines` floor
 
 - **Spec-delta REQ-body detection (REQ-419).** `scripts/spec-delta.ts`'s private

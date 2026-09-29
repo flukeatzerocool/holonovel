@@ -49,8 +49,8 @@ async function main() {
     await call(p, "manage_lore", { action: "set", key: "dragon", content: "a dragon", badge_scope: "shared" });
     let bc = (await health(p)).briefing_consistency;
     assert(bc.index === "unbuilt" && bc.graph === "unbuilt", "expected unbuilt: " + JSON.stringify(bc));
-    await call(p, "manage_index", { action: "build" });
-    await call(p, "manage_graph", { action: "build" });
+    await call(p, "manage_knowledge", { action: "index_build" });
+    await call(p, "manage_knowledge", { action: "graph_build" });
     bc = (await health(p)).briefing_consistency;
     assert(bc.index === "current" && bc.graph === "current", "expected current: " + JSON.stringify(bc));
     await call(p, "manage_lore", { action: "set", key: "tower", content: "a tower", badge_scope: "shared" });
@@ -91,7 +91,7 @@ async function main() {
   await test("T626/REQ-521: staleness is an advisory and the briefing still renders", async () => {
     const p = await boot(); await newNovel(p, "bc7");
     await call(p, "manage_lore", { action: "set", key: "dragon", content: "a dragon", badge_scope: "shared" });
-    await call(p, "manage_index", { action: "build" });
+    await call(p, "manage_knowledge", { action: "index_build" });
     await call(p, "manage_lore", { action: "set", key: "tower", content: "a tower", badge_scope: "shared" });
     const bc = (await health(p)).briefing_consistency;
     assert(typeof bc.advisory === "string" && bc.advisory.includes("stale"), "stale advisory missing: " + JSON.stringify(bc));

@@ -114,7 +114,7 @@ async function main() {
       await call(proc, "manage_scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);
       assertContains(b, "Persistence tools");
-      for (const tool of ["manage_scene (set)", "manage_story (record)", "manage_countdown (set)", "manage_note (set)", "manage_character (personality)", "manage_npc (create)", "manage_vow (set)", "manage_session (event)", "manage_belief (admit)", "manage_identity (accept)", "manage_causal (propose)", "manage_corpus (register)", "manage_index (build)", "manage_graph (build)", "manage_agent (create)", "manage_perception (record)", "resolve_fate (aspect)", "resolve_ironsworn (momentum)", "resolve_forged (stress)"]) {
+      for (const tool of ["manage_scene (set)", "manage_story (record)", "manage_countdown (set)", "manage_note (set)", "manage_character (personality)", "manage_npc (create)", "manage_vow (set)", "manage_session (event)", "manage_belief (admit)", "manage_identity (accept)", "manage_causal (propose)", "manage_corpus (register)", "manage_knowledge (index_build/graph_build)", "manage_agent (create)", "manage_perception (record)", "resolve_fate (aspect)", "resolve_ironsworn (momentum)", "resolve_forged (stress)"]) {
         if (!b.includes(tool)) throw new Error(`missing persist tool ${tool}`);
       }
     });

@@ -201,6 +201,14 @@ if (holoSrcChanged) {
   steps.push({ label: "4. Typecheck holonovel", fn: () => skip("4. Typecheck holonovel", "holonovel/src/ unchanged") });
 }
 
+// Step 4b: Regenerate the tool-definitions snapshot (REQ-450) — depends on
+// holonovel/src so `check-tool-definitions-sync` stays green after an edit.
+if (holoSrcChanged || !existsSync(join(root, "holonovel", "tool-definitions.json"))) {
+  steps.push({ label: "4b. Regenerate tool definitions", fn: () => run("4b. Regenerate tool definitions", "npx tsx holonovel/scripts/generate-tool-definitions.ts") });
+} else {
+  steps.push({ label: "4b. Regenerate tool definitions", fn: () => skip("4b. Regenerate tool definitions", "holonovel/src/ unchanged") });
+}
+
 // Step 5: Version-bump — always runs so a new CHANGELOG entry advances the
 // CalVer and every reference in one pass (version-bump self-computes the target;
 // REQ-107a). It is idempotent when the version is already current.

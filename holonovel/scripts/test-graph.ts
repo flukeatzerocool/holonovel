@@ -26,8 +26,8 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
 async function mkChar(p: any, name: string): Promise<string> { const r = await call(p, "manage_character", { action: "create", name }); const m = r.match(/Entity id (\S+?)\./); if (!m) throw new Error("char create failed: " + r.slice(0, 120)); return m[1]; }
-async function build(p: any) { return call(p, "manage_graph", { action: "build" }); }
-async function graph(p: any): Promise<any> { return JSON.parse(await call(p, "manage_graph", { action: "get" })); }
+async function build(p: any) { return call(p, "manage_knowledge", { action: "graph_build" }); }
+async function graph(p: any): Promise<any> { return JSON.parse(await call(p, "manage_knowledge", { action: "graph_get" })); }
 
 async function main() {
   // ── T600: derived projection (REQ-510) ───────────────────────────────
@@ -79,11 +79,11 @@ async function main() {
     const p = await boot(); await newNovel(p, "kg4");
     await call(p, "manage_lore", { action: "set", key: "a", content: "one", badge_scope: "shared" });
     await build(p);
-    assert((await call(p, "manage_graph", { action: "status" })).includes("current"), "fresh graph reported stale");
+    assert((await call(p, "manage_knowledge", { action: "graph_status" })).includes("current"), "fresh graph reported stale");
     await call(p, "manage_lore", { action: "set", key: "b", content: "two", badge_scope: "shared" });
-    assert((await call(p, "manage_graph", { action: "status" })).includes("STALE"), "changed sources not flagged stale");
+    assert((await call(p, "manage_knowledge", { action: "graph_status" })).includes("STALE"), "changed sources not flagged stale");
     await build(p);
-    assert((await call(p, "manage_graph", { action: "status" })).includes("current"), "rebuild did not clear staleness");
+    assert((await call(p, "manage_knowledge", { action: "graph_status" })).includes("current"), "rebuild did not clear staleness");
     await kill(p);
   });
 

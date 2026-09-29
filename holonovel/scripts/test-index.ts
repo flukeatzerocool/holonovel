@@ -26,8 +26,8 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
 async function lore(p: any, key: string, content: string, badge_scope = "shared", triggers: string[] = []) { return call(p, "manage_lore", { action: "set", key, content, badge_scope, triggers }); }
-async function build(p: any) { return call(p, "manage_index", { action: "build" }); }
-async function search(p: any, query: string, limit = 5): Promise<any[]> { const t = await call(p, "manage_index", { action: "search", query, limit }); try { return JSON.parse(t); } catch { return []; } }
+async function build(p: any) { return call(p, "manage_knowledge", { action: "index_build" }); }
+async function search(p: any, query: string, limit = 5): Promise<any[]> { const t = await call(p, "manage_knowledge", { action: "index_search", query, limit }); try { return JSON.parse(t); } catch { return []; } }
 
 async function main() {
   // ── T594: offline build (REQ-504) ────────────────────────────────────
@@ -36,7 +36,7 @@ async function main() {
     await lore(p, "dragon", "the red dragon guards the pass");
     const r = await build(p);
     assert(/Indexed \d+ item/.test(r), "build did not report items: " + r.slice(0, 100));
-    const list = JSON.parse(await call(p, "manage_index", { action: "list" }));
+    const list = JSON.parse(await call(p, "manage_knowledge", { action: "index_list" }));
     const rec = list.find((i: any) => i.id === "lore:dragon");
     assert(rec && rec.type === "lore", "indexed lore not listed: " + JSON.stringify(list));
     await kill(p);
@@ -47,11 +47,11 @@ async function main() {
     const p = await boot(); await newNovel(p, "ix2");
     await lore(p, "dragon", "the red dragon guards the pass");
     await build(p);
-    assert((await call(p, "manage_index", { action: "status" })).includes("current"), "fresh index reported stale");
+    assert((await call(p, "manage_knowledge", { action: "index_status" })).includes("current"), "fresh index reported stale");
     await lore(p, "tower", "a lonely tower on the moor");
-    assert((await call(p, "manage_index", { action: "status" })).includes("STALE"), "changed sources not flagged stale");
+    assert((await call(p, "manage_knowledge", { action: "index_status" })).includes("STALE"), "changed sources not flagged stale");
     await build(p);
-    assert((await call(p, "manage_index", { action: "status" })).includes("current"), "rebuild did not clear staleness");
+    assert((await call(p, "manage_knowledge", { action: "index_status" })).includes("current"), "rebuild did not clear staleness");
     await kill(p);
   });
 
@@ -74,7 +74,7 @@ async function main() {
     await lore(p, "dragon_a", "the red dragon guards the northern mountain pass");
     await lore(p, "dragon_b", "the red dragon guards the northern mountain pass");
     await build(p);
-    const rels = JSON.parse(await call(p, "manage_index", { action: "relations" }));
+    const rels = JSON.parse(await call(p, "manage_knowledge", { action: "index_relations" }));
     assert(rels.some((r: any) => r.relation === "equivalent" || r.relation === "related"), "no relation derived: " + JSON.stringify(rels));
     await kill(p);
   });

@@ -128,7 +128,7 @@ async function main() {
     for (const name of ["manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_agent", "manage_perception"]) {
       assertNotContains(h, name, `T62c GM-only ${name} hidden from player`);
     }
-    for (const name of ["manage_index", "manage_graph"]) {
+    for (const name of ["manage_knowledge"]) {
       assertContains(h, name, `T62c player-readable ${name} discoverable`);
     }
     await kill(p);

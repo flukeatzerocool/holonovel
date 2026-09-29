@@ -72,6 +72,15 @@ else
 
     echo "  spec checks (lint, validate, audit, scan)..."
     npm run check
+
+    echo "  server tool-definition + security harnesses..."
+    (cd holonovel && npm run test:tool-definitions && npm run test:security) || {
+        echo ""
+        echo "BLOCKED: server tool-definition/security harnesses failed."
+        echo "Fix the tool surface or annotations, then re-run."
+        echo ""
+        exit 1
+    }
 fi
 
 echo "  implementation-coverage strict gate..."
