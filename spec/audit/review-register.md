@@ -457,6 +457,17 @@ pass and completion-oracle green. Fix evidence: regression tests in
 - **Character-creation package contract (P1, 2026-09-30):** REQ-399a now
   requires the character-creation model to declare every damage-tracking
   resource a ruleset defines (hit points, a damage threshold, a metacurrency).
+- **SWSE sheets lacked HP/Damage Threshold/Force Points on a fresh install
+  (P1, 2026-09-30):** the installed `swse` package declared only the three
+  defenses, closed by a hand edit of `model.json`. The `character_creation`
+  block is now an authored build source
+  (`scripts/ruleset-builds/swse/character_creation.json`) applied during
+  packaging by `scripts/ruleset-builds/swse/build-package.mjs`, which discards
+  any baseline `character_creation` before overlaying it (REQ-399a). A rebuild
+  from a pre-patch extraction emits `hit_points`, `damage_threshold`, and
+  `force_points` (and populated class hit dice); the `swse` manifest advances
+  `host_version` 2026.09.27 → 2026.09.30 with content unchanged. ROADMAP entry
+  retired.
 - **`TTRPG_NOVEL_RETENTION_DAYS` was dead code (P2, 2026-09-30):**
   `StateManager.cleanupExpiredTrash` (`holonovel/src/core/state.ts:1359`) was
   defined but never called, so the declared retention setting had no effect.
@@ -475,15 +486,7 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **SWSE sheets lack HP/Damage Threshold/Force Points on a fresh install
-  (P1, 2026-09-30):** `computeDerived` plus the SWSE package `derived_stats`
-  yielded only the three defenses. The engine now exposes the first class's
-  starting HP and hit die to derived-stat formulas (REQ-399b,
-  `holonovel/src/core/character-creation.ts`), and the deployed package was
-  hand-patched to declare `hit_points`, `damage_threshold`, and `force_points`
-  (level-5 Soldier: HP 58, DT 18, FP 7). The durable fix is scheduled on
-  ROADMAP "SWSE sheet vitals": a package rebuild must emit the same stats
-  without the hand patch (REQ-399a).
+None.
 
 ## Closed-P3 (recorded, no action)
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-09-30 — SWSE package rebuild: durable character-creation source
+
+The SWSE sheet-vitals P1 closes at the source. The `swse` package's
+character-creation model now comes from a committed build source applied during
+packaging — not a hand edit of the installed `model.json` — so a rebuild (or a
+fresh install) declares the ruleset's damage-tracking statistics.
+
+- **Durable character-creation build source.**
+  `scripts/ruleset-builds/swse/character_creation.json` carries the authored
+  `character_creation` block (steps, abilities, 21 species, 6 classes, and 6
+  derived stats including `hit_points`, `damage_threshold`, and `force_points`);
+  `scripts/ruleset-builds/swse/build-package.mjs` overlays it onto the
+  extraction baseline, discards any baseline `character_creation`, and re-emits
+  the six-file package with the current host version and package-format
+  fingerprint (REQ-399a, REQ-389, REQ-395a).
+- **Rebuild.** The `swse` package manifest advances `host_version` 2026.09.27 →
+  2026.09.30; content and package-format fingerprint are unchanged
+  (`content_hash 34117f3c…`). Verified: `RulesetManager` scan clean, hydrate
+  reports the six derived stats, 0 tool-quality alerts; a rebuild from a
+  pre-patch extraction (three defenses only, hit dice `0`) yields the same six
+  stats and populated hit dice.
+- **Tracking.** The ROADMAP "SWSE sheet vitals" entry is retired; the
+  review-register finding moves Scheduled-roadmap → Resolved.
+
 ## 2026-09-30 — Review remediation: Player parser contract, derived-stat order, tracking
 
 Follow-through on the SWSE close-out review. Addresses the phantom `status`

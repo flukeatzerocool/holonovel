@@ -1,0 +1,462 @@
+{
+  "steps": [
+    "name",
+    "species",
+    "classes",
+    "ability_scores",
+    "skills",
+    "feats",
+    "equipment"
+  ],
+  "ability_names": [
+    "Strength",
+    "Dexterity",
+    "Constitution",
+    "Intelligence",
+    "Wisdom",
+    "Charisma"
+  ],
+  "ability_modifier_formula": "floor((score - 10) / 2)",
+  "stat_methods": {
+    "standard": {
+      "array": [
+        15,
+        14,
+        13,
+        12,
+        10,
+        8
+      ],
+      "description": "Standard score package (15, 14, 13, 12, 10, 8) assigned in any order."
+    },
+    "roll": {
+      "dice": "4d6",
+      "drop_lowest": 1,
+      "description": "Roll 4d6 and drop the lowest for each of six abilities."
+    },
+    "planned": {
+      "budget": 25,
+      "point_buy": {
+        "8": 0,
+        "9": 1,
+        "10": 2,
+        "11": 3,
+        "12": 4,
+        "13": 5,
+        "14": 6,
+        "15": 8,
+        "16": 10,
+        "17": 13,
+        "18": 16
+      },
+      "description": "Planned generation: spend 25 points to raise abilities from a base of 8."
+    }
+  },
+  "default_ability_scores": [
+    15,
+    14,
+    13,
+    12,
+    10,
+    8
+  ],
+  "species": {
+    "human": {
+      "name": "Human",
+      "size": "Medium",
+      "abilityAdjustments": {},
+      "traits": []
+    },
+    "wookiee": {
+      "name": "Wookiee",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Strength": 4,
+        "Dexterity": -2,
+        "Wisdom": -2
+      },
+      "traits": [
+        "Expert Climber, Rage, Extraordinary Recuperation, Intimidating Presence"
+      ]
+    },
+    "ewok": {
+      "name": "Ewok",
+      "size": "Small (+1 Reflex Defense, +5 Stealth)",
+      "abilityAdjustments": {
+        "Strength": -2,
+        "Dexterity": 2
+      },
+      "traits": [
+        "Primitive, Scent, Small Size"
+      ]
+    },
+    "gamorrean": {
+      "name": "Gamorrean",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Strength": 4,
+        "Intelligence": -2,
+        "Wisdom": -2
+      },
+      "traits": [
+        "Bonus Feat (Improved Damage Threshold), Great Fortitude"
+      ]
+    },
+    "gungan": {
+      "name": "Gungan",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Dexterity": 2,
+        "Intelligence": -2,
+        "Wisdom": -2
+      },
+      "traits": [
+        "Lightning Reflexes, Hold Breath"
+      ]
+    },
+    "mon calamari": {
+      "name": "Mon Calamari",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Intelligence": 2,
+        "Constitution": -2
+      },
+      "traits": [
+        "Aquatic (can breathe underwater)"
+      ]
+    },
+    "rodian": {
+      "name": "Rodian",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Dexterity": 2,
+        "Wisdom": -2
+      },
+      "traits": [
+        "Heightened Awareness"
+      ]
+    },
+    "twi'lek": {
+      "name": "Twi'lek",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Charisma": 2,
+        "Wisdom": -2
+      },
+      "traits": [
+        "Deceptive"
+      ]
+    },
+    "hutt": {
+      "name": "Hutt",
+      "size": "Large",
+      "abilityAdjustments": {
+        "Strength": 2,
+        "Constitution": 2,
+        "Dexterity": -2
+      },
+      "traits": [
+        "Great Fortitude, Iron Will"
+      ]
+    },
+    "zabrak": {
+      "name": "Zabrak",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Constitution": 2
+      },
+      "traits": [
+        "Great Fortitude"
+      ]
+    },
+    "aqualish": {
+      "name": "Aqualish",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Constitution": 2,
+        "Charisma": -2
+      },
+      "traits": [
+        "Amphibious"
+      ]
+    },
+    "bothan": {
+      "name": "Bothan",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Dexterity": 2,
+        "Constitution": -2
+      },
+      "traits": [
+        "Iron Will, Bonus Feat"
+      ]
+    },
+    "cerean": {
+      "name": "Cerean",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Intelligence": 2,
+        "Wisdom": 2,
+        "Dexterity": -2
+      },
+      "traits": [
+        "Initiative bonus"
+      ]
+    },
+    "duros": {
+      "name": "Duros",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Dexterity": 2,
+        "Intelligence": 2,
+        "Constitution": -2
+      },
+      "traits": [
+        "Expert astrogator"
+      ]
+    },
+    "ithorian": {
+      "name": "Ithorian",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Wisdom": 2,
+        "Dexterity": -2
+      },
+      "traits": [
+        "Bellow"
+      ]
+    },
+    "kel dor": {
+      "name": "Kel Dor",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Dexterity": 2,
+        "Wisdom": 2,
+        "Constitution": -2
+      },
+      "traits": [
+        "Low-light vision"
+      ]
+    },
+    "neimoidian": {
+      "name": "Neimoidian",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Intelligence": 2,
+        "Wisdom": 2,
+        "Constitution": -2
+      },
+      "traits": [
+        "Negotiate"
+      ]
+    },
+    "quarren": {
+      "name": "Quarren",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Wisdom": 2,
+        "Charisma": -2
+      },
+      "traits": [
+        "Aquatic"
+      ]
+    },
+    "sullustan": {
+      "name": "Sullustan",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Dexterity": 2,
+        "Constitution": -2
+      },
+      "traits": [
+        "Darkvision"
+      ]
+    },
+    "trandoshan": {
+      "name": "Trandoshan",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Strength": 2,
+        "Wisdom": -2
+      },
+      "traits": [
+        "Darkvision, Claws"
+      ]
+    },
+    "yuuzhan vong": {
+      "name": "Yuuzhan Vong",
+      "size": "Medium",
+      "abilityAdjustments": {
+        "Wisdom": 2
+      },
+      "traits": [
+        "Force immunity related traits"
+      ]
+    }
+  },
+  "classes": {
+    "jedi": {
+      "name": "Jedi",
+      "hitDie": 10,
+      "startingHp": 30,
+      "bab": 1,
+      "babType": "good",
+      "defenseBonuses": {
+        "reflex": 1,
+        "fortitude": 1,
+        "will": 1
+      },
+      "classSkills": [
+        "Acrobatics",
+        "Endurance",
+        "Initiative",
+        "Knowledge",
+        "Perception",
+        "Pilot",
+        "Use the Force"
+      ],
+      "description": "A wielder of the Force who channels its power through a lightsaber."
+    },
+    "noble": {
+      "name": "Noble",
+      "hitDie": 6,
+      "startingHp": 18,
+      "bab": 0,
+      "babType": "poor",
+      "defenseBonuses": {
+        "reflex": 0,
+        "fortitude": 0,
+        "will": 2
+      },
+      "classSkills": [
+        "Deception",
+        "Gather Information",
+        "Knowledge",
+        "Perception",
+        "Persuasion",
+        "Use Computer"
+      ],
+      "description": "A charismatic leader, diplomat, and patron."
+    },
+    "scoundrel": {
+      "name": "Scoundrel",
+      "hitDie": 6,
+      "startingHp": 18,
+      "bab": 0,
+      "babType": "poor",
+      "defenseBonuses": {
+        "reflex": 2,
+        "fortitude": 0,
+        "will": 0
+      },
+      "classSkills": [
+        "Acrobatics",
+        "Deception",
+        "Gather Information",
+        "Initiative",
+        "Mechanics",
+        "Perception",
+        "Pilot",
+        "Use Computer"
+      ],
+      "description": "A cunning rogue who lives by wit, luck, and a fast blaster."
+    },
+    "scout": {
+      "name": "Scout",
+      "hitDie": 8,
+      "startingHp": 24,
+      "bab": 0,
+      "babType": "poor",
+      "defenseBonuses": {
+        "reflex": 1,
+        "fortitude": 1,
+        "will": 0
+      },
+      "classSkills": [
+        "Climb",
+        "Endurance",
+        "Initiative",
+        "Knowledge",
+        "Perception",
+        "Pilot",
+        "Ride",
+        "Survival",
+        "Swim"
+      ],
+      "description": "A rugged explorer, pilot, and wilderness specialist."
+    },
+    "soldier": {
+      "name": "Soldier",
+      "hitDie": 10,
+      "startingHp": 30,
+      "bab": 1,
+      "babType": "good",
+      "defenseBonuses": {
+        "reflex": 1,
+        "fortitude": 2,
+        "will": 0
+      },
+      "classSkills": [
+        "Endurance",
+        "Initiative",
+        "Knowledge",
+        "Mechanics",
+        "Pilot",
+        "Use Computer"
+      ],
+      "description": "A trained warrior and weapons specialist."
+    },
+    "nonheroic": {
+      "name": "Nonheroic",
+      "hitDie": 4,
+      "startingHp": 12,
+      "bab": 0,
+      "babType": "poor",
+      "defenseBonuses": {
+        "reflex": 0,
+        "fortitude": 0,
+        "will": 0
+      },
+      "classSkills": [],
+      "description": "A common being without heroic training (NPC)."
+    }
+  },
+  "derived_stats": [
+    {
+      "key": "reflex_defense",
+      "label": "Reflex Defense",
+      "formula": "10 + level + ability_mod.dexterity + class_bonus.reflex",
+      "section": "defenses"
+    },
+    {
+      "key": "fortitude_defense",
+      "label": "Fortitude Defense",
+      "formula": "10 + level + ability_mod.constitution + class_bonus.fortitude",
+      "section": "defenses"
+    },
+    {
+      "key": "will_defense",
+      "label": "Will Defense",
+      "formula": "10 + level + ability_mod.wisdom + class_bonus.will",
+      "section": "defenses"
+    },
+    {
+      "key": "hit_points",
+      "label": "Hit Points",
+      "section": "derived",
+      "formula": "class_bonus.starting_hp + (level - 1) * (floor(class_bonus.hit_die / 2) + 1 + ability_mod.constitution)"
+    },
+    {
+      "key": "damage_threshold",
+      "label": "Damage Threshold",
+      "section": "derived",
+      "formula": "10 + level + ability_mod.constitution + class_bonus.fortitude"
+    },
+    {
+      "key": "force_points",
+      "label": "Force Points",
+      "section": "derived",
+      "formula": "5 + floor(level / 2)"
+    }
+  ]
+}
