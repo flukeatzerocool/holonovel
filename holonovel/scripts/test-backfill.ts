@@ -693,7 +693,7 @@ async function main() {
     await test("T353/T309: world and narrative surface prominence — parser is the Player surface", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const brief = await getPrompt(proc, "badge_briefing", {});
-      assertContains(brief, "command(\"");
+      assertContains(brief, "run_command (action: execute");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
