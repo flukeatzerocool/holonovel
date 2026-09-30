@@ -11,6 +11,19 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Fixture notation and Player-parser divergence (resolved 2026-09-29):** the
+  Appendix W.3 golden transcript's Player `command` calls were read as a
+  divergence from `run_command` gating. Resolved on two grounds. (1) The parser
+  gate is ruleset-aware (`holonovel/src/index.ts:2566-2569`, REQ-309/REQ-309e):
+  a ruleset-free Novel — which the Appendix W fixture is — keeps the parser as
+  the Player surface, so the transcript's Player commands are conformant. (2)
+  The spec's golden transcripts and test catalog use abbreviated tool tokens as
+  notation, not registered names; §4 now defines this ("Fixture notation"):
+  `command("X")` denotes `run_command (action: execute, "X")`. The briefing text
+  that had named the non-existent `command` tool was corrected separately (the
+  2026-09-29 CHANGELOG, `holonovel/src/index.ts`). The original entry rested on a
+  pre-discovery, ruleset-agnostic reading of the gate.
+
 - **Glama image Node 24 + published `engines` floor (REQ-428)** (resolved
   2026-09-28): the operator bumped Glama's admin build-spec image to Node 24, so
   `holonovel/package.json` now carries `engines.node: ">=24"` (lockfile root
@@ -426,15 +439,4 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Deferred-by-user
 
-- **Player-badge parser divergence: Appendix W.3 golden transcript vs
-  `run_command` gating and REQ-134** (AAR 2026-09-29): the Appendix W.3 golden
-  transcript, the Player Tools briefing block, and the `guidance://player`
-  resource presented parser commands (`command(...)`) as a **Player**-badge
-  action, but `run_command (action: execute)` is GM-gated
-  (`holonovel/src/index.ts:2479` requireNotObserver/`requireGM`, `state.ts:764`)
-  and REQ-134's guaranteed Player surface lists "action suggestions"
-  (`run_command` action: suggest), not parser execute. Predicate: the W.3
-  transcript's Player `command` calls vs the `run_command` execute gate. Needs a
-  spec-owner decision — restore a Player parser surface, or update W.3/REQ-341
-  to the narrator-resolves model (which the 2026-09-29 player-briefing fix
-  adopted). Disposition: `Deferred-by-user`.
+None.
