@@ -139,4 +139,22 @@ test("formula context exposes class starting HP and hit die (REQ-399b)", () => {
   assert.equal(r.values.force_points, 5 + Math.floor(3 / 2));
 });
 
+test("formula context exposes the first class's data, not the last (REQ-399b)", () => {
+  const rules: CharacterRules = {
+    ...RULES,
+    derived_stats: [
+      { key: "hp_first", label: "HP (first)", formula: "class_bonus.starting_hp" },
+      { key: "die_first", label: "Die (first)", formula: "class_bonus.hit_die" },
+    ],
+  };
+  // Warrior (startingHp 10) precedes Scholar (startingHp 6): first wins.
+  const wFirst = computeDerived(build({ classLevels: [{ className: "warrior", levels: 2 }, { className: "scholar", levels: 2 }] }), rules);
+  assert.equal(wFirst.values.hp_first, 10, "warrior's starting HP wins when first");
+  assert.equal(wFirst.values.die_first, 10, "warrior's hit die wins when first");
+  // Reversed order: Scholar is now the first class.
+  const sFirst = computeDerived(build({ classLevels: [{ className: "scholar", levels: 2 }, { className: "warrior", levels: 2 }] }), rules);
+  assert.equal(sFirst.values.hp_first, 6, "scholar's starting HP wins when first");
+  assert.equal(sFirst.values.die_first, 6, "scholar's hit die wins when first");
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? " (with failures)" : ""}`);

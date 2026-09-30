@@ -6,4 +6,9 @@
   Update this file when planning a release.
 -->
 
-_No scheduled items._
+## SWSE sheet vitals
+
+- Durable fix (REQ-399a): rebuild the SWSE package so a fresh install declares
+  `hit_points`, `damage_threshold`, and `force_points` without the 2026-09-30
+  hand patch. The engine-side formula context (REQ-399b) already ships —
+  `opencode run --agent build "Perform Build workflow on swse. B1 intake: swse=/home/fluke/Documents/SWSE/ruleset/SWSE. Follow Appendix V V.1."`

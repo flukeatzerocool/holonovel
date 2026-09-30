@@ -5,7 +5,7 @@
 // (REQ-296c), vendor package certification (REQ-432), player-safe recap GM
 // channel (REQ-072h), and the event notification surface (REQ-433).
 //
-// Tests T513–T519. Exit codes: 0 = pass, 1 = one or more assertions failed.
+// Tests T513–T519, T643. Exit codes: 0 = pass, 1 = one or more assertions failed.
 
 import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
@@ -336,10 +336,14 @@ async function main() {
     await call(proc, "manage_character", { action: "create", name: "Scout" });
     await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
 
-    await test("REQ-309h: Player may look but not navigate on a ruleset-bound Novel", async () => {
+    await test("T643/REQ-309h: Player may issue read-only perception but not navigate on a ruleset-bound Novel", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const look = await call(proc, "run_command", { action: "execute", command: "look" });
       assertNotContains(look, "FORBIDDEN");
+      const inv = await call(proc, "run_command", { action: "execute", command: "i" });
+      assertNotContains(inv, "FORBIDDEN");
+      const status = await call(proc, "run_command", { action: "execute", command: "status" });
+      assertContains(status, "FORBIDDEN");
       const go = await call(proc, "run_command", { action: "execute", command: "go north" });
       assertContains(go, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });

@@ -16,7 +16,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -231,7 +231,9 @@ const SECTION_512_IMPLEMENTED = SECTION_512_REQS.filter((r) => r !== "REQ-346" |
 const BEAT_VALUES = ["setup", "escalation", "turning_point", "climax", "resolution", "denouement"] as const;
 // REQ-309h — read-only parser commands the Player badge MAY issue on a
 // ruleset-bound Novel; navigation and mutating commands stay Game Master only.
-const PLAYER_READONLY_VERBS = new Set(["look", "examine", "inventory", "status"]);
+// The set mirrors the parser's read-only dispatch (src/world/parser.ts):
+// `look`, `inventory` (alias `i`), and `examine` (aliases `x`, `search`).
+const PLAYER_READONLY_VERBS = new Set(["look", "examine", "x", "search", "inventory", "i"]);
 const DEFAULT_BEAT = "mid_scene";
 
 // §7.6 / REQ-336/338/339/344/353 — behavioral TTRPG_* config with defaults.
@@ -2527,6 +2529,20 @@ function advanceWorldTriggeredCountdowns(novel: NovelState, event: string): void
 
 // REQ-330 — knowledge-world coupling: exploration-derived knowledge entries on
 // the active entity (rooms visited, things taken). Retained regardless of
+// REQ-307/REQ-074 — co-locate the whole present party (plus the active entity)
+// when the parser moves them. Shared by parser `go` and `climb` so both move
+// the same set.
+function movePartyTo(novel: NovelState, active: NovelEntity | undefined, roomName: string): Map<string, any> {
+  const movers = new Map<string, any>();
+  for (const id of novel.characters_present_ids ?? []) {
+    const m = novel.entities.get(id) ?? novel.npcs.get(id);
+    if (m) movers.set(id, m);
+  }
+  if (active) movers.set(active.id, active);
+  for (const [, m] of movers) if (m && "current_room" in m) m.current_room = roomName;
+  return movers;
+}
+
 // current presence; grouped under "Explored" in knowledge_state.
 function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room" | "thing", name: string): void {
   if (!entity) return;
@@ -2652,7 +2668,7 @@ server.registerTool("run_command", {
   if (playerReadOnly) {
     const verb = command.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
     if (!PLAYER_READONLY_VERBS.has(verb)) {
-      return err("FORBIDDEN", "On a ruleset-bound Novel the parser is Game Master only for navigation and mutation. The Player may issue read-only perception commands (look, examine, inventory, status).");
+      return err("FORBIDDEN", "On a ruleset-bound Novel the parser is Game Master only for navigation and mutation. The Player may issue read-only perception commands (look, examine, search, inventory).");
     }
   } else if (novel.ruleset) {
     requireGM();
@@ -2738,13 +2754,7 @@ server.registerTool("run_command", {
     if (goResult.newRoom && entity && goResult.result.prefix === "OK") {
       // REQ-307/REQ-074 — move the whole present party, not only the active
       // entity; fall back to the active entity when no presence list is set.
-      const movers = new Map<string, any>();
-      for (const id of novel.characters_present_ids ?? []) {
-        const m = novel.entities.get(id) ?? novel.npcs.get(id);
-        if (m) movers.set(id, m);
-      }
-      movers.set(entity.id, entity);
-      for (const [, m] of movers) if (m && "current_room" in m) m.current_room = goResult.newRoom;
+      const movers = movePartyTo(novel, entity, goResult.newRoom);
       // Single source of truth for the party's location (REQ-331 journal coupling).
       novel.scene_location = goResult.newRoom;
       audit("command", { command, moved_to: goResult.newRoom, party: [...movers.keys()] });
@@ -2853,9 +2863,11 @@ server.registerTool("run_command", {
         const room = novel.world.rooms.get((currentRoom ?? "").toLowerCase());
         const up = room?.exits.get("up") ?? room?.exits.get("climb");
         if (up) {
-          entity.current_room = up;
+          // REQ-307/REQ-074 — a climb co-locates the present party, like `go`.
+          const movers = movePartyTo(novel, entity, up);
+          novel.scene_location = up;
           advanceWorldTriggeredCountdowns(novel, `room_enter:${up.toLowerCase()}`);
-          audit("command", { command, climbed_to: up });
+          audit("command", { command, climbed_to: up, party: [...movers.keys()] });
         }
         state.saveNovel(novel);
       }
@@ -8929,12 +8941,8 @@ server.registerTool("manage_synthesis", {
       const supplementary = (novel?.supplementary_rulesets ?? []).flatMap((s) => s.wisdom.map((w) => ({ module: w.module, tag: `supplementary:${s.slug}`, content: w.content, badge_scope: "game_master", key: String(w.key) })));
       if (!manifest && supplementary.length === 0) return ok("No synthesis items (synthesis not run; no supplementary imports).");
       // REQ-160 — items past TTRPG_SYNTHESIS_STALE_DAYS carry the [stale] flag.
-      const staleDays = parseInt(process.env.TTRPG_SYNTHESIS_STALE_DAYS ?? "90", 10);
-      const staleCutoff = Date.now() - staleDays * 86400_000;
-      const isStale = (item: any): boolean => {
-        const collected = item?.collected_at ?? manifest?.collected_at;
-        return !!(collected && new Date(collected).getTime() < staleCutoff);
-      };
+      const staleCutoff = synthesisStaleCutoff();
+      const isStale = (item: any): boolean => isStaleItem(item, manifest, staleCutoff);
       const row = (module: string, item: any, content: string): any => ({
         module,
         key: item?.key,

@@ -275,7 +275,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-306 | Adjustable autonomy (Part a) (7 sub-parts) | 5.5 Badges and Access | C | T483, T484, T485, S22 | — |
 | REQ-307 | Entity presence (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T351, T356, S17 | — |
 | REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356 | — |
-| REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353 | — |
+| REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353, T643 | — |
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T355 | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
 | REQ-312 | Pre-narration validation gate (Part d1) (6 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T357, T641 | — |
