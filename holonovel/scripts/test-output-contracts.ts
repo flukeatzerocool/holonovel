@@ -1056,6 +1056,31 @@ async function main() {
     await kill(p);
   });
 
+  await test("T553/REQ-284f: bound-key unlock enforcement", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w10g" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "K" });
+    await call(p, "manage_character", { action: "set_active",  entity_id: "character_01" });
+    await call(p, "manage_world", { action: "create_room",  name: "Hall", description: "h" });
+    await call(p, "manage_world", { action: "create_room",  name: "Vault", description: "v" });
+    await call(p, "manage_world", { action: "create_thing",  name: "door", description: "d", kind: "door", lockable: true, locked: true, fixed: true, location: "Hall", key: "brass key" });
+    await call(p, "manage_world", { action: "create_thing",  name: "brass key", description: "k", location: "Vault" });
+    const noKey = await call(p, "run_command", { command: "unlock door" });
+    assertContains(noKey, "locked", "REQ-284f bound-key locked message");
+    await call(p, "manage_world", { action: "update_thing",  name: "brass key", location: "Hall" });
+    const hint = await call(p, "run_command", { command: "unlock door" });
+    assertContains(hint, "Hint: You need the brass key", "REQ-284f reachable bound-key hint");
+    await call(p, "run_command", { command: "take brass key" });
+    const withKey = await call(p, "run_command", { command: "unlock door" });
+    assertContains(withKey, "[OK]", "REQ-284f unlock with the bound key");
+    await call(p, "manage_world", { action: "create_thing",  name: "latch", description: "l", kind: "door", lockable: true, locked: true, fixed: true, location: "Hall" });
+    const free = await call(p, "run_command", { command: "unlock latch" });
+    assertContains(free, "unlock", "REQ-284f unbound lock unlocks freely");
+    passed++;
+    await kill(p);
+  });
+
   await test("T418/REQ-367: property propagation across containment", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w10f" });

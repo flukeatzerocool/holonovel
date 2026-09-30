@@ -256,7 +256,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-281 | Narrative-threads section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T330 | — |
 | REQ-282 | NPC voice directive (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T332 | — |
 | REQ-283 | Verb coverage tiers (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T333 | — |
-| REQ-284 | Implicit action hints (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T354 | — |
+| REQ-284 | Implicit action hints (Part a) (6 sub-parts) | 5.10 World-Model Layer | C | T354, T553 | — |
 | REQ-285 | Server notes (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T334, T416 | — |
 | REQ-286 | Knowledge-state section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T399 | — |
 | REQ-289 | Vow tracking (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T407, T412, T413 | — |

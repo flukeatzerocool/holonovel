@@ -684,6 +684,7 @@ function worldFromJSON(data: any): WorldModel {
         drinkable: t.drinkable ?? false,
         climbable: t.climbable ?? false,
         transparent: t.transparent ?? false,
+        key: t.key,
         annotations: t.annotations || {},
       });
     }

@@ -187,7 +187,17 @@ function getThingsOnSupporter(supporterName: string, ctx: ParserContext): WorldT
 }
 
 function getThing(name: string, ctx: ParserContext): WorldThing | undefined {
-  return ctx.world.things.get(name.toLowerCase());
+  const exact = ctx.world.things.get(name.trim().toLowerCase());
+  if (exact) return exact;
+  const lower = name.trim().toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+  return [...ctx.world.things.values()].find((t) => {
+    const k = t.name.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+    return k === lower || k.includes(lower) || lower.includes(k);
+  });
+}
+
+function bareName(name: string): string {
+  return name.replace(/^(?:the|an?)\s+/i, "");
 }
 
 function getHeldThing(name: string, ctx: ParserContext): WorldThing | undefined {
@@ -214,7 +224,7 @@ function handleLook(ctx: ParserContext): ParserResult {
 
   const visibleThings = [...roomThings, ...containerThings, ...supporterThings];
   if (visibleThings.length > 0) {
-    const names = visibleThings.map(t => `${t.name}${t.portable ? "" : " (fixed)"}`);
+    const names = visibleThings.map(t => `${bareName(t.name)}${t.portable ? "" : " (fixed)"}`);
     text += `\n\nYou can see: ${names.join(", ")}.`;
   }
 
@@ -227,12 +237,12 @@ function handleLook(ctx: ParserContext): ParserResult {
     const inner = (ctx.world as any)?.things ? [...(ctx.world as any).things.values()].filter((i: any) => i.location && String(i.location).toLowerCase() === t.name.toLowerCase() && i.locationType === "container") : [];
     if (!isOpaque && inner.length > 0) {
       for (const i of inner) {
-        if (i.lit && i.switched_on) text += `\nA glowing ${i.name} (inside the ${t.name}).`;
-        else if (i.lit) text += `\nA dark ${i.name} (inside the ${t.name}).`;
+        if (i.lit && i.switched_on) text += `\nA glowing ${bareName(i.name)} (inside the ${bareName(t.name)}).`;
+        else if (i.lit) text += `\nA dark ${bareName(i.name)} (inside the ${bareName(t.name)}).`;
       }
     } else if (isOpaque && (t.openable || t.kind === "container")) {
       const hasContents = [...(ctx.world as any)?.things?.values() ?? []].some((i: any) => i.location && String(i.location).toLowerCase() === t.name.toLowerCase());
-      if (hasContents) text += `\nA ${t.name} (opaque, what's inside is hidden).`;
+      if (hasContents) text += `\nA ${bareName(t.name)} (opaque, what's inside is hidden).`;
     }
   }
 
@@ -285,9 +295,9 @@ function handleGo(dir: string, ctx: ParserContext): ParserResult {
     if (door) {
       if (!door.open) {
         if (door.locked) {
-          return { prefix: "WARNING", text: `The ${door.name} is closed and locked.`, correctiveAction: `Try: unlock ${door.name} with <key>, then open ${door.name}.` };
+          return { prefix: "WARNING", text: `The ${bareName(door.name)} is closed and locked.`, correctiveAction: `Try: unlock ${bareName(door.name)} with <key>, then open ${bareName(door.name)}.` };
         }
-        return { prefix: "WARNING", text: `The ${door.name} is closed.`, correctiveAction: `Try: open ${door.name}.` };
+        return { prefix: "WARNING", text: `The ${bareName(door.name)} is closed.`, correctiveAction: `Try: open ${bareName(door.name)}.` };
       }
     }
   }
@@ -330,25 +340,25 @@ function handleTake(target: string, ctx: ParserContext): ParserResult {
     return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   }
   if (matches.length > 1) {
-    const names = matches.map(t => `'${t.name}' (${t.description || t.kind})`);
+    const names = matches.map(t => `'${bareName(t.name)}' (${t.description || t.kind})`);
     return { prefix: "ERROR", code: "AMBIGUOUS", text: `Which do you mean: ${names.join(", ")}?` };
   }
 
   const thing = matches[0];
   if (!thing.portable) {
-    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is fixed.`, correctiveAction: "Fixed objects cannot be taken." };
+    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is fixed.`, correctiveAction: "Fixed objects cannot be taken." };
   }
 
   // Check if it's inside a closed container
   if (thing.locationType === "container") {
     const container = getThing(thing.location || "", ctx);
     if (container && !container.open && container.openable) {
-      return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is inside the ${container.name}, which is closed.`, correctiveAction: `Try: open ${container.name} first.` };
+      return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is inside the ${bareName(container.name)}, which is closed.`, correctiveAction: `Try: open ${bareName(container.name)} first.` };
     }
   }
 
   // Move to inventory (caller updates)
-  return { prefix: "OK", text: `You take the ${thing.name}.` };
+  return { prefix: "OK", text: `You take the ${bareName(thing.name)}.` };
 }
 
 function handleDrop(target: string, ctx: ParserContext): ParserResult {
@@ -371,7 +381,7 @@ function handleDrop(target: string, ctx: ParserContext): ParserResult {
     return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${target}'.` };
   }
   if (matches.length > 1) {
-    const names = matches.map(t => `'${t.name}'`);
+    const names = matches.map(t => `'${bareName(t.name)}'`);
     return { prefix: "ERROR", code: "AMBIGUOUS", text: `Which do you mean: ${names.join(", ")}?` };
   }
 
@@ -410,29 +420,39 @@ function handleOpen(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
   const thing = getThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} cannot be opened.` };
-  if (thing.open) return { prefix: "WARNING", text: `The ${thing.name} is already open.` };
+  if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} cannot be opened.` };
+  if (thing.open) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already open.` };
   if (thing.locked) {
     // REQ-284 — implicit action hints: when a reachable key exists in the room
     // or inventory, name it and its location; no hint when none is reachable.
     const hint = findUnlockHint(ctx, thing);
-    return { prefix: "WARNING", text: `The ${thing.name} is locked.`, correctiveAction: hint ?? `Try: unlock ${thing.name} with <key>.` };
+    return { prefix: "WARNING", text: `The ${bareName(thing.name)} is locked.`, correctiveAction: hint ?? `Try: unlock ${bareName(thing.name)} with <key>.` };
   }
-  return { prefix: "OK", text: `You open the ${thing.name}.` };
+  return { prefix: "OK", text: `You open the ${bareName(thing.name)}.` };
 }
 
-// REQ-284 — locate a reachable key (room, inventory, or open container) to
-// unlock the given thing; returns a Hint: line or null.
-function findUnlockHint(ctx: ParserContext, thing: any): string | null {
-  const keyName = thing.key?.toLowerCase?.() ?? (thing.lockable ? undefined : undefined);
+// REQ-284/REQ-552 — locate a reachable key (a bound key, or a key/lockpick by
+// name) in the room, inventory, or an open container; returns a Hint: line or null.
+function normThingName(s: string): string {
+  return s.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+}
+
+function carryingKey(ctx: ParserContext, name: string): boolean {
+  const want = normThingName(name);
+  return ctx.inventory.some((i) => normThingName(i) === want);
+}
+
+function findUnlockHint(ctx: ParserContext, thing: WorldThing): string | null {
   const roomName = ctx.currentRoom?.toLowerCase?.() ?? "";
-  for (const [, t] of (ctx.world as any)?.things ?? new Map()) {
-    const name = t.name?.toLowerCase?.() ?? "";
-    const isKey = name.includes("key") || name.includes("lockpick");
-    if (!isKey) continue;
-    if (ctx.inventory?.includes(name)) return `Hint: You need the ${t.name} (inventory) first.`;
-    if (t.location && String(t.location).toLowerCase() === roomName) return `Hint: You need the ${t.name} (${roomName}) first.`;
-    if (t.locationType === "container" && t.location === roomName) return `Hint: You need the ${t.name} (${roomName}) first.`;
+  const bound = thing.key;
+  const candidates = [...ctx.world.things.values()].filter((t) => {
+    const n = normThingName(t.name);
+    return bound ? n === normThingName(bound) : (n.includes("key") || n.includes("lockpick"));
+  });
+  for (const t of candidates) {
+    if (carryingKey(ctx, t.name)) return `Hint: You need the ${bareName(t.name)} (inventory) first.`;
+    if (t.location && String(t.location).toLowerCase() === roomName) return `Hint: You need the ${bareName(t.name)} (${roomName}) first.`;
+    if (t.locationType === "container" && t.location === roomName) return `Hint: You need the ${bareName(t.name)} (${roomName}) first.`;
   }
   return null;
 }
@@ -441,42 +461,51 @@ function handleClose(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
   const thing = getThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} cannot be closed.` };
-  if (!thing.open) return { prefix: "WARNING", text: `The ${thing.name} is already closed.` };
-  return { prefix: "OK", text: `You close the ${thing.name}.` };
+  if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} cannot be closed.` };
+  if (!thing.open) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already closed.` };
+  return { prefix: "OK", text: `You close the ${bareName(thing.name)}.` };
 }
 
 function handleUnlock(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
   const thing = getThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not lockable.` };
-  if (!thing.locked) return { prefix: "WARNING", text: `The ${thing.name} is already unlocked.` };
+  if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not lockable.` };
+  if (!thing.locked) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already unlocked.` };
 
   const args = target.split(" with ");
-  const keyName = args[1];
-  if (keyName && !ctx.inventory.includes(keyName.toLowerCase())) {
-    return { prefix: "WARNING", text: `You need ${keyName} to unlock the ${thing.name}. You're not carrying it.` };
+  const namedKey = args[1]?.trim();
+  if (namedKey && !carryingKey(ctx, namedKey)) {
+    return { prefix: "WARNING", text: `You need ${namedKey} to unlock the ${bareName(thing.name)}. You're not carrying it.` };
+  }
+  const requiredKey = thing.key ?? (namedKey ? normThingName(namedKey) : undefined);
+  if (requiredKey && !carryingKey(ctx, requiredKey)) {
+    const hint = findUnlockHint(ctx, thing);
+    return { prefix: "WARNING", text: `The ${bareName(thing.name)} is locked.`, correctiveAction: hint ?? `You need the ${requiredKey} to unlock it.` };
   }
 
-  return { prefix: "OK", text: `You unlock the ${thing.name}.` };
+  return { prefix: "OK", text: `You unlock the ${bareName(thing.name)}.` };
 }
 
 function handleLock(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
   const thing = getThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not lockable.` };
-  if (thing.locked) return { prefix: "WARNING", text: `The ${thing.name} is already locked.` };
-  if (thing.open) return { prefix: "WARNING", text: `You must close the ${thing.name} before locking it.` };
+  if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not lockable.` };
+  if (thing.locked) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already locked.` };
+  if (thing.open) return { prefix: "WARNING", text: `You must close the ${bareName(thing.name)} before locking it.` };
 
   const args = target.split(" with ");
-  const keyName = args[1];
-  if (keyName && !ctx.inventory.includes(keyName.toLowerCase())) {
-    return { prefix: "WARNING", text: `You need ${keyName} to lock the ${thing.name}. You're not carrying it.` };
+  const namedKey = args[1]?.trim();
+  if (namedKey && !carryingKey(ctx, namedKey)) {
+    return { prefix: "WARNING", text: `You need ${namedKey} to lock the ${bareName(thing.name)}. You're not carrying it.` };
+  }
+  if (thing.key && !carryingKey(ctx, thing.key)) {
+    const hint = findUnlockHint(ctx, thing);
+    return { prefix: "WARNING", text: `The ${bareName(thing.name)} cannot be locked without its key.`, correctiveAction: hint ?? `You need the ${thing.key}.` };
   }
 
-  return { prefix: "OK", text: `You lock the ${thing.name}.` };
+  return { prefix: "OK", text: `You lock the ${bareName(thing.name)}.` };
 }
 
 function handleInventory(ctx: ParserContext): ParserResult {
@@ -496,18 +525,18 @@ function handleExamine(target: string, ctx: ParserContext): ParserResult {
 
   const thing = getThing(target, ctx);
   if (thing) {
-    let text = thing.description || `You see nothing special about the ${thing.name}.`;
+    let text = thing.description || `You see nothing special about the ${bareName(thing.name)}.`;
     // Show container contents if open
     if (thing.kind === "container" && thing.openable && thing.open) {
       const contents = getThingsInContainer(thing.name, ctx);
       if (contents.length > 0) {
-        text += `\n\nInside the ${thing.name}: ${contents.map(t => t.name).join(", ")}.`;
+        text += `\n\nInside the ${bareName(thing.name)}: ${contents.map(t => t.name).join(", ")}.`;
       }
     }
     if (thing.kind === "supporter") {
       const contents = getThingsOnSupporter(thing.name, ctx);
       if (contents.length > 0) {
-        text += `\n\nOn the ${thing.name}: ${contents.map(t => t.name).join(", ")}.`;
+        text += `\n\nOn the ${bareName(thing.name)}: ${contents.map(t => t.name).join(", ")}.`;
       }
     }
     return { prefix: "OK", text };
@@ -554,10 +583,10 @@ function handleSwitch(action: "on" | "off", target: string, ctx: ParserContext):
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: `Switch ${action} what?` };
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.switchable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not switchable.`, correctiveAction: "Only devices can be switched." };
+  if (!thing.switchable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not switchable.`, correctiveAction: "Only devices can be switched." };
   const want = action === "on";
-  if (thing.switched_on === want) return { prefix: "WARNING", text: `The ${thing.name} is already switched ${action}.` };
-  return { prefix: "OK", text: `You switch ${action} the ${thing.name}.` };
+  if (thing.switched_on === want) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already switched ${action}.` };
+  return { prefix: "OK", text: `You switch ${action} the ${bareName(thing.name)}.` };
 }
 
 function handleWear(target: string, ctx: ParserContext): ParserResult {
@@ -565,27 +594,27 @@ function handleWear(target: string, ctx: ParserContext): ParserResult {
   const lower = target.toLowerCase();
   const thing = ctx.world.things.get(lower);
   if (!thing || !ctx.inventory.includes(lower)) return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${target}'.` };
-  if (!thing.wearable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not wearable.` };
-  if (thing.worn_by) return { prefix: "WARNING", text: `The ${thing.name} is already being worn.` };
-  return { prefix: "OK", text: `You wear the ${thing.name}.` };
+  if (!thing.wearable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not wearable.` };
+  if (thing.worn_by) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already being worn.` };
+  return { prefix: "OK", text: `You wear the ${bareName(thing.name)}.` };
 }
 
 function handleRemove(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Remove what?" };
   const thing = ctx.world.things.get(target.toLowerCase());
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.wearable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not wearable.` };
-  if (!thing.worn_by) return { prefix: "WARNING", text: `You are not wearing the ${thing.name}.` };
-  return { prefix: "OK", text: `You take off the ${thing.name}.` };
+  if (!thing.wearable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not wearable.` };
+  if (!thing.worn_by) return { prefix: "WARNING", text: `You are not wearing the ${bareName(thing.name)}.` };
+  return { prefix: "OK", text: `You take off the ${bareName(thing.name)}.` };
 }
 
 function handleRead(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Read what?" };
   const thing = resolveReachable(target, ctx) ?? ctx.world.things.get(target.toLowerCase());
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.readable && !thing.read_text) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not readable.` };
-  if (thing.read_text) return { prefix: "OK", text: `The ${thing.name} reads: "${thing.read_text}"` };
-  return { prefix: "OK", text: thing.description || `You read the ${thing.name}.` };
+  if (!thing.readable && !thing.read_text) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not readable.` };
+  if (thing.read_text) return { prefix: "OK", text: `The ${bareName(thing.name)} reads: "${thing.read_text}"` };
+  return { prefix: "OK", text: thing.description || `You read the ${bareName(thing.name)}.` };
 }
 
 function handleConsume(verb: "eat" | "drink", target: string, ctx: ParserContext): ParserResult {
@@ -594,27 +623,27 @@ function handleConsume(verb: "eat" | "drink", target: string, ctx: ParserContext
   const thing = ctx.world.things.get(lower);
   if (!thing || !ctx.inventory.includes(lower)) return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${target}'.` };
   const prop = verb === "eat" ? "edible" : "drinkable";
-  if (!(thing as any)[prop]) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not ${prop}.` };
-  return { prefix: "OK", text: `You ${verb} the ${thing.name}.` };
+  if (!(thing as any)[prop]) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not ${prop}.` };
+  return { prefix: "OK", text: `You ${verb} the ${bareName(thing.name)}.` };
 }
 
 function handleClimb(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Climb what?" };
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.climbable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not climbable.` };
-  return { prefix: "OK", text: `You climb the ${thing.name}.` };
+  if (!thing.climbable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not climbable.` };
+  return { prefix: "OK", text: `You climb the ${bareName(thing.name)}.` };
 }
 
 function handleEnter(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Enter what?" };
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (!thing.enterable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is not enterable.` };
+  if (!thing.enterable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not enterable.` };
   if (thing.kind === "vehicle" && thing.capacity !== undefined && thing.vehiclePassengers.length >= thing.capacity) {
-    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} is full.` };
+    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is full.` };
   }
-  return { prefix: "OK", text: `You enter the ${thing.name}.` };
+  return { prefix: "OK", text: `You enter the ${bareName(thing.name)}.` };
 }
 
 function handleExit(ctx: ParserContext): ParserResult {
@@ -625,8 +654,8 @@ function handleSit(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Sit on what?" };
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (thing.kind !== "supporter") return { prefix: "ERROR", code: "RULE_VIOLATION", text: `You can't sit on the ${thing.name}.` };
-  return { prefix: "OK", text: `You sit on the ${thing.name}.` };
+  if (thing.kind !== "supporter") return { prefix: "ERROR", code: "RULE_VIOLATION", text: `You can't sit on the ${bareName(thing.name)}.` };
+  return { prefix: "OK", text: `You sit on the ${bareName(thing.name)}.` };
 }
 
 function handleStand(ctx: ParserContext): ParserResult {
@@ -637,8 +666,8 @@ function handlePushPull(verb: "push" | "pull", target: string, ctx: ParserContex
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: `${verb[0].toUpperCase() + verb.slice(1)} what?` };
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  if (thing.portable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${thing.name} moves freely — you can't ${verb} it.` };
-  return { prefix: "OK", text: `You ${verb} the ${thing.name}, but it doesn't budge.` };
+  if (thing.portable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} moves freely — you can't ${verb} it.` };
+  return { prefix: "OK", text: `You ${verb} the ${bareName(thing.name)}, but it doesn't budge.` };
 }
 
 function handleLightExtinguish(verb: "light" | "extinguish", target: string, ctx: ParserContext): ParserResult {
@@ -646,9 +675,9 @@ function handleLightExtinguish(verb: "light" | "extinguish", target: string, ctx
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   const want = verb === "light";
-  if (want && thing.lit) return { prefix: "WARNING", text: `The ${thing.name} is already lit.` };
-  if (!want && !thing.lit) return { prefix: "WARNING", text: `The ${thing.name} is not lit.` };
-  return { prefix: "OK", text: `You ${verb} the ${thing.name}.` };
+  if (want && thing.lit) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already lit.` };
+  if (!want && !thing.lit) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is not lit.` };
+  return { prefix: "OK", text: `You ${verb} the ${bareName(thing.name)}.` };
 }
 
 function handleListen(ctx: ParserContext): ParserResult {
@@ -663,7 +692,7 @@ function handleTouch(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Touch what?" };
   const thing = resolveReachable(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
-  return { prefix: "OK", text: `You touch the ${thing.name}.` };
+  return { prefix: "OK", text: `You touch the ${bareName(thing.name)}.` };
 }
 
 function handleInsert(target: string, ctx: ParserContext): ParserResult {

@@ -106,10 +106,14 @@ async function main() {
     await call(p, "manage_scene", { action: "set", description: "In the hall", location: "Hall" });
     await call(p, "set_badge", { badge: "player" });
     const text = await promptText(p, "badge_briefing");
-    assert(!text.includes("run_command (action: execute"), "player briefing advertised GM-only run_command execute");
     assert(!text.includes('command("'), "player briefing named a non-existent command() tool");
+    assert(!text.includes("run_command (action: resolve)"), "player briefing suggested the Player-forbidden resolve action");
+    assert(text.includes("run_command (action: execute"), "ruleset-free player should be offered the parser (REQ-218/REQ-309e)");
     assert(text.includes("### Surroundings") && text.includes("The Hall"), "player surroundings did not resolve the room");
-    assert(text.includes("run_command (action: suggest"), "player briefing lacks a Player-callable suggestion");
+    const suggest = await call(p, "run_command", { action: "suggest", intent: "look around" });
+    assert(!suggest.includes('command("'), "suggest named a non-existent command() tool");
+    assert(!suggest.includes("(action: resolve)"), "suggest offered the Player-forbidden resolve action");
+    assert(suggest.includes("run_command (action: execute"), "ruleset-free player suggest should offer the parser");
     await kill(p);
   });
 

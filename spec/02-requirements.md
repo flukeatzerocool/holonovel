@@ -3067,6 +3067,9 @@ When reading requires unworn wearable equipment, no hint is produced — the par
 
 **REQ-284e — Implicit action hints (Part e).**
 A readable inscription inside a closed glass jar produces "Hint: The inscription is inside the glass jar — open it first." A vehicle in an adjacent room produces the direction-bearing hint. A switched-off lantern produces no hint. _Check:_ T354.
+
+**REQ-284f — Implicit action hints (Part f).**
+A lockable world-model thing MAY bind a key by name, through the `manage_world` create_thing or update_thing actions or the convert-source assertion `Its key is <thing>.` which binds the thing declared immediately before the assertion. When a thing has a bound key, a `command("unlock ...")` or `command("lock ...")` SHALL require that key to be carried; if it is not carried, the response is a `[WARNING]` naming the locked thing, with the REQ-284a hint when the bound key is reachable in the room and without a hint otherwise. A lockable thing with no bound key SHALL remain freely unlockable and lockable. _Check:_ T553.
 **REQ-316a — Device kind (Part a).**
 THE world-model layer SHALL define a `device` kind extending `thing`. A device SHALL carry `switchable` (can be turned on or off) and `switched_on` (current state) properties. A device that is both `lit` and `switched_on` SHALL provide light; a device that is `switched_off` SHALL be dark regardless of the `lit` property. A device is portable by default. `command("switch on <device>")` SHALL set `switched_on` to true; `command("switch off <device>")` SHALL set it to false. Switching a non-switchable thing SHALL return `[RULE_VIOLATION]`.
 
