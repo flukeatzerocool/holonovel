@@ -1922,6 +1922,7 @@ diet.
 | T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
 | T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
 | T642 | Automated | Tool-definition authoring standard: every registered tool's description fits the recorded byte budget, restates no schema-carried parameter guidance, carries a title at least as long as its name, and documents its output-schema fields. | REQ-024c, REQ-548b |
+| T643 | Automated | Player parser access on a ruleset-bound Novel: with the Player badge, `run_command (action: execute, "look")` and a read-only alias (`inventory`/`i`) succeed, while a navigation command (`go north`) returns `[FORBIDDEN]`; the read-only set excludes navigation and mutation. | REQ-309 |
 
 ---
 

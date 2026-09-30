@@ -339,9 +339,11 @@ export function computeDerived(build: CharacterBuildInput, rules: CharacterRules
       }
       // REQ-399b — expose the first class's creation data so the model can
       // express class-based derived statistics (hit points, damage threshold,
-      // metacurrency) without the host hard-coding a ruleset's formula.
-      if (typeof cd.startingHp === "number") classBonus.starting_hp = cd.startingHp;
-      if (typeof cd.hitDie === "number") classBonus.hit_die = cd.hitDie;
+      // metacurrency) without the host hard-coding a ruleset's formula. Only
+      // the first class that declares each value contributes; a later class
+      // in the build order must not overwrite `starting_hp`/`hit_die`.
+      if (classBonus.starting_hp === undefined && typeof cd.startingHp === "number") classBonus.starting_hp = cd.startingHp;
+      if (classBonus.hit_die === undefined && typeof cd.hitDie === "number") classBonus.hit_die = cd.hitDie;
       granted.add(key);
     }
   }

@@ -855,6 +855,28 @@ async function main() {
     await kill(proc);
   }
 
+  // ── REQ-307/REQ-074 — parser `climb` co-locates the present party ──
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "party-climb" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_world", { action: "create_room", name: "Bay", description: "A bay." });
+    await call(proc, "manage_world", { action: "create_room", name: "Loft", description: "A loft." });
+    await call(proc, "manage_world", { action: "create_exit", direction: "up", room_a: "Bay", room_b: "Loft" });
+    await call(proc, "manage_world", { action: "create_thing", name: "Ladder", location: "Bay", location_type: "room", climbable: true });
+    await call(proc, "manage_character", { action: "create", name: "P1" });
+    await call(proc, "manage_character", { action: "create", name: "P2" });
+    await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(proc, "manage_scene", { action: "presence", entity_ids: ["character_01", "character_02"] });
+    await test("REQ-307/REQ-074: parser climb co-locates the present party", async () => {
+      await call(proc, "run_command", { action: "execute", command: "climb ladder" });
+      const party = JSON.parse(await readResource(proc, "party://current"));
+      const locs = party.map((p: any) => p.last_location);
+      assert(locs.length === 2 && locs.every((r: string) => r === "Loft"), `party not co-located after climb: ${JSON.stringify(locs)}`);
+    });
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

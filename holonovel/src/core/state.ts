@@ -692,6 +692,21 @@ function worldFromJSON(data: any): WorldModel {
   return world;
 }
 
+// ── Synthesis staleness (REQ-160) ──────────────────────────────────
+
+// Single source for the stale cutoff and per-item predicate, shared by
+// `getWisdomHealth` (the spec_health count) and the `manage_synthesis list`
+// flag so the two cannot drift.
+export function synthesisStaleCutoff(): number {
+  const days = parseInt(process.env.TTRPG_SYNTHESIS_STALE_DAYS ?? "90", 10);
+  return Date.now() - days * 86400_000;
+}
+
+export function isStaleItem(item: any, manifest: any, cutoff: number): boolean {
+  const collected = item?.collected_at ?? manifest?.collected_at;
+  return !!(collected && new Date(collected).getTime() < cutoff);
+}
+
 // ── State Manager ──────────────────────────────────────────────────
 
 export class StateManager {
@@ -737,7 +752,6 @@ export class StateManager {
   // propagated into the rotated chain.
   private restoredThisSession = new Set<string>();
 
-  private npcCounter = 0;
   private stateDir: string;
 
   constructor(stateDir: string) {
@@ -1736,8 +1750,7 @@ export class StateManager {
       activated_count: 0,
       fingerprint: null,
     };
-    const staleDays = parseInt(process.env.TTRPG_SYNTHESIS_STALE_DAYS ?? "90", 10);
-    const cutoff = Date.now() - staleDays * 86400_000;
+    const cutoff = synthesisStaleCutoff();
     let staleCount = 0;
     let activatedCount = 0;
     const moduleCounts: Record<string, number> = {};
@@ -1758,8 +1771,7 @@ export class StateManager {
       for (const item of items) {
         // REQ-160 — an item past TTRPG_SYNTHESIS_STALE_DAYS is stale. Items
         // without their own timestamp inherit the manifest's collected_at.
-        const collected = item.collected_at ?? manifest.collected_at;
-        if (collected && new Date(collected).getTime() < cutoff) staleCount++;
+        if (isStaleItem(item, manifest, cutoff)) staleCount++;
         if (item.activated) activatedCount++;
       }
     }

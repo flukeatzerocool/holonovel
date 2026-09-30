@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-09-30 — Review remediation: Player parser contract, derived-stat order, tracking
+
+Follow-through on the SWSE close-out review. Addresses the phantom `status`
+verb, the REQ-309b/309h contract conflict, multi-class derived-stat ordering,
+the read-only Player test evidence, durable-rebuild tracking, and three
+adjacent latent issues.
+
+- **REQ-309b/REQ-309h reconciled.** REQ-309b no longer claims all parser verb
+  names are Game Master only — it scopes the prohibition to navigation and
+  mutating verbs and names the REQ-309h read-only perception commands the sole
+  exception. REQ-309h drops the non-existent `status` command and covers the
+  parser's read-only aliases (`x`, `search`, `i`); the gate and its message
+  match.
+- **Derived-stat first-class ordering.** `computeDerived` exposes only the
+  first class that declares `starting_hp`/`hit_die`; a later class no longer
+  overwrites it. Multi-class regression test added.
+- **REQ-309h evidence.** New T643 asserts the Player read-only gate; REQ-309h
+  cites T353/T643; coverage register regenerated.
+- **SWSE vitals tracking restored.** The durable package rebuild is scheduled
+  on ROADMAP (REQ-399a); the review-register finding moved from Resolved to
+  Scheduled-roadmap. The engine-side formula context (REQ-399b) ships.
+- **Latent fixes.** Removed the dead `npcCounter`; unified synthesis staleness
+  into one predicate shared by `getWisdomHealth` and `manage_synthesis list`;
+  parser `climb` now co-locates the present party like `go`.
+
 ## 2026-09-30 — SWSE author-from-scratch harness and restart-safe entity ids
 
 Preparing a from-scratch author-and-play matrix (author a Novel, an adventure
