@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-09-29 — World-model persistence: exits/doorRefs survive reload; badge-correct player briefing
+
+- **World-model exits and door refs lost on persistence (REQ-092).**
+  `state.worldToJSON` serialized each room's `exits` and `doorRefs` `Map`s
+  through `Object.fromEntries(world.rooms)`, and `JSON.stringify` turns a `Map`
+  into `{}`. Any saved world model therefore reloaded with zero exits (and no
+  door blocking) — `go <direction>` returned `[WARNING] You can't go north from
+  here.` after a restart even though the exit existed. `worldToJSON` now
+  converts both maps to plain objects; the duplicate serializer
+  `novelToJSONState` (clone/branch/checkpoint) reuses it. The in-process golden
+  transcript and Pattern Buffer sub-workflows never restarted the server, so
+  they missed this; `test-persistence.ts` T100 now creates an exit and asserts it
+  survives the round-trip.
+- **Player briefing advertised GM-only tools and a non-existent tool (REQ-134).**
+  `availableActionsSection` computed `isGM` but pushed `run_command (action:
+  execute, …)` and `manage_countdown`/`manage_combat`/`manage_relationship`
+  actions into every briefing, so the Player badge was told to call tools it
+  cannot (they return `[FORBIDDEN]`). The section is now badge-filtered: Players
+  see `run_command (action: suggest, …)`, dice resolution, and the sheet. The
+  Player Tools block and the `guidance://player` resource no longer name a
+  non-existent `command(...)` tool; they list the actual Player-callable surface
+  and state that the GM/narrator resolves declared actions through the parser.
+- **Player surroundings failed to resolve article-prefixed scene locations
+  (REQ-341).** `manage_scene (action: set, location)` matched the scene room with
+  a strict `startsWith`, so setting `location: "Landing Zone"` did not match the
+  room `"The Landing Zone"`; the active entity's room stayed unset and the Player
+  briefing printed `[No world model]` despite a populated world. The matcher is
+  now article-insensitive, and the Player `Surroundings` section resolves the
+  room from the active entity, then the scene location, then the first room —
+  keeping `[No world model …]` only for a genuinely empty world (T391's
+  unpopulated assertion is preserved). `test-briefing.ts` adds T148/REQ-134 and
+  T391/REQ-341.
+
 ## 2026-09-28 — TDQS conformance: description fixes, derived-surface merge, enforcement layer
 
 - **Tool-definition authoring fixes (REQ-024a, REQ-024c, REQ-450).** The blanket

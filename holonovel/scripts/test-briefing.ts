@@ -100,6 +100,29 @@ async function main() {
     await kill(p);
   });
 
+  await test("T148/REQ-134: player briefing lists only Player-callable tools", async () => {
+    const p = await boot(); await newNovel(p, "bc8");
+    await call(p, "manage_world", { action: "create_room", name: "The Hall", description: "A hall." });
+    await call(p, "manage_scene", { action: "set", description: "In the hall", location: "Hall" });
+    await call(p, "set_badge", { badge: "player" });
+    const text = await promptText(p, "badge_briefing");
+    assert(!text.includes("run_command (action: execute"), "player briefing advertised GM-only run_command execute");
+    assert(!text.includes('command("'), "player briefing named a non-existent command() tool");
+    assert(text.includes("### Surroundings") && text.includes("The Hall"), "player surroundings did not resolve the room");
+    assert(text.includes("run_command (action: suggest"), "player briefing lacks a Player-callable suggestion");
+    await kill(p);
+  });
+
+  await test("T391/REQ-341: player surroundings resolve an article-prefixed scene location", async () => {
+    const p = await boot(); await newNovel(p, "bc9");
+    await call(p, "manage_world", { action: "create_room", name: "The Vault", description: "A vault." });
+    await call(p, "manage_scene", { action: "set", description: "The vault", location: "Vault" });
+    await call(p, "set_badge", { badge: "player" });
+    const text = await promptText(p, "badge_briefing");
+    assert(text.includes("### Surroundings") && text.includes("The Vault"), "article-prefixed location not resolved: " + text.slice(0, 200));
+    await kill(p);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

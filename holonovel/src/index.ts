@@ -16,7 +16,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
-import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv } from "./core/state.js";
+import { StateManager, Badge, NovelState, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -88,7 +88,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.09.28",
+  version: "2026.09.29",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -944,22 +944,26 @@ function availableActionsSection(novel: NovelState): string[] {
   const sceneTypes = novel.scene_type ?? [];
   const actions: string[] = [];
   if (novel.combat?.active || sceneTypes.includes("combat")) {
-    actions.push("manage_combat (action: advance — resolve the round)");
+    if (isGM) actions.push("manage_combat (action: advance — resolve the round)");
     actions.push("resolve an attack or skill check for the active entity");
   } else if (sceneTypes.includes("social")) {
     actions.push("resolve a persuasion, deception, or intimidation check with a present NPC");
-    actions.push("manage_relationship (action: set — record a social outcome)");
-  } else {
+    if (isGM) actions.push("manage_relationship (action: set — record a social outcome)");
+  } else if (isGM) {
     actions.push("run_command (action: execute, \"look\")");
     actions.push("run_command (action: execute, \"go <direction>\")");
     actions.push("run_command (action: execute, \"examine <thing>\")");
     if (novel.world.things.size > 0) actions.push("run_command (action: execute, \"take <thing>\")");
+  } else {
+    actions.push("run_command (action: suggest, \"<what you want to do>\")");
   }
   const inv = entity?.inventory ?? [];
   if (inv.length > 0) actions.push(`manage_character (action: sheet — use held item: ${inv.slice(0, 3).join(", ")})`);
-  const activeCd = [...novel.countdowns.values()].filter((c) => c.ticks > 0);
-  if (activeCd.length > 0) actions.push(`manage_countdown (action: advance — ${activeCd[0].name}, ${activeCd[0].ticks} ticks)`);
-  if (isGM) actions.push("manage_story (action: record — commit a story beat)");
+  if (isGM) {
+    const activeCd = [...novel.countdowns.values()].filter((c) => c.ticks > 0);
+    if (activeCd.length > 0) actions.push(`manage_countdown (action: advance — ${activeCd[0].name}, ${activeCd[0].ticks} ticks)`);
+    actions.push("manage_story (action: record — commit a story beat)");
+  }
   const cap = configInt("TTRPG_MAX_AVAILABLE_ACTIONS", 8);
   return actions.slice(0, Math.max(0, cap));
 }
@@ -3582,7 +3586,9 @@ server.registerTool("manage_scene", {
       if (beat !== undefined) { recordBeatTransition(novel, beat, effectiveDescription.substring(0, 60)); novel.scene_beat = beat; }
       const sceneRoomName = location || effectiveDescription;
       if (sceneRoomName) {
-        const matchRoom = [...novel.world.rooms.entries()].find(([, r]) => sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()));
+        const bareRoomName = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
+        const matchRoom = [...novel.world.rooms.entries()].find(([, r]) =>
+          sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()) || bareRoomName(sceneRoomName) === bareRoomName(r.name));
         if (matchRoom) { const entity = state.getActiveEntity(); if (entity) entity.current_room = matchRoom[1].name; }
       }
       if (isTransition && !skip_transition_hook) {
@@ -4987,7 +4993,7 @@ function novelToJSONState(novel: NovelState): any {
     vows: novel.vows, checkpoints: novel.checkpoints, description: novel.description,
     genre: novel.genre, adventure_index: novel.adventure_index,
     adventure_scene_waypoint: novel.adventure_scene_waypoint,
-    world: { rooms: Object.fromEntries(novel.world.rooms), things: Object.fromEntries(novel.world.things) },
+    world: worldToJSON(novel.world),
     story_beats: novel.story_beats, pacing_counter: novel.pacing_counter,
     pacing_autonomy_fired: novel.pacing_autonomy_fired, scene_transition_count: novel.scene_transition_count,
     faction_autonomous_ticks: novel.faction_autonomous_ticks, npc_goal_suggestions: novel.npc_goal_suggestions,
@@ -7842,7 +7848,7 @@ server.registerResource("audit-novel-archive", "audit://novel/archive", { title:
 
 // Guidance resources
 server.registerResource("guidance-player", "guidance://player", { title: "Player Guidance" }, async () => ({
-  contents: [{ uri: "guidance://player", text: "## Player Guidance\n\nDescribe what your character does. Use parser commands to interact with the world: command(\"look\"), command(\"go north\"), command(\"take sword\").", mimeType: "text/markdown" }],
+  contents: [{ uri: "guidance://player", text: "## Player Guidance\n\nDescribe what your character does; the GM/narrator resolves declared actions through the world parser. Use run_command (action: suggest, \"<intent>\") to map an intent to tool calls, and player-callable tools such as manage_character (action: sheet), resolve_fate, and manage_ruleset (action: search) for your own rolls and lookups.", mimeType: "text/markdown" }],
 }));
 
 server.registerResource("guidance-gm", "guidance://game_master", { title: "GM Guidance" }, async () => ({
@@ -9205,30 +9211,33 @@ Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Crea
     // REQ-134 — minimum Player tool surface: dice, lookups, sheet, suggestions,
     // player signals, help, undo/redo, badge switching all callable by Player.
     briefing += `\n\n### Player Tools
-Use \`command("<action>")\` to interact with the world:
-- run_command("look") — describe the current room
-- command("go north") — move in a direction
-- command("take sword") — pick up an object
-- command("examine thing") — look at something closely
-- command("inventory") — check what you're carrying
-- command("open door") — open an openable object`;
+Declare your character's actions in narrative — the GM/narrator resolves them through the world parser. Player-callable tools:
+- run_command (action: suggest, "<intent>") — map an intent to tool calls
+- resolve_fate / resolve_ironsworn / resolve_forged — dice and resolution
+- manage_ruleset (action: search) and lookup tools — rules lookups
+- manage_character (action: sheet) — your character sheet
+- manage_character (action: signal) — pacing, tone, or boundary feedback
+- manage_history (action: undo) — undo your last mutation
+- manage_session (action: discover) — discover tools
+- set_badge — switch badges`;
 
     // REQ-341 — player-facing spatial surface (no internal IDs).
     if (novel.world.rooms.size > 0) {
-      const room = entity?.current_room
-        ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === entity.current_room!.toLowerCase())
-        : undefined;
-      if (room) {
-        const exitDirs = [...room.exits.keys()];
-        const things = [...novel.world.things.values()].filter((t) => t.location && t.location.toLowerCase() === room.name.toLowerCase() && t.locationType === "room");
-        briefing += `\n\n### Surroundings
+      const bare = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
+      const room =
+        (entity?.current_room
+          ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === entity.current_room!.toLowerCase())
+          : undefined) ??
+        (novel.scene_location
+          ? [...novel.world.rooms.values()].find((r) => bare(r.name) === bare(novel.scene_location!))
+          : undefined) ??
+        [...novel.world.rooms.values()][0];
+      const exitDirs = [...room.exits.keys()];
+      const things = [...novel.world.things.values()].filter((t) => t.location && t.location.toLowerCase() === room.name.toLowerCase() && t.locationType === "room");
+      briefing += `\n\n### Surroundings
 Room: ${room.name}
 Exits: ${exitDirs.length ? exitDirs.join(", ") : "none"}
 Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of note"}`;
-      } else {
-        briefing += `\n\n### Surroundings
-[No world model — surroundings are as described by the GM.]`;
-      }
     } else {
       briefing += `\n\n### Surroundings
 [No world model — surroundings are as described by the GM.]`;

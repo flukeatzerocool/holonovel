@@ -167,6 +167,8 @@ async function main() {
       // Populate a novel with world model + NPC + countdown + lore.
       await call(proc, "manage_world", { action: "create_room",  name: "throne room", description: "A grand hall." });
       await call(proc, "manage_world", { action: "create_thing",  name: "throne", description: "An ornate seat." });
+      await call(proc, "manage_world", { action: "create_room",  name: "antechamber", description: "A narrow way." });
+      await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "throne room", room_b: "antechamber" });
       await call(proc, "manage_npc", { action: "create",  name: "Chancellor", description: "A wary official.", disposition: "neutral" });
       await call(proc, "manage_countdown", { action: "set",  name: "court adjourns", ticks: 5, type: "narrative", scope: "throne room" });
       await call(proc, "manage_lore", { action: "set",  key: "the_crown", content: "The crown is a forgery.", triggers: ["the_crown"] });
@@ -174,11 +176,15 @@ async function main() {
       const before = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
       const roomsBefore = Object.keys(before.novel.world.rooms).sort();
       const thingsBefore = Object.keys(before.novel.world.things).sort();
+      const exitsBefore = before.novel.world.rooms["throne room"].exits;
       const npcsBefore = Object.keys(before.novel.npcs).sort();
       const loreBefore = Object.keys(before.novel.lore).sort();
       const countdownsBefore = Object.keys(before.novel.countdowns).sort();
       assertContains(roomsBefore.join(","), "throne room");
       assertContains(thingsBefore.join(","), "throne");
+      if (!exitsBefore || Object.keys(exitsBefore).length === 0) {
+        throw new Error("export dropped room exits");
+      }
 
       // Replace-import the export back and re-export — tiers must survive.
       await call(proc, "manage_novel", { action: "import",  data: JSON.stringify(before), mode: "replace" });
@@ -188,6 +194,10 @@ async function main() {
       }
       if (JSON.stringify(Object.keys(after.novel.world.things).sort()) !== JSON.stringify(thingsBefore)) {
         throw new Error("round-trip things mismatch");
+      }
+      const exitsAfter = after.novel.world.rooms["throne room"].exits;
+      if (JSON.stringify(exitsAfter) !== JSON.stringify(exitsBefore)) {
+        throw new Error(`round-trip exits mismatch: before=${JSON.stringify(exitsBefore)} after=${JSON.stringify(exitsAfter)}`);
       }
       if (JSON.stringify(Object.keys(after.novel.npcs).sort()) !== JSON.stringify(npcsBefore)) {
         throw new Error("round-trip npcs mismatch");
