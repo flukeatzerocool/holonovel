@@ -337,6 +337,11 @@ export function computeDerived(build: CharacterBuildInput, rules: CharacterRules
       for (const [dk, dv] of Object.entries(cd.defenseBonuses || {})) {
         classBonus[dk] = (classBonus[dk] ?? 0) + (dv as number);
       }
+      // REQ-399b — expose the first class's creation data so the model can
+      // express class-based derived statistics (hit points, damage threshold,
+      // metacurrency) without the host hard-coding a ruleset's formula.
+      if (typeof cd.startingHp === "number") classBonus.starting_hp = cd.startingHp;
+      if (typeof cd.hitDie === "number") classBonus.hit_die = cd.hitDie;
       granted.add(key);
     }
   }
