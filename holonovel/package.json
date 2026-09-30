@@ -64,7 +64,8 @@
     "test:harness-guard": "tsx scripts/test-harness-guard.ts",
     "test:lean-narrator": "tsx scripts/test-lean-narrator.ts",
     "score:tools": "tsx scripts/score-tool-definitions.ts",
-    "test:all": "tsx scripts/run-test-suite.ts"
+    "test:all": "tsx scripts/run-test-suite.ts",
+    "test:playtest": "tsx scripts/playtest.ts"
   },
   "keywords": [
     "parser",

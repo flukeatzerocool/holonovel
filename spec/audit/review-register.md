@@ -426,4 +426,15 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Deferred-by-user
 
-None.
+- **Player-badge parser divergence: Appendix W.3 golden transcript vs
+  `run_command` gating and REQ-134** (AAR 2026-09-29): the Appendix W.3 golden
+  transcript, the Player Tools briefing block, and the `guidance://player`
+  resource presented parser commands (`command(...)`) as a **Player**-badge
+  action, but `run_command (action: execute)` is GM-gated
+  (`holonovel/src/index.ts:2479` requireNotObserver/`requireGM`, `state.ts:764`)
+  and REQ-134's guaranteed Player surface lists "action suggestions"
+  (`run_command` action: suggest), not parser execute. Predicate: the W.3
+  transcript's Player `command` calls vs the `run_command` execute gate. Needs a
+  spec-owner decision — restore a Player parser surface, or update W.3/REQ-341
+  to the narrator-resolves model (which the 2026-09-29 player-briefing fix
+  adopted). Disposition: `Deferred-by-user`.

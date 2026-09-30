@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-29 — Simulated-play harness promoted to the repo; player-parser divergence recorded
+
+- **`playtest` simulated-play harness (informational).** New
+  `holonovel/scripts/playtest.ts` + `holonovel/scripts/playtest/`
+  (`README.md`, `driver.md`, `personas/`) and a `test:playtest` script. A pure
+  MCP client: one tool call per process against a target `--server-dir`, a
+  per-run scratch copy of an operator-supplied campaign save and ruleset, and a
+  composite completion oracle. Not wired into any gate (LLM-driven and
+  stochastic); campaign data and adventure modules stay out of the repo. This is
+  the tool that surfaced the world-model persistence P0 and the player-briefing
+  defects fixed in the 2026-09-29 entry.
+- **Player-parser divergence recorded (Deferred-by-user).** Added a
+  `spec/audit/review-register.md` entry: Appendix W.3's golden transcript and
+  the (now-fixed) Player briefing treated parser commands as a Player-badge
+  action, while `run_command (action: execute)` is GM-gated and REQ-134 lists
+  "action suggestions" for Players. Needs a spec-owner decision.
+
 ## 2026-09-29 — World-model persistence: exits/doorRefs survive reload; badge-correct player briefing
 
 - **World-model exits and door refs lost on persistence (REQ-092).**
