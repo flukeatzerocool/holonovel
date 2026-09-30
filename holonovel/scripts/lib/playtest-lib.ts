@@ -10,6 +10,8 @@ import { createHash } from "node:crypto";
 export const DEFECT_PREFIXES = new Set(["[ERROR]", "[RULE_VIOLATION]", "[STATE_CONFLICT]"]);
 /** Prefixes that indicate an expected refusal/handoff, not a defect. */
 export const DENIAL_PREFIXES = new Set(["[FORBIDDEN]", "[INVALID_INPUT]", "[NEED_INPUT]", "[NOT_FOUND]"]);
+/** Terminal dispositions accepted by spec/audit/review-register.md. */
+export const REGISTER_DISPOSITIONS = new Set(["Resolved", "Scheduled-roadmap", "Closed-P3", "Deferred-by-user"]);
 /** Tools whose calls may legitimately change the room set. */
 export const WORLD_TOOLS = new Set(["manage_world", "manage_adventure", "run_command"]);
 
@@ -80,8 +82,23 @@ export function stateFingerprint(novel: any): string {
   return createHash("sha1").update(JSON.stringify({ rooms: roomSet(novel), entities, vows, beats, countdowns })).digest("hex");
 }
 
-/** Read a character's death signal, Health, Wounds, and conditions. */
-export function pcVitals(e: any): { dead: boolean; hp: number | null; wounds: number | null; conditions: string[] } {
+/**
+ * Read a character's death signal, vitals, and conditions. Reads both raw
+ * stat keys (`hit_points`, `reflex_defense`) and the human labels the sheet
+ * renders (`"Hit Points"`, `"Reflex Defense"`). SWSE sheets persist only the
+ * three defenses today, so absent fields are reported null and `stat_keys`
+ * exposes what the sheet actually carries (a fidelity signal).
+ */
+export function pcVitals(e: any): {
+  dead: boolean;
+  hp: number | null;
+  wounds: number | null;
+  conditions: string[];
+  force_points: number | null;
+  damage_threshold: number | null;
+  defenses: { reflex: number | null; fortitude: number | null; will: number | null };
+  stat_keys: string[];
+} {
   const cond = (e.conditions ?? []).map((c: any) => String(c).toLowerCase());
   const deadCond = cond.some((c: string) => /dead|deceased|killed|fatal|corpse/.test(c));
   const s = e.stats ?? {};
@@ -92,17 +109,140 @@ export function pcVitals(e: any): { dead: boolean; hp: number | null; wounds: nu
     }
     return null;
   };
-  const hp = num("Health", "health", "HP", "hp");
+  const hp = num("Health", "health", "HP", "hp", "Hit Points", "hit_points", "hitPoints");
   const wounds = num("Wounds", "wounds");
   // Mothership: 3 Wounds is death. Health/Wounds are absent on some sheets, so
   // condition strings remain the live signal.
   const dead = deadCond || (wounds !== null && wounds >= 3);
-  return { dead, hp, wounds, conditions: cond };
+  return {
+    dead, hp, wounds, conditions: cond,
+    force_points: num("Force Points", "force_points", "forcePoints"),
+    damage_threshold: num("Damage Threshold", "damage_threshold", "damageThreshold", "DT"),
+    defenses: {
+      reflex: num("Reflex Defense", "reflex_defense", "Reflex"),
+      fortitude: num("Fortitude Defense", "fortitude_defense", "Fortitude"),
+      will: num("Will Defense", "will_defense", "Will"),
+    },
+    stat_keys: Object.keys(s),
+  };
 }
 
 /** A character is alive unless a death signal is present. */
 export function pcAlive(e: any): boolean {
   return !pcVitals(e).dead;
+}
+
+/** Authoring phase runs until the completion target (central_vow) is set. */
+export function runPhase(cfg: { from_scratch?: boolean; central_vow?: string | null }): "authoring" | "playtest" {
+  return cfg.from_scratch && !cfg.central_vow ? "authoring" : "playtest";
+}
+
+/** Normalize a room name for comparison (case, leading article). */
+function normRoom(s: any): string {
+  return String(s ?? "").trim().toLowerCase().replace(/^(the|an?)\s+/, "");
+}
+
+/** Room keys/names as a lookup from normalized name -> room key. */
+function roomKeyLookup(novel: any): { keys: string[]; rooms: Record<string, any>; find: (name: string) => string | undefined } {
+  const rooms: Record<string, any> = novel?.world?.rooms ?? {};
+  const keys = Object.keys(rooms);
+  const find = (name: string): string | undefined =>
+    keys.find((k) => normRoom(k) === normRoom(name) || normRoom(rooms[k]?.name) === normRoom(name));
+  return { keys, rooms, find };
+}
+
+/** Rooms reachable from `start` over the world model's exits (BFS). */
+export function reachableRooms(novel: any, start: string): string[] {
+  const { rooms, find } = roomKeyLookup(novel);
+  const startKey = find(start);
+  if (!startKey) return [];
+  const seen = new Set<string>([startKey]);
+  const q: string[] = [startKey];
+  while (q.length) {
+    const k = q.shift()!;
+    for (const target of Object.values(rooms[k]?.exits ?? {})) {
+      const tk = find(String(target));
+      if (tk && !seen.has(tk)) { seen.add(tk); q.push(tk); }
+    }
+  }
+  return [...seen].map((k) => rooms[k]?.name ?? k).sort();
+}
+
+/** True when `goal` is reachable from `start` through the world model. */
+export function isReachable(novel: any, start: string, goal: string): boolean {
+  return reachableRooms(novel, start).some((n) => normRoom(n) === normRoom(goal));
+}
+
+/** Stable hash of an authored adventure (scaffold + structural index). */
+export function authoredAdventureHash(novel: any): string {
+  return createHash("sha1")
+    .update(JSON.stringify({ g: novel?.generated_adventure ?? null, i: novel?.adventure_index ?? null }))
+    .digest("hex");
+}
+
+/** Per-PC room map, for party-scope movement telemetry. */
+export function partyRooms(novel: any): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  for (const [id, e] of Object.entries(novel?.entities ?? {})) out[id] = (e as any)?.current_room ?? null;
+  return out;
+}
+
+/** Structural counts of the Novel's world and cast. */
+export function entityCounts(novel: any): { pcs: number; npcs: number; rooms: number; things: number; exits: number } {
+  const rooms: Record<string, any> = novel?.world?.rooms ?? {};
+  return {
+    pcs: Object.keys(novel?.entities ?? {}).length,
+    npcs: Object.keys(novel?.npcs ?? {}).length,
+    rooms: Object.keys(rooms).length,
+    things: Object.keys(novel?.world?.things ?? {}).length,
+    exits: Object.values(rooms).reduce((a: number, r: any) => a + Object.keys(r?.exits ?? {}).length, 0),
+  };
+}
+
+/** Compact before/after delta of the Novel's mechanical surfaces. */
+export function stateDelta(before: any, after: any): {
+  rooms: number; things: number; exits: number; pcs: number; npcs: number; beats: number; inventory_changed: boolean;
+} {
+  const c = (n: any) => entityCounts(n);
+  const inv = (n: any) => Object.fromEntries(Object.entries(n?.entities ?? {}).map(
+    ([id, e]: [string, any]) => [id, (e.inventory ?? []).map((i: any) => i?.name ?? i).sort().join("|")]));
+  const b = c(before); const a = c(after);
+  return {
+    rooms: a.rooms - b.rooms, things: a.things - b.things, exits: a.exits - b.exits,
+    pcs: a.pcs - b.pcs, npcs: a.npcs - b.npcs,
+    beats: asArray(after?.story_beats).length - asArray(before?.story_beats).length,
+    inventory_changed: JSON.stringify(inv(before)) !== JSON.stringify(inv(after)),
+  };
+}
+
+/** A finding that cites a server predicate (`file:line`), not a gate message. */
+export interface Finding {
+  class: string;
+  predicate: string;
+  evidence: { run: string; turns: [number, number] };
+  recurrence?: number;
+  severity: "P0" | "P1" | "P2" | "P3";
+  target: string;
+  repro?: string[];
+  suggestion?: string;
+}
+
+/** Validate a Finding record; rejects message-only findings (no file:line). */
+export function validateFinding(f: any): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  if (!f || typeof f !== "object") return { ok: false, errors: ["finding is not an object"] };
+  for (const k of ["class", "predicate", "severity", "target"]) {
+    if (typeof f[k] !== "string" || !f[k].trim()) errors.push(`missing string field '${k}'`);
+  }
+  if (typeof f.predicate === "string" && f.predicate.trim() && !/[^\s:]+:\d+/.test(f.predicate)) {
+    errors.push("predicate must be a file:line citation");
+  }
+  if (f.severity !== undefined && !["P0", "P1", "P2", "P3"].includes(f.severity)) errors.push("severity must be P0-P3");
+  const ev = f.evidence;
+  if (!ev || typeof ev.run !== "string" || !Array.isArray(ev.turns) || ev.turns.length !== 2) {
+    errors.push("evidence must be {run, turns:[a,b]}");
+  }
+  return { ok: errors.length === 0, errors };
 }
 
 /**

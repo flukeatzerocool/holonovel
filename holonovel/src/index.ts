@@ -88,7 +88,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.09.29",
+  version: "2026.09.30",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -1908,7 +1908,7 @@ server.registerTool("respond_decision", {
       // Ruleset-free workflow completed — profile-only entity.
       const name = wf.answers.name ?? "Unnamed";
       const species = wf.answers.species;
-      const entity = state.createEntity(name, undefined, species ? { species } : undefined);
+      const entity = state.createEntity(novel, name, undefined, species ? { species } : undefined);
       state.addEntity(novel, entity);
       state.saveNovel(novel);
       return ok(`${fmtEntitySheet(entity)}
@@ -1937,7 +1937,7 @@ Character '${name}' created as ${entity.id} (profile-only — no mechanical stat
       statMethod: wf.answers.statMethod ?? "planned",
     };
     const stats = buildCharacterStats(build, rules);
-    const entity = state.createEntity(build.name, undefined, stats);
+    const entity = state.createEntity(novel, build.name, undefined, stats);
     state.addEntity(novel, entity);
     state.saveNovel(novel);
     return ok(`${fmtEntitySheet(entity)}
@@ -2259,7 +2259,7 @@ server.registerTool("manage_character", {
           return err("INVALID_INPUT", "This Novel has no character-creation rules. Bind a ruleset whose package defines character creation to use classes or mechanical stats.");
         }
         const profileStats = species && !hasPersonality ? { species } : undefined;
-        const entity = state.createEntity(name, hasPersonality ? personality : undefined, profileStats);
+        const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, profileStats);
         state.addEntity(novel, entity);
         if (stage_to_roster) state.addToRoster(entity);
         state.saveNovel(novel);
@@ -2304,7 +2304,7 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
       };
       const stats = buildCharacterStats(build, rules);
 
-      const entity = state.createEntity(name, hasPersonality ? personality : undefined, stats);
+      const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, stats);
       state.addEntity(novel, entity);
       if (stage_to_roster) state.addToRoster(entity);
       state.saveNovel(novel);
@@ -3067,6 +3067,8 @@ server.registerTool("manage_world", {
     room: z.string().optional().describe("Source room (create_exit/remove_exit)."),
     room_a: z.string().optional().describe("Source room (create_exit)."),
     room_b: z.string().optional().describe("Destination room (create_exit)."),
+    from: z.string().optional().describe("Source room alias for room_a (create_exit)."),
+    to: z.string().optional().describe("Destination room alias for room_b (create_exit)."),
     source: z.string().optional().describe("Hybrid world-model source text (convert)."),
     seed: z.string().optional().describe("Deterministic seed (generate)."),
   },
@@ -3187,17 +3189,20 @@ server.registerTool("manage_world", {
       requireGM();
       const novel = requireNovel();
       worldSnapshot();
-      const dir = args.direction.toLowerCase();
-      if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction '${args.direction}'. Valid: ${ROOM_DIRECTIONS.join(", ")}.`);
-      const roomA = novel.world.rooms.get(args.room_a.toLowerCase());
-      const roomB = novel.world.rooms.get(args.room_b.toLowerCase());
-      if (!roomA) return err("NOT_FOUND", `Room '${args.room_a}' not found.`);
-      if (!roomB) return err("NOT_FOUND", `Room '${args.room_b}' not found.`);
-      roomA.exits.set(dir as Direction, args.room_b);
-      roomB.exits.set(oppositeDirection(dir as Direction), args.room_a);
+      const dir = String(args.direction ?? "").toLowerCase();
+      if (!dir || !ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid or missing direction '${args.direction ?? ""}'. Valid: ${ROOM_DIRECTIONS.join(", ")}.`);
+      const roomAName = args.room_a ?? args.room ?? args.from;
+      const roomBName = args.room_b ?? args.to;
+      if (!roomAName || !roomBName) return err("INVALID_INPUT", "create_exit requires a source (room_a/room/from) and a destination (room_b/to).");
+      const roomA = novel.world.rooms.get(String(roomAName).toLowerCase());
+      const roomB = novel.world.rooms.get(String(roomBName).toLowerCase());
+      if (!roomA) return err("NOT_FOUND", `Room '${roomAName}' not found.`);
+      if (!roomB) return err("NOT_FOUND", `Room '${roomBName}' not found.`);
+      roomA.exits.set(dir as Direction, String(roomBName));
+      roomB.exits.set(oppositeDirection(dir as Direction), String(roomAName));
       state.saveNovel(novel);
-      audit("create_exit", { direction: dir, room_a: args.room_a, room_b: args.room_b });
-      return ok(`Exit created: ${dir} from ${args.room_a} to ${args.room_b}.`);
+      audit("create_exit", { direction: dir, room_a: roomAName, room_b: roomBName });
+      return ok(`Exit created: ${dir} from ${roomAName} to ${roomBName}.`);
     }
     case "remove_exit": {
       requireGM();

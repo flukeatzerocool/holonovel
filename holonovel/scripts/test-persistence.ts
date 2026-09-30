@@ -448,6 +448,40 @@ async function main() {
     rmSync(dir, { recursive: true, force: true });
   }
 
+  {
+    // Cross-process entity-id + create_exit guard regression (P0 fixes).
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-reboot-ids-"));
+    let proc = await boot({ TTRPG_DATA_DIR: dir });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_novel", { action: "create",  name: "reboot party" });
+    const pc1 = await call(proc, "manage_character", { action: "create",  name: "Alpha" });
+    const id1 = pc1.match(/character_\d+/)?.[0];
+    await kill(proc);
+
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "reboot-party" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("entity ids do not collide across a restart (party of 2)", async () => {
+      const pc2 = await call(proc, "manage_character", { action: "create",  name: "Beta" });
+      const id2 = pc2.match(/character_\d+/)?.[0];
+      if (!id1 || !id2) throw new Error(`could not read entity ids: ${JSON.stringify({ id1, id2 })}`);
+      if (id1 === id2) throw new Error(`entity id collision across restart: ${id1}`);
+      const novel = JSON.parse(readFileSync(join(dir, "novels", "reboot-party.json"), "utf-8"));
+      const names = Object.values(novel.entities ?? {}).map((e: any) => e.name);
+      if (names.length !== 2) throw new Error(`expected 2 party members, got ${names.length}: ${names.join(",")}`);
+    });
+    await test("create_exit without direction returns [ERROR] [INVALID_INPUT], not a raw TypeError", async () => {
+      await call(proc, "manage_world", { action: "create_room",  name: "A" });
+      await call(proc, "manage_world", { action: "create_room",  name: "B" });
+      const r = await call(proc, "manage_world", { action: "create_exit",  room_a: "A", room_b: "B" });
+      assertContains(r, "[INVALID_INPUT]");
+      assertNotContains(r, "toLowerCase");
+      const r2 = await call(proc, "manage_world", { action: "create_exit",  room_a: "A", room_b: "B", direction: "north" });
+      assertContains(r2, "[OK]");
+    });
+    await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

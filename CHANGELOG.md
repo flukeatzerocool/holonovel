@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-30 — SWSE author-from-scratch harness and restart-safe entity ids
+
+Preparing a from-scratch author-and-play matrix (author a Novel, an adventure
+module, and a party, then playtest) surfaced that a campaign's party does not
+survive a restart; the harness and the two blocking server defects are fixed
+here.
+
+- **The simulated-play harness authors from scratch.** `playtest init
+  --from-scratch` starts a run with rulesets only (no supplied campaign or
+  module); the GM and player agents create the Novel, the party, and the world
+  through the tools, then `finalize` reads the completion target from the
+  finished module. Authoring and playtest turns are separated, and a new
+  `authoring.json` records party completeness, world structure, ruleset
+  grounding, and objective reachability.
+- **Party members survive restarts.** Character ids are now allocated from the
+  characters already in the Novel instead of a process-local counter, so a
+  campaign keeps distinct `character_01`, `character_02`, … across restarts
+  rather than overwriting the party with a repeated id.
+- **`create_exit` reports bad input instead of crashing.** A missing direction
+  (or missing rooms) now returns the standard `[ERROR] [INVALID_INPUT]`
+  envelope, and the source/destination may be given as `room`/`from` and `to`
+  in addition to `room_a`/`room_b`.
+- **Verification.** Regression tests cover the cross-restart id and the
+  `create_exit` contract; the harness gains metric helpers (phase boundary,
+  reachability, SWSE sheet vitals, state delta, finding schema) with
+  self-tests. The server suite passes 37/37.
+
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 
 Open-ended playtesting across every GM-style × player-persona pairing
