@@ -7,7 +7,7 @@
 // round-trip, backup rotation, clone, hydration keying, and health reporting.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync, readdirSync, statSync, utimesSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -477,6 +477,29 @@ async function main() {
       assertNotContains(r, "toLowerCase");
       const r2 = await call(proc, "manage_world", { action: "create_exit",  room_a: "A", room_b: "B", direction: "north" });
       assertContains(r2, "[OK]");
+    });
+    await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  {
+    // TTRPG_NOVEL_RETENTION_DAYS — expired .trash entries are purged at startup.
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-retention-days-"));
+    let proc = await boot({ TTRPG_DATA_DIR: dir });
+    await call(proc, "manage_novel", { action: "create",  name: "expire-me" });
+    await call(proc, "manage_novel", { action: "end" });
+    await call(proc, "respond_decision", { decision: "end novel", option: "yes" });
+    await kill(proc);
+
+    const trash = join(dir, ".trash");
+    const files = existsSync(trash) ? readdirSync(trash).filter((f) => f.startsWith("expire-me")) : [];
+    const threeDaysAgo = (Date.now() - 3 * 86400_000) / 1000;
+    for (const f of files) utimesSync(join(trash, f), threeDaysAgo, threeDaysAgo);
+
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL_RETENTION_DAYS: "1" });
+    await test("T122/REQ-238: TTRPG_NOVEL_RETENTION_DAYS purges expired trash at startup", async () => {
+      const remaining = existsSync(trash) ? readdirSync(trash).filter((f) => f.startsWith("expire-me")) : [];
+      if (remaining.length !== 0) throw new Error(`expired trash not purged: ${remaining.join(", ")}`);
     });
     await kill(proc);
     rmSync(dir, { recursive: true, force: true });

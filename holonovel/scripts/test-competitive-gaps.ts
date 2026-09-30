@@ -311,6 +311,21 @@ async function main() {
     proc.kill("SIGKILL");
   }
 
+  // ── T515 (configured) — TTRPG_WORLD_GEN_MAX_ROOMS bounds the batch ──
+  {
+    seedPackage("gentest-cap", { generation_tables: { trinkets: { dice_expression: "1d100", ranges: [{ min: 1, max: 100, result: "a dusty trinket" }] } } });
+    const proc = await boot({ TTRPG_WORLD_GEN_MAX_ROOMS: "1" });
+    await newNovel(proc, "gen-cap");
+    await call(proc, "manage_ruleset", { action: "bind", slug: "gentest-cap" });
+
+    await test("T515/REQ-431c: TTRPG_WORLD_GEN_MAX_ROOMS=1 bounds a generation batch", async () => {
+      const g = await call(proc, "manage_world", { action: "generate", seed: "42" });
+      assertContains(g, "Generated Chamber 1");
+      assertNotContains(g, "Generated Chamber 2");
+    });
+    proc.kill("SIGKILL");
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

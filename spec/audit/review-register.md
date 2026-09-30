@@ -422,6 +422,22 @@ pass and completion-oracle green. Fix evidence: regression tests in
   oracle failed on an expected refusal. It now classifies a refusal envelope
   in an `isError` result as a denial.
 
+- **`TTRPG_NOVEL_RETENTION_DAYS` was dead code (P2, 2026-09-30):**
+  `StateManager.cleanupExpiredTrash` (`holonovel/src/core/state.ts:1359`) was
+  defined but never called, so the declared retention setting had no effect.
+  It is now invoked during startup hydration; T122 asserts the purge.
+- **Appendix F assertion-miss remediation (P3, 2026-09-30):**
+  `checkAppendixFAssertions` (`scripts/validate.ts`) flagged exercised tests
+  whose Appendix F row names a config var no harness references. The check now
+  excludes build-time/informational/builder-side vars a server harness cannot
+  set (`scripts/validate.ts` `nonHarnessAssertionVars`, sourced from §7.6 and
+  `holonovel/DECISIONS.md`), and the eight genuinely runtime knobs gained
+  env-set assertions: `TTRPG_CLIMAX_ACCELERATION` (T404),
+  `TTRPG_MAX_ROSTER_ENTITIES` (T218), `TTRPG_WORLD_GEN_MAX_ROOMS` (T515),
+  `TTRPG_NOVEL_RETENTION_DAYS` (T122), `TTRPG_AUDIT_RETENTION_SESSIONS` (T277),
+  `TTRPG_AUTONOMY` (T485), `TTRPG_SYNTHESIS_AUTO_TRIGGER` (T323). Misses fell
+  18 → 1; the recorded baseline was re-pinned to 1.
+
 ## Scheduled-roadmap
 
 - **Party placement not modeled (P1, 2026-09-30):** only the active PC is
@@ -436,6 +452,12 @@ pass and completion-oracle green. Fix evidence: regression tests in
   discoverability".
 
 ## Closed-P3 (recorded, no action)
+
+- **`TTRPG_SYNTHESIS_STALE_DAYS` assertion left nominal (closed 2026-09-30):**
+  T195 names the synthesis staleness threshold, but no test fixture produces
+  aged synthesis items and the health surface does not echo the threshold, so
+  it cannot be asserted cheaply. Recorded; the Appendix F baseline is pinned at
+  1 for this residual. Reopen if a synthesis fixture is added.
 
 - **Guard-before-fix sequencing for single-source-a-gate plans** (closed
   2026-09-28): the Publish-Server recurrence guard (`scripts/check-workflows.ts`)

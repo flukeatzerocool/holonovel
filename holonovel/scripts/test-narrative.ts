@@ -138,6 +138,23 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T404 (configured) — TTRPG_CLIMAX_ACCELERATION honored ───────────
+  {
+    const proc = await boot({ TTRPG_CLIMAX_ACCELERATION: "3" });
+    await call(proc, "manage_novel", { action: "create",  name: "narrative-climax-3" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    await test("T404/REQ-353: TTRPG_CLIMAX_ACCELERATION=3 accelerates transition countdowns", async () => {
+      await call(proc, "manage_scene", { action: "set",  description: "climax scene", beat: "climax" });
+      await call(proc, "manage_countdown", { action: "set",  name: "urgency", ticks: 5, on_scene_transition: true });
+      await call(proc, "manage_scene", { action: "set",  description: "Scene A" });
+      const b = await briefing(proc);
+      assertContains(b, "urgency (2/5)");
+    });
+
+    await kill(proc);
+  }
+
   // ── T388 / T389 / T398 / T401: faction autonomy + NPC goal pursuit ──
   {
     const proc = await boot({ TTRPG_FACTION_AUTONOMY_INTERVAL: "3", TTRPG_NPC_AUTONOMY: "on" });

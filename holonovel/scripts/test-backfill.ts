@@ -790,6 +790,36 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T485 (configured) — TTRPG_AUTONOMY launch preset ────────────────
+  {
+    const proc = await boot({ TTRPG_AUTONOMY: "full" });
+    await call(proc, "manage_novel", { action: "create", name: "autonomy-preset" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T485/REQ-306: TTRPG_AUTONOMY seeds the new Novel's default autonomy level", async () => {
+      const auto = await call(proc, "manage_scene", { action: "autonomy" });
+      assertContains(auto, "full");
+    });
+    await kill(proc);
+  }
+
+  // ── T218 (configured) — TTRPG_MAX_ROSTER_ENTITIES cap ───────────────
+  {
+    const proc = await boot({ TTRPG_MAX_ROSTER_ENTITIES: "1" });
+    await call(proc, "manage_novel", { action: "create", name: "roster-cap" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T218/REQ-129b2: TTRPG_MAX_ROSTER_ENTITIES caps the roster", async () => {
+      const c1 = await call(proc, "manage_character", { action: "create", name: "CapOne" });
+      const id1 = c1.match(/character_\d+/)?.[0];
+      assert(id1, `no entity id for first character: ${c1}`);
+      assertContains(await call(proc, "manage_character", { action: "stage", entity_id: id1 }), "[OK]");
+      const c2 = await call(proc, "manage_character", { action: "create", name: "CapTwo" });
+      const id2 = c2.match(/character_\d+/)?.[0];
+      assert(id2, `no entity id for second character: ${c2}`);
+      assertContains(await call(proc, "manage_character", { action: "stage", entity_id: id2 }), "STATE_CONFLICT");
+    });
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
