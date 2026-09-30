@@ -38,6 +38,9 @@ the search that supplied it. Fidelity is measured by
 2. **Party.** Player: `manage_character (action: create)` per PC (one tool call
    per turn), with `species`, `classes` (`"<Class> <level>"`), and
    `stat_method: "standard"`. Then `manage_character (action: set_active)`.
+   The GM sets `manage_scene (action: presence, entity_ids: [<every PC id>])`
+   so scene placement and parser movement co-locate the whole party (the
+   oracle's `party_in_escape` requires it).
 3. **World.** GM: `manage_world (action: create_room)` per location, then
    `manage_world (action: create_exit, room_a, room_b, direction)` per link.
    Model the escape/objective room and a path to it from the spawn.

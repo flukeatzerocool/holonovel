@@ -435,6 +435,22 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `missionTelemetry` (`holonovel/scripts/playtest.ts`) counted only `lookup_*`;
   it now counts `manage_ruleset (action: search)` toward the lookup/anchor
   metrics.
+- **Synthesis health `stale_count` was hardcoded (P1, 2026-09-30):** REQ-160
+  requires `spec_health.synthesis_health.stale_count`; `buildSpecHealth` pinned
+  it to `0` and `StateManager.getWisdomHealth` (which computes it) was dead and
+  crashed iterating the `briefing_order` object
+  (`holonovel/src/core/state.ts:1745`). It is now wired, array-guarded, and
+  stamps items lacking a timestamp from the manifest `collected_at`; list
+  output carries a `stale` flag. T195 asserts it; the Appendix F baseline is
+  re-pinned to 0.
+- **Party-scoped completion oracle (P2, 2026-09-30):** the playtest oracle now
+  requires every PC in the escape room (`party_in_escape`), gating `success`;
+  the authoring protocol sets `manage_scene (action: presence)`. ROADMAP entry
+  retired.
+- **Character-creation package contract (P1, 2026-09-30):** REQ-399a now
+  requires the character-creation model to declare every damage-tracking
+  resource a ruleset defines (hit points, a damage threshold, a metacurrency);
+  the SWSE package rebuild remains scheduled on ROADMAP "SWSE sheet vitals".
 
 - **`TTRPG_NOVEL_RETENTION_DAYS` was dead code (P2, 2026-09-30):**
   `StateManager.cleanupExpiredTrash` (`holonovel/src/core/state.ts:1359`) was
@@ -459,18 +475,9 @@ pass and completion-oracle green. Fix evidence: regression tests in
   defenses. The server already persists every `derived_stats` entry a ruleset
   declares (`holonovel/src/core/character-creation.ts:362`); the gap is the
   SWSE package model. Scheduled on ROADMAP "SWSE sheet vitals" (builder side).
-- **Party-scoped completion oracle (P2, 2026-09-30):** parser `go` and
-  `manage_scene (action: set, location)` now co-locate the present party, but
-  the playtest oracle certifies escape on the active PC alone. Scheduled on
-  ROADMAP "Party-scoped completion oracle".
+
 
 ## Closed-P3 (recorded, no action)
-
-- **`TTRPG_SYNTHESIS_STALE_DAYS` assertion left nominal (closed 2026-09-30):**
-  T195 names the synthesis staleness threshold, but no test fixture produces
-  aged synthesis items and the health surface does not echo the threshold, so
-  it cannot be asserted cheaply. Recorded; the Appendix F baseline is pinned at
-  1 for this residual. Reopen if a synthesis fixture is added.
 
 - **Guard-before-fix sequencing for single-source-a-gate plans** (closed
   2026-09-28): the Publish-Server recurrence guard (`scripts/check-workflows.ts`)

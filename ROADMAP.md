@@ -8,18 +8,10 @@
 
 ## SWSE sheet vitals
 
-- SWSE character sheets carry only the three defenses — no Hit Points, Damage
-  Threshold, or Force Points — so SWSE combat cannot be tracked. The server
-  already persists every `derived_stats` entry a ruleset declares
-  (`holonovel/src/core/character-creation.ts:362`); the gap is the SWSE package
-  model's `character_creation.derived_stats`.
-- Add `hit_points`, `damage_threshold`, and `force_points` derived stats to the
-  SWSE package via the ruleset-build workflow, then rebuild/reinstall the
-  package (REQ-399 family).
-
-## Party-scoped completion oracle
-
-- The parser and `manage_scene (action: set, location)` now place/move the
-  whole present party, but the playtest oracle certifies escape on the active
-  PC alone. Add a party-scoped escape component to the oracle and have the
-  authoring protocol set party presence.
+- REQ-399a now requires the character-creation model to declare every
+  damage-tracking resource the ruleset defines (amended 2026-09-30); the server
+  already persists declared `derived_stats`
+  (`holonovel/src/core/character-creation.ts:362`).
+- Remaining: rebuild the SWSE package so it declares `hit_points`,
+  `damage_threshold`, and `force_points` —
+  `opencode run --agent build "Perform Build workflow on swse. B1 intake: swse=/home/fluke/Documents/SWSE/ruleset/SWSE. Follow Appendix V V.1."`

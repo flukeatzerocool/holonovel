@@ -1743,10 +1743,23 @@ export class StateManager {
     const moduleCounts: Record<string, number> = {};
     const modules = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
     for (const mod of modules) {
-      const items = (manifest[mod] ?? []) as any[];
+      // `briefing_order` is a single object and `adventure_advice` nests three
+      // arrays; the remaining modules are arrays.
+      let items: any[];
+      if (mod === "briefing_order") items = manifest.briefing_order ? [manifest.briefing_order] : [];
+      else if (mod === "adventure_advice") {
+        const adv = manifest.adventure_advice ?? {};
+        items = [...(adv.templates ?? []), ...(adv.scenario_starters ?? []), ...(adv.table_expansions ?? [])];
+      } else {
+        const raw = manifest[mod];
+        items = Array.isArray(raw) ? raw : [];
+      }
       moduleCounts[mod] = items.length;
       for (const item of items) {
-        if (item.collected_at && new Date(item.collected_at).getTime() < cutoff) staleCount++;
+        // REQ-160 — an item past TTRPG_SYNTHESIS_STALE_DAYS is stale. Items
+        // without their own timestamp inherit the manifest's collected_at.
+        const collected = item.collected_at ?? manifest.collected_at;
+        if (collected && new Date(collected).getTime() < cutoff) staleCount++;
         if (item.activated) activatedCount++;
       }
     }
