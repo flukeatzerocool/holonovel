@@ -65,6 +65,9 @@ here.
   denied on ruleset-bound Novels (scheduled on ROADMAP).
 - **Matrix breadth.** The author-from-scratch matrix now runs three module
   shapes with party presence; 36/36 cells pass the party-scoped oracle.
+- **Player perception on ruleset-bound Novels.** The Player badge may now
+  issue read-only parser commands (`look`, `examine`, `inventory`, `status`);
+  navigation and mutating commands remain Game Master only (REQ-309h).
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 

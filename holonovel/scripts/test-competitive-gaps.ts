@@ -326,6 +326,27 @@ async function main() {
     proc.kill("SIGKILL");
   }
 
+  // ── REQ-309h — Player read-only perception on a ruleset-bound Novel ──
+  {
+    seedPackage("percept", { character_creation: { steps: [] } });
+    const proc = await boot();
+    await newNovel(proc, "percept-test");
+    await call(proc, "manage_ruleset", { action: "bind", slug: "percept" });
+    await call(proc, "manage_world", { action: "create_room", name: "Bay", description: "A bay." });
+    await call(proc, "manage_character", { action: "create", name: "Scout" });
+    await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
+
+    await test("REQ-309h: Player may look but not navigate on a ruleset-bound Novel", async () => {
+      await call(proc, "set_badge", { badge: "player" });
+      const look = await call(proc, "run_command", { action: "execute", command: "look" });
+      assertNotContains(look, "FORBIDDEN");
+      const go = await call(proc, "run_command", { action: "execute", command: "go north" });
+      assertContains(go, "FORBIDDEN");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+    proc.kill("SIGKILL");
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

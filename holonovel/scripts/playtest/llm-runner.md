@@ -32,9 +32,12 @@ For run id `<run>`, with the server under test and a scratch `PLAYTEST_HOME`:
 
 ## Roles
 
-- **Player** — declares intent in fiction, calls `run_command`, `manage_session
-  (discover)`, `manage_character` for its own sheet. Never resolves outcomes
-  the engine owns.
+- **Player** — declares intent in fiction, calls `manage_session (discover)`,
+  `manage_character` for its own sheet, and `run_command (action: suggest)` for
+  spatial intent. On ruleset-bound Novels the Player may also issue read-only
+  perception commands via `run_command (action: execute)` — `look`, `examine`,
+  `inventory`, `status` (REQ-309h); navigation and mutation stay GM-only.
+  Never resolves outcomes the engine owns.
 - **GM** — calls the mutating/world tools, adjudicates with `run_command
   (resolve)` where a roll is required, reports only what the engine returned.
 
