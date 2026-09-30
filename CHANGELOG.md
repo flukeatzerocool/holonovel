@@ -26,6 +26,15 @@ here.
   `create_exit` contract; the harness gains metric helpers (phase boundary,
   reachability, SWSE sheet vitals, state delta, finding schema) with
   self-tests. The server suite passes 37/37.
+- **Play matrix.** The SWSE author-from-scratch matrix (6 GM types × 6 player
+  personas) ran 36 cells: all authored a valid campaign module and a level-5
+  party of four, and all 36 reached the completion oracle with no gating
+  leaks, unrecovered defects, or persistence violations. Findings (party-wide
+  placement, SWSE sheet vitals, beat-enum discoverability) are scheduled on
+  ROADMAP.md and recorded in the review register.
+- **Refusal classification.** The playtest harness no longer counts an
+  expected `[FORBIDDEN]` badge-gating refusal as a defect when the SDK marks
+  the result as an error.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 
