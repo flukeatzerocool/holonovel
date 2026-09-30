@@ -211,14 +211,15 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
     if (roomMatch) {
       const name = roomMatch[1].trim();
       const description = roomMatch[2] || "";
-      const room: WorldRoom = {
-        name,
-        description,
-        exits: new Map(),
-        doorRefs: new Map(),
-        annotations: {},
-      };
-      world.rooms.set(name.toLowerCase(), room);
+      const existingRoom = world.rooms.get(name.toLowerCase());
+      if (existingRoom) {
+        // Preserve exits/doorRefs accumulated when this room was first referenced
+        // as an exit target (a stub); replacing it would silently drop them.
+        existingRoom.name = name;
+        if (description) existingRoom.description = description;
+      } else {
+        world.rooms.set(name.toLowerCase(), { name, description, exits: new Map(), doorRefs: new Map(), annotations: {} });
+      }
       currentRoom = name;
       currentThing = null;
       continue;
