@@ -447,6 +447,13 @@ pass and completion-oracle green. Fix evidence: regression tests in
   requires every PC in the escape room (`party_in_escape`), gating `success`;
   the authoring protocol sets `manage_scene (action: presence)`. ROADMAP entry
   retired.
+- **Player had no perception surface on ruleset-bound Novels (P2,
+  2026-09-30):** an LLM-driven player agent calling `run_command (action:
+  execute, "look")` was refused because the parser was wholly GM-gated. REQ-309h
+  now permits the Player read-only perception commands (`look`, `examine`,
+  `inventory`, `status`) while navigation and mutation stay GM-only
+  (`holonovel/src/index.ts` `PLAYER_READONLY_VERBS`); test in
+  `holonovel/scripts/test-competitive-gaps.ts`.
 - **Character-creation package contract (P1, 2026-09-30):** REQ-399a now
   requires the character-creation model to declare every damage-tracking
   resource a ruleset defines (hit points, a damage threshold, a metacurrency);
@@ -470,12 +477,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Player perception surface on ruleset-bound Novels (P2, 2026-09-30):** an
-  LLM-driven player agent calling `run_command (action: execute, "look")` gets
-  `[FORBIDDEN]` because the parser is GM-only on ruleset-bound Novels
-  (REQ-309e); the player has no direct look/examine affordance. Reproduction:
-  LLM pilot `llm-narrative-curious` turns 19 and 21. Scheduled on ROADMAP
-  "Player perception surface".
 - **SWSE sheets lack HP/Damage Threshold/Force Points (P1, 2026-09-30):**
   `computeDerived` plus the SWSE package `derived_stats` yield only the three
   defenses. The server already persists every `derived_stats` entry a ruleset

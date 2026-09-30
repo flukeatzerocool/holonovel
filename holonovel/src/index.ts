@@ -229,6 +229,9 @@ const SECTION_512_IMPLEMENTED = SECTION_512_REQS.filter((r) => r !== "REQ-346" |
 
 // REQ-335 — fixed beat vocabulary; the six values are the only valid beats.
 const BEAT_VALUES = ["setup", "escalation", "turning_point", "climax", "resolution", "denouement"] as const;
+// REQ-309h — read-only parser commands the Player badge MAY issue on a
+// ruleset-bound Novel; navigation and mutating commands stay Game Master only.
+const PLAYER_READONLY_VERBS = new Set(["look", "examine", "inventory", "status"]);
 const DEFAULT_BEAT = "mid_scene";
 
 // §7.6 / REQ-336/338/339/344/353 — behavioral TTRPG_* config with defaults.
@@ -2641,11 +2644,23 @@ server.registerTool("run_command", {
     command = command.replace(/\b(it|them)\b/gi, lastReferencedThing);
   }
   // Ruleset-bound Novels gate the parser to the Game Master (REQ-309); the
-  // Player badge routes spatial intent through resolve_intent. Ruleset-free
-  // Novels keep the parser as the primary Player surface (REQ-218, REQ-309e).
-  if (novel.ruleset) requireGM();
-  else requireNotObserver();
-  worldSnapshot();
+  // Player badge may issue read-only perception commands (REQ-309h) and routes
+  // mutating spatial intent through the narrator. Ruleset-free Novels keep the
+  // parser as the primary Player surface (REQ-218, REQ-309e).
+  const executeBadge = getBadge();
+  const playerReadOnly = novel.ruleset && executeBadge === "player";
+  if (playerReadOnly) {
+    const verb = command.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+    if (!PLAYER_READONLY_VERBS.has(verb)) {
+      return err("FORBIDDEN", "On a ruleset-bound Novel the parser is Game Master only for navigation and mutation. The Player may issue read-only perception commands (look, examine, inventory, status).");
+    }
+  } else if (novel.ruleset) {
+    requireGM();
+  } else {
+    requireNotObserver();
+  }
+  // A player read-only perception leaves no undo entry or audit mutation.
+  if (!playerReadOnly) worldSnapshot();
   const entity = state.getActiveEntity();
 
   if (!state.worldHasRooms(novel)) {
