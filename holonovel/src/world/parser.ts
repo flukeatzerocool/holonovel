@@ -196,6 +196,46 @@ function getThing(name: string, ctx: ParserContext): WorldThing | undefined {
   });
 }
 
+// Resolve a thing that is reachable from the current room: room things, the
+// contents of open containers and supporters in the room, the room's doors,
+// and the actor's own inventory. Mirrors the side-effect writer's room scope
+// (`findMatchingThing` in index.ts) so the parser never reports [OK] for an
+// object the writer cannot affect (F2/F5).
+function getReachableThing(name: string, ctx: ParserContext): WorldThing | undefined {
+  const norm = (s: string) => s.toLowerCase().trim().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+  const want = norm(name);
+  if (!want) return undefined;
+  const candidates: WorldThing[] = [];
+  const room = ctx.currentRoom;
+  if (room) {
+    const rl = room.toLowerCase();
+    for (const [, t] of ctx.world.things) {
+      const loc = t.location?.toLowerCase();
+      if (loc === rl) { candidates.push(t); continue; }
+      if (t.locationType === "supporter" || t.locationType === "container") {
+        const parent = ctx.world.things.get(t.location?.toLowerCase() ?? "");
+        if (parent && parent.location?.toLowerCase() === rl && (t.locationType === "supporter" || (parent.openable && parent.open))) {
+          candidates.push(t);
+        }
+      }
+    }
+    const roomObj = ctx.world.rooms.get(rl);
+    if (roomObj?.doorRefs) {
+      for (const [, doorName] of roomObj.doorRefs) {
+        const d = ctx.world.things.get(String(doorName).toLowerCase());
+        if (d) candidates.push(d);
+      }
+    }
+  }
+  for (const inv of ctx.inventory ?? []) {
+    const t = ctx.world.things.get(String(inv).toLowerCase());
+    if (t) candidates.push(t);
+  }
+  const exact = candidates.find((t) => norm(t.name) === want);
+  if (exact) return exact;
+  return candidates.find((t) => norm(t.name).includes(want) || want.includes(norm(t.name)));
+}
+
 function bareName(name: string): string {
   return name.replace(/^(?:the|an?)\s+/i, "");
 }
@@ -397,7 +437,7 @@ function handlePut(thingName: string, targetName: string, ctx: ParserContext): P
     return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${thingName}'.` };
   }
 
-  const targetThing = getThing(targetName, ctx);
+  const targetThing = getReachableThing(targetName, ctx);
   if (!targetThing) {
     // Try room name
     const room = getRoom(targetName, ctx);
@@ -418,7 +458,7 @@ function handlePut(thingName: string, targetName: string, ctx: ParserContext): P
 
 function handleOpen(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
-  const thing = getThing(target, ctx);
+  const thing = getReachableThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} cannot be opened.` };
   if (thing.open) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already open.` };
@@ -439,7 +479,10 @@ function normThingName(s: string): string {
 
 function carryingKey(ctx: ParserContext, name: string): boolean {
   const want = normThingName(name);
-  return ctx.inventory.some((i) => normThingName(i) === want);
+  return ctx.inventory.some((i) => {
+    const n = normThingName(i);
+    return n === want || n.includes(want) || want.includes(n);
+  });
 }
 
 function findUnlockHint(ctx: ParserContext, thing: WorldThing): string | null {
@@ -459,7 +502,7 @@ function findUnlockHint(ctx: ParserContext, thing: WorldThing): string | null {
 
 function handleClose(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
-  const thing = getThing(target, ctx);
+  const thing = getReachableThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} cannot be closed.` };
   if (!thing.open) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already closed.` };
@@ -468,7 +511,7 @@ function handleClose(target: string, ctx: ParserContext): ParserResult {
 
 function handleUnlock(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
-  const thing = getThing(target, ctx);
+  const thing = getReachableThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not lockable.` };
   if (!thing.locked) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already unlocked.` };
@@ -489,7 +532,7 @@ function handleUnlock(target: string, ctx: ParserContext): ParserResult {
 
 function handleLock(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
-  const thing = getThing(target, ctx);
+  const thing = getReachableThing(target, ctx);
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not lockable.` };
   if (thing.locked) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already locked.` };
@@ -523,7 +566,7 @@ function handleExamine(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Examine what?" };
 
-  const thing = getThing(target, ctx);
+  const thing = getReachableThing(target, ctx);
   if (thing) {
     let text = thing.description || `You see nothing special about the ${bareName(thing.name)}.`;
     // Show container contents if open

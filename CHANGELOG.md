@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
+
+Open-ended playtesting across every GM-style × player-persona pairing
+(38 sessions) surfaced a set of defects that cluster around a few root causes
+rather than isolated bugs; this change fixes the root causes and adds guards.
+
+- **Simulated-play harness reaches full parity.** Six GM personas
+  (`gm_fair`, `gm_adversarial`, `gm_benevolent`, `gm_rules_literal`,
+  `gm_narrative`, `gm_lorekeeper`) join the six player personas; the harness
+  records per-turn provenance and emits mission telemetry (source-anchor
+  coverage, hallucinated-tool detection, state-fingerprint persistence,
+  latency, briefing size), varies the dice seed per turn, and takes a per-run
+  lock so concurrent drivers cannot corrupt a transcript.
+- **Ruleset provenance and fidelity.** Lookups keep a model entry's own source
+  anchor instead of clobbering it, and indexed lookups join by a normalized
+  id; a bound ruleset with no condition list now accepts free-form conditions
+  instead of falling back to another ruleset's vocabulary (F8); `info`-kind
+  ruleset tools return the mechanic text rather than their own description.
+- **Parser/writer coherence.** Object interactions resolve the same reachable
+  set the side-effect writer uses (no more false success for an object in
+  another room); a leading article no longer defeats take/drop; `unlock X with
+  <partial key>` resolves a carried key; `suggest` offers the `unlock` verb;
+  dropping a held item no longer loses it.
+- **Mechanical memory and narrative coupling.** A `go` moves the whole present
+  party and updates the scene location; story beats record the room the party
+  is actually in; narrative clocks tick on parser movement; `manage_story
+  (action: list)` shows the room.
+- **Error and discovery surfaces.** Argument-schema violations now return the
+  standard `[ERROR] [INVALID_INPUT]` envelope; `discover` renders examples from
+  the tool's JSON Schema instead of leaking schema internals.
+- **Specification.** Amended REQ-067d, REQ-074a, REQ-200, REQ-217a, REQ-280b,
+  and REQ-331a to state the corrected contracts; the fix increment is recorded
+  in the review register with regression tests.
+
 ## 2026-09-29 — Parser/briefing fixes from simulated play; optional key binding (REQ-284f)
 
 Findings from a simulated-play pilot against a mothership module (see

@@ -1,8 +1,29 @@
 # Playtest driver protocol
 
 You are the external driver for `playtest.ts`. Pick one persona from
-`personas/` for the player and `personas/gm.md` for the Game Master. Play one
-run to its completion oracle or a turn budget.
+`personas/` for the player and one **GM type** from `personas/gm_*.md` for the
+Game Master. Play one run to its completion oracle or a turn budget.
+
+## GM types
+
+| File | Style |
+|------|-------|
+| `gm_fair.md` | Faithful control GM. |
+| `gm_adversarial.md` | Maximizes threat; honest defeats. |
+| `gm_benevolent.md` | Generous; the temptation to leak unearned success is the test. |
+| `gm_rules_literal.md` | Cites and enforces the ruleset. |
+| `gm_narrative.md` | Improvises; must persist what it invents. |
+| `gm_lorekeeper.md` | Heavy, consistent world population. |
+
+Every GM type shares one hard constraint: report only what the engine
+returned; never narrate an outcome the engine did not validate.
+
+## Role isolation
+
+Run the GM and the player as **separate contexts**. They exchange only
+briefing and transcript state — never a shared reasoning trace. The player
+context must not see the oracle formula, prior transcripts, or the module
+source; the GM context must not see the composite success formula.
 
 ## Roles and badges
 
@@ -35,3 +56,19 @@ run to its completion oracle or a turn budget.
 - Keep the GM's adjudication consistent with the world model; a GM that declares
   success the party did not achieve is a `gating_leak`/attribution finding, not
   a win — the oracle requires the PC to be in the escape room.
+
+## Play notes
+
+- **Locked doors are two-step.** `unlock <door> with <key>` clears the lock;
+  passage then needs an explicit `open <door>`. A `go` before the `open`
+  returns `[WARNING]` ("closed").
+- **Player spatial intent.** `run_command (action: resolve)` is GM-gated; under
+  the Player badge use `run_command (action: suggest)` to declare intent, and
+  let the GM resolve it.
+- **Argument-schema violations.** An invalid enum/type argument returns a tool
+  result with `isError: true` and an `MCP error -32602: Input validation error
+  …` message (a valid MCP tool error), not an `[ERROR] [CODE]` envelope. The
+  harness classifies these as denials.
+- **Dread beats / panic.** At a horror beat, invoke `mothership_roll_dice`
+  (`1d20` vs current Stress) so the panic mechanic is exercised rather than
+  narrated.

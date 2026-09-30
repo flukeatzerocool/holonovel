@@ -35,6 +35,9 @@ export function createRng(seed: number | string): Rng {
 
 // Session PRNG — seeded once from TTRPG_SEED (default 0). Advances with each
 // session-seeded draw. Per-call seeds construct a fresh isolated Rng instead.
+// REQ-050c — restart determinism: two restarts without TTRPG_SEED produce
+// identical event sequences, so the session position is intentionally NOT
+// persisted. (The simulated-play harness varies TTRPG_SEED per turn instead.)
 const SESSION_SEED = process.env.TTRPG_SEED ?? "0";
 const sessionRng = createRng(SESSION_SEED);
 
