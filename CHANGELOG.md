@@ -50,6 +50,15 @@ here.
   `[ERROR] [INVALID_INPUT]` envelope.
 - **Play matrix grounding metric.** The harness counts ruleset grounding
   searches in its lookup/anchor metrics.
+- **Character-creation package contract.** REQ-399a now requires the
+  character-creation model to declare every damage-tracking resource a ruleset
+  defines (hit points, a damage threshold, a metacurrency such as Force
+  Points); the SWSE package rebuild is scheduled on ROADMAP.
+- **Party-scoped completion.** The playtest oracle now requires every party
+  member in the escape room, and the authoring protocol sets party presence.
+- **Synthesis staleness repaired.** `spec_health` reports a real
+  `stale_count` (previously hardcoded to zero) and synthesis listings flag
+  stale items; the Appendix F assertion-miss baseline is now zero.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 

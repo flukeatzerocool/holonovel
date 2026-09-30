@@ -820,6 +820,22 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T195 (configured) — TTRPG_SYNTHESIS_STALE_DAYS marks items stale ──
+  {
+    const proc = await boot({ TTRPG_SYNTHESIS_STALE_DAYS: "0", TTRPG_OUTPUT_LIMIT: "200000" });
+    await call(proc, "manage_novel", { action: "create", name: "synth-stale" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_synthesis", { action: "run" });
+    await test("T195/REQ-160: TTRPG_SYNTHESIS_STALE_DAYS=0 reports stale synthesis items", async () => {
+      const h = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const stale = h.synthesis_health?.stale_count;
+      if (!(stale > 0)) throw new Error(`expected stale_count > 0 with threshold 0, got ${JSON.stringify(stale)}`);
+      const list = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      if (!Array.isArray(list) || !list.some((i: any) => i.stale === true)) throw new Error(`no list item carries the [stale] flag`);
+    });
+    await kill(proc);
+  }
+
   // ── REQ-307/REQ-074 — scene-location set co-locates the present party ──
   {
     const proc = await boot();

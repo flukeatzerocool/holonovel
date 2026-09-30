@@ -7666,7 +7666,7 @@ function buildSpecHealth(): Record<string, unknown> {
     synthesis_health: {
       synthesis_active,
       module_counts: synthesisCounts,
-      stale_count: 0,
+      stale_count: state.getWisdomHealth().stale_count,
       activated_count: novel ? Object.values(novel.synthesis_activated ?? {}).reduce<number>((a, b) => a + (Array.isArray(b) ? b.length : 0), 0) : 0,
       fingerprint: state.wisdomManifest ? SPEC_HASH : "",
     },
@@ -8913,6 +8913,13 @@ server.registerTool("manage_synthesis", {
       // REQ-372 — supplementary imports surface as Wisdom even before synthesis runs.
       const supplementary = (novel?.supplementary_rulesets ?? []).flatMap((s) => s.wisdom.map((w) => ({ module: w.module, tag: `supplementary:${s.slug}`, content: w.content, badge_scope: "game_master", key: String(w.key) })));
       if (!manifest && supplementary.length === 0) return ok("No synthesis items (synthesis not run; no supplementary imports).");
+      // REQ-160 — items past TTRPG_SYNTHESIS_STALE_DAYS carry the [stale] flag.
+      const staleDays = parseInt(process.env.TTRPG_SYNTHESIS_STALE_DAYS ?? "90", 10);
+      const staleCutoff = Date.now() - staleDays * 86400_000;
+      const isStale = (item: any): boolean => {
+        const collected = item?.collected_at ?? manifest?.collected_at;
+        return !!(collected && new Date(collected).getTime() < staleCutoff);
+      };
       const row = (module: string, item: any, content: string): any => ({
         module,
         key: item?.key,
@@ -8921,6 +8928,7 @@ server.registerTool("manage_synthesis", {
         content,
         activated: isWisdomItemActive(module, item),
         module_enabled: isModuleEnabled(module),
+        stale: isStale(item),
       });
       const adv = manifest?.adventure_advice ?? {};
       const playerRows = Object.entries(novel?.player_synthesis ?? {}).flatMap(([m, items]) => (items as any[]).map((i) => ({ module: m, key: i.key, tag: "player", badge_scope: i.badge_scope, content: i.content, activated: i.active !== false, module_enabled: isModuleEnabled(m) })));
@@ -8938,7 +8946,7 @@ server.registerTool("manage_synthesis", {
       ];
       const filtered = args.module ? all.filter((i: any) => i.module === args.module) : all;
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
-      const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, activated: i.activated, module_enabled: i.module_enabled, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
+      const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
       return raw(JSON.stringify(summary, null, 2));
     }
     case "activate": {

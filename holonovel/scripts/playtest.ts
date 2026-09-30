@@ -565,6 +565,9 @@ function computeOracle(run: string): any {
   const bare = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
   const want = bare(cfg.escape_room ?? "");
   const activeInEscape = want ? bare(activePc?.current_room ?? "") === want : true;
+  // Party-scoped completion: when the target is known, every PC must be in the
+  // escape room at the end, not only the active entity.
+  const partyInEscape = want ? (pcs.length > 0 && pcs.every((p: any) => bare(p.current_room ?? "") === want)) : true;
   // Non-vacuous round trip: when the escape room is also the spawn room,
   // `active_pc_in_escape` is trivially true. Require the active PC to have
   // left the escape room and returned (from the recorded playtest turns).
@@ -599,7 +602,7 @@ function computeOracle(run: string): any {
   const totalCalls = playTx.length || 1;
   const errorTurns = defects.length;
   const denials = playTx.filter((r) => (r.error_class ? r.error_class === "denial" : DENIAL_PREFIXES.has(r.prefix))).length;
-  const success = !!(vowResolved && terminalBeat && activeInEscape && leftAndReturned && survivors.length > 0 && unrecovered === 0);
+  const success = !!(vowResolved && terminalBeat && activeInEscape && partyInEscape && leftAndReturned && survivors.length > 0 && unrecovered === 0);
   const partial = Number((0.4 * beatFraction + 0.4 * (vowResolved ? 1 : 0) + 0.2 * Math.max(0, 1 - errorTurns / totalCalls)).toFixed(3));
   const oracle = {
     run: cfg.run_id,
@@ -610,6 +613,7 @@ function computeOracle(run: string): any {
     components: {
       vow_resolved: !!vowResolved, terminal_beat: terminalBeat?.beat ?? null,
       active_pc_in_escape: activeInEscape,
+      party_in_escape: partyInEscape,
       active_pc_left_and_returned: leftAndReturned,
       survivors: survivors.map((s: any) => s.name), survivors_count: survivors.length,
       pcs: pcs.map((p: any) => ({ name: p.name, room: p.current_room ?? null, alive: pcAlive(p), vitals: pcVitals(p) })),
