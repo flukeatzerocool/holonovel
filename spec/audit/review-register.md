@@ -470,6 +470,12 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+- **Player perception surface on ruleset-bound Novels (P2, 2026-09-30):** an
+  LLM-driven player agent calling `run_command (action: execute, "look")` gets
+  `[FORBIDDEN]` because the parser is GM-only on ruleset-bound Novels
+  (REQ-309e); the player has no direct look/examine affordance. Reproduction:
+  LLM pilot `llm-narrative-curious` turns 19 and 21. Scheduled on ROADMAP
+  "Player perception surface".
 - **SWSE sheets lack HP/Damage Threshold/Force Points (P1, 2026-09-30):**
   `computeDerived` plus the SWSE package `derived_stats` yield only the three
   defenses. The server already persists every `derived_stats` entry a ruleset

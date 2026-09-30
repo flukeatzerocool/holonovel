@@ -59,6 +59,12 @@ here.
 - **Synthesis staleness repaired.** `spec_health` reports a real
   `stale_count` (previously hardcoded to zero) and synthesis listings flag
   stale items; the Appendix F assertion-miss baseline is now zero.
+- **LLM-driven play runner.** Added the agent protocol for LLM-driven matrix
+  cells (`holonovel/scripts/playtest/llm-runner.md`); a pilot cell completed
+  with the party-scoped oracle green, surfacing that a Player's "look" is
+  denied on ruleset-bound Novels (scheduled on ROADMAP).
+- **Matrix breadth.** The author-from-scratch matrix now runs three module
+  shapes with party presence; 36/36 cells pass the party-scoped oracle.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 

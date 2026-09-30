@@ -6,6 +6,15 @@
   Update this file when planning a release.
 -->
 
+## Player perception surface
+
+- On ruleset-bound Novels the parser (`run_command`) is GM-only (REQ-309e), so
+  a player agent's natural "look/examine" is `[FORBIDDEN]`; the player has no
+  direct perception affordance. Surfaced by LLM-driven play
+  (`llm-narrative-curious` turns 19, 21).
+- Provide a Player-badge perception surface (e.g., a read-only look/examine
+  action) or make the briefing the discoverable substitute.
+
 ## SWSE sheet vitals
 
 - REQ-399a now requires the character-creation model to declare every
