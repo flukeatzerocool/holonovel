@@ -3597,7 +3597,8 @@ server.registerTool("manage_scene", {
       audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
       emitEvent("scene_transition", { location: location ?? null });
       const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
-      return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${effectiveDescription}`);
+      const sceneSummary = effectiveDescription || (beat ? `beat ${beat}` : location ? `location ${location}` : "state updated");
+      return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${sceneSummary}`);
     }
     case "directive": {
       requireGM();
