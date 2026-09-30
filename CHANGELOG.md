@@ -46,13 +46,17 @@ Findings from a simulated-play pilot against a mothership module (see
   commands, and I13 asserts the beat-only message — closing the name-resolution
   seam that three defects landed in.
 - **Fixture notation defined; Player-parser divergence resolved (REQ-309,
-  REQ-309e).** §4 now defines the golden-transcript and test-catalog shorthand:
-  `command("X")` denotes `run_command (action: execute, "X")`, and short tokens
+  REQ-309e).** §4 now defines the golden-transcript and test-catalog shorthand:  `command("X")` denotes `run_command (action: execute, "X")`, and short tokens
   (`novel`, `world`, `scene`, …) denote the registered `manage_*` tools. The
   recorded `Deferred-by-user` divergence is resolved — the parser gate is
   ruleset-aware and the Appendix W fixture is ruleset-free, so its Player parser
   commands are conformant. `spec/audit/review-register.md` moves the entry to
   Resolved.
+- **test:backfill T353 synced to the ruleset-free Player surface.** The
+  assertion expected the removed `command("` briefing text; it now asserts
+  `run_command (action: execute`, matching the REQ-218/REQ-309e Player parser
+  surface. (Its earlier failure cascaded — the throw skipped the badge reset, so
+  T259 then ran `manage_world` under the Player badge.)
 - **Optional key binding (REQ-284f).** A lockable thing MAY bind a key by name
   via `manage_world` (create_thing/update_thing) or the convert-source
   assertion `Its key is <thing>.`. When bound, unlock/lock require the key to be
