@@ -42,6 +42,14 @@ here.
 - **Trash retention wired.** `TTRPG_NOVEL_RETENTION_DAYS`'s expired-trash
   purge is now invoked at startup; it was previously dead code, so the setting
   had no effect.
+- **Party placement co-locates the party.** `manage_scene (action: set,
+  location)` now places the whole present party, matching the parser's
+  party-wide movement.
+- **Beat vocabulary discoverable.** The `manage_scene` description lists the
+  valid story beats; an invalid beat already returned the standard
+  `[ERROR] [INVALID_INPUT]` envelope.
+- **Play matrix grounding metric.** The harness counts ruleset grounding
+  searches in its lookup/anchor metrics.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 

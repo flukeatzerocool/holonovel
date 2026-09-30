@@ -520,7 +520,9 @@ function missionTelemetry(run: string, cfg: RunConfig, novel: any, tx: any[]): a
     }
   }
 
-  const lookup = tx.filter((r) => /lookup_/.test(r.tool));
+  // Include ruleset grounding searches so authoring-phase provenance counts
+  // toward the lookup/anchor metrics, not only `lookup_*` ruleset tools.
+  const lookup = tx.filter((r) => /lookup_/.test(r.tool) || (r.tool === "manage_ruleset" && r.args?.action === "search"));
   const anchorHits = lookup.filter((r) => anchorPresent(r.result ?? "")).length;
 
   const needInputTurns = tx.filter((r) => r.need_input).map((r) => r.t);

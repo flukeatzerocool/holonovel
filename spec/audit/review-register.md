@@ -421,6 +421,20 @@ pass and completion-oracle green. Fix evidence: regression tests in
   (`holonovel/scripts/lib/playtest-lib.ts`) labelled them `[ERROR]` and the
   oracle failed on an expected refusal. It now classifies a refusal envelope
   in an `isError` result as a denial.
+- **Scene-location set placed only the active PC (P1, 2026-09-30):**
+  `manage_scene (action: set, location)` teleported only the active entity
+  (`holonovel/src/index.ts:3684`) while parser `go` moved the whole present
+  party (REQ-307/REQ-074). It now places the present party too; regression test
+  in `holonovel/scripts/test-backfill.ts`.
+- **Beat-enum finding rejected — the envelope already exists (2026-09-30):**
+  the earlier "raw `-32602`" note was provisionally raised from a truncated
+  message. The predicate confirms `manage_scene` with an invalid beat returns
+  `[ERROR] [INVALID_INPUT]` enumerating the valid beats; the description now
+  lists them as well. No envelope fix required.
+- **Harness mission metric missed grounding searches (P3, 2026-09-30):**
+  `missionTelemetry` (`holonovel/scripts/playtest.ts`) counted only `lookup_*`;
+  it now counts `manage_ruleset (action: search)` toward the lookup/anchor
+  metrics.
 
 - **`TTRPG_NOVEL_RETENTION_DAYS` was dead code (P2, 2026-09-30):**
   `StateManager.cleanupExpiredTrash` (`holonovel/src/core/state.ts:1359`) was
@@ -440,16 +454,15 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Party placement not modeled (P1, 2026-09-30):** only the active PC is
-  placed (`holonovel/src/index.ts:3684`) and moved (`:2724-2732`); 36/36
-  matrix cells left 3/4 PCs roomless. Scheduled on ROADMAP "Party-wide
-  placement and movement".
 - **SWSE sheets lack HP/Damage Threshold/Force Points (P1, 2026-09-30):**
   `computeDerived` plus the SWSE package `derived_stats` yield only the three
-  defenses. Scheduled on ROADMAP "SWSE sheet vitals".
-- **Beat-enum rejection has no envelope (P2, 2026-09-30):** an invalid
-  `manage_scene` beat returns a raw `-32602`. Scheduled on ROADMAP "Beat-enum
-  discoverability".
+  defenses. The server already persists every `derived_stats` entry a ruleset
+  declares (`holonovel/src/core/character-creation.ts:362`); the gap is the
+  SWSE package model. Scheduled on ROADMAP "SWSE sheet vitals" (builder side).
+- **Party-scoped completion oracle (P2, 2026-09-30):** parser `go` and
+  `manage_scene (action: set, location)` now co-locate the present party, but
+  the playtest oracle certifies escape on the active PC alone. Scheduled on
+  ROADMAP "Party-scoped completion oracle".
 
 ## Closed-P3 (recorded, no action)
 
