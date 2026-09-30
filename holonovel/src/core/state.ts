@@ -28,6 +28,20 @@ const SPEC_VERSION: string = JSON.parse(
 // prefix avoids collision with operator-authored keys.
 const META_KEY = "__holonovel_meta";
 
+// REQ-065a — the server build fingerprint: the fields persisted alongside Novel
+// state so a restart can compare the stored build against the current one.
+export interface BuildFingerprint {
+  specVersion: string;
+  specRepoUrl: string;
+  specHash: string;
+  sourceHash: string;
+  rulesetHash: string;
+  holonovelVersion: string;
+  buildTimestamp: string;
+  lastSpecReview?: string;
+  lastPatternBuffer?: string;
+}
+
 function computeSourceHash(): string {
   try {
     const srcDir = new URL("../../src", import.meta.url).pathname;
@@ -718,16 +732,12 @@ export class StateManager {
   knowledgeGraph: import("./graph.js").KnowledgeGraph | null = null;
   activeNovelId: string | null = null;
 
-  buildFingerprint: {
-    specVersion: string;
-    specRepoUrl: string;
-    specHash: string;
-    sourceHash: string;
-    rulesetHash: string;
-    buildTimestamp: string;
-    lastSpecReview?: string;
-    lastPatternBuffer?: string;
-  };
+  buildFingerprint: BuildFingerprint;
+  // REQ-065a — the fingerprint persisted at first start, retained for startup
+  // drift comparison; REQ-187a — the stored spec hash read at runtime.
+  storedFingerprint: BuildFingerprint | null = null;
+  buildDrift: string[] = [];
+  specHashCurrent = true;
 
   enriched = false;
   wisdomManifest: any = null;
@@ -764,6 +774,7 @@ export class StateManager {
       specHash: "unknown",
       sourceHash: computeSourceHash(),
       rulesetHash: "ruleset-free",
+      holonovelVersion: SPEC_VERSION,
       buildTimestamp: new Date().toISOString(),
     };
     const budgetRaw = process.env.TTRPG_MAX_LORE_TOKENS;
@@ -771,6 +782,40 @@ export class StateManager {
       const budget = parseInt(budgetRaw, 10);
       if (!isNaN(budget) && budget > 0) this.maxLoreTokens = budget;
     }
+  }
+
+  // REQ-065a/REQ-187a — persist the build fingerprint at first start, then
+  // reload it on subsequent starts and compare field-by-field (REQ-065b). A
+  // fresh state directory writes the fingerprint and reports no drift; the
+  // stored file is never overwritten, so an edited embedded spec surfaces as
+  // [spec-drift] on the next start.
+  loadBuildFingerprint(current: BuildFingerprint): void {
+    const p = path.join(this.stateDir, "build-fingerprint.json");
+    if (!fs.existsSync(p)) {
+      try {
+        fs.writeFileSync(p, JSON.stringify(current, null, 2) + "\n", "utf-8");
+      } catch { /* state dir may be read-only; drift detection is diagnostic */ }
+      this.storedFingerprint = current;
+      this.specHashCurrent = true;
+      return;
+    }
+    let stored: BuildFingerprint;
+    try {
+      stored = JSON.parse(fs.readFileSync(p, "utf-8")) as BuildFingerprint;
+    } catch {
+      // Unreadable fingerprint: treat as a fresh baseline rather than fail startup.
+      this.storedFingerprint = current;
+      this.specHashCurrent = true;
+      return;
+    }
+    this.storedFingerprint = stored;
+    this.specHashCurrent = stored.specHash === current.specHash;
+    const drift: string[] = [];
+    if (stored.specVersion !== current.specVersion) drift.push(`[spec-version-drift] stored=${stored.specVersion} current=${current.specVersion}`);
+    if (stored.specHash !== current.specHash) drift.push(`[spec-drift] stored=${stored.specHash} current=${current.specHash}`);
+    if (stored.rulesetHash !== current.rulesetHash) drift.push(`[ruleset-drift] stored=${stored.rulesetHash} current=${current.rulesetHash}`);
+    if (stored.holonovelVersion !== current.holonovelVersion) drift.push(`[holonovel-drift] stored=${stored.holonovelVersion} current=${current.holonovelVersion}`);
+    this.buildDrift = drift;
   }
 
   get activeNovel(): NovelState | undefined {

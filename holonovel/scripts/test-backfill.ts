@@ -173,7 +173,8 @@ async function main() {
 
     await test("T104/T105: spec://build resource is GM-filtered", async () => {
       const gm = await readResource(proc, "spec://build");
-      if (gm.includes("[FORBIDDEN]")) throw new Error("GM read of spec://build was blocked");
+      if (gm.trimStart().startsWith("[FORBIDDEN]")) throw new Error("GM read of spec://build was blocked");
+      if (!gm.trimStart().startsWith("# Holonovel")) throw new Error("GM spec://build did not return the embedded specification");
       await call(proc, "set_badge", { badge: "player" });
       const nonGm = await readResource(proc, "spec://build");
       assertContains(nonGm, "[FORBIDDEN]");

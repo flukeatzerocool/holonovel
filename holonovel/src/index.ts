@@ -65,7 +65,7 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, "..", ".holonovel-state");
 function computeSpecHash(): string {
   try {
-    const specPath = path.join(__dirname, "holonovel.md");
+    const specPath = path.join(__dirname, "..", "holonovel.md");
     if (!fs.existsSync(specPath)) return "unknown";
     return crypto.createHash("sha256").update(fs.readFileSync(specPath)).digest("hex");
   } catch { return "unknown"; }
@@ -653,9 +653,13 @@ function schemaSurfaceMetrics() {
 // visible at runtime as well as at build time.
 function hostToolQuality() {
   const tools: Record<string, any> = (server as any)._registeredTools ?? {};
-  const names = new Set(Object.keys(tools));
+  // REQ-430 — ruleset-derived tools are validated separately by
+  // rulesets.toolQualityCounts(); this check covers host tools only.
+  const hostNames = Object.keys(TOOL_ANNOTATIONS).filter((n) => n in tools);
+  const names = new Set(hostNames);
   const defects: Record<string, string[]> = {};
-  for (const [name, tool] of Object.entries(tools)) {
+  for (const name of hostNames) {
+    const tool = tools[name];
     const desc = typeof tool?.description === "string" ? tool.description : "";
     const lower = desc.toLowerCase();
     const list: string[] = [];
@@ -669,7 +673,7 @@ function hostToolQuality() {
     }
     if (list.length > 0) defects[name] = list;
   }
-  return { checked: Object.keys(tools).length, defective: Object.keys(defects).length, defects };
+  return { checked: hostNames.length, defective: Object.keys(defects).length, defects };
 }
 
 function promptScaffoldBytes() {
@@ -745,6 +749,18 @@ for (const slug of eagerSlugs) {
     try { rulesets.hydrate(slug); } catch { /* hydration failures surfaced at call time */ }
   }
 }
+
+// ── REQ-065a / REQ-187a — build-fingerprint persistence and drift ───
+// Persist the build fingerprint into the state directory at first start, then
+// reload it on subsequent starts and compare field-by-field (REQ-065b). Drift
+// is diagnostic: it never blocks startup (REQ-065f) and is surfaced on stderr
+// and in spec_health.
+state.loadBuildFingerprint({
+  ...state.buildFingerprint,
+  specHash: SPEC_HASH,
+  rulesetHash: rulesets.contentHashDigest(),
+});
+for (const warning of state.buildDrift) process.stderr.write(`[holonovel] ${warning}\n`);
 
 // ── REQ-088 — TTRPG_NOVEL startup auto-load ────────────────────────
 // Activate (resume-or-create) the named Novel before any tool call is
@@ -7569,8 +7585,10 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-106 — spec repository URL (informational; identical for both badges).
     spec_repo_url: specRepoUrl(),
     spec_version: state.buildFingerprint.specVersion,
-    spec_hash: state.buildFingerprint.specHash,
+    spec_hash: state.storedFingerprint?.specHash ?? state.buildFingerprint.specHash,
+    spec_hash_current: state.specHashCurrent,
     source_hash: state.buildFingerprint.sourceHash,
+    build_drift: state.buildDrift,
     ruleset_hash: rulesets.installedSlugs().length > 0 ? rulesets.installedSlugs().join(",") : "ruleset-free",
     ruleset_guidance: rulesets.installedSlugs().length > 0
       ? `Installed: ${rulesets.installedSlugs().join(", ")}.`
@@ -8147,7 +8165,7 @@ server.registerResource("spec-build", "spec://build", { title: "Build Specificat
     return { contents: [{ uri: "spec://build", text: "[FORBIDDEN] spec://build is Game Master only. Corrective action: switch badge with set_badge.", mimeType: "text/plain" }] };
   }
   try {
-    const specPath = path.join(__dirname, "holonovel.md");
+    const specPath = path.join(__dirname, "..", "holonovel.md");
     if (fs.existsSync(specPath)) {
       return { contents: [{ uri: "spec://build", text: fs.readFileSync(specPath, "utf-8"), mimeType: "text/markdown" }] };
     }

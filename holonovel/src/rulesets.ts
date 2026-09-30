@@ -242,6 +242,20 @@ export class RulesetManager {
     return [...this.installed.keys()];
   }
 
+  // REQ-065b — a stable digest over installed package slugs and content hashes,
+  // for build-fingerprint drift comparison at startup (REQ-065f).
+  contentHashDigest(): string {
+    const h = crypto.createHash("sha256");
+    for (const slug of [...this.installed.keys()].sort()) {
+      const manifest = this.installed.get(slug)!;
+      h.update(slug);
+      h.update("\0");
+      h.update(manifest.content_hash ?? "");
+      h.update("\n");
+    }
+    return h.digest("hex");
+  }
+
   // REQ-420 — incompatible packages are reported in spec_health, held inactive,
   // and never silently dropped (REQ-393).
   incompatibleSlugs(): { slug: string; reason: string }[] {

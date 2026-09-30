@@ -164,7 +164,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-184 | Anti-slop resource rendering (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T300 | — |
 | REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T225 | — |
-| REQ-187 | Spec content hash computation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
+| REQ-187 | Spec content hash computation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T226 | — |
 | REQ-190 | Respond drain result | 5.4 Decision workflows | C | T138 | — |
 | REQ-191 | Option display-label pairs | 5.4 Decision workflows | C | T32 | — |
 | REQ-192 | Batch-respond collision | 5.4 Decision workflows | C | S22 | — |

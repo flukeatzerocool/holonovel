@@ -505,6 +505,43 @@ async function main() {
     rmSync(dir, { recursive: true, force: true });
   }
 
+  // ── REQ-065a/b + REQ-187 — build-fingerprint drift on restart ─────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-drift-test-"));
+    let proc = await boot({ TTRPG_DATA_DIR: dir });
+    await test("T226/REQ-187: fresh start persists the fingerprint with no drift", async () => {
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      if (health.spec_hash_current !== true) throw new Error(`spec_hash_current should be true on a fresh start, got ${health.spec_hash_current}`);
+      if ((health.build_drift ?? []).length !== 0) throw new Error(`fresh start reported drift: ${JSON.stringify(health.build_drift)}`);
+      if (!existsSync(join(dir, "build-fingerprint.json"))) throw new Error("build-fingerprint.json was not written to the state dir");
+    });
+    await kill(proc);
+
+    // Simulate a prior build whose stored fingerprint differs from the current
+    // embedded spec and ruleset set.
+    const fpPath = join(dir, "build-fingerprint.json");
+    const fp = JSON.parse(readFileSync(fpPath, "utf-8"));
+    fp.specHash = "0".repeat(64);
+    fp.specVersion = "2000.01.01";
+    fp.rulesetHash = "prior-ruleset";
+    writeFileSync(fpPath, JSON.stringify(fp, null, 2) + "\n");
+
+    proc = await boot({ TTRPG_DATA_DIR: dir });
+    await test("T224/REQ-065: startup drift comparison reports spec, version, and ruleset drift", async () => {
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      if (health.spec_hash_current !== false) throw new Error("spec_hash_current should be false after drift");
+      if (health.spec_hash !== "0".repeat(64)) throw new Error("spec_hash should report the stored value (REQ-187a)");
+      const drift = (health.build_drift ?? []).join("\n");
+      assertContains(drift, "[spec-drift]");
+      assertContains(drift, "[spec-version-drift]");
+      assertContains(drift, "[ruleset-drift]");
+      assertContains(drift, "stored=");
+      assertContains(drift, "current=");
+    });
+    await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
