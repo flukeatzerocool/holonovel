@@ -11,6 +11,21 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Embedded-spec hash and build-fingerprint conformance (resolved
+  2026-09-30):** `spec_health.spec_hash` reported `"unknown"` and
+  `spec://build` served "Specification not embedded in this build" because both
+  read `holonovel.md` beside `src/` rather than the server root
+  (`holonovel/src/index.ts:68`, `holonovel/src/index.ts:8168`). Corrected, and
+  the runtime build-fingerprint contract (REQ-065a/b, REQ-187a/b) is now
+  implemented: the fingerprint persists to
+  `.holonovel-state/build-fingerprint.json`, reloads at startup, emits
+  `[spec-version-drift]`/`[spec-drift]`/`[ruleset-drift]`/`[holonovel-drift]`,
+  and surfaces `spec_hash_current` (`holonovel/src/core/state.ts`
+  `loadBuildFingerprint`). `host_tool_quality` now covers host tools only, not
+  generated ruleset tools (`holonovel/src/index.ts:654`). Evidence:
+  `test:persistence` 30/30 (T224, T226), `test:backfill` 75/75, `check:fast`
+  PASS.
+
 - **Fixture notation and Player-parser divergence (resolved 2026-09-29):** the
   Appendix W.3 golden transcript's Player `command` calls were read as a
   divergence from `run_command` gating. Resolved on two grounds. (1) The parser

@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-09-30 — Embedded-spec path fix and host tool-quality scoping
+
+Deployed-instance health inspection surfaced a broken embedded-spec lookup and
+a tool-quality report that mislabeled generated ruleset tools.
+
+- **Embedded spec now resolves.** `computeSpecHash()` and the `spec://build`
+  resource read `holonovel.md` from the server root (`holonovel/holonovel.md`),
+  not beside `src/`. `spec_health.spec_hash` now reports the real content hash
+  (was `"unknown"`) and `spec://build` serves the embedded specification
+  (REQ-105, REQ-187a).
+- **`host_tool_quality` scoped to host tools.** The check evaluated every
+  registered tool, flagging the 45 generated ruleset tools against host-tool
+  authoring heuristics. It now covers host tools only (`TOOL_ANNOTATIONS`),
+  matching the field name; ruleset schemas remain covered by
+  `ruleset_tool_quality` (REQ-430).
+- **T104/T105 assertion corrected.** The GM `spec://build` check now matches
+  the forbidden envelope by prefix instead of grepping for `[FORBIDDEN]`, which
+  the served specification text contains literally.
+- **Build-fingerprint persistence and drift detection (REQ-065a/b,
+  REQ-187a/b).** The server persists its build fingerprint to
+  `.holonovel-state/build-fingerprint.json` at first start and reloads it on
+  later starts, comparing spec version, spec content hash, ruleset content
+  hash, and holonovel version. Drift surfaces as `[spec-version-drift]`,
+  `[spec-drift]`, `[ruleset-drift]`, and `[holonovel-drift]` on stderr and in
+  `spec_health.build_drift`, and `spec_health` now reports the stored hash with
+  a `spec_hash_current` boolean. Drift is diagnostic and never blocks startup
+  (T224, T226).
+
 ## 2026-09-30 — SWSE package rebuild: durable character-creation source
 
 The SWSE sheet-vitals P1 closes at the source. The `swse` package's
