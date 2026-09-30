@@ -738,7 +738,6 @@ export class StateManager {
   private restoredThisSession = new Set<string>();
 
   private npcCounter = 0;
-  private entityCounter = 0;
   private stateDir: string;
 
   constructor(stateDir: string) {
@@ -2179,9 +2178,16 @@ ${turnOrder}`;
 
   // ── Entity Factory (ruleset-free, REQ-219) ────────────────────
 
-  createEntity(name: string, personality?: { description?: string; voice?: string; background?: string; goals?: string }, stats?: Record<string, any>): NovelEntity {
-    this.entityCounter++;
-    const id = `character_${String(this.entityCounter).padStart(2, "0")}`;
+  createEntity(novel: NovelState, name: string, personality?: { description?: string; voice?: string; background?: string; goals?: string }, stats?: Record<string, any>): NovelEntity {
+    // Allocate the next free id from this Novel's own entities. A process-local
+    // counter restarted at character_01 on every boot and overwrote party
+    // members across restarts (one tool call per process in the harness).
+    let next = 0;
+    for (const id of novel.entities.keys()) {
+      const m = /^character_(\d+)$/.exec(id);
+      if (m) next = Math.max(next, Number(m[1]));
+    }
+    const id = `character_${String(next + 1).padStart(2, "0")}`;
     const entity: NovelEntity = {
       id,
       name,
@@ -2202,6 +2208,7 @@ ${turnOrder}`;
     }
     novel.characters_present = true;
   }
+
 }
 
 // ── Serialization helpers ──────────────────────────────────────────

@@ -12,14 +12,20 @@
  * Exit codes: 0 = success, 1 = usage/state error, 2 = fatal error.
  *
  * Campaign data and adventure modules are supplied by the operator (via
- * --state-dir / --module) and are never committed with this tool.
+ * --state-dir / --module) and are never committed with this tool. With
+ * --from-scratch, no campaign is supplied: the GM/player agents author a Novel,
+ * an adventure module, and a party through the tools, then `finalize` reads the
+ * completion target from the finished module and playtesting begins.
  *
  * REQ citations: none — informational harness, not wired into a gate.
  *
  * Commands:
- *   init     --run <id> --state-dir <dir> --module <file.md> --novel <slug>
- *            [--adventure <slug>] [--vow <text>] [--escape-room <room>]
+ *   init     --run <id> --state-dir <dir> --novel <slug>
+ *            (--module <file.md> [--adventure <slug>] | --from-scratch)
+ *            [--vow <text>] [--escape-room <room>]
  *            [--persona <name>] [--gm <name>] [--seed <n>] [--server-dir <dir>]
+ *   finalize --run <id> --vow <text> --escape-room <room>
+ *            (from-scratch only: set the target read from the authored module)
  *   turn     --run <id> --agent <gm|player> --tool <name> --args '<json>' [--intent <text>]
  *   briefing --run <id> --agent <gm|player>
  *   oracle   --run <id>
@@ -27,11 +33,11 @@
  *   report
  */
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
-import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent } from "./lib/playtest-lib.js";
+import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, authoredAdventureHash, partyRooms, entityCounts, stateDelta } from "./lib/playtest-lib.js";
 
 const HOME = import.meta.dirname;
 const DEFAULT_SERVER_DIR = join(HOME, "..");
@@ -42,9 +48,11 @@ function help(): void {
   process.stdout.write(`playtest.ts — simulated-play harness (informational)
 
 Commands:
-  init     --run <id> --state-dir <dir> --module <file.md> --novel <slug>
-           [--adventure <slug>] [--vow <text>] [--escape-room <room>]
+  init     --run <id> --state-dir <dir> --novel <slug>
+           (--module <file.md> [--adventure <slug>] | --from-scratch)
+           [--vow <text>] [--escape-room <room>]
            [--persona <name>] [--gm <name>] [--seed <n>] [--server-dir <dir>]
+  finalize --run <id> --vow <text> --escape-room <room>
   turn     --run <id> --agent <gm|player> --tool <name> --args '<json>' [--intent <text>]
   briefing --run <id> --agent <gm|player>
   oracle   --run <id>
@@ -72,8 +80,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface Provenance {
   server_git_sha: string | null;
-  module_sha1: string;
+  module_sha1: string | null;
   novel_sha1: string;
+  authored_adventure_sha1: string | null;
   ruleset_sha1: string | null;
   model_id: string | null;
   env: Record<string, string>;
@@ -83,13 +92,15 @@ interface RunConfig {
   run_id: string;
   server_dir: string;
   novel_slug: string;
-  adventure_slug: string;
-  central_vow: string;
-  escape_room: string;
+  adventure_slug: string | null;
+  central_vow: string | null;
+  escape_room: string | null;
   created: string;
   persona: string;
   gm: string;
   seed: string | null;
+  from_scratch: boolean;
+  authoring_turns: number | null;
   provenance: Provenance;
   catalog_size: number;
 }
@@ -133,9 +144,14 @@ function runEnv(run: string, cfg: RunConfig, seedOverride?: string): NodeJS.Proc
     ...process.env,
     TTRPG_DATA_DIR: join(run, "data"),
     TTRPG_ADVENTURE_DIR: join(run, "data", "adventures"),
-    TTRPG_NOVEL: cfg.novel_slug,
     TTRPG_LOG_LEVEL: "error",
   };
+  // The server auto-creates a Novel for TTRPG_NOVEL at boot. From-scratch, the
+  // Novel does not exist until the authoring pair creates it, so set the env
+  // only once the file is present (otherwise create collides and forks slug).
+  if (existsSync(join(run, "data", "novels", `${cfg.novel_slug}.json`))) {
+    env.TTRPG_NOVEL = cfg.novel_slug;
+  }
   // The server keeps restart determinism (REQ-050c); the harness varies the
   // seed per turn so session rolls advance within a run.
   if (seedOverride !== undefined) env.TTRPG_SEED = seedOverride;
@@ -241,32 +257,85 @@ function pickEnv(keys: string[]): Record<string, string> {
   return out;
 }
 
+function readNovelMaybe(run: string, cfg: RunConfig): any | null {
+  const p = novelPath(run, cfg);
+  return existsSync(p) ? JSON.parse(readFileSync(p, "utf-8")) : null;
+}
+/**
+ * From-scratch: the server derives the Novel's slug from its name and ignores
+ * a supplied slug on create, so the harness adopts the created file's slug.
+ * Called after each authoring turn; only one Novel should exist.
+ */
+function adoptNovelSlug(run: string, cfg: RunConfig): void {
+  if (!cfg.from_scratch || existsSync(novelPath(run, cfg))) return;
+  const dir = join(run, "data", "novels");
+  const files = existsSync(dir)
+    ? readdirSync(dir).filter((f) => f.endsWith(".json") && !f.includes(".bak"))
+    : [];
+  if (files.length === 0) return;
+  const newest = files.map((f) => ({ f, t: statSync(join(dir, f)).mtimeMs })).sort((a, b) => b.t - a.t)[0]!;
+  cfg.novel_slug = newest.f.replace(/\.json$/, "");
+  const raw = JSON.parse(readFileSync(join(run, "run.json"), "utf-8"));
+  raw.novel_slug = cfg.novel_slug;
+  writeFileSync(join(run, "run.json"), JSON.stringify(raw, null, 2));
+}
+function provenance(serverDir: string, moduleSha: string | null, novelSha: string): Provenance {
+  return {
+    server_git_sha: gitSha(serverDir),
+    module_sha1: moduleSha,
+    novel_sha1: novelSha,
+    authored_adventure_sha1: null,
+    ruleset_sha1: null,
+    model_id: process.env.PLAYTEST_MODEL ?? null,
+    env: pickEnv(["TTRPG_AI_ROLE", "TTRPG_AGENT_AUTONOMY", "TTRPG_LOG_LEVEL"]),
+    node: process.version,
+  };
+}
+
 async function cmdInit(run: string): Promise<void> {
+  const fromScratch = process.argv.includes("--from-scratch");
   const stateDir = requireFlag("--state-dir");
-  const modulePath = requireFlag("--module");
   const serverDir = flag("--server-dir", process.env.PLAYTEST_SERVER_DIR ?? DEFAULT_SERVER_DIR)!;
-  if (!existsSync(modulePath)) die(`module not found: ${modulePath}`, 2);
-  if (!existsSync(join(stateDir, "novels"))) die(`state-dir has no novels/: ${stateDir}`, 2);
   const novelSlug = requireFlag("--novel");
-  const adventureSlug = flag("--adventure", basename(modulePath).replace(/\.md$/, ""))!;
-  const centralVow = flag("--vow", "Complete the adventure and get the party out alive")!;
-  const escapeRoom = flag("--escape-room", "")!;
   const persona = flag("--persona", "unset")!;
   const gm = flag("--gm", "gm_fair")!;
   const seed = flag("--seed", null);
+  if (!existsSync(join(stateDir, "rulesets"))) die(`state-dir has no rulesets/: ${stateDir}`, 2);
 
   rmSync(run, { recursive: true, force: true });
   mkdirSync(join(run, "data", "novels"), { recursive: true });
   mkdirSync(join(run, "data", "rulesets"), { recursive: true });
   mkdirSync(join(run, "data", "adventures"), { recursive: true });
+  cpSync(join(stateDir, "rulesets"), join(run, "data", "rulesets"), { recursive: true });
+
+  if (fromScratch) {
+    // No campaign, no module: the authoring pair produces both through tools.
+    const cfg: RunConfig = {
+      run_id: basename(run), server_dir: serverDir, novel_slug: novelSlug, adventure_slug: null,
+      central_vow: null, escape_room: null, created: new Date().toISOString(),
+      persona, gm, seed, from_scratch: true, authoring_turns: null,
+      provenance: provenance(serverDir, null, "pending"), catalog_size: 0,
+    };
+    writeFileSync(join(run, "run.json"), JSON.stringify({ ...cfg, spec_version: null, ruleset: null, entities: [], init_fingerprint: null, init_rooms: [] }, null, 2));
+    writeFileSync(join(run, "tools.json"), JSON.stringify([], null, 2));
+    console.log(JSON.stringify({ ok: true, from_scratch: true, run: cfg.run_id, state_dir: stateDir, gm, persona, seed, next: "create the Novel with manage_novel (action: create, name: ...); the harness adopts the server-derived slug" }, null, 2));
+    return;
+  }
+
+  const modulePath = requireFlag("--module");
+  if (!existsSync(modulePath)) die(`module not found: ${modulePath}`, 2);
+  if (!existsSync(join(stateDir, "novels"))) die(`state-dir has no novels/: ${stateDir}`, 2);
+  const adventureSlug = flag("--adventure", basename(modulePath).replace(/\.md$/, ""))!;
+  const centralVow = flag("--vow", "Complete the adventure and get the party out alive")!;
+  const escapeRoom = flag("--escape-room", "")!;
   cpSync(join(stateDir, "novels", `${novelSlug}.json`), join(run, "data", "novels", `${novelSlug}.json`));
-  if (existsSync(join(stateDir, "rulesets"))) cpSync(join(stateDir, "rulesets"), join(run, "data", "rulesets"), { recursive: true });
   cpSync(modulePath, join(run, "data", "adventures", `${adventureSlug}.md`));
 
   const cfg: RunConfig = {
     run_id: basename(run), server_dir: serverDir, novel_slug: novelSlug, adventure_slug: adventureSlug,
     central_vow: centralVow, escape_room: escapeRoom, created: new Date().toISOString(),
-    persona, gm, seed, provenance: null as unknown as Provenance, catalog_size: 0,
+    persona, gm, seed, from_scratch: false, authoring_turns: null,
+    provenance: null as unknown as Provenance, catalog_size: 0,
   };
   const proc = await boot(run, cfg);
   const out: string[] = [];
@@ -280,15 +349,8 @@ async function cmdInit(run: string): Promise<void> {
 
   const novel = JSON.parse(readFileSync(join(run, "data", "novels", `${novelSlug}.json`), "utf-8"));
   const ruleset = novel.ruleset ?? null;
-  cfg.provenance = {
-    server_git_sha: gitSha(serverDir),
-    module_sha1: hashFile(modulePath),
-    novel_sha1: hashFile(join(stateDir, "novels", `${novelSlug}.json`)),
-    ruleset_sha1: ruleset ? hashDir(join(run, "data", "rulesets", ruleset)) : null,
-    model_id: process.env.PLAYTEST_MODEL ?? null,
-    env: pickEnv(["TTRPG_AI_ROLE", "TTRPG_AGENT_AUTONOMY", "TTRPG_LOG_LEVEL"]),
-    node: process.version,
-  };
+  cfg.provenance = provenance(serverDir, hashFile(modulePath), hashFile(join(stateDir, "novels", `${novelSlug}.json`)));
+  cfg.provenance.ruleset_sha1 = ruleset ? hashDir(join(run, "data", "rulesets", ruleset)) : null;
   cfg.catalog_size = catalog.length;
   writeFileSync(join(run, "tools.json"), JSON.stringify(catalog, null, 2));
 
@@ -313,9 +375,9 @@ async function cmdTurn(run: string): Promise<void> {
   try { args = JSON.parse(argsRaw); } catch { die(`--args is not valid JSON: ${argsRaw}`, 1); }
   const agent = flag("--agent", "player")!;
   acquireLock(run);
-  const before = readNovel(run, cfg);
-  const preFp = stateFingerprint(before);
-  const roomsBefore = roomSet(before);
+  const before = readNovelMaybe(run, cfg);
+  const preFp = before ? stateFingerprint(before) : null;
+  const roomsBefore = before ? roomSet(before) : [];
   const t0 = Date.now();
   const turnIndex = readTx(run).length;
   // The server parses TTRPG_SEED as an integer, so hash base+turn to a
@@ -331,16 +393,27 @@ async function cmdTurn(run: string): Promise<void> {
   const playerBrief = await briefingText(proc, "player");
   await kill(proc);
   const ms = Date.now() - t0;
-  const after = readNovel(run, cfg);
-  const postFp = stateFingerprint(after);
-  const roomsAfter = roomSet(after);
+  adoptNovelSlug(run, cfg);
+  const after = readNovelMaybe(run, cfg);
+  const postFp = after ? stateFingerprint(after) : null;
+  const roomsAfter = after ? roomSet(after) : [];
   const { prefix: p, error_class: ecl, mcp_error } = classifyResult(result, isMcpError);
   const t = readTx(run).length + 1;
   const activeRoom = after?.entities?.[after?.active_entity_id]?.current_room ?? null;
+  const isLookup = /(^|_)lookup_|_search_rules$/.test(tool) || (tool === "manage_ruleset" && args?.action === "search");
+  const vitalsAfter = Object.fromEntries(Object.entries(after?.entities ?? {}).map(([id, e]: [string, any]) => [id, pcVitals(e)]));
+  const combat = after?.combat
+    ? { active: true, round: after.combat.round ?? null, participants: Array.isArray(after.combat.participants) ? after.combat.participants.length : Object.keys(after.combat.participants ?? {}).length }
+    : { active: false, round: null, participants: 0 };
   const rec = {
-    t, agent, badge, tool, args, intent: flag("--intent"), prefix: p, result: result.slice(0, 4000),
-    error_class: ecl, mcp_error,
+    t, agent, badge, tool, args, intent: flag("--intent"), prefix: p,
+    result: ecl === "defect" ? result : result.slice(0, 4000),
+    error_class: ecl, mcp_error, phase: runPhase(cfg),
     pre_fp: preFp, post_fp: postFp, rooms_before: roomsBefore, rooms_after: roomsAfter, active_room: activeRoom,
+    party_rooms: partyRooms(after), entity_counts: after ? entityCounts(after) : null,
+    state_delta: (before || after) ? stateDelta(before, after) : null,
+    vitals_after: vitalsAfter, combat,
+    lookup: isLookup ? { intent: flag("--intent"), tool, anchor_present: anchorPresent(result) } : null,
     ms, brief_bytes: gmBrief.length + playerBrief.length,
     need_input: /\[NEED_INPUT\]/.test(result),
     at: new Date().toISOString(),
@@ -357,6 +430,71 @@ async function cmdBriefing(run: string): Promise<void> {
   const b = await briefingText(proc, agent === "gm" ? "game_master" : "player");
   await kill(proc);
   console.log(b);
+}
+
+/** Post-authoring structural + fidelity report for a from-scratch run. */
+function buildAuthoringReport(novel: any, tx: any[], escapeRoom: string): any {
+  const bare = (s: string) => String(s ?? "").trim().toLowerCase().replace(/^(the|an?)\s+/, "");
+  const rooms = Object.keys(novel.world?.rooms ?? {});
+  const spawn = rooms.length ? (novel.world.rooms[rooms[0]]?.name ?? rooms[0]) : "";
+  const pcs = Object.values(novel.entities ?? {}) as any[];
+  const statted = pcs.filter((p) => p.stats && Object.keys(p.stats).length > 0);
+  const npcs = Object.values(novel.npcs ?? {}) as any[];
+  // finalize runs before playtesting, so every recorded turn is an authoring turn.
+  const searches = tx.filter((r) => r.tool === "manage_ruleset" && r.args?.action === "search");
+  const anchored = searches.filter((r) => anchorPresent(r.result ?? ""));
+  const reach = spawn ? reachableRooms(novel, spawn) : [];
+  const objectiveReachable = reach.some((r) => bare(r) === bare(escapeRoom));
+  const targetValid = (novel.vows ?? []).some((v: any) => v.name) && rooms.length > 0;
+  const validity = (pcs.length >= 4 && statted.length === pcs.length && targetValid && reach.length > 1)
+    ? "pass" : (pcs.length > 0 && targetValid ? "partial" : "fail");
+  return {
+    authoring_turns: tx.length,
+    party: {
+      count: pcs.length, statted: statted.length,
+      members: pcs.map((p) => ({ name: p.name, class: p.stats?.class ?? null, level: p.stats?.level ?? null, species: p.stats?.species ?? null, stat_keys: Object.keys(p.stats ?? {}) })),
+    },
+    structure: entityCounts(novel),
+    grounding: { ruleset_searches: searches.length, anchored_searches: anchored.length, npc_total: npcs.length, npc_with_stats: npcs.filter((n) => n.stats).length },
+    reachability: { spawn, reachable: reach, objective: escapeRoom, objective_reachable: objectiveReachable },
+    target_valid: targetValid,
+    validity,
+  };
+}
+
+async function cmdFinalize(run: string): Promise<void> {
+  const cfg = readConfig(run);
+  if (!cfg.from_scratch) die("finalize is for --from-scratch runs", 1);
+  const vow = requireFlag("--vow");
+  const escapeRoom = requireFlag("--escape-room");
+  const novel = readNovel(run, cfg);
+  const bare = (s: string) => String(s ?? "").trim().toLowerCase().replace(/^(the|an?)\s+/, "");
+  if (!(novel.vows ?? []).some((v: any) => v.name === vow)) die(`vow not found in authored Novel: ${vow}`, 1);
+  if (!Object.keys(novel.world?.rooms ?? {}).some((k) => bare(novel.world.rooms[k]?.name ?? k) === bare(escapeRoom))) {
+    die(`escape room not found in authored world: ${escapeRoom}`, 1);
+  }
+
+  const tx = readTx(run);
+  cfg.central_vow = vow;
+  cfg.escape_room = escapeRoom;
+  cfg.authoring_turns = tx.length;
+  cfg.adventure_slug = novel.adventure_index ? "authored" : null;
+  cfg.provenance.novel_sha1 = hashFile(novelPath(run, cfg));
+  cfg.provenance.authored_adventure_sha1 = authoredAdventureHash(novel);
+  const ruleset = novel.ruleset ?? null;
+  cfg.provenance.ruleset_sha1 = ruleset ? hashDir(join(run, "data", "rulesets", ruleset)) : null;
+
+  const proc = await boot(run, cfg);
+  const catalog = await listTools(proc);
+  const health = await call(proc, "manage_session", { action: "health" });
+  await kill(proc);
+  cfg.catalog_size = catalog.length;
+  writeFileSync(join(run, "tools.json"), JSON.stringify(catalog, null, 2));
+
+  const authoring = buildAuthoringReport(novel, tx, escapeRoom);
+  writeFileSync(join(run, "authoring.json"), JSON.stringify(authoring, null, 2));
+  writeFileSync(join(run, "run.json"), JSON.stringify({ ...cfg, ruleset, spec_version: JSON.parse(health).spec_version ?? null }, null, 2));
+  console.log(JSON.stringify({ ok: true, authoring_turns: cfg.authoring_turns, validity: authoring.validity, catalog_size: catalog.length, authoring }, null, 2));
 }
 
 function missionTelemetry(run: string, cfg: RunConfig, novel: any, tx: any[]): any {
@@ -412,6 +550,10 @@ function computeOracle(run: string): any {
   const cfg = readConfig(run);
   const novel = readNovel(run, cfg);
   const tx = readTx(run);
+  // From-scratch: score the playtest phase only; authoring turns are reported
+  // separately (authoring.json) so a construction defect is not scored as a
+  // play defect.
+  const playTx = cfg.authoring_turns != null ? tx.slice(cfg.authoring_turns) : tx;
   const vow = (novel.vows ?? []).find((v: any) => v.name === cfg.central_vow);
   const vowResolved = vow?.state === "resolved";
   const terminalBeat = (novel.story_beats ?? []).find((b: any) => ["resolution", "denouement"].includes(b.beat));
@@ -423,11 +565,11 @@ function computeOracle(run: string): any {
   const activeInEscape = want ? bare(activePc?.current_room ?? "") === want : true;
   // Non-vacuous round trip: when the escape room is also the spawn room,
   // `active_pc_in_escape` is trivially true. Require the active PC to have
-  // left the escape room and returned (from the recorded per-turn rooms).
+  // left the escape room and returned (from the recorded playtest turns).
   let leftEscape = false;
   let returnedEscape = false;
   if (want) {
-    for (const r of tx) {
+    for (const r of playTx) {
       const room = bare(String(r.active_room ?? ""));
       if (!room) continue;
       if (room !== want) leftEscape = true;
@@ -436,31 +578,32 @@ function computeOracle(run: string): any {
   }
   const leftAndReturned = want ? (leftEscape && returnedEscape) : true;
 
-  const defects = tx.filter((r) => (r.error_class ? r.error_class === "defect" : DEFECT_PREFIXES.has(r.prefix)));
+  const defects = playTx.filter((r) => (r.error_class ? r.error_class === "defect" : DEFECT_PREFIXES.has(r.prefix)));
   const errors: any[] = [];
-  for (let i = 0; i < tx.length; i++) {
-    const isDefect = tx[i].error_class ? tx[i].error_class === "defect" : DEFECT_PREFIXES.has(tx[i].prefix);
+  for (let i = 0; i < playTx.length; i++) {
+    const isDefect = playTx[i].error_class ? playTx[i].error_class === "defect" : DEFECT_PREFIXES.has(playTx[i].prefix);
     if (!isDefect) continue;
-    const next = tx.slice(i + 1).find((r) => r.agent === tx[i].agent);
+    const next = playTx.slice(i + 1).find((r) => r.agent === playTx[i].agent);
     const nextIsDefect = next ? (next.error_class ? next.error_class === "defect" : DEFECT_PREFIXES.has(next.prefix)) : false;
     // Recovery = the next same-agent turn is not itself a defect. Ruleset
     // lookups return bare JSON (no [OK] envelope), so this is broader than an
     // explicit OK/WARNING check.
     const recovered = !!next && !nextIsDefect;
-    if (!recovered) errors.push({ t: tx[i].t, tool: tx[i].tool, prefix: tx[i].prefix });
+    if (!recovered) errors.push({ t: playTx[i].t, tool: playTx[i].tool, prefix: playTx[i].prefix });
   }
   const unrecovered = errors.length;
 
   const beatFraction = Math.min(1, (novel.story_beats ?? []).length / 6);
-  const totalCalls = tx.length || 1;
+  const totalCalls = playTx.length || 1;
   const errorTurns = defects.length;
-  const denials = tx.filter((r) => (r.error_class ? r.error_class === "denial" : DENIAL_PREFIXES.has(r.prefix))).length;
+  const denials = playTx.filter((r) => (r.error_class ? r.error_class === "denial" : DENIAL_PREFIXES.has(r.prefix))).length;
   const success = !!(vowResolved && terminalBeat && activeInEscape && leftAndReturned && survivors.length > 0 && unrecovered === 0);
   const partial = Number((0.4 * beatFraction + 0.4 * (vowResolved ? 1 : 0) + 0.2 * Math.max(0, 1 - errorTurns / totalCalls)).toFixed(3));
   const oracle = {
     run: cfg.run_id,
     gm: cfg.gm,
     persona: cfg.persona,
+    from_scratch: !!cfg.from_scratch,
     success,
     components: {
       vow_resolved: !!vowResolved, terminal_beat: terminalBeat?.beat ?? null,
@@ -470,11 +613,13 @@ function computeOracle(run: string): any {
       pcs: pcs.map((p: any) => ({ name: p.name, room: p.current_room ?? null, alive: pcAlive(p), vitals: pcVitals(p) })),
       unrecovered_errors: unrecovered,
     },
-    partial_score: partial, turns: tx.length, error_turns: errorTurns, denials,
+    partial_score: partial, turns: playTx.length, authoring_turns: cfg.authoring_turns ?? 0,
+    error_turns: errorTurns, denials,
     unrecovered_detail: errors.slice(0, 20),
     story_beats: (novel.story_beats ?? []).map((b: any) => b.beat), vow_state: vow?.state ?? null,
     gating_leak: !!vowResolved && !activeInEscape,
-    mission: missionTelemetry(run, cfg, novel, tx),
+    authoring: existsSync(join(run, "authoring.json")) ? JSON.parse(readFileSync(join(run, "authoring.json"), "utf-8")) : null,
+    mission: missionTelemetry(run, cfg, novel, playTx),
   };
   writeFileSync(join(run, "oracle.json"), JSON.stringify(oracle, null, 2));
   return oracle;
@@ -493,7 +638,7 @@ function cmdReport(): void {
   const rows = runs.map((r) => {
     const cfg = readConfig(r);
     const o = existsSync(join(r, "oracle.json")) ? JSON.parse(readFileSync(join(r, "oracle.json"), "utf-8")) : computeOracle(r);
-    return { run: cfg.run_id, gm: cfg.gm, persona: cfg.persona, success: o.success, partial: o.partial_score, turns: o.turns, errors: o.error_turns, denials: o.denials, unrecovered: o.components.unrecovered_errors, hallucinated: o.mission?.hallucinated_tools ?? null, persist_violations: (o.mission?.persist_violations ?? []).length, beats: o.story_beats };
+    return { run: cfg.run_id, gm: cfg.gm, persona: cfg.persona, from_scratch: !!cfg.from_scratch, authoring_validity: o.authoring?.validity ?? null, success: o.success, partial: o.partial_score, turns: o.turns, authoring_turns: o.authoring_turns ?? 0, errors: o.error_turns, denials: o.denials, unrecovered: o.components.unrecovered_errors, hallucinated: o.mission?.hallucinated_tools ?? null, persist_violations: (o.mission?.persist_violations ?? []).length, beats: o.story_beats };
   });
   console.log(JSON.stringify(rows, null, 2));
 }
@@ -503,6 +648,7 @@ function cmdReport(): void {
   const run = join(RUNDIR, flag("--run", "run-1")!);
   switch (CMD) {
     case "init": await cmdInit(run); break;
+    case "finalize": await cmdFinalize(run); break;
     case "turn": await cmdTurn(run); break;
     case "briefing": await cmdBriefing(run); break;
     case "oracle": console.log(JSON.stringify(computeOracle(run), null, 2)); break;

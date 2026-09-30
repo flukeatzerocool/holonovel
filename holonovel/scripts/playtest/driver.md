@@ -18,6 +18,17 @@ Game Master. Play one run to its completion oracle or a turn budget.
 Every GM type shares one hard constraint: report only what the engine
 returned; never narrate an outcome the engine did not validate.
 
+## Authoring phase (`--from-scratch`)
+
+When the run is initialized with `--from-scratch`, the GM and player first
+**author** the campaign before playtesting. Follow `authoring.md`: create the
+Novel, the party (the requested size), the world, the NPC cast, the beat arc,
+the central vow, and the escape room — grounding the adventure in ruleset
+search results. Authoring ends with
+`playtest.ts finalize --run <id> --vow <text> --escape-room <room>`, which sets
+the oracle's target from the finished module. Every turn before `finalize` is
+tagged `authoring`; every turn after is `playtest`.
+
 ## Role isolation
 
 Run the GM and the player as **separate contexts**. They exchange only
