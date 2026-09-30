@@ -1077,6 +1077,10 @@ async function main() {
     await call(p, "manage_world", { action: "create_thing",  name: "latch", description: "l", kind: "door", lockable: true, locked: true, fixed: true, location: "Hall" });
     const free = await call(p, "run_command", { command: "unlock latch" });
     assertContains(free, "unlock", "REQ-284f unbound lock unlocks freely");
+    await call(p, "manage_world", { action: "create_thing",  name: "The Vault Door", description: "vd", kind: "door", lockable: true, locked: true, fixed: true, location: "Hall" });
+    await call(p, "run_command", { command: "unlock vault door" });
+    const reopened = await call(p, "run_command", { command: "open vault door" });
+    assertContains(reopened, "[OK]", "article-less unlock persists so the door opens");
     passed++;
     await kill(p);
   });

@@ -29,6 +29,16 @@ Findings from a simulated-play pilot against a mothership module (see
   a stub; the later declaration replaced the stub and silently dropped the
   reverse exits already set on it, leaving maps one-way. The declaration now
   updates the existing room in place, preserving its exits and door refs.
+- **Parser side effects resolved by raw token, not by the resolved thing
+  (REQ-201, REQ-284).** `open`/`close`/`unlock`/`lock`/`drop` applied their
+  state change via a raw lowercased lookup (`things.get("medbay door")`), so a
+  command using an article-less name against a thing stored as `The Medbay door`
+  returned `[OK]` but mutated nothing. They now resolve through
+  `findMatchingThing`, matching the parser's own resolution. Found by the pilot;
+  a follow-up `pilot4` reached the completion oracle (`success: true`, vow
+  resolved, denouement, escape room reached, 4 survivors, 0 errors).
+- **Playtest oracle (tooling).** The `playtest` harness compares the escape room
+  article-insensitively, so a room named `The X` matches `--escape-room X`.
 - **Optional key binding (REQ-284f).** A lockable thing MAY bind a key by name
   via `manage_world` (create_thing/update_thing) or the convert-source
   assertion `Its key is <thing>.`. When bound, unlock/lock require the key to be
