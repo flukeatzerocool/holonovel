@@ -2675,12 +2675,13 @@ server.registerTool("run_command", {
         recordExplorationKnowledge(novel, entity, "thing", targetThing.name.toLowerCase());
       }
     } else if (verb === "drop" && tokens.length > 1) {
-      const target = tokens.slice(1).join(" ").toLowerCase();
-      const idx = entity.inventory.indexOf(target);
+      const norm = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+      const target = tokens.slice(1).join(" ");
+      const idx = entity.inventory.findIndex((i) => norm(i) === norm(target));
       if (idx >= 0) {
         entity.inventory.splice(idx, 1);
         // Move thing back to current room
-        const thing = novel.world.things.get(target);
+        const thing = findMatchingThing(target, novel.world, currentRoom);
         if (thing) {
           thing.location = currentRoom;
           thing.locationType = "room";
@@ -2688,33 +2689,15 @@ server.registerTool("run_command", {
         state.saveNovel(novel);
         audit("command", { command, dropped: target });
       }
-    } else if (verb === "open" && result.prefix === "OK" && tokens.length > 1) {
-      const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
-      if (thing && thing.openable) {
-        thing.open = true;
+    } else if ((verb === "open" || verb === "close" || verb === "unlock" || verb === "lock") && result.prefix === "OK" && tokens.length > 1) {
+      const thing = findMatchingThing(tokens.slice(1).join(" ").split(/\s+with\s+/)[0], novel.world, currentRoom);
+      if (thing && (verb === "open" || verb === "close" ? thing.openable : thing.lockable)) {
+        if (verb === "open") thing.open = true;
+        else if (verb === "close") thing.open = false;
+        else if (verb === "unlock") thing.locked = false;
+        else thing.locked = true;
         state.saveNovel(novel);
-        audit("command", { command, opened: thing.name });
-      }
-    } else if (verb === "close" && result.prefix === "OK" && tokens.length > 1) {
-      const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
-      if (thing && thing.openable) {
-        thing.open = false;
-        state.saveNovel(novel);
-        audit("command", { command, closed: thing.name });
-      }
-    } else if (verb === "unlock" && result.prefix === "OK" && tokens.length > 1) {
-      const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
-      if (thing && thing.lockable) {
-        thing.locked = false;
-        state.saveNovel(novel);
-        audit("command", { command, unlocked: thing.name });
-      }
-    } else if (verb === "lock" && result.prefix === "OK" && tokens.length > 1) {
-      const thing = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase());
-      if (thing && thing.lockable) {
-        thing.locked = true;
-        state.saveNovel(novel);
-        audit("command", { command, locked: thing.name });
+        audit("command", { command, [verb + "ed"]: thing.name });
       }
     }
   }

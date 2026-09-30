@@ -229,8 +229,9 @@ function computeOracle(run: string): any {
   const pcs = Object.values(novel.entities ?? {}) as any[];
   const survivors = pcs.filter(pcAlive);
   const activePc = pcs.find((p) => p.id === novel.active_entity_id) ?? pcs[0];
-  const want = (cfg.escape_room ?? "").toLowerCase();
-  const activeInEscape = want ? (activePc?.current_room ?? "").toLowerCase() === want : true;
+  const bare = (s: string) => s.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+  const want = bare(cfg.escape_room ?? "");
+  const activeInEscape = want ? bare(activePc?.current_room ?? "") === want : true;
   let unrecovered = 0;
   const errors: any[] = [];
   for (let i = 0; i < tx.length; i++) {
