@@ -56,6 +56,12 @@ test("classifyResult: non-validation isError is a defect", () => {
   const r = classifyResult("MCP error -32603: boom", true);
   eq(r.error_class, "defect", "internal error is a defect");
 });
+test("classifyResult: a refusal envelope in an isError result is a denial", () => {
+  const r = classifyResult("[FORBIDDEN] This tool is Game Master only.", true);
+  eq(r.prefix, "[FORBIDDEN]", "forbidden prefix");
+  eq(r.error_class, "denial", "badge gating is an expected refusal");
+  assert(r.mcp_error, "still flagged as an MCP error");
+});
 test("classifyResult: normal result parses its envelope", () => {
   const r = classifyResult("[OK] done", false);
   eq(r.error_class, "ok", "ok");

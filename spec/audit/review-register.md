@@ -396,6 +396,45 @@ Fix evidence: regression tests G1/G3/G4/G5 in
   and a feature-guarded `createToolError` wrapper in `holonovel/src/index.ts`
   that emits an `[ERROR] [INVALID_INPUT]` envelope. Evidence: test G9.
 
+## Resolved (2026-09-30 SWSE author-play)
+
+Findings from the 2026-09-30 SWSE author-from-scratch play matrix
+(`plans/2026-09-30-swse-author-playtest/`). 36 cells, all authoring-validity
+pass and completion-oracle green. Fix evidence: regression tests in
+`holonovel/scripts/test-persistence.ts` and
+`holonovel/scripts/test-playtest.ts`; server suite 37/37; `check:fast` PASS.
+
+- **Entity-id collision across restarts (P0, 2026-09-30):** `StateManager`
+  kept a process-local `entityCounter` (`holonovel/src/core/state.ts:741`)
+  that restarted at `character_01`, so a party created one-process-per-turn
+  collapsed to a single PC. `createEntity` now allocates the next free id from
+  the Novel's own entities (`holonovel/src/core/state.ts:2182`). Reproduction:
+  four `manage_character (action: create)` turns previously all returned
+  `character_01`.
+- **`create_exit` crash on a missing direction (P0, 2026-09-30):**
+  `manage_world (action: create_exit)` called `args.direction.toLowerCase()`
+  though `direction` is optional, returning a raw TypeError
+  (`holonovel/src/index.ts:3188`). It now returns `[ERROR] [INVALID_INPUT]`
+  and accepts `room`/`from` and `to` aliases.
+- **Playtest classifier counted `[FORBIDDEN]` as a defect (P3, 2026-09-30):**
+  badge-gating refusals arrive with `isError: true`, so `classifyResult`
+  (`holonovel/scripts/lib/playtest-lib.ts`) labelled them `[ERROR]` and the
+  oracle failed on an expected refusal. It now classifies a refusal envelope
+  in an `isError` result as a denial.
+
+## Scheduled-roadmap
+
+- **Party placement not modeled (P1, 2026-09-30):** only the active PC is
+  placed (`holonovel/src/index.ts:3684`) and moved (`:2724-2732`); 36/36
+  matrix cells left 3/4 PCs roomless. Scheduled on ROADMAP "Party-wide
+  placement and movement".
+- **SWSE sheets lack HP/Damage Threshold/Force Points (P1, 2026-09-30):**
+  `computeDerived` plus the SWSE package `derived_stats` yield only the three
+  defenses. Scheduled on ROADMAP "SWSE sheet vitals".
+- **Beat-enum rejection has no envelope (P2, 2026-09-30):** an invalid
+  `manage_scene` beat returns a raw `-32602`. Scheduled on ROADMAP "Beat-enum
+  discoverability".
+
 ## Closed-P3 (recorded, no action)
 
 - **Guard-before-fix sequencing for single-source-a-gate plans** (closed

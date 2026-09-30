@@ -48,8 +48,13 @@ export function errorClass(p: string): "defect" | "denial" | "ok" {
 export function classifyResult(text: string, isError?: boolean): { prefix: string; error_class: "defect" | "denial" | "ok"; mcp_error: boolean } {
   if (isError) {
     const validation = /Input validation error|Invalid arguments|Invalid option|Invalid enum/i.test(text);
-    const pfx = validation ? "[INVALID_INPUT]" : "[ERROR]";
-    return { prefix: pfx, error_class: validation ? "denial" : "defect", mcp_error: true };
+    if (validation) return { prefix: "[INVALID_INPUT]", error_class: "denial", mcp_error: true };
+    // A refusal envelope still counts as a denial when the SDK marks the
+    // result as an error — badge gating returns `[FORBIDDEN]` with
+    // `isError: true`, which is an expected refusal, not a defect.
+    const p = prefix(text);
+    if (DENIAL_PREFIXES.has(p)) return { prefix: p, error_class: "denial", mcp_error: true };
+    return { prefix: "[ERROR]", error_class: "defect", mcp_error: true };
   }
   const p = prefix(text);
   return { prefix: p, error_class: errorClass(p), mcp_error: false };
