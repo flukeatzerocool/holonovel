@@ -55,6 +55,7 @@ const TESTS = [
   "test:agent",
   "test:perception",
   "test:briefing",
+  "test:playtest-lib",
   "test:help",
   "test:update-workflow",
   "check:vendor",

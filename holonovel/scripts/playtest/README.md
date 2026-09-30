@@ -30,9 +30,10 @@ npx tsx scripts/playtest.ts init \
   --run my-run --server-dir /path/to/holonovel \
   --state-dir /path/to/.holonovel-state --novel <slug> \
   --module /path/to/adventure.md --adventure <slug> \
-  --vow "<central vow>" --escape-room "<room>" --persona completionist
+  --vow "<central vow>" --escape-room "<room>" --persona completionist \
+  --gm gm_fair --seed 1
 
-npx tsx scripts/playtest.ts brief --run my-run --agent gm
+npx tsx scripts/playtest.ts briefing --run my-run --agent gm
 npx tsx scripts/playtest.ts turn  --run my-run --agent gm \
   --tool run_command --args '{"action":"execute","command":"look"}'
 npx tsx scripts/playtest.ts oracle --run my-run
@@ -48,8 +49,31 @@ package into an isolated data dir; the source state dir is never modified.
 Composite success = the central vow is resolved **and** a terminal beat
 (`resolution`/`denouement`) is recorded **and** the active PC is in the
 `--escape-room` (when set) **and** at least one PC is alive **and** zero
-unrecovered `[ERROR]`/`[FORBIDDEN]` turns remain. A partial score weights beat
-progress, vow resolution, and error rate.
+unrecovered defect turns remain (`[ERROR]`/`[RULE_VIOLATION]`/
+`[STATE_CONFLICT]`; expected refusals such as `[FORBIDDEN]` do not count). A
+partial score weights beat progress, vow resolution, and error rate.
+
+The oracle also emits a `mission` block with objective telemetry for the
+mission scorecard: `tools/list` hallucinated-tool check, prefix histogram,
+state-fingerprint persistence violations (end-of-turn N vs start-of-turn
+N+1), unexplained room drift, lookup-anchor ratio, `[NEED_INPUT]` capture,
+per-turn latency, and briefing-byte growth. `partial_score` and the beat
+fraction are heuristic/ordinal, not interval metrics.
+
+Run provenance (`--gm`, `--seed`, git SHA, ruleset/novel/module hashes, node
+version) is recorded in `run.json`; the tool catalog is snapshotted to
+`tools.json` at init.
+
+## Harness behavior
+
+- **Per-turn seed.** The server keeps restart determinism (REQ-050c), so the
+  harness varies `TTRPG_SEED` per turn (`<--seed>:<turn index>`) — session
+  rolls advance within a run instead of repeating the default-seed first draw.
+- **Per-run lock.** A `turn` holds `runs/<id>/.lock`; a second concurrent turn
+  on the same run is refused (stale locks older than 10 min are reclaimed).
+- **Fixtures.** Operator-supplied modules should model the objects their prose
+  makes examinable; unmodeled scenery produces honest `[NOT_FOUND]` denials
+  and is a fixture gap, not a server defect.
 
 ## Findings taxonomy
 
@@ -63,4 +87,6 @@ server condition it rests on: `hallucinated_tool`, `wrong_tool`,
 ## Related
 
 - `driver.md` — the external-driver turn protocol.
-- `personas/` — GM and player archetypes.
+- `personas/` — six player archetypes and six GM types (`gm_fair`,
+  `gm_adversarial`, `gm_benevolent`, `gm_rules_literal`, `gm_narrative`,
+  `gm_lorekeeper`).

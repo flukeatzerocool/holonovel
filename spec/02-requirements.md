@@ -175,7 +175,7 @@ _Check:_ T48.
 `lookup_equipment`, `lookup_monster`, `lookup_class`, and `manage_ruleset (action: search)` — SHALL include, in every result, the source anchor from which extraction pulled the content. The anchor SHALL include: (a) the source file name; (b) the heading path (e.g., "Spells > Level 3 > Fireball"); and (c) the line range in the source Markdown (e.g., "lines 1420–1445"). The tool surfaces the anchor as a `source_anchor` field in the output, placed after the mechanical data and before any narrative framing. The anchor lets the caller verify the output against the ruleset source without re-running extraction.
 
 **REQ-280b — Source-anchor citation (Part b).**
-For `manage_ruleset (action: search)`, every result item SHALL carry its own `source_anchor`. For canonical lookups returning a single entry, the anchor SHALL be the heading from which the entry was extracted. The anchor is derived from extraction metadata per REQ-010 (traceability) and SHALL be present even when the extraction confidence is LOW — the anchor labels the source, not the confidence. *Acceptance criterion:* `lookup_spell("fireball")` returns a `source_anchor` field with file name, heading path, and line range. Every result in `manage_ruleset (action: search, "grapple")` carries its own `source_anchor`.
+For `manage_ruleset (action: search)`, every result item SHALL carry its own `source_anchor`. For canonical lookups returning a single entry, the anchor SHALL be the heading from which the entry was extracted. The anchor is derived from extraction metadata per REQ-010 (traceability) and SHALL be present even when the extraction confidence is LOW — the anchor labels the source, not the confidence. *Acceptance criterion:* `lookup_spell("fireball")` returns a `source_anchor` field with file name, heading path, and line range. Every result in `manage_ruleset (action: search, "grapple")` carries its own `source_anchor`. A model entry that carries its own `source_anchor` SHALL retain it when no derivation or index join is available; the anchor SHALL NOT be nulled by an empty derivation.
 
 **REQ-280c — Source-anchor citation (Part c).**
 A ruleset-free build returns `source_anchor: null` for all lookups (waived per REQ-013). _Check:_ T329.
@@ -857,7 +857,7 @@ Output is badge-filtered. When a Novel is active, tool listings and query result
 An empty mapping restores builder defaults. *Acceptance criterion:* `manage_session (action: discover)` returns an intro pointer, task-map with one-line descriptions, and a `badge_briefing` pointer; `manage_session (action: discover, query="combat")` returns the most relevant combat tools with example invocations. _Check:_ T62, T118.
 
 **REQ-067d — Task-map intent routing.**
-`manage_session (action: discover)` SHALL include, for each task-map category, at least one example intent paired with the tool and action serving it, derived from the live registry and extraction model at call time. The examples SHALL show only tools visible to the caller per REQ-067b and SHALL NOT be a separately maintained list. A discovery query SHALL return the same example form for matching tools.
+`manage_session (action: discover)` SHALL include, for each task-map category, at least one example intent paired with the tool and action serving it, derived from the live registry and extraction model at call time. The examples SHALL show only tools visible to the caller per REQ-067b and SHALL NOT be a separately maintained list. A discovery query SHALL return the same example form for matching tools. Example invocations SHALL render from the tool's JSON Schema `properties` and `required` fields and SHALL NOT expose schema internals.
 *Acceptance criterion:* discovery returns an example invocation per category reflecting live registrations; adding a tool updates its category example without restart. _Check:_ T636.
 **REQ-063a — Connection introduction (Part a).**
 The server provides an `intro` prompt, listed first in `prompts/list`. The prompt takes no arguments, is visible to all badges, and serves as a conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next actions a player can take. The tone is engaging and energetic; the anti-slop catalogue (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding prompts. The `manage_session (action: discover)` action and `badge_briefing` each point to it. For intent-to-tool mapping, callers are directed to `run_command (action: suggest)` (REQ-084) — no `use_tool` or `lookup_rule` prompt is provided.
@@ -1419,7 +1419,7 @@ WHEN combat is active THE world-model parser commands that change the player's l
 **REQ-221b — Combat-navigation interaction (Part b).**
 The spatial-immutability contract applies regardless of whether the TTRPG ruleset defines movement restrictions during combat. The world-model layer enforces spatial immutability during combat as a narrative-integrity guard. The ruleset supersedes this guard only when it defines a specific retreat or tactical-movement mechanic. Such a mechanic explicitly permits location changes during combat. *Acceptance criterion:* During active combat with a populated world model, `command("go north")` returns `[STATE_CONFLICT]`; `command("look")` and `command("examine sword")` return `[OK]`; after `manage_combat (action: end)`, navigation resumes. _Check:_ T263.
 **REQ-217a — Condition tools (Part a).**
-The server applies and removes conditions via `manage_condition (action: apply, entity_id, condition, rounds?)` and `manage_condition (action: remove, entity_id, condition)`. The server SHALL validate `condition` against the ruleset's indexed condition list. Unknown conditions SHALL return `[INVALID_INPUT]` with valid conditions enumerated (REQ-059).
+The server applies and removes conditions via `manage_condition (action: apply, entity_id, condition, rounds?)` and `manage_condition (action: remove, entity_id, condition)`. The server SHALL validate `condition` against the ruleset's indexed condition list. Unknown conditions SHALL return `[INVALID_INPUT]` with valid conditions enumerated (REQ-059). When a bound ruleset exposes no condition list, the server SHALL accept free-form narrative condition names and SHALL NOT substitute another ruleset's condition vocabulary.
 
 **REQ-217b — Condition tools (Part b).**
 Applying the same condition to an entity that already has it SHALL return `[WARNING]` with the text "Condition already active." The server adds no duplicate and changes no other state. The `manage_condition (action: remove)` tool, when the entity does not have the condition, SHALL return `[WARNING]` with the text "Condition not present." Both tools are badge-gated per REQ-032. The Player may apply or remove conditions on their own active entity only. The Game Master may apply or remove conditions on any entity or NPC. Player attempts on other entities SHALL return `[FORBIDDEN]` with the target entity ID.
@@ -1519,7 +1519,7 @@ Filling the countdown makes the vow eligible for `manage_vow (action: resolve)`.
 #### Entities, NPCs, and Adventure Content
 
 **REQ-074a — Multi-entity support (Part a).**
-A Novel may contain multiple entities under the same badge. The roster may hold multiple entities for the player. `entities://` lists all Novel entities visible to the active badge. One entity is the active entity — the default target for tools that accept an `entity_id` when no `entity_id` is supplied. The first imported entity is the active entity by default. `manage_character (action: set_active, entity_id)` switches the active entity and is always callable regardless of badge.
+A Novel may contain multiple entities under the same badge. The roster may hold multiple entities for the player. `entities://` lists all Novel entities visible to the active badge. One entity is the active entity — the default target for tools that accept an `entity_id` when no `entity_id` is supplied. The first imported entity is the active entity by default. `manage_character (action: set_active, entity_id)` switches the active entity and is always callable regardless of badge. A `go` action SHALL move every present entity, not only the active one, and SHALL update the scene location to the new room.
 
 **REQ-074b — Multi-entity support (Part b).**
 The `party` resource (`party://current`) lists all player-owned entities with summary stats: name, active status, HP, conditions, and `present` flag (derived from the most recent `manage_scene (action: set)` `characters_present` parameter per REQ-307). REQ-030 scoping is unchanged — one user per connection, no multiplayer. The active entity also establishes the narrative POV per REQ-220. *Acceptance criterion:* Creating and importing two entities produces two entries in `entities://`; `manage_character (action: set_active, entity_02)` switches the default target for entity_id-optional tools. _Check:_ T55.
@@ -2368,7 +2368,7 @@ reports per-type counts.
 _Check:_ T282.
 
 **REQ-331a — Story journal-world coupling (Part a).**
-Story journal entries SHALL accept an optional `room_id` field. When `manage_story (action: record)` is called during a scene that is coupled to a world-model room (REQ-326), `room_id` SHALL auto-populate with the room's ID. Entries with `room_id` SHALL annotate their `scene_anchor` with the room's name — surfaced in `manage_story (action: list)` and `manage_novel (action: export)` output. `manage_session (action: recap)` `narrative_orientation` SHALL include room names for entries that carry them. `badge_briefing` `story` section entries SHALL include room context when available. The `room_id` field is optional — entries in non-room-coupled scenes or scenes with unmatched locations SHALL carry no `room_id`.
+Story journal entries SHALL accept an optional `room_id` field. When `manage_story (action: record)` is called during a scene that is coupled to a world-model room (REQ-326), `room_id` SHALL auto-populate with the room's ID. Entries with `room_id` SHALL annotate their `scene_anchor` with the room's name — surfaced in `manage_story (action: list)` and `manage_novel (action: export)` output. `manage_session (action: recap)` `narrative_orientation` SHALL include room names for entries that carry them. `badge_briefing` `story` entries SHALL include room context when available. Entries in non-room-coupled or unmatched scenes SHALL carry no `room_id`. With no scene location, the room derives from the active entity's current room; an empty location never matches.
 
 **REQ-331b — Story journal-world coupling (Part b).**
 Backward compatible: existing story journal entries without `room_id` are valid. *Acceptance criterion:* `manage_story (action: record, "moment", "Discovered the hidden passage")` with scene coupled to world-model room "Library" — entry auto-populates `room_id: "library"` and `scene_anchor` includes "Library". Same call with unmatched location — `room_id` absent. _Check:_ T375, T378.
@@ -3149,10 +3149,15 @@ be snapshot-able and audit-logged. _Check:_ T242.
 
 **REQ-200 — Kind mechanical contracts.** The world-model layer SHALL define
 mechanical contracts for the kinds provided by the `holonovel` package (B10) and
-surfaced at the `world://kinds` registry. Containers hold contents and block access when closed. Supporters carry surface things that stay visible and reachable, and support is fixed by default. Doors connect two rooms, and a closed door blocks passage. Persons stay visible and examinable in rooms. Backdrops stay visible from every room in a defined region. Regions name room groups. Every thing SHALL have a portability classification: `portable` (may be
-taken) or `fixed` (may not be taken). Supporters are fixed by default. Containers
-and unclassified things are portable by default. Taking a fixed thing SHALL return
-a rule-violation. _Check:_ T243.
+surfaced at `world://kinds`. Containers hold contents; closed ones
+block access. Supporters carry visible, reachable surface things and are fixed by
+default. Doors connect two rooms; a closed door blocks passage. Persons stay
+visible and examinable in rooms. Backdrops stay visible across a region's rooms;
+regions name room groups. Every thing is `portable` (may be taken) or `fixed`
+(may not be taken); containers and unclassified things are portable by default.
+Taking a fixed thing SHALL return a rule-violation. Object-interaction verbs SHALL
+resolve only reachable things (room, open container/supporter, or inventory),
+matching the writer's scope. _Check:_ T243.
 
 **REQ-201 — Hybrid source conversion.** THE system SHALL provide a
 `manage_world (action: convert)` tool that parses hybrid source text — declarative world-model

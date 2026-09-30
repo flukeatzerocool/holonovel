@@ -117,14 +117,29 @@ export const BASE_PARSER_COMMANDS = [
 ];
 
 export function resolveThingName(input: string, thingsInRoom: WorldThing[], inventory: string[]): WorldThing[] {
-  const lower = input.toLowerCase().trim();
-  const candidates = thingsInRoom.filter(t => t.name.toLowerCase().includes(lower));
-  return candidates;
+  // Normalize both sides (lowercase, strip a leading article) so `take the
+  // pulse rifle` matches a thing named `A Pulse Rifle`. Prefer exact matches.
+  const norm = (s: string) => s.toLowerCase().trim().replace(/^(?:the|an?)\s+/, "");
+  const want = norm(input);
+  if (!want) return [];
+  const exact = thingsInRoom.filter(t => norm(t.name) === want);
+  if (exact.length > 0) return exact;
+  return thingsInRoom.filter(t => {
+    const n = norm(t.name);
+    return n.includes(want) || want.includes(n);
+  });
 }
 
 export function resolveThingInInventory(input: string, heldThings: WorldThing[]): WorldThing[] {
-  const lower = input.toLowerCase().trim();
-  return heldThings.filter(t => t.name.toLowerCase().includes(lower));
+  const norm = (s: string) => s.toLowerCase().trim().replace(/^(?:the|an?)\s+/, "");
+  const want = norm(input);
+  if (!want) return [];
+  const exact = heldThings.filter(t => norm(t.name) === want);
+  if (exact.length > 0) return exact;
+  return heldThings.filter(t => {
+    const n = norm(t.name);
+    return n.includes(want) || want.includes(n);
+  });
 }
 
 // ── convert_source (REQ-201) ──────────────────────────────────────

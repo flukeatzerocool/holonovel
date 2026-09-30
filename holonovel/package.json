@@ -65,7 +65,8 @@
     "test:lean-narrator": "tsx scripts/test-lean-narrator.ts",
     "score:tools": "tsx scripts/score-tool-definitions.ts",
     "test:all": "tsx scripts/run-test-suite.ts",
-    "test:playtest": "tsx scripts/playtest.ts"
+    "test:playtest": "tsx scripts/playtest.ts",
+    "test:playtest-lib": "tsx scripts/test-playtest.ts"
   },
   "keywords": [
     "parser",

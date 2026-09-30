@@ -60,16 +60,19 @@ function contentHash(pkg: any): string {
 
 const RULESET_PKG = {
   slug: "wave1test",
-  manifest: { slug: "wave1test", name: "Wave1 Test", host_version: "2026.08.18", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-08-24", counts: { index: 3 } },
+  manifest: { slug: "wave1test", name: "Wave1 Test", host_version: "2026.08.18", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-08-24", counts: { index: 4 } },
   index: [
     { id: "fireball", anchor: "Spells > Level 3 > Fireball", source_file: "wave1test.md", content: "Fireball deals 8d6 fire damage. See Monsters > Goblin for a common target.", category: "Spells", confidence: "high", line_range: "1420-1445" },
     { id: "goblin", anchor: "Monsters > Goblin", source_file: "wave1test.md", content: "Goblin: AC 15, HP 7.", category: "Monsters", confidence: "high", line_range: "200-210" },
     { id: "goblin_king", anchor: "Monsters > Goblin King", source_file: "wave1test.md", content: "Goblin King: AC 17, HP 22.", category: "Monsters", confidence: "high", line_range: "211-220" },
+    // Hyphenated index id vs underscored model key (the anchor-join regression).
+    { id: "stat-checks", anchor: "Stats > Checks", source_file: "wave1test.md", content: "Roll d100 under the Stat.", category: "Rules", confidence: "high", line_range: "10-12" },
   ],
   model: {
     concepts: {
       fireball: { name: "Fireball", level: 3, school: "Evocation", damage: "8d6 fire" },
       goblin: { name: "Goblin", ac: 15, hp: 7, traits: ["nimble escape"] },
+      stat_check: { name: "Stat Check", source_anchor: "Stats > Checks" },
     },
     tables: { "omen": [{ result: "A cold wind", weight: 1 }, { result: "A crow caws", weight: 1 }] },
     generation_tables: {
@@ -434,6 +437,152 @@ async function main() {
     assertContains(rem, "[OK]", "REQ-217 remove");
     const rem2 = await call(p, "manage_condition", { action: "remove",  entity_id: "character_01", condition: "prone" });
     assertContains(rem2, "[WARNING]", "REQ-217 remove absent warning");
+    passed++;
+    await kill(p);
+  });
+
+  // ── Invariant gates from the 2026-09-29 playtest matrix ──────────────
+
+  await test("G1/REQ-280: indexed lookup emits a non-null source anchor (id/key separator)", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g1", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const r = await call(p, "wave1test_lookup_spell", { key: "stat_check" });
+    let parsed: any;
+    try { parsed = JSON.parse(r); } catch { throw new Error("lookup did not return JSON: " + r.slice(0, 200)); }
+    // A model entry with no derivable source_file/anchor must keep its own
+    // anchor rather than being clobbered to null (the pre-fix regression).
+    if (parsed.source_anchor === null || parsed.source_anchor === undefined) {
+      throw new Error("source_anchor is null for an indexed entry: " + r.slice(0, 200));
+    }
+    assertContains(JSON.stringify(parsed.source_anchor), "Stats > Checks", "REQ-280 anchor preserved");
+    passed++;
+    await kill(p);
+  });
+
+  await test("G3/REQ-217: a bound ruleset with no condition list accepts free-form (no D&D leak)", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g3", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "G3Char" });
+    const r = await call(p, "manage_condition", { action: "apply",  entity_id: "character_01", condition: "panicked" });
+    assertContains(r, "[OK]", "REQ-217 free-form condition accepted under a bound ruleset");
+    if (r.includes("blinded") || r.includes("charmed")) throw new Error("foreign condition vocabulary leaked: " + r.slice(0, 200));
+    passed++;
+    await kill(p);
+  });
+
+  await test("G4/REQ-200: cross-room object actions are refused (parser/writer scope agree)", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g4" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "G4Char" });
+    await call(p, "manage_world", { action: "create_room",  name: "Alpha", description: "a" });
+    await call(p, "manage_world", { action: "create_room",  name: "Beta", description: "b" });
+    await call(p, "manage_world", { action: "create_thing",  name: "Sample Case", description: "c", location: "Beta", location_type: "room", openable: true });
+    const remote = await call(p, "run_command", { command: "open sample case" });
+    if (remote.includes("[OK]")) throw new Error("cross-room open returned [OK]: " + remote.slice(0, 200));
+    passed++;
+    await kill(p);
+  });
+
+  await test("G5/REQ-067: discover renders an example without schema internals", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g5" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const help = await call(p, "manage_session", { action: "discover",  query: "story" });
+    if (/_def|ZodObject|safeParse|toJSONSchema|ZodOptional/.test(help)) {
+      throw new Error("discover leaked schema internals: " + help.slice(0, 200));
+    }
+    passed++;
+    await kill(p);
+  });
+
+  await test("G2: every tool result is enveloped, isError, or JSON", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g2", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const samples: [string, any][] = [
+      ["manage_session", { action: "health" }],
+      ["wave1test_lookup_spell", { key: "fireball" }],
+      ["manage_npc", { action: "get",  name: "does-not-exist" }],
+      ["manage_story", { action: "record",  type: "bogus", entry: "x" }],
+    ];
+    for (const [name, args] of samples) {
+      const r = await callRaw(p, name, args);
+      const text = (r.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      // Ruleset lookup payloads are JSON (optionally followed by a source
+      // block), so accept a JSON-payload lead as a valid non-envelope form.
+      const t = text.trimStart();
+      const isJsonPayload = t.startsWith("{") || t.startsWith("[");
+      const ok = r.isError === true || /^\s*\[[A-Z_]+\]/.test(text) || isJsonPayload;
+      if (!ok) throw new Error(`${name}: result is neither enveloped, isError, nor JSON: ${text.slice(0, 120)}`);
+    }
+    passed++;
+    await kill(p);
+  });
+
+  await test("G7/REQ-125: suggest surfaces the unlock verb on an unlock intent", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g7s" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const s = await call(p, "run_command", { action: "suggest",  intent: "unlock the door with my keycard" });
+    assertContains(s, "unlock", "suggest includes the unlock verb");
+    passed++;
+    await kill(p);
+  });
+
+  await test("G8/REQ-353: a parser move ticks on_scene_transition countdowns", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g8" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "G8C" });
+    await call(p, "manage_world", { action: "create_room",  name: "Alpha", description: "a" });
+    await call(p, "manage_world", { action: "create_room",  name: "Beta", description: "b" });
+    await call(p, "manage_world", { action: "create_exit",  direction: "north", room_a: "Alpha", room_b: "Beta" });
+    await call(p, "manage_countdown", { action: "set",  name: "Clock", ticks: 3, on_scene_transition: true });
+    await call(p, "run_command", { command: "go north" });
+    const novel = JSON.parse(readFileSync(join(DATA_DIR, "novels", "g8.json"), "utf-8"));
+    const cd = novel?.countdowns?.Clock;
+    if (!cd || cd.ticks !== 2) throw new Error(`clock did not tick on parser move: ${JSON.stringify(cd)}`);
+    passed++;
+    await kill(p);
+  });
+
+  await test("G9/REQ-002: argument-schema violations return an [ERROR] [INVALID_INPUT] envelope", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g9" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const r = await callRaw(p, "manage_story", { action: "record",  type: "bogus", entry: "x" });
+    const text = (r.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+    if (r.isError !== true) throw new Error("expected an isError result");
+    if (!/^\[ERROR\] \[INVALID_INPUT\]/.test(text.trim())) throw new Error("not enveloped: " + text.slice(0, 160));
+    passed++;
+    await kill(p);
+  });
+
+  await test("G10/REQ-200: take/drop with a leading article moves and returns the item", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "g10" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "G10C" });
+    await call(p, "manage_world", { action: "create_room",  name: "Hall", description: "h" });
+    await call(p, "manage_world", { action: "create_thing",  name: "A Pulse Rifle", description: "r", location: "Hall", location_type: "room", portable: true });
+    const take = await call(p, "run_command", { command: "take the pulse rifle" });
+    assertContains(take, "[OK]", "take with article");
+    const n1 = JSON.parse(readFileSync(join(DATA_DIR, "novels", "g10.json"), "utf-8"));
+    const inv = n1.entities?.character_01?.inventory ?? [];
+    if (!inv.some((i: string) => /pulse rifle/i.test(i))) throw new Error(`take-with-article did not move the item: ${JSON.stringify(inv)}`);
+    const drop = await call(p, "run_command", { command: "drop the pulse rifle" });
+    assertContains(drop, "[OK]", "drop with article");
+    const n2 = JSON.parse(readFileSync(join(DATA_DIR, "novels", "g10.json"), "utf-8"));
+    const inv2 = n2.entities?.character_01?.inventory ?? [];
+    if (inv2.some((i: string) => /pulse rifle/i.test(i))) throw new Error("drop-with-article left the item in inventory");
+    const rifle = Object.values(n2.world?.things ?? {}).find((t: any) => t.name && /pulse rifle/i.test(t.name));
+    if (!rifle || rifle.location == null) throw new Error(`dropped item lost: ${JSON.stringify(rifle)}`);
     passed++;
     await kill(p);
   });

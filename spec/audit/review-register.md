@@ -321,6 +321,81 @@ condition — not a gate's emitted message; a message alone is not evidence.
   the one genuine overload (REQ-086a vs REQ-239a) is Scheduled-roadmap.
   ROADMAP entry removed.
 
+## Resolved (2026-09-29 playtest fixes)
+
+Findings from the 2026-09-29 persona/GM playtest matrix
+(`plans/2026-09-29-playtest-matrix/`) that the fix increment
+(`plans/2026-09-29-playtest-fixes/`) addressed. 38 sessions, all
+completion-oracle green; these were the mission-level defects they surfaced.
+Fix evidence: regression tests G1/G3/G4/G5 in
+`holonovel/scripts/test-output-contracts.ts`; full suite 37/37;
+`check:fast` PASS.
+
+- **Ruleset lookup source anchors dropped (P0, 2026-09-29):** `sourceAnchor()`
+  returns null and is spread after the entry, clobbering the model's own
+  anchor; the index id/key join also misses hyphenated ids (e.g. `stat-checks`
+  vs `stat_check`) — `holonovel/src/index.ts:822-823,1180-1185`. Reproduction:
+  every matrix batch, e.g. `pt-fair-power-gamer` (6/8 lookups null),
+  `pt-adversarial-rules-lawyer`.
+- **`mothership_core_mechanic` returns its own description, not the mechanic
+  text (P0, 2026-09-29):** the `info`-kind handler returns
+  `schema.description` — `holonovel/src/index.ts:886`. Reproduction:
+  `pt-fair-power-gamer` T58.
+- **Frozen per-turn dice RNG (P0, 2026-09-29):** `1d100` returned 24 in every
+  fresh process because the per-turn reboot re-seeds from the default and the
+  harness does not propagate a seed — `holonovel/src/core/rng.ts:38-39` +
+  `holonovel/scripts/playtest.ts:131-139`. Reproduction:
+  `pt-fair-power-gamer` (10/10), `pt-adversarial-new-player`.
+- **Cross-ruleset condition vocabulary (F8, P0, 2026-09-29):** a Mothership
+  Novel validates conditions against the D&D 2024 `BASE_CONDITIONS` list;
+  `Panicked`/`Stressed` were rejected — `holonovel/src/index.ts:4107`.
+  Reproduction: `pt-lorekeeper-new-player` T32, `pt-adversarial-rules-lawyer`.
+- **Cross-room `open`/`unlock` false `[OK]` (P0, 2026-09-29):** the parser
+  resolves things globally while the writer is room-scoped, so an action on a
+  remote object reports success with no persisted change —
+  `holonovel/src/world/parser.ts:421,471` vs `holonovel/src/index.ts:2693`.
+  Reproduction: `pt-adversarial-curious`, `pt-benevolent-new-player`.
+- **Party-scope completion certified by the active PC alone (P1, 2026-09-29):**
+  only the active entity moves and the oracle checks only that entity, and the
+  escape room equals the spawn room — `holonovel/src/index.ts:2652`,
+  `holonovel/scripts/playtest.ts:380-385`. Reproduction: all six batches.
+- **Parser key/article matching and `suggest` unlock verb (P2, 2026-09-29):**
+  a leading article defeats name resolution and `unlock X with keycard` claims
+  the carried key is absent — `holonovel/src/world/model.ts:120-121`,
+  `holonovel/src/world/parser.ts:478`; `suggest` emits `open` but not
+  `unlock … with …` — `holonovel/src/index.ts:2510`. Reproduction:
+  `pt-fair-new-player` T53, `pt-fair-completionist` T49.
+- **Observability and coupling fixes (P2, 2026-09-29):** `discover` leaks zod
+  internals (`holonovel/src/index.ts:1391`); story-journal beats record the
+  wrong room (`holonovel/src/index.ts:3533,4806-4808`); invalid arguments
+  return raw `-32602` with no envelope (`holonovel/src/index.ts:3803`); the
+  harness appends without a per-run lock and drops the dice seed
+  (`holonovel/scripts/playtest.ts:311`). Reproduction: `pt-fair-power-gamer`,
+  `pt-narrative-curious`, `pt-benevolent-forgetful`.
+- **`suggest` unlock verb and parser-move countdown ticks (2026-09-29):**
+  confirmation re-runs showed the `suggest` intent still emitted only `open
+  <door>` (`holonovel/src/index.ts` intent routing) and parser `go` did not tick
+  `on_scene_transition` clocks (REQ-125/REQ-353). Fixed: `suggest` emits
+  `unlock <door> with <key>`, and the move side-effect calls
+  `advanceSceneTransitionCountdowns`. Evidence: tests G7/G8 in
+  `holonovel/scripts/test-output-contracts.ts`; confirmation probes now pass.
+- **Parser/writer take/drop agreement, arg-error envelope, story-list room
+  (2026-09-29):** the re-run confirmation surfaced `take the pulse rifle` as a
+  false-OK (the writer's `findMatchingThing` lacked article normalization and
+  exact-first matching, so `vault door` matched `door`) and a `drop` that lost
+  the item (held things carry no location). Fixed: `findMatchingThing`/
+  `findThingByName` are exact-first and normalized; drop uses the all-things
+  lookup; `manage_story (action: list)` surfaces `room`. Evidence: tests G10
+  (plus G9) in `holonovel/scripts/test-output-contracts.ts`.
+
+- **Tool argument-schema violations were misclassified by the harness (resolved
+  2026-09-29):** the MCP SDK returns an invalid enum/type argument as a tool
+  result with `isError: true` and an `MCP error -32602: Input validation error
+  …` message (not a JSON-RPC error). Fixed on both sides: `classifyResult` in
+  `holonovel/scripts/lib/playtest-lib.ts` (wired into `cmdTurn`, unit-tested),
+  and a feature-guarded `createToolError` wrapper in `holonovel/src/index.ts`
+  that emits an `[ERROR] [INVALID_INPUT]` envelope. Evidence: test G9.
+
 ## Closed-P3 (recorded, no action)
 
 - **Guard-before-fix sequencing for single-source-a-gate plans** (closed
@@ -436,6 +511,33 @@ condition — not a gate's emitted message; a message alone is not evidence.
   guard' with no demonstrated recurrence → record-and-close"), no gate is added.
   Reopen on a demonstrated bare `manage_X` reference where the canonical
   `manage_X (action: …)` form is required.
+
+- **Unmodeled module scenery (P3, closed 2026-09-29):** module prose names
+  body/map/console/notes/rig/rec table/footlocker/incubator/sample logs that
+  are not declared as things, so `examine`/`open` refuse them —
+  `greta-base.md:35,41,47,61,67,71,73` vs `holonovel/src/world/parser.ts:340`.
+  The `curious` persona surfaced it as designed; fixture scope, not a server
+  fault. Record-and-close; model the nouns if a richer parse surface is wanted.
+
+- **`unlock` then `open` two-step (P3, closed 2026-09-29):** an unlocked door
+  still refuses passage until an explicit `open`; recovered one turn later —
+  `holonovel/src/world/parser.ts:298-300`. Minor UX friction, no failure.
+  Record-and-close.
+
+- **Player spatial-resolution surface (P3, closed 2026-09-29):**
+  `run_command (action: resolve)` is GM-gated; the Player route is
+  `run_command (action: suggest)`. This is the recorded Player-parser contract,
+  not a defect in the matrix scope. Record-and-close.
+
+- **List actions return bare JSON arrays (P3, closed 2026-09-29):** some
+  management `list` actions return a JSON array without an `[OK]` envelope
+  (e.g. `manage_vow list`). Consistent with the JSON-payload contract;
+  record-and-close.
+
+- **Panic/stress mechanics never exercised (P3, closed 2026-09-29):** the
+  Mothership horror module produced no panic checks or stress resolution in any
+  run, so the resolve surface was unexercised. Coverage note, not a defect.
+  Record-and-close.
 
 ## Deferred-by-user
 

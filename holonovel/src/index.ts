@@ -151,6 +151,24 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_perception: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
+// REQ-002 — the SDK returns an argument-schema violation as a tool result with
+// `isError: true` and an `MCP error -32602: Input validation error …` message.
+// Emit the standard `[ERROR] [INVALID_INPUT]` envelope for those; other tool
+// errors keep the SDK's message. Feature-guarded so an SDK change surfaces
+// loudly in tests rather than silently.
+const _origCreateToolError = (server as any).createToolError?.bind(server);
+if (typeof _origCreateToolError === "function") {
+  (server as any).createToolError = (msg: unknown) => {
+    const text = String(msg ?? "");
+    if (/Input validation error|Invalid arguments|Invalid option|Invalid enum/i.test(text)) {
+      return {
+        content: [{ type: "text" as const, text: `[ERROR] [INVALID_INPUT] ${text}\nCorrective action: Supply a valid value for every required parameter.` }],
+        isError: true,
+      };
+    }
+    return _origCreateToolError(msg);
+  };
+}
 // REQ-548b — every registered tool declares an output schema in `tools/list`
 // describing its structured result. The shared schema is permissive so
 // ruleset-derived result fields remain unconstrained. REQ-548a — a handler that
@@ -819,7 +837,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
           // derived from the matching index entry. REQ-004 — truncate.
           // REQ-112 — cross-reference discovery: when the entry's content names
           // another indexed section by anchor, surface a non-recursive pointer.
-          const idxEntry = pkg.index.find((i: any) => (i.id ?? "").toLowerCase() === key);
+          const idxEntry = pkg.index.find((i: any) => normId(i.id) === normId(key) || normId(i.key) === normId(key));
           const body = JSON.stringify({ ...entry, ...sourceAnchor(idxEntry ?? entry), ...discoverCrossRefs(pkg, entry, idxEntry) }, null, 2);
           const payload = body + sourceBlock(idxEntry ?? entry);
           return raw(truncateOutput(toolName, payload));
@@ -873,7 +891,13 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
         const tables = (pkg.model[collection] ?? {}) as Record<string, any>;
         const name = String(args.table ?? args.name ?? "");
         const table = name ? tables[name] ?? tables[name.toLowerCase()] : undefined;
-        if (!table) return err("NOT_FOUND", `No table '${name}' found.`);
+        if (!table) {
+          const valid = Object.keys(tables);
+          const hint = closestMatch(name, valid);
+          const didYouMean = hint ? ` Did you mean '${hint}'?` : "";
+          const enumList = valid.length > 0 ? ` Valid tables: ${valid.slice(0, 25).join(", ")}.` : "";
+          return err("NOT_FOUND", `No table '${name}' found.${didYouMean}${enumList}`);
+        }
         if (Array.isArray(table)) {
           const rng = args.seed ? createRng(args.seed) : null;
           const idx = rng ? rng.roll(table.length) - 1 : sessionRoll(table.length) - 1;
@@ -882,8 +906,25 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
         }
         return raw(JSON.stringify(table, null, 2));
       }
-      case "info":
+      case "info": {
+        // REQ-389 — an info-kind tool (e.g. core_mechanic) returns the model
+        // entry's content, not the tool's own description. Resolve the entry by
+        // tool name across the package's model collections.
+        const want = normId(schema.name);
+        let infoEntry: any = null;
+        for (const coll of Object.values(pkg.model) as any[]) {
+          if (!coll || typeof coll !== "object" || Array.isArray(coll)) continue;
+          const hit = Object.keys(coll).find((k) => normId(k) === want);
+          if (hit) { infoEntry = coll[hit]; break; }
+        }
+        if (infoEntry) {
+          const text = typeof infoEntry.description === "string" ? infoEntry.description
+            : typeof infoEntry.content === "string" ? infoEntry.content
+            : JSON.stringify(infoEntry, null, 2);
+          return ok(truncateOutput(toolName, text + sourceBlock({ ...infoEntry, anchor: infoEntry.anchor ?? schema.name })));
+        }
         return raw(String(schema.description ?? ""));
+      }
       default:
         return err("UNIMPLEMENTED", `Ruleset tool kind '${(schema as any).kind}' is not supported by this host.`);
     }
@@ -1181,9 +1222,17 @@ function sourceAnchor(entry: any): Record<string, any> {
   const f = entry?.source_file ?? null;
   const raw = entry?.anchor ?? entry?.id ?? null;
   const a = raw !== null ? deriveAnchor(String(raw)) : null;
-  return {
-    source_anchor: f || a ? { file: f, heading: a, line_range: entry?.line_range ?? null } : null,
-  };
+  if (f || a) return { source_anchor: { file: f, heading: a, line_range: entry?.line_range ?? null } };
+  // No derivable anchor: preserve any anchor the model entry itself carries
+  // rather than overwriting it with null (the spread order earlier clobbered it).
+  return { source_anchor: entry?.source_anchor ?? null };
+}
+
+// Normalize an index id or a lookup key for joining: index ids are hyphenated
+// (`stat-checks`, `gain-stress`) while model/lookup keys are underscored
+// (`stat_check`, `stress`).
+function normId(s: any): string {
+  return String(s ?? "").trim().toLowerCase().replace(/[\s_]+/g, "-");
 }
 function sourceBlock(entry: any): string {
   const f = entry?.source_file;
@@ -1388,20 +1437,41 @@ function isGMTool(name: string): boolean {
 
 function buildExampleInvocation(name: string, schema: any): string {
   if (!schema || typeof schema !== "object") return `${name}()`;
-  const shape = schema._def?.typeName === "ZodObject" ? schema._def.shape() : schema;
-  if (!shape) return `${name}()`;
-  const entries = Object.entries(shape) as [string, any][];
-  const required = entries.filter(([, v]) => !v.isOptional?.() && !v._def?.typeName?.startsWith("ZodOptional"));
-  if (required.length === 0 && entries.length > 0) {
-    const [key] = entries[0];
-    return `${name}({ ${key}: ${illustrate(key, entries[0][1])} })`;
-  }
-  if (required.length === 0) return `${name}()`;
-  const args = required.map(([k, v]) => `${k}: ${illustrate(k, v)}`).join(", ");
+  // `def.inputSchema` is a JSON Schema (tools/list), not a Zod object: read
+  // `properties`/`required` directly. Fall back to a Zod raw shape only if a
+  // Zod object is passed.
+  const props = schema.properties
+    ?? (schema._def?.typeName === "ZodObject" ? schema._def.shape() : null);
+  if (!props || typeof props !== "object") return `${name}()`;
+  const requiredKeys = Array.isArray(schema.required)
+    ? (schema.required as string[]).filter((k) => k in props)
+    : Object.entries(props).filter(([, v]) => isRequiredField(v)).map(([k]) => k);
+  const keys = requiredKeys.length > 0 ? requiredKeys : Object.keys(props).slice(0, 1);
+  if (keys.length === 0) return `${name}()`;
+  const args = keys.map((k) => `${k}: ${illustrate(k, (props as any)[k])}`).join(", ");
   return `${name}({ ${args} })`;
 }
 
+function isRequiredField(v: any): boolean {
+  if (!v || typeof v !== "object") return false;
+  if (typeof v.isOptional === "function") return !v.isOptional();
+  const tn = v._def?.typeName ?? "";
+  return !tn.startsWith("ZodOptional");
+}
+
 function illustrate(key: string, schema: any): string {
+  if (!schema || typeof schema !== "object") return `"<${key}>"`;
+  // JSON Schema shape first.
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) return JSON.stringify(schema.enum[0]);
+  switch (schema.type) {
+    case "string": return key === "name" ? '"example"' : `"<${key}>"`;
+    case "number":
+    case "integer": return "1";
+    case "boolean": return "true";
+    case "array": return "[]";
+    case "object": return "{}";
+  }
+  // Zod shape fallback.
   const typeName = schema._def?.typeName ?? "";
   if (typeName === "ZodString") return key === "name" ? '"example"' : `"<${key}>"`;
   if (typeName === "ZodNumber") return "1";
@@ -2506,7 +2576,9 @@ server.registerTool("run_command", {
     if (intentLower.includes("take") || intentLower.includes("grab") || intentLower.includes("get")) {
       domains.spatial.push(spatialCmd("take <thing>"));
     }
-    if (intentLower.includes("open") || intentLower.includes("unlock")) {
+    if (intentLower.includes("unlock")) {
+      domains.spatial.push(spatialCmd("unlock <door> with <key>"), spatialCmd("open <door>"));
+    } else if (intentLower.includes("open") || intentLower.includes("lock")) {
       domains.spatial.push(spatialCmd("open <door>"));
     }
     if (intentLower.includes("fight") || intentLower.includes("attack")) {
@@ -2649,12 +2721,23 @@ server.registerTool("run_command", {
   if (result.prefix === "OK") {
     const goResult = resolveGoMovement(command, ctx);
     if (goResult.newRoom && entity && goResult.result.prefix === "OK") {
-      entity.current_room = goResult.newRoom;
-      // Trigger lore matching the new room name
-      audit("command", { command, moved_to: goResult.newRoom });
+      // REQ-307/REQ-074 — move the whole present party, not only the active
+      // entity; fall back to the active entity when no presence list is set.
+      const movers = new Map<string, any>();
+      for (const id of novel.characters_present_ids ?? []) {
+        const m = novel.entities.get(id) ?? novel.npcs.get(id);
+        if (m) movers.set(id, m);
+      }
+      movers.set(entity.id, entity);
+      for (const [, m] of movers) if (m && "current_room" in m) m.current_room = goResult.newRoom;
+      // Single source of truth for the party's location (REQ-331 journal coupling).
+      novel.scene_location = goResult.newRoom;
+      audit("command", { command, moved_to: goResult.newRoom, party: [...movers.keys()] });
       // REQ-329 — countdown on_room_enter triggers; REQ-330 — explored rooms.
       advanceWorldTriggeredCountdowns(novel, `room_enter:${goResult.newRoom.toLowerCase()}`);
-      recordExplorationKnowledge(novel, entity, "room", goResult.newRoom.toLowerCase());
+      // REQ-125/REQ-353 — a parser move is a scene transition: tick on_scene_transition clocks.
+      advanceSceneTransitionCountdowns(novel);
+      for (const [, m] of movers) recordExplorationKnowledge(novel, m, "room", goResult.newRoom.toLowerCase());
     }
   }
 
@@ -2680,8 +2763,9 @@ server.registerTool("run_command", {
       const idx = entity.inventory.findIndex((i) => norm(i) === norm(target));
       if (idx >= 0) {
         entity.inventory.splice(idx, 1);
-        // Move thing back to current room
-        const thing = findMatchingThing(target, novel.world, currentRoom);
+        // Move the dropped thing back to the current room; a held thing has no
+        // location, so look it up across all things rather than room-scoped.
+        const thing = findThingByName(novel.world, target);
         if (thing) {
           thing.location = currentRoom;
           thing.locationType = "room";
@@ -2916,23 +3000,37 @@ function handleNarrativeVerb(full: string, novel: any, entity: any, currentRoom:
   return null;
 }
 
+const normThing = (s: string) => s.toLowerCase().trim().replace(/^(?:the|an?)\s+/, "");
+// All-things lookup (used where location is irrelevant, e.g. dropping a held
+// item): exact normalized match first, then substring.
+function findThingByName(world: WorldModel, name: string): WorldThing | null {
+  const want = normThing(name);
+  const all = [...world.things.values()];
+  return all.find((t) => normThing(t.name) === want)
+    ?? all.find((t) => { const n = normThing(t.name); return n.includes(want) || want.includes(n); })
+    ?? null;
+}
 function findMatchingThing(name: string, world: WorldModel, roomName: string | null): WorldThing | null {
-  const lower = name.toLowerCase().trim();  for (const [, thing] of world.things) {
-    if (thing.name.toLowerCase().includes(lower)) {
-      const loc = thing.location?.toLowerCase();
-      if (loc === roomName?.toLowerCase()) return thing;
-      // REQ-200: things on supporters or in open containers within the room are reachable.
-      if (thing.locationType === "supporter" || thing.locationType === "container") {
-        const parent = world.things.get(thing.location?.toLowerCase() ?? "");
-        if (parent) {
-          if (parent.location?.toLowerCase() === roomName?.toLowerCase()) {
-            if (thing.locationType === "supporter" || (parent.openable && parent.open)) return thing;
-          }
-        }
+  // Reachability mirrors the parser's `getReachableThing`: exact normalized
+  // match first (so `vault door` does not match `door`), then substring.
+  const want = normThing(name);
+  const rl = roomName?.toLowerCase();
+  const reachable = (thing: WorldThing): boolean => {
+    const loc = thing.location?.toLowerCase();
+    if (loc === rl) return true;
+    // REQ-200: things on supporters or in open containers within the room are reachable.
+    if (thing.locationType === "supporter" || thing.locationType === "container") {
+      const parent = world.things.get(thing.location?.toLowerCase() ?? "");
+      if (parent && parent.location?.toLowerCase() === rl) {
+        return thing.locationType === "supporter" || (parent.openable && parent.open);
       }
     }
-  }
-  return null;
+    return false;
+  };
+  const pool = [...world.things.values()].filter(reachable);
+  return pool.find((t) => normThing(t.name) === want)
+    ?? pool.find((t) => { const n = normThing(t.name); return n.includes(want) || want.includes(n); })
+    ?? null;
 }
 
 // --- World-Model CRUD (GM-only) ---
@@ -4102,17 +4200,21 @@ server.registerTool("manage_lore", {
 // --- Conditions (GM) ---
 
 // REQ-217 — condition tools: condition names validate against the ruleset's
-// indexed condition list when bound, else a ruleset-agnostic base catalogue.
-// Unknown conditions return [INVALID_INPUT] with valid values enumerated.
+// indexed condition list when bound. A ruleset-free Novel falls back to the
+// ruleset-agnostic base catalogue; a bound ruleset with no condition list
+// accepts free-form narrative conditions rather than leaking another ruleset's
+// vocabulary (F8).
 const BASE_CONDITIONS = ["blinded", "charmed", "deafened", "frightened", "grappled", "incapacitated", "invisible", "paralyzed", "petrified", "poisoned", "prone", "restrained", "stunned", "unconscious"];
-function conditionCatalogue(novel: NovelState): string[] {
+function conditionCatalogue(novel: NovelState): { list: string[]; validate: boolean } {
   const slug = novel?.ruleset ?? null;
   if (slug && rulesets.isInstalled(slug)) {
     const model = rulesets.hydrate(slug).model as any;
     const c = (model.conditions ?? model.concepts_conditions) ?? {};
-    if (typeof c === "object" && Object.keys(c).length > 0) return Object.keys(c);
+    if (typeof c === "object" && Object.keys(c).length > 0) return { list: Object.keys(c), validate: true };
+    // Bound ruleset with no condition vocabulary: accept free-form.
+    return { list: [], validate: false };
   }
-  return BASE_CONDITIONS;
+  return { list: BASE_CONDITIONS, validate: true };
 }
 // Condition (REQ-217) — consolidated apply/remove/list surface.
 server.registerTool("manage_condition", {
@@ -4132,8 +4234,8 @@ server.registerTool("manage_condition", {
       novelSnapshot();
       const entity = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
-      const catalogue = conditionCatalogue(novel);
-      if (!catalogue.includes(args.condition)) {
+      const { list: catalogue, validate } = conditionCatalogue(novel);
+      if (validate && !catalogue.includes(args.condition)) {
         return err("INVALID_INPUT", `Unknown condition '${args.condition}'. Valid conditions: ${catalogue.join(", ")}.`);
       }
       if (!entity.conditions) entity.conditions = [];
@@ -4802,9 +4904,15 @@ server.registerTool("manage_story", {
       const storyRefusal = capGuard("story", novel.story_journal.length);
       if (storyRefusal) return storyRefusal;
       const index = novel.story_journal.length;
-      // REQ-331 — story journal-world coupling.
-      const sceneLoc = novel.scene_location ?? "";
-      const matchRoom = [...novel.world.rooms.values()].find((r) => sceneLoc.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(sceneLoc.toLowerCase()));
+      // REQ-331 — story journal-world coupling. Prefer the active entity's
+      // actual room; an empty location must not match the first room (the
+      // `includes("")` trap).
+      const activeId = novel.active_entity_id;
+      const activeRoom = (activeId ? novel.entities.get(activeId)?.current_room : null) ?? novel.scene_location ?? "";
+      const sceneLoc = String(activeRoom).trim();
+      const matchRoom = sceneLoc
+        ? [...novel.world.rooms.values()].find((r) => sceneLoc.toLowerCase().includes(r.name.toLowerCase()) || r.name.toLowerCase().includes(sceneLoc.toLowerCase()))
+        : undefined;
       const roomId = matchRoom ? matchRoom.name.toLowerCase() : undefined;
       novel.story_journal.push({
         index, type, entry,
@@ -4850,7 +4958,7 @@ server.registerTool("manage_story", {
       if (wantsDetail(args.detail) || (process.env.TTRPG_STORY_JOURNAL_DISPLAY ?? "summary") === "full") {
         return raw(JSON.stringify(entries, null, 2));
       }
-      return raw(JSON.stringify(entries.map(e => ({ type: e.type, timestamp: e.timestamp, preview: (e.entry ?? "").substring(0, 120) })), null, 2));
+      return raw(JSON.stringify(entries.map(e => ({ type: e.type, timestamp: e.timestamp, room: (e as any).room_id ?? null, preview: (e.entry ?? "").substring(0, 120) })), null, 2));
     }
     case "promote": {
       requireGM();
@@ -8409,7 +8517,9 @@ function materializeCodexEntry(
         name, ticks: content.ticks ?? content.total ?? 0,
         total: content.total ?? content.ticks ?? 0, type: content.type ?? "narrative",
         scope: content.scope, direction: content.direction,
-        on_scene_transition: content.on_scene_transition, triggers: content.triggers,
+        // REQ-353 — narrative clocks tick on scene transitions by default.
+        on_scene_transition: content.on_scene_transition ?? ((content.type ?? "narrative") === "narrative"),
+        triggers: content.triggers,
         world_effect: content.world_effect, codex_source: provenance,
       });
       return name;
