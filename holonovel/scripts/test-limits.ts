@@ -356,6 +356,38 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T277 (configured) — TTRPG_AUDIT_RETENTION_SESSIONS default ──────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-retention-"));
+    let p = await boot({ TTRPG_SESSION_ID: "s1" }, dir);
+    await call(p, "manage_novel", { action: "create", name: "retention-novel" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_note", { action: "set", key: "r1", content: "one" });
+    await kill(p);
+    p = await boot({ TTRPG_SESSION_ID: "s2" }, dir);
+    await call(p, "manage_novel", { action: "resume", slug: "retention-novel" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_note", { action: "set", key: "r2", content: "two" });
+    await kill(p);
+    p = await boot({ TTRPG_SESSION_ID: "s3", TTRPG_AUDIT_RETENTION_SESSIONS: "1" }, dir);
+    await call(p, "manage_novel", { action: "resume", slug: "retention-novel" });
+    await call(p, "set_badge", { badge: "game_master" });
+
+    await test("T277/REQ-239: TTRPG_AUDIT_RETENTION_SESSIONS supplies compact's retained-session default", async () => {
+      const ni = await call(p, "manage_session", { action: "compact" });
+      assertContains(ni, "[NEED_INPUT]");
+      assertContains(ni, "most recent 1");
+      const done = await call(p, "respond_decision", { decision: "compress_audit:1", option: "yes" });
+      assertContains(done, "compacted");
+      const archive = JSON.parse(await readResource(p, "audit://novel/archive"));
+      if (!Array.isArray(archive) || archive.length !== 2) {
+        throw new Error(`expected 2 archived sessions with keep=1, got ${JSON.stringify(archive.map((a: any) => a.session_id))}`);
+      }
+    });
+    await kill(p);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

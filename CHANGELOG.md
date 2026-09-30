@@ -35,6 +35,13 @@ here.
 - **Refusal classification.** The playtest harness no longer counts an
   expected `[FORBIDDEN]` badge-gating refusal as a defect when the SDK marks
   the result as an error.
+- **Config-assertion check made honest.** The Appendix F config-assertion
+  check now excludes build-time, informational, and builder-side variables a
+  server harness cannot set, and the genuinely runtime knobs gained real
+  env-set assertions; assertion misses fell from 18 to 1.
+- **Trash retention wired.** `TTRPG_NOVEL_RETENTION_DAYS`'s expired-trash
+  purge is now invoked at startup; it was previously dead code, so the setting
+  had no effect.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 

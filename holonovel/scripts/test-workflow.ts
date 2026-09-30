@@ -230,6 +230,16 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T323 (configured) — TTRPG_SYNTHESIS_AUTO_TRIGGER surfaced ───────
+  {
+    const proc = await boot({ TTRPG_SYNTHESIS_AUTO_TRIGGER: "on" });
+    await test("T323/REQ-263: TTRPG_SYNTHESIS_AUTO_TRIGGER is surfaced in health", async () => {
+      const h = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      if (h.synthesis_auto_trigger !== "on") throw new Error(`expected synthesis_auto_trigger 'on', got ${JSON.stringify(h.synthesis_auto_trigger)}`);
+    });
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

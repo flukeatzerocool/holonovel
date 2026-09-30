@@ -1129,6 +1129,9 @@ export class StateManager {
       this.novels.set(key, novel);
       if (fileSlug === key) canonicalKeys.add(key);
     }
+    // REQ-238 / TTRPG_NOVEL_RETENTION_DAYS — purge expired .trash entries at
+    // startup. A retention of 0 (the default) disables purging.
+    this.cleanupExpiredTrash();
   }
 
   private loadNovelFromData(data: any): NovelState {

@@ -1647,8 +1647,33 @@ function parseAppendixFTestText(text: string): Map<string, string> {
   }
   return map;
 }
+// §7.6 declares each config var with a trailing class ("Build-time.",
+// "Presentation.", "Behavioral", ...). Build-time and informational vars are
+// baked/static — a server-runtime harness cannot set them — so they are not
+// expected to appear in a harness. Presentation vars remain in scope (they are
+// read at runtime). Builder-side settings are dispositioned in DECISIONS.md.
+function nonHarnessAssertionVars(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const line of text.split("\n")) {
+    const cells = line.split("|");
+    if (cells.length < 4) continue;
+    const name = cells[1].trim().replace(/`/g, "");
+    if (!/^TTRPG_[A-Z0-9_]+$/.test(name)) continue;
+    const desc = cells[3] ?? "";
+    if (/build-time|informational/i.test(desc)) out.add(name);
+  }
+  try {
+    const d = fs.readFileSync(DECISIONS_PATH, "utf-8");
+    for (const m of d.matchAll(/^\|\s*`?(TTRPG_[A-Z0-9_]+)`?\s*\|\s*Builder-side\b/gm)) out.add(m[1]);
+  } catch {
+    // DECISIONS.md absent (scratch checkout): skip builder-side exclusions.
+  }
+  return out;
+}
+
 function checkAppendixFAssertions(text: string, exercisedIds: Set<string>): string[] {
   const defs = parseAppendixFTestText(text);
+  const excluded = nonHarnessAssertionVars(text);
   // All TTRPG_* tokens referenced anywhere under holonovel/scripts.
   const harnessVars = new Set<string>();
   for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
@@ -1661,6 +1686,7 @@ function checkAppendixFAssertions(text: string, exercisedIds: Set<string>): stri
     const def = defs.get(tid);
     if (!def) continue;
     for (const m of def.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) {
+      if (excluded.has(m[0])) continue;
       if (!harnessVars.has(m[0])) {
         issues.push(`Appendix F ${tid} names ${m[0]} but no harness references it`);
       }
