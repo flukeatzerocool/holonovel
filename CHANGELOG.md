@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-09-29 — Parser/briefing fixes from simulated play; optional key binding (REQ-284f)
+
+Findings from a simulated-play pilot against a mothership module (see
+`holonovel/scripts/playtest.ts`).
+
+- **`run_command` suggest/briefing are ruleset-aware (REQ-218, REQ-309e,
+  REQ-134).** The parser gate is ruleset-aware (`index.ts`: ruleset-bound
+  Novels gate the parser to the GM; ruleset-free Novels keep it as the Player
+  surface). `availableActionsSection`, the Player Tools block, and `run_command
+  (action: suggest)` now branch on this: a ruleset-free Player is offered
+  `run_command (action: execute, …)`; a ruleset-bound Player gets narrative
+  guidance. The suggest output no longer emits the non-existent `command(...)`
+  tool or the Player-forbidden `run_command (action: resolve)`. Corrects a
+  regression in the prior briefing change, which had removed the parser from
+  the ruleset-free Player surface.
+- **Inconsistent thing resolution and doubled articles (REQ-284).**
+  `getThing` now strips a leading article (matching `resolveReachable`), so
+  `examine medbay door` resolves like `examine the medbay door`; parser
+  messages use a `bareName` helper so names carrying an article no longer render
+  as "The The Medbay door".
+- **Convert-source warnings (REQ-201).** `convert_source` now warns when an exit
+  declaration overwrites an existing exit (the implicit-reverse clobber that
+  made an escape room unreachable) and when a thing is left unplaced (a thing
+  declared after an exit statement loses its room context). Both were silent.
+- **Optional key binding (REQ-284f).** A lockable thing MAY bind a key by name
+  via `manage_world` (create_thing/update_thing) or the convert-source
+  assertion `Its key is <thing>.`. When bound, unlock/lock require the key to be
+  carried (with the REQ-284a hint when it is reachable in the room); unbound
+  locks stay freely lockable and unlockable, so Pattern Buffer I6 is unchanged.
+  The stubbed key-hint path is implemented. New `manage_world` `key` parameter;
+  `tool-definitions.json` regenerated. Tests: `test-output-contracts` T553
+  (REQ-284f) and `test-briefing` T148/T391.
+
 ## 2026-09-29 — Simulated-play harness promoted to the repo; player-parser divergence recorded
 
 - **`playtest` simulated-play harness (informational).** New

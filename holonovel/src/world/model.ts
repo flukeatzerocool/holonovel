@@ -65,6 +65,7 @@ export interface WorldThing {
   drinkable: boolean;
   climbable: boolean;
   transparent: boolean;
+  key?: string;
   // Annotations
   annotations: { encounter?: string; trap?: string; npc?: string; lore?: string };
 }
@@ -299,8 +300,14 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         target = { name: targetName, description: "", exits: new Map(), doorRefs: new Map(), annotations: {} };
         world.rooms.set(targetName.toLowerCase(), target);
       }
+      if (room.exits.has(dir as Direction)) {
+        warnings.push({ line: lnum, pattern: text, message: `Exit '${dir}' from '${roomName}' overwrites an existing exit.` });
+      }
       room.exits.set(dir as Direction, targetName);
       // Implicit reverse exit
+      if (target.exits.has(oppositeDirection(dir as Direction))) {
+        warnings.push({ line: lnum, pattern: text, message: `Implicit reverse exit into '${targetName}' overwrites an existing exit.` });
+      }
       target.exits.set(oppositeDirection(dir as Direction), roomName);
       currentRoom = null;
       currentThing = null;
@@ -453,6 +460,14 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       continue;
     }
 
+    // Key binding: "Its key is <thing>." binds the preceding thing's lock (REQ-552).
+    const keyMatch = text.match(/^Its key is (.+?)\.\s*$/i);
+    if (keyMatch && currentThing) {
+      const thing = world.things.get(currentThing.toLowerCase());
+      if (thing) thing.key = keyMatch[1].trim().toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+      continue;
+    }
+
     // read_text extraction: "The inscription on the altar reads 'Beware.'" (REQ-318b)
     const readTextMatch = text.match(/^The inscription on (.+?) reads ['"](.+)['"]\.?$/i);
     if (readTextMatch) {
@@ -545,6 +560,9 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
   let exitCount = 0;
   for (const [, room] of world.rooms) {
     exitCount += room.exits.size;
+  }
+  for (const [, thing] of world.things) {
+    if (!thing.location) warnings.push({ line: 0, pattern: thing.name, message: `Thing '${thing.name}' has no location — declare it directly after its room, before any exit statement.` });
   }
 
   return {

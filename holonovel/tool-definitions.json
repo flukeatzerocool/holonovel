@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "tool_count": 33,
-  "tools_list_bytes": 83130,
+  "tools_list_bytes": 83272,
   "tools": [
     {
       "name": "manage_adventure",
@@ -1125,7 +1125,7 @@
         "convert",
         "generate"
       ],
-      "param_count": 26,
+      "param_count": 27,
       "required": [
         "action"
       ],
@@ -1137,6 +1137,7 @@
         "edible": "When true the thing can be eaten (create_thing/update_thing).",
         "enterable": "When true the thing can be entered (create_thing/update_thing).",
         "fixed": "When true the thing cannot be taken (create_thing/update_thing).",
+        "key": "Bound key thing name required to unlock or lock this thing when lockable (create_thing/update_thing).",
         "kind": "Optional thing kind (create_thing).",
         "lit": "When true the thing is lit (create_thing/update_thing).",
         "location": "Optional containing room or thing (create_thing/update_thing).",

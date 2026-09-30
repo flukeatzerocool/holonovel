@@ -949,7 +949,7 @@ function availableActionsSection(novel: NovelState): string[] {
   } else if (sceneTypes.includes("social")) {
     actions.push("resolve a persuasion, deception, or intimidation check with a present NPC");
     if (isGM) actions.push("manage_relationship (action: set — record a social outcome)");
-  } else if (isGM) {
+  } else if (isGM || !novel.ruleset) {
     actions.push("run_command (action: execute, \"look\")");
     actions.push("run_command (action: execute, \"go <direction>\")");
     actions.push("run_command (action: execute, \"examine <thing>\")");
@@ -2491,24 +2491,27 @@ server.registerTool("run_command", {
     const name = entity?.name ?? "entity";
     const rulesetBound = !!novel.ruleset;
     const badge = getBadge();
-    const useResolveIntent = rulesetBound && badge !== "game_master";
-    const spatialTool = useResolveIntent ? "run_command (action: resolve)" : "run_command";
+    const isGM = badge === "game_master" || badge === "none";
+    const spatialCmd = (cmd: string) => (!rulesetBound || isGM)
+      ? `run_command (action: execute, "${cmd}")`
+      : `declare intent "${cmd}" — the narrator resolves it through the parser`;
     const intentLower = (args.intent ?? "").toLowerCase();
     const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
     if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")) {
-      domains.spatial.push(`${spatialTool}("look")`, `command("examine <thing>")`);
+      domains.spatial.push(spatialCmd("look"), spatialCmd("examine <thing>"));
     }
     if (intentLower.includes("go") || intentLower.includes("move") || intentLower.includes("travel") || intentLower.includes("sneak")) {
-      domains.spatial.push(`${spatialTool}("go <direction>")`);
+      domains.spatial.push(spatialCmd("go <direction>"));
     }
     if (intentLower.includes("take") || intentLower.includes("grab") || intentLower.includes("get")) {
-      domains.spatial.push(`command("take <thing>")`);
+      domains.spatial.push(spatialCmd("take <thing>"));
     }
     if (intentLower.includes("open") || intentLower.includes("unlock")) {
-      domains.spatial.push(`command("open <door>")`);
+      domains.spatial.push(spatialCmd("open <door>"));
     }
     if (intentLower.includes("fight") || intentLower.includes("attack")) {
-      domains.mechanical.push("manage_combat (action: init — GM only, auto-advance mode)");
+      if (isGM) domains.mechanical.push("manage_combat (action: init — GM only, auto-advance mode)");
+      else domains.mechanical.push("resolve an attack or skill check for the active entity");
     }
     if (intentLower.includes("convince") || intentLower.includes("persuade") || intentLower.includes("talk") || intentLower.includes("negotiate") || intentLower.includes("intimidate")) {
       for (const [, npc] of novel.npcs) {
@@ -2535,7 +2538,7 @@ server.registerTool("run_command", {
       }
     }
     if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
-      domains.spatial.push(`${spatialTool}("look")`, `command("go <direction>")`, `command("examine <thing>")`);
+      domains.spatial.push(spatialCmd("look"), spatialCmd("go <direction>"), spatialCmd("examine <thing>"));
     }
     const blocks: string[] = [];
     if (domains.mechanical.length) blocks.push(`Mechanical:\n${domains.mechanical.map((s) => `  - ${s}`).join("\n")}`);
@@ -2973,6 +2976,7 @@ server.registerTool("manage_world", {
     transparent: z.boolean().optional().describe("When true the thing is transparent (create_thing/update_thing)."),
     readable: z.boolean().optional().describe("When true the thing can be read (create_thing/update_thing)."),
     read_text: z.string().optional().describe("Text revealed when the thing is read (create_thing/update_thing)."),
+    key: z.string().optional().describe("Bound key thing name required to unlock or lock this thing when lockable (create_thing/update_thing)."),
     wearable: z.boolean().optional().describe("When true the thing can be worn (create_thing/update_thing)."),
     edible: z.boolean().optional().describe("When true the thing can be eaten (create_thing/update_thing)."),
     drinkable: z.boolean().optional().describe("When true the thing can be drunk (create_thing/update_thing)."),
@@ -3065,6 +3069,7 @@ server.registerTool("manage_world", {
         enterable: args.enterable === true,
         climbable: args.climbable === true,
         vehiclePassengers: [], worn_by: null, annotations: {},
+        key: args.key ? String(args.key).toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "") : undefined,
       };
       novel.world.things.set(lower, thing);
       state.saveNovel(novel);
@@ -3081,6 +3086,7 @@ server.registerTool("manage_world", {
       for (const f of boolFields) if (args[f] !== undefined) (thing as any)[f] = args[f];
       if (args.description !== undefined) thing.description = args.description;
       if (args.location !== undefined) thing.location = args.location;
+      if (args.key !== undefined) thing.key = args.key ? String(args.key).toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "") : undefined;
       state.saveNovel(novel);
       audit("update_thing", { name: args.name });
       return ok(`Thing '${args.name}' updated.`);
@@ -9211,7 +9217,10 @@ Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Crea
     // REQ-134 — minimum Player tool surface: dice, lookups, sheet, suggestions,
     // player signals, help, undo/redo, badge switching all callable by Player.
     briefing += `\n\n### Player Tools
-Declare your character's actions in narrative — the GM/narrator resolves them through the world parser. Player-callable tools:
+${novel.ruleset
+  ? "Declare your character's actions in narrative — the GM/narrator resolves them through the world parser."
+  : "You run the parser directly (ruleset-free Novel). Use run_command (action: execute, \"<command>\") to look, go, examine, take, open, unlock."}
+Player-callable tools:
 - run_command (action: suggest, "<intent>") — map an intent to tool calls
 - resolve_fate / resolve_ironsworn / resolve_forged — dice and resolution
 - manage_ruleset (action: search) and lookup tools — rules lookups
