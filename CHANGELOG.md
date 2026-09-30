@@ -71,7 +71,8 @@ here.
 - **SWSE damage-tracking statistics.** The character-creation engine now
   exposes the first class's starting HP and hit die to derived-stat formulas
   (REQ-399b), and the installed SWSE packages declare Hit Points, Damage
-  Threshold, and Force Points. A durable package rebuild is scheduled.
+  Threshold, and Force Points (level-5 Soldier: HP 58, DT 18, FP 7). Verified
+  on the deployed instance; a rebuild regenerates the stats per REQ-399a.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 

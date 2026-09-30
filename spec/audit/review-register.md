@@ -456,8 +456,15 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `holonovel/scripts/test-competitive-gaps.ts`.
 - **Character-creation package contract (P1, 2026-09-30):** REQ-399a now
   requires the character-creation model to declare every damage-tracking
-  resource a ruleset defines (hit points, a damage threshold, a metacurrency);
-  the SWSE package rebuild remains scheduled on ROADMAP "SWSE sheet vitals".
+  resource a ruleset defines (hit points, a damage threshold, a metacurrency).
+- **SWSE sheets lacked HP/Damage Threshold/Force Points (P1, 2026-09-30):**
+  `computeDerived` plus the SWSE package `derived_stats` yielded only the three
+  defenses. Resolved: the engine exposes the first class's starting HP and hit
+  die to derived-stat formulas (REQ-399b, `holonovel/src/core/character-creation.ts`),
+  and the installed SWSE packages declare `hit_points`, `damage_threshold`, and
+  `force_points` (level-5 Soldier: HP 58, DT 18, FP 7). Verified on the
+  deployed instance; REQ-399a requires the builder to emit the same on a
+  rebuild.
 
 - **`TTRPG_NOVEL_RETENTION_DAYS` was dead code (P2, 2026-09-30):**
   `StateManager.cleanupExpiredTrash` (`holonovel/src/core/state.ts:1359`) was
@@ -477,14 +484,7 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **SWSE sheets lack HP/Damage Threshold/Force Points (P1, 2026-09-30):**
-  `computeDerived` plus the SWSE package `derived_stats` yielded only the three
-  defenses. Stopgap applied 2026-09-30: the engine now exposes the first
-  class's starting HP and hit die to derived-stat formulas (REQ-399b,
-  `holonovel/src/core/character-creation.ts`), and the installed SWSE packages
-  declare `hit_points`, `damage_threshold`, and `force_points`. Durable rebuild
-  scheduled on ROADMAP "SWSE sheet vitals".
-
+None.
 
 ## Closed-P3 (recorded, no action)
 
