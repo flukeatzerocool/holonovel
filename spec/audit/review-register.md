@@ -478,10 +478,12 @@ pass and completion-oracle green. Fix evidence: regression tests in
 ## Scheduled-roadmap
 
 - **SWSE sheets lack HP/Damage Threshold/Force Points (P1, 2026-09-30):**
-  `computeDerived` plus the SWSE package `derived_stats` yield only the three
-  defenses. The server already persists every `derived_stats` entry a ruleset
-  declares (`holonovel/src/core/character-creation.ts:362`); the gap is the
-  SWSE package model. Scheduled on ROADMAP "SWSE sheet vitals" (builder side).
+  `computeDerived` plus the SWSE package `derived_stats` yielded only the three
+  defenses. Stopgap applied 2026-09-30: the engine now exposes the first
+  class's starting HP and hit die to derived-stat formulas (REQ-399b,
+  `holonovel/src/core/character-creation.ts`), and the installed SWSE packages
+  declare `hit_points`, `damage_threshold`, and `force_points`. Durable rebuild
+  scheduled on ROADMAP "SWSE sheet vitals".
 
 
 ## Closed-P3 (recorded, no action)

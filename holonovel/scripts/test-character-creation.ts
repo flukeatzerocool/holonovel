@@ -125,4 +125,18 @@ test("profile-only route has no rules (getCharacterRules null path)", () => {
   assert.throws(() => computeDerived(build(), null as unknown as CharacterRules), /Cannot read|undefined/);
 });
 
+test("formula context exposes class starting HP and hit die (REQ-399b)", () => {
+  const rules: CharacterRules = {
+    ...RULES,
+    derived_stats: [
+      { key: "hit_points", label: "Hit Points", formula: "class_bonus.starting_hp + (level - 1) * (floor(class_bonus.hit_die / 2) + 1 + ability_mod.might)" },
+      { key: "force_points", label: "Force Points", formula: "5 + floor(level / 2)" },
+    ],
+  };
+  const r = computeDerived(build({ classLevels: [{ className: "warrior", levels: 3 }] }), rules);
+  // Warrior startingHp 10, hitDie 10, Might 14 -> +2: 10 + 2 * (5 + 1 + 2) = 26.
+  assert.equal(r.values.hit_points, 26);
+  assert.equal(r.values.force_points, 5 + Math.floor(3 / 2));
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? " (with failures)" : ""}`);

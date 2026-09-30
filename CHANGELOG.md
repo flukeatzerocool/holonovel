@@ -68,6 +68,10 @@ here.
 - **Player perception on ruleset-bound Novels.** The Player badge may now
   issue read-only parser commands (`look`, `examine`, `inventory`, `status`);
   navigation and mutating commands remain Game Master only (REQ-309h).
+- **SWSE damage-tracking statistics.** The character-creation engine now
+  exposes the first class's starting HP and hit die to derived-stat formulas
+  (REQ-399b), and the installed SWSE packages declare Hit Points, Damage
+  Threshold, and Force Points. A durable package rebuild is scheduled.
 
 ## 2026-09-29 — Persona/GM playtest matrix and mission-driven fixes
 
