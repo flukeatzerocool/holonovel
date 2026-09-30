@@ -820,6 +820,25 @@ async function main() {
     await kill(proc);
   }
 
+  // ── REQ-307/REQ-074 — scene-location set co-locates the present party ──
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "party-place" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_world", { action: "create_room", name: "Bay", description: "A bay." });
+    await call(proc, "manage_character", { action: "create", name: "P1" });
+    await call(proc, "manage_character", { action: "create", name: "P2" });
+    await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(proc, "manage_scene", { action: "presence", entity_ids: ["character_01", "character_02"] });
+    await test("REQ-307/REQ-074: scene-location set places the present party together", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "Bay", location: "Bay" });
+      const party = JSON.parse(await readResource(proc, "party://current"));
+      const locs = party.map((p: any) => p.last_location);
+      assert(locs.length === 2 && locs.every((r: string) => r === "Bay"), `party not co-located: ${JSON.stringify(locs)}`);
+    });
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

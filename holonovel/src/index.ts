@@ -3591,7 +3591,7 @@ server.registerTool("manage_scene", {
     time_of_day: z.string().optional().describe("Time of day (set)."),
     atmosphere: z.string().optional().describe("Atmosphere (set)."),
     scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional().describe("Scene-type tag or array (set)."),
-    beat: z.enum(BEAT_VALUES).optional().describe("Story-beat tag (set)."),
+    beat: z.enum(BEAT_VALUES).optional().describe(`Story-beat tag (set): ${BEAT_VALUES.join(", ")}.`),
     skip_transition_hook: z.boolean().optional().describe("Skip the scene-transition hook (set)."),
     adventure_scene: z.string().nullable().optional().describe("Adventure-scene waypoint anchor; empty or null clears (set)."),
     fast_forward: z.object({
@@ -3681,7 +3681,17 @@ server.registerTool("manage_scene", {
         const bareRoomName = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
         const matchRoom = [...novel.world.rooms.entries()].find(([, r]) =>
           sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()) || bareRoomName(sceneRoomName) === bareRoomName(r.name));
-        if (matchRoom) { const entity = state.getActiveEntity(); if (entity) entity.current_room = matchRoom[1].name; }
+        if (matchRoom) {
+          // REQ-307/REQ-074 — place the whole present party, not only the
+          // active entity, so a scene-location set co-locates the party (the
+          // parser `go` path moves the same set).
+          for (const id of novel.characters_present_ids ?? []) {
+            const m = novel.entities.get(id) ?? novel.npcs.get(id);
+            if (m && "current_room" in m) (m as any).current_room = matchRoom[1].name;
+          }
+          const entity = state.getActiveEntity();
+          if (entity) entity.current_room = matchRoom[1].name;
+        }
       }
       if (isTransition && !skip_transition_hook) {
         // REQ-449 — a scene transition closes the current turn: the excessive-

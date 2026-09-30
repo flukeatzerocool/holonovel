@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "tool_count": 33,
-  "tools_list_bytes": 83445,
+  "tools_list_bytes": 83511,
   "tools": [
     {
       "name": "manage_adventure",
@@ -901,7 +901,7 @@
         "adventure_scene": "Adventure-scene waypoint anchor; empty or null clears (set).",
         "allow_freeform": "Allow free-form response (choices).",
         "atmosphere": "Atmosphere (set).",
-        "beat": "Story-beat tag (set).",
+        "beat": "Story-beat tag (set): setup, escalation, turning_point, climax, resolution, denouement.",
         "choices": "List of choices (choices).",
         "confirmation": "Confirmation mode (autonomy).",
         "context": "Context for the choice (choices).",
