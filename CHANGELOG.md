@@ -24,6 +24,11 @@ Findings from a simulated-play pilot against a mothership module (see
   declaration overwrites an existing exit (the implicit-reverse clobber that
   made an escape room unreachable) and when a thing is left unplaced (a thing
   declared after an exit statement loses its room context). Both were silent.
+- **Room re-declaration dropped accumulated exits (REQ-201).** A room first
+  referenced as an exit target (before its own `is a room.` line) was created as
+  a stub; the later declaration replaced the stub and silently dropped the
+  reverse exits already set on it, leaving maps one-way. The declaration now
+  updates the existing room in place, preserving its exits and door refs.
 - **Optional key binding (REQ-284f).** A lockable thing MAY bind a key by name
   via `manage_world` (create_thing/update_thing) or the convert-source
   assertion `Its key is <thing>.`. When bound, unlock/lock require the key to be
