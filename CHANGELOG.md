@@ -39,6 +39,12 @@ Findings from a simulated-play pilot against a mothership module (see
   resolved, denouement, escape room reached, 4 survivors, 0 errors).
 - **Playtest oracle (tooling).** The `playtest` harness compares the escape room
   article-insensitively, so a room named `The X` matches `--escape-room X`.
+- **Scene message and Pattern Buffer name-resolution coverage.** `manage_scene
+  (action: set, beat)` with no description/location rendered `[OK] Scene set: `
+  (empty text); it now reports the beat (or location). Pattern Buffer I6 creates
+  an article-prefixed container (`The Wooden Chest`) exercised with article-less
+  commands, and I13 asserts the beat-only message — closing the name-resolution
+  seam that three defects landed in.
 - **Optional key binding (REQ-284f).** A lockable thing MAY bind a key by name
   via `manage_world` (create_thing/update_thing) or the convert-source
   assertion `Its key is <thing>.`. When bound, unlock/lock require the key to be

@@ -344,7 +344,7 @@ function buildScenarios(): PBScenario[] {
       { label: "create_novel", action: T("manage_novel", { action: "create",  name: "pb-i6" }), assert: assertOK },
       { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
       { label: "create room", action: T("manage_world", { action: "create_room",  name: "TestRoom", description: "Test room." }), assert: assertOK },
-      { label: "create chest (container)", action: T("manage_world", { action: "create_thing",  name: "Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
+      { label: "create chest (container, article-prefixed name)", action: T("manage_world", { action: "create_thing",  name: "The Wooden Chest", kind: "container", location: "TestRoom", lockable: true }), assert: assertOK },
       { label: "create_character", action: T("manage_character", { action: "create",  name: "ChestOpener" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "command(open chest) — should open (new chests start unlocked)", action: T("run_command", { command: "open wooden chest" }), assert: (r) => assertContains(r, "open") },
@@ -524,6 +524,7 @@ function buildScenarios(): PBScenario[] {
         assertContains(r, "Market Square");
         assertContains(r, "midday");
       }},
+      { label: "set_scene_state beat only reports the beat", action: T("manage_scene", { action: "set",  beat: "escalation" }), assert: (r) => assertContains(r, "escalation") },
       { label: "set_briefing_order", action: T("manage_session", { action: "briefing_order",  sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
     ],
   };
