@@ -627,9 +627,15 @@ function normalizeActivationMap(raw: unknown): Record<string, string[]> {
   return out;
 }
 
-function worldToJSON(world: WorldModel): any {
+export function worldToJSON(world: WorldModel): any {
+  const rooms = Object.fromEntries(
+    [...world.rooms].map(([key, room]) => [
+      key,
+      { ...room, exits: Object.fromEntries(room.exits), doorRefs: Object.fromEntries(room.doorRefs) },
+    ]),
+  );
   return {
-    rooms: Object.fromEntries(world.rooms),
+    rooms,
     things: Object.fromEntries(world.things),
   };
 }
