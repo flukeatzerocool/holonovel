@@ -84,6 +84,26 @@ server condition it rests on: `hallucinated_tool`, `wrong_tool`,
 (`gating_leak`, `world_population_failure`, `coupling_failure`,
 `unreachable_goal`).
 
+## Holosuite tiers
+
+The playtest harness is the stochastic tier of the **Holosuite** evaluation
+environment (`plans/2026-10-02-holosuite`). Two deterministic tiers run
+alongside it and gate CI/pre-push:
+
+- **T0 `conformance`** (`scripts/holosuite.ts --tier=conformance`) — the live
+  registry does what `tool-definitions.json` says: identical tool-name set,
+  titles and non-empty descriptions, all four REQ-450 annotation booleans, and a
+  recognized envelope for a negative probe.
+- **T1 `invariants`** (`scripts/holosuite.ts --tier=invariants`) — a bounded,
+  seeded world-mutation sequence asserting read-only non-mutation, gating
+  refusals, undo round-trip, envelope recognition, and fingerprint continuity
+  across a server restart.
+
+Both tiers are deterministic (fixed seed, small step count) and wired into
+`holonovel/package.json`, `scripts/run-test-suite.ts`, `.github/workflows/ci.yml`,
+and `.githooks/pre-push`. Adversarial, differential, and Understudies tiers are
+follow-on increments.
+
 ## Related
 
 - `driver.md` — the external-driver turn protocol.

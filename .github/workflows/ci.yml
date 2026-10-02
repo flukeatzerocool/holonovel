@@ -37,3 +37,6 @@ jobs:
       - name: Server tool-definition + security harnesses (REQ-427/REQ-429/REQ-450)
         working-directory: holonovel
         run: npm run test:tool-definitions && npm run test:security
+      - name: Holosuite deterministic tiers (conformance + invariants)
+        working-directory: holonovel
+        run: npm run test:holosuite-conformance && npm run test:holosuite-invariants

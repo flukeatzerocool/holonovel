@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.09.30)
+# AGENTS.md — holonovel MCP Server (v2026.10.02)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -106,6 +106,11 @@ mechanics-fidelity ones record `skipped — ruleset hash unchanged`; S30/S31
 execute (REQ-372 supplementary import; REQ-373 is a terminal builder-scope
 non-goal); the rest are `follow-on` increments, all summarized in the emitted
 `ruleset-pattern-buffer-manifest.json`).
+
+The Holosuite deterministic tiers (`scripts/holosuite.ts`) add protocol
+conformance (`test:holosuite-conformance`) and bounded model-based invariants
+(`test:holosuite-invariants`); both gate CI and pre-push. The playtest harness is
+the Holosuite's stochastic tier (Understudies, `plans/2026-10-02-holosuite`).
 
 Tests live in `scripts/test-*.ts` and run as tsx harnesses via `npm run test:all`.
 There are no conventional `*.test.ts` files or a `test/` directory, so registry
