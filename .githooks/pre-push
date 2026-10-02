@@ -81,6 +81,15 @@ else
         echo ""
         exit 1
     }
+
+    echo "  holosuite deterministic tiers (conformance + invariants)..."
+    (cd holonovel && npm run test:holosuite-conformance && npm run test:holosuite-invariants) || {
+        echo ""
+        echo "BLOCKED: holosuite conformance/invariants tiers failed."
+        echo "Fix the registry/annotations or the invariant breach, then re-run."
+        echo ""
+        exit 1
+    }
 fi
 
 echo "  implementation-coverage strict gate..."

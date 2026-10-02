@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-02 — Holosuite deterministic evaluation tiers
+
+Adds the first increment of the Holosuite test environment: a shared evaluation
+schema/oracle and two deterministic, blocking tiers around the Pattern Buffer.
+
+- **Shared evaluation foundation.** `scripts/lib/eval-schema.ts` (canonical
+  event/manifest records + JSONL log), `scripts/lib/eval-oracle.ts` (re-exports
+  the playtest measurement layer plus invariant predicates), and a minimal stdio
+  MCP client (`scripts/lib/mcp-client.ts`).
+- **T0 protocol conformance.** `scripts/holosuite.ts --tier=conformance` asserts
+  the live registry matches `tool-definitions.json` (tool-name set,
+  title/description, all four REQ-450 annotations) and that a negative probe
+  yields a recognized envelope.
+- **T1 bounded invariants.** `--tier=invariants` drives a seeded world-mutation
+  sequence asserting read-only non-mutation, gating refusal, undo round-trip,
+  envelope recognition, and fingerprint continuity across a server restart.
+- **Gate wiring.** `test:holosuite-conformance` and `test:holosuite-invariants`
+  added to `holonovel/package.json`, `scripts/run-test-suite.ts`,
+  `.github/workflows/ci.yml`, and `.githooks/pre-push`.
+- Plan artifacts under `plans/2026-10-02-holosuite/`. No §5 REQ delta.
+
 ## 2026-09-30 — Embedded-spec path fix and host tool-quality scoping
 
 Deployed-instance health inspection surfaced a broken embedded-spec lookup and
