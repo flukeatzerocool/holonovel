@@ -82,18 +82,26 @@ const checks: Array<[string, boolean]> = [
   ["cross-converter verification recorded in DECISIONS.md (5)/(6)", crossConverter],
 ];
 
+// Content fidelity is order-insensitive and recorded separately from reading
+// order (Appendix G.2). Reading-order percentages score a different property
+// and SHALL NOT count against the content-fidelity bar.
 const rateRe = /(\d+(?:\.\d+)?)\s*%/g;
 let minRate = 100;
 let hasRate = false;
-for (const m of evidence.matchAll(rateRe)) {
-  const v = parseFloat(m[1]);
-  if (!Number.isNaN(v)) {
-    hasRate = true;
-    if (v < minRate) minRate = v;
+for (const line of evidence.split("\n")) {
+  if (/reading[- ]?order/i.test(line)) continue;
+  for (const m of line.matchAll(rateRe)) {
+    const v = parseFloat(m[1]);
+    if (!Number.isNaN(v)) {
+      hasRate = true;
+      if (v < minRate) minRate = v;
+    }
   }
 }
-checks.push(["fidelity rate ≥ 90% (Phase 2)", !hasRate || minRate >= 90]);
+const readingOrder = /reading[- ]?order/i.test(evidence);
+checks.push(["content-fidelity rate ≥ 90% (Phase 2)", !hasRate || minRate >= 90]);
 checks.push(["Phase-1 trial gate ≥ 70%", minRate >= 70]);
+checks.push(["reading-order metric recorded separately (G.2)", readingOrder || !hasRate]);
 checks.push(["no pending artifact disposition", !/\bpending\b/i.test(waivers)]);
 
 let failed = 0;

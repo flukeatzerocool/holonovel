@@ -490,7 +490,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556, 557 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -631,8 +631,10 @@ Tool output is comprehensive — every field the ruleset defines for the item or
 A spell lookup returns level, school, casting time, range, components, duration, description, and at-higher-level effects — not a pointer or summary. A monster lookup returns its full stat block — AC, HP, speed, ability scores, saves, skills, senses, traits, actions — not a pointer. A class lookup returns hit dice, HP formula, proficiencies, features by level, and archetype paths. _Check:_ T47.
 **REQ-061 — Source quoting.** Lookup results, search results, and rule-derived tool
 responses include a `---`-separated source block with `<file>#<anchor>` label and verbatim
-Markdown excerpt preserving original formatting. Pure-state tools (undo, state queries,
-condition queries, audit reads) stay exempt.
+Markdown excerpt preserving original formatting. When no source entry matches, a lookup
+SHALL return the `[NOT_FOUND]` error (REQ-002) with a "Did you mean?" hint and SHALL NOT
+synthesize an entry. Pure-state tools (undo, state queries, condition queries, audit reads)
+stay exempt.
 *Acceptance criterion:* A spell lookup result ends with a `---`-separated block
 containing `<file>#<anchor>` and the verbatim Markdown text from the source; an
 undo result contains no source block.
@@ -731,7 +733,7 @@ Every extracted item carries a confidence label: HIGH (unambiguous, directly fro
 The builder identifies structured-procedural sequences using the same mechanical-indicator heuristics as the viability pre-check (§6.2): bold-labeled fields, imperative verbs, and definition-list markup. Sections flagged as "conveying mechanics" from images, diagrams, or flowcharts are LOW. Confidence is computed per-section and aggregated per REQ-147, with the player-filtered view as the gating metric. The player filter excludes: guidance items with GM-only badge scope (REQ-016), mechanics extracted from GM-only ruleset sections (REQ-032), and synthesis content tagged `[gm-only]` (REQ-080).
 
 **REQ-011c — Confidence (Part c).**
-The builder computes player-filtered confidence by applying these exclusions before aggregation per REQ-147. *Acceptance criterion:* A spell extracted from a table cell at a ruleset-normative heading carries HIGH confidence; an image-conveyed mechanic carries LOW. _Check:_ T15, T182.
+The builder computes player-filtered confidence by applying these exclusions before aggregation per REQ-147. The builder SHALL NOT infer a value for a LOW-confidence item: it records the item as a gap for operator review and SHALL NOT emit it as a mechanical entry carrying fabricated values. *Acceptance criterion:* A spell extracted from a table cell at a ruleset-normative heading carries HIGH confidence; an image-conveyed mechanic carries LOW and is recorded as a review gap rather than modeled with inferred values. _Check:_ T15, T182.
 **REQ-147a — Confidence aggregation (Part a).**
 Per-section confidence is the percentage of extracted items in that section carrying HIGH or MEDIUM labels, excluding items marked as guidance (REQ-016). The overall player-filtered confidence — the Phase 1 gate metric — is the mean of per-section confidence scores weighted by each section's extracted item count; LOW items count against the section total but do not contribute positively, and a section with zero extracted mechanical items is excluded from the mean. The aggregation formula is defined in §6.5.
 
@@ -998,7 +1000,7 @@ produces at least three constraint overrides in RULESET_MODEL.md.
 _Check:_ T368.
 
 **REQ-452 — Conversion evidence verification.**
-The builder SHALL verify conversion evidence before using converted content. DECISIONS.md (2) pins the converter and version. DECISIONS.md (6) records per-content-type fidelity and the Phase-1 trial gate against the Appendix H fidelity thresholds. DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. Verification SHALL fail when a record is missing or a threshold is not met, until the record appears or a waiver covers it, and SHALL pass with a "conversion not selected — waived" disposition when the builder skipped Convert. *Acceptance criterion:* a missing fidelity record fails verification until produced or waived. _Check:_ T542.
+The builder SHALL verify conversion evidence before using converted content. DECISIONS.md (2) pins the converter and version. DECISIONS.md (6) records per-content-type fidelity and the Phase-1 trial gate. DECISIONS.md (5) assigns every flagged artifact a `fixed`, `waived`, or `pending` disposition and records cross-converter verification. The Convert/Build entry point SHALL emit the structured Appendix G.5 record; a hand-authored record requires a recorded justification. Verification SHALL fail when a record is missing or a threshold is not met, and SHALL pass with a "conversion not selected — waived" disposition when Convert was skipped. *Acceptance criterion:* a missing fidelity record fails verification until produced or waived. _Check:_ T542.
 
 **REQ-453 — Extraction evidence-map parity.**
 The §5.2 coverage map SHALL list every REQ in §5.2. A §5.2 REQ with neither a map row nor an explicit non-harness disposition is a validation error that blocks assembly. *Acceptance criterion:* a §5.2 REQ with no map row and no disposition fails validation; a §5.2 REQ with an explicit disposition row passes. _Check:_ T543.
@@ -4168,7 +4170,7 @@ A package whose declared content hash does not match its contents SHALL be rejec
 The `manage_ruleset (action: install)` tool SHALL validate slug uniqueness and package-format compatibility before activation. The `manage_ruleset (action: remove)` tool SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel binds to its slug. The `manage_ruleset (action: list)` tool SHALL report each installed package with installed-versus-loaded state. All three are GM or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible package-format fingerprint fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `manage_ruleset (action: list)` distinguishes loaded from installed-but-idle packages. _Check:_ T453.
 
 **REQ-430 — Ruleset tool-quality conformance.**
-Every tool schema shipped in a ruleset package SHALL satisfy the TDQS conformance contract of REQ-552, including its hard gates and budget. The Package step (§6.4.2) and `build-ruleset` SHALL refuse to emit a package whose tool schema fails a hard gate or exceeds the budget, naming the defect. The host SHALL validate each installed package's tool schemas at load, keep non-conformant tools registered but flagged, and surface each in `spec_health` under `ruleset_package_alerts` without blocking loading. The gate SHALL cover the full registered surface, including package tools. *Acceptance criterion:* a non-conformant generated tool fails `build-ruleset` naming it; a conformant source emits; a non-conformant installed schema is flagged in `spec_health`. _Check:_ T512, T648.
+Every tool schema shipped in a ruleset package SHALL satisfy the TDQS conformance contract of REQ-552. Ruleset tools SHALL be namespaced by slug prefix, and a package's aggregate `tools/list` contribution SHALL stay within the configured token budget. The Package step (§6.4.2) and `build-ruleset` SHALL refuse to emit a package whose tool schema fails a hard gate or exceeds the budget. The host SHALL validate each installed package's tool schemas at load and surface each non-conformant tool in `spec_health` under `ruleset_package_alerts` without blocking loading. *Acceptance criterion:* a non-conformant generated tool fails `build-ruleset` naming it; a conformant source emits; a non-conformant installed schema is flagged in `spec_health`. _Check:_ T512, T648.
 
 **REQ-432a — Vendor ruleset package certification (Part a).**
 A ruleset package built from a content source recorded in Appendix U SHALL ship a `source_license` field in its version manifest naming the license and the Appendix U row. `build-ruleset` SHALL populate the field from the source registry (REQ-421). The host SHALL surface `licensed` and `source_license` in `manage_ruleset (action: list)` output.
@@ -4207,7 +4209,7 @@ Publication tooling SHALL detect REQ-body modifications and SHALL NOT classify a
 ### 5.18 Workflow Entry Points
 
 **REQ-395a — Ruleset-build entry point (Part a).**
-The distribution SHALL expose a single, documented entry point — `build-ruleset` — that accepts one or more `slug=path` pairs (B1) and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. Invoked with no arguments, it SHALL print its usage and the install directory. Package output SHALL land only in the install directory, and build tooling inside the git-tracked tree SHALL be committed or placed outside it. *Acceptance criterion:* `build-ruleset example=<path>` emits a package the host loads without re-parsing source Markdown; `build-ruleset` with no arguments prints usage; no untracked build tooling is left in the tracked tree. _Check:_ T463.
+The distribution SHALL expose a documented entry point — `build-ruleset` — that accepts one or more build targets, each a new-package pair (`slug=path`) or a supplement pair (`slug+=path`), and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. A supplement target SHALL overlay its source onto the installed package for `slug` per REQ-557. No-argument invocation SHALL print usage and the install directory. Package output SHALL land only in the install directory, and build tooling inside the git-tracked tree SHALL be committed or placed outside it. *Acceptance criterion:* `build-ruleset example=<path>` emits a loadable package; `build-ruleset dnd2024+=<path>` overlays a supplement; no-argument invocation prints usage. _Check:_ T463, T650.
 
 **REQ-395b — Workflow runbooks (Part b).**
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
@@ -4228,7 +4230,10 @@ Publication tooling SHALL, after updating a deployed instance, verify the deploy
 A ruleset package's version manifest SHALL record a package-format fingerprint: a content hash of the package-contract sections (§5.16, §5.17, §6.3, §6.4.2) of the assembled specification, computed at Package time (§6.4.2). The host SHALL compare each installed package's package-format fingerprint against its own current value at startup and after a host update (§6.7). A mismatch SHALL hold the package inactive and surface a `[package-incompatible]` flag in `spec_health` naming the slug and both fingerprints, without re-building or re-extracting the package (REQ-393). *Acceptance criterion:* a package built under a prior package-format fingerprint is flagged `[package-incompatible]` and held inactive after a fingerprint change; a current package stays loaded. _Check:_ T498, T503.
 
 **REQ-421 — Ruleset source registry.**
-The `build-ruleset` entry point (REQ-395a) SHALL record each accepted `slug=path` intake in a source registry stored under the server's state directory (REQ-397), mapping slug to source path, package-format fingerprint, and build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded path. *Acceptance criterion:* after a build the registry maps the slug to its source; a deploy preserves it; a re-run defaults to the recorded path. _Check:_ T499.
+The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, and its build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
+
+**REQ-557 — Supplement-build provenance.**
+A supplement build SHALL record the base package's content hash, each supplement source's hash, and the resulting package content hash in DECISIONS.md (6) and the source registry (REQ-421). Re-running a supplement build SHALL be idempotent: with unchanged base and supplement sources it SHALL emit a byte-identical content hash, and it SHALL replace prior supplement content rather than duplicate it. `update-rulesets` SHALL report a supplement slug whose recorded base content hash no longer matches the installed base package. *Acceptance criterion:* re-running a supplement build with unchanged sources emits an identical content hash; a base-package change is reported by `update-rulesets`; prior supplement content is not duplicated. _Check:_ T650.
 
 **REQ-422 — Ruleset update entry point.**
 The distribution SHALL expose a documented entry point — `update-rulesets` — that lists installed packages whose package-format fingerprint (REQ-420) differs from the host's current value or is absent. The entry point SHALL emit the Build workflow invocation for each affected slug, reading slug-to-source mappings from the source registry (REQ-421). Invoked with no arguments, it SHALL print usage, the install directory, and a per-package compatibility summary. *Acceptance criterion:* `update-rulesets` reports each stale slug with its recorded source and prints a Build invocation; no stale slug is omitted. _Check:_ T500.
@@ -4773,6 +4778,13 @@ text. A tie at any criterion records the co-canonical sections per REQ-146c.
 one dice-range result row. A row whose first column is a numeric range (`01-10`,
 `11-25`) or a dice expression (`d100`, `d%`, `d8`, `d20`) is a generation result
 row; a row whose first column is a name or label is a lookup row (REQ-215).
+
+**Deterministic-first extraction.** The builder SHALL extract a mechanic
+deterministically when a deterministic parser produces it — a formal table, a definition
+list, a bold-labeled field, or an ordered procedural sequence — and SHALL reserve model
+inference for prose that no parser covers. Every model-derived entry SHALL be recorded as
+such in DECISIONS.md (4), so the model-derived surface is auditable and bounded. A
+model-derived entry that restates a deterministically parseable section is a defect.
 
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
 builder's context window. The builder records the chunking strategy in
@@ -5370,15 +5382,15 @@ In `quick-build` mode, same-model audits are acceptable; the builder records a
 requirement.
 
 **REQ-299 — Cross-model audit sufficiency.** A cross-model audit SHALL
-produce findings with REQ citations and specific discrepancies — not general
-assessments — covering ≥3 extraction categories (REQ-210) and ≥2 Holodeck
-archetype categories (§7.7.0), with ≥1 finding or an enumerated zero-finding
-statement. An audit producing only "no issues found" SHALL be recorded as
-`[insufficient]` and re-run. WHEN models disagree, the higher-confidence
-extraction (REQ-011) is authoritative.
-*Acceptance criterion:* Audit includes REQ-cited findings covering ≥3
-extraction categories and ≥2 archetype categories, with ≥1 finding or an
-enumerated zero-finding statement.
+produce findings with REQ citations and specific discrepancies, covering ≥3 extraction
+categories (REQ-210) and ≥2 Holodeck archetype categories (§7.7.0), with ≥1 finding or an
+enumerated zero-finding statement. An audit producing only "no issues found" SHALL be
+recorded as `[insufficient]` and re-run. A model audit SHALL NOT be the sole evidence for a
+factual claim: deterministic structural checks (REQ-551) SHALL precede and dominate the
+audit, and the audit SHALL record the judging model's identity. WHEN models disagree, the
+higher-confidence extraction (REQ-011) is authoritative.
+*Acceptance criterion:* the audit covers ≥3 extraction and ≥2 archetype categories with
+≥1 finding or a zero-finding statement.
 _Check:_ T343, T430.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition
@@ -9814,6 +9826,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-303 | Scoped re-verification | 2026-08-11 |
 | REQ-098 | Spec-driven update workflow | 2026-08-11 |
 | REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
+| REQ-557 | Supplement-build provenance | 2026-10-03 |
 
 ---
 
@@ -10460,6 +10473,7 @@ diet.
 | T647 | Automated | Shadowing-risk report: assert invocation cost is computed over the required subtree, assert an expensive qualified query against a cheap flat lookup reports a shadowing risk naming both tools and their costs, and assert an asymmetric but non-overlapping pair reports none. | REQ-555 |
 | T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
 | T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
+| T650 | Automated | Supplement-build provenance: run `build-ruleset <slug>+=<path>` twice with unchanged sources — assert the emitted content hash is byte-identical and prior supplement content is not duplicated; change the base package — assert `update-rulesets` reports the slug whose recorded base content hash no longer matches. | REQ-395a, REQ-557 |
 
 ---
 
@@ -10519,9 +10533,10 @@ built server.*
 | pdf-craft | `pdf-craft` | Scanned book specialist, DeepSeek OCR, fully offline | MIT |
 | pdfplumber | `pdfplumber` | Precise text positioning; requires post-processing pipeline | MIT |
 | MarkItDown | `markitdown` | Multi-format, fast for digital PDFs; weak on table structure | MIT |
-| Marker | `marker-pdf` | Strong table extraction, reading-order detection, optional LLM boost; GPU preferred | Apache 2.0 (code); AI Pubs Open RAIL-M (model weights — free for <$5M annual revenue) |
-| MinerU | `mineru` | Best CJK support, complex layouts, broad accelerator compatibility | Apache 2.0 |
+| Marker | `marker-pdf` | Strong table extraction, reading-order detection, optional LLM boost; GPU preferred | GPL-3.0 (code); AI Pubs Open RAIL-M (model weights — free only under a revenue ceiling; verify the current threshold at the source) |
+| MinerU | `mineru` | Best CJK support, complex layouts, broad accelerator compatibility | Apache-2.0-based custom license (verify at the source — the license changed from AGPL) |
 | PyMuPDF4LLM | `pymupdf4llm` | Lightweight, fastest for native PDFs, no GPU; useless for scanned documents | AGPL (copyleft — embedding may impose obligations) |
+| Nougat | `nougat-ocr` | Academic-paper conversion; arXiv-oriented | MIT (code); CC-BY-NC-4.0 (model weights — non-commercial) |
 | Pandoc | `pandoc` | Universal format support, mature; weak on layout preservation | GPL (copyleft) |
 
 **HTML converters:**
@@ -10572,10 +10587,36 @@ until resolved).
 
 When C1 is PDF, the conversion SHALL additionally:
 
-**Column detection.** Detect multi-column regions before extraction. Extract text in
-visual reading order. Where the reading order is ambiguous — overlapping bounding boxes,
-irregular column widths, or column-spanning elements — flag the affected section as an
-artifact with disposition `pending`.
+**Hidden-text-layer detection.** Before extraction, detect a hidden text layer by
+comparing extracted character counts with and without the converter's hidden-text mode.
+When a hidden layer is present, select a converter mode that reads it exactly once, and
+record the mode and the detection result in DECISIONS.md (2). A mode that drops or
+duplicates hidden text is a conversion artifact with disposition `pending`.
+
+**Column detection.** Determine the source's column count by sampling before full
+extraction, and select the extractor mode accordingly: a mode that preserves reading
+order for a multi-column source, and a mode that preserves physical layout only for a
+single-column source. Record the column count and the selected mode in DECISIONS.md (2).
+Where reading order remains ambiguous — overlapping bounding boxes, irregular column
+widths, or column-spanning elements — flag the affected section as an artifact with
+disposition `pending`.
+
+**Display-heading and drop-cap recovery.** When a display heading is rendered as an image,
+or a heading's first letter is a drop cap, recover the heading from the source's table of
+contents or a tagged structure tree and flag the affected heading as an artifact. A
+recovered heading is disposition `fixed`; an unrecoverable heading is `waived` with a
+justification.
+
+**Encrypted or copy-protected source.** When the source is encrypted or copy-protected, do
+not bypass the protection unless the operator attests rights-holder authorization; record
+the attestation and the source license per Appendix U in DECISIONS.md (1). The extractor
+mode used for a copy-protected source SHALL be recorded in DECISIONS.md (2).
+
+**Table extraction.** Extract table structure with a table-aware extractor; do not rely on
+text extraction, which linearizes rows and cells. Verify row and column counts against the
+G.1 table dimensions and score table fidelity with a structure-aware metric (for example
+TEDS). A table whose structure cannot be recovered is an artifact with disposition
+`pending`.
 
 **Multi-page table reassembly.** Detect table fragments split across page breaks.
 Continuation indicators include: a header row repeated on the subsequent page, the
@@ -10661,9 +10702,11 @@ follow the table as prose.
 
 The builder SHALL run a second converter satisfying the capability profile on the
 fidelity sample pages. The two Markdown outputs SHALL be diffed after whitespace normalization.
-Disagreements — text present in one output but not the other, or different word order
-— SHALL be flagged as artifacts with disposition `pending`. The converter pair and
-disagreement count SHALL be recorded in DECISIONS.md (5).
+Disagreements — text present in one output but not the other — SHALL be resolved or
+recorded with disposition `waived` and a justification. A disagreement that is neither
+resolved nor waived blocks G0a as `pending`. A difference in reading order alone is not a
+content disagreement; it is scored by the reading-order metric (G.2). The converter pair
+and disagreement count SHALL be recorded in DECISIONS.md (5).
 
 If no second converter satisfying the capability profile is available for the source
 format, the builder SHALL record a `[single-converter]` finding in DECISIONS.md (5)
@@ -10672,18 +10715,23 @@ with the justification — informational, not blocking.
 **Pin.** The converter and its version are recorded in DECISIONS.md (2); the same
 converter produces the frozen Markdown and any later diagnostic re-run.
 
-**Fidelity protocol.** The fidelity diff is character-level after normalizing
-whitespace (collapse runs, trim) and stripping Markdown formatting delimiters
-(`**`, `*`, backticks). The rendered source text is extracted from the original
-source using the same tool pipeline as conversion — for PDF, the text-extraction
-layer of the chosen converter; for HTML, the rendered-textContent output of the
-same parser. Mechanical content is defined as: text within `<table>` elements
-(HTML) or table regions (PDF), text matching the `**Bold Label:** value` pattern,
-and text within numbered-procedure blocks (lines beginning with a digit followed
-by `.` or `)` and an imperative verb). Content matching none of these patterns is
-textual content — excluded from the fidelity numerator but recorded for
-completeness. The fidelity rate is (matching characters in mechanical content) ÷
-(total characters in mechanical content in rendered source).
+**Fidelity protocol.** Content fidelity SHALL be measured order-insensitively over
+mechanical content: normalized token or n-gram overlap (for example token-level F1 or
+Jaccard) between the converted Markdown and the rendered source text, after whitespace
+normalization (collapse runs, trim) and stripping Markdown formatting delimiters (`**`,
+`*`, backticks). Reading order SHALL be measured separately as block-sequence agreement
+(for example edit distance or Kendall-tau over block order). The two metrics SHALL be
+recorded separately in DECISIONS.md (5); a low reading-order score SHALL NOT be reported
+as a content-fidelity failure. The rendered source text is extracted from the original
+source using the same tool pipeline as conversion — for PDF, the text-extraction layer of
+the chosen converter; for HTML, the rendered-textContent output of the same parser.
+Mechanical content is defined as: text within `<table>` elements (HTML) or table regions
+(PDF), text matching the `**Bold Label:** value` pattern, and text within
+numbered-procedure blocks (lines beginning with a digit followed by `.` or `)` and an
+imperative verb). Content matching none of these patterns is textual content — excluded
+from the fidelity numerator but recorded for completeness. The content-fidelity rate is
+(matching normalized tokens in mechanical content) ÷ (total normalized tokens in
+mechanical content in rendered source).
 
 ---
 
@@ -10979,6 +11027,10 @@ build artifact — it is a spec-maintainer reference.
       or a recorded justification for unbounded growth
 - [ ] Gate classification: every new tool is recorded in the DECISIONS.md
       gate-classification table (REQ-137a)
+- [ ] Read-only description phrasing: a read-only tool's description names no mutating
+      operation — it SHALL NOT contain the mutation verbs create, update, remove, delete,
+      destroy, install, apply, persist, or write (REQ-552 hard gate). Describe the tool as
+      reading only (for example "reads the bound ruleset's indexed data; no state change")
 - [ ] Vocabulary registration: new subsystem or state-surface vocabulary is registered
       in §4 (Terminology) or Appendix S (Builder Glossary), or explicitly declared a
       section-local term
@@ -12018,7 +12070,9 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
 4. Package step (§6.4.2): emit the declarative package (REQ-389) to the install
    directory.
 5. Verify (§6.5): run the convergence loop until no blocking findings remain.
-6. Bind a Novel to the slug (`manage_ruleset (action: bind)`) and confirm the slug's tools
+6. Restart the host to load the package — the host scans the install directory at boot and
+   does not hot-reload a changed package (REQ-420).
+7. Bind a Novel to the slug (`manage_ruleset (action: bind)`) and confirm the slug's tools
    serve without re-parsing source Markdown.
 
 **Recovery.**
@@ -12145,10 +12199,12 @@ before re-binding.
    directory, and a per-package compatibility summary listing each installed
    slug with its package-format fingerprint and whether it matches the host's
    current value (REQ-420).
-2. For each stale slug, rebuild against the recorded source: `build-ruleset
+2. For each stale slug, rebuild against the recorded recipe: `build-ruleset
    <slug>=<path>` — the source registry (REQ-421) defaults the path when it is
-   omitted.
-3. Confirm `spec_health` no longer reports `[package-incompatible]` for the
+   omitted; a supplement slug rebuilds with its recipe's supplement pairs
+   (`<slug>+=<path>`) per REQ-557.
+3. Restart the host to load the rebuilt package (boot-time scan; no hot reload).
+4. Confirm `spec_health` no longer reports `[package-incompatible]` for the
    slug after the rebuild.
 
 The Update job (§6.7, REQ-556) drives this runbook for every stale slug after a

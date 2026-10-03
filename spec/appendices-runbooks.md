@@ -25,7 +25,9 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
 4. Package step (§6.4.2): emit the declarative package (REQ-389) to the install
    directory.
 5. Verify (§6.5): run the convergence loop until no blocking findings remain.
-6. Bind a Novel to the slug (`manage_ruleset (action: bind)`) and confirm the slug's tools
+6. Restart the host to load the package — the host scans the install directory at boot and
+   does not hot-reload a changed package (REQ-420).
+7. Bind a Novel to the slug (`manage_ruleset (action: bind)`) and confirm the slug's tools
    serve without re-parsing source Markdown.
 
 **Recovery.**
@@ -152,10 +154,12 @@ before re-binding.
    directory, and a per-package compatibility summary listing each installed
    slug with its package-format fingerprint and whether it matches the host's
    current value (REQ-420).
-2. For each stale slug, rebuild against the recorded source: `build-ruleset
+2. For each stale slug, rebuild against the recorded recipe: `build-ruleset
    <slug>=<path>` — the source registry (REQ-421) defaults the path when it is
-   omitted.
-3. Confirm `spec_health` no longer reports `[package-incompatible]` for the
+   omitted; a supplement slug rebuilds with its recipe's supplement pairs
+   (`<slug>+=<path>`) per REQ-557.
+3. Restart the host to load the rebuilt package (boot-time scan; no hot reload).
+4. Confirm `spec_health` no longer reports `[package-incompatible]` for the
    slug after the rebuild.
 
 The Update job (§6.7, REQ-556) drives this runbook for every stale slug after a

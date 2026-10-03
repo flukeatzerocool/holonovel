@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-03 — Convert/Build hardening, supplement overlay, and mechanical reliability
+
+Hardens the Convert and Build workflows from the ThunderCats 5.5E supplement
+integration (two 389-page, two-column PDFs), adds a first-class supplement-overlay
+build path, and tightens the anti-hallucination controls across extraction and
+retrieval. Package-format fingerprint regenerated.
+
+- **Convert (Appendix G).** G.3 adds hidden-text-layer detection, a column-count
+  probe that selects the extractor mode, display-heading/drop-cap recovery, table
+  extraction, and an encrypted/copy-protected source rule requiring rights-holder
+  authorization. G.2 redefines content fidelity as order-insensitive (token/ngram
+  overlap) with reading order scored separately; G.6 no longer mandates a `pending`
+  disposition for cross-converter disagreements. G.1 refreshes converter licenses
+  (Marker revenue ceiling, MinerU license change, Nougat non-commercial weights).
+- **Build supplement overlay.** `build-ruleset` accepts supplement pairs
+  (`slug+=path`) that overlay a source onto an installed package, idempotently
+  (REQ-395a); the source registry records a build recipe rather than a single path
+  (REQ-421); new REQ-557 records supplement-build provenance and base-hash drift,
+  with test T650. `check-conversion-evidence` accepts the new fidelity record shape.
+- **Tool quality.** REQ-430 requires slug-prefix namespacing and a `tools/list`
+  token budget; Appendix M adds the canonical read-only description rule that the
+  REQ-552 hard gate enforces (the legacy "writes no state" phrasing).
+- **Mechanical reliability / anti-hallucination.** REQ-011c forbids inferring a
+  value for a LOW-confidence item (record a review gap, do not fabricate); §6.3
+  adds deterministic-first extraction and records model-derived entries; REQ-299
+  requires deterministic checks to precede and dominate model audits and to record
+  the judging model; REQ-061 requires `[NOT_FOUND]` abstention instead of a
+  synthesized lookup.
+- **Runbooks.** V.1/V.7 state the restart-after-build step; REQ-452 requires the
+  conversion-evidence record to be entry-point-emitted.
+- **Durable build tooling.** Committed `scripts/ruleset-builds/dnd2024/`
+  (annotate/extract/build-package/deploy + frozen supplement Markdown), a shared
+  `scripts/lib/ruleset-package.mjs` content-hash helper consumed by the swse and
+  dnd2024 build assets, and `build-asset` baseline entries.
+- Package-format fingerprint advanced; installed packages require the V.7
+  re-emit/re-build after the host is updated (REQ-420/REQ-393).
+
 ## 2026-10-02 — Update job updates all user data on a deployed instance
 
 The Update workflow now brings every piece of user data on a deployed Holonovel
