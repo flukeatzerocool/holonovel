@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 2f5a31227f7dbb9bd73ffe35667c01ae0299a75ce810f5b00280d878e86f4426
+**Spec hash:** 5b59e12a318ad101ccc9555eafae37672d0b7c87edf2c41a46e5841c49ca8e56
 
 **Recorded tool budget:** 30 (REQ-429)
 
@@ -31,6 +31,13 @@
 - W5c heuristic dry run (report-only, `scripts/tool-definitions-heuristics.ts`): 12 behavioral-disclosure candidates and 1 near-duplicate pair (`manage_countdown ~ manage_faction`, Jaccard 0.54). Assessed: the near-duplicate pair is shared boilerplate with distinct purposes (false positive); the disclosure candidates are a mix of true gaps and derived/roll tools that need no reversal. Neither class is promoted to a gate — both remain report-only until a precise predicate is found.
 - W6 (W1 continuation): disclosure completed for the remaining action tools, and the disclosure class promoted to a deterministic gate. The vocabulary is recorded here: persistence (`persist`/`audit`/`record`) and reversibility (`revert`/`undo`/`reversib`/`permanent`/`append-only`/`idempotent`/`derived`). `tool-definitions-lint` now fails an action-bearing tool whose description omits either token class; the corpus passes (0 gaps). Handler-verified cross-parameter interaction clauses were added to 25 of 31 action tools (e.g. `manage_world` `location_type` only with `location`; `resolve_ironsworn` `burn` replaces the action die and ignores `adds`; `manage_session` `supersede`; `manage_novel` `import` `mode`/`strict`). Parameter Semantics remains report-only at 25/31 coverage: a parameter-name predicate false-positives on the required alias clause, so no precise gate exists. Description budget 900 → 1000 bytes; longest host description 957 bytes.
 - Verification: `npm run check:fast` → 0 errors / 18 warnings (PASS); `npm run build-order` → 0 errors / 159 warnings, fingerprint propagated; `npx tsc --noEmit` (`holonovel`) → 0 errors; server harness suite `test:all` → 36/36 (tool-definitions 9/9 at 33 tools; index 6/6; graph 5/5; help 7/7; briefing 7/7; security 7/7; lean-narrator 10/10; output-contracts 237/237); `check-tool-definitions-sync`, `tool-definitions-lint`, `tool-citation-check` → PASS. W6 re-verified: `tool-definitions-lint` 0 violations at 1000 B, disclosure gaps 0, parameter-semantics coverage 25/31, near-duplicates 0.
+
+### Holonovel Spec Update — 2026-10-02 (Update job reconciles all user data on a deployed instance REQ-556)
+
+- **Delta class:** minor. Changed surfaces: §5.18 REQ-556 (Update-workflow user-data reconciliation), REQ-098 and REQ-424 amendments, the §6.7 reconciliation subsection, runbooks V.4/V.7/V.8, Appendix E/F (T649), and the coverage register; implementation — `scripts/migrate-user-data.ts` on-disk round-trip (REQ-065 defaults materialized, inert fields preserved) and `test-update-workflow.ts` T649 coverage. Contract fingerprints unchanged: §5.18 and §6.7 are not in the package-format or data-format section sets.
+- **Verification:** `npm run assemble` → spec hash 5b59e12a…; `npm run check:fast` → 0 errors / 0 warnings (PASS); `npm run check` → exit 0; `npx tsc --noEmit` (root + holonovel) → 0 errors; `holonovel/scripts/test-update-workflow.ts` → 8/8 (T84b, T649); coverage register regenerated — A=0, E=114.
+
+<!-- @spec-update:5b59e12a318ad101ccc9555eafae37672d0b7c87edf2c41a46e5841c49ca8e56 -->
 
 ### Holonovel Spec Update — 2026-09-30 (Review remediation: Player parser contract, derived-stat order, tracking)
 
