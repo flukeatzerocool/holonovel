@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "tool_count": 33,
-  "tools_list_bytes": 83511,
+  "schema_version": 2,
+  "tool_count": 30,
+  "tools_list_bytes": 80251,
   "tools": [
     {
       "name": "manage_adventure",
@@ -34,6 +34,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 6,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 6,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1745
       },
       "category": "",
       "gate": ""
@@ -75,14 +91,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 7,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 7,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2053
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_belief",
       "title": "Belief Management",
-      "description": "Manage per-entity evidence and reconciled belief stances — one entity's subjective epistemic state, distinct from objective truth, shared lore, and raw observation. Mutating actions (admit, retract, reconcile) persist to the Novel and are audited; list/get/evidence/conflicts are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing a piece of evidence (retract), inspecting current stances (list), reading one question (get), listing supporting evidence (evidence), finding unresolved contradictions (conflicts), or forcing recomputation (reconcile). Do NOT use when: recording objective world truth — use manage_causal or manage_world; recording shared lore — use manage_lore; recording raw observation — use manage_perception; recording consumed reference material — use manage_corpus.",
-      "description_bytes": 904,
+      "description": "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel and are audited; list/get/evidence/conflicts and the perception reads are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing evidence (retract), inspecting stances (list), reading one question (get), listing evidence (evidence), finding contradictions (conflicts), forcing recomputation (reconcile), or recording and reading perceptions (perception_* actions). Do NOT use when: recording objective world truth — use manage_world (action: causal_propose); recording shared lore or consumed reference material — use manage_lore.",
+      "description_bytes": 908,
       "action_enum": [
         "list",
         "get",
@@ -90,9 +122,13 @@
         "admit",
         "retract",
         "conflicts",
-        "reconcile"
+        "reconcile",
+        "perception_record",
+        "perception_list",
+        "perception_for_entity",
+        "perception_for_event"
       ],
-      "param_count": 11,
+      "param_count": 15,
       "required": [
         "action"
       ],
@@ -100,6 +136,10 @@
         "entity_id": "Entity whose beliefs are queried or mutated.",
         "evidence_id": "Evidence record id (retract).",
         "object": "Proposition object (admit).",
+        "perception_entity_id": "Entity that perceived (perception_record/perception_for_entity).",
+        "perception_event_ordinal": "Contributing event-log ordinal (perception_record/perception_for_event; defaults to the latest event).",
+        "perception_kind": "message, scene, or observation (perception_record; default observation).",
+        "perception_summary": "What was perceived (perception_record).",
         "polarity": "positive or negative (admit).",
         "predicate": "Proposition predicate (admit).",
         "question": "Belief question key, or subject|predicate|object (get/evidence).",
@@ -119,47 +159,21 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "category": "",
-      "gate": ""
-    },
-    {
-      "name": "manage_causal",
-      "title": "Causal Transition Management",
-      "description": "Validate objective-state transitions against committed history — what the world accepts as true, independent of any entity's belief. Proposals are recorded in a ledger before admission; a proposal is not truth until admitted, and refused proposals are preserved as evidence. Mutating actions (propose, admit, reject, ingress) persist to the Novel and are audited; list/state are read-only. origin_source is honored only by propose; ingress always records machine. Revert the most recent mutation with manage_history (action: undo). Use when: proposing an objective change (propose), admitting or refusing a recorded proposal (admit/reject), submitting machine-originated state (ingress), inspecting the transition ledger (list), or reading admitted objective state (state). Do NOT use when: recording what an entity believes — use manage_belief; recording raw observation — use manage_perception; editing the world model directly — use manage_world.",
-      "description_bytes": 957,
-      "action_enum": [
-        "propose",
-        "admit",
-        "reject",
-        "list",
-        "state",
-        "ingress"
-      ],
-      "param_count": 10,
-      "required": [
-        "action"
-      ],
-      "params": {
-        "domain": "location or scalar (default location).",
-        "entity": "Entity whose objective state is proposed.",
-        "expected_version": "Optimistic version guard (proposal).",
-        "from": "Expected prior value (proposal).",
-        "key": "State key within the entity.",
-        "origin_source": "narrative, machine, or ruleset (proposal).",
-        "proposal_id": "Recorded proposal id (admit/reject).",
-        "scope": "Scope coordinate (default the active Novel slug).",
-        "source_ordinal": "Contributing event-log ordinal (default the latest event).",
-        "value": "Proposed value."
-      },
-      "output_fields": {
-        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
-        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false
+      "context_signals": {
+        "paramCount": 16,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 16,
+        "paramsWithEnums": 4,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 3643
       },
       "category": "",
       "gate": ""
@@ -222,6 +236,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 25,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 25,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 4759
+      },
       "category": "",
       "gate": ""
     },
@@ -265,14 +295,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 12,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 12,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2597
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_combat",
       "title": "Combat Encounter Management",
-      "description": "Manage combat encounters in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
-      "description_bytes": 447,
+      "description": "Manage combat encounters in the active Novel — encounter turn order, participants, and lifecycle, not per-entity conditions. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
+      "description_bytes": 528,
       "action_enum": [
         "init",
         "advance",
@@ -301,6 +347,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 6,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 6,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2089
       },
       "category": "",
       "gate": ""
@@ -334,52 +396,21 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "category": "",
-      "gate": ""
-    },
-    {
-      "name": "manage_corpus",
-      "title": "Knowledge Corpus Management",
-      "description": "Manage cold reference material and per-entity knowledge acquisition — what an entity has consumed from a registered document, distinct from belief and from lore. Registered documents create no knowledge until consumed; consumption records exactly what an entity acquired. Mutation (register, route, grant, deny, access, consume) persists to the Novel and is audited; list/get/acquisitions are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: registering reference material (register), assigning its knowledge domain (route), opening or closing access (grant/deny), setting an entity's knowledge-domain profile (access), reading a document to acquire it (consume), or inspecting what an entity has acquired (acquisitions). Do NOT use when: recording beliefs — use manage_belief; recording shared world facts — use manage_lore; registering a reusable gameplay artifact — use manage_codex.",
-      "description_bytes": 934,
-      "action_enum": [
-        "register",
-        "list",
-        "get",
-        "route",
-        "grant",
-        "deny",
-        "access",
-        "consume",
-        "acquisitions"
-      ],
-      "param_count": 12,
-      "required": [
-        "action"
-      ],
-      "params": {
-        "access_domains": "Knowledge domains granted access (register).",
-        "access_public": "Whether every entity may consume it (register; default false).",
-        "body": "Document reference text (register).",
-        "denies": "Entity ids explicitly denied access (register).",
-        "document_id": "Corpus document id (get/route/grant/deny/consume).",
-        "domain": "Knowledge domain (register/route/list).",
-        "domains": "Knowledge domains the entity may access (access).",
-        "entity_id": "Entity acquiring or inspected (consume/acquisitions/access/grant/deny).",
-        "grants": "Entity ids explicitly granted access (register).",
-        "mode": "read, research, taught, or import (consume; default read).",
-        "source_profile": "Trusted source profile the domain is routed from (register; default manual).",
-        "title": "Document title (register)."
-      },
-      "output_fields": {
-        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
-        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false
+      "context_signals": {
+        "paramCount": 4,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 4,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1432
       },
       "category": "",
       "gate": ""
@@ -419,6 +450,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 9,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 9,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2530
+      },
       "category": "",
       "gate": ""
     },
@@ -455,6 +502,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 7,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 7,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1689
+      },
       "category": "",
       "gate": ""
     },
@@ -479,6 +542,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 1,
+        "requiredParamCount": 0,
+        "paramsWithDescriptions": 1,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 0,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 0,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1395
       },
       "category": "",
       "gate": ""
@@ -521,14 +600,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 9,
+        "requiredParamCount": 2,
+        "paramsWithDescriptions": 9,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 2,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 2,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2653
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_knowledge",
       "title": "Derived Knowledge",
-      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore or manage_corpus; recording a relationship — use manage_relationship.",
-      "description_bytes": 887,
+      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore (including its corpus_* actions); recording a relationship — use manage_relationship.",
+      "description_bytes": 903,
       "action_enum": [
         "index_build",
         "index_status",
@@ -562,14 +657,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 5,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 5,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2296
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_lore",
       "title": "Lore Management",
-      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; merge or replace writes. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs — use manage_belief; recording one entity's perceptions — use manage_perception.",
-      "description_bytes": 618,
+      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls — and the knowledge corpus of cold reference material. Mutating actions (including corpus_register, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume) persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; merge or replace writes. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or registering, routing, granting, denying, consuming, or inspecting corpus reference material (corpus_* actions). Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; registering a reusable gameplay artifact — use manage_codex.",
+      "description_bytes": 905,
       "action_enum": [
         "set",
         "update",
@@ -584,15 +695,36 @@
         "set_secret",
         "reveal",
         "secret_list",
-        "knowledge"
+        "knowledge",
+        "corpus_register",
+        "corpus_list",
+        "corpus_get",
+        "corpus_route",
+        "corpus_grant",
+        "corpus_deny",
+        "corpus_access",
+        "corpus_consume",
+        "corpus_acquisitions"
       ],
-      "param_count": 12,
+      "param_count": 24,
       "required": [
         "action"
       ],
       "params": {
         "badge_scope": "game_master or shared (set/update).",
         "content": "Lore content (set/update).",
+        "corpus_access_domains": "Knowledge domains granted access (corpus_register).",
+        "corpus_access_public": "Whether every entity may consume it (corpus_register; default false).",
+        "corpus_body": "Document reference text (corpus_register).",
+        "corpus_denies": "Entity ids explicitly denied access (corpus_register).",
+        "corpus_document_id": "Corpus document id (corpus_get/corpus_route/corpus_grant/corpus_deny/corpus_consume).",
+        "corpus_domain": "Knowledge domain (corpus_register/corpus_route/corpus_list).",
+        "corpus_domains": "Knowledge domains the entity may access (corpus_access).",
+        "corpus_entity_id": "Entity acquiring or inspected (corpus_consume/corpus_acquisitions/corpus_access/corpus_grant/corpus_deny).",
+        "corpus_grants": "Entity ids explicitly granted access (corpus_register).",
+        "corpus_mode": "read, research, taught, or import (corpus_consume; default read).",
+        "corpus_source_profile": "Trusted source profile the domain is routed from (corpus_register; default manual).",
+        "corpus_title": "Document title (corpus_register).",
         "data": "JSON or Markdown lorebook data (import).",
         "entity_id": "Entity to reveal to / whose knowledge to read (reveal/knowledge).",
         "format": "Optional output format (export).",
@@ -613,6 +745,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 25,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 25,
+        "paramsWithEnums": 4,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 4908
       },
       "category": "",
       "gate": ""
@@ -649,6 +797,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 5,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 5,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1782
       },
       "category": "",
       "gate": ""
@@ -723,6 +887,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 27,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 27,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 4218
+      },
       "category": "",
       "gate": ""
     },
@@ -762,39 +942,21 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "category": "",
-      "gate": ""
-    },
-    {
-      "name": "manage_perception",
-      "title": "Perception Ledger Management",
-      "description": "Record and read what an entity perceived — messages, scene changes, and observations — as an append-only ledger distinct from belief. Mutation (record) persists to the Novel and is audited; list/for_entity/for_event are read-only. Use when: recording that an entity perceived something (record), listing perceptions (list), or reading an entity's or an event's perceptions (for_entity/for_event). Do NOT use when: recording what an entity believes — use manage_belief; recording shared world facts — use manage_lore; recording observations for provenance — use manage_session (action: event).",
-      "description_bytes": 602,
-      "action_enum": [
-        "record",
-        "list",
-        "for_entity",
-        "for_event"
-      ],
-      "param_count": 4,
-      "required": [
-        "action"
-      ],
-      "params": {
-        "entity_id": "Entity that perceived (record/for_entity).",
-        "event_ordinal": "Contributing event-log ordinal (record/for_event; defaults to the latest event).",
-        "kind": "message, scene, or observation (record; default observation).",
-        "summary": "What was perceived (record)."
-      },
-      "output_fields": {
-        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
-        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false
+      "context_signals": {
+        "paramCount": 9,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 9,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2170
       },
       "category": "",
       "gate": ""
@@ -829,6 +991,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 7,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 7,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1688
       },
       "category": "",
       "gate": ""
@@ -877,14 +1055,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 14,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 14,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2865
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_scene",
       "title": "Scene Management",
-      "description": "Manage the active scene and its narrative framing. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set derives the description from location only when description is omitted. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
-      "description_bytes": 536,
+      "description": "Manage the active scene and its narrative framing — scene description, directive, party presence, and oracle rolls, distinct from the world model's rooms and things. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set derives the description from location only when description is omitted. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 653,
       "action_enum": [
         "set",
         "directive",
@@ -931,14 +1125,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 23,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 23,
+        "paramsWithEnums": 7,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": true,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 4454
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_session",
       "title": "Session Management",
-      "description": "Manage session-level surfaces, diagnostics, and tool discovery. event with supersede appends a replacement and marks that ordinal superseded. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
-      "description_bytes": 844,
+      "description": "Manage session-level surfaces, diagnostics, and tool discovery, distinct from story content and Novel lifecycle. event with supersede appends a replacement and marks that ordinal superseded. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
+      "description_bytes": 893,
       "action_enum": [
         "recap",
         "verbosity",
@@ -983,6 +1193,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 16,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 16,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 3808
+      },
       "category": "",
       "gate": ""
     },
@@ -1020,6 +1246,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 8,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 8,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2035
       },
       "category": "",
       "gate": ""
@@ -1065,6 +1307,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 9,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 9,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2240
+      },
       "category": "",
       "gate": ""
     },
@@ -1105,14 +1363,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 10,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 10,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2183
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_world",
       "title": "World Model Management",
-      "description": "Manage the world model — rooms, things, and exits. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). create_thing honors location_type only when location is set; kind forces property defaults. Use when: creating, updating, removing, or bulk-converting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve).",
-      "description_bytes": 498,
+      "description": "Manage the world model — rooms, things, exits, and the causal transition ledger of objective-state changes. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). create_thing honors location_type only when location is set; kind forces property defaults. Use when: creating, updating, removing, or bulk-converting locations and objects, or proposing, admitting, refusing, or reading objective-state transitions (causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress). Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve); recording what an entity believes — use manage_belief.",
+      "description_bytes": 771,
       "action_enum": [
         "create_room",
         "update_room",
@@ -1123,13 +1397,29 @@
         "create_exit",
         "remove_exit",
         "convert",
-        "generate"
+        "generate",
+        "causal_propose",
+        "causal_admit",
+        "causal_reject",
+        "causal_list",
+        "causal_state",
+        "causal_ingress"
       ],
-      "param_count": 29,
+      "param_count": 39,
       "required": [
         "action"
       ],
       "params": {
+        "causal_domain": "location or scalar (causal_propose; default location).",
+        "causal_entity": "Entity whose objective state is proposed (causal_propose).",
+        "causal_expected_version": "Optimistic version guard (causal_propose).",
+        "causal_from": "Expected prior value (causal_propose).",
+        "causal_key": "State key within the entity (causal_propose).",
+        "causal_origin_source": "narrative, machine, or ruleset (causal_propose).",
+        "causal_proposal_id": "Recorded proposal id (causal_admit/causal_reject).",
+        "causal_scope": "Scope coordinate (causal_propose; default the active Novel slug).",
+        "causal_source_ordinal": "Contributing event-log ordinal (causal_propose; default the latest event).",
+        "causal_value": "Proposed value (causal_propose/causal_ingress).",
         "climbable": "When true the thing can be climbed (create_thing/update_thing).",
         "description": "Optional description (create/update).",
         "direction": "Direction (create_exit/remove_exit).",
@@ -1169,6 +1459,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 40,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 40,
+        "paramsWithEnums": 4,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 6159
       },
       "category": "",
       "gate": ""
@@ -1213,6 +1519,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 14,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 14,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2826
+      },
       "category": "",
       "gate": ""
     },
@@ -1250,6 +1572,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 10,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 10,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2436
       },
       "category": "",
       "gate": ""
@@ -1289,6 +1627,22 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 10,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 10,
+        "paramsWithEnums": 2,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2347
+      },
       "category": "",
       "gate": ""
     },
@@ -1317,14 +1671,30 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "context_signals": {
+        "paramCount": 2,
+        "requiredParamCount": 2,
+        "paramsWithDescriptions": 2,
+        "paramsWithEnums": 0,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 2,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 2,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1226
+      },
       "category": "",
       "gate": ""
     },
     {
       "name": "run_command",
       "title": "Parser Command",
-      "description": "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state; resolve and suggest are read-only. execute persists to the Novel and is reversible with manage_history (action: undo); resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
-      "description_bytes": 542,
+      "description": "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state and persists to the Novel, reversible with manage_history (action: undo); resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
+      "description_bytes": 496,
       "action_enum": [
         "execute",
         "resolve",
@@ -1346,6 +1716,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 4,
+        "requiredParamCount": 0,
+        "paramsWithDescriptions": 4,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 0,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 0,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1630
       },
       "category": "",
       "gate": ""
@@ -1372,6 +1758,22 @@
         "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 1,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 1,
+        "paramsWithEnums": 1,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 1164
       },
       "category": "",
       "gate": ""

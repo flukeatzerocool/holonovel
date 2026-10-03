@@ -18,6 +18,7 @@ function send(proc: any, msg: any): Promise<any> { return new Promise((r) => { c
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
 async function boot(extraEnv: Record<string, string> = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...extraEnv }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "corpus", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
+const corpus = (p: any, args: any) => { const out: any = { action: `corpus_${args.action}` }; for (const [k, v] of Object.entries(args)) if (k !== "action") out[`corpus_${k}`] = v; return call(p, "manage_lore", out); };
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;
@@ -26,8 +27,8 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 }
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
-async function register(p: any, args: any): Promise<string> { const r = await call(p, "manage_corpus", { action: "register", ...args }); const m = r.match(/document (doc-\d+)/); if (!m) throw new Error("register failed: " + r.slice(0, 160)); return m[1]; }
-async function acquisitions(p: any, entity_id?: string): Promise<any[]> { const t = await call(p, "manage_corpus", { action: "acquisitions", entity_id }); try { return JSON.parse(t); } catch { return []; } }
+async function register(p: any, args: any): Promise<string> { const r = await corpus(p, { action: "register", ...args }); const m = r.match(/document (doc-\d+)/); if (!m) throw new Error("register failed: " + r.slice(0, 160)); return m[1]; }
+async function acquisitions(p: any, entity_id?: string): Promise<any[]> { const t = await corpus(p, { action: "acquisitions", entity_id }); try { return JSON.parse(t); } catch { return []; } }
 
 async function main() {
   // ── T586: cold registration (REQ-496) ────────────────────────────────
@@ -42,8 +43,8 @@ async function main() {
   await test("T587/REQ-497: a document's domain is routed and re-routable", async () => {
     const p = await boot(); await newNovel(p, "cp2");
     const id = await register(p, { title: "Codex", body: "runes", domain: "arcana", source_profile: "settlement-wiki" });
-    await call(p, "manage_corpus", { action: "route", document_id: id, domain: "history" });
-    const doc = JSON.parse(await call(p, "manage_corpus", { action: "get", document_id: id }));
+    await corpus(p, { action: "route", document_id: id, domain: "history" });
+    const doc = JSON.parse(await corpus(p, { action: "get", document_id: id }));
     assert(doc.domain === "history", "routing did not update the domain: " + doc.domain);
     await kill(p);
   });
@@ -52,18 +53,18 @@ async function main() {
   await test("T588/REQ-498: public/domain/grant admit; deny wins", async () => {
     const p = await boot(); await newNovel(p, "cp3");
     const secret = await register(p, { title: "Sealed", body: "The king is dead", domain: "royal" });
-    let r = await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: secret });
+    let r = await corpus(p, { action: "consume", entity_id: "hero", document_id: secret });
     assert(r.includes("[FORBIDDEN]"), "restricted doc should be forbidden: " + r.slice(0, 100));
-    await call(p, "manage_corpus", { action: "grant", document_id: secret, entity_id: "hero" });
-    r = await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: secret });
+    await corpus(p, { action: "grant", document_id: secret, entity_id: "hero" });
+    r = await corpus(p, { action: "consume", entity_id: "hero", document_id: secret });
     assert(r.includes("Acquisition"), "granted doc should be consumable: " + r.slice(0, 120));
     // Domain match admits a different entity.
-    await call(p, "manage_corpus", { action: "access", entity_id: "scholar", domains: ["royal"] });
-    r = await call(p, "manage_corpus", { action: "consume", entity_id: "scholar", document_id: secret });
+    await corpus(p, { action: "access", entity_id: "scholar", domains: ["royal"] });
+    r = await corpus(p, { action: "consume", entity_id: "scholar", document_id: secret });
     assert(r.includes("Acquisition"), "domain-matched doc should be consumable: " + r.slice(0, 120));
     // Deny wins over public.
     const open = await register(p, { title: "Open", body: "common knowledge", domain: "general", access_public: true, denies: ["thief"] });
-    r = await call(p, "manage_corpus", { action: "consume", entity_id: "thief", document_id: open });
+    r = await corpus(p, { action: "consume", entity_id: "thief", document_id: open });
     assert(r.includes("[FORBIDDEN]"), "deny should override public access: " + r.slice(0, 100));
     await kill(p);
   });
@@ -72,7 +73,7 @@ async function main() {
   await test("T589/REQ-499: consumption records its mode", async () => {
     const p = await boot(); await newNovel(p, "cp4");
     const id = await register(p, { title: "Tome", body: "plain facts", domain: "general", access_public: true });
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: id, mode: "research" });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: id, mode: "research" });
     const acq = await acquisitions(p, "hero");
     assert(acq[0].mode === "research", "mode not recorded: " + JSON.stringify(acq[0]));
     await kill(p);
@@ -82,7 +83,7 @@ async function main() {
   await test("T590/REQ-500: the ledger records entity, document, and domain", async () => {
     const p = await boot(); await newNovel(p, "cp5");
     const id = await register(p, { title: "Ledger", body: "text", domain: "trade", access_public: true });
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: id });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: id });
     const acq = await acquisitions(p, "hero");
     assert(acq[0].entity_id === "hero" && acq[0].document_id === id && acq[0].domain === "trade", "ledger fields wrong: " + JSON.stringify(acq[0]));
     await kill(p);
@@ -93,7 +94,7 @@ async function main() {
     const p = await boot(); await newNovel(p, "cp6");
     const id = await register(p, { title: "Late", body: "the vault code is 4-7-1", domain: "secrets", access_public: true });
     assert((await acquisitions(p, "hero")).length === 0, "knowledge existed before consumption");
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: id });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: id });
     assert((await acquisitions(p, "hero")).length === 1, "knowledge not recorded on consumption");
     await kill(p);
   });
@@ -102,7 +103,7 @@ async function main() {
   await test("T592/REQ-502: first/second-person reference is left unresolved", async () => {
     const p = await boot(); await newNovel(p, "cp7");
     const id = await register(p, { title: "Memoir", body: "I am the rightful king and you will kneel.", domain: "history", access_public: true });
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: id });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: id });
     const acq = await acquisitions(p, "hero");
     assert(acq[0].deixis === "unresolved", "first-person reference was resolved as self: " + JSON.stringify(acq[0]));
     await kill(p);
@@ -113,10 +114,10 @@ async function main() {
     const p = await boot(); await newNovel(p, "cp8");
     const id = await register(p, { title: "Open", body: "plain", domain: "general", access_public: true });
     await call(p, "set_badge", { badge: "player" });
-    const other = await call(p, "manage_corpus", { action: "consume", entity_id: "villain", document_id: id });
+    const other = await corpus(p, { action: "consume", entity_id: "villain", document_id: id });
     assert(other.includes("[FORBIDDEN]"), "Player consume for another entity should be forbidden: " + other.slice(0, 100));
     await call(p, "set_badge", { badge: "observer" });
-    const obs = await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: id });
+    const obs = await corpus(p, { action: "consume", entity_id: "hero", document_id: id });
     assert(obs.includes("[FORBIDDEN]") || obs.includes("[ERROR]"), "Observer consume should fail: " + obs.slice(0, 100));
     await kill(p);
   });
@@ -128,13 +129,13 @@ async function main() {
     const d1 = await register(p, { title: "One", body: "a", domain: "general", access_public: true });
     const d2 = await register(p, { title: "Two", body: "b", domain: "general", access_public: true });
     const d3 = await register(p, { title: "Three", body: "c", domain: "general", access_public: true });
-    const list = JSON.parse(await call(p, "manage_corpus", { action: "list" }));
+    const list = JSON.parse(await corpus(p, { action: "list" }));
     assert(list.length === 2, `document cap not enforced: ${list.length}`);
     assert(!list.some((d: any) => d.id === d1), "oldest document was not evicted");
     assert(list.some((d: any) => d.id === d3), "newest document missing");
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: d2 });
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: d3 });
-    await call(p, "manage_corpus", { action: "consume", entity_id: "hero", document_id: d3 });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: d2 });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: d3 });
+    await corpus(p, { action: "consume", entity_id: "hero", document_id: d3 });
     const acq = await acquisitions(p, "hero");
     assert(acq.length === 2, `acquisition cap not enforced: ${acq.length}`);
     await kill(p);

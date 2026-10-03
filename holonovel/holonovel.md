@@ -475,7 +475,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
 | 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551 |
-| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
@@ -1171,7 +1171,19 @@ A tool `description` carries only information the input schema, output schema, a
 Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
 
 **REQ-450 — TDQS-conformant tool definitions.**
-Every host tool SHALL meet the Glama TDQS standard. Its description SHALL enumerate every action, declare a mutation-class annotation (read-only, destructive, idempotent, or open-world), disclose side effects (persistence, audit, badge gating, reversibility) for each mutating action, and state the return or error behavior for each action. Parameter guidance belongs to the input schema (REQ-427); the description adds only what the schema cannot express (REQ-024c). *Acceptance criterion:* every registered tool carries an annotation matching its mutation class and a description naming all of its actions with side-effect and return behavior. A mutating action lacking side-effect disclosure is a definition defect. _Check:_ T536.
+Every registered tool, host or ruleset-derived, SHALL meet the TDQS conformance contract of REQ-552. Its description SHALL enumerate every action, declare a mutation-class annotation (read-only, destructive, idempotent, or open-world), disclose side effects (persistence, audit, badge gating, reversibility) for each mutating action, and state the return or error behavior for each action. Parameter guidance belongs to the input schema (REQ-427); the description adds only what the schema cannot express (REQ-024c). *Acceptance criterion:* every registered tool carries an annotation matching its mutation class and a description naming all of its actions with side-effect and return behavior. A mutating action lacking side-effect disclosure is a definition defect. _Check:_ T536.
+
+**REQ-552 — TDQS conformance contract.**
+Every registered tool, host or ruleset-derived, SHALL conform to the TDQS standard the build pins in Appendix T.2, evaluated against that standard's six weighted dimensions, hard gates, and passing tier. The deterministic proxy of each dimension SHALL be computed over the live registered surface, not a maintained copy. `spec_health` SHALL report each tool's dimension proxies, the aggregate and minimum proxy, the resulting tier, and every hard-gate defect. The externally graded score remains authoritative; a deterministic proxy SHALL NOT be published as the TDQS score. *Acceptance criterion:* `spec_health` reports every registered tool's dimension proxies and hard-gate status, and no tool falls below the passing tier on the deterministic proxy. _Check:_ T644.
+
+**REQ-553 — Tool-definition hard gates.**
+A tool definition SHALL be defective, independent of its graded dimensions, when its description is absent, restates only the tool's name or title, or contradicts the tool's declared annotations. A description that asserts a read-only operation for a tool declaring mutation, or asserts a mutation for a tool declaring read-only, is a contradiction. A hard-gate defect SHALL be named in `spec_health` with the offending tool and gate and SHALL fail the tool-definition conformance gate. *Acceptance criterion:* fixtures with a missing, tautological, and annotation-contradicting description are each reported and fail the gate; a conformant definition passes. _Check:_ T645.
+
+**REQ-554 — Server tool-surface coherence.**
+The registered surface SHALL satisfy the four TDQS coherence dimensions — disambiguation, naming consistency, tool-count appropriateness, and completeness — evaluated as deterministic proxies over the live registry. Tool names SHALL share one `verb_noun` convention. Every pair of tools whose purposes overlap SHALL be disambiguated in both descriptions or merged. The registered count SHALL remain within the budget recorded in DECISIONS.md (REQ-429), and each coherence proxy SHALL be reported in `spec_health`. *Acceptance criterion:* the four coherence proxies are reported; no registered name deviates from the recorded convention; no overlapping pair remains undisambiguated. _Check:_ T646.
+
+**REQ-555 — Shadowing-risk report.**
+The build SHALL evaluate each registered tool's invocation cost over its required subtree as the TDQS standard defines and SHALL derive the deterministic shadow candidates from those costs using the standard's ratio and absolute-gap rule. A candidate whose purpose genuinely overlaps a cheaper sibling SHALL be reported in `spec_health` as a shadowing risk naming the dearer tool, the cheaper sibling, and both costs. Shadowing risk SHALL be reported beside the coherence score, not folded into it. *Acceptance criterion:* a fixture with an expensive qualified query and a cheap flat lookup reports one shadowing risk naming both tools and their costs; an asymmetric but non-overlapping pair reports none. _Check:_ T647.
 
 **REQ-025a — spec_health (Part a).**
 The `spec_health` report — produced by the `session` tool's `health` action — reports build-health metrics derived from live registrations at call time, not from hardcoded numeric literals.
@@ -4156,7 +4168,7 @@ A package whose declared content hash does not match its contents SHALL be rejec
 The `manage_ruleset (action: install)` tool SHALL validate slug uniqueness and package-format compatibility before activation. The `manage_ruleset (action: remove)` tool SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel binds to its slug. The `manage_ruleset (action: list)` tool SHALL report each installed package with installed-versus-loaded state. All three are GM or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible package-format fingerprint fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `manage_ruleset (action: list)` distinguishes loaded from installed-but-idle packages. _Check:_ T453.
 
 **REQ-430 — Ruleset tool-quality conformance.**
-Every tool schema shipped in a ruleset package SHALL satisfy the tool-documentation contracts of REQ-024a (title, three-clause description) and REQ-427 (per-parameter description). A schema lacking any of these is a package defect (REQ-389). The host SHALL validate each installed package's tool schemas at load, keep non-conformant tools registered but flagged, and surface each in `spec_health` under `ruleset_package_alerts` naming the slug, tool, and defect, without blocking loading. The `spec_health` report SHALL report conformant and non-conformant ruleset-derived tool counts. *Acceptance criterion:* a package whose `lookup_spell` schema omits a parameter description loads with that tool flagged in `spec_health`; after a conformant rebuild the flag clears. _Check:_ T512.
+Every tool schema shipped in a ruleset package SHALL satisfy the TDQS conformance contract of REQ-552, including its hard gates and budget. The Package step (§6.4.2) and `build-ruleset` SHALL refuse to emit a package whose tool schema fails a hard gate or exceeds the budget, naming the defect. The host SHALL validate each installed package's tool schemas at load, keep non-conformant tools registered but flagged, and surface each in `spec_health` under `ruleset_package_alerts` without blocking loading. The gate SHALL cover the full registered surface, including package tools. *Acceptance criterion:* a non-conformant generated tool fails `build-ruleset` naming it; a conformant source emits; a non-conformant installed schema is flagged in `spec_health`. _Check:_ T512, T648.
 
 **REQ-432a — Vendor ruleset package certification (Part a).**
 A ruleset package built from a content source recorded in Appendix U SHALL ship a `source_license` field in its version manifest naming the license and the Appendix U row. `build-ruleset` SHALL populate the field from the source registry (REQ-421). The host SHALL surface `licensed` and `source_license` in `manage_ruleset (action: list)` output.
@@ -4231,7 +4243,7 @@ The distribution SHALL expose `migrate-user-data`, an entry point listing artifa
 The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 **REQ-429 — Server-wide action-discriminator surface.**
-The server SHALL expose one action-discriminator tool per persisted entity type (REQ-413) instead of a sibling tool per operation. The registered catalog SHALL match a budget recorded in DECISIONS.md; adding a tool SHALL require updating that recorded budget and the per-tool justification (REQ-021) in the same change. Every persisted type SHALL be enumerable through a `list` action and readable through a `get`, `info`, `status`, or `knowledge` action on its entity tool. Tool names SHALL follow a uniform `verb_noun` (snake_case) convention, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` count equals the recorded budget and every persisted type has read and enumeration actions. _Check:_ T511.
+The server SHALL expose action-discriminator tools rather than a sibling tool per operation, consolidating related persisted entity types under one tool (REQ-413). The registered catalog SHALL match a budget recorded in DECISIONS.md; adding a tool SHALL require updating that recorded budget and the per-tool justification (REQ-021) in the same change. Every persisted type SHALL be enumerable through a `list` action and readable through a `get`, `info`, `status`, or `knowledge` action on a registered entity tool. Tool names SHALL follow a uniform `verb_noun` (snake_case) convention, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` count equals the recorded budget and every persisted type has read and enumeration actions. _Check:_ T511.
 
 ### 5.19 State Persistence Guardrails
 
@@ -4432,7 +4444,7 @@ WHEN the server enables latent transitions and a proposal conflicts with the adm
 **REQ-493 — Deterministic machine ingress.**
 The server SHALL submit machine-originated state through a deterministic ingress action whose proposals carry a machine origin, and SHALL record them in the transition ledger like any other proposal. *Acceptance criterion:* the server records an ingress submission with a machine origin and applies it when admitted. _Check:_ T583.
 
-**REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through `manage_causal` and a causal-state resource for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
+**REQ-494 — Causal state exposure.** Admitted objective state SHALL be exposed through `manage_world (action: causal_state)` and a causal-state resource for consumption by the world model and briefing surfaces. *Acceptance criterion:* the causal-state resource returns the admitted slots for the active Novel. _Check:_ T584.
 
 **REQ-495 — Causal visibility and badge gating.** Causal-state and ledger reads SHALL be available to every non-observer badge, and proposal and admission SHALL require the Game Master badge. *Acceptance criterion:* a Player reads objective state, and a Player proposal is refused. _Check:_ T585.
 
@@ -4506,7 +4518,7 @@ Knowledge-graph reads SHALL remain read-only, SHALL NOT mutate Novel state, and 
 
 ### 5.32 Perception Ledger
 
-**REQ-540 — Perception record.** THE server SHALL provide `manage_perception` to record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, and the contributing event-log ordinal. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, and summary. _Check:_ T614.
+**REQ-540 — Perception record.** THE server SHALL provide `manage_belief (action: perception_record)` to record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, and the contributing event-log ordinal. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, and summary. _Check:_ T614.
 
 **REQ-541 — Observed, not believed.** Perception entries SHALL be separate from belief: recording a perception SHALL NOT create or alter a belief stance. *Acceptance criterion:* recording a perception leaves the entity's beliefs unchanged. _Check:_ T615.
 
@@ -5087,16 +5099,18 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
    no infrastructure tool is duplicated into the package; (c) no two tools within the
    package share a registered name after prefixing; (d) the `ruleset_prefix_map`
-   matches the B1 slug-to-path mapping;    (e) every ruleset-derived tool schema carries
-   a REQ-024a title in the ruleset's own terms, a three-clause description, a
-   REQ-427 description on every input parameter, and a REQ-450 TDQS-conformant
-   definition — every action enumerated, a mutation-class annotation, and
-   side-effect and return behavior disclosed; (f) no ruleset-derived tool exceeds
-   the REQ-408 parameter ceiling; (g) the tool set honors REQ-021 surface economy and
-   REQ-413 action-discriminator consolidation — sibling-tool proliferation is a
-   packaging defect; (h) every tool description fits the REQ-392 budget and states
-   its ruleset scope. A violation is a
-   packaging defect that SHALL be resolved before handoff.
+   matches the B1 slug-to-path mapping; (e) every ruleset-derived tool schema passes
+   the REQ-430 conformance gate — a REQ-024a title in the ruleset's own terms, a
+   three-clause description, a REQ-427 description on every input parameter, no
+   hard-gate defect (REQ-553), a description within the REQ-024c budget, and a
+   REQ-450 disclosure of every action's side effects and return behavior;
+   (f) no ruleset-derived tool exceeds the REQ-408 parameter ceiling; (g) the tool
+   set honors REQ-021 surface economy and REQ-413 action-discriminator consolidation
+   — sibling-tool proliferation is a packaging defect; (h) every tool description
+   fits the REQ-392 budget and states its ruleset scope. The builder SHALL run the
+   ruleset-package conformance gate over the emitted package and SHALL NOT continue
+   while it reports a defect (REQ-430). A violation is a packaging defect that SHALL
+   be resolved before handoff.
 
 5. **Re-verify per ruleset.** After loading the package into a host, run G2 (golden
    transcript) against the ruleset's fixture in the host, and run the Pattern Buffer
@@ -6788,6 +6802,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
+| `TTRPG_DESCRIPTION_BUDGET` | No | Byte budget applied to a ruleset-derived tool description at load (default 1000, matching the REQ-024c recorded budget); a description over budget is flagged in `spec_health` (REQ-430). |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
@@ -6898,11 +6913,11 @@ discarded by `manage_novel (action: end)`):
 | Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
 | Evidence | Knowledge-carrying | read/write (REQ-461; mutation GM-only) | read-only (own entity, badge-filtered per REQ-472) |
 | Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
-| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_causal`) | read-only (objective state per REQ-495) |
+| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_world (action: causal_state)`) | read-only (objective state per REQ-495) |
 | Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
-| Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_perception`) | read-only (own entity, badge-filtered per REQ-545) |
+| Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_belief (action: perception_record)`) | read-only (own entity, badge-filtered per REQ-545) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -9704,6 +9719,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-114c | Tool-selection coverage (Part c) | 2026-09-26 |
 | REQ-551 | Extraction structural verification | 2026-09-26 |
 | REQ-551a | Extractor divergence flags (Part a) | 2026-09-26 |
+| REQ-552 | TDQS conformance contract | 2026-10-02 |
+| REQ-553 | Tool-definition hard gates | 2026-10-02 |
+| REQ-554 | Server tool-surface coherence | 2026-10-02 |
+| REQ-555 | Shadowing-risk report | 2026-10-02 |
 | REQ-412a | Play-loop orientation token (Part a) | 2026-09-26 |
 | REQ-312e | Narration grounding set (Part e) | 2026-09-26 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
@@ -10381,6 +10400,11 @@ diet.
 | T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
 | T642 | Automated | Tool-definition authoring standard: every registered tool's description fits the recorded byte budget, restates no schema-carried parameter guidance, carries a title at least as long as its name, and documents its output-schema fields. | REQ-024c, REQ-548b |
 | T643 | Automated | Player parser access on a ruleset-bound Novel: with the Player badge, `run_command (action: execute, "look")` and a read-only alias (`inventory`/`i`) succeed, while a navigation command (`go north`) returns `[FORBIDDEN]`; the read-only set excludes navigation and mutation. | REQ-309 |
+| T644 | Automated | TDQS conformance contract: for every registered tool (host and ruleset-derived), compute the six deterministic dimension proxies over the live registry, assert each sits at or above the passing tier, and assert `spec_health` reports the per-tool proxies, the aggregate and minimum, the tier, and every hard-gate defect. | REQ-552 |
+| T645 | Automated | Tool-definition hard gates: assert a missing description, a tautological description, and an annotation-contradicting description are each reported and fail the conformance gate, and assert a conformant definition passes. | REQ-553 |
+| T646 | Automated | Server tool-surface coherence: assert the four coherence proxies are reported over the live registry, no registered name deviates from the recorded `verb_noun` convention, no overlapping pair remains undisambiguated, and the registered count equals the recorded budget. | REQ-554 |
+| T647 | Automated | Shadowing-risk report: assert invocation cost is computed over the required subtree, assert an expensive qualified query against a cheap flat lookup reports a shadowing risk naming both tools and their costs, and assert an asymmetric but non-overlapping pair reports none. | REQ-555 |
+| T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
 
 ---
 
@@ -11829,11 +11853,39 @@ and are not importable; requesting one on an interchange-only surface returns
 
 ### T.2 Tool Definition Authoring Standard
 
-This standard operationalizes the six TDQS dimensions (REQ-450) for every host
-and ruleset-derived tool. A definition is conformant when it satisfies every
-dimension below. The description's job is to add information the structured
-fields do not carry; it earns no credit for restating the schema or the
-annotations (REQ-024c, REQ-392).
+This standard operationalizes TDQS 1.2 (REQ-450, REQ-552) for every host and
+ruleset-derived tool. TDQS is an external, LLM-graded rubric; this standard
+adopts its deterministic parts as build contracts and leaves the graded score
+external. A definition is conformant when it satisfies the six dimensions below
+and passes every hard gate.
+
+The six dimensions and their weights are those of TDQS 1.2:
+
+| # | Dimension | Weight | Question |
+|---|---|---|---|
+| 1 | Purpose Clarity | 25% | Does the description state what the tool does? |
+| 2 | Usage Guidelines | 20% | Does it say when to use this tool versus alternatives? |
+| 3 | Behavioral Transparency | 20% | Does it disclose behavior beyond what annotations declare? |
+| 4 | Parameter Semantics | 15% | Does it add meaning beyond the input schema? |
+| 5 | Conciseness & Structure | 10% | Is it appropriately sized and front-loaded? |
+| 6 | Contextual Completeness | 10% | Given the tool's complexity, is it complete enough? |
+
+**Hard gates.** A definition is defective whatever its dimensions score when its
+description is absent, restates only the name or title, or contradicts its
+declared annotations (REQ-553). The deterministic build proxy applies these
+gates; the tautology gate caps Purpose Clarity, and a contradiction caps
+Behavioral Transparency, in the externally graded score.
+
+**Tier bar.** Scores map to tiers A (≥3.5), B (≥3.0), C (≥2.0), D (≥1.0), F.
+Tier B is the passing bar; the deterministic proxy SHALL report every tool at or
+above it (REQ-552).
+
+**Server-level coherence.** Independently of per-tool scores, the surface is
+judged on four equally weighted dimensions — disambiguation, naming consistency,
+tool-count appropriateness, and completeness — computed as deterministic proxies
+over the live registry (REQ-554). **Shadowing risk** — a tool whose purpose is
+covered by a materially cheaper sibling — is reported beside the coherence score,
+never folded into it (REQ-555).
 
 | Dimension | Rule | Defect |
 |---|---|---|
@@ -11844,14 +11896,16 @@ annotations (REQ-024c, REQ-392).
 | Conciseness & Structure | Front-loaded; no restatement of schema or annotations; within the recorded description budget | Padding, or an over-budget description |
 | Contextual Completeness | The output schema documents every reported field (REQ-548b) | A bare result envelope, or undocumented result fields |
 
-Titles are human-readable expansions of the tool name (REQ-024a) and SHALL be
-at least as long as the name. The description-size budget is recorded once in
-DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
+The description's job is to add information the structured fields do not carry;
+it earns no credit for restating the schema or the annotations (REQ-024c,
+REQ-392). Titles are human-readable expansions of the tool name (REQ-024a) and
+SHALL be at least as long as the name. The description-size budget is recorded
+once in DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
 reports the aggregate listing size (REQ-392). A conformant definition is a
 prerequisite for the Appendices E and F entries and for the package-quality
 audit of REQ-430.
 
-_Check:_ T509, T536, T642.
+_Check:_ T509, T536, T642, T644, T645, T646, T647, T648.
 
 ---
 

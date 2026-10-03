@@ -10,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { createRng, sessionRoll } from "./core/rng.js";
+import { applyHardGates } from "./core/tdqs.js";
 import { PACKAGE_FORMAT } from "./generated/contract-fingerprints.js";
 
 export interface RulesetManifest {
@@ -149,8 +150,29 @@ export function rollDice(notation: string, seed?: string): RollResult {
 }
 
 // REQ-430 — ruleset tool-quality conformance: every package tool schema SHALL
-// carry a title, a three-clause description (REQ-024a), and a description on
-// every input parameter (REQ-427). Returns the list of defects (empty = conformant).
+// satisfy the REQ-552 TDQS conformance contract — a title, a three-clause
+// description (REQ-024a), a description on every input parameter (REQ-427), no
+// hard-gate defect (REQ-553), and a description within the recorded budget
+// (REQ-024c). Returns the list of defects (empty = conformant).
+export const RULESET_DESCRIPTION_BUDGET = Number(process.env.TTRPG_DESCRIPTION_BUDGET ?? 1000);
+
+export type RulesetToolAnnotations = {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+};
+
+// Ruleset-derived tools read indexed data (lookup/search/info) or generate a
+// roll/table result; none mutates Novel state. Read-only is therefore honest,
+// while idempotency differs by kind (REQ-450).
+export function rulesetAnnotations(kind: RulesetToolSchema["kind"]): RulesetToolAnnotations {
+  if (kind === "lookup" || kind === "search" || kind === "info") {
+    return { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+  }
+  return { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+}
+
 export function validateToolSchema(schema: RulesetToolSchema): string[] {
   const defects: string[] = [];
   if (!schema.title || String(schema.title).trim() === "") defects.push("missing title");
@@ -165,6 +187,17 @@ export function validateToolSchema(schema: RulesetToolSchema): string[] {
         defects.push(`parameter '${key}' missing description`);
       }
     }
+  }
+  const hardGates = applyHardGates({
+    name: schema.name,
+    title: schema.title,
+    description: desc,
+    inputSchema: schema.inputSchema,
+    annotations: rulesetAnnotations(schema.kind),
+  });
+  for (const g of hardGates) defects.push(`${g.gate}: ${g.detail}`);
+  if (Buffer.byteLength(desc, "utf-8") > RULESET_DESCRIPTION_BUDGET) {
+    defects.push(`description exceeds the ${RULESET_DESCRIPTION_BUDGET}B budget`);
   }
   return defects;
 }

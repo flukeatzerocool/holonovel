@@ -4,7 +4,18 @@
 // guard (REQ-429), ruleset tool-quality conformance guard (REQ-430), and the
 // gate-classification table guard (REQ-137a/REQ-137b) and the Holodeck
 // behavioral-config discovery guard (REQ-388). Exercises T151, T450, T509,
-// T510, T511, and T512.
+// T510, T511, T512, and T644–T648.
+//
+// T644 (REQ-552): deterministic TDQS conformance over the live registered
+// surface, reported in spec_health.tdqs.
+// T645 (REQ-553): the missing, tautological, and annotation-contradicting hard
+// gates each fail conformance.
+// T646 (REQ-554): the four server-coherence proxies, one naming convention, no
+// undisambiguated overlap.
+// T647 (REQ-555): invocation cost over the required subtree and shadow
+// candidates.
+// T648 (REQ-430): the build-time ruleset package conformance gate refuses a
+// non-conformant tools.json and passes a conformant one.
 //
 // T509 (REQ-427 + REQ-024): boots a ruleset-free host and asserts every
 // registered tool's description carries the three-clause structure (summary,
@@ -38,6 +49,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { applyHardGates, shadowCandidates, computeContextSignals } from "../src/core/tdqs.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -173,19 +185,19 @@ async function main() {
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
   await test("T511/REQ-429: server-wide action-discriminator surface within the recorded tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
-    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_knowledge", "manage_agent", "manage_perception", "manage_session"];
+    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_belief", "manage_identity", "manage_knowledge", "manage_agent", "manage_session"];
     for (const name of requiredEntityTools) {
       assert(toolNames.has(name), `missing entity tool '${name}'`);
     }
     const readActionHints: Record<string, string[]> = {
       manage_novel: ["info", "list"], manage_character: ["sheet", "roster_list"], manage_npc: ["list", "get"],
-      manage_world: ["create_room"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
-      manage_lore: ["list", "get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
+      manage_world: ["create_room", "causal_state"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
+      manage_lore: ["list", "get", "corpus_list", "corpus_get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
       manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_fate: ["roll", "aspect", "fate_point", "stress"],
       resolve_ironsworn: ["momentum", "move", "progress"], resolve_forged: ["action_roll", "stress", "downtime"],
-      manage_belief: ["list", "get"], manage_identity: ["list", "snapshot"], manage_causal: ["list", "state"],
-      manage_corpus: ["list", "get"], manage_knowledge: ["index_status", "index_list", "graph_status", "graph_get", "graph_nodes", "graph_edges"],
-      manage_agent: ["list", "get"], manage_perception: ["list"], manage_session: ["event", "history"],
+      manage_belief: ["list", "get", "perception_list"], manage_identity: ["list", "snapshot"],
+      manage_knowledge: ["index_status", "index_list", "graph_status", "graph_get", "graph_nodes", "graph_edges"],
+      manage_agent: ["list", "get"], manage_session: ["event", "history"],
     };
     for (const [name, actions] of Object.entries(readActionHints)) {
       const tool = tools.find((t) => t.name === name);
@@ -259,6 +271,51 @@ async function main() {
     const q = health.host_tool_quality;
     assert(q && typeof q.checked === "number", "spec_health.host_tool_quality missing");
     assert(q.defective === 0, `host tool quality defects: ${JSON.stringify(q.defects)}`);
+  });
+
+  // ── T644 (REQ-552): deterministic TDQS conformance over the live surface.
+  await test(`T644/REQ-552: spec_health.tdqs reports every registered tool at or above the passing tier`, async () => {
+    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const t = health.tdqs;
+    assert(t && typeof t === "object", "spec_health.tdqs missing (REQ-552)");
+    assert(t.tool_count === tools.length, `tdqs.tool_count ${t.tool_count} != registered ${tools.length}`);
+    assert(typeof t.mean_tdqs === "number" && typeof t.min_tdqs === "number", "tdqs mean/min missing");
+    assert(["A", "B", "C", "D", "F"].includes(t.description_quality_tier), `bad tier '${t.description_quality_tier}'`);
+    assert(Array.isArray(t.below_passing) && t.below_passing.length === 0, `tools below passing tier: ${JSON.stringify(t.below_passing)}`);
+    assert(t.hard_gate_defects && typeof t.hard_gate_defects === "object", "tdqs.hard_gate_defects missing");
+  });
+
+  // ── T645 (REQ-553): hard gates — missing, tautological, contradiction.
+  await test("T645/REQ-553: missing, tautological, and annotation-contradicting definitions fail the hard gates", () => {
+    assert(applyHardGates({ name: "no_desc", description: "  " }).some((f) => f.gate === "No Description"), "missing description not flagged");
+    assert(applyHardGates({ name: "manage_note", description: "manage_note" }).some((f) => f.gate === "Tautological Description"), "tautology not flagged");
+    const contradiction = applyHardGates({ name: "lookup_spell", description: "Creates a new record.", annotations: { readOnlyHint: true } });
+    assert(contradiction.some((f) => f.gate === "Annotation Contradiction"), "annotation contradiction not flagged");
+    assert(applyHardGates({ name: "manage_note", description: "Set a note. Use when: recording. Do NOT use when: manage_lore.", annotations: { readOnlyHint: false } }).length === 0, "conformant definition flagged");
+  });
+
+  // ── T646 (REQ-554): server tool-surface coherence proxies.
+  await test("T646/REQ-554: coherence proxies report one naming convention and no undisambiguated overlap", async () => {
+    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const c = health.tdqs?.coherence;
+    assert(c && typeof c === "object", "spec_health.tdqs.coherence missing (REQ-554)");
+    for (const k of ["disambiguation", "namingConsistency", "toolCountAppropriateness", "completeness", "coherence"]) {
+      assert(typeof c[k] === "number", `coherence.${k} missing`);
+    }
+    assert(c.namingConsistency === 5, `naming consistency ${c.namingConsistency}/5 — a host name deviates from verb_noun`);
+    assert(Array.isArray(c.overlappingPairs) && c.overlappingPairs.length === 0, `overlapping pairs: ${JSON.stringify(c.overlappingPairs)}`);
+  });
+
+  // ── T647 (REQ-555): invocation cost and shadow candidates.
+  await test("T647/REQ-555: shadow candidates derive from required-subtree invocation cost", () => {
+    const cheap = { name: "get_stat", description: "Return a single stat for a player and season.", inputSchema: { type: "object", required: ["a", "b", "c", "d"], properties: { a: { type: "string" }, b: { type: "string" }, c: { type: "string" }, d: { type: "string" } } } };
+    const expensive = { name: "query_panel", description: "Return a single stat for a player and season, with qualifiers.", inputSchema: { type: "object", required: ["sel"], properties: { sel: { type: "object", required: ["population", "window", "measure", "operation"], properties: { population: { type: "string" }, window: { type: "string" }, measure: { type: "object", required: ["kind"], properties: { kind: { type: "string" } } }, operation: { type: "string" } } } } } };
+    assert(computeContextSignals(cheap).invocationCost === 4, "flat four-scalar cost should be 4");
+    assert(computeContextSignals(expensive).invocationCost > computeContextSignals(cheap).invocationCost, "nested query should cost more");
+    const risks = shadowCandidates([cheap, expensive]);
+    assert(risks.length === 1 && risks[0].tool === "query_panel" && risks[0].cheaperSibling === "get_stat", `expected query_panel shadowed by get_stat, got ${JSON.stringify(risks)}`);
+    const nonOverlap = shadowCandidates([cheap, { ...expensive, description: "Aggregate measure variance across windows." }]);
+    assert(nonOverlap.length === 0, `non-overlapping pair should report no risk, got ${JSON.stringify(nonOverlap)}`);
   });
 
   // ── T151 (REQ-137a/REQ-137b): the DECISIONS.md gate-classification table
@@ -353,6 +410,24 @@ async function main() {
     if (tq.length !== 0) throw new Error(`residual tool-quality alerts: ${JSON.stringify(tq)}`);
   });
   proc3.kill("SIGKILL");
+
+  // ── T648 (REQ-430): build-time ruleset package conformance gate.
+  await test("T648/REQ-430: the package gate refuses a non-conformant tools.json and passes a conformant one", () => {
+    const gate = join(ROOT, "scripts", "check-ruleset-package.ts");
+    const badDir = mkdtempSync(join(tmpdir(), "holonovel-ruleset-bad-"));
+    const goodDir = mkdtempSync(join(tmpdir(), "holonovel-ruleset-good-"));
+    writeFileSync(join(badDir, "tools.json"), JSON.stringify([
+      { name: "lookup_spell", title: "Spells", description: "Look up a spell. Use when: casting. Do NOT use when: rolling.", kind: "lookup", inputSchema: { type: "object", properties: { key: { type: "string" } } } },
+    ]));
+    writeFileSync(join(goodDir, "tools.json"), JSON.stringify([
+      { name: "lookup_spell", title: "Spells", description: "Look up a spell. Use when: casting. Do NOT use when: rolling.", kind: "lookup", inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell key." } } } },
+    ]));
+    const bad = spawnSync("npx", ["tsx", gate, badDir], { cwd: ROOT, encoding: "utf-8" });
+    assert(bad.status === 1, `non-conformant package should exit 1, got ${bad.status}: ${bad.stdout}${bad.stderr}`);
+    assert(String(bad.stderr).includes("lookup_spell"), "gate did not name the offending tool");
+    const good = spawnSync("npx", ["tsx", gate, goodDir], { cwd: ROOT, encoding: "utf-8" });
+    assert(good.status === 0, `conformant package should exit 0, got ${good.status}: ${good.stdout}${good.stderr}`);
+  });
 
   // ── T450 (REQ-388a–d) ───────────────────────────────────────────────
   const procT450 = await boot({ TTRPG_PACING_WINDOW: "6", TTRPG_NPC_AUTONOMY: "off", TTRPG_WORLD_REACTIVITY: "on" });

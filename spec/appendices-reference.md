@@ -1246,6 +1246,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-114c | Tool-selection coverage (Part c) | 2026-09-26 |
 | REQ-551 | Extraction structural verification | 2026-09-26 |
 | REQ-551a | Extractor divergence flags (Part a) | 2026-09-26 |
+| REQ-552 | TDQS conformance contract | 2026-10-02 |
+| REQ-553 | Tool-definition hard gates | 2026-10-02 |
+| REQ-554 | Server tool-surface coherence | 2026-10-02 |
+| REQ-555 | Shadowing-risk report | 2026-10-02 |
 | REQ-412a | Play-loop orientation token (Part a) | 2026-09-26 |
 | REQ-312e | Narration grounding set (Part e) | 2026-09-26 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
@@ -1923,6 +1927,11 @@ diet.
 | T641 | Automated | Narration grounding set: a state-mutating response carries a grounding set when validation is enabled. | REQ-312e |
 | T642 | Automated | Tool-definition authoring standard: every registered tool's description fits the recorded byte budget, restates no schema-carried parameter guidance, carries a title at least as long as its name, and documents its output-schema fields. | REQ-024c, REQ-548b |
 | T643 | Automated | Player parser access on a ruleset-bound Novel: with the Player badge, `run_command (action: execute, "look")` and a read-only alias (`inventory`/`i`) succeed, while a navigation command (`go north`) returns `[FORBIDDEN]`; the read-only set excludes navigation and mutation. | REQ-309 |
+| T644 | Automated | TDQS conformance contract: for every registered tool (host and ruleset-derived), compute the six deterministic dimension proxies over the live registry, assert each sits at or above the passing tier, and assert `spec_health` reports the per-tool proxies, the aggregate and minimum, the tier, and every hard-gate defect. | REQ-552 |
+| T645 | Automated | Tool-definition hard gates: assert a missing description, a tautological description, and an annotation-contradicting description are each reported and fail the conformance gate, and assert a conformant definition passes. | REQ-553 |
+| T646 | Automated | Server tool-surface coherence: assert the four coherence proxies are reported over the live registry, no registered name deviates from the recorded `verb_noun` convention, no overlapping pair remains undisambiguated, and the registered count equals the recorded budget. | REQ-554 |
+| T647 | Automated | Shadowing-risk report: assert invocation cost is computed over the required subtree, assert an expensive qualified query against a cheap flat lookup reports a shadowing risk naming both tools and their costs, and assert an asymmetric but non-overlapping pair reports none. | REQ-555 |
+| T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
 
 ---
 
@@ -3046,11 +3055,39 @@ and are not importable; requesting one on an interchange-only surface returns
 
 ### T.2 Tool Definition Authoring Standard
 
-This standard operationalizes the six TDQS dimensions (REQ-450) for every host
-and ruleset-derived tool. A definition is conformant when it satisfies every
-dimension below. The description's job is to add information the structured
-fields do not carry; it earns no credit for restating the schema or the
-annotations (REQ-024c, REQ-392).
+This standard operationalizes TDQS 1.2 (REQ-450, REQ-552) for every host and
+ruleset-derived tool. TDQS is an external, LLM-graded rubric; this standard
+adopts its deterministic parts as build contracts and leaves the graded score
+external. A definition is conformant when it satisfies the six dimensions below
+and passes every hard gate.
+
+The six dimensions and their weights are those of TDQS 1.2:
+
+| # | Dimension | Weight | Question |
+|---|---|---|---|
+| 1 | Purpose Clarity | 25% | Does the description state what the tool does? |
+| 2 | Usage Guidelines | 20% | Does it say when to use this tool versus alternatives? |
+| 3 | Behavioral Transparency | 20% | Does it disclose behavior beyond what annotations declare? |
+| 4 | Parameter Semantics | 15% | Does it add meaning beyond the input schema? |
+| 5 | Conciseness & Structure | 10% | Is it appropriately sized and front-loaded? |
+| 6 | Contextual Completeness | 10% | Given the tool's complexity, is it complete enough? |
+
+**Hard gates.** A definition is defective whatever its dimensions score when its
+description is absent, restates only the name or title, or contradicts its
+declared annotations (REQ-553). The deterministic build proxy applies these
+gates; the tautology gate caps Purpose Clarity, and a contradiction caps
+Behavioral Transparency, in the externally graded score.
+
+**Tier bar.** Scores map to tiers A (≥3.5), B (≥3.0), C (≥2.0), D (≥1.0), F.
+Tier B is the passing bar; the deterministic proxy SHALL report every tool at or
+above it (REQ-552).
+
+**Server-level coherence.** Independently of per-tool scores, the surface is
+judged on four equally weighted dimensions — disambiguation, naming consistency,
+tool-count appropriateness, and completeness — computed as deterministic proxies
+over the live registry (REQ-554). **Shadowing risk** — a tool whose purpose is
+covered by a materially cheaper sibling — is reported beside the coherence score,
+never folded into it (REQ-555).
 
 | Dimension | Rule | Defect |
 |---|---|---|
@@ -3061,12 +3098,14 @@ annotations (REQ-024c, REQ-392).
 | Conciseness & Structure | Front-loaded; no restatement of schema or annotations; within the recorded description budget | Padding, or an over-budget description |
 | Contextual Completeness | The output schema documents every reported field (REQ-548b) | A bare result envelope, or undocumented result fields |
 
-Titles are human-readable expansions of the tool name (REQ-024a) and SHALL be
-at least as long as the name. The description-size budget is recorded once in
-DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
+The description's job is to add information the structured fields do not carry;
+it earns no credit for restating the schema or the annotations (REQ-024c,
+REQ-392). Titles are human-readable expansions of the tool name (REQ-024a) and
+SHALL be at least as long as the name. The description-size budget is recorded
+once in DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
 reports the aggregate listing size (REQ-392). A conformant definition is a
 prerequisite for the Appendices E and F entries and for the package-quality
 audit of REQ-430.
 
-_Check:_ T509, T536, T642.
+_Check:_ T509, T536, T642, T644, T645, T646, T647, T648.
 

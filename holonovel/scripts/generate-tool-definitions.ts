@@ -26,6 +26,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { computeContextSignals } from "../src/core/tdqs.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT_PATH = join(ROOT, "tool-definitions.json");
@@ -42,6 +43,9 @@ interface ToolRecord {
   params: Record<string, string>;
   output_fields: Record<string, string>;
   annotations: Record<string, boolean> | null;
+  // REQ-552/REQ-555 — deterministic context signals (schema depth, required
+  // fields, union choices, invocation cost) for the static conformance lint.
+  context_signals: Record<string, number | boolean>;
   category: string;
   gate: string;
 }
@@ -108,6 +112,14 @@ function buildRecord(t: any): ToolRecord {
   const outputFields: Record<string, string> = {};
   for (const k of Object.keys(outProps)) outputFields[k] = String(outProps[k]?.description ?? "");
   const description = typeof t.description === "string" ? t.description : "";
+  const contextSignals = computeContextSignals({
+    name: t.name,
+    title: typeof t.title === "string" ? t.title : "",
+    description,
+    inputSchema: schema,
+    outputSchema: t.outputSchema ?? null,
+    annotations: t.annotations ?? null,
+  });
   return {
     name: t.name,
     title: typeof t.title === "string" ? t.title : "",
@@ -119,6 +131,7 @@ function buildRecord(t: any): ToolRecord {
     params: sortedKeys(params),
     output_fields: sortedKeys(outputFields),
     annotations: t.annotations && typeof t.annotations === "object" ? sortedKeys({ ...t.annotations }) as Record<string, boolean> : null,
+    context_signals: contextSignals as unknown as Record<string, number | boolean>,
     category: "", // populated by the consumer from TOOL_CATEGORIES; kept for schema stability
     gate: "",
   };
@@ -127,7 +140,7 @@ function buildRecord(t: any): ToolRecord {
 function buildArtifact(tools: any[]): Artifact {
   const records = tools.map(buildRecord).sort((a, b) => a.name.localeCompare(b.name));
   return {
-    schema_version: 1,
+    schema_version: 2,
     tool_count: records.length,
     tools_list_bytes: Buffer.byteLength(JSON.stringify(tools), "utf-8"),
     tools: records,
