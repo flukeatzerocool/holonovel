@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-02 — TDQS conformance enforcement and tool-surface consolidation
+
+Adopts TDQS 1.2 as a normative build contract, adds deterministic hard-gate,
+coherence, and shadowing checks, guarantees that ruleset-derived tools conform,
+and consolidates the knowledge cluster to reduce the tool surface.
+
+- **TDQS conformance is now a spec contract.** Every registered tool — host or
+  ruleset-derived — must satisfy the six TDQS dimensions, the hard gates
+  (missing, tautological, or annotation-contradicting descriptions), and the
+  passing tier; the server surface must satisfy the four coherence dimensions,
+  with shadowing risk reported beside the score. The deterministic proxies are
+  exposed in `spec_health.tdqs`; the LLM-graded score stays external.
+  (REQ-552–REQ-555, Appendix T.2)
+- **Ruleset tools are gated, not just documented.** A package whose tool schema
+  fails a hard gate or the description budget is refused at build and flagged
+  at load, and the conformance check runs over the full live surface. New
+  `check-ruleset-package` gate. (REQ-430)
+- **Tool surface consolidated 33 → 30.** The perception ledger, causal
+  transition validation, and knowledge corpus are now actions of
+  `manage_belief`, `manage_world`, and `manage_lore` respectively, reducing the
+  surface count without changing behavior. (REQ-429)
+- **Description fixes from the Glama TDQS report.** Removed a duplicated
+  read-only clause from `run_command` and sharpened the sibling boundaries of
+  `manage_combat`, `manage_scene`, and `manage_session`.
+- **Deploy note.** The package-format and data-format fingerprints changed, so
+  installed ruleset packages must be rebuilt (`update-rulesets` + Build) and
+  existing user data re-stamped (`migrate-user-data --apply`).
+
 ## 2026-10-02 — Holosuite deterministic evaluation tiers
 
 Adds the first increment of the Holosuite test environment: a shared evaluation

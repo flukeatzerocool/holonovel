@@ -2,7 +2,7 @@
 
 **Spec hash:** 2f5a31227f7dbb9bd73ffe35667c01ae0299a75ce810f5b00280d878e86f4426
 
-**Recorded tool budget:** 33 (REQ-429)
+**Recorded tool budget:** 30 (REQ-429)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
@@ -149,11 +149,8 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_note` | un-gated | Player, Game Master |
 | `manage_belief` | un-gated | Player, Game Master |
 | `manage_identity` | un-gated | Player, Game Master |
-| `manage_causal` | un-gated | Player, Game Master |
-| `manage_corpus` | un-gated | Player, Game Master |
 | `manage_knowledge` | un-gated | Player, Game Master |
 | `manage_agent` | un-gated | Player, Game Master |
-| `manage_perception` | un-gated | Player, Game Master |
 | `manage_session` | un-gated | Player, Game Master |
 | `manage_adventure` | un-gated | Player, Game Master |
 | `manage_novel` | un-gated | Player, Game Master |

@@ -125,7 +125,7 @@ async function main() {
     assertNotContains(h, "**Combat:**", "T62c GM-only combat hidden from player");
     // REQ-067: GM-mutation tools stay hidden from the Player task map, while
     // the player-readable derived surfaces remain discoverable.
-    for (const name of ["manage_belief", "manage_identity", "manage_causal", "manage_corpus", "manage_agent", "manage_perception"]) {
+    for (const name of ["manage_belief", "manage_identity", "manage_agent"]) {
       assertNotContains(h, name, `T62c GM-only ${name} hidden from player`);
     }
     for (const name of ["manage_knowledge"]) {

@@ -22,6 +22,10 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import {
+  applyHardGates, dimensionProxies, computeTdqs, computeTier, PASSING_TIER,
+  coherenceProxies, shadowCandidatesWithCosts, type ContextSignals, type ToolDefinition,
+} from "../holonovel/src/core/tdqs.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT = join(ROOT, "holonovel", "tool-definitions.json");
@@ -38,7 +42,8 @@ interface ToolRecord {
   name: string; title: string; description: string; description_bytes: number;
   action_enum: string[]; param_count: number; required: string[];
   params: Record<string, string>; output_fields: Record<string, string>;
-  annotations: Record<string, boolean> | null; category: string; gate: string;
+  annotations: Record<string, boolean> | null; context_signals?: ContextSignals;
+  category: string; gate: string;
 }
 interface Artifact { schema_version: number; tool_count: number; tools_list_bytes: number; tools: ToolRecord[]; }
 
@@ -103,11 +108,44 @@ for (const t of artifact.tools) {
       violations.push(`${t.name}: mutating-tool disclosure missing persistence and/or reversibility vocabulary (REQ-450)`);
     }
   }
+  // REQ-553 — TDQS hard gates.
+  const def: ToolDefinition = { name: t.name, title: t.title, description: desc, annotations: t.annotations };
+  for (const g of applyHardGates(def)) {
+    violations.push(`${t.name}: hard gate ${g.gate} — ${g.detail} (REQ-553)`);
+  }
+  // REQ-552 — deterministic TDQS proxy must clear the passing tier.
+  if (t.context_signals) {
+    const scores = dimensionProxies(def, t.context_signals, [...names], budget);
+    const proxy = computeTdqs(scores);
+    if (computeTier(proxy) > PASSING_TIER) {
+      violations.push(`${t.name}: deterministic TDQS proxy ${proxy} below the passing tier ${PASSING_TIER} (REQ-552)`);
+    }
+  }
 }
 
+// REQ-554 — server tool-surface coherence over the live catalog.
+const defs: ToolDefinition[] = artifact.tools.map((t) => ({ name: t.name, title: t.title, description: t.description, annotations: t.annotations }));
+const coherence = coherenceProxies(defs);
+if (coherence.namingConsistency < 5) {
+  violations.push(`surface naming consistency ${coherence.namingConsistency}/5 — a tool name deviates from verb_noun (REQ-554)`);
+}
+for (const [a, b] of coherence.overlappingPairs) {
+  violations.push(`overlapping pair ${a} / ${b} not disambiguated in both descriptions (REQ-554)`);
+}
+// REQ-555 — shadowing candidates are reported beside the score, never gated.
+const shadowRisks = shadowCandidatesWithCosts(
+  artifact.tools
+    .filter((t) => t.context_signals)
+    .map((t) => ({ name: t.name, description: t.description, cost: Number(t.context_signals!.invocationCost ?? 0) })),
+);
+
 if (process.argv.slice(2).includes("--json")) {
-  process.stdout.write(JSON.stringify({ tool_count: artifact.tool_count, budget, violations }, null, 2) + "\n");
+  process.stdout.write(JSON.stringify({ tool_count: artifact.tool_count, budget, violations, shadowing_risks: shadowRisks }, null, 2) + "\n");
   process.exit(violations.length === 0 ? 0 : 1);
+}
+
+if (shadowRisks.length > 0) {
+  for (const r of shadowRisks) console.error(`WARNING: shadowing risk — ${r.tool} (cost ${r.invocationCost}) may be shadowed by ${r.cheaperSibling} (cost ${r.cheaperSiblingInvocationCost}) (REQ-555)`);
 }
 
 if (violations.length > 0) {

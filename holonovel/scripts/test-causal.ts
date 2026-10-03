@@ -20,6 +20,7 @@ function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) =>
 async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "causal", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function readRes(proc: any, uri: string): Promise<string> { const r = await send(proc, { method: "resources/read", params: { uri } }); const c = r.result?.contents ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
+const causal = (p: any, args: any) => { const out: any = { action: `causal_${args.action}` }; for (const [k, v] of Object.entries(args)) if (k !== "action") out[`causal_${k}`] = v; return call(p, "manage_world", out); };
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;
@@ -28,9 +29,9 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 }
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
-async function propose(p: any, args: any): Promise<string> { const r = await call(p, "manage_causal", { action: "propose", ...args }); const m = r.match(/Proposal (tp-\d+)/); if (!m) throw new Error("propose failed: " + r.slice(0, 160)); return m[1]; }
-async function admit(p: any, id: string): Promise<string> { return call(p, "manage_causal", { action: "admit", proposal_id: id }); }
-async function state(p: any): Promise<any[]> { const t = await call(p, "manage_causal", { action: "state" }); try { return JSON.parse(t); } catch { return []; } }
+async function propose(p: any, args: any): Promise<string> { const r = await causal(p, { action: "propose", ...args }); const m = r.match(/Proposal (tp-\d+)/); if (!m) throw new Error("propose failed: " + r.slice(0, 160)); return m[1]; }
+async function admit(p: any, id: string): Promise<string> { return causal(p, { action: "admit", proposal_id: id }); }
+async function state(p: any): Promise<any[]> { const t = await causal(p, { action: "state" }); try { return JSON.parse(t); } catch { return []; } }
 
 async function main() {
   // ── T574: proposal recorded before application (REQ-484) ─────────────
@@ -39,7 +40,7 @@ async function main() {
     const id = await propose(p, { entity: "hero", key: "location", value: "roomA" });
     const slots = await state(p);
     assert(slots.length === 0, "proposal changed state before admission");
-    const ledger = JSON.parse(await call(p, "manage_causal", { action: "list" }));
+    const ledger = JSON.parse(await causal(p, { action: "list" }));
     assert(ledger[0].id === id && ledger[0].decision === "underdetermined", "proposal not recorded as underdetermined");
     await kill(p);
   });
@@ -119,7 +120,7 @@ async function main() {
     const p = await boot(); await newNovel(p, "cs8");
     const id = await propose(p, { scope: "elsewhere", entity: "hero", key: "location", value: "roomA" });
     await admit(p, id);
-    const ledger = JSON.parse(await call(p, "manage_causal", { action: "list" }));
+    const ledger = JSON.parse(await causal(p, { action: "list" }));
     const rec = ledger.find((r: any) => r.id === id);
     assert(rec && rec.decision === "rejected_impossible", "refused proposal not preserved: " + JSON.stringify(rec));
     await kill(p);
@@ -137,9 +138,9 @@ async function main() {
   // ── T583: deterministic machine ingress (REQ-493) ────────────────────
   await test("T583/REQ-493: machine ingress admits in one step with machine origin", async () => {
     const p = await boot(); await newNovel(p, "cs10");
-    const r = await call(p, "manage_causal", { action: "ingress", domain: "scalar", entity: "reactor", key: "output", value: 40 });
+    const r = await causal(p, { action: "ingress", domain: "scalar", entity: "reactor", key: "output", value: 40 });
     assert(r.includes("admitted"), "ingress not admitted: " + r);
-    const ledger = JSON.parse(await call(p, "manage_causal", { action: "list" }));
+    const ledger = JSON.parse(await causal(p, { action: "list" }));
     assert(ledger[0].origin_source === "machine", "ingress origin not machine: " + JSON.stringify(ledger[0]));
     await kill(p);
   });
@@ -158,9 +159,9 @@ async function main() {
     const p = await boot(); await newNovel(p, "cs12");
     await admit(p, await propose(p, { entity: "hero", key: "location", value: "roomA" }));
     await call(p, "set_badge", { badge: "player" });
-    const rd = await call(p, "manage_causal", { action: "state" });
+    const rd = await causal(p, { action: "state" });
     assert(rd.includes("roomA"), "Player should read objective state: " + rd.slice(0, 80));
-    const prop = await call(p, "manage_causal", { action: "propose", entity: "hero", key: "location", value: "roomC" });
+    const prop = await causal(p, { action: "propose", entity: "hero", key: "location", value: "roomC" });
     assert(prop.includes("[FORBIDDEN]") || prop.includes("[ERROR]"), "Player propose should be forbidden: " + prop.slice(0, 80));
     await kill(p);
   });

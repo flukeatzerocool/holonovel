@@ -17,14 +17,15 @@ function send(proc: any, msg: any): Promise<any> { return new Promise((r) => { c
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON */ } } }); }
 async function boot() { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "percept", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); return (r.result?.content ?? []).map((x: any) => x?.text ?? "").join("\n"); }
+const perception = (p: any, args: any) => { const out: any = { action: `perception_${args.action}` }; for (const [k, v] of Object.entries(args)) if (k !== "action") out[`perception_${k}`] = v; return call(p, "manage_belief", out); };
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;
 async function test(name: string, fn: () => void | Promise<void>) { try { await fn(); passed++; console.log(`PASS ${name}`); } catch (e: any) { failed++; console.error(`FAIL ${name}: ${e.message ?? e}`); } }
 function assert(c: any, m: string) { if (!c) throw new Error(m); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
-async function rec(p: any, args: any) { return call(p, "manage_perception", { action: "record", ...args }); }
-async function forEntity(p: any, id: string): Promise<any[]> { const t = await call(p, "manage_perception", { action: "for_entity", entity_id: id }); try { return JSON.parse(t); } catch { return []; } }
+async function rec(p: any, args: any) { return perception(p, { action: "record", ...args }); }
+async function forEntity(p: any, id: string): Promise<any[]> { const t = await perception(p, { action: "for_entity", entity_id: id }); try { return JSON.parse(t); } catch { return []; } }
 
 async function main() {
   await test("T614/REQ-540: a perception is recorded with kind and summary", async () => {
@@ -56,7 +57,7 @@ async function main() {
     const p = await boot(); await newNovel(p, "pc4");
     await call(p, "manage_session", { action: "event", text: "a horn sounds" });
     await rec(p, { entity_id: "hero", summary: "heard the horn" }); // defaults to latest event ordinal
-    const byEvent = JSON.parse(await call(p, "manage_perception", { action: "for_event", event_ordinal: 1 }));
+    const byEvent = JSON.parse(await perception(p, { action: "for_event", event_ordinal: 1 }));
     assert(byEvent.length === 1 && byEvent[0].entity_id === "hero", "event provenance wrong: " + JSON.stringify(byEvent));
     await kill(p);
   });
@@ -77,10 +78,10 @@ async function main() {
     await rec(p, { entity_id: "hero", summary: "x" });
     await rec(p, { entity_id: "villain", summary: "y" });
     await call(p, "set_badge", { badge: "player" });
-    const forbidden = await call(p, "manage_perception", { action: "for_entity", entity_id: "villain" });
+    const forbidden = await perception(p, { action: "for_entity", entity_id: "villain" });
     assert(forbidden.includes("[FORBIDDEN]"), "Player read of another entity should be forbidden: " + forbidden.slice(0, 100));
     await call(p, "set_badge", { badge: "observer" });
-    const obs = await call(p, "manage_perception", { action: "record", entity_id: "hero", summary: "z" });
+    const obs = await perception(p, { action: "record", entity_id: "hero", summary: "z" });
     assert(obs.includes("[FORBIDDEN]") || obs.includes("[ERROR]"), "Observer record should fail: " + obs.slice(0, 100));
     await kill(p);
   });

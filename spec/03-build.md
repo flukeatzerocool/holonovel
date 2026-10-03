@@ -546,16 +546,18 @@ workflows G2–G5 before packaging begins. The step SHALL operate in this order:
    every ruleset-derived tool carries a `ruleset` annotation matching its slug; (b)
    no infrastructure tool is duplicated into the package; (c) no two tools within the
    package share a registered name after prefixing; (d) the `ruleset_prefix_map`
-   matches the B1 slug-to-path mapping;    (e) every ruleset-derived tool schema carries
-   a REQ-024a title in the ruleset's own terms, a three-clause description, a
-   REQ-427 description on every input parameter, and a REQ-450 TDQS-conformant
-   definition — every action enumerated, a mutation-class annotation, and
-   side-effect and return behavior disclosed; (f) no ruleset-derived tool exceeds
-   the REQ-408 parameter ceiling; (g) the tool set honors REQ-021 surface economy and
-   REQ-413 action-discriminator consolidation — sibling-tool proliferation is a
-   packaging defect; (h) every tool description fits the REQ-392 budget and states
-   its ruleset scope. A violation is a
-   packaging defect that SHALL be resolved before handoff.
+   matches the B1 slug-to-path mapping; (e) every ruleset-derived tool schema passes
+   the REQ-430 conformance gate — a REQ-024a title in the ruleset's own terms, a
+   three-clause description, a REQ-427 description on every input parameter, no
+   hard-gate defect (REQ-553), a description within the REQ-024c budget, and a
+   REQ-450 disclosure of every action's side effects and return behavior;
+   (f) no ruleset-derived tool exceeds the REQ-408 parameter ceiling; (g) the tool
+   set honors REQ-021 surface economy and REQ-413 action-discriminator consolidation
+   — sibling-tool proliferation is a packaging defect; (h) every tool description
+   fits the REQ-392 budget and states its ruleset scope. The builder SHALL run the
+   ruleset-package conformance gate over the emitted package and SHALL NOT continue
+   while it reports a defect (REQ-430). A violation is a packaging defect that SHALL
+   be resolved before handoff.
 
 5. **Re-verify per ruleset.** After loading the package into a host, run G2 (golden
    transcript) against the ruleset's fixture in the host, and run the Pattern Buffer

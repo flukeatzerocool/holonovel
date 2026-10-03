@@ -154,6 +154,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
+| `TTRPG_DESCRIPTION_BUDGET` | No | Byte budget applied to a ruleset-derived tool description at load (default 1000, matching the REQ-024c recorded budget); a description over budget is flagged in `spec_health` (REQ-430). |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
@@ -264,11 +265,11 @@ discarded by `manage_novel (action: end)`):
 | Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
 | Evidence | Knowledge-carrying | read/write (REQ-461; mutation GM-only) | read-only (own entity, badge-filtered per REQ-472) |
 | Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
-| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_causal`) | read-only (objective state per REQ-495) |
+| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_world (action: causal_state)`) | read-only (objective state per REQ-495) |
 | Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
-| Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_perception`) | read-only (own entity, badge-filtered per REQ-545) |
+| Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_belief (action: perception_record)`) | read-only (own entity, badge-filtered per REQ-545) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
