@@ -87,7 +87,7 @@ server condition it rests on: `hallucinated_tool`, `wrong_tool`,
 ## Holosuite tiers
 
 The playtest harness is the stochastic tier of the **Holosuite** evaluation
-environment (`plans/2026-10-02-holosuite`). Two deterministic tiers run
+environment (`plans/2026-10-02-holosuite`). Four deterministic tiers run
 alongside it and gate CI/pre-push:
 
 - **T0 `conformance`** (`scripts/holosuite.ts --tier=conformance`) — the live
@@ -98,11 +98,21 @@ alongside it and gate CI/pre-push:
   seeded world-mutation sequence asserting read-only non-mutation, gating
   refusals, undo round-trip, envelope recognition, and fingerprint continuity
   across a server restart.
+- **T3 `adversarial`** (`scripts/holosuite.ts --tier=adversarial`) — a bounded
+  battery of malformed, unknown, oversized, and hostile inputs: a known tool
+  with bad arguments still returns a recognized envelope, an unknown tool
+  returns a well-formed protocol error, the server stays live, and read-only
+  injection probes never move the state fingerprint. Scoped to classes the
+  STRIDE harness (`test-security`) does not own.
+- **T4 `differential`** (`scripts/holosuite.ts --tier=differential`) — two
+  independently built Novels receiving the same operations in different orders,
+  plus a same-sequence replay in a third process and a restart, asserting an
+  order-independent world projection is identical.
 
-Both tiers are deterministic (fixed seed, small step count) and wired into
+All four tiers are deterministic (fixed seed, small step count) and wired into
 `holonovel/package.json`, `scripts/run-test-suite.ts`, `.github/workflows/ci.yml`,
-and `.githooks/pre-push`. Adversarial, differential, and Understudies tiers are
-follow-on increments.
+and `.githooks/pre-push`. The stochastic Understudies tier and the mutation audit
+are follow-on increments.
 
 ## Related
 

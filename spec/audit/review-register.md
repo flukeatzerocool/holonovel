@@ -501,7 +501,19 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-None.
+- **Holosuite II — adversarial + differential tiers** (scheduled 2026-10-02):
+  the full-suite run found the tier backlog untracked. Schedule T3 adversarial
+  and T4 differential scoped against test-security, test-limits,
+  test-persistence, test-persistence-guardrails, and PB S13/S17/S20/S25/S29
+  (REQ-001, REQ-002, REQ-032, REQ-041, REQ-050, REQ-450), and disposition the
+  seven PB follow-on sub-workflows (S15, S21, S23, S24, S25, S27, S33) and the
+  S10/S11 stubs. Plan: `plans/2026-10-02-holosuite-followons`.
+
+- **Holosuite III — Understudies + method audit** (scheduled 2026-10-02):
+  blocked on a spec addition — the "nine analytic lenses" and a mutation-audit
+  catch rate are undefined in `spec/` (REQ-050, REQ-141m). Understudies needs
+  operator-supplied campaign assets and an LLM driver, so it never blocks.
+  Plan: `plans/2026-10-02-holosuite-followons`.
 
 ## Closed-P3 (recorded, no action)
 
