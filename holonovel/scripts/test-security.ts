@@ -9,8 +9,8 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createHash } from "node:crypto";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -32,10 +32,7 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 
 function contentHash(pkg: any): string {
-  const canonical = (obj: any) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
-  const h = createHash("sha256");
-  for (const obj of [pkg.index, pkg.model, pkg.tools, pkg.resources, pkg.prompts]) h.update(canonical(obj));
-  return h.digest("hex");
+  return sha256Canonical(pkg.index, pkg.model, pkg.tools, pkg.resources, pkg.prompts);
 }
 const RULESET_PKG = {
   slug: "sectest",

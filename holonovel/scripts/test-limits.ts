@@ -8,6 +8,7 @@ import { mkdtempSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { resourceReader } from "./lib/jsonrpc.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -79,11 +80,7 @@ function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 async function health(proc: ChildProcess): Promise<any> {
   return JSON.parse(await call(proc, "manage_session", { action: "health" }));
 }
-async function readResource(proc: ChildProcess, uri: string): Promise<string> {
-  const resp = await send(proc, { method: "resources/read", params: { uri } });
-  if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
-  return (resp.result?.contents ?? []).map((c: any) => (c?.text ?? "")).join("\n");
-}
+const readResource = resourceReader(send);
 async function promptText(proc: ChildProcess, name: string, args: Record<string, unknown> = {}): Promise<string> {
   const resp = await send(proc, { method: "prompts/get", params: { name, arguments: args } });
   if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);

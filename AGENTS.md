@@ -53,14 +53,17 @@ scripts/validate.ts     Cross-reference checker with --traceability flag
                           merged here)
 scripts/fmea.ts               REQ-level failure mode and effects skeleton
 scripts/graph-deps.ts         REQ dependency graph (DOT/Graphviz output)
-scripts/lib/parse-spec.ts     Shared parsers (readSpec, extractReqBodies)
+scripts/lib/parse-spec.ts     Shared parsers (readSpec, extractReqBodies, extractReqHeaders)
 scripts/lib/parse-readme.ts   README structural parsers (headings, links, blockquotes)
 scripts/lib/hash.ts           Shared SHA-256 helpers (sha256, hashFile)
 scripts/lib/walk.ts           Shared recursive file walker (walkFiles, walkTsFiles)
 scripts/lib/similarity.ts     Shared tokenize + Jaccard for near-duplicate checks
+scripts/lib/script-discipline.ts Pure script-discipline detectors (contentIssues, shellIssues)
+scripts/lib/script-quality.ts Pure script-quality detectors (duplicate helpers, REQ-header predicate)
 scripts/lib/phase-map-hash.ts Build-phase-map content hash (REQ-278)
-scripts/check-script-quality.ts Script quality gate: reachability (C1, gated) plus
-                          duplicate-helper / repeated-parse / parser-bypass reports
+scripts/check-script-quality.ts Script quality gate: reachability (C1) plus duplicate-helper
+                          (C2), repeated-parse (C3), and parser-bypass (C4) — all gated
+scripts/test-script-tooling.ts Self-tests for the discipline and quality detectors
 scripts/validate-readme.ts    README guardrail (structure, voice, links, comparison table)
 scripts/detect-near-dupes.ts   Near-duplicate paragraph detector
 scripts/check-traceability.ts  DECISIONS.md traceability drift check (Deferred/Waived
@@ -152,10 +155,12 @@ harness is a gate role; it must be wired into a `package.json` script
 (`checkHarnessGating` enforces this).
 
 **Mechanically enforced (`npm run check-script-discipline`, wired into
-`check:fast` and `check`):**
+`check:fast` and `check`; the detectors live in
+`scripts/lib/script-discipline.ts` and are self-tested by
+`test-script-tooling`):**
 
 - Every top-level script starts with a shebang (`#!/usr/bin/env npx tsx` for
-  TS, `#!/usr/bin/env node` for harnesses, `#!/bin/sh`/`#!/usr/bin/env bash`
+  TS, `#!/usr/bin/env node` for `.mjs` and harnesses, `#!/bin/sh`/`#!/usr/bin/env bash`
   for shell) and a JSDoc header naming the script's role, purpose, exit-code
   contract, and REQ citations (when it implements a spec contract).
 - Every script header declares one of the four roles — `[gate]`,
@@ -194,8 +199,11 @@ harness is a gate role; it must be wired into a `package.json` script
   check, confirm no existing script covers its finding class — extend rather
   than duplicate (`action-conflicts.ts` already covers action-contract
   conflicts; `checkSectionIndexCompleteness` covers §5 map coverage).
-  `check-script-quality` C1 gates reachability and reports duplicate helper
-  bodies (C2), repeated parses (C3), and REQ-regex parser bypasses (C4).
+  `check-script-quality` (detectors in `scripts/lib/script-quality.ts`) gates
+  reachability (C1), duplicate helpers (C2), repeated parses (C3), and
+  REQ-header-shape parser bypasses (C4); a finding is suppressed only by a
+  reviewed exception in `spec/audit/script-quality-baseline.json`, and the
+  detectors are self-tested by `test-script-tooling`.
 - Shell discipline: `set -euo pipefail`, a case-based flag parser, `--help`,
   color only on TTY. CI workflow steps rely on script exit codes and never
   swallow them. (Shebang, header, `set -euo pipefail`, exit codes, and the
@@ -225,8 +233,9 @@ This runs:
 | `npm run test:validators`  | Validator self-tests (`scripts/test-req-checks.ts`) — guards the REQ-integrity checks against regression |
 | `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
 | `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
-| `npm run check-script-discipline` | Script standards (shebang, header, role token, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` |
-| `npm run check-script-quality` | Script quality — C1 reachability as a gate (every script wired, imported, referenced by a hook/CI/pipeline, or allowlisted in `spec/audit/script-quality-baseline.json`); C2 duplicate-helper, C3 repeated-parse, C4 shared-parser-bypass are report-only while their false-positive rate is measured |
+| `npm run check-script-discipline` | Script standards (shebang, header, role token, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` TS **and `.mjs`** plus shell entry points |
+| `npm run check-script-quality` | Script quality — C1 reachability, C2 duplicate-helper, C3 repeated-parse, C4 REQ-header-shape shared-parser-bypass, all hard gates; a finding is suppressed only by a reviewed exception in `spec/audit/script-quality-baseline.json` |
+| `npm run test:script-tooling` | Self-tests (`scripts/test-script-tooling.ts`) for the discipline and quality detectors — guards both gates against regression |
 | `npm run check-markers` | `@spec:` marker freshness — README (and wiki with `--include-wiki`) values must equal the spec-derived values (`cross-property-couple.ts --check`) |
 | `npm run check-registers` | Review/proofread register structure — terminal dispositions, Scheduled-roadmap↔ROADMAP traceability, proofread disposition tokens (report-only; `check-registers:strict` gates in `check`) |
 

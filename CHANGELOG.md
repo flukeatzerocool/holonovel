@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-02 — Script audit, consolidation, and standards hardening
+
+Audits every script in both trees, extracts the residual duplicated helpers,
+routes REQ-header parsing through the shared parser, and promotes the script
+quality checks to hard gates backed by a regression self-test.
+
+- **Script audit.** Ran the spec gates, the full server suite (`test:all`
+  41/41), the Holosuite deterministic tiers and mutation audit, and every
+  standalone script; findings recorded in `spec/audit/review-register.md`.
+- **Helper consolidation.** `readResource`/`readRes` across six harnesses move
+  to `holonovel/scripts/lib/jsonrpc.ts`; `contentHash`/`packageContentHash`
+  across five harnesses use `sha256Canonical` (`scripts/lib/hash.ts`).
+  `compare-spec-code` memoizes its repeated spec/script reads; `validate`
+  hoists its walked file lists.
+- **Shared REQ parsing.** `parse-spec.ts` gains `extractReqHeaders`/
+  `extractReqEntries`; `fmea` (undercounted suffix REQs 1098 → 1187),
+  `validate`'s block/violation/cross-ref/§5-map scans, and `test-spec-tooling`
+  use it.
+- **Standards hardened.** `check-script-discipline` covers `.mjs`; detectors
+  move to `scripts/lib/script-discipline.ts`. `check-script-quality` C2/C3/C4
+  are now hard gates (detectors in `scripts/lib/script-quality.ts`), C4 narrowed
+  to REQ-header-shape regexes, with the one intentional `doAction` divergence
+  baselined. New `test-script-tooling` self-test (21/21) wired into `check` and
+  `check:fast`.
+- No §5 REQ delta — build tooling, gates, and tests only.
+
 ## 2026-10-02 — Script quality gate, role-tag enforcement, and REQ-278 phase-map hash
 
 Adds mechanical enforcement for script standards that AGENTS.md asserted but

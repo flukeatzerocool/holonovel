@@ -1,5 +1,5 @@
 {
-  "note": "Dispositions for `check-script-quality` C1 (reachability). A path listed here is intentionally standalone or manually invoked; every other unreferenced script is a hard failure. Keep entries current — a stale disposition should be removed when the script is wired or deleted.",
+  "note": "Dispositions for `check-script-quality`. A check+path listed here is intentionally exempt: C1 (reachability) entries are scripts that are standalone or manually invoked; C2-C4 entries are reviewed exceptions where the flagged pattern is intentional. Every other finding is a hard failure. Keep entries current — a stale disposition should be removed when the condition is fixed or the script is deleted.",
   "allowlist": [
     {
       "check": "reachability",
@@ -30,6 +30,12 @@
       "path": "scripts/ruleset-builds/swse/build-package.mjs",
       "disposition": "build-asset",
       "justification": "Ruleset package rebuild asset run by the Build workflow (REQ-399a/REQ-395a), not an npm gate."
+    },
+    {
+      "check": "duplicate-helper",
+      "path": "holonovel/scripts/run_pattern_buffer.ts",
+      "disposition": "intentional-divergence",
+      "justification": "`doAction` diverges from run_ruleset_pattern_buffer's copy: the ruleset variant adds a `restart` branch and a function-valued `uri`, so extraction would add branching without reducing surface. Re-evaluate if the two runners are unified."
     }
   ]
 }

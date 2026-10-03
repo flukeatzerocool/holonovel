@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 
 import { PACKAGE_FORMAT, DATA_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -104,10 +105,7 @@ function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 // ── Ruleset package seeding ─────────────────────────────────────────
 
 function contentHash(index: any, model: any, tools: any, resources: any, prompts: any): string {
-  const canonical = (obj: any) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
-  const h = createHash("sha256");
-  for (const obj of [index, model, tools, resources, prompts]) h.update(canonical(obj));
-  return h.digest("hex");
+  return sha256Canonical(index, model, tools, resources, prompts);
 }
 
 // Copy the committed fixture's five content files into `dir`, write a manifest,

@@ -9,6 +9,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { resourceReader } from "./lib/jsonrpc.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -86,11 +87,7 @@ async function callRaw(proc: ChildProcess, name: string, args: Record<string, un
   return send(proc, { method: "tools/call", params: { name, arguments: args } });
 }
 
-async function readResource(proc: ChildProcess, uri: string): Promise<string> {
-  const resp = await send(proc, { method: "resources/read", params: { uri } });
-  if (resp.error) throw new Error(`resource error: ${JSON.stringify(resp.error)}`);
-  return (resp.result?.contents ?? []).map((c: any) => c?.text ?? "").join("\n");
-}
+const readResource = resourceReader(send, { errorLabel: "resource error" });
 
 async function listResources(proc: ChildProcess): Promise<string[]> {
   const resp = await send(proc, { method: "resources/list", params: {} });

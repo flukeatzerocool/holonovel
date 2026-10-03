@@ -41,6 +41,35 @@ export function extractReqBodies(text: string): Map<string, { id: string; body: 
   return reqs;
 }
 
+export interface ReqHeader {
+  id: string;
+  title: string;
+}
+
+// REQ header id + title, in document order. Callers that need the numeric id
+// alone or a definition set use this instead of re-deriving the header regex.
+export function extractReqHeaders(text: string): ReqHeader[] {
+  const out: ReqHeader[] = [];
+  const re = new RegExp(REQ_HEADER_RE.source, "g");
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    const id = match[1].match(/^(REQ-\d{3}[a-z0-9]*)/)![1];
+    out.push({ id, title: match[1].slice(id.length).replace(/^\s*—\s*/, "").trim() });
+  }
+  return out;
+}
+
+// REQ id, title, and parsed body in one pass — the shape the analysis scripts
+// (fmea, coverage tooling) build for each REQ.
+export function extractReqEntries(text: string): Map<string, { id: string; title: string; body: string }> {
+  const entries = new Map<string, { id: string; title: string; body: string }>();
+  const titleById = new Map(extractReqHeaders(text).map((h) => [h.id, h.title]));
+  for (const b of findReqBoundaries(text)) {
+    entries.set(b.id, { id: b.id, title: titleById.get(b.id) ?? "", body: text.slice(b.start, b.end) });
+  }
+  return entries;
+}
+
 // Whitespace-normalized REQ body: the shared boundary parser captures the full
 // body (including `*Acceptance criterion:*` and `_Check:_` clauses), so body
 // comparison must collapse line-wrapping differences before diffing (REQ-419).
