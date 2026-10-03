@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-02 — Holosuite adversarial + differential tiers and follow-on scheduling
+
+Extends the Holosuite with two deterministic blocking tiers and schedules the
+remaining follow-on work on the roadmap.
+
+- **T3 adversarial tier.** `scripts/lib/holosuite-adversarial.ts` fuzzes a
+  ruleset-free Novel with malformed, unknown, oversized, and hostile inputs:
+  known tools return a recognized envelope, unknown tools a well-formed protocol
+  error, the server stays live, and read-only injection probes never move the
+  state fingerprint. Scoped to classes the STRIDE harness (`test-security`) does
+  not own. (`--tier=adversarial`)
+- **T4 differential tier.** `scripts/lib/holosuite-differential.ts` builds two
+  Novels with the same operations in different orders plus a same-sequence
+  replay in a third process, asserting an order-independent world projection and
+  restart stability. (`--tier=differential`)
+- **Gate wiring.** `test:holosuite-adversarial` and `test:holosuite-differential`
+  added to `holonovel/package.json`, `scripts/run-test-suite.ts`,
+  `.github/workflows/ci.yml`, and `.githooks/pre-push`; the runner's `all` tier
+  now runs four tiers.
+- **Follow-on scheduling.** Holosuite II (adversarial + differential + Pattern
+  Buffer closure) and Holosuite III (Understudies + method audit, blocked on a
+  spec addition) are now tracked on `ROADMAP.md` with matching
+  `review-register.md` `Scheduled-roadmap` rows.
+- Plan artifacts under `plans/2026-10-02-holosuite-followons/`. No §5 REQ delta.
+
 ## 2026-10-02 — TDQS conformance enforcement and tool-surface consolidation
 
 Adopts TDQS 1.2 as a normative build contract, adds deterministic hard-gate,

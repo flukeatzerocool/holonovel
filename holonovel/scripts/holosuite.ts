@@ -3,10 +3,11 @@
  * holosuite.ts — Holosuite unified evaluation runner. [gate]
  *
  * Runs the deterministic Holosuite tiers against a live holonovel server:
- * T0 protocol conformance (`conformance`) and T1 bounded model-based
- * invariants (`invariants`). Emits a structured JSON report with `--json`.
- * The extended/stochastic tiers (adversarial, differential, Understudies,
- * mutation audit) are follow-on increments and are not selected here.
+ * T0 protocol conformance (`conformance`), T1 bounded model-based invariants
+ * (`invariants`), T3 adversarial input fuzzing (`adversarial`), and T4
+ * differential/replay determinism (`differential`). Emits a structured JSON
+ * report with `--json`. The stochastic Understudies tier and the mutation audit
+ * are follow-on increments and are not selected here.
  *
  * Usage:
  *   tsx scripts/holosuite.ts --tier=all [--server-dir <dir>] [--data-dir <dir>]
@@ -24,16 +25,19 @@ import { join } from "node:path";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 import { runConformance } from "./lib/holosuite-conformance.js";
 import { runInvariants } from "./lib/holosuite-invariants.js";
+import { runAdversarial } from "./lib/holosuite-adversarial.js";
+import { runDifferential } from "./lib/holosuite-differential.js";
 import { appendEvent, canonicalJson, summarize, type EvalProvenance, type TierResult } from "./lib/eval-schema.js";
 
 installHarnessGuard();
 
-type Tier = "conformance" | "invariants" | "all";
+type Tier = "conformance" | "invariants" | "adversarial" | "differential" | "all";
 
-const USAGE = `Usage: tsx scripts/holosuite.ts --tier=<conformance|invariants|all> [options]
+const USAGE = `Usage: tsx scripts/holosuite.ts --tier=<conformance|invariants|adversarial|differential|all> [options]
 
 Options:
-  --tier <name>        Tier to run (required): conformance, invariants, or all.
+  --tier <name>        Tier to run (required): conformance, invariants,
+                       adversarial, differential, or all.
   --server-dir <dir>   Server root under test (default: current directory).
   --data-dir <dir>     State dir to use (default: a fresh temp dir per tier).
   --seed <n>           Deterministic seed (default: 1).
@@ -69,7 +73,7 @@ function parseArgs(argv: string[]): { tier: Tier; serverDir: string; dataDir?: s
     return i >= 0 ? argv[i + 1] : undefined;
   };
   const tier = (value("--tier") ?? "all") as Tier;
-  if (!["conformance", "invariants", "all"].includes(tier)) throw new Error(`Unknown tier: ${tier}`);
+  if (!["conformance", "invariants", "adversarial", "differential", "all"].includes(tier)) throw new Error(`Unknown tier: ${tier}`);
   const seed = Number.parseInt(value("--seed") ?? "1", 10);
   const steps = Number.parseInt(value("--steps") ?? "12", 10);
   if (!Number.isFinite(seed) || !Number.isFinite(steps) || steps < 1) throw new Error("--seed/--steps must be positive integers");
@@ -95,6 +99,12 @@ async function main(): Promise<void> {
   }
   if (args.tier === "invariants" || args.tier === "all") {
     results.push(await runInvariants({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed, steps: args.steps }));
+  }
+  if (args.tier === "adversarial" || args.tier === "all") {
+    results.push(await runAdversarial({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed }));
+  }
+  if (args.tier === "differential" || args.tier === "all") {
+    results.push(await runDifferential({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed }));
   }
   const summary = summarize(results);
   if (args.report) {

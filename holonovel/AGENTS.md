@@ -110,9 +110,12 @@ non-goal); the rest are `follow-on` increments, all summarized in the emitted
 `ruleset-pattern-buffer-manifest.json`).
 
 The Holosuite deterministic tiers (`scripts/holosuite.ts`) add protocol
-conformance (`test:holosuite-conformance`) and bounded model-based invariants
-(`test:holosuite-invariants`); both gate CI and pre-push. The playtest harness is
-the Holosuite's stochastic tier (Understudies, `plans/2026-10-02-holosuite`).
+conformance (`test:holosuite-conformance`), bounded model-based invariants
+(`test:holosuite-invariants`), adversarial input fuzzing
+(`test:holosuite-adversarial`), and differential/replay determinism
+(`test:holosuite-differential`); all four gate CI and pre-push. The playtest
+harness is the Holosuite's stochastic tier (Understudies,
+`plans/2026-10-02-holosuite`).
 
 Tests live in `scripts/test-*.ts` and run as tsx harnesses via `npm run test:all`.
 There are no conventional `*.test.ts` files or a `test/` directory, so registry
