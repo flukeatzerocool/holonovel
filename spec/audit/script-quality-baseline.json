@@ -1,5 +1,5 @@
 {
-  "note": "Dispositions for `check-script-quality`. A check+path listed here is intentionally exempt: C1 (reachability) entries are scripts that are standalone or manually invoked; C2-C4 entries are reviewed exceptions where the flagged pattern is intentional. Every other finding is a hard failure. Keep entries current — a stale disposition should be removed when the condition is fixed or the script is deleted.",
+  "note": "Dispositions for `check-script-quality`. A check+path listed here is intentionally exempt: C1 (reachability) entries are scripts that are standalone or manually invoked; C2-C4 entries are reviewed exceptions where the flagged pattern is intentional. Every other finding is a hard failure. Keep entries current \u2014 a stale disposition should be removed when the condition is fixed or the script is deleted.",
   "allowlist": [
     {
       "check": "reachability",
@@ -36,6 +36,30 @@
       "path": "holonovel/scripts/run_pattern_buffer.ts",
       "disposition": "intentional-divergence",
       "justification": "`doAction` diverges from run_ruleset_pattern_buffer's copy: the ruleset variant adds a `restart` branch and a function-valued `uri`, so extraction would add branching without reducing surface. Re-evaluate if the two runners are unified."
+    },
+    {
+      "check": "reachability",
+      "path": "scripts/ruleset-builds/dnd2024/annotate-thundercats.mjs",
+      "disposition": "build-asset",
+      "justification": "dnd2024 supplement conversion asset (Convert workflow); run manually, not an npm gate."
+    },
+    {
+      "check": "reachability",
+      "path": "scripts/ruleset-builds/dnd2024/extract-thundercats.mjs",
+      "disposition": "build-asset",
+      "justification": "dnd2024 supplement extraction asset (Build workflow); run manually, not an npm gate."
+    },
+    {
+      "check": "reachability",
+      "path": "scripts/ruleset-builds/dnd2024/build-package.mjs",
+      "disposition": "build-asset",
+      "justification": "dnd2024 supplement package overlay (REQ-389/REQ-395a); run manually by the Build workflow."
+    },
+    {
+      "check": "reachability",
+      "path": "scripts/ruleset-builds/dnd2024/deploy.mjs",
+      "disposition": "build-asset",
+      "justification": "dnd2024 supplement deploy asset; run manually by the Build workflow."
     }
   ]
 }

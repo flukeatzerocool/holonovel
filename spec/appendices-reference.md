@@ -1288,6 +1288,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-303 | Scoped re-verification | 2026-08-11 |
 | REQ-098 | Spec-driven update workflow | 2026-08-11 |
 | REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
+| REQ-557 | Supplement-build provenance | 2026-10-03 |
 
 ---
 
@@ -1934,6 +1935,7 @@ diet.
 | T647 | Automated | Shadowing-risk report: assert invocation cost is computed over the required subtree, assert an expensive qualified query against a cheap flat lookup reports a shadowing risk naming both tools and their costs, and assert an asymmetric but non-overlapping pair reports none. | REQ-555 |
 | T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
 | T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
+| T650 | Automated | Supplement-build provenance: run `build-ruleset <slug>+=<path>` twice with unchanged sources — assert the emitted content hash is byte-identical and prior supplement content is not duplicated; change the base package — assert `update-rulesets` reports the slug whose recorded base content hash no longer matches. | REQ-395a, REQ-557 |
 
 ---
 
@@ -1993,9 +1995,10 @@ built server.*
 | pdf-craft | `pdf-craft` | Scanned book specialist, DeepSeek OCR, fully offline | MIT |
 | pdfplumber | `pdfplumber` | Precise text positioning; requires post-processing pipeline | MIT |
 | MarkItDown | `markitdown` | Multi-format, fast for digital PDFs; weak on table structure | MIT |
-| Marker | `marker-pdf` | Strong table extraction, reading-order detection, optional LLM boost; GPU preferred | Apache 2.0 (code); AI Pubs Open RAIL-M (model weights — free for <$5M annual revenue) |
-| MinerU | `mineru` | Best CJK support, complex layouts, broad accelerator compatibility | Apache 2.0 |
+| Marker | `marker-pdf` | Strong table extraction, reading-order detection, optional LLM boost; GPU preferred | GPL-3.0 (code); AI Pubs Open RAIL-M (model weights — free only under a revenue ceiling; verify the current threshold at the source) |
+| MinerU | `mineru` | Best CJK support, complex layouts, broad accelerator compatibility | Apache-2.0-based custom license (verify at the source — the license changed from AGPL) |
 | PyMuPDF4LLM | `pymupdf4llm` | Lightweight, fastest for native PDFs, no GPU; useless for scanned documents | AGPL (copyleft — embedding may impose obligations) |
+| Nougat | `nougat-ocr` | Academic-paper conversion; arXiv-oriented | MIT (code); CC-BY-NC-4.0 (model weights — non-commercial) |
 | Pandoc | `pandoc` | Universal format support, mature; weak on layout preservation | GPL (copyleft) |
 
 **HTML converters:**
@@ -2046,10 +2049,36 @@ until resolved).
 
 When C1 is PDF, the conversion SHALL additionally:
 
-**Column detection.** Detect multi-column regions before extraction. Extract text in
-visual reading order. Where the reading order is ambiguous — overlapping bounding boxes,
-irregular column widths, or column-spanning elements — flag the affected section as an
-artifact with disposition `pending`.
+**Hidden-text-layer detection.** Before extraction, detect a hidden text layer by
+comparing extracted character counts with and without the converter's hidden-text mode.
+When a hidden layer is present, select a converter mode that reads it exactly once, and
+record the mode and the detection result in DECISIONS.md (2). A mode that drops or
+duplicates hidden text is a conversion artifact with disposition `pending`.
+
+**Column detection.** Determine the source's column count by sampling before full
+extraction, and select the extractor mode accordingly: a mode that preserves reading
+order for a multi-column source, and a mode that preserves physical layout only for a
+single-column source. Record the column count and the selected mode in DECISIONS.md (2).
+Where reading order remains ambiguous — overlapping bounding boxes, irregular column
+widths, or column-spanning elements — flag the affected section as an artifact with
+disposition `pending`.
+
+**Display-heading and drop-cap recovery.** When a display heading is rendered as an image,
+or a heading's first letter is a drop cap, recover the heading from the source's table of
+contents or a tagged structure tree and flag the affected heading as an artifact. A
+recovered heading is disposition `fixed`; an unrecoverable heading is `waived` with a
+justification.
+
+**Encrypted or copy-protected source.** When the source is encrypted or copy-protected, do
+not bypass the protection unless the operator attests rights-holder authorization; record
+the attestation and the source license per Appendix U in DECISIONS.md (1). The extractor
+mode used for a copy-protected source SHALL be recorded in DECISIONS.md (2).
+
+**Table extraction.** Extract table structure with a table-aware extractor; do not rely on
+text extraction, which linearizes rows and cells. Verify row and column counts against the
+G.1 table dimensions and score table fidelity with a structure-aware metric (for example
+TEDS). A table whose structure cannot be recovered is an artifact with disposition
+`pending`.
 
 **Multi-page table reassembly.** Detect table fragments split across page breaks.
 Continuation indicators include: a header row repeated on the subsequent page, the
@@ -2135,9 +2164,11 @@ follow the table as prose.
 
 The builder SHALL run a second converter satisfying the capability profile on the
 fidelity sample pages. The two Markdown outputs SHALL be diffed after whitespace normalization.
-Disagreements — text present in one output but not the other, or different word order
-— SHALL be flagged as artifacts with disposition `pending`. The converter pair and
-disagreement count SHALL be recorded in DECISIONS.md (5).
+Disagreements — text present in one output but not the other — SHALL be resolved or
+recorded with disposition `waived` and a justification. A disagreement that is neither
+resolved nor waived blocks G0a as `pending`. A difference in reading order alone is not a
+content disagreement; it is scored by the reading-order metric (G.2). The converter pair
+and disagreement count SHALL be recorded in DECISIONS.md (5).
 
 If no second converter satisfying the capability profile is available for the source
 format, the builder SHALL record a `[single-converter]` finding in DECISIONS.md (5)
@@ -2146,18 +2177,23 @@ with the justification — informational, not blocking.
 **Pin.** The converter and its version are recorded in DECISIONS.md (2); the same
 converter produces the frozen Markdown and any later diagnostic re-run.
 
-**Fidelity protocol.** The fidelity diff is character-level after normalizing
-whitespace (collapse runs, trim) and stripping Markdown formatting delimiters
-(`**`, `*`, backticks). The rendered source text is extracted from the original
-source using the same tool pipeline as conversion — for PDF, the text-extraction
-layer of the chosen converter; for HTML, the rendered-textContent output of the
-same parser. Mechanical content is defined as: text within `<table>` elements
-(HTML) or table regions (PDF), text matching the `**Bold Label:** value` pattern,
-and text within numbered-procedure blocks (lines beginning with a digit followed
-by `.` or `)` and an imperative verb). Content matching none of these patterns is
-textual content — excluded from the fidelity numerator but recorded for
-completeness. The fidelity rate is (matching characters in mechanical content) ÷
-(total characters in mechanical content in rendered source).
+**Fidelity protocol.** Content fidelity SHALL be measured order-insensitively over
+mechanical content: normalized token or n-gram overlap (for example token-level F1 or
+Jaccard) between the converted Markdown and the rendered source text, after whitespace
+normalization (collapse runs, trim) and stripping Markdown formatting delimiters (`**`,
+`*`, backticks). Reading order SHALL be measured separately as block-sequence agreement
+(for example edit distance or Kendall-tau over block order). The two metrics SHALL be
+recorded separately in DECISIONS.md (5); a low reading-order score SHALL NOT be reported
+as a content-fidelity failure. The rendered source text is extracted from the original
+source using the same tool pipeline as conversion — for PDF, the text-extraction layer of
+the chosen converter; for HTML, the rendered-textContent output of the same parser.
+Mechanical content is defined as: text within `<table>` elements (HTML) or table regions
+(PDF), text matching the `**Bold Label:** value` pattern, and text within
+numbered-procedure blocks (lines beginning with a digit followed by `.` or `)` and an
+imperative verb). Content matching none of these patterns is textual content — excluded
+from the fidelity numerator but recorded for completeness. The content-fidelity rate is
+(matching normalized tokens in mechanical content) ÷ (total normalized tokens in
+mechanical content in rendered source).
 
 ---
 
@@ -2453,6 +2489,10 @@ build artifact — it is a spec-maintainer reference.
       or a recorded justification for unbounded growth
 - [ ] Gate classification: every new tool is recorded in the DECISIONS.md
       gate-classification table (REQ-137a)
+- [ ] Read-only description phrasing: a read-only tool's description names no mutating
+      operation — it SHALL NOT contain the mutation verbs create, update, remove, delete,
+      destroy, install, apply, persist, or write (REQ-552 hard gate). Describe the tool as
+      reading only (for example "reads the bound ruleset's indexed data; no state change")
 - [ ] Vocabulary registration: new subsystem or state-surface vocabulary is registered
       in §4 (Terminology) or Appendix S (Builder Glossary), or explicitly declared a
       section-local term

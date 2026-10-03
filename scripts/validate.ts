@@ -1859,8 +1859,10 @@ const INTENDED_GAP_REQS = new Set([
   "REQ-421", "REQ-422", "REQ-424", "REQ-428",
   // REQ-556 (Update-workflow user-data reconciliation) is a §6.7 workflow
   // contract owed by the update pipeline and scripts/migrate-user-data.ts,
-  // not runtime server behavior.
-  "REQ-556",
+  // not runtime server behavior. REQ-557 (supplement-build provenance) is the
+  // §5.17 supplement-overlay contract owed by the build pipeline
+  // (scripts/build-ruleset.ts and the ruleset-build assets).
+  "REQ-556", "REQ-557",
   // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
   // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
   // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline

@@ -1,0 +1,72 @@
+[
+  {
+    "name": "lookup_vehicle",
+    "title": "Look Up Vehicle",
+    "description": "Look up a ThunderCats 5.5E vehicle or its combat rules (Bedlam, ThunderTank, Hover Cat, and other Third Earth craft) and return its attributes, components, and travel or combat rules. Use when: resolving a vehicle's statistics, crew, or chase/combat behaviour from the ThunderCats Campaign and Setting Guide. Do NOT use when: looking up a creature or a magic item — use lookup_monster or lookup_magic_item; or when the vehicle name is unknown — use search_rules. Mutation class: read-only — reads the bound ruleset's indexed data only; writes no state, emits no audit entry, and changes no badge. Returns: the vehicle entry with its source anchor, or [ERROR] [NOT_FOUND] with a 'Did you mean?' hint and the valid names.",
+    "kind": "lookup",
+    "collection": "vehicles",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Vehicle name or rule topic (e.g. 'bedlam', 'thundertank', 'vehicle travel')." }
+      },
+      "required": ["key"]
+    }
+  },
+  {
+    "name": "lookup_equipment",
+    "title": "Look Up Equipment",
+    "description": "Look up ThunderCats 5.5E equipment, thundrillium devices, or scientific inventions by name and return their cost, properties, and mechanics. Use when: resolving a piece of adventuring gear, a device, or an invention from the ThunderCats Campaign and Setting Guide. Do NOT use when: looking up a magic item or vehicle — use lookup_magic_item or lookup_vehicle; or when the item name is unknown — use search_rules. Mutation class: read-only — reads the bound ruleset's indexed data only; writes no state, emits no audit entry, and changes no badge. Returns: the equipment entry with its source anchor, or [ERROR] [NOT_FOUND] with a 'Did you mean?' hint and the valid names.",
+    "kind": "lookup",
+    "collection": "equipment",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Equipment, device, or invention name (e.g. 'thundrillium', 'adventuring gear')." }
+      },
+      "required": ["key"]
+    }
+  },
+  {
+    "name": "lookup_location",
+    "title": "Look Up Location",
+    "description": "Look up a Third Earth setting location, planet, or dimension (Thundera, New Thundera, Cats' Lair, Castle Plun-Darr, the Astral Plane, and others) and return its geography, history, and points of interest. Use when: resolving a place in the ThunderCats setting for a scene or adventure. Do NOT use when: looking up a creature or an item — use lookup_monster or lookup_magic_item; or when the place name is unknown — use search_rules. Mutation class: read-only — reads the bound ruleset's indexed data only; writes no state, emits no audit entry, and changes no badge. Returns: the location entry with its source anchor, or [ERROR] [NOT_FOUND] with a 'Did you mean?' hint and the valid names.",
+    "kind": "lookup",
+    "collection": "locations",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Location, planet, or dimension name (e.g. 'third earth', 'thundera', 'cats' lair')." }
+      },
+      "required": ["key"]
+    }
+  },
+  {
+    "name": "lookup_adventure",
+    "title": "Look Up Adventure",
+    "description": "Look up one of the five ThunderCats Adventures chapters by name and return its level range, era, premise, and encounter summary. Use when: preparing or running a published ThunderCats adventure. Do NOT use when: generating a new adventure — use manage_adventure; or when the adventure name is unknown — use search_rules. Mutation class: read-only — reads the bound ruleset's indexed data only; writes no state, emits no audit entry, and changes no badge. Returns: the adventure entry with its source anchor, or [ERROR] [NOT_FOUND] with a 'Did you mean?' hint and the valid names.",
+    "kind": "lookup",
+    "collection": "adventures",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Adventure chapter name (e.g. 'the welcome party', 'mumm-ra must die')." }
+      },
+      "required": ["key"]
+    }
+  },
+  {
+    "name": "lookup_spirit",
+    "title": "Look Up Ancient Spirit",
+    "description": "Look up an Ancient Spirit or spirit-craft topic (Sign of Four, Power Stones, Champions, Power and Influence) and return its lore and mechanics. Use when: resolving the Ancient Spirits of Evil material from the ThunderCats Campaign and Setting Guide. Do NOT use when: looking up a creature stat block — use lookup_monster; or when the topic name is unknown — use search_rules. Mutation class: read-only — reads the bound ruleset's indexed data only; writes no state, emits no audit entry, and changes no badge. Returns: the spirit entry with its source anchor, or [ERROR] [NOT_FOUND] with a 'Did you mean?' hint and the valid names.",
+    "kind": "lookup",
+    "collection": "spirits",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Ancient Spirit or spirit-craft topic (e.g. 'sign of four', 'power stones', 'champions')." }
+      },
+      "required": ["key"]
+    }
+  }
+]

@@ -11,6 +11,17 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Appendix M read-only description rule (added 2026-10-03):** Appendix M's REQ
+  authoring checklist gained the read-only description phrasing rule — a read-only
+  tool's description names no mutating operation, forbidding the verbs create,
+  update, remove, delete, destroy, install, apply, persist, and write — which the
+  REQ-552 `MUTATION_VERBS` hard gate enforces. The rule was committed in the same
+  diff as a `scripts/validate.ts` intended-gap whitelist update (REQ-557, a §5.18
+  build-tooling contract), so `check-guarded-rule-change` flags the combined change;
+  this entry records the rule per the acknowledgment convention. Evidence:
+  `check:fast` PASS, `build-order` complete. Resolves the ThunderCats integration
+  finding BD-3 (legacy read-only descriptions tripping the mutation-verb detector).
+
 - **Script audit, consolidation, and standards hardening (resolved
   2026-10-02):** audited all 80 scripts across both trees by running the spec
   gates, the full server suite, the Holosuite deterministic tiers and mutation

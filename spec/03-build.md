@@ -218,6 +218,13 @@ one dice-range result row. A row whose first column is a numeric range (`01-10`,
 `11-25`) or a dice expression (`d100`, `d%`, `d8`, `d20`) is a generation result
 row; a row whose first column is a name or label is a lookup row (REQ-215).
 
+**Deterministic-first extraction.** The builder SHALL extract a mechanic
+deterministically when a deterministic parser produces it — a formal table, a definition
+list, a bold-labeled field, or an ordered procedural sequence — and SHALL reserve model
+inference for prose that no parser covers. Every model-derived entry SHALL be recorded as
+such in DECISIONS.md (4), so the model-derived surface is auditable and bounded. A
+model-derived entry that restates a deterministically parseable section is a defect.
+
 **Chunked reading.** The ruleset is read in chunks calibrated to stay within the
 builder's context window. The builder records the chunking strategy in
 DECISIONS.md (4). The builder reads each chunk, extracts models (see below), then
@@ -814,15 +821,15 @@ In `quick-build` mode, same-model audits are acceptable; the builder records a
 requirement.
 
 **REQ-299 — Cross-model audit sufficiency.** A cross-model audit SHALL
-produce findings with REQ citations and specific discrepancies — not general
-assessments — covering ≥3 extraction categories (REQ-210) and ≥2 Holodeck
-archetype categories (§7.7.0), with ≥1 finding or an enumerated zero-finding
-statement. An audit producing only "no issues found" SHALL be recorded as
-`[insufficient]` and re-run. WHEN models disagree, the higher-confidence
-extraction (REQ-011) is authoritative.
-*Acceptance criterion:* Audit includes REQ-cited findings covering ≥3
-extraction categories and ≥2 archetype categories, with ≥1 finding or an
-enumerated zero-finding statement.
+produce findings with REQ citations and specific discrepancies, covering ≥3 extraction
+categories (REQ-210) and ≥2 Holodeck archetype categories (§7.7.0), with ≥1 finding or an
+enumerated zero-finding statement. An audit producing only "no issues found" SHALL be
+recorded as `[insufficient]` and re-run. A model audit SHALL NOT be the sole evidence for a
+factual claim: deterministic structural checks (REQ-551) SHALL precede and dominate the
+audit, and the audit SHALL record the judging model's identity. WHEN models disagree, the
+higher-confidence extraction (REQ-011) is authoritative.
+*Acceptance criterion:* the audit covers ≥3 extraction and ≥2 archetype categories with
+≥1 finding or a zero-finding statement.
 _Check:_ T343, T430.
 
 ### 6.5.3 Adjusted thresholds and unbuildable disposition

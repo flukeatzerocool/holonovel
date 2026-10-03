@@ -30,7 +30,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as crypto from "node:crypto";
+import { computeContentHash } from "../../lib/ruleset-package.mjs";
 
 const SCRIPT_DIR = import.meta.dirname;
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..", "..");
@@ -73,15 +73,7 @@ function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf-8"));
 }
 
-// Canonical JSON + SHA-256, identical to the host's computeContentHash
-// (holonovel/src/rulesets.ts) — canonicalization strips to a compact JSON string
-// so the host accepts the emitted content_hash.
-const canonical = (obj) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
-function computeContentHash(index, model, tools, resources, prompts) {
-  const h = crypto.createHash("sha256");
-  for (const obj of [index, model, tools, resources, prompts]) h.update(canonical(obj));
-  return h.digest("hex");
-}
+// Canonical JSON + SHA-256 shared with the host algorithm (scripts/lib/ruleset-package.mjs).
 
 function readPackageFormat() {
   const gen = path.join(repoRoot, "holonovel", "src", "generated", "contract-fingerprints.ts");

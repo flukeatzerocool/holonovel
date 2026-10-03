@@ -18,3 +18,7 @@ plans/*
 
 # AI agent orientation
 AGENTS.md
+
+# Ruleset build output (regenerate from committed sources)
+scripts/ruleset-builds/*/package/
+scripts/ruleset-builds/*/extract-thundercats.json
