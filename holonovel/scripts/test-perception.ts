@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Perception Ledger harness — REQ-540 (record), REQ-541 (observed vs believed),
+// Perception Ledger harness — REQ-540 (record), REQ-541 (observed vs believed), [gate]
 // REQ-542 (per-entity), REQ-543 (event provenance), REQ-544 (persistence),
 // REQ-545 (badge gating).
 

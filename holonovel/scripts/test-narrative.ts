@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Narrative-architecture conformance harness (§5.12 — REQ-335 through REQ-366).
+// Narrative-architecture conformance harness (§5.12 — REQ-335 through REQ-366). [gate]
 // Exercises the Appendix F automated tests T385–T417 against a real server
 // process: scene beats, pacing, story-beat arc, faction/NPC autonomy, world
 // couplings, voice feedback, background knowledge, and the coherence surfaces.

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-02 — Script quality gate, role-tag enforcement, and REQ-278 phase-map hash
+
+Adds mechanical enforcement for script standards that AGENTS.md asserted but
+no check covered, removes duplicated script helpers, and implements the
+build-phase-map staleness check REQ-278 promised.
+
+- **`check-script-quality` gate added.** Wired into `check:fast` and `check`.
+  C1 reachability gates (every script wired, imported, referenced by a
+  hook/CI/pipeline, or dispositioned in `spec/audit/script-quality-baseline.json`);
+  C2 duplicate-helper, C3 repeated-parse, and C4 shared-parser-bypass report
+  their findings while their false-positive rate is measured.
+- **Role tags enforced.** `check-script-discipline` now requires a
+  `[gate]`/`[build tool]`/`[entry point]`/`[informational]` token in every
+  script header (compound qualifiers allowed). Backfilled 38 headers: 5 root
+  scripts and 33 holonovel harnesses.
+- **Shared primitives extracted.** `scripts/lib/hash.ts` (sha256/hashFile),
+  `walk.ts` (walkFiles/walkTsFiles), and `similarity.ts` (tokenize/jaccard)
+  replace copies duplicated across four-to-seven scripts; the `validate` tree
+  walk is memoized per directory.
+- **REQ-278 implemented.** `assemble.ts` now records the SHA-256 of the
+  referenced spec sources in `spec/build-phase-map.md`; `validate` recomputes
+  it and warns when the map is stale (T298). The placeholder `<!-- content
+  hash: <sha256> -->` is now populated.
+- No §5 REQ delta — build tooling and gates only.
+
 ## 2026-10-02 — Holosuite III (Understudies + method audit) and Pattern Buffer follow-on port
 
 Defines the Holosuite evaluation method, unifies the stochastic tier on the

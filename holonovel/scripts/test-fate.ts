@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fate base-capability harness — exercises Fudge dice (REQ-434), aspects
+// Fate base-capability harness — exercises Fudge dice (REQ-434), aspects [gate]
 // (REQ-435), Fate points (REQ-436), and stress + consequences (REQ-437)
 // against a real ruleset-free server process. Tests T520–T523.
 // Exit codes: 0 = pass, 1 = one or more assertions failed.

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Validator self-test: guards the REQ-integrity checks against regression.
+// test-req-checks.ts — validator self-test. [gate]
+// Guards the REQ-integrity checks against regression.
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 

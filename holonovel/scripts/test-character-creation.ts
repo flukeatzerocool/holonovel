@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Character-creation engine unit tests (REQ-399, REQ-104/151/181, T468).
+// Character-creation engine unit tests (REQ-399, REQ-104/151/181, T468). [gate]
 // Pure-function tests: formula evaluator, derived-stat computation, stat
 // generation, and species adjustment — no server process required.
 

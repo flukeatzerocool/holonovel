@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Adventure/encounter generation conformance harness (§5.9 — REQ-090/091).
+// Adventure/encounter generation conformance harness (§5.9 — REQ-090/091). [gate]
 // Exercises Appendix F tests T75, T76, T367 against a live server: adventure
 // scaffold generation (novel + codex targets), regeneration replacement, and
 // encounter batch generation with a single undo target.

@@ -10,6 +10,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
+import { computeSpecContentHash, writePhaseMapHash } from "./lib/phase-map-hash.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SPEC_DIR = path.join(ROOT, "spec");
@@ -129,6 +130,15 @@ function main(): void {
   if (fs.existsSync(path.dirname(REF_IMPL_OUT))) {
     fs.writeFileSync(REF_IMPL_OUT, content, "utf-8");
     console.log(`Wrote ${REF_IMPL_OUT}`);
+  }
+
+  // REQ-278: record the content hash of the referenced spec sources in the
+  // build-phase map so the validate gate can detect a stale map.
+  const specHash = computeSpecContentHash();
+  if (writePhaseMapHash(specHash)) {
+    console.log(`Updated spec/build-phase-map.md content hash: ${specHash}`);
+  } else {
+    console.log(`spec/build-phase-map.md content hash current: ${specHash}`);
   }
 }
 

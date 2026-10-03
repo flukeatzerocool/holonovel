@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// §6.7 update-workflow harness (REQ-098). Exercises T84b: the fingerprint-scoped
+// §6.7 update-workflow harness (REQ-098). Exercises T84b: the fingerprint-scoped [gate]
 // Update workflow entry point (`scripts/update-server.ts --check`) against a
 // controlled fingerprint baseline. Asserts the three workflow outcomes that the
 // pre-push gate depends on: (1) an unchanged spec reports "current" without

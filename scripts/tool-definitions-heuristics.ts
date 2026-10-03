@@ -15,6 +15,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { jaccard, tokenize } from "./lib/similarity.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT = join(ROOT, "holonovel", "tool-definitions.json");
@@ -25,14 +26,7 @@ interface ToolRecord { name: string; description: string; action_enum: string[];
 if (!existsSync(ARTIFACT)) { console.error(`FATAL: ${ARTIFACT} not found.`); process.exit(2); }
 const artifact: { tools: ToolRecord[] } = JSON.parse(readFileSync(ARTIFACT, "utf-8"));
 
-function tokens(s: string): Set<string> {
-  return new Set(s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length >= 4 && !STOP.has(w)));
-}
-function jaccard(a: Set<string>, b: Set<string>): number {
-  let inter = 0;
-  for (const x of a) if (b.has(x)) inter++;
-  return inter / (a.size + b.size - inter || 1);
-}
+const tokens = (s: string): Set<string> => tokenize(s, { minLen: 4, stop: STOP });
 
 const missingDisclosure: string[] = [];
 const interactionMarkers = ["only when", "only by", "only ", "falls back", "alias", "overrides", "replaces", "ignores", "with neither", "defaults"];

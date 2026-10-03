@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Security harness — covers REQ-444 (import-channel inertness), REQ-445
+// Security harness — covers REQ-444 (import-channel inertness), REQ-445 [gate]
 // (error-value disclosure control), REQ-446 (ruleset package provenance),
 // REQ-447 (audit-log growth cap), REQ-448 (security-event audit
 // completeness), REQ-449 (excessive-agency mutation ceiling), REQ-450

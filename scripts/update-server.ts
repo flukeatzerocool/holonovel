@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * update-server.ts — Fingerprint-scoped Update workflow invoker (§6.7).
+ * update-server.ts — Fingerprint-scoped Update workflow invoker (§6.7). [entry point]
  *
  * Compares stored implementation fingerprints against current source and
  * determines rebuild scope (full, partial, scoped, or skip). Records

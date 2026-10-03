@@ -7,8 +7,9 @@
  * 1 = one or more violations.
  */
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { walkFiles, walkTsFiles } from "./lib/walk.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DIRS = [join(ROOT, "scripts"), join(ROOT, "holonovel", "scripts")];
@@ -20,27 +21,6 @@ const SHELL_DIRS = [join(ROOT, "scripts"), join(ROOT, ".githooks")];
 const issues: string[] = [];
 const VALID_EXIT = new Set(["0", "1", "2"]);
 
-function walkFiles(dir: string, ext: string): string[] {
-  const out: string[] = [];
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return out;
-  }
-  for (const e of entries) {
-    if (e.name === "node_modules" || e.name === "dist" || e.name === ".git") continue;
-    const p = join(dir, e.name);
-    if (e.isDirectory()) out.push(...walkFiles(p, ext));
-    else if (e.isFile() && e.name.endsWith(ext)) out.push(p);
-  }
-  return out;
-}
-
-function walkTsFiles(dir: string): string[] {
-  return walkFiles(dir, ".ts");
-}
-
 // Allowed shell interpreters (AGENTS.md: sh/bash entry points).
 const ALLOWED_SHEBANGS = new Set([
   "#!/usr/bin/env bash",
@@ -48,6 +28,28 @@ const ALLOWED_SHEBANGS = new Set([
   "#!/usr/bin/env sh",
   "#!/bin/sh",
 ]);
+
+// A script header must declare one of the four roles (AGENTS.md §Script
+// discipline "Roles"). Compound qualifiers are allowed, e.g.
+// `[informational; gate with --gate]`.
+const ROLE_RE = /\[[^\]]*\b(gate|build tool|entry point|informational)\b[^\]]*\]/i;
+
+// Extract the leading comment block (shebang + consecutive `//` lines, or the
+// first block comment), so the role token is matched in the header only.
+function headerBlock(content: string): string {
+  const lines = content.split("\n");
+  const out: string[] = [];
+  for (let i = 0; i < lines.length && i < 40; i++) {
+    const t = lines[i].trim();
+    if (i === 0 && t.startsWith("#!")) continue;
+    if (t.startsWith("//")) { out.push(lines[i]); continue; }
+    if (t.startsWith("/*")) { out.push(lines[i]); if (t.includes("*/")) break; continue; }
+    if (t.startsWith("*")) { out.push(lines[i]); if (t.includes("*/")) break; continue; }
+    if (t === "" && out.length === 0) continue;
+    break;
+  }
+  return out.join("\n");
+}
 
 function checkShellFile(file: string): void {
   const rel = file.slice(ROOT.length + 1);
@@ -118,6 +120,8 @@ for (const dir of DIRS) {
     const firstReal = lines.findIndex((l) => l.trim() !== "" && !l.trim().startsWith("#!"));
     if (firstReal === -1 || !/^\s*(\/\*\*|\/\*|\/\/)/.test(lines[firstReal] ?? "")) {
       issues.push(`${rel}: missing header comment`);
+    } else if (!isLib && !ROLE_RE.test(headerBlock(content))) {
+      issues.push(`${rel}: header declares no role — add [gate], [build tool], [entry point], or [informational]`);
     }
 
     for (const m of content.matchAll(/process\.exit\(\s*(\d+)\s*\)/g)) {

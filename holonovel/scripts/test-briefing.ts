@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Briefing-consistency harness — REQ-515 (readiness cursor), REQ-516
+// Briefing-consistency harness — REQ-515 (readiness cursor), REQ-516 [gate]
 // (consistency declaration), REQ-517 (derived-surface freshness), REQ-518
 // (determinism), REQ-519 (read-only), REQ-520 (visibility), REQ-521 (staleness
 // advisory).

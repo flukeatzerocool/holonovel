@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Knowledge-Graph harness — covers REQ-510 (derived projection), REQ-511 (node
+// Knowledge-Graph harness — covers REQ-510 (derived projection), REQ-511 (node [gate]
 // typing), REQ-512 (edge derivation), REQ-513 (idempotency/staleness),
 // REQ-514 (read-only scope-filtered exposure).
 

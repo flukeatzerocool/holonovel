@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Harness fail-loud meta-test — REQ-141m.
+// Harness fail-loud meta-test — REQ-141m. [gate]
 //
 // Proves that a harness which spawns a process, lets it exit, and then drains
 // with no completion signal exits NON-ZERO with the harness-guard diagnostic,

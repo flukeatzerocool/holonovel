@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Semantic Index harness — covers REQ-504 (offline build), REQ-505 (staleness),
+// Semantic Index harness — covers REQ-504 (offline build), REQ-505 (staleness), [gate]
 // REQ-506 (advisory ranking), REQ-507 (relations), REQ-508 (authority
 // boundary), REQ-509 (scope filtering).
 

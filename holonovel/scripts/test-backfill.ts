@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Bucket-B → C conformance backfill harness (§5.1/§5.3/§5.4/§5.5/§5.6/§5.7/§5.8/§5.9/§5.10/§5.20).
+// Bucket-B → C conformance backfill harness (§5.1/§5.3/§5.4/§5.5/§5.6/§5.7/§5.8/§5.9/§5.10/§5.20). [gate]
 // Exercises the spec tests (Appendix F T-IDs) that the cited-but-unverified
 // REQs require, against a real server process. Each test name carries the
 // T-ID(s) it exercises so the coverage register can promote the REQ to C.

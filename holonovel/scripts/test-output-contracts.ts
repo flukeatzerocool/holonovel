@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wave-1 §5.1 Output & Error Contracts harness.
+// Wave-1 §5.1 Output & Error Contracts harness. [gate]
 // Covers REQ-003 (roll transparency), REQ-004 (truncation + output://),
 // REQ-060 (verbose output), REQ-061 (source quoting), REQ-064 (badge boundary),
 // REQ-070 (anti-slop), REQ-071 (narrative tone), REQ-113 (result counts),

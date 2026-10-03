@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Novel persistence and transport conformance harness (§5.9 — REQ-089/093/095/
+// Novel persistence and transport conformance harness (§5.9 — REQ-089/093/095/ [gate]
 // 096/097/238/240/256/257/258, plus REQ-065 hydration keying and REQ-088
 // startup auto-load). Exercises the Appendix F tests T74, T78, T99,
 // T100, T101, T159, T160, T276, T278, T281, T315, T316, T317 against a live

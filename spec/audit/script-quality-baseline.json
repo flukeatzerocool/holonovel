@@ -1,0 +1,35 @@
+{
+  "note": "Dispositions for `check-script-quality` C1 (reachability). A path listed here is intentionally standalone or manually invoked; every other unreferenced script is a hard failure. Keep entries current — a stale disposition should be removed when the script is wired or deleted.",
+  "allowlist": [
+    {
+      "check": "reachability",
+      "path": "scripts/tool-definitions-heuristics.ts",
+      "disposition": "report-only",
+      "justification": "TDQS heuristics whose false-positive rate is measured before promotion (DECISIONS.md W5c); invoked manually, not by a gate."
+    },
+    {
+      "check": "reachability",
+      "path": "scripts/fingerprint.ts",
+      "disposition": "standalone-manual",
+      "justification": "Manual implementation-fingerprint inspection CLI; the live path is scripts/lib/fingerprints.ts via update-server.ts. Candidate for removal."
+    },
+    {
+      "check": "reachability",
+      "path": "holonovel/scripts/retention-prune.ts",
+      "disposition": "runbook-manual",
+      "justification": "Invoked from the holonovel/AGENTS.md retention runbook, not a CI gate."
+    },
+    {
+      "check": "reachability",
+      "path": "holonovel/scripts/consolidate-novels.ts",
+      "disposition": "runbook-manual",
+      "justification": "Invoked from the holonovel/AGENTS.md retirement runbook, not a CI gate."
+    },
+    {
+      "check": "reachability",
+      "path": "scripts/ruleset-builds/swse/build-package.mjs",
+      "disposition": "build-asset",
+      "justification": "Ruleset package rebuild asset run by the Build workflow (REQ-399a/REQ-395a), not an npm gate."
+    }
+  ]
+}

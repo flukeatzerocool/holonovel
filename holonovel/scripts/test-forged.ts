@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Forged in the Dark base-capability harness — exercises the action roll with
+// Forged in the Dark base-capability harness — exercises the action roll with [gate]
 // position/effect (REQ-441), stress/trauma + resistance (REQ-442), and
 // downtime recovery (REQ-443) against a real ruleset-free server process.
 // Tests T527–T529. Exit codes: 0 = pass, 1 = one or more assertions failed.

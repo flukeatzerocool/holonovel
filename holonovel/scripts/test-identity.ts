@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Character Identity harness — covers REQ-473 (candidate staging), REQ-474
+// Character Identity harness — covers REQ-473 (candidate staging), REQ-474 [gate]
 // (stability classes), REQ-475 (perspective), REQ-476 (compiled kernel),
 // REQ-477 (write-authority isolation), REQ-478 (revision audit), REQ-479
 // (card-bootstrap exclusions), REQ-480 (kernel exposure), REQ-481 (visibility

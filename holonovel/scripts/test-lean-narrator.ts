@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Lean-narrator integration harness (2026-09-26).
+// Lean-narrator integration harness (2026-09-26). [gate]
 //
 // Role: gate — exercises the structured-result, discovery-routing, orientation,
 // and grounding contracts, plus the builder-side disposition records.

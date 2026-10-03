@@ -31,6 +31,9 @@ import {
   checkReqThresholds,
   checkBaseCapabilityDefaults,
 } from "./lib/req-checks.js";
+import { walkTsFiles as walkTsFilesRaw } from "./lib/walk.js";
+import { computeSpecContentHash, readPhaseMapHash } from "./lib/phase-map-hash.js";
+import { parseSubworkflowMap } from "./lib/subworkflow.js";
 
 const __dirname = import.meta.dirname;
 const SPEC = path.resolve(__dirname, "..", "holonovel.md");
@@ -1397,21 +1400,34 @@ function checkPreparePhaseMap(): string[] {
 // §5.12 narrative REQs additionally emit a mandatory one-line disposition
 // (implemented / partial / gap) per REQ-346.
 
+// Memoized per-directory so the source tree is read once per run rather than
+// once per audit that needs it (seven callers share two directories).
+const walkCache = new Map<string, string[]>();
 function walkTsFiles(dir: string): string[] {
-  const out: string[] = [];
-  let entries: import("node:fs").Dirent[] = [];
-  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
-  for (const e of entries) {
-    // Skip build output and vendored trees; a read-only audit over src/scripts.
-    if (e.name === "node_modules" || e.name === "dist" || e.name === ".git") continue;
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) out.push(...walkTsFiles(p));
-    else if (e.isFile() && e.name.endsWith(".ts")) out.push(p);
-  }
+  const cached = walkCache.get(dir);
+  if (cached) return cached;
+  const out = walkTsFilesRaw(dir);
+  walkCache.set(dir, out);
   return out;
 }
 
 const IMPL_SRC_DIR = path.resolve(__dirname, "..", "holonovel", "src");
+
+// REQ-278: the build-phase map records a SHA-256 of the spec sources it
+// references; a mismatch means the map is stale (run `npm run assemble`).
+function checkPhaseMapHash(): string[] {
+  const recorded = readPhaseMapHash();
+  if (recorded === null) {
+    return ["spec/build-phase-map.md carries no content hash — run `npm run assemble`"];
+  }
+  const current = computeSpecContentHash();
+  if (recorded !== current) {
+    return [
+      `spec/build-phase-map.md content hash is stale (recorded ${recorded.slice(0, 12)}…, current ${current.slice(0, 12)}…) — run \`npm run assemble\``,
+    ];
+  }
+  return [];
+}
 const IMPL_SCRIPTS_DIR = path.resolve(__dirname, "..", "holonovel", "scripts");
 
 function gatherSourceCites(): Set<string> {
@@ -1771,20 +1787,8 @@ function parseAppendixFReqTests(text: string): Map<string, Set<string>> {
   return map;
 }
 
-// §6.6 sub-workflow-to-REQ mapping: `| REQ-197 | I1, I4 | Room CRUD |`.
-function parseSubworkflowMap(text: string): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  for (const line of text.split("\n")) {
-    const m = line.match(/^\|\s*(REQ-\d{3}[a-z0-9]*)\s+\|\s*([^|\n]+)\s*\|/);
-    if (!m) continue;
-    const req = m[1];
-    const idsCell = m[2];
-    const ids = idsCell.matchAll(/\b([SI]\d+[a-z0-9]*)\b/g);
-    if (!map.has(req)) map.set(req, new Set());
-    for (const im of ids) map.get(req)!.add(im[1]);
-  }
-  return map;
-}
+// §6.6 sub-workflow-to-REQ mapping: `| REQ-197 | I1, I4 | Room CRUD |` is
+// parsed by scripts/lib/subworkflow.ts.
 
 function reqNumeric(reqId: string): number {
   const m = reqId.match(/^REQ-(\d{3})/);
@@ -2299,6 +2303,10 @@ function main(): void {
     fs.readFileSync(path.resolve(import.meta.dirname, "..", "spec", "02-requirements.md"), "utf-8"),
   );
   if (phaseMapCountIssues.length > 0) { for (const issue of phaseMapCountIssues) console.log(`WARNING: ${issue}`); warnings += phaseMapCountIssues.length; }
+
+  const phaseMapHashIssues = checkPhaseMapHash();
+  if (phaseMapHashIssues.length > 0) { for (const issue of phaseMapHashIssues) console.log(`WARNING: ${issue}`); warnings += phaseMapHashIssues.length; }
+  else { console.log("PASS: build-phase-map content hash is current"); }
 
   console.log("\n=== BASE-CAPABILITY DEFAULTS ===\n");
   const baseCapIssues = checkBaseCapabilityDefaults(text);

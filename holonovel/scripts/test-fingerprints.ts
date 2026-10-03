@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// §5.18 fingerprint/entry-point conformance harness (REQ-420 through REQ-424).
+// §5.18 fingerprint/entry-point conformance harness (REQ-420 through REQ-424). [gate]
 // Exercises T498–T504: package-format fingerprint (REQ-420), source registry
 // (REQ-421), update entry point (REQ-422), data-format fingerprint (REQ-423),
 // migration entry point (REQ-424), legacy-artifact transition (REQ-420/423),
