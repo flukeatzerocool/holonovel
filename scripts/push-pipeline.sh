@@ -18,12 +18,19 @@
 # comparison base is current; step 4b runs the server harness suite unless the
 # delta is patch/editorial with an unchanged contract fingerprint (§6.7
 # Patch/Editorial = G0 only; --full-tests forces it); step 4c prints the
-# conformance-evidence report (report-only) to surface the false-C risk pool.
+# conformance-evidence report (report-only) to surface the false-C risk pool;
+# step 4d runs the implementation-coverage strict gate once and exports
+# HOLONOVEL_PIPELINE_STRICT so .githooks/pre-push does not repeat it per push.
 #
 # NOTE: the origin push (step 7) runs whenever local main has unpushed commits,
 # not only when this run created one. A clean working tree can still be ahead
 # of origin after a prior session committed directly; skipping the push leaves
-# the deploy target stale and fails REQ-418.
+# the deploy target stale and fails REQ-418. main and the tag are pushed
+# together (one ref list) so the pre-push hook runs once per remote.
+#
+# NOTE: step 7d starts the registry publication poll (REQ-428) in the background
+# and step 9c collects it, so the bounded wait overlaps the wiki push and deploy
+# rather than blocking the tail.
 #
 # NOTE: step 8 (wiki) is non-fatal — a wiki push failure warns and the run
 # continues to the step 9 deploy. Deploy (REQ-418) is the hard gate; an
@@ -116,10 +123,17 @@ if [[ ${#SERVERS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+# Direct tsx invocation — avoids re-resolving the `tsx` binary through `npx` on
+# every call (7+ spawns per run). tsx is a devDependency, so the loader is always
+# present under node_modules; `node --import tsx` uses it without the npx wrapper.
+TSX=(node --import tsx)
+
 # Marker honored by .githooks/pre-commit and .githooks/pre-push: this pipeline
 # already runs the full gate (build-order → npm run check), so the hooks skip
 # only the steps it covered. Direct `git commit`/`git push` outside the pipeline
-# still runs every hook.
+# still runs every hook. HOLONOVEL_PIPELINE_STRICT is set at step 4d, after the
+# pipeline runs the implementation-coverage strict gate once, so the hook skips
+# repeating it on each push (origin + mirror).
 export HOLONOVEL_PIPELINE=1
 
 # Snapshot the gitignored state files the pipeline may mutate, so --dry-run
@@ -169,6 +183,9 @@ restore_worktree() {
 cleanup() {
   if $DRY_RUN && [[ -n "$STATE_SNAPSHOT" ]]; then restore_worktree; fi
   if [[ -n "$STATE_SNAPSHOT" ]]; then rm -rf "$STATE_SNAPSHOT"; fi
+  if [[ -n "${REG_PID:-}" ]]; then kill "$REG_PID" 2>/dev/null || true; fi
+  if [[ -n "${REG_LOG:-}" ]]; then rm -f "$REG_LOG"; fi
+  if [[ -n "${DELTA_ERR:-}" ]]; then rm -f "$DELTA_ERR"; fi
 }
 trap cleanup EXIT
 trap 'exit 1' INT TERM
@@ -234,21 +251,20 @@ classify_delta() {
   # Capture stdout (the JSON report) separately from stderr (the human summary),
   # so the parser sees only the JSON. spec-delta prints a trailing "\nSpec delta:
   # …" summary on stderr; merging streams with 2>&1 makes JSON.parse reject the
-  # trailing text and blocks every run.
-  local server="$1" out err
-  err="$(mktemp)"
-  if ! out=$(npx tsx scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>"$err"); then
+  # trailing text and blocks every run. One stderr file is reused across servers
+  # (truncated per call) instead of a mktemp per server.
+  local server="$1" out
+  if ! out=$("${TSX[@]}" scripts/spec-delta.ts --server "$server" --base "$DELTA_BASE" --report-only 2>"$DELTA_ERR"); then
     echo -e "${RED}  spec-delta failed for $server:${NC}" >&2
-    cat "$err" >&2
-    rm -f "$err"
+    cat "$DELTA_ERR" >&2
     return 1
   fi
-  rm -f "$err"
   node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{'),j=s.lastIndexOf('}');try{const c=JSON.parse(s.slice(i,j+1)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$out"
 }
 
 echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
 SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+DELTA_ERR="$(mktemp)"
 declare -A DELTA_CLASS_OF
 for server in "${SERVERS[@]}"; do
   if ! DELTA_CLASS=$(classify_delta "$server"); then
@@ -270,7 +286,7 @@ for server in "${SERVERS[@]}"; do
   DELTA_CLASS="${DELTA_CLASS_OF[$server]}"
   EXTRA_ARGS=("--delta-class" "$DELTA_CLASS")
   if $ALLOW_PENDING; then EXTRA_ARGS+=(--allow-pending); fi
-  if ! npx tsx scripts/update-server.ts --server "$server" \
+  if ! "${TSX[@]}" scripts/update-server.ts --server "$server" \
        --spec-hash "$SPEC_HASH" \
        --scope-by-fingerprint "${EXTRA_ARGS[@]}"; then
     echo -e "${RED}Pending update for $server — implementation has not been updated to match the spec.${NC}"
@@ -308,16 +324,29 @@ fi
 # high false-positive rate on the current corpus, so it does not block.
 
 echo -e "${GREEN}=== 4c. Conformance evidence report (informational) ===${NC}"
-if ! npx tsx scripts/compare-spec-code.ts --dedicated; then
+if ! "${TSX[@]}" scripts/compare-spec-code.ts --dedicated; then
   echo -e "${YELLOW}  Conformance report exited non-zero — treat the pool as incomplete, not clean.${NC}"
 fi
+
+# ── 4d. Implementation-coverage strict gate (REQ-321d class) ──
+# Run once here, then mark the environment so .githooks/pre-push does not repeat
+# it on each push (origin + mirror). The hook still runs it for a direct push
+# outside the pipeline. A red gate blocks publication.
+
+echo -e "${GREEN}=== 4d. Implementation-coverage strict gate ===${NC}"
+if ! npm run validate:sdd -- --impl-audit=strict; then
+  echo -e "${RED}  Implementation-coverage strict gate FAILED — bucket-A (gap) REQs present.${NC}"
+  echo -e "${YELLOW}  Every server-runtime REQ must be evidenced (C) or builder-side (E) before push.${NC}"
+  exit 1
+fi
+export HOLONOVEL_PIPELINE_STRICT=1
 
 # ── 5. Update stored spec hashes in DECISIONS.md ──
 
 echo -e "${GREEN}=== 5. Update stored spec hashes in DECISIONS.md ===${NC}"
 # Generate the dated Spec Update record before syncing the hash, so the
 # narrative entry (delta class, changed surfaces) is present per Appendix V.4.
-npx tsx scripts/spec-update-record.ts || { echo -e "${RED}Spec Update record generation FAILED${NC}"; exit 1; }
+"${TSX[@]}" scripts/spec-update-record.ts || { echo -e "${RED}Spec Update record generation FAILED${NC}"; exit 1; }
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
@@ -329,7 +358,7 @@ done
 # ── 5b. Narrative-record gate: an unpublished spec delta must carry a dated
 #         Spec Update entry. The generator above writes one; this is the
 #         backstop for a hand-edited hash line. (REQ-394 is the hard block.)
-if ! npx tsx scripts/spec-update-record.ts --check; then
+if ! "${TSX[@]}" scripts/spec-update-record.ts --check; then
   echo -e "${RED}  Spec Update narrative missing for an unpublished delta — publication blocked.${NC}"
   echo -e "${YELLOW}  Add the entry per Appendix V.4, or run the generator: npm run spec-update-record${NC}"
   exit 1
@@ -425,23 +454,24 @@ if [[ "$PENDING_PUSH" -gt 0 ]]; then
   echo -e "${GREEN}=== 6a. Tag ===${NC}"
   VERSION=$(node -e "console.log(require('./package.json').version)")
   TAG="v$VERSION"
+  PUSH_REFS=(main)
   if git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null | grep -q "refs/tags/$TAG"; then
     echo -e "${YELLOW}  Tag $TAG already on remote — version unchanged, leaving it pinned.${NC}"
   else
     git tag -f "$TAG"
     echo -e "${GREEN}  Tagging $TAG at HEAD${NC}"
     TAG_TO_PUSH="$TAG"
+    PUSH_REFS+=("$TAG")
     DID_TAG=true
   fi
 
-  # ── 7. Push main ──
+  # ── 7. Push main (+ tag) ──
+  # main and the tag go in one push so .githooks/pre-push runs once for origin,
+  # not once per ref.
 
   echo -e "${GREEN}=== 7. Push main ===${NC}"
-  git push origin main || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
+  git push origin "${PUSH_REFS[@]}" || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
   DID_PUSH=true
-  if [[ -n "$TAG_TO_PUSH" ]]; then
-    git push origin "$TAG_TO_PUSH" || { echo -e "${RED}Tag push FAILED — aborting deploy.${NC}"; exit 1; }
-  fi
 else
   echo -e "${YELLOW}Nothing to push — origin is up to date.${NC}"
 fi
@@ -450,10 +480,10 @@ fi
 
 echo -e "${GREEN}=== 7b. Mirror sync (github) ===${NC}"
 if git config --get remote.github.url >/dev/null 2>&1; then
-  if git push github main; then DID_MIRROR=true; else echo -e "${YELLOW}  Mirror push (main) FAILED — GitHub mirror is behind origin.${NC}"; fi
-  if [[ -n "$TAG_TO_PUSH" ]]; then
-    git push github "$TAG_TO_PUSH" || echo -e "${YELLOW}  Mirror tag push FAILED.${NC}"
-  fi
+  # main and the tag in one push so the pre-push hook runs once for the mirror.
+  MIRROR_REFS=(main)
+  if [[ -n "$TAG_TO_PUSH" ]]; then MIRROR_REFS+=("$TAG_TO_PUSH"); fi
+  if git push github "${MIRROR_REFS[@]}"; then DID_MIRROR=true; else echo -e "${YELLOW}  Mirror push FAILED — GitHub mirror is behind origin.${NC}"; fi
   echo -e "${GREEN}  Mirror sync: DONE${NC}"
 else
   echo -e "${YELLOW}  No 'github' remote configured — skipping mirror sync.${NC}"
@@ -465,6 +495,18 @@ echo -e "${GREEN}=== 7c. npm + MCP Registry publish (mirror CI) ===${NC}"
 echo -e "${YELLOW}  Publishing is handled by the GitHub mirror's workflow${NC}"
 echo -e "${YELLOW}  (.github/workflows/publish.yml) via npm Trusted Publishing (OIDC).${NC}"
 echo -e "${YELLOW}  The local pipeline only mirrors to GitHub; the mirror CI publishes.${NC}"
+
+# ── 7d. Registry publication waiter (background, REQ-428) ──
+# Start the registry poll now and overlap it with the wiki push and deploy
+# below, instead of blocking the tail at step 9c. Collected at step 9c.
+
+REG_PID=""
+REG_LOG=""
+if $DID_MIRROR; then
+  REG_LOG="$(mktemp)"
+  "${TSX[@]}" scripts/check-registry-publish.ts --wait 120 >"$REG_LOG" 2>&1 &
+  REG_PID=$!
+fi
 
 # ── 8. Push wiki ──
 
@@ -574,7 +616,7 @@ fi
 echo -e "${GREEN}=== 9b. Verify deployed tree (REQ-418) ===${NC}"
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
   for server in "${SERVERS[@]}"; do
-    if ! npx tsx scripts/update-server.ts --server "$server" --server-dir "$DEPLOY_DIR/$server" --spec-hash "$SPEC_HASH" --verify-deployed; then
+    if ! "${TSX[@]}" scripts/update-server.ts --server "$server" --server-dir "$DEPLOY_DIR/$server" --spec-hash "$SPEC_HASH" --verify-deployed; then
       echo -e "${RED}Deploy verification FAILED for $server — deployed tree does not match the published spec.${NC}"
       exit 1
     fi
@@ -585,19 +627,19 @@ else
 fi
 
 # ── 9c. Registry publication check (non-fatal, REQ-428) ──
-# The GitHub mirror's CI publishes to npm and the MCP Registry asynchronously.
-# Give it a bounded window, then report whether the registry lists the pushed
-# version. Placed after deploy (not after step 7b) so the wait does not delay
-# the deploy; the registry and the npm CDN are outside this run's control, so a
-# miss warns rather than failing the pipeline (REQ-418 deploy gate still holds).
+# The waiter was launched at step 7d, overlapping the wiki push and deploy. Its
+# exit status is the registry verdict: a bounded window elapsed, so a miss warns
+# rather than failing the pipeline (REQ-418 deploy gate still holds). The poll's
+# progress output is replayed from the log here.
 
 echo -e "${GREEN}=== 9c. Registry publication check (REQ-428) ===${NC}"
-if $DID_MIRROR; then
-  if npx tsx scripts/check-registry-publish.ts --wait 120; then
+if [[ -n "$REG_PID" ]]; then
+  if wait "$REG_PID"; then
     echo "  MCP Registry lists the published version."
   else
     echo -e "${YELLOW}  MCP Registry does not list the published version yet — re-run 'npm run check-registry' after the mirror CI finishes (REQ-428).${NC}"
   fi
+  cat "$REG_LOG" 2>/dev/null || true
 else
   echo -e "${YELLOW}  Skipped: no mirror push this run.${NC}"
 fi

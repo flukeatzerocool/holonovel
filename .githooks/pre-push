@@ -4,6 +4,11 @@
 # Role: git pre-push gate. Blocks the push (exit 1) when the pending-update
 # gate, spec/server sync, the check suite, or the implementation-coverage
 # strict gate fails. Exit codes: 0 = all gates pass, 1 = a gate failed.
+#
+# The strict gate is skipped when the push pipeline has already run it this run
+# (HOLONOVEL_PIPELINE_STRICT=1) — the pipeline runs it once at step 4d and the
+# marker suppresses the per-push repeat (origin + mirror). A direct push, which
+# never sets the marker, still runs it here.
 set -euo pipefail
 
 if ! command -v node >/dev/null 2>&1; then
@@ -56,7 +61,9 @@ else
     fi
 
     echo "  spec/server sync..."
-    root_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+    # `spec_hash` was computed above; reuse it for the root comparison instead of
+    # spawning a second identical hash process.
+    root_spec_hash="$spec_hash"
     embedded_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel/holonovel.md')).digest('hex'))")
 
     if [ "$root_spec_hash" != "$embedded_spec_hash" ]; then
@@ -93,12 +100,16 @@ else
 fi
 
 echo "  implementation-coverage strict gate..."
-npm run validate:sdd -- --impl-audit=strict || {
-    echo ""
-    echo "BLOCKED: implementation-coverage strict gate failed — bucket-A (gap) REQs present."
-    echo "Every server-runtime REQ must be evidenced (C) or builder-side (E) before push."
-    echo ""
-    exit 1
-}
+if [[ "${HOLONOVEL_PIPELINE_STRICT:-0}" == "1" ]]; then
+    echo "  (push pipeline already ran validate:sdd --impl-audit=strict — skipping)"
+else
+    npm run validate:sdd -- --impl-audit=strict || {
+        echo ""
+        echo "BLOCKED: implementation-coverage strict gate failed — bucket-A (gap) REQs present."
+        echo "Every server-runtime REQ must be evidenced (C) or builder-side (E) before push."
+        echo ""
+        exit 1
+    }
+fi
 
 echo "Pre-push checks passed."
