@@ -11,7 +11,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { readSpec, extractReqBodies, changedReqBodies } from "./lib/parse-spec.js";
+import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from "./lib/parse-spec.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -61,7 +61,7 @@ function main(): void {
 
   // The shared parser must cover every canonical REQ header in the assembled spec.
   const spec = readSpec();
-  const headerCount = (spec.match(/\*\*REQ-\d{3}[a-z0-9]*\s+—/g) ?? []).length;
+  const headerCount = extractReqHeaders(spec).length;
   check(extractReqBodies(spec).size === headerCount, `body parser covers every REQ header (${extractReqBodies(spec).size}/${headerCount})`);
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);

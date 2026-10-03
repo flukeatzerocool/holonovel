@@ -9,6 +9,7 @@ import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { resourceReader } from "./lib/jsonrpc.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -73,12 +74,7 @@ async function newNovel(proc: ChildProcess, name: string): Promise<void> {
   await call(proc, "manage_novel", { action: "create", name });
   await call(proc, "set_badge", { badge: "game_master" });
 }
-async function readResource(proc: ChildProcess, uri: string): Promise<string> {
-  const resp = await send(proc, { method: "resources/read", params: { uri } });
-  if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
-  const content = resp.result?.contents ?? [];
-  return content.map((c: any) => (c?.text ?? "")).join("\n");
-}
+const readResource = resourceReader(send);
 
 async function main() {
   console.log("=== Fate base capabilities (T520–T523) ===\n");

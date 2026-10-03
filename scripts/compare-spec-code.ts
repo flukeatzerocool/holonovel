@@ -63,9 +63,24 @@ interface TestNameEntry {
 
 const MAX_IDS_PER_TEST_NAME = 4;
 
+// Memoized so the assembled spec and the server source trees are read once per
+// run rather than once per audit function (the scripts tree has three callers).
+let specCache: string | null = null;
+function specText(): string {
+  return (specCache ??= readSpec());
+}
+let implScriptsCache: string[] | null = null;
+function walkScripts(): string[] {
+  return (implScriptsCache ??= walkTsFiles(IMPL_SCRIPTS_DIR));
+}
+let implSrcCache: string[] | null = null;
+function walkSrc(): string[] {
+  return (implSrcCache ??= walkTsFiles(IMPL_SRC_DIR));
+}
+
 function gatherTestNames(): TestNameEntry[] {
   const out: TestNameEntry[] = [];
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of walkScripts()) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
@@ -115,18 +130,15 @@ function parseRegister(): Map<string, RegisterRow> {
 // numbers and comment detection for the weak-citation signal.
 function gatherCiteSites(): Map<string, CiteSite[]> {
   const map = new Map<string, CiteSite[]>();
-  const dirs = [IMPL_SRC_DIR, IMPL_SCRIPTS_DIR];
-  for (const dir of dirs) {
-    for (const f of walkTsFiles(dir)) {
-      let content = "";
-      try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
-      const lines = content.split("\n");
-      for (let i = 0; i < lines.length; i++) {
-        for (const m of lines[i].matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) {
-          const id = "REQ-" + m[1];
-          if (!map.has(id)) map.set(id, []);
-          map.get(id)!.push({ file: rel(f), line: i + 1, text: lines[i].trim().slice(0, 140), isComment: /^\s*(\/\/|\*|\/\*)/.test(lines[i]) });
-        }
+  for (const f of [...walkSrc(), ...walkScripts()]) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) {
+        const id = "REQ-" + m[1];
+        if (!map.has(id)) map.set(id, []);
+        map.get(id)!.push({ file: rel(f), line: i + 1, text: lines[i].trim().slice(0, 140), isComment: /^\s*(\/\/|\*|\/\*)/.test(lines[i]) });
       }
     }
   }
@@ -137,7 +149,7 @@ function gatherCiteSites(): Map<string, CiteSite[]> {
 // the `test(...)` call's leading body as the assertion snippet.
 function gatherTestBodies(): Map<string, TestBody[]> {
   const map = new Map<string, TestBody[]>();
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of walkScripts()) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
@@ -262,7 +274,7 @@ interface Dossier {
 }
 
 function buildDossiers(): Dossier[] {
-  const text = readSpec();
+  const text = specText();
   const bodies = extractReqBodies(text);
   const register = parseRegister();
   const cites = gatherCiteSites();
@@ -372,7 +384,7 @@ function buildDossiers(): Dossier[] {
 // This is the definitive residual worklist for the coverage-integrity audit
 // (spec-code comparison SC-6). Read-only.
 function renderBundleReport(): string {
-  const text = readSpec();
+  const text = specText();
   const bodies = extractReqBodies(text);
   const appF = parseAppendixFReqTests(text);
   const subMap = parseSubworkflowMap(text);

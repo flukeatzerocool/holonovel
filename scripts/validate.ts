@@ -11,6 +11,7 @@ import * as path from "node:path";
 import {
   readSpec,
   extractReqBodies,
+  extractReqHeaders,
   extractReqBodiesWithSentences,
   extractTerminology,
   extractNarrativeProse,
@@ -163,17 +164,12 @@ function findTestCitations(text: string): Set<string> {
 
 function checkReqBlocks(text: string): string[] {
   const issues: string[] = [];
-  const re = /\*\*(REQ-\d{3}\s+—\s+.+?)\.\*\*/g;
-  const bodyText = text;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const reqId = match[1].split(/\s+/)[0];
-    const bodyStart = match.index + match[0].length;
-    const rest = bodyText.slice(bodyStart);
-    const endMatch = rest.match(/\*\*REQ-\d{3}\s+—|^#{1,4}\s+/m);
-    const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
+  for (const { id, body } of extractReqBodies(text).values()) {
+    // Only family-base REQs carry the _Check: trailer; sub-REQs (REQ-101a)
+    // inherit their family's, which checkFamilyCheckCoverage validates.
+    if (!/^REQ-\d{3}$/.test(id)) continue;
     if (!body.includes("*Check:*") && !body.includes("_Check:_")) {
-      issues.push(`${reqId}: missing Check: trailer`);
+      issues.push(`${id}: missing Check: trailer`);
     }
   }
   return issues;
@@ -183,16 +179,7 @@ function checkReqBlocks(text: string): string[] {
 
 function checkSpecViolations(text: string): string[] {
   const issues: string[] = [];
-  const re = /\*\*(REQ-\d{3}[a-z0-9]*\s+—\s+.+?)\.\*\*/g;
-  const bodyText = text;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const reqId = match[1].match(/^(REQ-\d{3}[a-z0-9]*)/)![1];
-    const bodyStart = match.index + match[0].length;
-    const rest = bodyText.slice(bodyStart);
-    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+/m);
-    const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
-
+  for (const { id: reqId, body } of extractReqBodies(text).values()) {
     const limit = 800;
     if (body.length > limit) {
       issues.push(`${reqId}: body exceeds ${limit}-char limit (${body.length})`);
@@ -328,10 +315,7 @@ function sectionNameForReq(reqId: string, text: string): string {
 function checkCrossRefs(text: string): string[] {
   const issues: string[] = [];
   const manifest = parseManifest(text);
-  const defRe = /\*\*(REQ-\d{3}[a-z0-9]*)\s+—/g;
-  const defined = new Set<string>();
-  let dm: RegExpExecArray | null;
-  while ((dm = defRe.exec(text)) !== null) defined.add(dm[1]);
+  const defined = new Set(extractReqBodies(text).keys());
 
   const allReqs = new Set([...manifest, ...defined]);
   const citedRe = /\bREQ-(\d{3}[a-z0-9]*)\b/g;
@@ -1257,9 +1241,9 @@ function checkSectionIndexCompleteness(text: string): string[] {
     if (!rowSet) { issues.push(`ERROR: §${sec} has no row in the §5 section map`); continue; }
     const spanEnd = i + 1 < headings.length ? headings[i + 1].pos : finalEnd;
     const span = text.slice(pos, spanEnd);
-    for (const rm of span.matchAll(/\*\*REQ-(\d{3}[a-z0-9]*)\s*—/g)) {
-      const base = rm[1].slice(0, 3);
-      if (!rowSet.has(base)) issues.push(`ERROR: REQ-${rm[1]} in §${sec} missing from the §5 section map row`);
+    for (const { id } of extractReqHeaders(span)) {
+      const base = id.slice(4, 7);
+      if (!rowSet.has(base)) issues.push(`ERROR: ${id} in §${sec} missing from the §5 section map row`);
     }
   }
 
@@ -1400,17 +1384,6 @@ function checkPreparePhaseMap(): string[] {
 // §5.12 narrative REQs additionally emit a mandatory one-line disposition
 // (implemented / partial / gap) per REQ-346.
 
-// Memoized per-directory so the source tree is read once per run rather than
-// once per audit that needs it (seven callers share two directories).
-const walkCache = new Map<string, string[]>();
-function walkTsFiles(dir: string): string[] {
-  const cached = walkCache.get(dir);
-  if (cached) return cached;
-  const out = walkTsFilesRaw(dir);
-  walkCache.set(dir, out);
-  return out;
-}
-
 const IMPL_SRC_DIR = path.resolve(__dirname, "..", "holonovel", "src");
 
 // REQ-278: the build-phase map records a SHA-256 of the spec sources it
@@ -1430,9 +1403,13 @@ function checkPhaseMapHash(): string[] {
 }
 const IMPL_SCRIPTS_DIR = path.resolve(__dirname, "..", "holonovel", "scripts");
 
+// Walked once at module load; every audit below shares these file lists.
+const IMPL_SRC_FILES = walkTsFilesRaw(IMPL_SRC_DIR);
+const IMPL_SCRIPTS_FILES = walkTsFilesRaw(IMPL_SCRIPTS_DIR);
+
 function gatherSourceCites(): Set<string> {
   const cites = new Set<string>();
-  for (const f of walkTsFiles(IMPL_SRC_DIR)) {
+  for (const f of IMPL_SRC_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of content.matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) cites.add("REQ-" + m[1]);
@@ -1442,7 +1419,7 @@ function gatherSourceCites(): Set<string> {
 
 function gatherExercisedIds(): Set<string> {
   const ids = new Set<string>();
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of IMPL_SCRIPTS_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     // Count only IDs named in an executed `test("<name>", ...)` call, not
@@ -1461,7 +1438,7 @@ function gatherExercisedIds(): Set<string> {
 // silent pass. Mechanized so the guard cannot be dropped from a new harness.
 function checkHarnessFailLoud(): string[] {
   const issues: string[] = [];
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of IMPL_SCRIPTS_FILES) {
     const base = path.basename(f);
     if (!/^test-.*\.ts$/.test(base)) continue;
     let content = "";
@@ -1499,7 +1476,7 @@ function checkHarnessGating(): string[] {
   for (const script of pkgScripts) {
     for (const m of script.matchAll(/\bscripts\/([^/\s]+\.ts)\b/g)) gated.add(m[1]);
   }
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of IMPL_SCRIPTS_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     if (!/\btest\s*\(\s*["'`][^"'`]+["'`]/.test(content)) continue;
@@ -1520,7 +1497,7 @@ function checkHarnessGating(): string[] {
 const MAX_IDS_PER_TEST_NAME = 4;
 function checkTestNameInflation(): string[] {
   const issues: string[] = [];
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of IMPL_SCRIPTS_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
@@ -1539,7 +1516,7 @@ function checkTestNameInflation(): string[] {
 interface HarnessTest { file: string; name: string; prefix: string[]; all: string[]; }
 function collectHarnessTestNames(): HarnessTest[] {
   const names: HarnessTest[] = [];
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of IMPL_SCRIPTS_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
@@ -1605,7 +1582,7 @@ function declaredConfigVars(text: string): Set<string> {
 }
 function codeConfigVars(): Set<string> {
   const out = new Set<string>();
-  for (const f of walkTsFiles(IMPL_SRC_DIR)) {
+  for (const f of IMPL_SRC_FILES) {
     let c = "";
     try { c = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of c.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) out.add(m[0]);
@@ -1692,7 +1669,7 @@ function checkAppendixFAssertions(text: string, exercisedIds: Set<string>): stri
   const excluded = nonHarnessAssertionVars(text);
   // All TTRPG_* tokens referenced anywhere under holonovel/scripts.
   const harnessVars = new Set<string>();
-  for (const f of walkTsFiles(IMPL_SCRIPTS_DIR)) {
+  for (const f of IMPL_SCRIPTS_FILES) {
     let c = "";
     try { c = fs.readFileSync(f, "utf-8"); } catch { continue; }
     for (const m of c.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) harnessVars.add(m[0]);

@@ -8,11 +8,11 @@
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deriveAnchor } from "../src/core/anchors.js";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -52,10 +52,7 @@ function assertNotContains(hay: string, needle: string, label: string) {
 
 // Compute the ruleset content hash the same way the host does (REQ-389).
 function contentHash(pkg: any): string {
-  const canonical = (obj: any) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
-  const h = createHash("sha256");
-  for (const obj of [pkg.index, pkg.model, pkg.tools, pkg.resources, pkg.prompts]) h.update(canonical(obj));
-  return h.digest("hex");
+  return sha256Canonical(pkg.index, pkg.model, pkg.tools, pkg.resources, pkg.prompts);
 }
 
 const RULESET_PKG = {

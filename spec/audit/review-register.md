@@ -11,6 +11,34 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Script audit, consolidation, and standards hardening (resolved
+  2026-10-02):** audited all 80 scripts across both trees by running the spec
+  gates, the full server suite, the Holosuite deterministic tiers and mutation
+  audit, and every standalone script. Consolidation: `readResource`/`readRes`
+  across six harnesses unified on `holonovel/scripts/lib/jsonrpc.ts`;
+  `contentHash`/`packageContentHash` across five harnesses unified on
+  `sha256Canonical` in `scripts/lib/hash.ts`; `compare-spec-code.ts` memoized
+  its repeated `readSpec`/`walkTsFiles` calls
+  (`scripts/compare-spec-code.ts:66,140,265,375`), and `validate.ts` hoists its
+  walked file lists. Parser consolidation: `extractReqHeaders`/
+  `extractReqEntries` added to `scripts/lib/parse-spec.ts`; `fmea.ts`'s
+  `REQ-\d{3}[a-z]?` header regex undercounted suffix REQs (1098/1187) and now
+  uses the shared parser (1187/1187); `validate.ts` `checkReqBlocks`/
+  `checkSpecViolations`/`checkCrossRefs`/§5-map scans use the shared parser.
+  Standards: `check-script-discipline.ts` now covers `.mjs` and its detectors
+  moved to `scripts/lib/script-discipline.ts`; `check-script-quality.ts` C2/C3/C4
+  promoted from report-only to hard gates (detectors in
+  `scripts/lib/script-quality.ts`), C4 narrowed to REQ-header-shape regexes (the
+  prior `REQ-`+`\d` predicate flagged 20 citation/table scans), and the one
+  intentional divergence (`doAction`) baselined. New regression self-test
+  `scripts/test-script-tooling.ts` (21/21) wired into `check` and `check:fast`.
+  Evidence: `check:fast` PASS, `check` PASS, `test:all` 41/41,
+  `test-script-tooling` 21/21, `typecheck` clean. Retained:
+  `scripts/fingerprint.ts` remains a recorded removal candidate (P3,
+  allowlisted). Not script defects: `check-registry-publish` exits 1 because the
+  published registry lags the repo version; `spec-update-record --check` exits 1
+  on the pending unpublished delta (publication gate).
+
 - **Holosuite II — adversarial + differential tiers and PB follow-on port
   (resolved 2026-10-02):** T3 adversarial
   (`holonovel/scripts/lib/holosuite-adversarial.ts`) and T4 differential
@@ -668,18 +696,10 @@ None.
   Record-and-close.
 
 - **Script-quality report-only classes and residual helper duplication**
-  (P3, closed 2026-10-02): `scripts/check-script-quality.ts` gates C1
-  reachability and reports C2 duplicate-helper, C3 repeated-parse, and C4
-  shared-parser-bypass. The one demonstrated non-harness duplicate —
-  `parseSubworkflowMap` (body similarity 0.94 at the former
-  `scripts/validate.ts:1790` and `scripts/compare-spec-code.ts:221`) — is
-  extracted to `scripts/lib/subworkflow.ts`. The residual C2 pairs are
-  harness-local fixture helpers (`readResource`/`readRes` and
-  `contentHash`/`packageContentHash` in `holonovel/scripts/test-*.ts`,
-  `doAction` in the pattern-buffer pair); each is small and fixture-local with
-  no demonstrated gate impact. Promoting C2/C4 to hard checks waits on a
-  measured false-positive rate. Record-and-close; reopen with a duplicate that
-  demonstrably changes gate behavior.
+  (closed 2026-10-02; superseded): resolved by the 2026-10-02 script audit
+  above — C2/C3/C4 promoted to hard checks, C4 narrowed to REQ-header-shape,
+  the harness duplicates extracted, and the one intentional `doAction`
+  divergence baselined.
 
 ## Deferred-by-user
 

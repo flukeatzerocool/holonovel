@@ -5,19 +5,7 @@
  * Maps each REQ to the failure-mode tags (F1..Fn) it prevents. Exit codes: 0
  * always.
  */
-import { readSpec } from "./lib/parse-spec.js";
-
-function extractFailureModeTags(text: string): Map<number, string> {
-  const tags = new Map<number, string>();
-  const section = text.split("## 3. How This Build Fails")[1]?.split("---")[0] || "";
-  for (const line of section.split("\n")) {
-    const m = line.match(/^\|\s*F(\d+)\s*\|(.+?)\|/);
-    if (m) {
-      tags.set(parseInt(m[1]), m[2].trim());
-    }
-  }
-  return tags;
-}
+import { readSpec, extractReqEntries } from "./lib/parse-spec.js";
 
 interface ReqInfo {
   id: string;
@@ -29,26 +17,14 @@ interface ReqInfo {
 
 function extractReqs(text: string): ReqInfo[] {
   const reqs: ReqInfo[] = [];
-  const failureTags = extractFailureModeTags(text);
-
-  const re = /\*\*(REQ-\d{3}[a-z]?\s+—\s+(.+?))\.\*\*/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(text)) !== null) {
-    const fullHeader = match[1];
-    const reqId = fullHeader.match(/^(REQ-\d{3}[a-z]?)/)![1];
-    const title = fullHeader.slice(reqId.length).replace(/^—\s*/, "").trim();
-    const bodyStart = match.index + match[0].length;
-    const rest = text.slice(bodyStart);
-    const endMatch = rest.match(/\*\*REQ-\d{3}[a-z]?\s+—|^#{1,4}\s+/m);
-    const body = endMatch ? rest.slice(0, endMatch.index!) : rest;
-
+  for (const { id, title, body } of extractReqEntries(text).values()) {
     const checkMatch = body.match(/[*_]Check:[*_]\s*(.+?)(?:\.\s*$|$)/m);
     const checks = checkMatch ? checkMatch[1].split(/;\s*/).map((s) => s.trim()) : [];
 
     const failuresInBody = body.match(/\(F(\d)\)/g);
     const modes = failuresInBody ? [...new Set(failuresInBody.map((f) => parseInt(f.replace(/[()F]/g, ""))))] : [];
 
-    reqs.push({ id: reqId, title, body, checks, failureModes: modes });
+    reqs.push({ id, title, body, checks, failureModes: modes });
   }
   return reqs;
 }

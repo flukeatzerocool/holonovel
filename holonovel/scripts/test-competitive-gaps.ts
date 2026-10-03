@@ -11,9 +11,10 @@ import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createHash } from "node:crypto";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { resourceReader } from "./lib/jsonrpc.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -80,12 +81,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   const content = resp.result?.content ?? [];
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
-async function readResource(proc: ChildProcess, uri: string): Promise<string> {
-  const resp = await send(proc, { method: "resources/read", params: { uri } });
-  if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
-  const content = resp.result?.contents ?? [];
-  return content.map((c: any) => (c?.text ?? "")).join("\n");
-}
+const readResource = resourceReader(send);
 async function readPrompt(proc: ChildProcess, name: string, args: Record<string, string> = {}): Promise<string> {
   const resp = await send(proc, { method: "prompts/get", params: { name, arguments: args } });
   if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
@@ -101,10 +97,7 @@ async function newNovel(proc: ChildProcess, name: string): Promise<void> {
 // ── Fixture package seeding ─────────────────────────────────────────
 
 function packageContentHash(index: any[], model: any, tools: any[], resources: any[], prompts: any[]): string {
-  const canonical = (obj: any) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
-  const h = createHash("sha256");
-  for (const obj of [index, model, tools, resources, prompts]) h.update(canonical(obj));
-  return h.digest("hex");
+  return sha256Canonical(index, model, tools, resources, prompts);
 }
 function seedPackage(slug: string, model: Record<string, any>, sourceLicense?: string): void {
   const dir = join(DATA_DIR, "rulesets", slug);

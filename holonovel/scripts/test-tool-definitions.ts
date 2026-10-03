@@ -47,8 +47,8 @@ import { spawn, spawnSync, ChildProcess } from "node:child_process";
 import { mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createHash } from "node:crypto";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { applyHardGates, shadowCandidates, computeContextSignals } from "../src/core/tdqs.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -133,10 +133,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
 // hash matches the host's algorithm (sha256 over the five canonical files in
 // order), so the package passes integrity validation.
 function packageContentHash(index: any[], model: any, tools: any[], resources: any[], prompts: any[]): string {
-  const canonical = (obj: any) => JSON.stringify(JSON.parse(JSON.stringify(obj)));
-  const h = createHash("sha256");
-  for (const obj of [index, model, tools, resources, prompts]) h.update(canonical(obj));
-  return h.digest("hex");
+  return sha256Canonical(index, model, tools, resources, prompts);
 }
 
 function seedTQPackage(tools: any[]): void {

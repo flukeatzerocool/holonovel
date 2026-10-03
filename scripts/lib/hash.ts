@@ -18,3 +18,12 @@ export function hashFile(path: string, fallback = "unavailable"): string {
     return fallback;
   }
 }
+
+// Hash a sequence of values after canonicalizing each with a JSON round-trip,
+// so object key order and prototype noise do not affect the digest. Shared by
+// the fingerprint and ruleset-package content-hash helpers.
+export function sha256Canonical(...values: unknown[]): string {
+  const h = createHash("sha256");
+  for (const value of values) h.update(JSON.stringify(JSON.parse(JSON.stringify(value))));
+  return h.digest("hex");
+}
