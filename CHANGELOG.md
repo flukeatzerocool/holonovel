@@ -34,8 +34,7 @@ retrieval. Package-format fingerprint regenerated.
   (annotate/extract/build-package/deploy + frozen supplement Markdown), a shared
   `scripts/lib/ruleset-package.mjs` content-hash helper consumed by the swse and
   dnd2024 build assets, and `build-asset` baseline entries.
-- Package-format fingerprint advanced; installed packages require the V.7
-  re-emit/re-build after the host is updated (REQ-420/REQ-393).
+- Package-format fingerprint advanced (REQ-420).
 
 ## 2026-10-02 — Update job updates all user data on a deployed instance
 
