@@ -27,7 +27,12 @@
 #
 # NOTE: step 8 (wiki) is non-fatal — a wiki push failure warns and the run
 # continues to the step 9 deploy. Deploy (REQ-418) is the hard gate; an
-# auxiliary documentation push must not block it.
+# auxiliary documentation push must not block it. Step 8 also mirrors the wiki
+# to GitHub (remote `github`, local `main` -> GitHub default `master`) with a
+# force-push, so the GitHub wiki stays byte-identical to git.gay. The wiki repo
+# lives at .holonovel-state/wiki (a separate clone); add the `github` remote
+# there once, and initialize the GitHub wiki (first page in the web UI) before
+# the mirror push can succeed.
 #
 # Usage:
 #   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests]
@@ -360,6 +365,7 @@ DID_TAG=false
 DID_PUSH=false
 DID_MIRROR=false
 DID_WIKI=false
+DID_WIKI_MIRROR=false
 DID_DEPLOY=false
 
 # ── 6. Stage and commit ──
@@ -476,6 +482,23 @@ if [[ -d "$WIKI_DIR/.git" ]]; then
       echo -e "${YELLOW}  Wiki push FAILED — non-fatal; continuing to deploy.${NC}"
     fi
   fi
+
+  # ── 8b. Mirror wiki to GitHub ──
+  # Run even when origin had no new commit, so a GitHub wiki that drifted or
+  # lagged re-syncs. Force-push (never to origin): the GitHub wiki is a strict
+  # read-only mirror of git.gay. Local branch `main` maps to GitHub's default
+  # `master` ref (GitHub wiki repos do not use `main`).
+
+  echo -e "${GREEN}=== 8b. Mirror wiki (github) ===${NC}"
+  if git -C "$WIKI_DIR" remote get-url github >/dev/null 2>&1; then
+    if git -C "$WIKI_DIR" push --force github main:master; then
+      DID_WIKI_MIRROR=true
+    else
+      echo -e "${YELLOW}  Wiki mirror push (github) FAILED — non-fatal; GitHub wiki is behind.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}  No 'github' remote in wiki repo — skipping wiki mirror.${NC}"
+  fi
 else
   echo -e "${YELLOW}  Wiki directory not found, skipping.${NC}"
 fi
@@ -582,4 +605,4 @@ fi
 # ── Summary ──
 
 summary_flag() { if $1; then echo "yes"; else echo "no"; fi; }
-echo -e "${GREEN}Done.${NC} commit=$(summary_flag $DID_COMMIT) tag=$(summary_flag $DID_TAG) push=$(summary_flag $DID_PUSH) mirror=$(summary_flag $DID_MIRROR) wiki=$(summary_flag $DID_WIKI) deploy=$(summary_flag $DID_DEPLOY)"
+echo -e "${GREEN}Done.${NC} commit=$(summary_flag $DID_COMMIT) tag=$(summary_flag $DID_TAG) push=$(summary_flag $DID_PUSH) mirror=$(summary_flag $DID_MIRROR) wiki=$(summary_flag $DID_WIKI) wiki_mirror=$(summary_flag $DID_WIKI_MIRROR) deploy=$(summary_flag $DID_DEPLOY)"

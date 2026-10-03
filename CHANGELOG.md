@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-02 — GitHub wiki mirror
+
+Adds a strict read-only mirror of the project wiki from git.gay to GitHub.
+
+- `scripts/push-pipeline.sh` step 8 now also mirrors the wiki (separate clone
+  at `.holonovel-state/wiki`) to its `github` remote, force-pushing local
+  `main` to GitHub's default `master` ref. The push is non-fatal, like the
+  git.gay wiki push — the REQ-418 deploy gate still holds.
+- Documented the two-remote wiki clone, the `main` → `master` mapping, and the
+  one-time GitHub wiki initialization (first page in the web UI) in AGENTS.md.
+- No §5 REQ delta.
+
 ## 2026-10-02 — Holosuite adversarial + differential tiers and follow-on scheduling
 
 Extends the Holosuite with two deterministic blocking tiers and schedules the
