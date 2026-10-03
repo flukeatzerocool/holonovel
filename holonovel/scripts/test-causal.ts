@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Causal Transition Validation harness — covers REQ-484 (proposal), REQ-485
+// Causal Transition Validation harness — covers REQ-484 (proposal), REQ-485 [gate]
 // (decision), REQ-486 (location exclusivity), REQ-487 (ordered scalar),
 // REQ-488 (scope coordinate), REQ-489 (idempotency/version), REQ-490 (latent),
 // REQ-491 (rejected evidence), REQ-492 (firewall), REQ-493 (ingress),

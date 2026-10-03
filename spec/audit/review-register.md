@@ -667,6 +667,20 @@ None.
   run, so the resolve surface was unexercised. Coverage note, not a defect.
   Record-and-close.
 
+- **Script-quality report-only classes and residual helper duplication**
+  (P3, closed 2026-10-02): `scripts/check-script-quality.ts` gates C1
+  reachability and reports C2 duplicate-helper, C3 repeated-parse, and C4
+  shared-parser-bypass. The one demonstrated non-harness duplicate —
+  `parseSubworkflowMap` (body similarity 0.94 at the former
+  `scripts/validate.ts:1790` and `scripts/compare-spec-code.ts:221`) — is
+  extracted to `scripts/lib/subworkflow.ts`. The residual C2 pairs are
+  harness-local fixture helpers (`readResource`/`readRes` and
+  `contentHash`/`packageContentHash` in `holonovel/scripts/test-*.ts`,
+  `doAction` in the pattern-buffer pair); each is small and fixture-local with
+  no demonstrated gate impact. Promoting C2/C4 to hard checks waits on a
+  measured false-positive rate. Record-and-close; reopen with a duplicate that
+  demonstrably changes gate behavior.
+
 ## Deferred-by-user
 
 None.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Durable Agent Task harness — REQ-522 (create/queued), REQ-523 (lifecycle),
+// Durable Agent Task harness — REQ-522 (create/queued), REQ-523 (lifecycle), [gate]
 // REQ-524 (admitted transitions), REQ-525 (action log), REQ-526 (autonomy),
 // REQ-527 (subject), REQ-528 (terminal immutability), REQ-529 (goal source),
 // REQ-530 (badge gating).

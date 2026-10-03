@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Tool-definition quality harness (REQ-427, REQ-024), registry-published
+// Tool-definition quality harness (REQ-427, REQ-024), registry-published [gate]
 // distribution guard (REQ-428), server-wide action-discriminator surface
 // guard (REQ-429), ruleset tool-quality conformance guard (REQ-430), and the
 // gate-classification table guard (REQ-137a/REQ-137b) and the Holodeck

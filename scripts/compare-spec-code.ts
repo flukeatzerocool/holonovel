@@ -20,6 +20,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { readSpec, extractReqBodies } from "./lib/parse-spec.js";
+import { walkTsFiles } from "./lib/walk.js";
+import { parseSubworkflowMap } from "./lib/subworkflow.js";
 import { parseFlag, parseValueFlag, handleHelp } from "./lib/args.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -77,18 +79,6 @@ function gatherTestNames(): TestNameEntry[] {
         allIds: [...name.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
       });
     }
-  }
-  return out;
-}
-
-function walkTsFiles(dir: string): string[] {
-  const out: string[] = [];
-  if (!fs.existsSync(dir)) return out;
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === "node_modules" || e.name === "dist" || e.name === ".git") continue;
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) out.push(...walkTsFiles(p));
-    else if (e.isFile() && e.name.endsWith(".ts")) out.push(p);
   }
   return out;
 }
@@ -228,18 +218,8 @@ function orphanIdsInTestName(name: string, appF: Map<string, AppFEntry>, occurre
   return out;
 }
 
-// §6.6 sub-workflow map: `| REQ-197 | I1, I4 | Room CRUD |`.
-function parseSubworkflowMap(text: string): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  for (const line of text.split("\n")) {
-    const m = line.match(/^\|\s*(REQ-\d{3}[a-z0-9]*)\s+\|\s*([^|\n]+)\s*\|/);
-    if (!m) continue;
-    const ids = m[2].matchAll(/\b([SI]\d+[a-z0-9]*)\b/g);
-    if (!map.has(m[1])) map.set(m[1], new Set());
-    for (const im of ids) map.get(m[1])!.add(im[1]);
-  }
-  return map;
-}
+// §6.6 sub-workflow map: `| REQ-197 | I1, I4 | Room CRUD |` is parsed by
+// scripts/lib/subworkflow.ts.
 
 const STOP = new Set([
   "and", "the", "for", "with", "every", "each", "when", "that", "from",

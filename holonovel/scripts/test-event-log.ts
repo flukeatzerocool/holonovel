@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Event-log harness — covers REQ-455 (append), REQ-456 (non-semantic record),
+// Event-log harness — covers REQ-455 (append), REQ-456 (non-semantic record), [gate]
 // REQ-457 (alternative events), REQ-458 (Novel branching), REQ-459 (lineage and
 // isolation), REQ-460 (event provenance).
 

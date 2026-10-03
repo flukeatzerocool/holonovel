@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Property-group cardinality + Novel-health conformance harness
+// Property-group cardinality + Novel-health conformance harness [gate]
 // (REQ-129, REQ-097; REQ-041 snapshot depth). Exercises Appendix F T143 and
 // T101/T160 against live server processes booted with per-test configuration.
 

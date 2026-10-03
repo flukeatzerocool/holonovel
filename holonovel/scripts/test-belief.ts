@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Belief & Evidence harness — covers REQ-461 (acquisition record), REQ-462
+// Belief & Evidence harness — covers REQ-461 (acquisition record), REQ-462 [gate]
 // (provenance), REQ-463 (question identity), REQ-464 (admission states),
 // REQ-465 (stance materialization), REQ-466 (independent corroboration),
 // REQ-467 (contradiction preservation), REQ-468 (refresh), REQ-469 (family

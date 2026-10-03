@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// G7 narrative-coherence attestation harness (REQ-346, G7). Exercises the
+// G7 narrative-coherence attestation harness (REQ-346, G7). Exercises the [gate]
 // Appendix F verification tests T396 and T403 against a live server process:
 // DECISIONS.md attestation presence, spec_health.narrative_coherence
 // disposition, and the smoke-session transcript record.

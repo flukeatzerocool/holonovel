@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Help-and-tool-discovery harness (REQ-067, REQ-032). Exercises T62
+// Help-and-tool-discovery harness (REQ-067, REQ-032). Exercises T62 [gate]
 // (categorized task map + query search + badge filtering) and T118
 // (GM category reassignment / reset / not-found / forbidden).
 //

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Ironsworn base-capability harness — exercises momentum (REQ-438), the move
+// Ironsworn base-capability harness — exercises momentum (REQ-438), the move [gate]
 // framework (REQ-439), and progress tracks (REQ-440) against a real
 // ruleset-free server process. Tests T524–T526.
 // Exit codes: 0 = pass, 1 = one or more assertions failed.

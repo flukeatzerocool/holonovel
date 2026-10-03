@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Knowledge Corpus harness — covers REQ-496 (cold registration), REQ-497
+// Knowledge Corpus harness — covers REQ-496 (cold registration), REQ-497 [gate]
 // (source-profile routing), REQ-498 (access predicate), REQ-499 (consumption
 // modes), REQ-500 (acquisition ledger), REQ-501 (cold-until-consumed),
 // REQ-502 (reference deixis), REQ-503 (badge gating), REQ-546 (retention bound).

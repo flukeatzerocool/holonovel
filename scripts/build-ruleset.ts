@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * build-ruleset.ts — Ruleset-build entry point (REQ-395a).
+ * build-ruleset.ts — Ruleset-build entry point (REQ-395a). [entry point]
  *
  * Accepts one or more `slug=path` pairs (the B1 intake form), validates each
  * slug (§7.1a) and its source path, and prints the Build workflow invocation

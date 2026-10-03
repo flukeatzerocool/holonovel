@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * update-rulesets.ts — Ruleset update entry point (REQ-422).
+ * update-rulesets.ts — Ruleset update entry point (REQ-422). [entry point]
  *
  * Lists installed packages whose package-format fingerprint (REQ-420) differs
  * from the host's current value or is absent, and prints the Build workflow

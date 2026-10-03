@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Workflow-lifecycle conformance harness (REQ-042, REQ-193, REQ-224, P50).
+// Workflow-lifecycle conformance harness (REQ-042, REQ-193, REQ-224, P50). [gate]
 // Exercises T138 (raise/freeze/cancel-restore/resolve), T157 (restart survival),
 // and T266 (staleness auto-cancel) against a real server process, including
 // spawn/kill/respawn cycles against a shared data directory.

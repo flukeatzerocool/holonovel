@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// playtest harness self-tests — metric helpers used by playtest.ts.
+// playtest harness self-tests — metric helpers used by playtest.ts. [gate]
 // REQ citations: none — guards the informational harness's measurement layer
 // against regression (envelope parsing, error classification, state
 // fingerprint stability, Mothership Health/Wounds reading).

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// §5.19 State Persistence Guardrails conformance harness (REQ-400 through
+// §5.19 State Persistence Guardrails conformance harness (REQ-400 through [gate]
 // REQ-407, plus REQ-001a corruption reporting). Exercises T469–T476 and T175
 // (persistence directive, state_ledger token, session no-mutation detection,
 // state-drift gate, roll-to-commit coupling, auto-moment on transitions,

@@ -5,6 +5,7 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
+import { sha256, hashFile } from "./hash.js";
 
 export interface Fingerprints {
   source: string;
@@ -12,10 +13,6 @@ export interface Fingerprints {
   lockfile: string;
   extraction: string;
   surfaces: string;
-}
-
-function sha256(data: Buffer | string): string {
-  return createHash("sha256").update(data).digest("hex");
 }
 
 function hashDirectory(dir: string, extensions?: string[]): string {
@@ -42,11 +39,6 @@ function hashDirectory(dir: string, extensions?: string[]): string {
     } catch { /* skip unreadable */ }
   }
   return h.digest("hex");
-}
-
-function hashFile(path: string, fallback: string = "unavailable"): string {
-  try { return sha256(readFileSync(path)); }
-  catch { return fallback; }
 }
 
 function hashGenerated(serverDir: string): string {

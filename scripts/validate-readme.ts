@@ -6,6 +6,7 @@
  * README DESIGN comment. Exit codes: 0 = pass, 1 = an error-class finding.
  */
 import { readReadme, extractHeadings, extractLinks, extractBlockquotes, extractBulletLists, proseOnly, proseLines, slugify } from "./lib/parse-readme.js";
+import { jaccard } from "./lib/similarity.js";
 
 const toolNames = [
   "advance_combat", "advance_countdown", "apply_condition", "character_sheet",
@@ -244,13 +245,11 @@ function checkNearDuplicates(text: string): Issue[] {
     for (let j = i + 1; j < sentences.length; j++) {
       const bWords = new Set(sentences[j].toLowerCase().split(/\s+/).filter((w) => w.length > 3));
       if (aWords.size === 0 || bWords.size === 0) continue;
-      const intersection = [...aWords].filter((w) => bWords.has(w)).length;
-      const union = aWords.size + bWords.size - intersection;
-      const jaccard = union > 0 ? intersection / union : 0;
-      if (jaccard >= 0.7) {
+      const jac = jaccard(aWords, bWords);
+      if (jac >= 0.7) {
         issues.push({
           error: false,
-          msg: `Near-duplicate sentences (${(jaccard * 100).toFixed(0)}% word overlap): "${sentences[i].slice(0, 80)}" ≈ "${sentences[j].slice(0, 80)}"`,
+          msg: `Near-duplicate sentences (${(jac * 100).toFixed(0)}% word overlap): "${sentences[i].slice(0, 80)}" ≈ "${sentences[j].slice(0, 80)}"`,
         });
         break;
       }

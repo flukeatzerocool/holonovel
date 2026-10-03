@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * migrate-user-data.ts — User-data migration entry point (REQ-424).
+ * migrate-user-data.ts — User-data migration entry point (REQ-424). [entry point]
  *
  * Lists persisted state artifacts whose data-format fingerprint (REQ-423)
  * differs from the host's current value or is absent. The default invocation

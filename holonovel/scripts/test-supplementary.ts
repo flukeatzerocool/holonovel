@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Supplementary import harness — covers REQ-372 (Novel-scoped supplementary
+// Supplementary import harness — covers REQ-372 (Novel-scoped supplementary [gate]
 // import, Wisdom-only under the REQ-373 waiver) and REQ-373 (dynamic tool
 // registration waiver branch: no tools registered).
 

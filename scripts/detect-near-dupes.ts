@@ -6,17 +6,12 @@
  * codes: 0 always (findings are warnings, not failures).
  */
 import { readSpec } from "./lib/parse-spec.js";
+import { jaccard, tokenize } from "./lib/similarity.js";
 
 const BOILERPLATE_STARTS = [
   "_Check:", "*Check:", "Acceptance criterion:", "Verify with:",
   "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9",
 ];
-const STOP_WORDS = new Set([
-  "the", "is", "a", "an", "in", "of", "to", "for", "and", "or",
-  "on", "at", "by", "with", "from", "as", "it", "its", "be", "not",
-  "this", "that", "are", "was", "were", "been", "has", "have", "had",
-  "will", "would", "can", "could", "may", "might", "shall", "should",
-]);
 
 interface NearDupe {
   lineA: number;
@@ -24,25 +19,6 @@ interface NearDupe {
   similarity: number;
   snippetA: string;
   snippetB: string;
-}
-
-function jaccard(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let intersection = 0;
-  for (const w of a) {
-    if (b.has(w)) intersection++;
-  }
-  return intersection / (a.size + b.size - intersection);
-}
-
-function tokenize(sentence: string): Set<string> {
-  return new Set(
-    sentence
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")
-      .split(/\s+/)
-      .filter(w => w.length > 1 && !STOP_WORDS.has(w))
-  );
 }
 
 function isBoilerplate(sentence: string): boolean {

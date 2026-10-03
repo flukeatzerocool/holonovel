@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Competitive-gap harness — exercises the 2026-09-04 feature wave against a real
+// Competitive-gap harness — exercises the 2026-09-04 feature wave against a real [gate]
 // server process: NPC mind (REQ-075f), NPC mind auto-apply (REQ-339d),
 // procedural world generation (REQ-431), knowledge-graph projections
 // (REQ-296c), vendor package certification (REQ-432), player-safe recap GM
