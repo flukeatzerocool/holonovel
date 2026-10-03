@@ -11,6 +11,16 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **ThunderCats 5.5E Convert/Build integration + hardening (resolved
+  2026-10-03, `ad08fa2`):** integrated two 389-page, two-column PDFs into the
+  deployed `dnd2024` package and hardened the Convert/Build workflows from the
+  session audit. Resolved Convert findings CV-1…CV-10 (Appendix G.1/G.2/G.3/G.6),
+  Build findings BD-1…BD-8 (REQ-395a supplement overlay, REQ-421 build recipe,
+  new REQ-557 + T650, REQ-430, Appendix M), and reliability findings HR-1…HR-4
+  (REQ-011c no-inference abstention, §6.3 deterministic-first extraction,
+  REQ-299 deterministic-checks-first, REQ-061 `[NOT_FOUND]` abstention).
+  Evidence: `check:fast` PASS, `build-order` complete, commit `ad08fa2`.
+
 - **Appendix M read-only description rule (added 2026-10-03):** Appendix M's REQ
   authoring checklist gained the read-only description phrasing rule — a read-only
   tool's description names no mutating operation, forbidding the verbs create,
@@ -561,9 +571,25 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-None.
+- **Re-emit installed packages under the new package-format fingerprint
+  (scheduled 2026-10-03):** the 2026-10-03 spec advanced the package-format
+  fingerprint (`cd0160a0…` → `8ad3508a…`). After the deployed host advances to
+  that spec, run the V.7 Update workflow to re-emit/re-build `dnd2024`,
+  `mothership`, and `swse` (REQ-420, REQ-557). Until the host advances, the
+  installed packages remain compatible with the old host and need no action.
+
+- **Harness/agent process improvements (scheduled 2026-10-03):** route AH-1
+  (`cd`-chaining: 96/136 bash calls), AH-2 (shell utilities over dedicated
+  tools), and AH-3 (missing `build-review passed.` token before execution)
+  through `skill-improvement-loop`. No REQ surface; not in this repo.
 
 ## Closed-P3 (recorded, no action)
+
+- **BD-9 retrieval-contract documentation (closed 2026-10-03):** heading-anchored
+  chunking and hybrid retrieval are already satisfied by REQ-315a's full-heading
+  index; no demonstrated failure, no action.
+
+
 
 - **Guard-before-fix sequencing for single-source-a-gate plans** (closed
   2026-09-28): the Publish-Server recurrence guard (`scripts/check-workflows.ts`)
