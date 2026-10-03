@@ -5,9 +5,10 @@
  * Runs the deterministic Holosuite tiers against a live holonovel server:
  * T0 protocol conformance (`conformance`), T1 bounded model-based invariants
  * (`invariants`), T3 adversarial input fuzzing (`adversarial`), and T4
- * differential/replay determinism (`differential`). Emits a structured JSON
- * report with `--json`. The stochastic Understudies tier and the mutation audit
- * are follow-on increments and are not selected here.
+ * differential/replay determinism (`differential`). The report-only method
+ * audit (`mutation`) reports the mutation-audit catch rate and is not part of
+ * `all`. Emits a structured JSON report with `--json`. The stochastic
+ * Understudies tier is a follow-on increment and is not selected here.
  *
  * Usage:
  *   tsx scripts/holosuite.ts --tier=all [--server-dir <dir>] [--data-dir <dir>]
@@ -27,17 +28,19 @@ import { runConformance } from "./lib/holosuite-conformance.js";
 import { runInvariants } from "./lib/holosuite-invariants.js";
 import { runAdversarial } from "./lib/holosuite-adversarial.js";
 import { runDifferential } from "./lib/holosuite-differential.js";
+import { runMutationAudit } from "./lib/holosuite-mutation.js";
 import { appendEvent, canonicalJson, summarize, type EvalProvenance, type TierResult } from "./lib/eval-schema.js";
 
 installHarnessGuard();
 
-type Tier = "conformance" | "invariants" | "adversarial" | "differential" | "all";
+type Tier = "conformance" | "invariants" | "adversarial" | "differential" | "mutation" | "all";
 
-const USAGE = `Usage: tsx scripts/holosuite.ts --tier=<conformance|invariants|adversarial|differential|all> [options]
+const USAGE = `Usage: tsx scripts/holosuite.ts --tier=<conformance|invariants|adversarial|differential|mutation|all> [options]
 
 Options:
   --tier <name>        Tier to run (required): conformance, invariants,
-                       adversarial, differential, or all.
+                       adversarial, differential, mutation, or all. The
+                       mutation tier is report-only and excluded from all.
   --server-dir <dir>   Server root under test (default: current directory).
   --data-dir <dir>     State dir to use (default: a fresh temp dir per tier).
   --seed <n>           Deterministic seed (default: 1).
@@ -47,6 +50,15 @@ Options:
   -h, --help           Show this help.
 
 Exit codes: 0 = pass, 1 = failure/finding, 2 = fatal.`;
+
+/** REQ contracts each tier exercises, for event traceability and the aggregate. */
+const TIER_REQS: Record<string, string[]> = {
+  conformance: ["REQ-020", "REQ-022", "REQ-023", "REQ-024", "REQ-025", "REQ-450"],
+  invariants: ["REQ-001", "REQ-032", "REQ-041", "REQ-050"],
+  adversarial: ["REQ-002", "REQ-054", "REQ-444", "REQ-450"],
+  differential: ["REQ-041", "REQ-050", "REQ-055"],
+  mutation: ["REQ-050", "REQ-141m"],
+};
 
 function parseArgs(argv: string[]): { tier: Tier; serverDir: string; dataDir?: string; seed: number; steps: number; report?: string; json: boolean } {
   const VALUE_FLAGS = new Set(["--tier", "--server-dir", "--data-dir", "--seed", "--steps", "--report"]);
@@ -73,7 +85,7 @@ function parseArgs(argv: string[]): { tier: Tier; serverDir: string; dataDir?: s
     return i >= 0 ? argv[i + 1] : undefined;
   };
   const tier = (value("--tier") ?? "all") as Tier;
-  if (!["conformance", "invariants", "adversarial", "differential", "all"].includes(tier)) throw new Error(`Unknown tier: ${tier}`);
+  if (!["conformance", "invariants", "adversarial", "differential", "mutation", "all"].includes(tier)) throw new Error(`Unknown tier: ${tier}`);
   const seed = Number.parseInt(value("--seed") ?? "1", 10);
   const steps = Number.parseInt(value("--steps") ?? "12", 10);
   if (!Number.isFinite(seed) || !Number.isFinite(steps) || steps < 1) throw new Error("--seed/--steps must be positive integers");
@@ -106,6 +118,18 @@ async function main(): Promise<void> {
   if (args.tier === "differential" || args.tier === "all") {
     results.push(await runDifferential({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed }));
   }
+  if (args.tier === "mutation") {
+    results.push(await runMutationAudit());
+  }
+  // Coverage traceability (§8): every event carries the REQs its tier
+  // exercises, and the aggregate is emitted for the coverage register.
+  const coverage: Record<string, string[]> = {};
+  for (const r of results) {
+    const declared = TIER_REQS[r.tier] ?? [];
+    for (const e of r.events) if (e.req_ids.length === 0) e.req_ids = [...declared];
+    const reqs = [...new Set([...declared, ...r.events.flatMap((e) => e.req_ids)])];
+    for (const req of reqs) (coverage[req] ??= []).push(r.tier);
+  }
   const summary = summarize(results);
   if (args.report) {
     const provenance: EvalProvenance = {
@@ -117,15 +141,21 @@ async function main(): Promise<void> {
       node: process.version,
       seed: args.seed,
     };
-    writeFileSync(args.report, canonicalJson({ provenance, tiers: results, summary }) + "\n");
+    writeFileSync(args.report, canonicalJson({ provenance, tiers: results, summary, coverage }) + "\n");
     for (const r of results) for (const e of r.events) appendEvent(`${args.report}.jsonl`, e);
   }
   harnessComplete();
 
   if (args.json) {
-    console.log(JSON.stringify({ tiers: results, summary }, null, 2));
+    console.log(JSON.stringify({ tiers: results, summary, coverage }, null, 2));
   } else {
     for (const r of results) console.log(`${r.failed === 0 ? "PASS" : "FAIL"} ${r.tier}: ${r.passed} passed, ${r.failed} failed`);
+    for (const r of results) {
+      if (r.metrics && typeof r.metrics.catch_rate === "number") {
+        const missed = Array.isArray(r.metrics.missed) ? r.metrics.missed : [];
+        console.log(`  ${r.tier} catch_rate=${r.metrics.catch_rate} (${r.metrics.caught}/${r.metrics.seeded})${missed.length ? ` missed: ${missed.join(", ")}` : ""}`);
+      }
+    }
     for (const f of summary.findings) console.error(`  FINDING [${f.severity}] ${f.tier}/${f.class} @ ${f.predicate} — ${f.detail}`);
   }
   const ok = summary.failed === 0 && results.every((r) => r.findings.length === 0);

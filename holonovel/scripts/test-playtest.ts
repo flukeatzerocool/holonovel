@@ -5,7 +5,7 @@
 // fingerprint stability, Mothership Health/Wounds reading).
 
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
-import { prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, isReachable, authoredAdventureHash, partyRooms, entityCounts, stateDelta, validateFinding, REGISTER_DISPOSITIONS } from "./lib/playtest-lib.js";
+import { prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, isReachable, authoredAdventureHash, partyRooms, entityCounts, stateDelta, validateFinding, REGISTER_DISPOSITIONS, LENSES, GM_LANES, toEvalEvents, computeLenses } from "./lib/playtest-lib.js";
 
 installHarnessGuard();
 
@@ -199,6 +199,46 @@ test("validateFinding: rejects bad severity and missing evidence", () => {
 });
 test("REGISTER_DISPOSITIONS: matches the review register tokens", () => {
   eq([...REGISTER_DISPOSITIONS].sort(), ["Closed-P3", "Deferred-by-user", "Resolved", "Scheduled-roadmap"], "tokens");
+});
+
+// --- Holosuite unified schema + nine lenses (§8) ---------------------------
+test("toEvalEvents: maps a transcript record onto the shared EvalEvent shape", () => {
+  const [ev] = toEvalEvents([{ t: 3, agent: "gm", badge: "game_master", tool: "run_command", args: { action: "execute" }, prefix: "[ERROR]", error_class: "defect", mcp_error: false, ms: 12, intent: "look" }]);
+  eq(ev.tier, "understudies", "tier");
+  eq(ev.step, 3, "step");
+  eq(ev.role, "gm", "role");
+  eq(ev.error_class, "defect", "error class");
+  eq(ev.is_error, true, "is_error");
+  eq(ev.latency_ms, 12, "latency");
+  eq(ev.detail, "look", "intent detail");
+});
+test("computeLenses: emits every lens section including empty ones", () => {
+  const lenses = computeLenses([], { mission: {} });
+  eq([...LENSES].every((l) => Array.isArray(lenses[l])), true, "all nine lenses present");
+  eq([...GM_LANES].every((l) => Array.isArray(lenses[l])), true, "all gm lanes present");
+});
+test("computeLenses: consecutive FORBIDDEN by one agent is forbidden_thrash", () => {
+  const tx = [
+    { t: 1, agent: "player", tool: "manage_combat", prefix: "[FORBIDDEN]", error_class: "denial" },
+    { t: 2, agent: "player", tool: "manage_combat", prefix: "[FORBIDDEN]", error_class: "denial" },
+  ];
+  const l = computeLenses(tx, { mission: {} });
+  eq(l.forbidden_thrash!.length, 1, "one thrash finding");
+  eq(l.forbidden_thrash![0]!.t, 2, "second turn");
+});
+test("computeLenses: persist violation maps to state_divergence", () => {
+  const l = computeLenses([], { mission: { persist_violations: [{ between: 5, prev: "aaaaaaaa", next: "bbbbbbbb" }] } });
+  eq(l.state_divergence!.length, 1, "one divergence");
+  assert(/5/.test(String(l.state_divergence![0]!.t)), "carries turn index");
+});
+test("computeLenses: repeat with unchanged fingerprint and no delta is loop", () => {
+  const tx = [
+    { t: 1, agent: "gm", tool: "run_command", args: { action: "execute", command: "look" }, prefix: "[OK]", error_class: "ok", post_fp: "fp", state_delta: null },
+    { t: 2, agent: "gm", tool: "run_command", args: { action: "execute", command: "look" }, prefix: "[OK]", error_class: "ok", post_fp: "fp", state_delta: null },
+  ];
+  const l = computeLenses(tx, { mission: {} });
+  eq(l.loop!.length, 1, "one loop finding");
+  eq(l.loop![0]!.t, 2, "second turn");
 });
 
 harnessComplete();

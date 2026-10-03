@@ -111,8 +111,20 @@ alongside it and gate CI/pre-push:
 
 All four tiers are deterministic (fixed seed, small step count) and wired into
 `holonovel/package.json`, `scripts/run-test-suite.ts`, `.github/workflows/ci.yml`,
-and `.githooks/pre-push`. The stochastic Understudies tier and the mutation audit
-are follow-on increments.
+and `.githooks/pre-push`.
+
+The playtest harness is the stochastic **Understudies** tier. It emits the same
+canonical schema (`lib/eval-schema.ts`) as the deterministic tiers and sections
+its findings by the nine analytic lenses §8 defines plus the separate
+GM/interaction lanes (see `oracle.json` `lenses` / `gm_lanes` and the canonical
+`holosuite.json` report). Each tier's events carry the REQ identifiers they
+exercise, and the runner emits a per-REQ coverage aggregate.
+
+The **method audit** (`scripts/holosuite.ts --tier=mutation`, `npm run
+test:holosuite-mutation`) is report-only: it seeds a deterministic mutant set,
+checks that the oracle catches each, and prints the catch rate. It is excluded
+from `--tier=all` and from every gate. A persona campaign is not treated as
+evidence unless its accompanying catch rate is published.
 
 ## Related
 

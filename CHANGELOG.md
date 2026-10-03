@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-02 — Holosuite III (Understudies + method audit) and Pattern Buffer follow-on port
+
+Defines the Holosuite evaluation method, unifies the stochastic tier on the
+shared schema, adds a report-only mutation audit, and ports the seven remaining
+Pattern Buffer sub-workflows into the executable harness.
+
+- **Holosuite evaluation method defined.** §8 now specifies the nine analytic
+  lenses (the harness defect taxonomy) and the mutation-audit catch rate: the
+  fraction of a deterministic mutant set the oracle detects, published before
+  a campaign counts as evidence.
+- **Understudies on the shared schema.** `holonovel/scripts/playtest.ts` emits
+  the canonical `EvalEvent`/provenance schema (`lib/eval-schema.ts`), writes
+  `holosuite.json` with one section per lens plus the GM/interaction lanes, and
+  carries REQ identifiers per event; the runner emits a per-REQ coverage
+  aggregate.
+- **Report-only mutation audit.** `lib/holosuite-mutation.ts` +
+  `--tier=mutation` (excluded from `all` and every gate) seeds 13 deterministic
+  mutants and reports the catch rate (13/13 = 1.0 in-tree).
+- **Pattern Buffer follow-ons ported.** S15, S21, S23, S24, S25, S27, S33 are
+  executable in `run_ruleset_pattern_buffer.ts` (new file-action and
+  prerequisite-precheck support); S27/S33 skip when synthesis is inactive.
+  S10/S11 remain spec-defined stubs. Harness: 27 passed, 0 failed, 8 skipped,
+  2 stubbed.
+- **Register hygiene.** ROADMAP entries retired; review-register rows moved to
+  `Resolved`. Plan: `plans/2026-10-02-holosuite-followons`.
+
 ## 2026-10-02 — GitHub wiki mirror
 
 Adds a strict read-only mirror of the project wiki from git.gay to GitHub.

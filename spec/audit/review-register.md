@@ -11,6 +11,27 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Holosuite II — adversarial + differential tiers and PB follow-on port
+  (resolved 2026-10-02):** T3 adversarial
+  (`holonovel/scripts/lib/holosuite-adversarial.ts`) and T4 differential
+  (`holonovel/scripts/lib/holosuite-differential.ts`) shipped wired into CI and
+  pre-push. The seven Pattern Buffer follow-ons (S15, S21, S23, S24, S25, S27,
+  S33) were ported into `holonovel/scripts/run_ruleset_pattern_buffer.ts` as
+  executable sub-workflows (S27/S33 prerequisite-gated on active synthesis);
+  S10/S11 remain spec-defined stubs merged into S4/S20. Harness: 27 passed, 0
+  failed, 8 skipped, 2 stubbed. Covers REQ-001, REQ-002, REQ-032, REQ-041,
+  REQ-050, REQ-450.
+
+- **Holosuite III — Understudies + method audit (resolved 2026-10-02):** §8 now
+  defines the nine analytic lenses and the mutation-audit catch rate
+  (`spec/05-verification.md`). The stochastic playtest harness emits the shared
+  `EvalEvent`/manifest schema and nine-lens report sections
+  (`holonovel/scripts/playtest.ts`, `holonovel/scripts/lib/playtest-lib.ts`);
+  the mutation audit runs report-only
+  (`holonovel/scripts/lib/holosuite-mutation.ts`, `test:holosuite-mutation`,
+  catch rate 13/13 = 1.0); Holosuite events carry REQ identifiers and the
+  runner emits a per-REQ coverage aggregate. Covers REQ-050, REQ-141m.
+
 - **Embedded-spec hash and build-fingerprint conformance (resolved
   2026-09-30):** `spec_health.spec_hash` reported `"unknown"` and
   `spec://build` served "Specification not embedded in this build" because both
@@ -501,19 +522,7 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Holosuite II — adversarial + differential tiers** (scheduled 2026-10-02):
-  the full-suite run found the tier backlog untracked. Schedule T3 adversarial
-  and T4 differential scoped against test-security, test-limits,
-  test-persistence, test-persistence-guardrails, and PB S13/S17/S20/S25/S29
-  (REQ-001, REQ-002, REQ-032, REQ-041, REQ-050, REQ-450), and disposition the
-  seven PB follow-on sub-workflows (S15, S21, S23, S24, S25, S27, S33) and the
-  S10/S11 stubs. Plan: `plans/2026-10-02-holosuite-followons`.
-
-- **Holosuite III — Understudies + method audit** (scheduled 2026-10-02):
-  blocked on a spec addition — the "nine analytic lenses" and a mutation-audit
-  catch rate are undefined in `spec/` (REQ-050, REQ-141m). Understudies needs
-  operator-supplied campaign assets and an LLM driver, so it never blocks.
-  Plan: `plans/2026-10-02-holosuite-followons`.
+None.
 
 ## Closed-P3 (recorded, no action)
 
