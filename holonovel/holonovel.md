@@ -490,7 +490,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -4237,7 +4237,10 @@ The distribution SHALL expose a documented entry point — `update-rulesets` —
 Every persisted user-data artifact — Novel, roster, codex, and server-note state — SHALL record a data-format fingerprint: a hash of the state-model sections (§5.6, §5.9, §5.19, §5.21–§5.28, §5.31–§5.32, §7.7, Appendix Q) of the assembled specification, computed at write. The host SHALL compare each artifact's fingerprint against its current value at startup and after a host update (§6.7) and SHALL surface a `[data-stale]` flag in `spec_health` naming the artifact and both fingerprints. Staleness SHALL NOT block loading — artifacts load per REQ-065 with inert fields preserved and defaults added. *Acceptance criterion:* an artifact written under a prior data-format fingerprint reports `[data-stale]` and still loads; user data survives byte-for-byte apart from the stamp. _Check:_ T501.
 
 **REQ-424 — User-data migration entry point.**
-The distribution SHALL expose `migrate-user-data`, an entry point listing artifacts whose data-format fingerprint (REQ-423) differs from the host's current value or is absent. When invoked, it SHALL re-stamp each artifact via the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults (REQ-065). Re-stamping SHALL recompute any artifact checksum over the re-stamped payload (REQ-092). The default invocation SHALL be a side-effect-free dry run. A migration failing before completion SHALL leave the original unchanged and name it. *Acceptance criterion:* the default invocation changes nothing; an explicit run re-stamps stale artifacts; re-export is unchanged; a re-stamped checksummed Novel validates without backup fallback. _Check:_ T502, T504.
+The distribution SHALL expose `migrate-user-data`, an entry point listing artifacts whose data-format fingerprint (REQ-423) differs from the host's value or is absent. When invoked, it SHALL re-serialize each artifact via the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults (REQ-065) on disk. Re-serialization SHALL recompute any checksum over the migrated payload (REQ-092). The default invocation SHALL be a side-effect-free dry run. A migration failing before completion SHALL leave the original unchanged and name it. *Acceptance criterion:* the default invocation changes nothing; an explicit run brings stale artifacts current on disk; re-export is unchanged; a re-stamped checksummed Novel validates without backup fallback. _Check:_ T502, T504.
+
+**REQ-556 — Update-workflow user-data reconciliation.**
+When the Update workflow runs against a deployed instance, it SHALL reconcile all user-data tiers to the host's format fingerprints after the host advances: stale installed ruleset packages SHALL be rebuilt from their recorded sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. The workflow SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.
 
 **REQ-428 — Registry-published distribution.**
 The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
@@ -6509,6 +6512,8 @@ implement changes, and re-run only Pattern Buffer sub-workflows exercising chang
 surfaces. The builder selects scenarios from the surface-to-scenario mapping in §6.6.
 Gap dispositions include: implemented, deferred, or waived — each citing the relevant
 REQ. The builder skips Pattern Buffer sub-workflows not exercised by changed surfaces.
+Before reporting the update complete, the operator SHALL reconcile all user-data tiers
+per REQ-556.
 *Acceptance criterion:* Gap audit produces one row per affected surface with REQ
 citation and disposition; selected Pattern Buffer sub-workflows show zero failures.
 _Check:_ T84, T84b.
@@ -6586,16 +6591,20 @@ state fields present in stored state but absent in the updated model are preserv
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
-#### User-data disposition
+#### User-data reconciliation
 
-The builder SHALL record a user-data disposition in the gap audit naming each tier
-— ruleset packages, Novels, roster, codex, server notes — whose contract surface
-changed, with the action (rebuild / migrate / none) and the citing REQ. A delta
+After the host advances and the deployed instance is updated (REQ-418), the builder
+SHALL reconcile every user-data tier against the host's current format fingerprints
+per REQ-556. Each stale installed ruleset package is rebuilt through the Build
+workflow from its recorded source (REQ-421, REQ-422); each stale persisted artifact
+is migrated with `migrate-user-data` (REQ-424). Reconciliation runs against the
+deployed instance's state directory (REQ-397) and reports a per-tier outcome —
+updated or deferred, with the reason — recorded in DECISIONS.md (6). A delta
 touching a package-contract section (§5.16, §5.17, §6.3, §6.4.2) SHALL recommend
 `update-rulesets` (REQ-422); a delta touching the state model (§7.7) SHALL
 recommend `migrate-user-data` (REQ-424). Stale packages and state artifacts SHALL
 be flagged at startup per REQ-420 and REQ-423; user data SHALL NOT be blocked from
-loading by staleness (REQ-423).
+loading by staleness (REQ-423), and reconciliation SHALL NOT delete or revert it.
 
 #### Synthesis consistency check
 
@@ -6633,7 +6642,9 @@ _Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing 
 relevant REQ and disposition reason. `spec_health` reports the updated specification
 version. Pattern Buffer sub-workflows selected per the surface-to-scenario mapping in §6.6
 pass with zero failures. `spec_health` reports
-`last_spec_review` and `last_pattern_buffer` fields populated with ISO dates.
+`last_spec_review` and `last_pattern_buffer` fields populated with ISO dates. A
+per-tier user-data reconciliation outcome (REQ-556) is recorded, and no tier is
+left neither updated nor deferred.
 
 **Spec fetch.** When U3 is `yes`, the builder fetches the latest specification
 from the repo URL recorded at build time before beginning the gap audit. The
@@ -9802,6 +9813,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-301 | Convergence loop audit trail | 2026-08-11 |
 | REQ-303 | Scoped re-verification | 2026-08-11 |
 | REQ-098 | Spec-driven update workflow | 2026-08-11 |
+| REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
 
 ---
 
@@ -10447,6 +10459,7 @@ diet.
 | T646 | Automated | Server tool-surface coherence: assert the four coherence proxies are reported over the live registry, no registered name deviates from the recorded `verb_noun` convention, no overlapping pair remains undisambiguated, and the registered count equals the recorded budget. | REQ-554 |
 | T647 | Automated | Shadowing-risk report: assert invocation cost is computed over the required subtree, assert an expensive qualified query against a cheap flat lookup reports a shadowing risk naming both tools and their costs, and assert an asymmetric but non-overlapping pair reports none. | REQ-555 |
 | T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
+| T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
 
 ---
 
@@ -12080,6 +12093,11 @@ Update workflow (§6.7) driven manually.
 7. After the deploy pull, verify the deployed spec hash equals the published
    hash and the deployed fingerprints match (REQ-418). A deploy that cannot
    fast-forward fails with a deploy-failed notice, not a success marker.
+8. Reconcile user data (REQ-556): run `update-rulesets` to rebuild every stale
+   package from its recorded source, then `migrate-user-data --apply` to bring
+   every stale Novel, roster, codex, and server-note artifact to the current
+   data-format fingerprint. Record the per-tier outcome in `DECISIONS.md`; a
+   tier whose source is unavailable is recorded deferred, never dropped.
 
 **Recovery.**
 
@@ -12133,6 +12151,9 @@ before re-binding.
 3. Confirm `spec_health` no longer reports `[package-incompatible]` for the
    slug after the rebuild.
 
+The Update job (§6.7, REQ-556) drives this runbook for every stale slug after a
+host update; run it manually when only a package is stale.
+
 **Recovery.**
 
 - A legacy package lacks a `package_format` fingerprint: rebuild it once via
@@ -12155,6 +12176,10 @@ before re-binding.
    (REQ-065).
 3. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
    migration.
+
+The Update job (§6.7, REQ-556) invokes this runbook with the explicit migrate
+flag for every stale artifact after a host update; the default dry run reports
+what it would change.
 
 **Recovery.**
 

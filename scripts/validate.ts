@@ -1857,6 +1857,10 @@ const INTENDED_GAP_REQS = new Set([
   // are server-runtime (fingerprint stamp/compare) and are cited in
   // holonovel/src — they are NOT whitelisted.
   "REQ-421", "REQ-422", "REQ-424", "REQ-428",
+  // REQ-556 (Update-workflow user-data reconciliation) is a §6.7 workflow
+  // contract owed by the update pipeline and scripts/migrate-user-data.ts,
+  // not runtime server behavior.
+  "REQ-556",
   // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
   // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
   // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline

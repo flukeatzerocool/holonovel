@@ -100,6 +100,11 @@ Update workflow (§6.7) driven manually.
 7. After the deploy pull, verify the deployed spec hash equals the published
    hash and the deployed fingerprints match (REQ-418). A deploy that cannot
    fast-forward fails with a deploy-failed notice, not a success marker.
+8. Reconcile user data (REQ-556): run `update-rulesets` to rebuild every stale
+   package from its recorded source, then `migrate-user-data --apply` to bring
+   every stale Novel, roster, codex, and server-note artifact to the current
+   data-format fingerprint. Record the per-tier outcome in `DECISIONS.md`; a
+   tier whose source is unavailable is recorded deferred, never dropped.
 
 **Recovery.**
 
@@ -153,6 +158,9 @@ before re-binding.
 3. Confirm `spec_health` no longer reports `[package-incompatible]` for the
    slug after the rebuild.
 
+The Update job (§6.7, REQ-556) drives this runbook for every stale slug after a
+host update; run it manually when only a package is stale.
+
 **Recovery.**
 
 - A legacy package lacks a `package_format` fingerprint: rebuild it once via
@@ -175,6 +183,10 @@ before re-binding.
    (REQ-065).
 3. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
    migration.
+
+The Update job (§6.7, REQ-556) invokes this runbook with the explicit migrate
+flag for every stale artifact after a host update; the default dry run reports
+what it would change.
 
 **Recovery.**
 

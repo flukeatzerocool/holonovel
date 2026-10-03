@@ -1,18 +1,18 @@
 #!/usr/bin/env npx tsx
 /**
- * migrate-user-data.ts — User-data migration entry point (REQ-424). [entry point]
+ * migrate-user-data.ts — User-data migration entry point (REQ-424, REQ-556). [entry point]
  *
  * Lists persisted state artifacts whose data-format fingerprint (REQ-423)
  * differs from the host's current value or is absent. The default invocation
  * is a dry run that reports what would change with no side effects. With
- * `--apply`, each stale artifact is re-stamped with the current fingerprint.
- * Field-level migration (inert preservation, defaults) runs at load per
- * REQ-065; re-stamping only updates the fingerprint so a subsequent load
- * revalidates as current. A migration that fails before completing leaves the
- * original artifact unchanged (atomic tmp+rename) and names the artifact.
+ * `--apply`, each stale artifact is loaded through the host's current model
+ * (REQ-065), re-serialized, stamped with the current data-format fingerprint,
+ * and written atomically after the original is backed up. Inert fields are
+ * preserved. A migration that fails before completing leaves the original
+ * unchanged (atomic tmp+rename) and names the artifact.
  */
 
-import { readdirSync, existsSync, readFileSync, writeFileSync, renameSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync, writeFileSync, renameSync, copyFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
@@ -21,6 +21,14 @@ const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
 const current = readAndCompute().dataFormat;
 const apply = process.argv.includes("--apply");
+
+// REQ-424 — load each artifact through the host's current model. Imported
+// dynamically so the spec-repo tooling does not statically pull the server
+// package into its TypeScript program; the relative path resolves to the
+// deployed server's model when the entry point runs from a deployed tree.
+const { migrateNovelData } = (await import(
+  new URL("../holonovel/src/core/state.ts", import.meta.url).href
+)) as { migrateNovelData: (data: unknown) => any };
 
 const META_KEY = "__holonovel_meta";
 
@@ -60,7 +68,10 @@ function findArtifacts(): Artifact[] {
 }
 
 function reStamp(artifact: Artifact): void {
-  const data = JSON.parse(readFileSync(artifact.path, "utf-8"));
+  const raw = JSON.parse(readFileSync(artifact.path, "utf-8"));
+  // REQ-065 — apply the host's current model to the persisted payload before
+  // re-serializing. migrateNovelData spreads its input, so inert fields survive.
+  const data = artifact.kind === "novel" ? migrateNovelData(raw) : raw;
   if (artifact.kind === "novel") {
     data.data_format = current;
   } else {
@@ -76,6 +87,7 @@ function reStamp(artifact: Artifact): void {
     delete payload._checksum;
     data._checksum = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
   }
+  copyFileSync(artifact.path, `${artifact.path}.bak-${Date.now()}`);
   const tmp = artifact.path + `.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", "utf-8");
   renameSync(tmp, artifact.path);

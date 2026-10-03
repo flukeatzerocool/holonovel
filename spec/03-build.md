@@ -1956,6 +1956,8 @@ implement changes, and re-run only Pattern Buffer sub-workflows exercising chang
 surfaces. The builder selects scenarios from the surface-to-scenario mapping in §6.6.
 Gap dispositions include: implemented, deferred, or waived — each citing the relevant
 REQ. The builder skips Pattern Buffer sub-workflows not exercised by changed surfaces.
+Before reporting the update complete, the operator SHALL reconcile all user-data tiers
+per REQ-556.
 *Acceptance criterion:* Gap audit produces one row per affected surface with REQ
 citation and disposition; selected Pattern Buffer sub-workflows show zero failures.
 _Check:_ T84, T84b.
@@ -2033,16 +2035,20 @@ state fields present in stored state but absent in the updated model are preserv
 as inert data; fields absent in stored state receive defaults. A load failure
 during a spec-driven update is a blocking defect.
 
-#### User-data disposition
+#### User-data reconciliation
 
-The builder SHALL record a user-data disposition in the gap audit naming each tier
-— ruleset packages, Novels, roster, codex, server notes — whose contract surface
-changed, with the action (rebuild / migrate / none) and the citing REQ. A delta
+After the host advances and the deployed instance is updated (REQ-418), the builder
+SHALL reconcile every user-data tier against the host's current format fingerprints
+per REQ-556. Each stale installed ruleset package is rebuilt through the Build
+workflow from its recorded source (REQ-421, REQ-422); each stale persisted artifact
+is migrated with `migrate-user-data` (REQ-424). Reconciliation runs against the
+deployed instance's state directory (REQ-397) and reports a per-tier outcome —
+updated or deferred, with the reason — recorded in DECISIONS.md (6). A delta
 touching a package-contract section (§5.16, §5.17, §6.3, §6.4.2) SHALL recommend
 `update-rulesets` (REQ-422); a delta touching the state model (§7.7) SHALL
 recommend `migrate-user-data` (REQ-424). Stale packages and state artifacts SHALL
 be flagged at startup per REQ-420 and REQ-423; user data SHALL NOT be blocked from
-loading by staleness (REQ-423).
+loading by staleness (REQ-423), and reconciliation SHALL NOT delete or revert it.
 
 #### Synthesis consistency check
 
@@ -2080,7 +2086,9 @@ _Check:_ A dated DECISIONS.md gap-disposition entry exists with each gap citing 
 relevant REQ and disposition reason. `spec_health` reports the updated specification
 version. Pattern Buffer sub-workflows selected per the surface-to-scenario mapping in §6.6
 pass with zero failures. `spec_health` reports
-`last_spec_review` and `last_pattern_buffer` fields populated with ISO dates.
+`last_spec_review` and `last_pattern_buffer` fields populated with ISO dates. A
+per-tier user-data reconciliation outcome (REQ-556) is recorded, and no tier is
+left neither updated nor deferred.
 
 **Spec fetch.** When U3 is `yes`, the builder fetches the latest specification
 from the repo URL recorded at build time before beginning the gap audit. The

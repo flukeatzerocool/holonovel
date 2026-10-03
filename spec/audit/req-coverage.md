@@ -511,4 +511,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-553 | Tool-definition hard gates | 5.3 Tools, Resources, and Lookups | C | T645 | — |
 | REQ-554 | Server tool-surface coherence | 5.3 Tools, Resources, and Lookups | C | T646 | — |
 | REQ-555 | Shadowing-risk report | 5.3 Tools, Resources, and Lookups | C | T647 | — |
+| REQ-556 | Update-workflow user-data reconciliation | 5.18 Workflow Entry Points | E | T649 | — |
 

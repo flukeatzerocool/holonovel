@@ -1287,6 +1287,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-301 | Convergence loop audit trail | 2026-08-11 |
 | REQ-303 | Scoped re-verification | 2026-08-11 |
 | REQ-098 | Spec-driven update workflow | 2026-08-11 |
+| REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
 
 ---
 
@@ -1932,6 +1933,7 @@ diet.
 | T646 | Automated | Server tool-surface coherence: assert the four coherence proxies are reported over the live registry, no registered name deviates from the recorded `verb_noun` convention, no overlapping pair remains undisambiguated, and the registered count equals the recorded budget. | REQ-554 |
 | T647 | Automated | Shadowing-risk report: assert invocation cost is computed over the required subtree, assert an expensive qualified query against a cheap flat lookup reports a shadowing risk naming both tools and their costs, and assert an asymmetric but non-overlapping pair reports none. | REQ-555 |
 | T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
+| T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
 
 ---
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-02 — Update job updates all user data on a deployed instance
+
+The Update workflow now brings every piece of user data on a deployed Holonovel
+instance up to date after a host update, instead of only recommending the
+rebuild and migration steps.
+
+- The Update job reconciles every user-data tier — installed ruleset packages
+  and persisted Novels, roster, codex, server notes, and world-model data — to
+  the host's current format fingerprints. Stale packages are rebuilt from their
+  recorded sources and stale artifacts are migrated; a tier whose source is
+  unavailable is recorded as deferred, never dropped. (REQ-556)
+- The update is not reported complete until every tier is updated or deferred,
+  and the per-tier outcome is recorded. (REQ-098, REQ-424)
+- `migrate-user-data` now loads each Novel through the current model and writes
+  the migrated fields back to disk — preserving inert fields and recomputing the
+  checksum — rather than only updating the fingerprint.
+- Runbooks V.4, V.7, and V.8 describe the reconciliation step.
+
 ## 2026-10-02 — Script audit, consolidation, and standards hardening
 
 Audits every script in both trees, extracts the residual duplicated helpers,
