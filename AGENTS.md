@@ -89,6 +89,26 @@ Push to origin: `git push origin main`.
 - The `build-phase-map.md` file maps each build phase to the spec files
   it depends on. Update it when adding or moving sections.
 
+### Wiki mirror
+
+The wiki is a separate git clone at `.holonovel-state/wiki` (untracked by
+this repo). It has two remotes: `origin` (`git@git.gay:.../Holonovel.wiki.git`,
+branch `main`, canonical) and `github`
+(`https://github.com/flukeatzerocool/holonovel.wiki.git`). A fresh clone must
+re-add the `github` remote once:
+
+```sh
+git -C .holonovel-state/wiki remote add github \
+  https://github.com/flukeatzerocool/holonovel.wiki.git
+```
+
+`push-pipeline.sh` step 8b mirrors the wiki to GitHub by force-pushing local
+`main` to the GitHub wiki's default `master` ref (GitHub wiki repos do not use
+`main`). The push is non-fatal, and the GitHub wiki is a strict read-only
+mirror — direct GitHub-side edits are discarded on the next sync. Initialize
+the GitHub wiki (create its first page in the web UI) before the first mirror
+push; until then `.wiki.git` does not exist and the push warns.
+
 ### Requirements
 
 - Canonical form: `**REQ-NNN — Title.**` followed by body ending in
