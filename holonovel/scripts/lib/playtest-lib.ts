@@ -3,8 +3,10 @@
 // Extracted from playtest.ts so scripts/test-playtest.ts can assert metric
 // behavior without spawning a server. Exit codes: n/a (library).
 //
-// REQ citations: none — informational harness support.
+// REQ citations: none — informational harness support. The lens classifier
+// implements the nine-lens report the Holosuite evaluation method defines (§8).
 import { createHash } from "node:crypto";
+import type { EvalEvent } from "./eval-schema.js";
 
 /** Prefixes that indicate a genuine defect (vs. an expected refusal). */
 export const DEFECT_PREFIXES = new Set(["[ERROR]", "[RULE_VIOLATION]", "[STATE_CONFLICT]"]);
@@ -274,4 +276,117 @@ export function anchorPresent(result: string): boolean {
     // Non-JSON result — accept a quoted, non-empty anchor value only.
     return /["']?(source_anchor|sourceAnchor|anchor)["']?\s*[:=]\s*["'][^"']+["']/i.test(result);
   }
+}
+
+// ── Holosuite unified schema + nine analytic lenses (§8) ──────────────
+// The stochastic Understudies tier shares the eval schema with the
+// deterministic tiers and sections its findings by the nine analytic lenses
+// §8 defines, plus the separate GM/interaction lanes.
+
+export const LENSES = [
+  "hallucinated_tool", "wrong_tool", "forbidden_thrash", "unrecovered_error",
+  "missing_corrective", "dead_end", "loop", "ambiguity_stall", "state_divergence",
+] as const;
+export const GM_LANES = ["gating_leak", "world_population_failure", "coupling_failure", "unreachable_goal"] as const;
+/** Lenses whose assignment requires external judgment, not a deterministic signal. */
+export const JUDGMENT_LENSES = ["wrong_tool"] as const;
+export const JUDGMENT_GM_LANES = ["world_population_failure", "coupling_failure"] as const;
+
+export interface LensFinding { t: number; tool: string; detail: string; }
+
+/** Contracts the stochastic Understudies campaign exercises, for traceability. */
+export const UNDERSTUDIES_REQS = ["REQ-001", "REQ-032", "REQ-041", "REQ-050", "REQ-141m"];
+
+/** Map transcript records onto the shared `EvalEvent` shape, tier = understudies. */
+export function toEvalEvents(tx: any[]): EvalEvent[] {
+  return tx.map((r) => ({
+    tier: "understudies",
+    step: Number(r.t ?? 0),
+    role: String(r.agent ?? "player"),
+    badge: r.badge ?? null,
+    tool: String(r.tool ?? ""),
+    args: (r.args ?? {}) as Record<string, unknown>,
+    prefix: String(r.prefix ?? "[?]"),
+    error_class: r.error_class === "defect" || r.error_class === "denial" ? r.error_class : "ok",
+    is_error: r.error_class === "defect" || !!r.mcp_error,
+    mcp_error: !!r.mcp_error,
+    latency_ms: Number(r.ms ?? 0),
+    req_ids: [...UNDERSTUDIES_REQS],
+    detail: r.intent ?? undefined,
+  }));
+}
+
+/** Classify playtest turns into the nine lenses and the GM/interaction lanes. */
+export function computeLenses(tx: any[], oracle: any): Record<string, LensFinding[]> {
+  const out: Record<string, LensFinding[]> = {};
+  for (const l of [...LENSES, ...GM_LANES]) out[l] = [];
+  const push = (lens: string, t: number, tool: string, detail: string) => out[lens]!.push({ t, tool, detail });
+  const text = (r: any) => String(r?.result ?? "");
+
+  // hallucinated_tool — a called tool absent from the post-binding tools/list.
+  for (const tool of oracle.mission?.hallucinated_tools ?? []) {
+    const r = tx.find((x) => x.tool === tool);
+    push("hallucinated_tool", Number(r?.t ?? 0), String(tool), "tool absent from tools/list snapshot");
+  }
+
+  // forbidden_thrash — consecutive gating refusals by one agent.
+  for (let i = 1; i < tx.length; i++) {
+    if (tx[i].prefix === "[FORBIDDEN]" && tx[i - 1].prefix === "[FORBIDDEN]" && tx[i].agent === tx[i - 1].agent) {
+      push("forbidden_thrash", Number(tx[i].t), tx[i].tool, `consecutive [FORBIDDEN] after t${tx[i - 1].t}`);
+    }
+  }
+
+  // unrecovered_error — defect turns the oracle found uncorrected.
+  for (const e of oracle.unrecovered_detail ?? []) {
+    push("unrecovered_error", Number(e.t), String(e.tool), `${e.prefix} not corrected on the next turn`);
+  }
+
+  // missing_corrective — a denial without an enumeration or corrective hint.
+  for (const r of tx) {
+    if (r.error_class !== "denial") continue;
+    if (!/valid|available|options|did you mean|try |expected|allowed|use /i.test(text(r))) {
+      push("missing_corrective", Number(r.t), r.tool, `${r.prefix} without a corrective hint`);
+    }
+  }
+
+  // dead_end — a parser refusal with no later turn by the same agent.
+  for (let i = 0; i < tx.length; i++) {
+    const r = tx[i];
+    if (r.tool !== "run_command" || (r.prefix !== "[NOT_FOUND]" && r.prefix !== "[INVALID_INPUT]")) continue;
+    if (!tx.slice(i + 1).some((x) => x.agent === r.agent)) {
+      push("dead_end", Number(r.t), r.tool, `${r.prefix} with no further ${r.agent} turn`);
+    }
+  }
+
+  // loop — identical tool+args reappearing with no state movement.
+  const seen = new Map<string, any>();
+  for (const r of tx) {
+    const key = `${r.agent}|${r.tool}|${JSON.stringify(r.args ?? {})}`;
+    const prior = seen.get(key);
+    if (prior && !r.state_delta && r.post_fp && prior.post_fp === r.post_fp) {
+      push("loop", Number(r.t), r.tool, `repeat of t${prior.t} with unchanged fingerprint and no state delta`);
+    }
+    seen.set(key, r);
+  }
+
+  // ambiguity_stall — an unresolved ambiguity envelope.
+  for (const r of tx) {
+    if (r.prefix === "[AMBIGUOUS]") push("ambiguity_stall", Number(r.t), r.tool, "[AMBIGUOUS] result");
+  }
+
+  // state_divergence — fingerprint breaks and unexplained room drift.
+  for (const p of oracle.mission?.persist_violations ?? []) {
+    push("state_divergence", Number(p.between), "restart", `fingerprint ${String(p.prev).slice(0, 8)} -> ${String(p.next).slice(0, 8)}`);
+  }
+  for (const d of oracle.mission?.unexplained_room_drift ?? []) {
+    push("state_divergence", Number(d.t), String(d.tool), `room set changed ${d.before} -> ${d.after} outside a world tool`);
+  }
+
+  // GM/interaction lanes.
+  if (oracle.gating_leak) push("gating_leak", 0, "oracle", "vow resolved while the active PC was not in the escape room");
+  const reach = oracle.authoring?.reachability;
+  if (reach && reach.objective_reachable === false) {
+    push("unreachable_goal", 0, "authoring", `escape room "${reach.objective}" not reachable from spawn`);
+  }
+  return out;
 }

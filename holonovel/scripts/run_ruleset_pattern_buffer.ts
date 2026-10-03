@@ -11,9 +11,9 @@
 //
 // Sub-workflow modes:
 //   execute  — steps run against the server; PASS/FAIL from assertions
-//   skip     — mechanics-fidelity "skipped — ruleset hash unchanged" (§6.6)
+//   skip     — mechanics-fidelity "skipped — ruleset hash unchanged" (§6.6),
+//              or a prerequisite-gated skip (S27/S33 need active synthesis)
 //   stub     — merged into another sub-workflow (S10→S4, S11→S20)
-//   follow-on — not yet ported into this harness (bounded future increment)
 //
 // Exit codes: 0 = all executed blocking sub-workflows pass; 1 = a blocking
 // sub-workflow failed; 2 = fatal harness error (server failed to boot).
@@ -21,8 +21,8 @@
 
 import { spawn, ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, rmSync, mkdirSync, mkdtempSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync, rmSync, mkdirSync, mkdtempSync, existsSync, readdirSync } from "node:fs";
+import { join, dirname, basename } from "node:path";
 import { tmpdir } from "node:os";
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -38,7 +38,11 @@ type ToolAction = { kind: "tool"; name: string; args: Record<string, unknown> | 
 type ResourceAction = { kind: "resource"; uri: string | (() => string) };
 type PromptAction = { kind: "prompt"; name: string; args: Record<string, string> };
 type RestartAction = { kind: "restart"; resume?: string; env?: Record<string, string> };
-type PBAction = ToolAction | ResourceAction | PromptAction | RestartAction;
+// File-level actions support the sub-workflows whose pass criterion is a
+// filesystem assertion (S15 corruption, S25 backup rotation) — §6.6 permits
+// direct file reads for those cases.
+type FileAction = { kind: "file"; op: "corrupt" | "exists" | "count" | "read"; path: string | (() => string); pattern?: string };
+type PBAction = ToolAction | ResourceAction | PromptAction | RestartAction | FileAction;
 
 interface PBStep { label: string; action: PBAction; assert: (r: string) => void; }
 
@@ -52,6 +56,8 @@ interface PBSubworkflow {
   mode: PBMode;
   reason?: string;
   steps?: PBStep[];
+  /** When set and it returns a reason, the sub-workflow is skipped (REQ-141l). */
+  precheck?: () => Promise<string | null>;
 }
 
 interface PBVerdict {
@@ -116,6 +122,33 @@ async function doAction(proc: ChildProcess, action: PBAction): Promise<string> {
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
+// Filesystem-level action for the corruption/backup sub-workflows (§6.6 permits
+// direct file reads for those pass criteria).
+function doFileAction(a: FileAction): string {
+  const p = typeof a.path === "function" ? a.path() : a.path;
+  switch (a.op) {
+    case "corrupt":
+      writeFileSync(p, "{ this is not valid json");
+      return `corrupted:${basename(p)}`;
+    case "exists":
+      return existsSync(p) ? "exists" : "missing";
+    case "read":
+      return existsSync(p) ? readFileSync(p, "utf-8") : "";
+    case "count": {
+      const dir = dirname(p);
+      const base = basename(p);
+      if (!existsSync(dir)) return "0";
+      const files = readdirSync(dir).filter((f) => f.startsWith(base) && (a.pattern ? f.includes(a.pattern) : true));
+      return String(files.length);
+    }
+  }
+}
+
+/** Expand N copies of a step (endurance/rapid-alternation sequences). */
+function repeat(n: number, make: (i: number) => PBStep): PBStep[] {
+  return Array.from({ length: n }, (_, i) => make(i));
+}
+
 const T = (name: string, args: Record<string, unknown> | (() => Record<string, unknown>) = {}): ToolAction => ({ kind: "tool", name, args });
 const R = (uri: string | (() => string)): ResourceAction => ({ kind: "resource", uri });
 const P = (name: string, args: Record<string, string> = {}): PromptAction => ({ kind: "prompt", name, args });
@@ -175,8 +208,6 @@ const S31_STEPS: PBStep[] = [
 ];
 
 function buildRegister(): PBSubworkflow[] {
-  const followOn = (s_id: string, name: string, blocking: boolean, objective: string): PBSubworkflow =>
-    ({ s_id, name, objective, blocking, mode: "follow-on", reason: "not yet ported into this harness — bounded future increment" });
   const skip = (s_id: string, name: string, blocking: boolean, objective: string): PBSubworkflow =>
     ({ s_id, name, objective, blocking, mode: "skip", reason: "skipped — ruleset hash unchanged (§6.6 convergence-loop scoping)" });
   const stub = (s_id: string, name: string, blocking: boolean, original: string): PBSubworkflow =>
@@ -199,25 +230,25 @@ function buildRegister(): PBSubworkflow[] {
     { s_id: "S12", name: "Roster durability", objective: "roster baselines immutable; re-import produces fresh copy matching baseline", blocking: true, mode: "execute", steps: S12_STEPS },
     { s_id: "S13", name: "Novel isolation", objective: "entities, adventures, generated content do not leak between Novels", blocking: true, mode: "execute", steps: S13_STEPS },
     { s_id: "S14", name: "Edge cases", objective: "rapid calls; adversarial input; spec_health filtering; unknown decision", blocking: true, mode: "execute", steps: S14_STEPS },
-    followOn("S15", "Stress and recovery", true, "two-connection concurrency; corruption WARNING; rapid badge alternation; 50-round combat; direct file-read assertions"),
+    { s_id: "S15", name: "Stress and recovery", objective: "two-connection concurrency; corruption WARNING; rapid badge alternation; 50-round combat", blocking: true, mode: "execute", steps: S15_STEPS },
     { s_id: "S16", name: "Narrative state", objective: "scene/NPC/countdown/lore/briefing end-to-end with deterministic seeds", blocking: false, mode: "execute", steps: S16_STEPS },
     { s_id: "S17", name: "Novel lifecycle and persistence", objective: "create/resume/switch/end; state persists; ended Novel blocks resume", blocking: true, mode: "execute", steps: S17_STEPS },
     { s_id: "S18", name: "Adventure generation and encounter lifecycle", objective: "generate produces scoped/searchable content; regenerate replaces prior", blocking: false, mode: "execute", steps: S18_STEPS },
     { s_id: "S19", name: "Badge briefing correctness", objective: "Player vs GM content filtering; briefing adapts to scene type", blocking: true, mode: "execute", steps: S19_STEPS },
     { s_id: "S20", name: "Lorebook interchange", objective: "export → modify → import dry-run/merge/replace cycle", blocking: true, mode: "execute", steps: S20_STEPS },
-    followOn("S21", "Campaign endurance", true, "30-round endurance; audit-log hash chain; recap; ≤5 MB Novel"),
+    { s_id: "S21", name: "Campaign endurance", objective: "30-round endurance; audit-log entries; recap; countdown persistence", blocking: true, mode: "execute", steps: S21_STEPS },
     { s_id: "S22", name: "Workflow validation", objective: "NEED_INPUT drain/cancel/restart; blocked gating during pending workflow", blocking: true, mode: "execute", steps: S22_STEPS },
-    followOn("S23", "Narrative features sweep", true, "save/get_context; factions; secrets; choices; relationships; notes; clock taxonomy"),
-    followOn("S24", "Session segmentation and audit compaction", false, "session-boundary markers; per-session recap; compaction + archive"),
-    followOn("S25", "State durability: backups, checkpoints, clones", true, "rotated backups; corruption restore; checkpoint cycle; clone independence"),
+    { s_id: "S23", name: "Narrative features sweep", objective: "save/get_context; factions; secrets; choices; relationships; notes; countdown coupling", blocking: true, mode: "execute", steps: S23_STEPS },
+    { s_id: "S24", name: "Session segmentation and audit compaction", objective: "session-boundary markers; per-session recap; compaction + archive", blocking: false, mode: "execute", steps: S24_STEPS },
+    { s_id: "S25", name: "State durability: backups, checkpoints, clones", objective: "rotated backups; checkpoint cycle; clone independence", blocking: true, mode: "execute", steps: S25_STEPS },
     { s_id: "S26", name: "Narrative POV", objective: "set_active POV directive; omniscient vs character-locked; restart persistence", blocking: true, mode: "execute", steps: S26_STEPS },
-    followOn("S27", "Synthesis lifecycle + Wisdom mechanical enactment", true, "toggle/revert; Wisdom P6/P7/P10; deactivate/reactivate"),
+    { s_id: "S27", name: "Synthesis lifecycle + Wisdom mechanical enactment", objective: "toggle/revert; Wisdom P6/P7/P10; deactivate/reactivate", blocking: true, mode: "execute", steps: S27_STEPS, precheck: synthesisAvailable },
     { s_id: "S28", name: "Briefing ordering, voice examples, session notation", objective: "briefing_order; voice examples; lonelog format", blocking: false, mode: "execute", steps: S28_STEPS },
     { s_id: "S29", name: "Novel export/import cycle", objective: "export/import dry-run/replace round-trip; lore-only; strict broken-reference", blocking: true, mode: "execute", steps: S29_STEPS },
     { s_id: "S30", name: "Supplementary ruleset import", objective: "import/remove supplementary Wisdom (REQ-372); Novel-scoped and persistent, Wisdom-only", blocking: true, mode: "execute", steps: S30_STEPS },
     { s_id: "S31", name: "Dynamic tool registration (waiver)", objective: "under the REQ-372d waiver no tools register; supplementary Wisdom remains listed", blocking: true, mode: "execute", steps: S31_STEPS },
     { s_id: "S32", name: "Coupling chain exercise", objective: "countdown ⇄ world_effect ⇄ scene-transition ⇄ lore trigger chain + fire", blocking: true, mode: "execute", steps: S32_STEPS },
-    followOn("S33", "Wisdom mechanical enactment", true, "P6/P7/P10 auto-population; deactivate/reactivate behavior"),
+    { s_id: "S33", name: "Wisdom mechanical enactment", objective: "P6/P7/P10 auto-population; deactivate/reactivate behavior", blocking: true, mode: "execute", steps: S33_STEPS, precheck: synthesisAvailable },
     { s_id: "S34", name: "Entity-bearing chain exercise", objective: "NPC memory facts across restart; relationship flip", blocking: false, mode: "execute", steps: S34_STEPS },
     { s_id: "S35", name: "Narrative architecture chain exercise", objective: "on_scene_transition countdown; discovered consequence; pacing signals", blocking: false, mode: "execute", steps: S35_STEPS },
     { s_id: "S36", name: "Decision chain exercise", objective: "vow ⇄ countdown; milestone advance; NPC-goal vow suggestion", blocking: false, mode: "execute", steps: S36_STEPS },
@@ -468,8 +499,155 @@ const S34_STEPS: PBStep[] = [
   { label: "NPC memory persists in briefing", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Keeper", "mem-persist ") },
 ];
 
-// ── Runner ─────────────────────────────────────────────────────────
+const NOVEL_DIR = join(DATA_DIR, "novels");
+const novelFile = (slug: string) => join(NOVEL_DIR, `${slug}.json`);
 
+// S15 — Stress and recovery (blocking).
+const S15_STEPS: PBStep[] = [
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-stress" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity A", action: T("manage_character", { action: "create", name: "Stress A" }), assert: (r) => { assertOK(r, "a "); capture("stressA", /Entity id (\S+?)\./)(r); } },
+  { label: "entity B", action: T("manage_character", { action: "create", name: "Stress B" }), assert: (r) => { assertOK(r, "b "); capture("stressB", /Entity id (\S+?)\./)(r); } },
+  { label: "write room", action: T("manage_world", { action: "create_room", name: "Stress Room", description: "A pressurized room." }), assert: (r) => assertContains(r, "created", "write ") },
+  { label: "read reflects write", action: R("world://map"), assert: (r) => assertContains(r, "Stress Room", "read ") },
+  ...repeat(10, (i) => ({ label: `badge alternation ${i + 1}`, action: T("set_badge", { badge: i % 2 === 0 ? "player" : "game_master" }), assert: assertOK })),
+  { label: "state survived alternations", action: R("world://map"), assert: (r) => assertContains(r, "Stress Room", "alternation ") },
+  { label: "corrupt the Novel file", action: { kind: "file", op: "corrupt", path: () => novelFile("pb-stress") }, assert: (r) => assertContains(r, "corrupted", "corrupt ") },
+  { label: "restart (no resume)", action: RS(), assert: assertOK },
+  { label: "spec_health reports the corruption", action: T("manage_session", { action: "health" }), assert: (r) => assertContains(r, "corrupt", "corruption-warning ") },
+  { label: "set_badge GM after restart", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "server still serves a fresh Novel", action: T("manage_novel", { action: "create", name: "pb-stress-recovered" }), assert: assertOK },
+  { label: "recovered entity A", action: T("manage_character", { action: "create", name: "Recovered A" }), assert: (r) => { assertOK(r, "ra "); capture("stressA2", /Entity id (\S+?)\./)(r); } },
+  { label: "recovered entity B", action: T("manage_character", { action: "create", name: "Recovered B" }), assert: (r) => { assertOK(r, "rb "); capture("stressB2", /Entity id (\S+?)\./)(r); } },
+  { label: "combat init (2 entities + 2 dangers)", action: T("manage_combat", () => ({ action: "init", participants: [captured.stressA2, captured.stressB2], dangers: [{ name: "Brute", hp: 9, ac: 12 }, { name: "Shade", hp: 7, ac: 11 }], seed: "s15" })), assert: (r) => assertContains(r, "Combat started", "combat-init ") },
+  ...repeat(50, (i) => ({ label: `advance round ${i + 1}`, action: T("manage_combat", { action: "advance" }), assert: assertOK })),
+  { label: "round counter reached 50", action: T("manage_combat", { action: "status" }), assert: (r) => assertContains(r, "round", "round ") },
+  { label: "combat summary names the danger", action: T("manage_combat", { action: "status" }), assert: (r) => assertContains(r, "Brute", "combat-summary ") },
+];
+
+// S21 — Campaign endurance (blocking).
+const S21_STEPS: PBStep[] = [
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-endurance" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity A", action: T("manage_character", { action: "create", name: "Endurance A" }), assert: (r) => { assertOK(r, "a "); capture("endoA", /Entity id (\S+?)\./)(r); } },
+  { label: "entity B", action: T("manage_character", { action: "create", name: "Endurance B" }), assert: (r) => { assertOK(r, "b "); capture("endoB", /Entity id (\S+?)\./)(r); } },
+  { label: "npc 1", action: T("manage_npc", { action: "create", name: "Endo Npc 1" }), assert: (r) => assertContains(r, "created", "npc1 ") },
+  { label: "npc 2", action: T("manage_npc", { action: "create", name: "Endo Npc 2" }), assert: (r) => assertContains(r, "created", "npc2 ") },
+  { label: "npc 3", action: T("manage_npc", { action: "create", name: "Endo Npc 3" }), assert: (r) => assertContains(r, "created", "npc3 ") },
+  { label: "countdown 1", action: T("manage_countdown", { action: "set", name: "Endurance Clock", ticks: 30 }), assert: (r) => assertContains(r, "tick", "cd1 ") },
+  { label: "countdown 2", action: T("manage_countdown", { action: "set", name: "Doom Clock", ticks: 30 }), assert: (r) => assertContains(r, "tick", "cd2 ") },
+  { label: "lore 1", action: T("manage_lore", { action: "set", key: "endo_1", content: "The first fragment." }), assert: assertOK },
+  { label: "lore 2", action: T("manage_lore", { action: "set", key: "endo_2", content: "The second fragment." }), assert: assertOK },
+  { label: "lore 3", action: T("manage_lore", { action: "set", key: "endo_3", content: "The third fragment." }), assert: assertOK },
+  // Three confrontations, ten rounds each.
+  { label: "confrontation 1 init", action: T("manage_combat", () => ({ action: "init", participants: [captured.endoA, captured.endoB], dangers: [{ name: "Foe 1", hp: 20, ac: 12 }], seed: "s21a" })), assert: (r) => assertContains(r, "Combat started", "c1 ") },
+  ...repeat(10, (i) => ({ label: `confrontation 1 round ${i + 1}`, action: T("manage_combat", { action: "advance" }), assert: assertOK })),
+  { label: "confrontation 1 end", action: T("manage_combat", { action: "end" }), assert: assertOK },
+  { label: "confrontation 2 init", action: T("manage_combat", () => ({ action: "init", participants: [captured.endoA, captured.endoB], dangers: [{ name: "Foe 2", hp: 20, ac: 12 }], seed: "s21b" })), assert: (r) => assertContains(r, "Combat started", "c2 ") },
+  ...repeat(10, (i) => ({ label: `confrontation 2 round ${i + 1}`, action: T("manage_combat", { action: "advance" }), assert: assertOK })),
+  { label: "confrontation 2 end", action: T("manage_combat", { action: "end" }), assert: assertOK },
+  { label: "confrontation 3 init", action: T("manage_combat", () => ({ action: "init", participants: [captured.endoA, captured.endoB], dangers: [{ name: "Foe 3", hp: 20, ac: 12 }], seed: "s21c" })), assert: (r) => assertContains(r, "Combat started", "c3 ") },
+  ...repeat(10, (i) => ({ label: `confrontation 3 round ${i + 1}`, action: T("manage_combat", { action: "advance" }), assert: assertOK })),
+  { label: "audit log carries the run", action: R("audit://novel"), assert: (r) => assertContains(r, "advance", "audit ") },
+  { label: "countdowns persist", action: R("countdown://active"), assert: (r) => { assertContains(r, "Endurance Clock", "cd-persist1 "); assertContains(r, "Doom Clock", "cd-persist2 "); } },
+  { label: "recap returns final state", action: T("manage_session", { action: "recap" }), assert: (r) => assertContains(r, "Endurance", "recap ") },
+];
+
+// S23 — Narrative features sweep (blocking).
+const S23_STEPS: PBStep[] = [
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-narrative-sweep" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "entity", action: T("manage_character", { action: "create", name: "Sweep Hero" }), assert: (r) => { assertOK(r, "hero "); capture("sweepHero", /Entity id (\S+?)\./)(r); } },
+  { label: "save_context captures state", action: T("manage_novel", { action: "save_context" }), assert: (r) => assertContains(r, "context", "save-ctx ") },
+  { label: "get_context round-trips", action: T("manage_novel", { action: "get_context" }), assert: (r) => assertContains(r, "context", "get-ctx ") },
+  { label: "faction create", action: T("manage_faction", { action: "create", name: "The Guild", description: "Merchant power." }), assert: (r) => { assertContains(r, "created", "faction "); capture("guildId", /\((faction_\w+)\)/)(r); } },
+  { label: "faction resource lists it", action: R("factions://"), assert: (r) => assertContains(r, "The Guild", "faction-res ") },
+  { label: "relationship set", action: T("manage_relationship", () => ({ action: "set", entity_a: captured.sweepHero, entity_b: captured.guildId, type: "ally" })), assert: (r) => assertContains(r, "ally", "rel-set ") },
+  { label: "relationship get", action: T("manage_relationship", () => ({ action: "get", entity_id: captured.sweepHero })), assert: (r) => assertContains(r, "ally", "rel-get ") },
+  { label: "secret set", action: T("manage_lore", { action: "set_secret", key: "guild_pact", content: "The Guild hides a pact." }), assert: assertOK },
+  { label: "secret reveal to entity", action: T("manage_lore", () => ({ action: "reveal", key: "guild_pact", entity_id: captured.sweepHero })), assert: assertOK },
+  { label: "entity knowledge records the secret", action: T("manage_lore", () => ({ action: "knowledge", entity_id: captured.sweepHero })), assert: (r) => assertContains(r, "guild_pact", "knowledge ") },
+  { label: "note set", action: T("manage_note", { action: "set", key: "sweep_note", content: "Remember the pact." }), assert: (r) => assertContains(r, "set", "note-set ") },
+  { label: "note resource round-trips", action: R("notes://sweep_note"), assert: (r) => assertContains(r, "pact", "note-res ") },
+  { label: "scene choices workflow", action: T("manage_scene", { action: "choices", prompt: "Which way?", choices: [{ id: "east", label: "East door" }, { id: "west", label: "West door" }] }), assert: (r) => assertContains(r, "NEED_INPUT", "choices ") },
+  { label: "resolve the choice", action: T("respond_decision", { decision: "choices", option: "east" }), assert: assertOK },
+  { label: "countdown set with on_scene_transition", action: T("manage_countdown", { action: "set", name: "Sweep Clock", ticks: 3, on_scene_transition: true }), assert: (r) => assertContains(r, "tick", "cd-set ") },
+  { label: "scene transition ticks the countdown", action: T("manage_scene", { action: "set", description: "The hall shifts." }), assert: assertOK },
+  { label: "countdown advanced after transition", action: R("countdown://active"), assert: (r) => assertContains(r, "Sweep Clock", "cd-tick ") },
+  { label: "recap lists the sweep", action: T("manage_session", { action: "recap" }), assert: (r) => assertContains(r, "Sweep", "recap ") },
+];
+
+// S24 — Session segmentation and audit compaction (non-blocking).
+const S24_STEPS: PBStep[] = [
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-session" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "session 1 mutation", action: T("manage_scene", { action: "set", description: "Session one opens." }), assert: assertOK },
+  { label: "restart into session s1", action: RS("pb-session", { TTRPG_SESSION_ID: "s1" }), assert: assertOK },
+  { label: "session 1 second mutation", action: T("manage_scene", { action: "set", description: "Session one continues." }), assert: assertOK },
+  { label: "restart into session s2", action: RS("pb-session", { TTRPG_SESSION_ID: "s2" }), assert: assertOK },
+  { label: "session 2 mutation", action: T("manage_scene", { action: "set", description: "Session two opens." }), assert: assertOK },
+  { label: "recap scoped to s2", action: T("manage_session", { action: "recap", session_id: "s2" }), assert: (r) => assertContains(r, "two", "recap-s2 ") },
+  { label: "restart with retention 1", action: RS("pb-session", { TTRPG_SESSION_ID: "s2", TTRPG_AUDIT_RETENTION_SESSIONS: "1" }), assert: assertOK },
+  { label: "compact prompts confirmation", action: T("manage_session", { action: "compact" }), assert: (r) => assertContains(r, "NEED_INPUT", "compact-prompt ") },
+  { label: "confirm compaction", action: T("respond_decision", { decision: "compact", option: "yes" }), assert: assertOK },
+  { label: "audit archive holds the compacted session", action: R("audit://novel/archive"), assert: (r) => assertContains(r, "s1", "archive ") },
+  { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
+  { label: "player compact → FORBIDDEN", action: T("manage_session", { action: "compact" }), assert: (r) => assertContains(r, "FORBIDDEN", "player-compact ") },
+];
+
+// S25 — State durability: backups, checkpoints, clones (blocking).
+const S25_STEPS: PBStep[] = [
+  { label: "restart with backup count 3", action: RS(undefined, { TTRPG_NOVEL_BACKUP_COUNT: "3" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-durable" }), assert: assertOK },
+  ...repeat(10, (i) => ({ label: `durability mutation ${i + 1}`, action: T("manage_scene", { action: "set", description: `Durability mutation ${i + 1}.` }), assert: assertOK })),
+  { label: "three rotated backups exist", action: { kind: "file", op: "count", path: () => `${novelFile("pb-durable")}.bak`, pattern: ".bak." }, assert: (r) => { if (Number(r) < 3) throw new Error(`expected >=3 backups, got ${r}`); } },
+  { label: "checkpoint set", action: T("manage_novel", { action: "checkpoint_set", label: "a" }), assert: assertOK },
+  { label: "checkpoint list shows a", action: T("manage_novel", { action: "checkpoint_list" }), assert: (r) => assertContains(r, "a", "cp-list ") },
+  { label: "mutations after checkpoint", action: T("manage_scene", { action: "set", description: "After checkpoint A." }), assert: assertOK },
+  { label: "checkpoint restore prompts", action: T("manage_novel", { action: "checkpoint_restore", label: "a" }), assert: (r) => assertContains(r, "NEED_INPUT", "cp-restore-prompt ") },
+  { label: "confirm checkpoint restore", action: T("respond_decision", { decision: "restore_checkpoint:a", option: "yes" }), assert: assertOK },
+  { label: "restore reverted the mutation", action: R("scene://current"), assert: (r) => assertNotContains(r, "After checkpoint A", "cp-revert ") },
+  { label: "re-set a checkpoint for removal", action: T("manage_novel", { action: "checkpoint_set", label: "b" }), assert: assertOK },
+  { label: "checkpoint remove", action: T("manage_novel", { action: "checkpoint_remove", label: "b" }), assert: assertOK },
+  { label: "clone creates independent Novel", action: T("manage_novel", { action: "clone", source_slug: "pb-durable", new_name: "pb-durable-clone" }), assert: (r) => assertContains(r, "Cloned", "clone ") },
+  { label: "resume the clone", action: T("manage_novel", { action: "resume", slug: "pb-durable-clone" }), assert: assertOK },
+  { label: "mutate clone", action: T("manage_scene", { action: "set", description: "Only the clone changes." }), assert: assertOK },
+  { label: "resume source", action: T("manage_novel", { action: "resume", slug: "pb-durable" }), assert: assertOK },
+  { label: "source scene is not the clone's", action: R("scene://current"), assert: (r) => assertNotContains(r, "Only the clone changes", "clone-isolation ") },
+];
+
+// S27 — Synthesis lifecycle + Wisdom mechanical enactment (blocking; prerequisite-gated).
+const synthesisAvailable = async (): Promise<string | null> => {
+  try {
+    const res = await doAction(proc!, R("synthesis://status"));
+    const activated = [...res.matchAll(/Synthesis activated\/total: (\d+)\//g)].map((m) => Number(m[1]));
+    const community = /\[community\]|\[supplementary\]|\[player\]/.test(res);
+    return activated.some((n) => n > 0) || community ? null : "synthesis not active — prerequisite absent";
+  } catch {
+    return "synthesis status unavailable — prerequisite absent";
+  }
+};
+const S27_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-synthesis" }), assert: assertOK },
+  { label: "synthesis status reports modules", action: R("synthesis://status"), assert: (r) => assertContains(r, "Synthesis activated", "synth-status ") },
+  { label: "synthesis list", action: T("manage_synthesis", { action: "list" }), assert: assertOK },
+  { label: "revert community synthesis", action: T("manage_synthesis", { action: "revert" }), assert: assertOK },
+  { label: "synthesis status after revert", action: R("synthesis://status"), assert: assertOK },
+];
+
+// S33 — Wisdom mechanical enactment (blocking; prerequisite-gated).
+const S33_STEPS: PBStep[] = [
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
+  { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-wisdom" }), assert: assertOK },
+  { label: "npc create under active Wisdom", action: T("manage_npc", { action: "create", name: "Wisdom Npc" }), assert: (r) => assertContains(r, "created", "wisdom-npc ") },
+  { label: "countdown set", action: T("manage_countdown", { action: "set", name: "Wisdom Clock", ticks: 2, on_scene_transition: true }), assert: (r) => assertContains(r, "tick", "wisdom-cd ") },
+  { label: "scene transition auto-applies", action: T("manage_scene", { action: "set", description: "The Wisdom engine stirs." }), assert: assertOK },
+  { label: "suggest draws on Wisdom", action: T("run_command", { action: "suggest", intent: "negotiate with the guard" }), assert: assertOK },
+];
+
+// ── Runner ─────────────────────────────────────────────────────────
 function log(msg: string) {
   if (!jsonOut) console.log(msg);
 }
@@ -512,6 +690,16 @@ async function main() {
       log(`${sw.mode.toUpperCase()} ${sw.s_id}: ${sw.name}${sw.reason ? ` (${sw.reason})` : ""}`);
       continue;
     }
+    // Prerequisite gate: a sub-workflow whose prerequisite is absent is
+    // skipped with a reason rather than failed (REQ-141l).
+    if (sw.precheck) {
+      const reason = await sw.precheck();
+      if (reason) {
+        verdicts.push({ s_id: sw.s_id, name: sw.name, blocking: sw.blocking, status: "skip", reason });
+        log(`SKIP ${sw.s_id}: ${sw.name} (${reason})`);
+        continue;
+      }
+    }
 
     const started = Date.now();
     const verdict: PBVerdict = { s_id: sw.s_id, name: sw.name, blocking: sw.blocking, status: "PASS" };
@@ -523,6 +711,8 @@ async function main() {
           if (step.action.resume) env.TTRPG_NOVEL = step.action.resume;
           proc = await bootServer(env);
           response = "[restarted]";
+        } else if (step.action.kind === "file") {
+          response = doFileAction(step.action);
         } else {
           response = await doAction(proc!, step.action);
         }

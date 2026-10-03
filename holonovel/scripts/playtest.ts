@@ -37,7 +37,8 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statS
 import { createHash } from "node:crypto";
 import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
-import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, authoredAdventureHash, partyRooms, entityCounts, stateDelta } from "./lib/playtest-lib.js";
+import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, authoredAdventureHash, partyRooms, entityCounts, stateDelta, LENSES, GM_LANES, JUDGMENT_LENSES, JUDGMENT_GM_LANES, toEvalEvents, computeLenses, type LensFinding } from "./lib/playtest-lib.js";
+import { canonicalJson, type EvalProvenance } from "./lib/eval-schema.js";
 
 const HOME = import.meta.dirname;
 const DEFAULT_SERVER_DIR = join(HOME, "..");
@@ -548,6 +549,36 @@ function missionTelemetry(run: string, cfg: RunConfig, novel: any, tx: any[]): a
   };
 }
 
+/** Write the canonical Holosuite report (`holosuite.json`) + event log. */
+function writeHolosuiteReport(run: string, cfg: RunConfig, oracle: any, allTx: any[], lenses: Record<string, LensFinding[]>): void {
+  const events = toEvalEvents(allTx);
+  writeFileSync(join(run, "events.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + (events.length ? "\n" : ""));
+  const provenance: EvalProvenance = {
+    server_dir: cfg.server_dir,
+    git_sha: cfg.provenance?.server_git_sha ?? null,
+    spec_hash: null,
+    ruleset: cfg.provenance?.ruleset_sha1 ?? null,
+    novel: cfg.novel_slug ?? null,
+    node: process.version,
+    seed: cfg.seed ? seedInt(cfg.seed) : null,
+  };
+  const report = {
+    provenance,
+    tier: "understudies",
+    run: cfg.run_id,
+    gm: cfg.gm,
+    persona: cfg.persona,
+    event_log: "events.jsonl",
+    event_count: events.length,
+    lenses: Object.fromEntries(LENSES.map((l) => [l, lenses[l] ?? []])),
+    gm_lanes: Object.fromEntries(GM_LANES.map((l) => [l, lenses[l] ?? []])),
+    judgment_lenses: JUDGMENT_LENSES,
+    judgment_gm_lanes: JUDGMENT_GM_LANES,
+    oracle: { success: oracle.success, partial_score: oracle.partial_score, turns: oracle.turns },
+  };
+  writeFileSync(join(run, "holosuite.json"), canonicalJson(report) + "\n");
+}
+
 function computeOracle(run: string): any {
   const cfg = readConfig(run);
   const novel = readNovel(run, cfg);
@@ -604,7 +635,7 @@ function computeOracle(run: string): any {
   const denials = playTx.filter((r) => (r.error_class ? r.error_class === "denial" : DENIAL_PREFIXES.has(r.prefix))).length;
   const success = !!(vowResolved && terminalBeat && activeInEscape && partyInEscape && leftAndReturned && survivors.length > 0 && unrecovered === 0);
   const partial = Number((0.4 * beatFraction + 0.4 * (vowResolved ? 1 : 0) + 0.2 * Math.max(0, 1 - errorTurns / totalCalls)).toFixed(3));
-  const oracle = {
+  const oracle: any = {
     run: cfg.run_id,
     gm: cfg.gm,
     persona: cfg.persona,
@@ -627,6 +658,11 @@ function computeOracle(run: string): any {
     authoring: existsSync(join(run, "authoring.json")) ? JSON.parse(readFileSync(join(run, "authoring.json"), "utf-8")) : null,
     mission: missionTelemetry(run, cfg, novel, playTx),
   };
+  const lenses = computeLenses(playTx, oracle);
+  oracle.lenses = Object.fromEntries(LENSES.map((l) => [l, lenses[l] ?? []]));
+  oracle.gm_lanes = Object.fromEntries(GM_LANES.map((l) => [l, lenses[l] ?? []]));
+  oracle.judgment_lenses = JUDGMENT_LENSES;
+  writeHolosuiteReport(run, cfg, oracle, tx, lenses);
   writeFileSync(join(run, "oracle.json"), JSON.stringify(oracle, null, 2));
   return oracle;
 }

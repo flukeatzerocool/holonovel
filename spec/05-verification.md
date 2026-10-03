@@ -225,3 +225,45 @@ once per ruleset present in the package set.
 all nine G8 steps. Evidence record in DECISIONS.md (6) under `@section evidence-g8`.
 _Check:_ T448, T449.
 
+**Holosuite evaluation method.** The Holosuite is the server's evaluation
+environment: its deterministic tiers and its stochastic Understudies tier. It is
+a diagnostic instrument, not a build gate — the deterministic tiers may block a
+line, but the Understudies campaign and the method audit never block. This
+subsection defines the report vocabulary and the evidence precondition the
+tiers share.
+
+**Shared schema.** Every tier emits events, findings, and provenance in one
+canonical schema, so the deterministic and stochastic tiers are compared by one
+definition. A tier report is keyed by provenance — server directory, git
+revision, spec hash, ruleset, Novel, runtime version, and seed — and carries no
+wall-clock field, so committed evidence does not flap.
+
+**Nine analytic lenses.** A Holosuite report SHALL section its findings by these
+lenses, one section each: `hallucinated_tool` (a called tool outside
+`tools/list`), `wrong_tool` (a declared intent resolved by a different tool),
+`forbidden_thrash` (repeated gating refusals without recovery),
+`unrecovered_error` (a defect-class error not corrected on the following turn),
+`missing_corrective` (a denial returned without a corrective action), `dead_end`
+(a reachable state offering no progress path), `loop` (a repeated state without
+progress), `ambiguity_stall` (an unresolved ambiguity that halts play), and
+`state_divergence` (a state-fingerprint mismatch across a read-only action or a
+restart boundary). The GM/interaction lanes — `gating_leak`,
+`world_population_failure`, `coupling_failure`, `unreachable_goal` — SHALL be
+reported as a separate section, not as lenses. A finding that carries no lens
+assignment is a report defect.
+
+**Mutation-audit catch rate.** The method audit measures whether the oracle
+detects known defects. It seeds a deterministic set of mutants — fault
+injections into the server or harness, selected by a declared mutant identifier
+that leaves normal runs unaffected — executes the oracle over each mutant, and
+reports a catch rate: the fraction of seeded mutants that cause at least one
+lens to fail. The catch rate SHALL be published with the mutant set enumerated
+before an Understudies campaign is treated as evidence; a campaign whose
+accompanying catch rate is absent is diagnostic only and does not support a
+convergence claim. The audit is report-only and never blocks a build.
+
+**Coverage traceability.** Every Holosuite event SHALL carry the REQ
+identifiers it exercises, and the tier SHALL emit a machine-readable per-REQ
+exercise aggregate for the coverage register. A tier that exercises a contract
+but reports no identifier for it is a traceability defect.
+

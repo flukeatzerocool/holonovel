@@ -104,9 +104,9 @@ Verification harnesses (`npm run test:*`) include the Holonovel Pattern Buffer
 (`test:pattern-buffer`, §6.6 Holonovel Pattern Buffer sub-workflows I1–I18) and
 the Ruleset-scope suite (`test:pattern-buffer-ruleset`, §6.6 sub-workflows
 S1–S37 — in-tree scaffolding for ruleset builds; server-native ones execute;
-mechanics-fidelity ones record `skipped — ruleset hash unchanged`; S30/S31
-execute (REQ-372 supplementary import; REQ-373 is a terminal builder-scope
-non-goal); the rest are `follow-on` increments, all summarized in the emitted
+mechanics-fidelity ones record `skipped — ruleset hash unchanged`; S10/S11 are
+stubs merged into S4/S20; S27/S33 skip when synthesis is inactive; all
+sub-workflow verdicts are summarized in the emitted
 `ruleset-pattern-buffer-manifest.json`).
 
 The Holosuite deterministic tiers (`scripts/holosuite.ts`) add protocol

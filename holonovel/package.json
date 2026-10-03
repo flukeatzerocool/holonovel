@@ -70,7 +70,8 @@
     "test:holosuite-conformance": "tsx scripts/holosuite.ts --tier=conformance",
     "test:holosuite-invariants": "tsx scripts/holosuite.ts --tier=invariants",
     "test:holosuite-adversarial": "tsx scripts/holosuite.ts --tier=adversarial",
-    "test:holosuite-differential": "tsx scripts/holosuite.ts --tier=differential"
+    "test:holosuite-differential": "tsx scripts/holosuite.ts --tier=differential",
+    "test:holosuite-mutation": "tsx scripts/holosuite.ts --tier=mutation"
   },
   "keywords": [
     "parser",

@@ -58,6 +58,8 @@ export interface TierResult {
   failed: number;
   findings: EvalFinding[];
   events: EvalEvent[];
+  /** Optional tier-specific metrics (e.g. the mutation audit's catch rate). */
+  metrics?: Record<string, unknown>;
 }
 
 function sortValue(x: unknown): unknown {
