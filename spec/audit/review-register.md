@@ -11,6 +11,25 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Push-pipeline performance audit (resolved 2026-10-03):** audited
+  `scripts/push-pipeline.sh` and `.githooks/pre-push` and remediated the
+  duplication/overhead findings. (F1, predicate `push-pipeline.sh:473` origin
+  push + `:486` mirror push, `pre-push:106` unconditional strict gate) the
+  implementation-coverage strict gate re-ran on every `git push`; it now runs
+  once at step 4d (`push-pipeline.sh:337`) and `HOLONOVEL_PIPELINE_STRICT`
+  (`:342`) suppresses the hook repeat, with main and the tag pushed as one ref
+  list per remote. (F2, predicate the direct `npx tsx` spawns) direct tool calls
+  use `node --import tsx` via the `TSX` array. (F4, predicate `pre-push:59`) the
+  root spec hash is reused rather than recomputed. (F5, predicate
+  `push-pipeline.sh:507`) the REQ-428 registry poll runs in the background from
+  step 7d and is collected at 9c. (F6, predicate `push-pipeline.sh:267`) one
+  stderr file is reused for delta classification instead of a per-server
+  `mktemp`. Dispositions: F3 (step-5b re-check) is already `Closed-P3`
+  (2026-09-27 entry below) — not reopened; F7 (`git ls-remote` tag guard)
+  retained as a correctness guard; F2's sequential `npm run check` chain
+  deferred (a gate-behavior change, out of scope). Evidence: `check:fast` PASS,
+  `check-registers:strict` PASS, `push-pipeline.sh --dry-run` exit 0.
+
 - **Convert/Build hardening from a two-book PDF integration (resolved
   2026-10-03, `ad08fa2`):** hardened the Convert/Build workflows from a two-book
   (389-page, two-column PDF) integration and the session audit. Resolved Convert

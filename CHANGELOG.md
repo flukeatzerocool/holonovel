@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-03 — Push-pipeline performance: single strict gate, batched pushes
+
+Removes redundant work from the publication path.
+
+- **One strict gate per run.** `push-pipeline.sh` step 4d runs the
+  implementation-coverage strict gate (`validate:sdd --impl-audit=strict`) once
+  and exports `HOLONOVEL_PIPELINE_STRICT`; `.githooks/pre-push` skips the repeat
+  when the marker is set (a direct push still runs it). The hook previously
+  re-ran the full validator on every push (origin + mirror).
+- **Batched pushes.** main and the version tag are pushed as one ref list to
+  origin and to the GitHub mirror, so the pre-push hook fires once per remote
+  instead of once per ref.
+- **Direct tsx invocation.** The pipeline calls `node --import tsx` instead of
+  `npx tsx` for its direct tool spawns, dropping the per-call npx resolution.
+- **Overlapped registry poll.** The REQ-428 registry waiter starts in the
+  background (step 7d) and is collected at step 9c, overlapping the wiki push
+  and deploy. One stderr file is reused for delta classification, and the
+  pre-push hook reuses the computed spec hash for its root comparison.
+
 ## 2026-10-03 — Convert/Build hardening, supplement overlay, and mechanical reliability
 
 Hardens the Convert and Build workflows from the ThunderCats 5.5E supplement
