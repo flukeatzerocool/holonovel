@@ -171,6 +171,15 @@ if (specChanged) {
   steps.push({ label: "1b. Regenerate contract fingerprints", fn: () => skip("1b. Regenerate contract fingerprints", "spec/ unchanged") });
 }
 
+// Step 1c: Regenerate the tool-definitions snapshot (REQ-450) BEFORE the check
+// gate — `npm run check` includes `check-tool-definitions-sync`, so a tool
+// description or schema change must be captured before the gate reads it.
+if (holoSrcChanged || !existsSync(join(root, "holonovel", "tool-definitions.json"))) {
+  steps.push({ label: "1c. Regenerate tool definitions", fn: () => run("1c. Regenerate tool definitions", "npx tsx holonovel/scripts/generate-tool-definitions.ts") });
+} else {
+  steps.push({ label: "1c. Regenerate tool definitions", fn: () => skip("1c. Regenerate tool definitions", "holonovel/src/ unchanged") });
+}
+
 // Step 2: Check spec (depends on spec/ or scripts/ — a validator change is a
 // review-surface change and must re-run the check even when spec/ is untouched).
 if (specChanged || scriptsChanged) {
@@ -201,18 +210,14 @@ if (holoSrcChanged) {
   steps.push({ label: "4. Typecheck holonovel", fn: () => skip("4. Typecheck holonovel", "holonovel/src/ unchanged") });
 }
 
-// Step 4b: Regenerate the tool-definitions snapshot (REQ-450) — depends on
-// holonovel/src so `check-tool-definitions-sync` stays green after an edit.
-if (holoSrcChanged || !existsSync(join(root, "holonovel", "tool-definitions.json"))) {
-  steps.push({ label: "4b. Regenerate tool definitions", fn: () => run("4b. Regenerate tool definitions", "npx tsx holonovel/scripts/generate-tool-definitions.ts") });
-} else {
-  steps.push({ label: "4b. Regenerate tool definitions", fn: () => skip("4b. Regenerate tool definitions", "holonovel/src/ unchanged") });
-}
-
 // Step 5: Version-bump — always runs so a new CHANGELOG entry advances the
 // CalVer and every reference in one pass (version-bump self-computes the target;
 // REQ-107a). It is idempotent when the version is already current.
 steps.push({ label: "5. Bump versions", fn: () => run("5. Bump versions", "npx tsx scripts/version-bump.ts") });
+
+// Step 5b: Refresh README @spec markers after the version bump so the next
+// `check` run's `check-markers` gate is green (the bump advances the spec date).
+steps.push({ label: "5b. Refresh spec markers", fn: () => run("5b. Refresh spec markers", "npm run refresh-properties") });
 
 // Step 6: Version-check — always runs (fast, catch-all)
 steps.push({ label: "6. Verify version consistency", fn: () => run("6. Verify version consistency", "npx tsx scripts/version-check.ts") });
