@@ -886,23 +886,47 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
     if (!rulesets.isInstalled(slug)) {
       return err("STATE_CONFLICT", `Ruleset '${slug}' is not installed.`);
     }
-    if (!rulesets.isHydrated(slug)) {
-      return err("STATE_CONFLICT", `Ruleset '${slug}' is installed but not activated. Open a campaign bound to '${slug}', or set TTRPG_RULESETS=${slug} for eager hydration.`);
+    // REQ-558 — ruleset content is host-level: an installed package serves its
+    // tools whether or not a Novel is bound. Hydrate lazily on first use; a
+    // hydration failure (content-hash mismatch, corrupt files) surfaces here.
+    let pkg: ReturnType<typeof rulesets.hydrate>;
+    try {
+      pkg = rulesets.hydrate(slug);
+    } catch (e: any) {
+      return err("STATE_CONFLICT", `Ruleset '${slug}' failed to load: ${e.message}`);
     }
-    const pkg = rulesets.hydrate(slug);
     switch (schema.kind) {
       case "lookup": {
         const collection = schema.collection ?? "concepts";
         const key = String(args.key ?? args.name ?? "").toLowerCase();
         const coll = (pkg.model[collection] ?? {}) as Record<string, any>;
+        // REQ-558b — resolve a lookup by exact key, then by the entry's canonical
+        // `name`, then by any declared `alias`. Extraction keys are heading slugs
+        // (e.g. `the-veritech-fighters-2`); callers use natural names (e.g.
+        // `VF-1A Veritech Fighter`), so key-only resolution is not discoverable.
+        const wantNorm = normId(key);
+        let entry: any;
+        let matchedKey = key;
         if (coll && key in coll) {
-          const entry = coll[key];
+          entry = coll[key];
+        } else {
+          for (const [k, v] of Object.entries(coll ?? {})) {
+            const cand = v as any;
+            if (normId(k) === wantNorm || normId(cand?.name) === wantNorm
+              || (Array.isArray(cand?.aliases) && cand.aliases.some((a: any) => normId(a) === wantNorm))) {
+              entry = cand;
+              matchedKey = k;
+              break;
+            }
+          }
+        }
+        if (entry) {
           // REQ-060 — verbose output: full entry; REQ-061 source quoting;
           // REQ-280 source-anchor citation — source block and source_anchor
           // derived from the matching index entry. REQ-004 — truncate.
           // REQ-112 — cross-reference discovery: when the entry's content names
           // another indexed section by anchor, surface a non-recursive pointer.
-          const idxEntry = pkg.index.find((i: any) => normId(i.id) === normId(key) || normId(i.key) === normId(key));
+          const idxEntry = pkg.index.find((i: any) => normId(i.id) === normId(matchedKey) || normId(i.key) === normId(matchedKey));
           const body = JSON.stringify({ ...entry, ...sourceAnchor(idxEntry ?? entry), ...discoverCrossRefs(pkg, entry, idxEntry) }, null, 2);
           const payload = body + sourceBlock(idxEntry ?? entry);
           return raw(truncateOutput(toolName, payload));
@@ -913,7 +937,9 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
         // REQ-002c) and a "Did you mean?" hint when a close match exists.
         // REQ-058 — tool-result fidelity: no fabricated entries, no reading of
         // ruleset Markdown after startup; lookups use the loaded index/model.
-        const validValues = Object.keys(coll);
+        // REQ-558b — enumerate canonical names (falling back to keys) so the
+        // hint names what a caller can actually ask for.
+        const validValues = Object.entries(coll ?? {}).map(([k, v]: [string, any]) => v?.name ?? k);
         const hint = closestMatch(key, validValues);
         const enumList = validValues.length > 0 ? ` Valid values: ${validValues.slice(0, 25).join(", ")}${validValues.length > 25 ? "…" : ""}.` : "";
         const didYouMean = hint ? ` Did you mean '${hint}'?` : "";
@@ -930,8 +956,12 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
       }
       case "roll": {
         try {
-          const notation = String(args.dice ?? args.notation ?? "1d20");
-          const label = args.skill ? `${args.skill} check` : (args.notation ?? args.dice ?? "1d20");
+          // REQ-558c — a roll tool may declare `defaultDice` when the notation is
+          // fixed by the ruleset (e.g. a percentile skill check). Caller-supplied
+          // dice/notation still override it.
+          const fallback = schema.defaultDice ?? "1d20";
+          const notation = String(args.dice ?? args.notation ?? fallback);
+          const label = args.skill ? `${args.skill} check` : (args.notation ?? args.dice ?? fallback);
           let r = rollDice(notation, args.seed);
           const extra = Number(args.modifier ?? 0);
           if (extra !== 0) {
@@ -953,42 +983,59 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
       }
       case "table": {
         const collection = schema.collection ?? "tables";
-        const tables = (pkg.model[collection] ?? {}) as Record<string, any>;
+        // REQ-558b — a table tool resolves against its declared collection and,
+        // when the caller names a generation table, against generation_tables too.
+        const tables = { ...(pkg.model.generation_tables ?? {}), ...(pkg.model[collection] ?? {}) } as Record<string, any>;
         const name = String(args.table ?? args.name ?? "");
-        const table = name ? tables[name] ?? tables[name.toLowerCase()] : undefined;
+        // REQ-558b — resolve by exact key, then entry `name`, then `alias`.
+        let table = name ? tables[name] ?? tables[name.toLowerCase()] : undefined;
+        if (!table && name) {
+          const wantNorm = normId(name);
+          const hit = Object.entries(tables).find(([k, v]: [string, any]) =>
+            normId(k) === wantNorm || normId(v?.name) === wantNorm
+            || (Array.isArray(v?.aliases) && v.aliases.some((a: any) => normId(a) === wantNorm)));
+          if (hit) table = hit[1];
+        }
         if (!table) {
-          const valid = Object.keys(tables);
+          const valid = Object.entries(tables).map(([k, v]: [string, any]) => v?.name ?? k);
           const hint = closestMatch(name, valid);
           const didYouMean = hint ? ` Did you mean '${hint}'?` : "";
           const enumList = valid.length > 0 ? ` Valid tables: ${valid.slice(0, 25).join(", ")}.` : "";
           return err("NOT_FOUND", `No table '${name}' found.${didYouMean}${enumList}`);
         }
-        if (Array.isArray(table)) {
+        const rows = Array.isArray(table) ? table : (Array.isArray(table.rows) ? table.rows : null);
+        if (rows) {
           const rng = args.seed ? createRng(args.seed) : null;
-          const idx = rng ? rng.roll(table.length) - 1 : sessionRoll(table.length) - 1;
-          const row = table[Math.max(0, Math.min(idx, table.length - 1))];
+          const idx = rng ? rng.roll(rows.length) - 1 : sessionRoll(rows.length) - 1;
+          const row = rows[Math.max(0, Math.min(idx, rows.length - 1))];
           return raw(JSON.stringify(row, null, 2));
         }
         return raw(JSON.stringify(table, null, 2));
       }
       case "info": {
         // REQ-389 — an info-kind tool (e.g. core_mechanic) returns the model
-        // entry's content, not the tool's own description. Resolve the entry by
-        // tool name across the package's model collections.
+        // entry's content, not the tool's own description. REQ-558a — resolve
+        // explicitly from model.info[toolName] first, then scan collections for a
+        // key matching the tool name.
         const want = normId(schema.name);
-        let infoEntry: any = null;
-        for (const coll of Object.values(pkg.model) as any[]) {
-          if (!coll || typeof coll !== "object" || Array.isArray(coll)) continue;
-          const hit = Object.keys(coll).find((k) => normId(k) === want);
-          if (hit) { infoEntry = coll[hit]; break; }
+        let infoEntry: any = (pkg.model as any).info?.[schema.name] ?? (pkg.model as any).info?.[want] ?? null;
+        if (!infoEntry) {
+          for (const coll of Object.values(pkg.model) as any[]) {
+            if (!coll || typeof coll !== "object" || Array.isArray(coll)) continue;
+            const hit = Object.keys(coll).find((k) => normId(k) === want);
+            if (hit) { infoEntry = coll[hit]; break; }
+          }
         }
         if (infoEntry) {
           const text = typeof infoEntry.description === "string" ? infoEntry.description
             : typeof infoEntry.content === "string" ? infoEntry.content
+            : typeof infoEntry.text === "string" ? infoEntry.text
             : JSON.stringify(infoEntry, null, 2);
           return ok(truncateOutput(toolName, text + sourceBlock({ ...infoEntry, anchor: infoEntry.anchor ?? schema.name })));
         }
-        return raw(String(schema.description ?? ""));
+        // REQ-558a — an info tool with no backing model entry is an extraction
+        // defect; return [NOT_FOUND] rather than echoing the tool description.
+        return err("NOT_FOUND", `No model entry backs info tool '${schema.name}' in ruleset '${slug}'.`);
       }
       default:
         return err("UNIMPLEMENTED", `Ruleset tool kind '${(schema as any).kind}' is not supported by this host.`);
@@ -7321,7 +7368,7 @@ function extractSupplementaryWisdom(raw: string): Array<{ module: string; key: s
 
 server.registerTool("manage_ruleset", {
   title: "Ruleset Package Management",
-  description: "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
+  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. search and roll accept an optional slug and work with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, roll, import_supplementary, or remove_supplementary."),
     query: z.string().optional().describe("Search query (search)."),
@@ -7342,7 +7389,9 @@ server.registerTool("manage_ruleset", {
   switch (args.action) {
     case "search": {
       const novel = state.activeNovel;
-      const slug = novel?.ruleset ?? null;
+      // REQ-558 — an explicit slug makes search Novel-independent; otherwise use
+      // the bound Novel's ruleset.
+      const slug = (typeof args.slug === "string" && args.slug) ? args.slug : (novel?.ruleset ?? null);
       if (slug && rulesets.isInstalled(slug)) {
         const hits = rulesets.search(slug, String(args.query), args.max_results ?? 10);
         if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${args.query}'.`);
@@ -7351,7 +7400,7 @@ server.registerTool("manage_ruleset", {
         return raw(truncateOutput("search_rules", body + countReport(hits.length, total)));
       }
       if (rulesets.installedSlugs().length > 0) {
-        return ok(`No ruleset bound to the active Novel. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Bind one via manage_ruleset (action: bind), or create a Novel with manage_novel (action: create, ruleset: "...").`);
+        return ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`);
       }
       return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
     }
@@ -7419,13 +7468,18 @@ server.registerTool("manage_ruleset", {
     }
     case "roll": {
       const novel = state.activeNovel;
-      const slug = novel?.ruleset ?? null;
+      // REQ-558 — an explicit slug makes table rolling Novel-independent.
+      const slug = (typeof args.slug === "string" && args.slug) ? args.slug : (novel?.ruleset ?? null);
       if (!slug || !rulesets.isInstalled(slug)) {
-        return err("NOT_FOUND", "No random generation tables in this ruleset (ruleset-free). Corrective action: bind a ruleset whose package defines generation tables.");
+        return err("NOT_FOUND", "No random generation tables in this ruleset (ruleset-free). Corrective action: pass slug, or bind a ruleset whose package defines generation tables.");
       }
       const model = rulesets.hydrate(slug).model as any;
       const tables = model.generation_tables ?? {};
-      const key = Object.keys(tables).find(k => k.toLowerCase() === String(args.table).toLowerCase());
+      const key = Object.keys(tables).find(k => {
+        const want = normId(String(args.table));
+        return normId(k) === want || normId(tables[k]?.name) === want
+          || (Array.isArray(tables[k]?.aliases) && tables[k].aliases.some((a: any) => normId(a) === want));
+      });
       if (!key) {
         const valid = Object.keys(tables);
         return err("NOT_FOUND", `Table '${args.table}' not found. Valid tables: ${valid.join(", ") || "(none)"}.`);
@@ -7682,6 +7736,38 @@ function buildSpecHealth(): Record<string, unknown> {
   if (novel && fileSize === 0) health_warnings.push("Novel file size is zero after write (durability failure).");
   const healthy = health_warnings.length === 0;
 
+  // REQ-558d — confidence reflects installed ruleset content even with no active
+  // Novel: aggregate each hydrated package's index confidence by file and
+  // category. Falls back to the ruleset-free placeholder only when nothing is
+  // installed.
+  const rulesetConfidence = (() => {
+    const slugs = rulesets.installedSlugs();
+    if (slugs.length === 0) return { overall: "N/A — ruleset-free", per_file: {}, per_category: {} };
+    const perFile: Record<string, Record<string, number>> = {};
+    const perCategory: Record<string, Record<string, number>> = {};
+    const totals: Record<string, number> = {};
+    let entries = 0;
+    for (const s of slugs) {
+      let pkg: ReturnType<typeof rulesets.hydrate>;
+      try { pkg = rulesets.hydrate(s); } catch { continue; }
+      for (const e of pkg.index) {
+        const c = String((e as any).confidence ?? "UNKNOWN").toUpperCase();
+        entries++;
+        totals[c] = (totals[c] ?? 0) + 1;
+        const f = (e as any).source_file ?? "(unknown)";
+        perFile[f] = perFile[f] ?? {};
+        perFile[f][c] = (perFile[f][c] ?? 0) + 1;
+        const cat = (e as any).category ?? "uncategorized";
+        perCategory[cat] = perCategory[cat] ?? {};
+        perCategory[cat][c] = (perCategory[cat][c] ?? 0) + 1;
+      }
+    }
+    if (entries === 0) return { overall: "N/A — ruleset-free", per_file: {}, per_category: {} };
+    const high = totals["HIGH"] ?? 0;
+    const overall = high / entries >= 0.9 ? "HIGH" : high / entries >= 0.5 ? "MEDIUM" : "LOW";
+    return { overall, entries, totals, per_file: perFile, per_category: perCategory };
+  })();
+
   const health: Record<string, unknown> = {
     // REQ-106 — spec repository URL (informational; identical for both badges).
     spec_repo_url: specRepoUrl(),
@@ -7748,7 +7834,7 @@ function buildSpecHealth(): Record<string, unknown> {
       declared: [...declaredFormats],
     },
     mcp_apps: { negotiated: appsNegotiated() },
-    confidence: { overall: "N/A — ruleset-free", per_file: {}, per_category: {} },
+    confidence: rulesetConfidence,
     indexed_counts: {
       // REQ-389b — a package that fails hydration (e.g. content-hash mismatch)
       // contributes nothing and must not crash the health report; its rejection

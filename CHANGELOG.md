@@ -1,5 +1,66 @@
 # Changelog
 
+## 2026-10-05 — Ruleset content access is host-level; Robotech package defects fixed
+
+Ruleset packages now serve their derived tools with **no active Novel**, and the
+Robotech package's lookup/info/roll/table defects are fixed at their source.
+
+- **Host-level access (REQ-558).** `gatedRulesetTool` no longer refuses an
+  installed-but-unhydrated package; it hydrates lazily on first call. `search_rules`,
+  every `lookup_<category>`, roll, table, and info tool now serve with no Novel and
+  no eager-hydration env. `manage_ruleset (action: search|roll)` accept an explicit
+  `slug` and operate with no active Novel.
+- **Info fidelity (REQ-558a).** The `info` handler resolves an explicit model entry
+  (`model.info[tool]`, then a keyed scan) and returns `[ERROR] [NOT_FOUND]` when none
+  exists, instead of silently echoing the tool description — the fallback that masked
+  the Robotech `core_mechanic` gap.
+- **Name/alias resolution (REQ-558b).** Lookups and table rolls resolve by exact key,
+  then the entry's canonical `name`, then any declared `alias`; the "valid values"
+  enumeration reports canonical names.
+- **Fixed dice (REQ-558c).** A roll tool may declare `defaultDice` (validated as
+  NdM/NdF at package load); the Robotech `roll_skill_check` declares `1d100` and no
+  longer rolls the host's d20 default.
+- **spec_health confidence (REQ-558d).** Confidence is aggregated over installed
+  packages' indexes instead of the hardcoded `N/A — ruleset-free`.
+- **TDQS negation (REQ-553).** `applyHardGates` strips negated mutation verbs
+  ("writes no state") before the read-only contradiction test, clearing 17 false
+  `[tool-quality]` alerts on the swse package.
+- **Robotech content pipeline.** The extractor emits an explicit `info.core_mechanic`
+  entry, canonical names + aliases for mecha/skills/weapons/classes/creatures, named
+  tables (Random Hit Location, Missile Type, Vehicle Speed), captures O.C.C.
+  skill-program skill names, and excludes front-matter/colophon headings from the
+  index. Build tooling migrated to `scripts/ruleset-builds/robotech/` (REQ-395a).
+- **Root cause (future Convert/Build jobs):** see the recommendations below.
+
+Verification: `npm run build-order` → complete (0 errors); `npm run check:fast` →
+PASS; `npx tsc --noEmit` (holonovel) → 0 errors; `test:ruleset-nonovel` → 7/7 with
+no Novel; `check-ruleset-package` (rebuilt robotech) → 12/12 conformant.
+
+### Root cause & recommendations (package defects)
+
+The Convert/Build pipeline runs outside the host's verification gates, so a package
+could ship tools that answer only by accident. Root causes:
+
+1. **No model-shape gate.** `check-ruleset-package` validates `tools.json` (TDQS)
+   only — not the model/index. Nothing required an info tool to have a backing entry,
+   lookups/tables to expose a human `name`, or roll tools to match their stated dice.
+2. **Silent host fallback.** The `info` handler returned the tool description when no
+   model entry existed, hiding the extraction defect (fixed by REQ-558a).
+3. **Heading-slug keys, no canonical-name contract.** The extractor keys entries by
+   heading slug and defaulted unmapped headings to `concepts`, so callers' natural
+   names (and front-matter authors/dates) polluted the surface.
+4. **Eager-hydration coupling.** Non-search tools required a bound Novel, so the
+   Convert/Build pipelines never exercised a package against a no-Novel host.
+
+Recommendations (not yet implemented): add a **`check-ruleset-model` gate** wired
+into Build step 4 (every info tool backed; every lookup/table entry carries a unique
+`name`; every roll tool's `defaultDice`/notation matches its description; no
+auto-generated table keys); a **Convert contract that strips front matter/colophons**;
+a **Build-time tool replay** that boots a ruleset-free host and calls every declared
+tool once (generalizing T651/T452), failing on an unresolvable canonical entry; and a
+**byte-identical rebuild check** for new packages (mirroring REQ-557 supplement
+idempotency).
+
 ## 2026-10-05 — build-order regenerates generated artifacts before the check gate
 
 Fixes two first-run failures that made `npm run build-order` exit at the check

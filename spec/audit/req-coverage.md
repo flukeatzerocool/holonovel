@@ -513,4 +513,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-555 | Shadowing-risk report | 5.3 Tools, Resources, and Lookups | C | T647 | — |
 | REQ-556 | Update-workflow user-data reconciliation | 5.18 Workflow Entry Points | E | T649 | — |
 | REQ-557 | Supplement-build provenance | 5.18 Workflow Entry Points | E | — | — |
+| REQ-558 | Host-level ruleset content access | 5.18 Workflow Entry Points | C | T651 | — |
 

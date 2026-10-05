@@ -59,6 +59,9 @@ export interface RulesetToolSchema {
   description: string;
   kind: "lookup" | "search" | "roll" | "table" | "info";
   collection?: string;
+  // REQ-558c — fixed dice notation for a roll tool when the caller supplies
+  // none (e.g. a percentile `1d100` skill check); absent → host default `1d20`.
+  defaultDice?: string;
   inputSchema: any;
 }
 
@@ -198,6 +201,10 @@ export function validateToolSchema(schema: RulesetToolSchema): string[] {
   for (const g of hardGates) defects.push(`${g.gate}: ${g.detail}`);
   if (Buffer.byteLength(desc, "utf-8") > RULESET_DESCRIPTION_BUDGET) {
     defects.push(`description exceeds the ${RULESET_DESCRIPTION_BUDGET}B budget`);
+  }
+  // REQ-558c — a declared defaultDice must be valid NdM / NdF notation.
+  if (schema.defaultDice !== undefined && !/^(\d+)?d[fF](?:[+-]\d+)?$|^\d+d\d+(?:[+-]\d+)?$/i.test(String(schema.defaultDice).trim())) {
+    defects.push(`defaultDice '${schema.defaultDice}' is not valid dice notation`);
   }
   return defects;
 }
