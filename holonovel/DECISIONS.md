@@ -143,6 +143,23 @@
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## Update job — deployed user-data reconciliation (REQ-556), 2026-10-03
+
+Ran the §6.7 user-data reconciliation against the deployed instance at
+`/home/fluke/Holonovel-deployed/holonovel` after the `b3785c0` host advance.
+Per-tier outcomes (no tier left neither updated nor deferred):
+
+| Tier | Outcome | Detail |
+|------|---------|--------|
+| Persisted artifacts — Novels, roster, codex, server notes | updated | 6 stale artifacts re-stamped to data-format `25cd36c4…` via `migrate-user-data --apply`; pre-migration backups written (`.bak-<ts>`) |
+| Ruleset package — dnd2024 | updated | rebuilt via `scripts/ruleset-builds/dnd2024/build-package.mjs --install` (idempotent ThunderCats overlay; index 5655→5655, tools 24→24) to package-format `8ad3508a…` |
+| Ruleset package — swse | updated | rebuilt via `scripts/ruleset-builds/swse/build-package.mjs` from committed `character_creation.json` (host_version 2026.09.30→2026.10.03) to package-format `8ad3508a…` |
+| Ruleset package — mothership | deferred | no committed deterministic build tooling; the source is a PDF extraction baseline, so the rebuild requires the out-of-session Build workflow (§6.2). Reason: opencode cannot self-invoke within a session. Source present at `/home/fluke/Documents/Mothership/Mothership_Books`; rebuild command: `opencode run --agent build "Perform Build workflow on mothership. B1 intake: mothership=/home/fluke/Documents/Mothership/Mothership_Books. Follow Appendix V.1 happy path."` |
+
+Staleness never blocks loading (REQ-423); no user data was deleted or reverted.
+Package backups were written beside the install directory
+(`rulesets-backup-updatejob-*`).
+
 ## Gate classification (REQ-137a)
 
 Every registered host tool is assigned one gate classification: **un-gated**
@@ -206,7 +223,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.10.03 |
+| Spec version | 2026.10.05 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |
