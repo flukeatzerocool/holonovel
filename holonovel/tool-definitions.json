@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "tool_count": 30,
-  "tools_list_bytes": 80647,
+  "tools_list_bytes": 81410,
   "tools": [
     {
       "name": "manage_adventure",
@@ -181,8 +181,8 @@
     {
       "name": "manage_character",
       "title": "Player Character Management",
-      "description": "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
-      "description_bytes": 640,
+      "description": "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so a sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
+      "description_bytes": 818,
       "action_enum": [
         "create",
         "stage",
@@ -192,11 +192,12 @@
         "personality",
         "voice",
         "signal",
+        "update",
         "remove",
         "roster_remove",
         "roster_list"
       ],
-      "param_count": 24,
+      "param_count": 26,
       "required": [
         "action"
       ],
@@ -212,6 +213,7 @@
         "feats": "Feats (create).",
         "format": "Output format (sheet).",
         "goals": "Character goals (create/personality).",
+        "inventory": "Replace the entity's inventory (update).",
         "name": "Character name; omit (create) to begin step-by-step.",
         "personality": "Grouped personality fields (create).",
         "pov": "Point-of-view mode (set_active).",
@@ -222,6 +224,7 @@
         "species": "Species (create).",
         "stage_to_roster": "Also stage into the roster (create).",
         "stat_method": "Stat-generation method (create).",
+        "stats": "Mechanical stat keys to shallow-merge into the entity's stats (update).",
         "talents": "Talents (create).",
         "value": "Feedback text (signal).",
         "voice": "Voice and speech pattern (create/personality)."
@@ -237,9 +240,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 25,
+        "paramCount": 27,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 25,
+        "paramsWithDescriptions": 27,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -250,7 +253,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4759
+        "definitionBytes": 5240
       },
       "category": "",
       "gate": ""
@@ -258,8 +261,8 @@
     {
       "name": "manage_codex",
       "title": "Codex Library Management",
-      "description": "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
-      "description_bytes": 842,
+      "description": "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Pass merge=true to `set` to shallow-merge content into an existing entry instead of re-sending the whole payload. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+      "description_bytes": 956,
       "action_enum": [
         "set",
         "list",
@@ -268,7 +271,7 @@
         "import",
         "delete"
       ],
-      "param_count": 11,
+      "param_count": 12,
       "required": [
         "action"
       ],
@@ -279,6 +282,7 @@
         "entry_id": "Entry identifier (for get/import/delete); alias of `id`.",
         "id": "Entry identifier or array of identifiers (for import/get/delete).",
         "kind": "Entry kind (for set/list/capture).",
+        "merge": "For set: when true and the entry exists, shallow-merge the provided content into the stored content instead of replacing it.",
         "name": "Entry name (for set).",
         "source_id": "Novel artifact key/name/entity id to capture (for capture). Defaults per kind.",
         "tags": "Optional tags (for set).",
@@ -296,9 +300,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 12,
+        "paramCount": 13,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 12,
+        "paramsWithDescriptions": 13,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -309,7 +313,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2993
+        "definitionBytes": 3275
       },
       "category": "",
       "gate": ""

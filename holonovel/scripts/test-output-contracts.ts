@@ -743,6 +743,42 @@ async function main() {
     await kill(p);
   });
 
+  await test("T366/REQ-321: partial updates (codex merge, character update, upsert)", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "w4partial" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_codex", { action: "set",  kind: "reference", name: "MergeRef", content: { a: 1, b: 2 } });
+    await call(p, "manage_codex", { action: "set",  kind: "reference", name: "MergeRef", content: { b: 9, c: 3 }, merge: true });
+    const ref = JSON.parse(await call(p, "manage_codex", { action: "get", id: "reference_mergeref" }));
+    if (ref.content.a !== 1 || ref.content.b !== 9 || ref.content.c !== 3) throw new Error(`T366 codex merge failed: ${JSON.stringify(ref.content)}`);
+    await call(p, "manage_character", { action: "create", name: "Patcher", description: "Tester" });
+    const upd = await call(p, "manage_character", { action: "update", entity_id: "character_01", stats: { hp: 20 }, inventory: ["blaster"] });
+    assertContains(upd, "[OK]", "T366 character update");
+    const sheet = await call(p, "manage_character", { action: "sheet", entity_id: "character_01", format: "json" });
+    assertContains(sheet, "blaster", "T366 character inventory updated in place");
+    await call(p, "manage_note", { action: "set", key: "k", content: "first" });
+    await call(p, "manage_note", { action: "set", key: "k" });
+    const notes = await call(p, "manage_note", { action: "list" });
+    assertContains(notes, "first", "T366 note content preserved on omit");
+    await call(p, "manage_countdown", { action: "set", name: "Doom", ticks: 5, type: "round" });
+    await call(p, "manage_countdown", { action: "set", name: "Doom", scope: "village" });
+    const adv = await call(p, "manage_countdown", { action: "advance", name: "Doom" });
+    assertContains(adv, "4", "T366 countdown ticks preserved on omit");
+    await call(p, "manage_relationship", { action: "set", entity_a: "a", entity_b: "b", type: "ally" });
+    await call(p, "manage_relationship", { action: "set", entity_a: "a", entity_b: "b", value: 3 });
+    const rel = JSON.parse(await call(p, "manage_relationship", { action: "get", entity_id: "a" }));
+    if (rel.outgoing.length !== 1) throw new Error(`T366 relationship duplicated: ${JSON.stringify(rel.outgoing)}`);
+    await call(p, "manage_vow", { action: "set", name: "V1", description: "d", difficulty: "troublesome" });
+    const vu = await call(p, "manage_vow", { action: "set", name: "V1", description: "d2" });
+    assertContains(vu, "updated", "T366 vow edit in place");
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_synthesis", { action: "player_add", module: "supplementary_guidance", key: "p1", content: "x" });
+    const pu = await call(p, "manage_synthesis", { action: "player_add", module: "supplementary_guidance", key: "p1", content: "y" });
+    assertContains(pu, "updated", "T366 synthesis edit in place");
+    passed++;
+    await kill(p);
+  });
+
   await test("T384/REQ-332: codex import materializes provenance and reports stale", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4h" });

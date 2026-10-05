@@ -2262,9 +2262,9 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
 // remove/roster_remove/roster_list surface.
 server.registerTool("manage_character", {
   title: "Player Character Management",
-  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
+  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so a sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
   inputSchema: {
-    action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, remove, roster_remove, or roster_list."),
+    action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "update", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, update, remove, roster_remove, or roster_list."),
     name: z.string().optional().describe("Character name; omit (create) to begin step-by-step."),
     species: z.string().optional().describe("Species (create)."),
     classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional().describe("Class levels (create)."),
@@ -2289,6 +2289,8 @@ server.registerTool("manage_character", {
     examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })).optional().describe("Voice examples (voice)."),
     signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]).optional().describe("Feedback category (signal)."),
     value: z.string().optional().describe("Feedback text (signal)."),
+    stats: z.record(z.string(), z.any()).optional().describe("Mechanical stat keys to shallow-merge into the entity's stats (update)."),
+    inventory: z.array(z.string()).optional().describe("Replace the entity's inventory (update)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -2490,6 +2492,25 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       state.saveNovel(novel);
       audit("player_signal", { signal: args.signal, value: args.value });
       return ok(`Signal recorded: ${args.signal} → ${args.value}`);
+    }
+    case "update": {
+      requireNotObserver();
+      const novel = requireNovel();
+      const target: any = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
+      if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      if (args.stats && typeof args.stats === "object") target.stats = { ...(target.stats ?? {}), ...args.stats };
+      if (args.inventory !== undefined) target.inventory = args.inventory;
+      if (args.description !== undefined || args.voice !== undefined || args.background !== undefined || args.goals !== undefined) {
+        if (!target.personality) target.personality = {};
+        if (args.description !== undefined) { target.personality.description = args.description; if (novel.npcs.has(args.entity_id)) target.description = args.description; }
+        if (args.voice !== undefined) target.personality.voice = args.voice;
+        if (args.background !== undefined) target.personality.background = args.background;
+        if (args.goals !== undefined) target.personality.goals = args.goals;
+      }
+      state.recordMutation(novel, "update_character", "character");
+      state.saveNovel(novel);
+      audit("update_character", { entity_id: args.entity_id, stats_keys: args.stats ? Object.keys(args.stats).length : 0 });
+      return ok(`Character '${args.entity_id}' updated.`);
     }
     case "remove": {
       requireGM();
@@ -3727,8 +3748,8 @@ server.registerTool("manage_scene", {
       const novel = requireNovel();
       novelSnapshot();
       const { description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward } = args;
-      const derived = !description && location ? deriveSceneDescription(location, novel) : null;
-      const effectiveDescription = description || derived || "";
+      const derived = description === undefined && location !== undefined ? deriveSceneDescription(location, novel) : null;
+      const effectiveDescription = description !== undefined ? description : (derived ?? novel.scene_description);
       const isTransition = novel.scene_description !== "" && novel.scene_description !== effectiveDescription;
       if (novel.scene_description) {
         const historyEntry: any = {
@@ -3740,9 +3761,9 @@ server.registerTool("manage_scene", {
         if (novel.scene_description !== effectiveDescription) novel.scene_history.push(historyEntry);
       }
       novel.scene_description = effectiveDescription;
-      novel.scene_location = location;
-      novel.scene_time_of_day = time_of_day;
-      novel.scene_atmosphere = atmosphere;
+      if (location !== undefined) novel.scene_location = location;
+      if (time_of_day !== undefined) novel.scene_time_of_day = time_of_day;
+      if (atmosphere !== undefined) novel.scene_atmosphere = atmosphere;
       if (scene_type !== undefined) novel.scene_type = Array.isArray(scene_type) ? scene_type : [scene_type];
       const sceneLower = effectiveDescription.toLowerCase();
       for (const [, entry] of novel.lore) {
@@ -4047,11 +4068,23 @@ server.registerTool("manage_countdown", {
         const cdRefusal = capGuard("countdowns", novel.countdowns.size);
         if (cdRefusal) return cdRefusal;
       }
-      novel.countdowns.set(name, { name, ticks, total: ticks, type: type ?? "narrative", scope, direction, on_scene_transition, triggers, world_effect });
+      const existingCd = novel.countdowns.get(name);
+      const nextTicks = ticks ?? existingCd?.ticks ?? existingCd?.total ?? 1;
+      novel.countdowns.set(name, {
+        name,
+        ticks: nextTicks,
+        total: ticks ?? existingCd?.total ?? nextTicks,
+        type: type ?? existingCd?.type ?? "narrative",
+        scope: scope ?? existingCd?.scope,
+        direction: direction ?? existingCd?.direction,
+        on_scene_transition: on_scene_transition ?? existingCd?.on_scene_transition,
+        triggers: triggers ?? existingCd?.triggers,
+        world_effect: world_effect ?? existingCd?.world_effect,
+      });
       state.recordMutation(novel, "set_countdown", "countdown");
       state.saveNovel(novel);
-      audit("set_countdown", { name, ticks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
-      return ok(`Countdown '${name}' set (${ticks} ticks, ${type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
+      audit("set_countdown", { name, ticks: nextTicks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
+      return ok(`Countdown '${name}' set (${nextTicks} ticks, ${type ?? existingCd?.type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
     }
     case "advance": {
       requireGM();
@@ -4150,16 +4183,18 @@ server.registerTool("manage_lore", {
       const novel = requireNovel();
       novelSnapshot();
       const { key, content, triggers, badge_scope, priority, sticky, group, world_target } = args;
+      const existingLore = novel.lore.get(key);
       const entry: LoreEntry = {
-        key, content,
-        triggers: triggers ?? [],
-        badge_scope: badge_scope ?? "game_master",
-        priority: priority ?? 0,
-        sticky: sticky ?? 0,
-        sticky_remaining: sticky ?? 0,
-        enabled: true,
-        group,
-        world_target,
+        key,
+        content: content ?? existingLore?.content,
+        triggers: triggers ?? existingLore?.triggers ?? [],
+        badge_scope: badge_scope ?? existingLore?.badge_scope ?? "game_master",
+        priority: priority ?? existingLore?.priority ?? 0,
+        sticky: sticky ?? existingLore?.sticky ?? 0,
+        sticky_remaining: sticky ?? existingLore?.sticky_remaining ?? existingLore?.sticky ?? 0,
+        enabled: existingLore?.enabled ?? true,
+        group: group ?? existingLore?.group,
+        world_target: world_target ?? existingLore?.world_target,
       };
       // REQ-129b1 — lore cardinality applies to new entries; updates upsert.
       if (!novel.lore.has(key)) {
@@ -4445,7 +4480,7 @@ server.registerTool("manage_faction", {
     case "update": {
       requireGM();
       const novel = requireNovel();
-      const { faction_id, ...fields } = args;
+      const { faction_id, action: _action, ...fields } = args;
       const faction = novel.factions.find(f => f.id === faction_id);
       if (!faction) return err("NOT_FOUND", `Faction '${faction_id}' not found.`);
       Object.assign(faction, fields);
@@ -4493,9 +4528,18 @@ server.registerTool("manage_relationship", {
     case "set": {
       requireGM();
       const novel = requireNovel();
-      novel.relationships.push({ entity_a: args.entity_a, entity_b: args.entity_b, type: args.type, value: args.value, description: args.description });
+      const idx = novel.relationships.findIndex(r => r.entity_a === args.entity_a && r.entity_b === args.entity_b);
+      if (idx >= 0) {
+        const r = novel.relationships[idx];
+        if (args.type !== undefined) r.type = args.type;
+        if (args.value !== undefined) r.value = args.value;
+        if (args.description !== undefined) r.description = args.description;
+      } else {
+        novel.relationships.push({ entity_a: args.entity_a, entity_b: args.entity_b, type: args.type, value: args.value, description: args.description });
+      }
       state.saveNovel(novel);
-      return ok(`Relationship set: ${args.entity_a} -> ${args.entity_b} (${args.type}).`);
+      const effType = idx >= 0 ? novel.relationships[idx].type : args.type;
+      return ok(`Relationship set: ${args.entity_a} -> ${args.entity_b} (${effType}).`);
     }
     case "get": {
       requireGM();
@@ -4531,7 +4575,16 @@ server.registerTool("manage_vow", {
       requireGM();
       const novel = requireNovel();
       const { name, description, parties, difficulty, scope } = args;
-      if (novel.vows.some(v => v.name === name)) return err("STATE_CONFLICT", `Vow '${name}' already exists.`);
+      const existingVow = novel.vows.find(v => v.name === name);
+      if (existingVow) {
+        if (description !== undefined) existingVow.description = description;
+        if (parties !== undefined) existingVow.parties = parties;
+        if (difficulty !== undefined) { existingVow.difficulty = difficulty as any; existingVow.rank_track = DIFFICULTY_TRACKS[difficulty] ?? existingVow.rank_track; }
+        if (scope !== undefined) existingVow.scope = scope;
+        state.recordMutation(novel, "set_vow", "vow");
+        state.saveNovel(novel);
+        return ok(`Vow '${name}' updated.`);
+      }
       novel.vows.push({
         name, description, parties, difficulty: difficulty as any, scope: scope ?? "shared",
         milestones: 0, rank_track: DIFFICULTY_TRACKS[difficulty] ?? 10, state: "active",
@@ -5151,7 +5204,7 @@ server.registerTool("manage_note", {
         if (novel.badge === "player" && existing.badge_scope === "game_master") {
           return err("FORBIDDEN", "The Player badge cannot modify a game_master-scoped note.");
         }
-        existing.content = args.content;
+        existing.content = args.content ?? existing.content;
         existing.badge_scope = scope;
       } else {
         novel.notes.push({ key: args.key, content: args.content, badge_scope: scope });
@@ -8576,6 +8629,9 @@ function materializeCodexEntry(
       if (existing) {
         const ent = existing[1];
         if (content.personality) ent.personality = { ...(ent.personality ?? {}), ...content.personality };
+        if (content.stats) ent.stats = { ...(ent.stats ?? {}), ...content.stats };
+        if (content.voice_examples) ent.voice_examples = content.voice_examples;
+        if (content.conditions) ent.conditions = content.conditions;
         if (content.inventory) ent.inventory = content.inventory;
         ent.codex_source = provenance;
         return existing[0];
@@ -8736,7 +8792,7 @@ function codexImportPrecheck(novel: any, entry: any, badge: string): string | nu
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
 server.registerTool("manage_codex", {
   title: "Codex Library Management",
-  description: "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+  description: "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Pass merge=true to `set` to shallow-merge content into an existing entry instead of re-sending the whole payload. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
     action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
@@ -8747,6 +8803,7 @@ server.registerTool("manage_codex", {
     description: z.string().optional().describe("Optional description (for set)."),
     tags: z.array(z.string()).optional().describe("Optional tags (for set)."),
     visibility: z.enum(["library", "shared", "private"]).optional().describe("library (default), shared (both badges), or private (Editor and Game Master only) (for set)."),
+    merge: z.boolean().optional().describe("For set: when true and the entry exists, shallow-merge the provided content into the stored content instead of replacing it."),
     entity_id: z.string().optional().describe("Entity whose voice to capture (for capture, voice_profile kind)."),
     source_id: z.string().optional().describe("Novel artifact key/name/entity id to capture (for capture). Defaults per kind."),
     update_source: z.boolean().optional().describe("When true, update the source Codex entry in place (for capture)."),
@@ -8755,15 +8812,18 @@ server.registerTool("manage_codex", {
   switch (args.action) {
     case "set": {
       requireGM();
-      const { kind, name, content, description, tags, visibility } = args;
+      const { kind, name, content, description, tags, visibility, merge } = args;
       const id = `${String(kind).toLowerCase()}_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
       const now = new Date().toISOString();
       const existing = state.codex.get(id);
+      const mergedContent = (merge && content && typeof content === "object" && existing?.content && typeof existing.content === "object")
+        ? { ...existing.content, ...content }
+        : (content ?? existing?.content);
       const entry: any = {
         id,
         kind: kind ?? existing?.kind,
         name: name ?? existing?.name,
-        content: content ?? existing?.content,
+        content: mergedContent,
         description: description ?? existing?.description,
         tags: tags ?? existing?.tags ?? [],
         visibility: visibility ?? existing?.visibility ?? "library",
@@ -9132,7 +9192,16 @@ server.registerTool("manage_synthesis", {
       // REQ-129b1 — synthesis items per output module cardinality.
       const synthRefusal = capGuard("synthesis", items.length);
       if (synthRefusal) return synthRefusal;
-      if (items.some((i: any) => i.key === args.key)) return err("STATE_CONFLICT", `Item '${args.key}' already exists in module '${args.module}'.`);
+      const existingItem = items.find((i: any) => i.key === args.key);
+      if (existingItem) {
+        if (args.content !== undefined) existingItem.content = args.content;
+        if (args.triggers !== undefined) existingItem.triggers = args.triggers;
+        if (args.badge_scope !== undefined) existingItem.badge_scope = args.badge_scope;
+        novel.player_synthesis[args.module] = items;
+        state.saveNovel(novel);
+        audit("player_synthesize", { module: args.module, key: args.key, updated: true });
+        return ok(`Player synthesis item '${args.key}' updated in '${args.module}'.`);
+      }
       items.push({ key: args.key, content: args.content, triggers: args.triggers, badge_scope: args.badge_scope ?? "shared", created_at: new Date().toISOString(), active: true });
       novel.player_synthesis[args.module] = items;
       state.saveNovel(novel);
