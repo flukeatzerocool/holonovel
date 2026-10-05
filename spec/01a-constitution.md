@@ -94,7 +94,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Health report (`spec_health`) | The build-health diagnostic report produced by the `session` tool's `health` action (REQ-025, REQ-429). Reports live-registry counts, confidence, convergence summary, indexed counts, safety protocols, and badge-filtered sub-reports. `spec_health` names the report surface throughout this specification, not a tool. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
 | Server Notes   | Server-level key-value note store surviving Novels and rebuilds. `server-notes://<key>`. Game Master only. REQ-285. |
-| Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible under the Editor badge; badge-filtered by visibility field per REQ-321. |
+| Codex          | Server-level typed content library for reusable content (NPCs, characters, scenes, encounters, lore, factions, countdowns, rooms, things, equipment, spells, relationships, voice profiles, adventures) that persists outside Novels. `codex://<id>`. Accessible to the Editor and Game Master badges; a Player badge request is refused; not badge-filtered per REQ-321. |
 | Novel         | One named, persistent save file identified by `TTRPG_NOVEL`. Holds all          |
 |               |               entities, NPCs, scene state, countdowns, lore, synthesis, adventure,            |
 |               | audit log, snapshots, and badge state for a single ruleset story. A Novel          |

@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.10.03)
+# AGENTS.md — holonovel MCP Server (v2026.10.05)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -50,7 +50,7 @@ src/index.ts            McpServer: 30 action-discriminator tools, 38 resources a
 ## Tool Surface (30 tools — the REQ-429 recorded budget in DECISIONS.md)
 
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
-- **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
+- **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/update/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
 - **manage_npc** (action: create/update/remove/list/get) — GM NPC management
 - **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate/causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — world-model rooms, things, exits, and objective-state transition validation (REQ-484–REQ-495)
 - **run_command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
@@ -63,7 +63,7 @@ src/index.ts            McpServer: 30 action-discriminator tools, 38 resources a
 - **manage_lore** (action: set/update/remove/toggle/group/suggest/list/get/export/import/set_secret/reveal/secret_list/knowledge/corpus_register/corpus_list/corpus_get/corpus_route/corpus_grant/corpus_deny/corpus_access/corpus_consume/corpus_acquisitions) — Novel lore entries, secrets, and the knowledge corpus of cold reference material (REQ-496–REQ-503)
 - **manage_story** (action: record/update/remove/list/promote) — story journal beats
 - **manage_note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
-- **manage_codex** (action: set/list/get/capture/import/delete) — cross-Novel reusable content library
+- **manage_codex** (action: set/list/get/capture/import/delete) — server-level, out-of-play reusable content library (Editor and Game Master badges; a Player badge mid-adventure is refused; reads are not badge-filtered)
 - **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/branch/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle, including event-log branching (REQ-458/REQ-459)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content

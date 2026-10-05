@@ -708,21 +708,23 @@ async function main() {
     await kill(p);
   });
 
-  await test("T366/REQ-321: badge-scoped codex import and materialization", async () => {
+  await test("T366/REQ-321: codex is out-of-play; player badge is refused", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4gate" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Gruff, scarred" } });
-    await call(p, "manage_codex", { action: "set",  kind: "character", name: "Fighter", content: { description: "Bold" }, visibility: "shared" });
+    await call(p, "manage_codex", { action: "set",  kind: "character", name: "Fighter", content: { description: "Bold" } });
     const gmImport = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
     assertContains(gmImport, "[OK]", "T366 GM import");
     const gmList = await call(p, "manage_npc", { action: "list" });
     assertContains(gmList, "Blacksmith", "T366 NPC materialized");
     await call(p, "set_badge", { badge: "player" });
-    const playerChar = await call(p, "manage_codex", { action: "import",  id: "character_fighter" });
-    assertContains(playerChar, "[OK]", "T366 Player shared-character import");
-    const playerNpc = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
-    assertContains(playerNpc, "[FORBIDDEN]", "T366 Player npc import forbidden");
+    const playerList = await call(p, "manage_codex", { action: "list" });
+    assertContains(playerList, "FORBIDDEN", "T366 Player codex list forbidden");
+    const playerGet = await call(p, "manage_codex", { action: "get", id: "npc_blacksmith" });
+    assertContains(playerGet, "FORBIDDEN", "T366 Player codex get forbidden");
+    const playerImport = await call(p, "manage_codex", { action: "import",  id: "character_fighter" });
+    assertContains(playerImport, "FORBIDDEN", "T366 Player codex import forbidden");
     passed++;
     await kill(p);
   });
@@ -736,9 +738,10 @@ async function main() {
     const got = JSON.parse(await call(p, "manage_codex", { action: "get", id: "reference_codex_first" }));
     if (!got.content || got.content.note !== "kept") throw new Error(`T366 content not preserved on omit: ${JSON.stringify(got)}`);
     if (got.description !== "desc only") throw new Error(`T366 description not updated: ${got.description}`);
-    await call(p, "manage_codex", { action: "set",  kind: "reference", name: "Codex First", visibility: "private" });
-    const got2 = JSON.parse(await call(p, "manage_codex", { action: "get", id: "reference_codex_first" }));
-    if (got2.visibility !== "private") throw new Error(`T366 private visibility not stored: ${got2.visibility}`);
+    const missing = await call(p, "manage_codex", { action: "set", content: { orphan: true } });
+    assertContains(missing, "[INVALID_INPUT]", "T366 set requires kind and name");
+    const listed = await call(p, "manage_codex", { action: "list" });
+    assertContains(listed, "Codex First", "T366 codex list is not badge-filtered");
     passed++;
     await kill(p);
   });
@@ -760,6 +763,15 @@ async function main() {
     await call(p, "manage_note", { action: "set", key: "k" });
     const notes = await call(p, "manage_note", { action: "list" });
     assertContains(notes, "first", "T366 note content preserved on omit");
+    await call(p, "manage_note", { action: "set", key: "scoped", content: "s1", badge_scope: "shared" });
+    await call(p, "manage_note", { action: "set", key: "scoped", content: "s2" });
+    const scopedNotes = JSON.parse(await call(p, "manage_note", { action: "list" }));
+    const scoped = scopedNotes.find((n: any) => n.key === "scoped");
+    if (!scoped || scoped.badge_scope !== "shared") throw new Error(`T366 note scope not preserved on omit: ${JSON.stringify(scopedNotes)}`);
+    await call(p, "set_badge", { badge: "player" });
+    const playerNote = await call(p, "manage_note", { action: "set", key: "scoped", content: "s3" });
+    assertContains(playerNote, "[OK]", "T366 Player can update own shared note");
+    await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_countdown", { action: "set", name: "Doom", ticks: 5, type: "round" });
     await call(p, "manage_countdown", { action: "set", name: "Doom", scope: "village" });
     const adv = await call(p, "manage_countdown", { action: "advance", name: "Doom" });
