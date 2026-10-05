@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "tool_count": 30,
-  "tools_list_bytes": 80251,
+  "tools_list_bytes": 80647,
   "tools": [
     {
       "name": "manage_adventure",
@@ -258,8 +258,8 @@
     {
       "name": "manage_codex",
       "title": "Codex Library Management",
-      "description": "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
-      "description_bytes": 568,
+      "description": "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+      "description_bytes": 842,
       "action_enum": [
         "set",
         "list",
@@ -273,7 +273,7 @@
         "action"
       ],
       "params": {
-        "content": "Entry content (for set).",
+        "content": "Entry content (for set); when omitted on an existing entry, the stored content is preserved.",
         "description": "Optional description (for set).",
         "entity_id": "Entity whose voice to capture (for capture, voice_profile kind).",
         "entry_id": "Entry identifier (for get/import/delete); alias of `id`.",
@@ -283,7 +283,7 @@
         "source_id": "Novel artifact key/name/entity id to capture (for capture). Defaults per kind.",
         "tags": "Optional tags (for set).",
         "update_source": "When true, update the source Codex entry in place (for capture).",
-        "visibility": "library, shared, or private (for set)."
+        "visibility": "library (default), shared (both badges), or private (Editor and Game Master only) (for set)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -309,7 +309,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2597
+        "definitionBytes": 2993
       },
       "category": "",
       "gate": ""

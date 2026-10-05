@@ -727,6 +727,22 @@ async function main() {
     await kill(p);
   });
 
+  await test("T366/REQ-321: codex-first persistence and partial update", async () => {
+    const p = await boot();
+    await call(p, "set_badge", { badge: "game_master" });
+    const noNovel = await call(p, "manage_codex", { action: "set",  kind: "reference", name: "Codex First", content: { note: "kept" } });
+    assertContains(noNovel, "[OK]", "T366 codex set with no Novel active");
+    await call(p, "manage_codex", { action: "set",  kind: "reference", name: "Codex First", description: "desc only" });
+    const got = JSON.parse(await call(p, "manage_codex", { action: "get", id: "reference_codex_first" }));
+    if (!got.content || got.content.note !== "kept") throw new Error(`T366 content not preserved on omit: ${JSON.stringify(got)}`);
+    if (got.description !== "desc only") throw new Error(`T366 description not updated: ${got.description}`);
+    await call(p, "manage_codex", { action: "set",  kind: "reference", name: "Codex First", visibility: "private" });
+    const got2 = JSON.parse(await call(p, "manage_codex", { action: "get", id: "reference_codex_first" }));
+    if (got2.visibility !== "private") throw new Error(`T366 private visibility not stored: ${got2.visibility}`);
+    passed++;
+    await kill(p);
+  });
+
   await test("T384/REQ-332: codex import materializes provenance and reports stale", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4h" });
