@@ -1,10 +1,25 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** d1dbac52d5ae131271ce0a0ec0c5662d5b4112af887154daf26314a94620c486
+**Spec hash:** df527f376a887c474b54e4f0d8e08251a1008fab61715ed3ac565b422123f068
 
 **Recorded tool budget:** 30 (REQ-429)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
+
+### Reference-server vs deploy-target content boundary — 2026-10-05
+
+- The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
+- Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
+- Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-05 (Ruleset package gates, replay, determinism, Convert boundary)
+
+- **Delta class:** minor. New REQs: REQ-559 (package model contract — `scripts/check-ruleset-model.ts`), REQ-560 (Build-time package replay — `test:ruleset-nonovel` T653), REQ-561 (deterministic package emission — `emitPackage`/T654), REQ-562 (Convert front-matter exclusion — `scripts/lib/front-matter.ts`/T655). New gates wired into `check`/`check:fast`: `check-ruleset-model`, `check-reference-server-cleanliness`, `test:ruleset-gates` (+ `test:ruleset-nonovel`). No PACKAGE_FORMAT/DATA_FORMAT change (placed in the safe §5.2/§5.18 sections).
+- **Validator fix:** `checkDirectEvidenceForNewReqs` accepts a new REQ's cited check ID in a test-name prefix, removing the write-register-first artifact.
+- **Governance:** reference-server vs deploy-target content boundary recorded above; `check-reference-server-cleanliness` enforces it.
+- **Skill:** `build-review` now requires emitting its contract before the first edit.
+- **Verification:** `npm run assemble` ok; `validate` 0 errors; `build-order` complete; `check:fast` PASS; `tsc --noEmit` clean; `test:ruleset-gates` 6/6; `test:ruleset-nonovel` 9/9 (T651+T653).
+- **Deployed:** Robotech rebuilt with the de-OCR pass and degenerate-table pruning (`content_hash b9b001af…`); passes `check-ruleset-model` and `check-ruleset-package`.
 
 ### Holonovel Spec Update — 2026-10-05 (Ruleset content access is host-level)
 

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-10-05 — Ruleset package gates: model contract, replay, determinism, content boundary
+
+Closes the defect classes that let a ruleset package ship tools whose backing
+data was missing or unresolvable, and enforces the reference-server vs
+deploy-target content boundary.
+
+- **Package model gate (REQ-559).** New `check-ruleset-model` validates the
+  model a package's tools resolve against: every info tool has a backing entry,
+  every table carries a human name (no generated `${file}-${headers}-${rows}`
+  key), and a roll tool's `defaultDice` matches its description. Duplicate names
+  are advisory (repeated headings are legitimate).
+- **Build-time replay (REQ-560).** `test:ruleset-nonovel` now replays every
+  declared tool against a ruleset-free host and fails on an unresolvable
+  canonical entry (T653), on top of the no-Novel access checks (T651).
+- **Deterministic emission (REQ-561).** `emitPackage` plus T654 guarantee two
+  builds from identical parts are byte-identical.
+- **Convert front-matter contract (REQ-562).** A shared, tested colophon
+  predicate (`scripts/lib/front-matter`) excludes credits, printing dates, and
+  ISBN headings from indexed content.
+- **Content boundary guardrail.** `check-reference-server-cleanliness` fails on
+  an unsanctioned `scripts/ruleset-builds/<slug>/` or a tracked package triple
+  outside the sanctioned fixtures — personal/deployed rulesets stay in the
+  content pipeline.
+- **Validator fix.** New bucket-C REQs are now validated by their cited check ID
+  in a test-name prefix, not only the literal REQ id.
+
+Verification: `build-order` complete; `check:fast` PASS; `tsc --noEmit` clean;
+`test:ruleset-gates` 6/6; `test:ruleset-nonovel` 9/9.
+
 ## 2026-10-05 — Ruleset content access is host-level; Robotech package defects fixed
 
 Ruleset packages now serve their derived tools with **no active Novel**, and the

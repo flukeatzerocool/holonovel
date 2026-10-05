@@ -1560,9 +1560,14 @@ function checkDirectEvidenceForNewReqs(rows: CoverageRow[], knownReqs: Set<strin
   const issues: string[] = [];
   for (const row of rows) {
     if (row.bucket !== "C" || knownReqs.has(row.reqId)) continue;
-    const direct = names.some((n) => n.prefix.includes(row.reqId));
+    // Direct evidence is a test whose name prefix carries the REQ's own ID, or
+    // one of the exercised check IDs the REQ cites in its `_Check:_` line (the
+    // T-id map is the spec's own REQ→check binding). Requiring the literal
+    // `REQ-NNN` in the prefix made the artifact depend on register write order.
+    const direct = names.some((n) => n.prefix.includes(row.reqId)
+      || row.exercisedTests.some((t) => n.prefix.includes(t)));
     if (!direct) {
-      issues.push(`new bucket-C REQ ${row.reqId} has no direct test (its ID must appear in a test-name prefix, not only in a bundled name)`);
+      issues.push(`new bucket-C REQ ${row.reqId} has no direct test (its ID, or a cited check ID, must appear in a test-name prefix)`);
     }
   }
   return issues;
@@ -1863,6 +1868,13 @@ const INTENDED_GAP_REQS = new Set([
   // §5.17 supplement-overlay contract owed by the build pipeline
   // (scripts/build-ruleset.ts and the ruleset-build assets).
   "REQ-556", "REQ-557",
+  // §5.2/§5.18 package gates (2026-10-05): package model contract
+  // (scripts/check-ruleset-model.ts), build-time replay (test harnesses),
+  // deterministic emission (scripts/lib/ruleset-package.mjs), and the Convert
+  // front-matter exclusion (scripts/lib/front-matter.ts) are builder-side
+  // contracts owed by scripts/ and the Build/Convert workflows — not runtime
+  // `holonovel/src` behavior.
+  "REQ-559", "REQ-560", "REQ-561", "REQ-562",
   // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
   // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
   // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline
