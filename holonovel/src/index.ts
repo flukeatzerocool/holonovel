@@ -8736,17 +8736,17 @@ function codexImportPrecheck(novel: any, entry: any, badge: string): string | nu
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
 server.registerTool("manage_codex", {
   title: "Codex Library Management",
-  description: "Manage the cross-Novels codex library of reusable content (NPCs, factions, rooms, spells, adventures, voice profiles). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+  description: "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
     action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
     name: z.string().optional().describe("Entry name (for set)."),
     entry_id: z.string().optional().describe("Entry identifier (for get/import/delete); alias of `id`."),
     id: z.union([z.string(), z.array(z.string())]).optional().describe("Entry identifier or array of identifiers (for import/get/delete)."),
-    content: z.any().optional().describe("Entry content (for set)."),
+    content: z.any().optional().describe("Entry content (for set); when omitted on an existing entry, the stored content is preserved."),
     description: z.string().optional().describe("Optional description (for set)."),
     tags: z.array(z.string()).optional().describe("Optional tags (for set)."),
-    visibility: z.enum(["library", "shared", "private"]).optional().describe("library, shared, or private (for set)."),
+    visibility: z.enum(["library", "shared", "private"]).optional().describe("library (default), shared (both badges), or private (Editor and Game Master only) (for set)."),
     entity_id: z.string().optional().describe("Entity whose voice to capture (for capture, voice_profile kind)."),
     source_id: z.string().optional().describe("Novel artifact key/name/entity id to capture (for capture). Defaults per kind."),
     update_source: z.boolean().optional().describe("When true, update the source Codex entry in place (for capture)."),
@@ -8760,7 +8760,10 @@ server.registerTool("manage_codex", {
       const now = new Date().toISOString();
       const existing = state.codex.get(id);
       const entry: any = {
-        id, kind, name, content,
+        id,
+        kind: kind ?? existing?.kind,
+        name: name ?? existing?.name,
+        content: content ?? existing?.content,
         description: description ?? existing?.description,
         tags: tags ?? existing?.tags ?? [],
         visibility: visibility ?? existing?.visibility ?? "library",
