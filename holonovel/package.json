@@ -34,6 +34,7 @@
     "test:pattern-buffer": "tsx scripts/run_pattern_buffer.ts",
     "test:pattern-buffer-ruleset": "tsx scripts/run_ruleset_pattern_buffer.ts",
     "test:ruleset-nonovel": "tsx scripts/test-ruleset-nonovel.ts",
+    "test:ruleset-gates": "tsx scripts/test-ruleset-gates.ts",
     "test:backfill": "tsx scripts/test-backfill.ts",
     "test:persistence": "tsx scripts/test-persistence.ts",
     "test:persistence-guardrails": "tsx scripts/test-persistence-guardrails.ts",

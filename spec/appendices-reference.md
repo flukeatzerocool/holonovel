@@ -1290,6 +1290,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
 | REQ-557 | Supplement-build provenance | 2026-10-03 |
 | REQ-558 | Host-level ruleset content access | 2026-10-05 |
+| REQ-559 | Package model contract | 2026-10-05 |
+| REQ-560 | Build-time package replay | 2026-10-05 |
+| REQ-561 | Deterministic package emission | 2026-10-05 |
+| REQ-562 | Convert front-matter exclusion | 2026-10-05 |
 
 ---
 
@@ -1938,6 +1942,10 @@ diet.
 | T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
 | T650 | Automated | Supplement-build provenance: run `build-ruleset <slug>+=<path>` twice with unchanged sources — assert the emitted content hash is byte-identical and prior supplement content is not duplicated; change the base package — assert `update-rulesets` reports the slug whose recorded base content hash no longer matches. | REQ-395a, REQ-557 |
 | T651 | Automated | Host-level ruleset content access: boot a host with an installed package and no active Novel — assert every derived lookup, roll, table, and info tool serves content, that an info tool with no backing model entry returns `[NOT_FOUND]`, that lookups and table rolls resolve by key, canonical name, and alias, that a declared `defaultDice` is honored, that `manage_ruleset (action: search)` by explicit slug returns entries, and that `spec_health` reports the installed packages and aggregate confidence. | REQ-558 |
+| T652 | Automated | Package model contract: run `check-ruleset-model` over a conformant package (pass) and over packages whose info tool lacks a backing entry, whose table keeps only an auto-generated key, and whose roll `defaultDice` contradicts its description (each fails naming the offending tool/table). | REQ-559 |
+| T653 | Automated | Build-time package replay: boot a ruleset-free host with the emitted package, list its declared tools, and call each once with a model-derived argument (first lookup key, first table name, info, roll) — assert none returns `[NOT_FOUND]` and the replay needs no bound Novel. | REQ-560 |
+| T654 | Automated | Deterministic package emission: emit the same package parts twice with a fixed timestamp — assert all six files are byte-identical and the `content_hash` is unchanged. | REQ-561 |
+| T655 | Automated | Convert front-matter exclusion: assert the shared colophon predicate (`scripts/lib/front-matter`) classifies credits, editor/artist/typography, printing dates, and ISBN headings as excluded, and ruleset headings (Combat, Mecha Damage, Random Hit Location) as kept. | REQ-562 |
 
 ---
 

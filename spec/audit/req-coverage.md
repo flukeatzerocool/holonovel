@@ -514,4 +514,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-556 | Update-workflow user-data reconciliation | 5.18 Workflow Entry Points | E | T649 | — |
 | REQ-557 | Supplement-build provenance | 5.18 Workflow Entry Points | E | — | — |
 | REQ-558 | Host-level ruleset content access | 5.18 Workflow Entry Points | C | T651 | — |
+| REQ-559 | Package model contract | 5.2 Extraction and Confidence | E | T652 | — |
+| REQ-560 | Build-time package replay | 5.18 Workflow Entry Points | E | T653 | — |
+| REQ-561 | Deterministic package emission | 5.18 Workflow Entry Points | E | T654 | — |
+| REQ-562 | Convert front-matter exclusion | 5.2 Extraction and Confidence | E | T655 | — |
 

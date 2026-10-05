@@ -7,7 +7,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
-| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
@@ -23,7 +23,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–558 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–561 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -505,6 +505,12 @@ PDF sources SHALL additionally follow the format-specific protocol (Appendix G.3
 
 **REQ-102c — Source conversion contract (Part c).**
 Flagged artifacts receive a disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity rates appear in `spec_health` (REQ-025). *Acceptance criterion:* A converted PDF produces a fidelity report in `spec_health`; any content type below the Appendix H per-content-type fidelity threshold blocks the batch and records a disposition in DECISIONS.md (5). DECISIONS.md (2) records the selected converter and any cross-converter verification results in DECISIONS.md (5). _Check:_ T93.
+**REQ-562 — Convert front-matter exclusion.**
+When the Convert workflow is selected (§6.2), conversion SHALL exclude front matter and colophon content from the Markdown carried into Discovery: title pages, credits, editor/artist/typography lists, printing and edition dates, ISBN and copyright notices, and generated tables of contents. Excluded matter SHALL be recorded as a disposition in DECISIONS.md (5) and SHALL NOT appear in the discovery index, the model, or any `concepts` collection. The exclusion predicate SHALL be provided as a shared helper (`scripts/lib/front-matter`) so conversion and extraction share one implementation. *Acceptance criterion:* a converted source whose first pages are a title/credits colophon yields no index or concept entry citing an editor, artist, printing date, or ISBN. _Check:_ T655.
+
+**REQ-559 — Package model contract.**
+A built ruleset package's model SHALL satisfy the model contract before handoff: every `info` tool resolves to a backing model entry; every table entry carries a human `name` (no auto-generated `${file}-${headers}-${rows}` key survives without one); and a `roll` tool's declared `defaultDice` is valid notation and matches any die named in its description. The contract SHALL be enforced by `check-ruleset-model` over the emitted package; duplicate entry names within a collection are advisory only (repeated source headings are legitimate). *Acceptance criterion:* a package whose info tool lacks a backing entry, whose table has only a generated key, or whose `defaultDice` contradicts its description fails the gate; a conformant package passes. _Check:_ T652.
+
 **REQ-225a — Ruleset Wisdom extraction (Part a).**
 During Discovery (§6.3), the builder SHALL classify extracted guidance into seven Ruleset Wisdom output modules using the ruleset's own text. Classification is feedback-driven — barren modules SHALL trigger re-reading of the most likely source section. When ruleset-native extraction leaves a module barren, the builder SHALL attempt vendor-content population (§11.2). At least 4 of 7 modules SHALL be populated. Items carry `[ruleset]` or `[vendor]` tag with source anchor and a stable `key` unique within the module, so activation and deactivation address a specific item (REQ-260).
 
@@ -584,6 +590,8 @@ mechanically verified by `scripts/validate.ts`. When a spec revision adds a new
 | REQ-453 | T543 (validated by scripts/validate.ts) |
 | REQ-454 | T544 (validated by scripts/validate.ts) |
 | REQ-551 | builder-side — assembly-time structural checks (scripts/validate.ts) |
+| REQ-559 | T652 (scripts/check-ruleset-model) |
+| REQ-562 | T655 (scripts/lib/front-matter) |
 
 **REQ-551 — Extraction structural verification.**
 Before a ruleset package is assembled, the builder SHALL run deterministic structural checks over the extracted model: every indexed anchor SHALL resolve to a source heading, every extracted entry SHALL carry a source anchor, and every declared cross-reference SHALL close against the index. A failed check SHALL block assembly and name the offending entries. The checks SHALL run without model inference.
@@ -3764,6 +3772,12 @@ A ruleset package's version manifest SHALL record a package-format fingerprint: 
 
 **REQ-558 — Host-level ruleset content access (4 sub-parts).**
 An installed package SHALL serve its derived tools — search, lookups, rolls, tables, info — independent of any active Novel, hydrating lazily on first call; binding SHALL scope only Novel-dependent features. `manage_ruleset (action: search|roll)` SHALL accept a `slug` with no active Novel. Sub-parts: **(a)** an info tool SHALL resolve an explicit model entry, returning `[NOT_FOUND]` if none exists, not its description; **(b)** lookups and table rolls SHALL resolve by key, canonical `name`, or `alias`; **(c)** a roll tool MAY declare a fixed `defaultDice`; **(d)** `spec_health` SHALL compute confidence from installed packages. *Acceptance criterion:* with no Novel the derived tools serve and `spec_health` lists installed packages. _Check:_ T651.
+
+**REQ-560 — Build-time package replay.**
+Before handoff, the Build workflow SHALL replay the emitted package against a ruleset-free host: boot with no active Novel, list the package's declared tools, and call every tool once with an argument derived from the model (first lookup key, first table name, info tool, and a roll). A tool whose backing data exists SHALL NOT return `[NOT_FOUND]`. The replay SHALL be available as `test:ruleset-nonovel` and SHALL NOT require a bound Novel or eager-hydration configuration. *Acceptance criterion:* a package with an unresolvable canonical entry is caught by the replay; a conformant package replays clean. _Check:_ T653.
+
+**REQ-561 — Deterministic package emission.**
+Emitting a package twice from identical parts and a fixed build timestamp SHALL produce byte-identical files and an identical `content_hash` (REQ-420). The content hash SHALL be computed over the canonical parts only and SHALL NOT include the build timestamp. *Acceptance criterion:* two emissions of the same parts are byte-identical across all six package files, and re-emitting an unchanged source does not change `content_hash`. _Check:_ T654.
 
 **REQ-421 — Ruleset source registry.**
 The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, and its build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
