@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-05 — Build runbook package gates; de-OCR breadth; push-authorization guardrail
+
+- **Build runbook (§V.1).** The Package step now runs `check-ruleset-package`,
+  `check-ruleset-model`, and the ruleset-free replay (`test:ruleset-nonovel`)
+  before handoff; duplicate entry/table names are advisory.
+- **Deployed Robotech de-OCR breadth.** Extended the de-OCR pass with separator
+  repair for `J` and curated stems (`inCJeased`, `maJlimum`, `aJso`,
+  `panicuJar`); legitimate terms (`Mecha SuDai`, `BSURPs`, `ABDTs`) preserved.
+  Rebuilt package passes the model and schema gates and the acceptance smoke.
+- **Process guardrail.** `build-review` (and DECISIONS) now require explicit
+  authorization for any push/force-push/publish/deploy; an unauthorized push
+  occurred on 2026-10-05 and is recorded. Commit-only is the default.
+
+Verification: `build-order` complete; `check-fingerprint-sync` PASS;
+`check-ruleset-model` PASS; `check-ruleset-package` PASS; Robotech smoke 5/5.
+
 ## 2026-10-05 — Ruleset package gates: model contract, replay, determinism, content boundary
 
 Closes the defect classes that let a ruleset package ship tools whose backing

@@ -23,7 +23,11 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
    the source; reject source that is incomplete or unrecoverable.
 3. Construction (§6.4): write the ruleset profile, maps, and tables.
 4. Package step (§6.4.2): emit the declarative package (REQ-389) to the install
-   directory.
+   directory, then run the package gates on the emitted package before handoff:
+   `npm run check-ruleset-package` (REQ-430 tool schemas), `npm run check-ruleset-model`
+   (REQ-559 model shape), and the ruleset-free replay `npm run test:ruleset-nonovel`
+   (REQ-560). A schema or model defect blocks handoff; duplicate entry/table names
+   are advisory only.
 5. Verify (§6.5): run the convergence loop until no blocking findings remain.
 6. Restart the host to load the package — the host scans the install directory at boot and
    does not hot-reload a changed package (REQ-420).
