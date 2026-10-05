@@ -59,6 +59,13 @@ const DESCRIPTION_BUDGET_FALLBACK = 1000;
 const PERSISTENCE_TOKENS = ["persist", "audit", "record"];
 const REVERSIBILITY_TOKENS = ["revert", "undo", "reversib", "permanent", "append-only", "idempotent", "derived"];
 const MUTATION_VERBS = /\b(creates?|updates?|removes?|deletes?|destroys?|installs?|applies?|persists?|writes?)\b/i;
+// REQ-553 — a negated mutation verb ("writes no state", "changes no badge",
+// "creates no files") is a read-only claim, not a mutation claim. Strip those
+// phrases before testing so an honest read-only description is not flagged.
+const NEGATED_MUTATION = /\b(?:creates?|updates?|removes?|deletes?|destroys?|installs?|applies?|persists?|writes?)\s+no\b/gi;
+function mentionsMutation(desc: string): boolean {
+  return MUTATION_VERBS.test(desc.replace(NEGATED_MUTATION, " "));
+}
 const READ_ONLY_CLAIM = /^\s*(?:this tool is\s+)?read[- ]only\b|^\s*does not (?:mutate|modify|persist)/i;
 
 function resolveRef(node: any, root: any, seen: Set<string> = new Set()): any {
@@ -221,7 +228,7 @@ export function applyHardGates(def: ToolDefinition, signals?: ContextSignals): H
     findings.push({ gate: "Tautological Description", detail: "description restates the tool name or title" });
   }
   const annotations = def.annotations ?? {};
-  if (annotations["readOnlyHint"] === true && MUTATION_VERBS.test(desc)) {
+  if (annotations["readOnlyHint"] === true && mentionsMutation(desc)) {
     findings.push({
       gate: "Annotation Contradiction",
       detail: "readOnlyHint is true but the description names a mutating operation",

@@ -1,10 +1,17 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 4b1d3479f3f0cd12897621447f844ae2d6694c1fcc8f83fc0358276e7d889e0a
+**Spec hash:** d1dbac52d5ae131271ce0a0ec0c5662d5b4112af887154daf26314a94620c486
 
 **Recorded tool budget:** 30 (REQ-429)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
+
+### Holonovel Spec Update — 2026-10-05 (Ruleset content access is host-level)
+
+- **Delta class:** minor. Changed surfaces: new REQ-558 (§5.18 Workflow Entry Points — four sub-parts) makes ruleset content host-level: installed packages serve their derived tools with no active Novel, hydrating lazily; `manage_ruleset (action: search|roll)` accept `slug`. Host changes: `gatedRulesetTool` lazy hydration; `info` handler explicit resolution + `[NOT_FOUND]`; lookup/table name+alias resolution; `defaultDice` tool-schema field; `spec_health` confidence aggregated over installed packages; `applyHardGates` negates mutation verbs. No package-format change (§5.18 is excluded from the PACKAGE_FORMAT section set), so no package rebuild was forced.
+- **Robotech package:** extractor emits `info.core_mechanic`, canonical names/aliases, named tables, O.C.C. skill mentions, and a front-matter/colophon heading filter; `roll_skill_check` declares `defaultDice: 1d100`. Build tooling migrated to `scripts/ruleset-builds/robotech/` (REQ-395a) with a shared `readPackageFormat`/`readHostVersion` in `scripts/lib/ruleset-package.mjs`.
+- **Root cause recorded:** Convert/Build run outside the host gates; recommend a `check-ruleset-model` gate, a Convert front-matter-stripping contract, a Build-time tool replay, and a byte-identical rebuild check. See CHANGELOG 2026-10-05.
+- **Verification:** `npm run assemble` ok (SHA d1dbac52…); `validate -- --write-register` and `validate` 0 errors; `npm run build-order` complete (0 errors); `npm run check:fast` PASS; `npx tsc --noEmit` (holonovel) 0 errors; `test:ruleset-nonovel` 7/7; `check-ruleset-package` 12/12 conformant.
 
 ### Tool-Definition Authoring Standard — 2026-09-26
 

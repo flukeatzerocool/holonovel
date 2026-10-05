@@ -1289,6 +1289,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-098 | Spec-driven update workflow | 2026-08-11 |
 | REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
 | REQ-557 | Supplement-build provenance | 2026-10-03 |
+| REQ-558 | Host-level ruleset content access | 2026-10-05 |
 
 ---
 
@@ -1936,6 +1937,7 @@ diet.
 | T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
 | T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
 | T650 | Automated | Supplement-build provenance: run `build-ruleset <slug>+=<path>` twice with unchanged sources — assert the emitted content hash is byte-identical and prior supplement content is not duplicated; change the base package — assert `update-rulesets` reports the slug whose recorded base content hash no longer matches. | REQ-395a, REQ-557 |
+| T651 | Automated | Host-level ruleset content access: boot a host with an installed package and no active Novel — assert every derived lookup, roll, table, and info tool serves content, that an info tool with no backing model entry returns `[NOT_FOUND]`, that lookups and table rolls resolve by key, canonical name, and alias, that a declared `defaultDice` is honored, that `manage_ruleset (action: search)` by explicit slug returns entries, and that `spec_health` reports the installed packages and aggregate confidence. | REQ-558 |
 
 ---
 

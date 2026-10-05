@@ -490,7 +490,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556, 557 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–558 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -4228,6 +4228,9 @@ Publication tooling SHALL, after updating a deployed instance, verify the deploy
 
 **REQ-420 — Ruleset package-format fingerprint.**
 A ruleset package's version manifest SHALL record a package-format fingerprint: a content hash of the package-contract sections (§5.16, §5.17, §6.3, §6.4.2) of the assembled specification, computed at Package time (§6.4.2). The host SHALL compare each installed package's package-format fingerprint against its own current value at startup and after a host update (§6.7). A mismatch SHALL hold the package inactive and surface a `[package-incompatible]` flag in `spec_health` naming the slug and both fingerprints, without re-building or re-extracting the package (REQ-393). *Acceptance criterion:* a package built under a prior package-format fingerprint is flagged `[package-incompatible]` and held inactive after a fingerprint change; a current package stays loaded. _Check:_ T498, T503.
+
+**REQ-558 — Host-level ruleset content access (4 sub-parts).**
+An installed package SHALL serve its derived tools — search, lookups, rolls, tables, info — independent of any active Novel, hydrating lazily on first call; binding SHALL scope only Novel-dependent features. `manage_ruleset (action: search|roll)` SHALL accept a `slug` with no active Novel. Sub-parts: **(a)** an info tool SHALL resolve an explicit model entry, returning `[NOT_FOUND]` if none exists, not its description; **(b)** lookups and table rolls SHALL resolve by key, canonical `name`, or `alias`; **(c)** a roll tool MAY declare a fixed `defaultDice`; **(d)** `spec_health` SHALL compute confidence from installed packages. *Acceptance criterion:* with no Novel the derived tools serve and `spec_health` lists installed packages. _Check:_ T651.
 
 **REQ-421 — Ruleset source registry.**
 The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, and its build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
@@ -9827,6 +9830,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-098 | Spec-driven update workflow | 2026-08-11 |
 | REQ-556 | Update-workflow user-data reconciliation | 2026-10-02 |
 | REQ-557 | Supplement-build provenance | 2026-10-03 |
+| REQ-558 | Host-level ruleset content access | 2026-10-05 |
 
 ---
 
@@ -10474,6 +10478,7 @@ diet.
 | T648 | Automated | Ruleset tool-definition conformance: assert `build-ruleset` refuses a source whose generated tool lacks a parameter description or exceeds the budget naming the tool, while a conformant source emits; assert a non-conformant installed schema is flagged in `spec_health.ruleset_package_alerts`; assert the conformance gate covers loaded package tools. | REQ-430 |
 | T649 | Automated | Update-workflow user-data reconciliation: run the §6.7 Update against a fixture deployed instance whose package and artifact fingerprints are stale — assert every installed package and persisted artifact carries the current fingerprint afterward, that a slug with an unavailable source is recorded deferred (not dropped), and that the per-tier outcome names each tier. | REQ-556 |
 | T650 | Automated | Supplement-build provenance: run `build-ruleset <slug>+=<path>` twice with unchanged sources — assert the emitted content hash is byte-identical and prior supplement content is not duplicated; change the base package — assert `update-rulesets` reports the slug whose recorded base content hash no longer matches. | REQ-395a, REQ-557 |
+| T651 | Automated | Host-level ruleset content access: boot a host with an installed package and no active Novel — assert every derived lookup, roll, table, and info tool serves content, that an info tool with no backing model entry returns `[NOT_FOUND]`, that lookups and table rolls resolve by key, canonical name, and alias, that a declared `defaultDice` is honored, that `manage_ruleset (action: search)` by explicit slug returns entries, and that `spec_health` reports the installed packages and aggregate confidence. | REQ-558 |
 
 ---
 

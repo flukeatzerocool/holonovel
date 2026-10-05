@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "tool_count": 30,
-  "tools_list_bytes": 81180,
+  "tools_list_bytes": 81273,
   "tools": [
     {
       "name": "manage_adventure",
@@ -1017,8 +1017,8 @@
     {
       "name": "manage_ruleset",
       "title": "Ruleset Package Management",
-      "description": "Manage ruleset packages: search a bound ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the Novel is ruleset-free — use run_command (action: suggest) or manage_session (action: health). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
-      "description_bytes": 813,
+      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. search and roll accept an optional slug and work with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
+      "description_bytes": 906,
       "action_enum": [
         "search",
         "install",
@@ -1072,7 +1072,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2865
+        "definitionBytes": 2958
       },
       "category": "",
       "gate": ""
