@@ -11,6 +11,20 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Harness/agent process improvements (AH-1, AH-2, AH-3) — resolved
+  2026-10-05:** AH-3 is satisfied by `build-review` v2.6, whose Output
+  Contract now requires the `build-review passed.` token as the first Build
+  Mode output, before the first edit, not retroactively
+  (`~/.config/opencode/skills/build-review/SKILL.md:192-196`). AH-1 and AH-2
+  are model/tool behavior, so `skill-improvement-loop` triage classifies them
+  OUT_OF_SCOPE for skill content (its Safety Rules also bar unrequested
+  agent/config edits); the correct home is the harness instruction file, and
+  the operator authorized two rules there
+  (`~/.config/opencode/instructions/deepseek-tuning.md`, items 6–7):
+  `workdir`-over-`cd` chaining, and dedicated tools over shell utilities.
+  Source findings: `plans/2026-10-03-convert-build-hardening.md` §Harness.
+  Evidence: `npm run check-registers:strict` PASS.
+
 - **Push-pipeline performance audit (resolved 2026-10-03):** audited
   `scripts/push-pipeline.sh` and `.githooks/pre-push` and remediated the
   duplication/overhead findings. (F1, predicate `push-pipeline.sh:473` origin
@@ -590,10 +604,7 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Harness/agent process improvements (scheduled 2026-10-03):** route AH-1
-  (`cd`-chaining: 96/136 bash calls), AH-2 (shell utilities over dedicated
-  tools), and AH-3 (missing `build-review passed.` token before execution)
-  through `skill-improvement-loop`. No REQ surface; not in this repo.
+<!-- No scheduled items. AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
 ## Closed-P3 (recorded, no action)
 
