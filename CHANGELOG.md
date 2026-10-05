@@ -25,11 +25,14 @@ Robotech package's lookup/info/roll/table defects are fixed at their source.
 - **TDQS negation (REQ-553).** `applyHardGates` strips negated mutation verbs
   ("writes no state") before the read-only contradiction test, clearing 17 false
   `[tool-quality]` alerts on the swse package.
-- **Robotech content pipeline.** The extractor emits an explicit `info.core_mechanic`
-  entry, canonical names + aliases for mecha/skills/weapons/classes/creatures, named
-  tables (Random Hit Location, Missile Type, Vehicle Speed), captures O.C.C.
-  skill-program skill names, and excludes front-matter/colophon headings from the
-  index. Build tooling migrated to `scripts/ruleset-builds/robotech/` (REQ-395a).
+- **Deployed Robotech package (deployed-server side, not this tree).** The
+  Robotech extractor/build in the content pipeline (`/home/fluke/Documents/Robotech-TTRPG`)
+  now emits an explicit `info.core_mechanic` entry, canonical names + aliases for
+  mecha/skills/weapons/classes/creatures, named tables (Random Hit Location, Missile
+  Type, Vehicle Speed), captures O.C.C. skill-program skill names, and excludes
+  front-matter/colophon headings; `roll_skill_check` declares `1d100`. The rebuilt
+  package was installed into the **deployed** server only — no Robotech content or
+  build tooling is committed to this reference server.
 - **Root cause (future Convert/Build jobs):** see the recommendations below.
 
 Verification: `npm run build-order` → complete (0 errors); `npm run check:fast` →

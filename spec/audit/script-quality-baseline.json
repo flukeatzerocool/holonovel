@@ -60,18 +60,6 @@
       "path": "scripts/ruleset-builds/dnd2024/deploy.mjs",
       "disposition": "build-asset",
       "justification": "dnd2024 supplement deploy asset; run manually by the Build workflow."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/robotech/extract-robotech.mjs",
-      "disposition": "build-asset",
-      "justification": "Robotech Discovery extraction asset (Build workflow §6.3, REQ-395a); run manually against the converted book sources, not an npm gate."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/robotech/build-package.mjs",
-      "disposition": "build-asset",
-      "justification": "Robotech package build (REQ-389/REQ-395a); run manually by the Build workflow against the extract."
     }
   ]
 }
