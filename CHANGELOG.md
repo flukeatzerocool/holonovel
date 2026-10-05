@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-05 — build-order regenerates generated artifacts before the check gate
+
+Fixes two first-run failures that made `npm run build-order` exit at the check
+step with a misleading "Fix: npm run build-order" message.
+
+- **Tool definitions before check.** The tool-definitions snapshot is now
+  regenerated as step 1c, before `npm run check` (which includes
+  `check-tool-definitions-sync`), matching the contract-fingerprint step (1b);
+  the old step 4b is removed. A description-only change completes build-order
+  in one run.
+- **Refresh README markers after the version bump.** New step 5b runs
+  `refresh-properties` so the bumped spec date reaches the README `@spec:date`
+  marker; without it the next `check` failed `check-markers`.
+- **README marker refreshed.** `@spec:date` advanced to 2026-10-05.
+
 ## 2026-10-05 — Codex is out-of-play; partial-update hardening
 
 Makes the codex a server-level, badge-free surface and fixes partial-update
