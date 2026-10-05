@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-05 — Codex is out-of-play; partial-update hardening
+
+Makes the codex a server-level, badge-free surface and fixes partial-update
+defects across the content tools.
+
+- **Codex out-of-play.** `manage_codex` (every action, plus the `codex://` and
+  `ui://codex` resources) now requires the Editor or Game Master badge; a
+  Player badge mid-adventure returns `[FORBIDDEN]`. The Player codex-import
+  path is removed, and codex reads are no longer badge-filtered. The
+  `visibility` field (`library`/`shared`/`private`) is retired end to end
+  (REQ-321b/i/j/k/l/m2/m3, constitution and runtime tables).
+- **Character editing is player-open.** `manage_character (action: update)` and
+  its mechanical `stats`/`inventory` patching are available to Player and Game
+  Master alike — advancing, levelling up, and shelf edits are descriptive-space
+  actions, not ruleset-gated (REQ-077c).
+- **Codex `set` requires `kind` and `name`.** The entry id derives from them;
+  omitting either returns `[INVALID_INPUT]` instead of silently creating an
+  `undefined_…` entry (REQ-321b).
+- **Partial updates preserve stored values.** `manage_note` preserves an omitted
+  `badge_scope` and no longer refuses a Player updating their own shared note;
+  `manage_synthesis (action: player_add)` updates an existing item in place
+  without hitting the module cap (REQ-242a).
+- **Tests and docs.** T366 recast for out-of-play access and partial-update
+  coverage; AGENTS.md tool surface and codex description updated; contract
+  fingerprints and `tool-definitions.json` regenerated.
+
 ## 2026-10-03 — Push-pipeline performance: single strict gate, batched pushes
 
 Removes redundant work from the publication path.

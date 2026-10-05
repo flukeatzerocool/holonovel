@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "tool_count": 30,
-  "tools_list_bytes": 81410,
+  "tools_list_bytes": 81180,
   "tools": [
     {
       "name": "manage_adventure",
@@ -261,8 +261,8 @@
     {
       "name": "manage_codex",
       "title": "Codex Library Management",
-      "description": "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Pass merge=true to `set` to shallow-merge content into an existing entry instead of re-sending the whole payload. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
-      "description_bytes": 956,
+      "description": "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Entries persist to `.holonovel-state/codex.json` outside every Novel and survive restarts; mutations are audited. Out-of-play and badge-free: requires the Editor or Game Master badge, a Player mid-adventure gets `[FORBIDDEN]`, and reads are not badge-filtered. When no Novel is active, the codex is the default store; `import` and `capture` require an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+      "description_bytes": 904,
       "action_enum": [
         "set",
         "list",
@@ -271,7 +271,7 @@
         "import",
         "delete"
       ],
-      "param_count": 12,
+      "param_count": 11,
       "required": [
         "action"
       ],
@@ -286,8 +286,7 @@
         "name": "Entry name (for set).",
         "source_id": "Novel artifact key/name/entity id to capture (for capture). Defaults per kind.",
         "tags": "Optional tags (for set).",
-        "update_source": "When true, update the source Codex entry in place (for capture).",
-        "visibility": "library (default), shared (both badges), or private (Editor and Game Master only) (for set)."
+        "update_source": "When true, update the source Codex entry in place (for capture)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -300,10 +299,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 13,
+        "paramCount": 12,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 13,
-        "paramsWithEnums": 2,
+        "paramsWithDescriptions": 12,
+        "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -313,7 +312,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3275
+        "definitionBytes": 3045
       },
       "category": "",
       "gate": ""

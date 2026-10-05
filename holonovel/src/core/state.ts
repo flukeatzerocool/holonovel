@@ -284,7 +284,6 @@ export interface GMContext {
 export interface CodexEntry {
   id: string;
   kind: string;
-  visibility: "library" | "shared" | "private";
   name: string;
   content: Record<string, any>;
   description?: string;

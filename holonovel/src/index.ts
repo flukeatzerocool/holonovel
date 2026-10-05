@@ -89,7 +89,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.03",
+  version: "2026.10.05",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -5196,7 +5196,7 @@ server.registerTool("manage_note", {
       requireNotObserver();
       const novel = requireNovel();
       const existing = novel.notes.find(n => n.key === args.key);
-      const scope = args.badge_scope ?? "game_master";
+      const scope = args.badge_scope ?? existing?.badge_scope ?? "game_master";
       if (novel.badge === "player" && scope === "game_master") {
         return err("FORBIDDEN", "The Player badge cannot write a game_master-scoped note.");
       }
@@ -6616,7 +6616,7 @@ server.registerTool("manage_adventure", {
         const entry: any = {
           id, kind: "adventure", name: slug, content: { ...scaffold, suggested_beats: scaffold.locations.map((l: any) => ({ beat: "setup", scene_preview: l.heading })) },
           description: args.premise.trim(), tags: scaffold.genre_tags,
-          visibility: existing?.visibility ?? "library", imported_at: existing?.imported_at ?? new Date().toISOString(), codex_modified_at: new Date().toISOString(),
+          imported_at: existing?.imported_at ?? new Date().toISOString(), codex_modified_at: new Date().toISOString(),
         };
         state.codex.set(id, entry);
         state.saveCodex();
@@ -8324,8 +8324,8 @@ server.registerResource("codex-single", new ResourceTemplate("codex://{id}", { l
   const entry = state.codex.get(id);
   if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   const badge = getBadge();
-  if (entry.visibility === "private" && badge !== "game_master" && badge !== "none") {
-    return { contents: [{ uri: uri.href, text: "[FORBIDDEN] This codex entry is private.", mimeType: "text/plain" }] };
+  if (badge === "player" || badge === "observer") {
+    return { contents: [{ uri: uri.href, text: "[FORBIDDEN] The codex is available only to the Editor and Game Master badges.", mimeType: "text/plain" }] };
   }
   // REQ-425a/c — the codex entry honors the output format catalog (markdown
   // default, json, html).
@@ -8557,6 +8557,10 @@ server.registerResource("ui-codex", new ResourceTemplate("ui://codex/{id}", { li
 } }), { title: "Codex Entry (UI)" }, async (uri) => {
   const entry = state.codex.get(resourceKey(uri));
   if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  const badge = getBadge();
+  if (badge === "player" || badge === "observer") {
+    return { contents: [{ uri: uri.href, text: "[FORBIDDEN] The codex is available only to the Editor and Game Master badges.", mimeType: "text/plain" }] };
+  }
   return uiResourceResult(uri.href, toHtml(codexEntryMarkdown(entry)), appsNegotiated());
 });
 
@@ -8755,13 +8759,7 @@ function materializeCodexEntry(
 
 // REQ-321c/d/k — validate a Codex import before any mutation so a partial
 // failure leaves novel state untouched. Returns an error message, or null.
-function codexImportPrecheck(novel: any, entry: any, badge: string): string | null {
-  if (badge === "player") {
-    if (entry.kind !== "character" || entry.visibility !== "shared") {
-      return `Player import is limited to shared-visibility character entries; '${entry.id}' is kind '${entry.kind}'. Corrective action: ask the Game Master to import this entry.`;
-    }
-    return null;
-  }
+function codexImportPrecheck(novel: any, entry: any): string | null {
   const supported = ["npc", "character", "scene", "encounter", "lore_entry", "faction", "countdown", "room", "thing", "equipment_template", "spell_template", "relationship_template", "voice_profile", "adventure"];
   if (!supported.includes(entry.kind)) return `kind '${entry.kind}' is not supported for import.`;
   const content = (entry.content ?? {}) as any;
@@ -8792,7 +8790,7 @@ function codexImportPrecheck(novel: any, entry: any, badge: string): string | nu
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
 server.registerTool("manage_codex", {
   title: "Codex Library Management",
-  description: "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Codex entries persist outside every Novel to `.holonovel-state/codex.json` and survive `manage_novel (action: end)` and restarts; mutations are audited. When no Novel is active, the codex is the default store for reusable content; `import` and `capture` bridge codex and Novel and require an active Novel. Pass merge=true to `set` to shallow-merge content into an existing entry instead of re-sending the whole payload. Revert the most recent mutation with manage_history (action: undo). capture's source_id falls back to entity_id; update_source requires artifact provenance. Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+  description: "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Entries persist to `.holonovel-state/codex.json` outside every Novel and survive restarts; mutations are audited. Out-of-play and badge-free: requires the Editor or Game Master badge, a Player mid-adventure gets `[FORBIDDEN]`, and reads are not badge-filtered. When no Novel is active, the codex is the default store; `import` and `capture` require an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
     action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
@@ -8802,7 +8800,6 @@ server.registerTool("manage_codex", {
     content: z.any().optional().describe("Entry content (for set); when omitted on an existing entry, the stored content is preserved."),
     description: z.string().optional().describe("Optional description (for set)."),
     tags: z.array(z.string()).optional().describe("Optional tags (for set)."),
-    visibility: z.enum(["library", "shared", "private"]).optional().describe("library (default), shared (both badges), or private (Editor and Game Master only) (for set)."),
     merge: z.boolean().optional().describe("For set: when true and the entry exists, shallow-merge the provided content into the stored content instead of replacing it."),
     entity_id: z.string().optional().describe("Entity whose voice to capture (for capture, voice_profile kind)."),
     source_id: z.string().optional().describe("Novel artifact key/name/entity id to capture (for capture). Defaults per kind."),
@@ -8812,7 +8809,8 @@ server.registerTool("manage_codex", {
   switch (args.action) {
     case "set": {
       requireGM();
-      const { kind, name, content, description, tags, visibility, merge } = args;
+      const { kind, name, content, description, tags, merge } = args;
+      if (!kind || !name) return err("INVALID_INPUT", "manage_codex (action: set) requires kind and name; the entry id derives from them. Corrective action: supply both, or use action: get/import with an existing id.");
       const id = `${String(kind).toLowerCase()}_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
       const now = new Date().toISOString();
       const existing = state.codex.get(id);
@@ -8821,27 +8819,26 @@ server.registerTool("manage_codex", {
         : (content ?? existing?.content);
       const entry: any = {
         id,
-        kind: kind ?? existing?.kind,
-        name: name ?? existing?.name,
+        kind,
+        name,
         content: mergedContent,
         description: description ?? existing?.description,
         tags: tags ?? existing?.tags ?? [],
-        visibility: visibility ?? existing?.visibility ?? "library",
         imported_at: existing?.imported_at ?? now,
         codex_modified_at: now,
       };
       state.codex.set(id, entry);
       state.saveCodex();
-      return ok(`Codex entry '${id}' stored (visibility: ${entry.visibility}).`);
+      return ok(`Codex entry '${id}' stored.`);
     }
     case "list": {
-      const badge = getBadge();
+      requireGM();
       let entries = [...state.codex.values()];
       if (args.kind) entries = entries.filter((e: any) => e.kind === args.kind);
-      entries = entries.filter((e: any) => badge === "game_master" || badge === "none" || e.visibility === "shared" || e.visibility === "library");
-      return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, visibility: e.visibility, tags: e.tags })), null, 2));
+      return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, tags: e.tags })), null, 2));
     }
     case "get": {
+      requireGM();
       const entryId = args.id ?? args.entry_id;
       const entry = state.codex.get(entryId);
       if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
@@ -8959,7 +8956,7 @@ server.registerTool("manage_codex", {
 
       const entry: any = {
         id: captured.id, kind, name: captured.name, content: captured.content,
-        tags: [], visibility: "library",
+        tags: [],
         source: `captured:${novel.slug}`, source_novel: novel.slug,
         imported_at: now, codex_modified_at: now,
       };
@@ -8971,9 +8968,8 @@ server.registerTool("manage_codex", {
       // REQ-321b/c/d/k — import one or more Codex entries into the active
       // Novel. Batch is atomic: precheck every entry, then apply as one undo
       // snapshot and one audit entry; a partial failure imports nothing.
-      requireNotObserver();
+      requireGM();
       const novel = requireNovel();
-      const badge = getBadge();
       const rawIds = args.id ?? args.entry_id;
       const ids: string[] = Array.isArray(rawIds) ? rawIds : [rawIds];
       if (ids.length === 0 || ids.some((x) => typeof x !== "string" || !x)) {
@@ -8983,10 +8979,9 @@ server.registerTool("manage_codex", {
       for (let i = 0; i < ids.length; i++) {
         const entry = state.codex.get(ids[i]);
         if (!entry) return err("NOT_FOUND", `Codex entry '${ids[i]}' not found (index ${i}). Nothing was imported.`);
-        const issue = codexImportPrecheck(novel, entry, badge);
+        const issue = codexImportPrecheck(novel, entry);
         if (issue) {
-          const code = badge === "player" ? "FORBIDDEN" : "STATE_CONFLICT";
-          return err(code, `Import of '${ids[i]}' rejected (index ${i}): ${issue} Nothing was imported.`);
+          return err("STATE_CONFLICT", `Import of '${ids[i]}' rejected (index ${i}): ${issue} Nothing was imported.`);
         }
         entries.push(entry);
       }
@@ -9189,9 +9184,6 @@ server.registerTool("manage_synthesis", {
       if (!PLAYER_SYNTH_MODULES.includes(args.module)) return err("INVALID_INPUT", `Module '${args.module}' is not a player synthesis module. Valid: ${PLAYER_SYNTH_MODULES.join(", ")}.`);
       novel.player_synthesis = novel.player_synthesis ?? {};
       const items = novel.player_synthesis[args.module] ?? [];
-      // REQ-129b1 — synthesis items per output module cardinality.
-      const synthRefusal = capGuard("synthesis", items.length);
-      if (synthRefusal) return synthRefusal;
       const existingItem = items.find((i: any) => i.key === args.key);
       if (existingItem) {
         if (args.content !== undefined) existingItem.content = args.content;
@@ -9202,6 +9194,9 @@ server.registerTool("manage_synthesis", {
         audit("player_synthesize", { module: args.module, key: args.key, updated: true });
         return ok(`Player synthesis item '${args.key}' updated in '${args.module}'.`);
       }
+      // REQ-129b1 — synthesis items per output module cardinality (new items only).
+      const synthRefusal = capGuard("synthesis", items.length);
+      if (synthRefusal) return synthRefusal;
       items.push({ key: args.key, content: args.content, triggers: args.triggers, badge_scope: args.badge_scope ?? "shared", created_at: new Date().toISOString(), active: true });
       novel.player_synthesis[args.module] = items;
       state.saveNovel(novel);
