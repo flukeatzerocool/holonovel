@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-09 — Security model doc; close competitor-learned P3 findings
+
+- **Security & ownership document.** New `SECURITY.md` states the local-first
+  threat model: single trusted host, no hosted tier, no account system, no
+  outbound network, server-side badge enforcement, and filesystem containment,
+  with the non-goals (no hosting, no telemetry, no server-side LLM) called out.
+- **Review register.** Recorded and closed two competitor-learned findings as
+  P3 with no demonstrated recurrence: an architecture-isolation import-boundary
+  gate (L1) and modular NPC-mind slices (L4), each with its reopen predicate.
+
 ## 2026-10-05 — Build runbook package gates; de-OCR breadth; push-authorization guardrail
 
 - **Build runbook (§V.1).** The Package step now runs `check-ruleset-package`,
