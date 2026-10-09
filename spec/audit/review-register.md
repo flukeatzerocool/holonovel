@@ -608,6 +608,29 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Closed-P3 (recorded, no action)
 
+- **Competitor-learned architecture-isolation gate (L1)** (closed 2026-10-08,
+  commit `fb861cf`): a module-import boundary gate generalizing REQ-492's
+  causal-epistemic firewall (`spec/02-requirements.md:4000`, T582). Predicate:
+  no boundary violation is present — the sole `@modelcontextprotocol/sdk`
+  importer is `holonovel/src/index.ts:10-12`, and `holonovel/src` imports
+  neither `holonovel/scripts`, `scripts/`, nor `spec/`. Boundary if promoted:
+  B4 — transport-only (only `holonovel/src/index.ts` may import the SDK) +
+  domain (`core/`, `world/`, `rulesets.ts`, `generated/`) may not import
+  `index.ts` + runtime may not import build-time (`holonovel/scripts/`,
+  `scripts/`) or `spec/`. Mechanism if promoted: custom TS script (TypeScript
+  compiler API, no new dependency) as a `[gate]` wired into `check:fast`. No
+  demonstrated recurrence → record and close; reopen and promote to P2 if a
+  cross-layer import is ever introduced.
+
+- **Competitor-learned modular NPC-mind slices (L4)** (closed 2026-10-08,
+  commit `fb861cf`): decompose the NPC `mind` object into named, toggleable
+  context slices. Predicate: `spec/02-requirements.md:1586-1587` (REQ-075f)
+  defines `mind` as a flat `directive`/`private_journal`/`auto_play` triple.
+  The monolithic form has no demonstrated failure, and the rpg-mcp comparison
+  (server-bound-LLM prompt slices) conflicts with the local/offline design
+  (REQ-504). No roadmap entry. Record and close; reopen only if a concrete
+  per-NPC context-assembly need is demonstrated.
+
 - **BD-9 retrieval-contract documentation (closed 2026-10-03):** heading-anchored
   chunking and hybrid retrieval are already satisfied by REQ-315a's full-heading
   index; no demonstrated failure, no action.
