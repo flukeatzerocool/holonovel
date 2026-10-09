@@ -13,6 +13,13 @@
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
 
+### Holonovel Spec Update — 2026-10-09 (Security model doc; close competitor-learned P3 findings)
+
+- **Delta class:** patch. Changed surfaces: Security model doc; close competitor-learned P3 findings; Build runbook package gates; de-OCR breadth; push-authorization guardrail; Ruleset package gates: model contract, replay, determinism, content boundary; Ruleset content access is host-level; Robotech package defects fixed; build-order regenerates generated artifacts before the check gate.
+- **Verification:** `npm run build-order` complete (assemble; contract fingerprints unchanged — package_format `8ad3508a…`, data_format `5ebb0945…`); `npm run check` → 0 errors / 168 warnings; `npm run refresh-properties` → 0 errors; pending-update fingerprint gate PASS; implementation-coverage strict gate (`validate:sdd -- --impl-audit=strict`) PASS (A=0, E=119); patch delta with unchanged contract fingerprint → §6.7 G0-only (harness suite skipped).
+
+<!-- @spec-update:e314c4f6a40b3fae30adade3ce25fbf581e35f59e570dee97574b7209357608a -->
+
 ### Holonovel Spec Update — 2026-10-05 (Ruleset package gates, replay, determinism, Convert boundary)
 
 - **Delta class:** minor. New REQs: REQ-559 (package model contract — `scripts/check-ruleset-model.ts`), REQ-560 (Build-time package replay — `test:ruleset-nonovel` T653), REQ-561 (deterministic package emission — `emitPackage`/T654), REQ-562 (Convert front-matter exclusion — `scripts/lib/front-matter.ts`/T655). New gates wired into `check`/`check:fast`: `check-ruleset-model`, `check-reference-server-cleanliness`, `test:ruleset-gates` (+ `test:ruleset-nonovel`). No PACKAGE_FORMAT/DATA_FORMAT change (placed in the safe §5.2/§5.18 sections).
