@@ -17,6 +17,11 @@
   a defective package is refused at emit time. (REQ-430, REQ-552)
 - Star Wars Saga Edition's read-only tool descriptions were corrected so the
   package passes the tool-quality gate.
+- The committed-emitter mandate (REQ-563) now covers reference rulesets authored
+  or supplemented in this repository; rulesets deployed from outside the
+  reference server keep their emitters in the deploy content pipeline.
+- Appendix M gains a committed-artifact feasibility check: a REQ that mandates a
+  committed source, baseline, or emitter must name an artifact that exists.
 
 ## 2026-10-09 — Security model doc; close competitor-learned P3 findings
 
