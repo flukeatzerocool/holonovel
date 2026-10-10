@@ -1875,6 +1875,11 @@ const INTENDED_GAP_REQS = new Set([
   // contracts owed by scripts/ and the Build/Convert workflows — not runtime
   // `holonovel/src` behavior.
   "REQ-559", "REQ-560", "REQ-561", "REQ-562",
+  // §5.18 emitter mandate + automation (2026-10-10): the committed package
+  // emitter (REQ-563) and Update-workflow tool-quality remediation (REQ-564) are
+  // builder-side contracts owed by the ruleset-build assets and the update
+  // pipeline, not runtime `holonovel/src` behavior.
+  "REQ-563", "REQ-564",
   // Builder/verifier-side additions (2026-08-24 triage): convergence-loop and
   // build-process REQs (§6.3), fingerprint/update/publication tooling, gates,
   // and Holodeck/Mechanical Coupling checks. All are owed by the build pipeline

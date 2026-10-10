@@ -518,4 +518,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-560 | Build-time package replay | 5.18 Workflow Entry Points | E | T653 | — |
 | REQ-561 | Deterministic package emission | 5.18 Workflow Entry Points | E | T654 | — |
 | REQ-562 | Convert front-matter exclusion | 5.2 Extraction and Confidence | E | T655 | — |
+| REQ-563 | Ruleset package emitter | 5.18 Workflow Entry Points | E | — | — |
+| REQ-564 | Update-workflow tool-quality remediation | 5.18 Workflow Entry Points | E | — | — |
 
