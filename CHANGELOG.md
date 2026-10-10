@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-10 — Ruleset package emitters; gate-bound rebuilds; Update-job gaps closed
+
+- Every ruleset package built from committed or authored content now ships a
+  committed deterministic emitter that runs the package gates and refuses to
+  publish a defective package. (REQ-563, REQ-430)
+- The emitter is now the named rebuild path: `build-ruleset` records intake and
+  invokes it, and the Update workflow rebuilds stale packages through it.
+  (REQ-395a, REQ-556)
+- The Update workflow now also remediates packages flagged for tool-quality
+  defects, not only format staleness. (REQ-564)
+- The migrate-user-data runbook restarts the host before confirming health, so
+  its verification step can pass. (V.8)
+- A shared ruleset-build kit removes the duplicated per-slug emitter logic; all
+  four rule sets (swse, dnd2024, mothership, robotech) rebuild through it, and
+  a defective package is refused at emit time. (REQ-430, REQ-552)
+- Star Wars Saga Edition's read-only tool descriptions were corrected so the
+  package passes the tool-quality gate.
+
 ## 2026-10-09 — Security model doc; close competitor-learned P3 findings
 
 - **Security & ownership document.** New `SECURITY.md` states the local-first

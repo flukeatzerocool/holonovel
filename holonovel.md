@@ -490,7 +490,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–561 |
+| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–561, 563, 564 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -4178,7 +4178,7 @@ A package whose declared content hash does not match its contents SHALL be rejec
 The `manage_ruleset (action: install)` tool SHALL validate slug uniqueness and package-format compatibility before activation. The `manage_ruleset (action: remove)` tool SHALL deregister the package's tools, resources, and prompts and SHALL refuse while any active Novel binds to its slug. The `manage_ruleset (action: list)` tool SHALL report each installed package with installed-versus-loaded state. All three are GM or Editor operations and SHALL be audited. *Acceptance criterion:* Installing a package with a duplicate slug or an incompatible package-format fingerprint fails with the reason named; removing a package with a Novel still bound to it returns `[ERROR] [STATE_CONFLICT]`; `manage_ruleset (action: list)` distinguishes loaded from installed-but-idle packages. _Check:_ T453.
 
 **REQ-430 — Ruleset tool-quality conformance.**
-Every tool schema shipped in a ruleset package SHALL satisfy the TDQS conformance contract of REQ-552. Ruleset tools SHALL be namespaced by slug prefix, and a package's aggregate `tools/list` contribution SHALL stay within the configured token budget. The Package step (§6.4.2) and `build-ruleset` SHALL refuse to emit a package whose tool schema fails a hard gate or exceeds the budget. The host SHALL validate each installed package's tool schemas at load and surface each non-conformant tool in `spec_health` under `ruleset_package_alerts` without blocking loading. *Acceptance criterion:* a non-conformant generated tool fails `build-ruleset` naming it; a conformant source emits; a non-conformant installed schema is flagged in `spec_health`. _Check:_ T512, T648.
+Every tool schema shipped in a ruleset package SHALL satisfy the TDQS conformance contract of REQ-552. Ruleset tools SHALL be namespaced by slug prefix, and a package's aggregate `tools/list` contribution SHALL stay within the configured token budget. The Package step (§6.4.2) and the package emitter (REQ-563) SHALL refuse to emit a package whose tool schema fails a hard gate or exceeds the budget. The host SHALL validate each installed package's tool schemas at load and surface each non-conformant tool in `spec_health` under `ruleset_package_alerts` without blocking loading. *Acceptance criterion:* a non-conformant generated tool fails `build-ruleset` naming it; a conformant source emits; a non-conformant installed schema is flagged in `spec_health`. _Check:_ T512, T648.
 
 **REQ-432a — Vendor ruleset package certification (Part a).**
 A ruleset package built from a content source recorded in Appendix U SHALL ship a `source_license` field in its version manifest naming the license and the Appendix U row. `build-ruleset` SHALL populate the field from the source registry (REQ-421). The host SHALL surface `licensed` and `source_license` in `manage_ruleset (action: list)` output.
@@ -4217,7 +4217,7 @@ Publication tooling SHALL detect REQ-body modifications and SHALL NOT classify a
 ### 5.18 Workflow Entry Points
 
 **REQ-395a — Ruleset-build entry point (Part a).**
-The distribution SHALL expose a documented entry point — `build-ruleset` — that accepts one or more build targets, each a new-package pair (`slug=path`) or a supplement pair (`slug+=path`), and emits a declarative ruleset package (REQ-389) into the install directory without modifying the host. A supplement target SHALL overlay its source onto the installed package for `slug` per REQ-557. No-argument invocation SHALL print usage and the install directory. Package output SHALL land only in the install directory, and build tooling inside the git-tracked tree SHALL be committed or placed outside it. *Acceptance criterion:* `build-ruleset example=<path>` emits a loadable package; `build-ruleset dnd2024+=<path>` overlays a supplement; no-argument invocation prints usage. _Check:_ T463, T650.
+The distribution SHALL expose a documented entry point — `build-ruleset` — that accepts one or more build targets, each a new-package pair (`slug=path`) or a supplement pair (`slug+=path`), records the intake, and invokes the package emitter (REQ-563) to emit a declarative ruleset package (REQ-389) into the install directory without modifying the host. A supplement target SHALL overlay its source onto the installed package per REQ-557. No-argument invocation SHALL print usage and the install directory. *Acceptance criterion:* `build-ruleset example=<path>` records the intake and invokes the emitter to produce a loadable package; `build-ruleset dnd2024+=<path>` overlays a supplement; no-argument invocation prints usage. _Check:_ T463, T650.
 
 **REQ-395b — Workflow runbooks (Part b).**
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
@@ -4249,6 +4249,9 @@ Emitting a package twice from identical parts and a fixed build timestamp SHALL 
 **REQ-421 — Ruleset source registry.**
 The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, and its build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
 
+**REQ-563 — Ruleset package emitter.**
+A ruleset package whose content is authored here, delivered as a supplement overlay, or accompanied by a committed baseline SHALL ship, in the git-tracked tree, a committed deterministic emitter and the committed durable source it consumes, such that a fresh clone re-emits it byte-identically (REQ-561) without an installed package. Base content produced only by the Build workflow's Discovery extraction is exempt. The emitter SHALL run the ruleset-package gates (REQ-430, REQ-559, REQ-560) and refuse to write on any reported defect. A package installed from outside the repository (REQ-432) is exempt. *Acceptance criterion:* a fresh clone re-emits each covered package byte-identically; a defective package is refused by the emitter naming the defect. _Check:_ T656.
+
 **REQ-557 — Supplement-build provenance.**
 A supplement build SHALL record the base package's content hash, each supplement source's hash, and the resulting package content hash in DECISIONS.md (6) and the source registry (REQ-421). Re-running a supplement build SHALL be idempotent: with unchanged base and supplement sources it SHALL emit a byte-identical content hash, and it SHALL replace prior supplement content rather than duplicate it. `update-rulesets` SHALL report a supplement slug whose recorded base content hash no longer matches the installed base package. *Acceptance criterion:* re-running a supplement build with unchanged sources emits an identical content hash; a base-package change is reported by `update-rulesets`; prior supplement content is not duplicated. _Check:_ T650.
 
@@ -4262,7 +4265,10 @@ Every persisted user-data artifact — Novel, roster, codex, and server-note sta
 The distribution SHALL expose `migrate-user-data`, an entry point listing artifacts whose data-format fingerprint (REQ-423) differs from the host's value or is absent. When invoked, it SHALL re-serialize each artifact via the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults (REQ-065) on disk. Re-serialization SHALL recompute any checksum over the migrated payload (REQ-092). The default invocation SHALL be a side-effect-free dry run. A migration failing before completion SHALL leave the original unchanged and name it. *Acceptance criterion:* the default invocation changes nothing; an explicit run brings stale artifacts current on disk; re-export is unchanged; a re-stamped checksummed Novel validates without backup fallback. _Check:_ T502, T504.
 
 **REQ-556 — Update-workflow user-data reconciliation.**
-When the Update workflow runs against a deployed instance, it SHALL reconcile all user-data tiers to the host's format fingerprints after the host advances: stale installed ruleset packages SHALL be rebuilt from their recorded sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. The workflow SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.
+When the Update workflow runs against a deployed instance, it SHALL reconcile all tiers to the host's format fingerprints: stale installed ruleset packages SHALL be rebuilt through their committed emitter (REQ-563) from their sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. The workflow SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.
+
+**REQ-564 — Update-workflow tool-quality remediation.**
+When the Update workflow runs against a deployed instance, it SHALL remediate every installed package surfaced in `ruleset_package_alerts` (REQ-430) through that package's committed emitter (REQ-563), rebuilding the package's durable source so the reported defect clears. A package whose remediation cannot be completed SHALL be recorded deferred with its reason. *Acceptance criterion:* a loaded package flagged for a tool-quality defect is rebuilt through its emitter and the flag clears; an un-remediable package is recorded deferred. _Check:_ T657.
 
 **REQ-428 — Registry-published distribution.**
 The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
@@ -9849,6 +9855,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-560 | Build-time package replay | 2026-10-05 |
 | REQ-561 | Deterministic package emission | 2026-10-05 |
 | REQ-562 | Convert front-matter exclusion | 2026-10-05 |
+| REQ-563 | Ruleset package emitter | 2026-10-10 |
+| REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
 
 ---
 
@@ -10501,6 +10509,8 @@ diet.
 | T653 | Automated | Build-time package replay: boot a ruleset-free host with the emitted package, list its declared tools, and call each once with a model-derived argument (first lookup key, first table name, info, roll) — assert none returns `[NOT_FOUND]` and the replay needs no bound Novel. | REQ-560 |
 | T654 | Automated | Deterministic package emission: emit the same package parts twice with a fixed timestamp — assert all six files are byte-identical and the `content_hash` is unchanged. | REQ-561 |
 | T655 | Automated | Convert front-matter exclusion: assert the shared colophon predicate (`scripts/lib/front-matter`) classifies credits, editor/artist/typography, printing dates, and ISBN headings as excluded, and ruleset headings (Combat, Mecha Damage, Random Hit Location) as kept. | REQ-562 |
+| T656 | Automated | Ruleset package emitter: from a fresh clone, re-emit each repository-built package through its committed emitter and durable source — assert the six files are byte-identical to the committed package and `content_hash` is unchanged; feed the emitter a package whose tool schema fails a hard gate — assert it refuses to write, naming the defect. | REQ-563 |
+| T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 
 ---
 
@@ -12261,7 +12271,10 @@ host update; run it manually when only a package is stale.
    through the interchange round-trip (REQ-096, Appendix Q), re-stamping the
    current fingerprint while preserving inert fields and applying defaults
    (REQ-065).
-3. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
+3. Restart the host to load the migrated state — the host compares each
+   artifact's fingerprint at startup (REQ-423) and does not hot-reload packages
+   or state (REQ-420).
+4. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
    migration.
 
 The Update job (§6.7, REQ-556) invokes this runbook with the explicit migrate

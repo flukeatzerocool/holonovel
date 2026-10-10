@@ -1294,6 +1294,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-560 | Build-time package replay | 2026-10-05 |
 | REQ-561 | Deterministic package emission | 2026-10-05 |
 | REQ-562 | Convert front-matter exclusion | 2026-10-05 |
+| REQ-563 | Ruleset package emitter | 2026-10-10 |
+| REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
 
 ---
 
@@ -1946,6 +1948,8 @@ diet.
 | T653 | Automated | Build-time package replay: boot a ruleset-free host with the emitted package, list its declared tools, and call each once with a model-derived argument (first lookup key, first table name, info, roll) — assert none returns `[NOT_FOUND]` and the replay needs no bound Novel. | REQ-560 |
 | T654 | Automated | Deterministic package emission: emit the same package parts twice with a fixed timestamp — assert all six files are byte-identical and the `content_hash` is unchanged. | REQ-561 |
 | T655 | Automated | Convert front-matter exclusion: assert the shared colophon predicate (`scripts/lib/front-matter`) classifies credits, editor/artist/typography, printing dates, and ISBN headings as excluded, and ruleset headings (Combat, Mecha Damage, Random Hit Location) as kept. | REQ-562 |
+| T656 | Automated | Ruleset package emitter: from a fresh clone, re-emit each repository-built package through its committed emitter and durable source — assert the six files are byte-identical to the committed package and `content_hash` is unchanged; feed the emitter a package whose tool schema fails a hard gate — assert it refuses to write, naming the defect. | REQ-563 |
+| T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 
 ---
 

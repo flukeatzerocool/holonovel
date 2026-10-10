@@ -189,7 +189,10 @@ host update; run it manually when only a package is stale.
    through the interchange round-trip (REQ-096, Appendix Q), re-stamping the
    current fingerprint while preserving inert fields and applying defaults
    (REQ-065).
-3. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
+3. Restart the host to load the migrated state — the host compares each
+   artifact's fingerprint at startup (REQ-423) and does not hot-reload packages
+   or state (REQ-420).
+4. Confirm `spec_health.data_health` reports no `[data-stale]` flags after the
    migration.
 
 The Update job (§6.7, REQ-556) invokes this runbook with the explicit migrate
