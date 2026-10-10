@@ -4250,7 +4250,7 @@ Emitting a package twice from identical parts and a fixed build timestamp SHALL 
 The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, and its build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
 
 **REQ-563 — Ruleset package emitter.**
-A ruleset package whose content is authored here, delivered as a supplement overlay, or accompanied by a committed baseline SHALL ship, in the git-tracked tree, a committed deterministic emitter and the committed durable source it consumes, such that a fresh clone re-emits it byte-identically (REQ-561) without an installed package. Base content produced only by the Build workflow's Discovery extraction is exempt. The emitter SHALL run the ruleset-package gates (REQ-430, REQ-559, REQ-560) and refuse to write on any reported defect. A package installed from outside the repository (REQ-432) is exempt. *Acceptance criterion:* a fresh clone re-emits each covered package byte-identically; a defective package is refused by the emitter naming the defect. _Check:_ T656.
+A reference ruleset package whose content is authored in this repository or delivered as a supplement overlay SHALL ship, in the git-tracked tree, a committed deterministic emitter and the committed durable source it consumes, such that a fresh clone re-emits it byte-identically (REQ-561) without an installed package. A ruleset deployed from outside this repository (REQ-432), or whose base content is produced only by the Build workflow's Discovery extraction, is outside this requirement. The emitter SHALL run the ruleset-package gates (REQ-430, REQ-559, REQ-560) and refuse to write on any reported defect. *Acceptance criterion:* a fresh clone re-emits each covered package byte-identically; a defective package is refused by the emitter naming the defect. _Check:_ T656.
 
 **REQ-557 — Supplement-build provenance.**
 A supplement build SHALL record the base package's content hash, each supplement source's hash, and the resulting package content hash in DECISIONS.md (6) and the source registry (REQ-421). Re-running a supplement build SHALL be idempotent: with unchanged base and supplement sources it SHALL emit a byte-identical content hash, and it SHALL replace prior supplement content rather than duplicate it. `update-rulesets` SHALL report a supplement slug whose recorded base content hash no longer matches the installed base package. *Acceptance criterion:* re-running a supplement build with unchanged sources emits an identical content hash; a base-package change is reported by `update-rulesets`; prior supplement content is not duplicated. _Check:_ T650.
@@ -10509,7 +10509,7 @@ diet.
 | T653 | Automated | Build-time package replay: boot a ruleset-free host with the emitted package, list its declared tools, and call each once with a model-derived argument (first lookup key, first table name, info, roll) — assert none returns `[NOT_FOUND]` and the replay needs no bound Novel. | REQ-560 |
 | T654 | Automated | Deterministic package emission: emit the same package parts twice with a fixed timestamp — assert all six files are byte-identical and the `content_hash` is unchanged. | REQ-561 |
 | T655 | Automated | Convert front-matter exclusion: assert the shared colophon predicate (`scripts/lib/front-matter`) classifies credits, editor/artist/typography, printing dates, and ISBN headings as excluded, and ruleset headings (Combat, Mecha Damage, Random Hit Location) as kept. | REQ-562 |
-| T656 | Automated | Ruleset package emitter: from a fresh clone, re-emit each repository-built package through its committed emitter and durable source — assert the six files are byte-identical to the committed package and `content_hash` is unchanged; feed the emitter a package whose tool schema fails a hard gate — assert it refuses to write, naming the defect. | REQ-563 |
+| T656 | Automated | Ruleset package emitter: from a fresh clone, re-emit each covered reference-ruleset package through its committed emitter and durable source — assert the six files are byte-identical to the committed package and `content_hash` is unchanged; feed the emitter a package whose tool schema fails a hard gate — assert it refuses to write, naming the defect. | REQ-563 |
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 
 ---
@@ -11125,6 +11125,12 @@ build artifact — it is a spec-maintainer reference.
       carrying its ID, the runtime behavioral-config list when a `Behavioral`
       variable is added, and fingerprint regeneration when the target section
       feeds one (`npm run build-order`).
+- [ ] Committed-artifact feasibility: a REQ that mandates committing a source,
+      a baseline, or an emitter names an artifact that exists in the same
+      change. A REQ whose mandated artifact does not exist (no extractor, no
+      baseline) is incomplete — provide the artifact or narrow the REQ's scope
+      to the content that is actually committed. Verify the artifact's existence
+      and size at plan time, not mid-build.
 
 These checks are mechanically enforced by `npm run validate --sdd-strict` — parameter type
 annotations, Default: clauses, body-length violations, enumerated catalogs,

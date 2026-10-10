@@ -60,18 +60,6 @@
       "path": "scripts/ruleset-builds/dnd2024/deploy.mjs",
       "disposition": "build-asset",
       "justification": "dnd2024 supplement deploy asset; run manually by the Build workflow."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/mothership/build-package.mjs",
-      "disposition": "build-asset",
-      "justification": "mothership package rebuild asset (REQ-389/REQ-395a/REQ-563); run manually by the Update-job V.7 runbook, not an npm gate."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/robotech/build-package.mjs",
-      "disposition": "build-asset",
-      "justification": "robotech package rebuild asset (REQ-389/REQ-395a/REQ-563); run manually by the Update-job V.7 runbook, not an npm gate."
     }
   ]
 }
