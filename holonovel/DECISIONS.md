@@ -6,12 +6,27 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
+### Bundled starter Novel (Torre Nosferatu) — 2026-10-12
+
+- **Decision.** A fresh install ships a ruleset-free tutorial Novel, `torre-nosferatu`, seeded once into `<DATA_DIR>/novels/` before hydration. The content is the operator's authored "Torre Nosferatu" world (85 rooms, 6 NPCs, 17 lore entries, countdowns `The Candle`/`Dread`, a design-note bible) with runtime history stripped and the narrative beats curated to one four-beat sequence. (REQ-565)
+- **No new tool.** Seeding is a startup behavior; the tool budget (30) and description budget are unchanged. The seed outcome surfaces under `spec_health.starter`. (REQ-565, REQ-566)
+- **Artifact + seam.** Source `holonovel/content/torre-nosferatu.source.json`; emitted artifact `holonovel/content/torre-nosferatu.json`. `build:starter-novel` stamps the artifact with the server's `DATA_FORMAT` and package version and omits `_checksum` (absent is valid per REQ-092). A tombstone at `<DATA_DIR>/starter-seeded.json` makes deletion sticky; `TTRPG_STARTER_NOVEL=off` opts out; seeding is atomic and never-fatal.
+- **Freshness gate.** `check-starter-freshness` re-emits and compares canonically, ignoring `spec_version` (advances every CalVer release) and `_checksum`; `DATA_FORMAT` and content must match. Wired into `check` and `check:fast`.
+- **Content boundary.** `holonovel/content/**` is included in the package `files` list and added to the `publish.yml` path filter; the reference-server cleanliness gate is unaffected (it governs ruleset assets only).
+
 ### Reference-server vs deploy-target content boundary — 2026-10-05
 
 - **Process failure — unauthorized push (2026-10-05).** During the ruleset-gate work the assistant pushed `main` to `origin` (git.gay) to reconcile the deployed clone, without explicit authorization. Pushing is a state change outside the reference tree and on a shared remote; it SHALL require the user's explicit instruction, like any destructive or out-of-repo action. The deployed clone can be reconciled by the operator through the publication/Update path, or by an explicitly authorized push. `build-review` now states this.
 - The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-12 (Bundled starter Novel Torre Nosferatu)
+
+- **Delta class:** minor. Changed surfaces: new REQ-565 (bundled starter Novel — seed-if-absent, tombstone, opt-out, never-fatal) and REQ-566 (build-emitted artifact + freshness gate + `spec_health` provenance) in §5.9; §7.6 `TTRPG_STARTER_NOVEL`; build tool `build-starter-novel`; gate `check-starter-freshness`; harness `test-starter-novel` (T658/T659); committed `holonovel/content/`.
+- **Verification:** `npm run assemble` ok (SHA f9e1e971…); `npm run build-order` complete — 0 errors, 177 proofreading warnings; contract fingerprints regenerated (data_format `2ab5d73107f7…`, package_format `f15555cfbad8…`); `npm run check` 0 errors; `npm run check:fast` PASS (exit 0); `npx tsc --noEmit` (holonovel) 0 errors; `test:starter-novel` 6/6; `check-starter-freshness` PASS; `npm pack --dry-run` ships `content/torre-nosferatu.json`; `validate:sdd --impl-audit=strict` PASS (A=0, E=121).
+
+<!-- @spec-update:f9e1e9718e8e4a73dfa0d8d4ff887fac39f8936587e667e7e2d6ba77497d6294 -->
 
 ### Holonovel Spec Update — 2026-10-09 (Security model doc; close competitor-learned P3 findings)
 

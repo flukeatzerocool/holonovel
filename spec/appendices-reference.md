@@ -1298,6 +1298,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-562 | Convert front-matter exclusion | 2026-10-05 |
 | REQ-563 | Ruleset package emitter | 2026-10-10 |
 | REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
+| REQ-565 | Bundled starter Novel | 2026-10-12 |
+| REQ-566 | Starter freshness and provenance | 2026-10-12 |
 
 ---
 
@@ -1953,6 +1955,8 @@ diet.
 | T655 | Automated | Convert front-matter exclusion: assert the shared colophon predicate (`scripts/lib/front-matter`) classifies credits, editor/artist/typography, printing dates, and ISBN headings as excluded, and ruleset headings (Combat, Mecha Damage, Random Hit Location) as kept. | REQ-562 |
 | T656 | Automated | Ruleset package emitter: from a fresh clone, re-emit each covered reference-ruleset package through its committed emitter and durable source — assert the six files are byte-identical to the committed package and `content_hash` is unchanged; feed the emitter a package whose tool schema fails a hard gate — assert it refuses to write, naming the defect. | REQ-563 |
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
+| T658 | Automated | Bundled starter Novel: on a fresh data directory, assert the starter seeds once and is listed and resumable under the no-ruleset server and playable through `run_command (action: execute)`; delete it and assert the sentinel prevents re-seed; set `TTRPG_STARTER_NOVEL=off` and assert nothing seeds; point it at a missing asset and assert seeding is skipped without failing startup. | REQ-565 |
+| T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
 
 ---
 

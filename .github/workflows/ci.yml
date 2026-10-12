@@ -37,6 +37,9 @@ jobs:
       - name: Server tool-definition + security harnesses (REQ-427/REQ-429/REQ-450)
         working-directory: holonovel
         run: npm run test:tool-definitions && npm run test:security
+      - name: Bundled starter Novel harness (REQ-565/REQ-566)
+        working-directory: holonovel
+        run: npm run test:starter-novel && npm run check:starter-freshness
       - name: Holosuite deterministic tiers (conformance + invariants + adversarial + differential)
         working-directory: holonovel
         run: npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-adversarial && npm run test:holosuite-differential

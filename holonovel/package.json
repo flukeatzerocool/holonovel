@@ -14,7 +14,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "content"
   ],
   "exports": {
     ".": "./dist/index.js",
@@ -24,6 +25,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
+    "build:starter-novel": "tsx scripts/build-starter-novel.ts",
+    "check:starter-freshness": "tsx scripts/check-starter-freshness.ts",
+    "test:starter-novel": "tsx scripts/test-starter-novel.ts",
     "start": "tsx src/index.ts",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",

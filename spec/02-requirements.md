@@ -14,7 +14,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
-| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334 |
+| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
@@ -2972,6 +2972,12 @@ Codex entries captured from an archived Novel via `manage_codex (action: capture
 
 **REQ-334d — Novel archive (Part d).**
 Player badge returns `[FORBIDDEN]`. _Check:_ T381.
+
+**REQ-565 — Bundled starter Novel.**
+A fresh install SHALL include a bundled ruleset-free starter Novel, `torre-nosferatu`, seeded into `<DATA_DIR>/novels/` at startup. Seeding SHALL run before Novel hydration, write the packaged artifact atomically, and never fail startup. The server SHALL seed only once per data directory, recorded by a sentinel at `<DATA_DIR>/starter-seeded.json`, so a deleted starter is not re-created. The seeded Novel SHALL load and be playable through `run_command (action: execute)` with no ruleset. Setting `TTRPG_STARTER_NOVEL` to `off` SHALL disable seeding; the variable otherwise names the starter slug. *Acceptance criterion:* a fresh data directory lists and resumes the starter; deleting it does not re-seed on the next start; `TTRPG_STARTER_NOVEL=off` seeds nothing. _Check:_ T658.
+
+**REQ-566 — Starter freshness and provenance.**
+The bundled starter artifact SHALL be produced by a build tool that stamps it with the server's current data-format fingerprint, and SHALL ship inside the server package. A gate SHALL re-emit the artifact from its source and fail when the committed artifact's content or data-format fingerprint drifts, ignoring the release version and checksum. `spec_health` SHALL report the starter slug, whether it was seeded or skipped, and the skip reason. *Acceptance criterion:* editing the committed artifact without re-running the build tool fails the gate; `spec_health` reports the seed outcome. _Check:_ T659.
 
 ### 5.10 World-Model Layer
 

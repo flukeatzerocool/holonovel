@@ -520,4 +520,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-562 | Convert front-matter exclusion | 5.2 Extraction and Confidence | E | T655 | — |
 | REQ-563 | Ruleset package emitter | 5.18 Workflow Entry Points | E | — | — |
 | REQ-564 | Update-workflow tool-quality remediation | 5.18 Workflow Entry Points | E | — | — |
+| REQ-565 | Bundled starter Novel | 5.9 Novel Persistence and Transport | C | T658 | — |
+| REQ-566 | Starter freshness and provenance | 5.9 Novel Persistence and Transport | C | T659 | — |
 
