@@ -89,7 +89,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.10",
+  version: "2026.10.12",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -5322,6 +5322,9 @@ function novelToJSONState(novel: NovelState): any {
     relationships: novel.relationships, gm_context: novel.gm_context, notes: novel.notes,
     constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_deactivated: novel.synthesis_deactivated, synthesis_module_enabled: novel.synthesis_module_enabled,
     characters_present_ids: novel.characters_present_ids,
+    session_zero_completed: novel.session_zero_completed,
+    characters_present: novel.characters_present,
+    adventure_set: novel.adventure_set,
     autonomy: novel.autonomy,
     vows: novel.vows, checkpoints: novel.checkpoints, description: novel.description,
     genre: novel.genre, adventure_index: novel.adventure_index,
@@ -5387,7 +5390,7 @@ function loadNovelFromStateData(data: any): NovelState {
     redo_stacks: { player: [], game_master: [], observer: [], none: [] },
     briefing_order: data.briefing_order ?? [],
     action_patterns_enabled: data.action_patterns_enabled ?? false,
-    session_zero_completed: false, characters_present: false, characters_present_ids: data.characters_present_ids ?? [], adventure_set: false,
+    session_zero_completed: data.session_zero_completed ?? false, characters_present: data.characters_present ?? false, characters_present_ids: data.characters_present_ids ?? [], adventure_set: data.adventure_set ?? false,
     pending_workflow: data.pending_workflow ?? null,
     connection_counter: 0, pending_staleness_counter: 0, pov_mode: "character",
     help_category_overrides: {},
@@ -6886,7 +6889,7 @@ server.registerTool("manage_novel", {
   title: "Novel Save Management",
   description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; strict turns a reference-validation failure into a hard block. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note).",
   inputSchema: {
-    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
+    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "complete_session_zero", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, complete_session_zero, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
     slug: z.string().optional().describe("Novel slug (resume/switch/archive/unarchive/info)."),
     source_slug: z.string().optional().describe("Novel to copy or branch from (clone/branch)."),
@@ -7203,6 +7206,14 @@ Options: yes, cancel`);
       state.saveNovel(novel);
       audit("set_genre", { genre: args.genre });
       return ok(`Genre set to '${args.genre}'.`);
+    }
+    case "complete_session_zero": {
+      requireGM();
+      const novel = requireNovel();
+      novel.session_zero_completed = true;
+      state.saveNovel(novel);
+      audit("complete_session_zero", {});
+      return ok(`Session zero marked complete.`);
     }
     case "clone": {
       requireGM();
@@ -9891,12 +9902,13 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
   const marc = (done: boolean) => (done ? "[✓]" : "[→]");
   const steps = novel
     ? {
-        characters: marc(novel.characters_present),
         adventure: marc(novel.adventure_set),
+        characters: marc(novel.characters_present),
         sessionZero: marc(novel.session_zero_completed),
         rosterCount: state.roster.size,
       }
-    : { characters: "[→]", adventure: "[→]", sessionZero: "[→]", rosterCount: state.roster.size };
+    : { adventure: "[→]", characters: "[→]", sessionZero: "[→]", rosterCount: state.roster.size };
+  const authoring = "[→]";
 
   return {
     messages: [{
@@ -9908,12 +9920,7 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
 A guided setup for your world. Complete each step in order; the markers show
 where you are.
 
-## Step 1 — Characters   ${steps.characters}
-You have ${steps.rosterCount} ${steps.rosterCount === 1 ? "character" : "characters"} in your roster.
-Would you like to import one, create a new one, or move on? Character creation
-choices are described in plain English.
-
-## Step 2 — Story source   ${steps.adventure}
+## Step 1 — Story source   ${steps.adventure}
 Choose where the story begins: load a written adventure, generate one from a
 premise, generate a random encounter, or build from scratch. Each option is
 explained in terms of what you get narratively.
@@ -9922,12 +9929,26 @@ Community-sourced play advice tailored to your adventure's themes is available
 for this world — voice examples, lore ideas, and scene advice. You can run
 synthesis now or proceed without it.
 
-## Step 3 — Session zero   ${steps.sessionZero}
+## Step 2 — Author the world   ${authoring}
+The story source is only a starting point. Look at what the world already has,
+then list what is still empty and fill it in from the ground up — places and
+creatures before fine detail, lore before relationships, relationships before
+clocks. Work down the list with the author, confirming each surface as it is
+populated. A world is ready to play once it has enough structure to begin; the
+rest is optional and can be added at any time. Because characters come next,
+leave anything that depends on them for later.
+
+## Step 3 — Characters   ${steps.characters}
+You have ${steps.rosterCount} ${steps.rosterCount === 1 ? "character" : "characters"} in your roster.
+Would you like to import one, create a new one, or move on? Character creation
+choices are described in plain English.
+
+## Step 4 — Session zero   ${steps.sessionZero}
 Run the session zero guide to agree on tone, difficulty, pace, focus, and
 boundaries, and to confirm the opening scene.
 
-When all three steps show [✓], the world is ready. A summary follows describing
-what is ready and how to begin your first scene.`),
+When the tracked steps show [✓], the world is ready. A summary follows
+describing what is ready and how to begin your first scene.`),
       },
     }],
   };

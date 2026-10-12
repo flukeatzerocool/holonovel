@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-12 — Novel authoring walkthrough; session-zero completion writer
+
+- The `novel_setup` wizard is now four steps — story source, author the world,
+  characters, session zero — and its Step 2 walks the author through filling
+  out the Novel's content (impact-ordered empty surfaces, a bounded readiness
+  bar, optional enrichment) before alignment. (REQ-089, REQ-089e)
+- Added `manage_novel (action: complete_session_zero)` so the wizard's
+  session-zero step can be marked complete; the flag had no writer, so the
+  marker and briefing reminder were permanently stuck. (REQ-089f)
+- Clone, branch, and checkpoint now preserve the novel setup flags
+  (`characters_present`, `adventure_set`, `session_zero_completed`) instead of
+  resetting them. (REQ-089c, REQ-240a, REQ-241a)
+
 ## 2026-10-10 — Ruleset package emitters; gate-bound rebuilds; Update-job gaps closed
 
 - Every ruleset package built from committed or authored content now ships a

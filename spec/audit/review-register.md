@@ -604,7 +604,17 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-<!-- No scheduled items. AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
+- **Prompt generation from the ruleset model (P1, scheduled 2026-10-12):**
+  REQ-078a and §6.4.1 require build-time prompt generation from the ruleset
+  model, and REQ-023a/REQ-127 require ruleset-native terminology, but the
+  reference host emits all five prompts as hardcoded literals
+  (`holonovel/src/index.ts:9328,9378,9797,9889,9936`) and never registers the
+  package `prompts.json` (`holonovel/src/rulesets.ts:68-83`). Normative REQ
+  unevidenced → scheduled on ROADMAP.md ("Prompt generation from the ruleset
+  model"). Bounded first step: register package prompts at runtime; full
+  generation remains open.
+
+<!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
 ## Closed-P3 (recorded, no action)
 

@@ -4,7 +4,7 @@
 // REQ-060 (verbose output), REQ-061 (source quoting), REQ-064 (badge boundary),
 // REQ-070 (anti-slop), REQ-071 (narrative tone), REQ-113 (result counts),
 // REQ-118 (prompt budget), REQ-184 (anti-slop resource), REQ-194 (anchor),
-// REQ-280 (source anchor).
+// REQ-280 (source anchor), REQ-089e/REQ-089f (novel setup authoring + writer).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
@@ -286,6 +286,32 @@ async function main() {
     for (const s of ["## 1.", "## 2.", "## 3.", "## 4.", "## 5.", "## 6.", "## 7.", "## 8."]) {
       if (!sz.includes(s)) throw new Error(`session_zero missing ${s}`);
     }
+    passed++;
+    await kill(p);
+  });
+
+  // ── T74a/REQ-089e/f — novel setup authoring phase + completion writer ──
+  await test("T74a/REQ-089: novel_setup four steps, authoring, and completion writer", async () => {
+    let p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "w1tz" });
+    const setup = await proto(p, "prompts/get", { name: "novel_setup" });
+    for (const s of ["## Step 1 — Story source", "## Step 2 — Author the world", "## Step 3 — Characters", "## Step 4 — Session zero"]) {
+      if (!setup.includes(s)) throw new Error(`novel_setup missing "${s}"`);
+    }
+    await call(p, "set_badge", { badge: "game_master" });
+    const done = await call(p, "manage_novel", { action: "complete_session_zero" });
+    if (!/complete/i.test(done)) throw new Error(`complete_session_zero failed: ${done.slice(0, 200)}`);
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Session zero: [✓]", "REQ-089f briefing marker");
+    await call(p, "manage_novel", { action: "clone", source_slug: "w1tz", new_name: "w1tz-copy" });
+    const cloneFile = JSON.parse(readFileSync(join(DATA_DIR, "novels", "w1tz-copy.json"), "utf8"));
+    if (cloneFile.session_zero_completed !== true) throw new Error("clone dropped session_zero_completed (REQ-089c)");
+    await kill(p);
+    p = await boot();
+    await call(p, "manage_novel", { action: "resume", slug: "w1tz" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief2, "Session zero: [✓]", "REQ-089f persists across restart");
     passed++;
     await kill(p);
   });
