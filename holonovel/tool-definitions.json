@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "tool_count": 30,
-  "tools_list_bytes": 81273,
+  "tools_list_bytes": 81320,
   "tools": [
     {
       "name": "manage_adventure",
@@ -839,6 +839,7 @@
         "unarchive",
         "info",
         "genre",
+        "complete_session_zero",
         "clone",
         "branch",
         "save_context",
@@ -904,7 +905,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4218
+        "definitionBytes": 4265
       },
       "category": "",
       "gate": ""

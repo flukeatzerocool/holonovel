@@ -69,7 +69,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-086 | Audit compression (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T70 | — |
 | REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T476 | — |
 | REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T98, T122, T159, T402 | — |
-| REQ-089 | Novel setup (Part a) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T74, T219 | — |
+| REQ-089 | Novel setup (Part a) (6 sub-parts) | 5.9 Novel Persistence and Transport | C | T74, T74a, T219 | — |
 | REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T75, T146, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
 | REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T125, T138, T156, T261 | — |

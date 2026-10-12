@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.10.10)
+# AGENTS.md — holonovel MCP Server (v2026.10.12)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -64,7 +64,7 @@ src/index.ts            McpServer: 30 action-discriminator tools, 38 resources a
 - **manage_story** (action: record/update/remove/list/promote) — story journal beats
 - **manage_note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
 - **manage_codex** (action: set/list/get/capture/import/delete) — server-level, out-of-play reusable content library (Editor and Game Master badges; a Player badge mid-adventure is refused; reads are not badge-filtered)
-- **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/clone/branch/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle, including event-log branching (REQ-458/REQ-459)
+- **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/complete_session_zero/clone/branch/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle, including event-log branching (REQ-458/REQ-459)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
 - **manage_ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
