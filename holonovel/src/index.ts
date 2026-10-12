@@ -7749,9 +7749,9 @@ function buildSpecHealth(): Record<string, unknown> {
   const healthy = health_warnings.length === 0;
 
   // REQ-558d — confidence reflects installed ruleset content even with no active
-  // Novel: aggregate each hydrated package's index confidence by file and
-  // category. Falls back to the ruleset-free placeholder only when nothing is
-  // installed.
+  // Novel: aggregate each installed package's index confidence by file and
+  // category, read without hydrating (REQ-390b). Falls back to the ruleset-free
+  // placeholder only when nothing is installed.
   const rulesetConfidence = (() => {
     const slugs = rulesets.installedSlugs();
     if (slugs.length === 0) return { overall: "N/A — ruleset-free", per_file: {}, per_category: {} };
@@ -7760,9 +7760,8 @@ function buildSpecHealth(): Record<string, unknown> {
     const totals: Record<string, number> = {};
     let entries = 0;
     for (const s of slugs) {
-      let pkg: ReturnType<typeof rulesets.hydrate>;
-      try { pkg = rulesets.hydrate(s); } catch { continue; }
-      for (const e of pkg.index) {
+      const index = rulesets.indexForReport(s);
+      for (const e of index) {
         const c = String((e as any).confidence ?? "UNKNOWN").toUpperCase();
         entries++;
         totals[c] = (totals[c] ?? 0) + 1;
@@ -7853,9 +7852,7 @@ function buildSpecHealth(): Record<string, unknown> {
       // REQ-389b — a package that fails hydration (e.g. content-hash mismatch)
       // contributes nothing and must not crash the health report; its rejection
       // is surfaced by `manage_ruleset (action: list)`.
-      anchors: rulesets.installedSlugs().reduce((n, s) => {
-        try { return n + (rulesets.hydrate(s)?.index.length ?? 0); } catch { return n; }
-      }, 0),
+      anchors: rulesets.installedSlugs().reduce((n, s) => n + rulesets.indexForReport(s).length, 0),
       concepts: 0, entity_types: 0, actions: 0,
       tables: 0, procedures: 0, guidance_items: 0,
     },

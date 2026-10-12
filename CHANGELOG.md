@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-12 — Ruleset hydration contract reconciled with host-level serving
+
+- Reconciled REQ-390a/b with REQ-558: an installed ruleset package hydrates
+  lazily on first use — a Novel bound to it is activated, or one of its derived
+  tools is called — and `[STATE_CONFLICT]` is reserved for a package that is not
+  installed or fails to load. The prior REQ-390a refusal of unbound-tool calls
+  is superseded by host-level serving (REQ-558); T454/T455 assert the
+  reconciled contract. (REQ-390, REQ-558)
+- `spec_health` no longer hydrates packages as a side effect of reporting:
+  confidence and anchor counts read each installed index without caching (new
+  `Ruleset.indexForReport`), so `rulesets_hydrated` reflects actual use rather
+  than the report itself. (REQ-390b, REQ-558d)
+- Aligned the output-contract harness with canonical-name enumeration: the
+  REQ-002 "valid values" list and "Did you mean?" hint name concepts rather than
+  ids, and the REQ-280 ruleset-free search message matches host-level output.
+  (REQ-002, REQ-057, REQ-059, REQ-183, REQ-280)
+
 ## 2026-10-12 — Bundled starter Novel (Torre Nosferatu)
 
 - A fresh install now seeds a ruleset-free tutorial Novel, "Torre Nosferatu",

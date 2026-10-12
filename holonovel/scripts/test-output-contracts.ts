@@ -231,7 +231,7 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     // Ruleset-free novel with installed rulesets: search reports no binding.
     const rf = await call(p, "manage_ruleset", { action: "search",  query: "nothing" });
-    assertContains(rf, "No ruleset bound", "REQ-280 ruleset-free no source anchor path");
+    assertContains(rf, "No ruleset selected", "REQ-280 ruleset-free no source anchor path");
     await call(p, "manage_novel", { action: "create",  name: "w1g", ruleset: "wave1test" });
     const g = await call(p, "manage_ruleset", { action: "search",  query: "fireball" });
     assertContains(g, "source_anchor", "REQ-280 source_anchor field present");
@@ -270,8 +270,8 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w1i", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const nf = await call(p, "wave1test_lookup_spell", { key: "fireballx" });
-    assertContains(nf, "Valid values: fireball, goblin", "REQ-057/059/183 NOT_FOUND enumeration");
-    assertContains(nf, "Did you mean 'fireball'?", "REQ-002 did-you-mean hint");
+    assertContains(nf, "Valid values: Fireball, Goblin", "REQ-057/059/183 NOT_FOUND enumeration");
+    assertContains(nf, "Did you mean 'Fireball'?", "REQ-002 did-you-mean hint");
     const okLookup = await call(p, "wave1test_lookup_spell", { key: "fireball" });
     assertContains(okLookup, "cross_references", "REQ-112 cross-reference discovery");
     passed++;
@@ -1384,21 +1384,22 @@ async function main() {
     seedRuleset();
   });
 
-  // ── REQ-390 lazy hydration ──
-  await test("T454/T455/REQ-390: installed-not-activated package defers hydration until bound", async () => {
+  // ── REQ-390 lazy hydration (host-level serving per REQ-558) ──
+  await test("T454/T455/REQ-390: installed packages hydrate lazily on first use", async () => {
     seedRuleset();
     seedSecondRuleset();
     const p = await boot();
-    // Direct call to an installed-but-unhydrated tool is refused (REQ-390a).
+    // REQ-558 — ruleset content is host-level: an installed package's derived
+    // tool serves with no active Novel, hydrating that package on first call.
     const pre = await call(p, "wave1test_lookup_spell", { key: "fireball" });
-    assertContains(pre, "[STATE_CONFLICT]", "REQ-390a unactivated ruleset tool refused");
+    assertContains(pre, "Evocation", "REQ-558 unbound package tool serves");
     await call(p, "manage_novel", { action: "create",  name: "w11l", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
     if (h.rulesets_installed !== 2) throw new Error(`REQ-390b installed ${h.rulesets_installed}`);
-    if (h.rulesets_hydrated !== 1) throw new Error(`REQ-390b hydrated ${h.rulesets_hydrated} (expected only the bound package)`);
+    if (h.rulesets_hydrated !== 1) throw new Error(`REQ-390b hydrated ${h.rulesets_hydrated} (expected only the used package; spec_health must not hydrate)`);
     const after = await call(p, "wave1test_lookup_spell", { key: "fireball" });
-    assertContains(after, "Evocation", "REQ-390a bound package hydrates on activation");
+    assertContains(after, "Evocation", "REQ-390a used package serves after activation");
     passed++;
     await kill(p);
   });
