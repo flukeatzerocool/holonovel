@@ -213,6 +213,10 @@ npm install
 npm run start
 ```
 
+On first start the server seeds a ruleset-free tutorial Novel, **Torre Nosferatu**,
+so a fresh install is immediately playable with no ruleset; set
+`TTRPG_STARTER_NOVEL=off` to skip it.
+
 Add to your MCP client:
 
 ```json

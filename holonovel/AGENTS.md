@@ -132,6 +132,7 @@ npm run start
 
 - **Roster:** Persistent character store at `.holonovel-state/roster.json`. Staged via `manage_character (action: stage)` / `manage_character (action: create, stage_to_roster=true)`; imported into a novel via `manage_character (action: import)`. Entries carry name, personality, voice examples, inventory, and optional ruleset-derived `stats`.
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
+- **Bundled starter Novel:** on a fresh data directory the server seeds a ruleset-free tutorial Novel, `torre-nosferatu`, from the packaged `content/torre-nosferatu.json` before hydration (REQ-565). Seeded once — tombstone at `.holonovel-state/starter-seeded.json`; opt out with `TTRPG_STARTER_NOVEL=off`. The artifact is emitted from `content/torre-nosferatu.source.json` by `npm run build:starter-novel` and freshness-gated by `check-starter-freshness` (REQ-566).
 - **World Model:** Rooms, things, exits persisted within the Novel's JSON. Indexed at runtime as Maps.
 - **Snapshots:** Per-mutation snapshots per badge stack (`manage_history` action: undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.

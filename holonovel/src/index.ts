@@ -81,6 +81,7 @@ const RULESET_DIR = process.env.TTRPG_RULESET_DIRS ?? path.join(DATA_DIR, "rules
 const state = new StateManager(DATA_DIR);
 state.loadRoster();
 state.loadServerNotes();
+state.seedStarterNovel();
 state.hydrateNovelsFromDisk();
 state.buildFingerprint.specHash = SPEC_HASH;
 state.buildFingerprint.lastSpecReview = new Date().toISOString();
@@ -7825,6 +7826,8 @@ function buildSpecHealth(): Record<string, unknown> {
     data_health: isGM
       ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData), corrupted: Object.fromEntries(state.corruptData), compression_mismatch: Object.fromEntries(state.compressionMismatch) }
       : undefined,
+    // REQ-565, REQ-566 — bundled starter Novel seed outcome (informational).
+    starter: state.starterStatus,
     build_timestamp: state.buildFingerprint.buildTimestamp,
     // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
     // derived-surface freshness (read-only advisory).

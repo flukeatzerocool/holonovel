@@ -34,6 +34,7 @@ const TESTS = [
   "test:backfill",
   "test:persistence",
   "test:persistence-guardrails",
+  "test:starter-novel",
   "test:limits",
   "test:narrative",
   "test:adventure",

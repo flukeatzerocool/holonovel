@@ -755,6 +755,13 @@ export class StateManager {
   // REQ-092h1 — Novels whose on-disk compression state disagrees with the
   // active TTRPG_NOVEL_COMPRESS setting, surfaced as [compression-mismatch].
   compressionMismatch = new Map<string, string>();
+  // REQ-565, REQ-566 — bundled starter Novel seed outcome (seeded/skipped plus
+  // provenance), surfaced in spec_health.
+  starterStatus: { slug: string; seeded: boolean; skipped: string | null } = {
+    slug: "torre-nosferatu",
+    seeded: false,
+    skipped: null,
+  };
   // REQ-238 — slugs loaded from a backup this session. The first save after a
   // backup restore skips copying the (corrupt/stale) on-disk primary into
   // `.bak.1`, so a good backup is never overwritten and corruption is never
@@ -1102,6 +1109,63 @@ export class StateManager {
       : { slug });
     this.checkWorkflowStaleness(novel);
     return novel;
+  }
+
+  // REQ-565 — bundled starter Novel. On the first boot of a data directory that
+  // holds neither the starter save nor its sentinel, copy the packaged artifact
+  // into novels/ and write a sentinel so a deleted starter is not re-created.
+  // Atomic, never-fatal, opt-out via TTRPG_STARTER_NOVEL=off. Runs before
+  // hydration so a fresh install lists the tutorial immediately.
+  seedStarterNovel(): void {
+    const setting = (process.env.TTRPG_STARTER_NOVEL ?? this.starterStatus.slug).trim();
+    this.starterStatus = { slug: setting, seeded: false, skipped: null };
+    const lower = setting.toLowerCase();
+    if (lower === "off" || lower === "none" || lower === "false") {
+      this.starterStatus.skipped = "opt-out";
+      return;
+    }
+    try {
+      const sentinel = path.join(this.stateDir, "starter-seeded.json");
+      const novelsDir = path.join(this.stateDir, "novels");
+      const target = path.join(novelsDir, `${setting}.json`);
+      if (fs.existsSync(sentinel)) {
+        this.starterStatus.skipped = "already-seeded";
+        return;
+      }
+      if (fs.existsSync(target)) {
+        this.writeStarterSentinel(sentinel, setting);
+        this.starterStatus.skipped = "already-present";
+        return;
+      }
+      const asset = path.join(import.meta.dirname, "..", "..", "content", `${setting}.json`);
+      if (!fs.existsSync(asset)) {
+        this.starterStatus.skipped = "asset-missing";
+        return;
+      }
+      fs.mkdirSync(novelsDir, { recursive: true });
+      const tmp = `${target}.seed.tmp`;
+      fs.copyFileSync(asset, tmp);
+      fs.renameSync(tmp, target);
+      this.writeStarterSentinel(sentinel, setting);
+      this.starterStatus.seeded = true;
+    } catch (e) {
+      this.starterStatus.skipped = `error: ${(e as Error).message}`;
+      process.stderr.write(`[holonovel] starter Novel seed failed: ${(e as Error).message}\n`);
+    }
+  }
+
+  // REQ-565 — best-effort sentinel; a failed write only risks a re-seed.
+  private writeStarterSentinel(sentinelPath: string, slug: string): void {
+    try {
+      fs.mkdirSync(this.stateDir, { recursive: true });
+      const tmp = `${sentinelPath}.tmp`;
+      fs.writeFileSync(
+        tmp,
+        JSON.stringify({ slug, seeded_at: new Date().toISOString(), version: SPEC_VERSION }, null, 2) + "\n",
+        "utf-8",
+      );
+      fs.renameSync(tmp, sentinelPath);
+    } catch { /* sentinel is best-effort; a failed write only risks a re-seed */ }
   }
 
   // REQ-065 — hydrate the in-memory Novel registry from the on-disk novels/

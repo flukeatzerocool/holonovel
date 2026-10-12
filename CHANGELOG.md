@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-12 — Bundled starter Novel (Torre Nosferatu)
+
+- A fresh install now seeds a ruleset-free tutorial Novel, "Torre Nosferatu",
+  into `<DATA_DIR>/novels/` once, so a new server is immediately playable with
+  no ruleset installed. (REQ-565)
+- Seeding is tombstone-guarded — deleting the Novel does not re-create it — and
+  can be disabled with `TTRPG_STARTER_NOVEL=off`. The seed outcome is reported
+  under `spec_health.starter`. (REQ-565, REQ-566)
+- The shipped artifact `holonovel/content/torre-nosferatu.json` is emitted from
+  `content/torre-nosferatu.source.json` by `build:starter-novel`; the
+  `check-starter-freshness` gate (wired into `check`/`check:fast`) fails on
+  drift. (REQ-566)
+
 ## 2026-10-12 — Novel authoring walkthrough; session-zero completion writer
 
 - The `novel_setup` wizard is now four steps — story source, author the world,

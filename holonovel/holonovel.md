@@ -481,7 +481,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
-| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334 |
+| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
@@ -3439,6 +3439,12 @@ Codex entries captured from an archived Novel via `manage_codex (action: capture
 
 **REQ-334d — Novel archive (Part d).**
 Player badge returns `[FORBIDDEN]`. _Check:_ T381.
+
+**REQ-565 — Bundled starter Novel.**
+A fresh install SHALL include a bundled ruleset-free starter Novel, `torre-nosferatu`, seeded into `<DATA_DIR>/novels/` at startup. Seeding SHALL run before Novel hydration, write the packaged artifact atomically, and never fail startup. The server SHALL seed only once per data directory, recorded by a sentinel at `<DATA_DIR>/starter-seeded.json`, so a deleted starter is not re-created. The seeded Novel SHALL load and be playable through `run_command (action: execute)` with no ruleset. Setting `TTRPG_STARTER_NOVEL` to `off` SHALL disable seeding; the variable otherwise names the starter slug. *Acceptance criterion:* a fresh data directory lists and resumes the starter; deleting it does not re-seed on the next start; `TTRPG_STARTER_NOVEL=off` seeds nothing. _Check:_ T658.
+
+**REQ-566 — Starter freshness and provenance.**
+The bundled starter artifact SHALL be produced by a build tool that stamps it with the server's current data-format fingerprint, and SHALL ship inside the server package. A gate SHALL re-emit the artifact from its source and fail when the committed artifact's content or data-format fingerprint drifts, ignoring the release version and checksum. `spec_health` SHALL report the starter slug, whether it was seeded or skipped, and the skip reason. *Acceptance criterion:* editing the committed artifact without re-running the build tool fails the gate; `spec_health` reports the seed outcome. _Check:_ T659.
 
 ### 5.10 World-Model Layer
 
@@ -6835,6 +6841,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
 | `TTRPG_GUIDANCE_PROFILE` | No | Runtime guidance and presentation posture — `full` (default) or `lean`. `lean` prioritizes orientation scaffolding, terse enumeration defaults, and summary-first catalogs for constrained narrators (REQ-388, REQ-412a). Behavioral — couples per P58. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
+| `TTRPG_STARTER_NOVEL` | No | Bundled starter Novel slug seeded once on a fresh install (REQ-565). Defaults to `torre-nosferatu`; set to `off` to disable seeding. |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
 | `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
@@ -9866,6 +9873,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-562 | Convert front-matter exclusion | 2026-10-05 |
 | REQ-563 | Ruleset package emitter | 2026-10-10 |
 | REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
+| REQ-565 | Bundled starter Novel | 2026-10-12 |
+| REQ-566 | Starter freshness and provenance | 2026-10-12 |
 
 ---
 
@@ -10521,6 +10530,8 @@ diet.
 | T655 | Automated | Convert front-matter exclusion: assert the shared colophon predicate (`scripts/lib/front-matter`) classifies credits, editor/artist/typography, printing dates, and ISBN headings as excluded, and ruleset headings (Combat, Mecha Damage, Random Hit Location) as kept. | REQ-562 |
 | T656 | Automated | Ruleset package emitter: from a fresh clone, re-emit each covered reference-ruleset package through its committed emitter and durable source — assert the six files are byte-identical to the committed package and `content_hash` is unchanged; feed the emitter a package whose tool schema fails a hard gate — assert it refuses to write, naming the defect. | REQ-563 |
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
+| T658 | Automated | Bundled starter Novel: on a fresh data directory, assert the starter seeds once and is listed and resumable under the no-ruleset server and playable through `run_command (action: execute)`; delete it and assert the sentinel prevents re-seed; set `TTRPG_STARTER_NOVEL=off` and assert nothing seeds; point it at a missing asset and assert seeding is skipped without failing startup. | REQ-565 |
+| T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
 
 ---
 
