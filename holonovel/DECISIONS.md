@@ -21,6 +21,13 @@
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
 
+### Holonovel Spec Update — 2026-10-12 (Ruleset hydration contract reconciled with host-level serving)
+
+- **Delta class:** minor. Changed surfaces: Ruleset hydration contract reconciled with host-level serving; Bundled starter Novel (Torre Nosferatu); Novel authoring walkthrough; session-zero completion writer.
+- **Verification:** `npm run assemble` ok (SHA e400b551…); `npm run build-order` complete — 0 errors, 177 proofreading warnings; package_format advanced `f15555cfbad8…` → `739700a9f9d7…` (REQ-420); `npm run check:fast` PASS (exit 0); `test:output-contracts` 273/0 (was 267/5); `test:ruleset-nonovel` 9/9 (T651d confidence without hydration); `npm run test:all` 42/42; coverage register current.
+
+<!-- @spec-update:e400b551e0adbc5668407b00b2d9b81a7f73481eb69f3b3ea7a2c4524c5aafcb -->
+
 ### Holonovel Spec Update — 2026-10-12 (Bundled starter Novel Torre Nosferatu)
 
 - **Delta class:** minor. Changed surfaces: new REQ-565 (bundled starter Novel — seed-if-absent, tombstone, opt-out, never-fatal) and REQ-566 (build-emitted artifact + freshness gate + `spec_health` provenance) in §5.9; §7.6 `TTRPG_STARTER_NOVEL`; build tool `build-starter-novel`; gate `check-starter-freshness`; harness `test-starter-novel` (T658/T659); committed `holonovel/content/`.

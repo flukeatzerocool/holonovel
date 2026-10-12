@@ -409,6 +409,22 @@ export class RulesetManager {
     this.toolQuality.set(slug, { conformant, alerts });
   }
 
+  // REQ-390b/REQ-558d — read a package's index for an informational report
+  // (confidence, anchor counts) WITHOUT hydrating or caching it, so a
+  // spec_health read does not itself change the hydrated-package count.
+  indexForReport(slug: string): RulesetIndexEntry[] {
+    const p = path.join(this.installDir, slug, "index.json");
+    if (!fs.existsSync(p)) return [];
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      // Unreadable/corrupt index contributes nothing here; the package's
+      // rejection surfaces via hydration at call time (REQ-389b).
+      return [];
+    }
+  }
+
   // Full-text search over the hydrated index. Simple normalized substring
   // scoring across id/anchor/content/category.
   search(slug: string, query: string, maxResults: number = 10): RulesetIndexEntry[] {
