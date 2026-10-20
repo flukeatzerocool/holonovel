@@ -23,6 +23,7 @@ import { readSpec, extractReqBodies } from "./lib/parse-spec.js";
 import { walkTsFiles } from "./lib/walk.js";
 import { parseSubworkflowMap } from "./lib/subworkflow.js";
 import { parseFlag, parseValueFlag, handleHelp } from "./lib/args.js";
+import { expandReqCitations } from "./lib/req-citations.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const IMPL_SRC_DIR = path.join(ROOT, "holonovel", "src");
@@ -135,8 +136,7 @@ function gatherCiteSites(): Map<string, CiteSite[]> {
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
-      for (const m of lines[i].matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) {
-        const id = "REQ-" + m[1];
+      for (const id of expandReqCitations(lines[i])) {
         if (!map.has(id)) map.set(id, []);
         map.get(id)!.push({ file: rel(f), line: i + 1, text: lines[i].trim().slice(0, 140), isComment: /^\s*(\/\/|\*|\/\*)/.test(lines[i]) });
       }

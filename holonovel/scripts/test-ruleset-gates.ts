@@ -12,11 +12,11 @@
  * Exit codes: 0 = pass, 1 = one or more assertions failed.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
-import { validateToolSchema } from "../src/rulesets.js";
+import { validateToolSchema, CORE_TOOL_GROUPS, CORE_TOOL_PHASES } from "../src/rulesets.js";
 import { isColophonHeading } from "../../scripts/lib/front-matter.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -141,6 +141,68 @@ test("T671/REQ-578: conformant generated tool passes the surface check", () => {
     inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } } },
   };
   assert(validateToolSchema(schema).length === 0, validateToolSchema(schema).join("; "));
+});
+
+// ── T660 (REQ-567) — tool-surface registry fixture gate ──────────────
+const SURFACE_GATE = join(import.meta.dirname, "..", "..", "scripts", "check-tool-surface.ts");
+const SURFACE_TAXONOMY = {
+  groups: [...CORE_TOOL_GROUPS],
+  phases: [...CORE_TOOL_PHASES],
+  mutation_classes: ["read", "write", "destructive", "idempotent"],
+};
+function surfaceDeclaration(group: string, entry = false): any {
+  return { group, phases: ["scene"], entry, mutation_class: "read", ruleset: null, preconditions: [], successors: [], edges: [] };
+}
+function surfaceFixture(): { defs: any; registry: any } {
+  const tools: any[] = [];
+  const actions: Record<string, any> = {};
+  for (const group of CORE_TOOL_GROUPS) {
+    for (const suffix of ["a", "b"]) {
+      const name = `${group}_${suffix}`;
+      tools.push({ name, action_enum: ["run"] });
+      actions[`${name}.run`] = surfaceDeclaration(group, suffix === "a");
+    }
+  }
+  return { defs: { tools, tools_list_bytes: 400 }, registry: { schema_version: 1, taxonomy: SURFACE_TAXONOMY, actions } };
+}
+function runSurfaceGate(name: string, defs: any, registry: any): { code: number; out: string } {
+  const defsPath = join(TMP, `${name}-defs.json`);
+  const registryPath = join(TMP, `${name}-registry.json`);
+  writeFileSync(defsPath, JSON.stringify(defs));
+  writeFileSync(registryPath, JSON.stringify(registry));
+  const r = spawnSync("npx", ["tsx", SURFACE_GATE, "--defs", defsPath, "--registry", registryPath], { encoding: "utf-8" });
+  return { code: r.status ?? -1, out: (r.stdout ?? "") + (r.stderr ?? "") };
+}
+
+test("T660/REQ-567: a conformant fixture registry passes check-tool-surface", () => {
+  const { defs, registry } = surfaceFixture();
+  const r = runSurfaceGate("conformant", defs, registry);
+  assert(r.code === 0, `expected exit 0, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("check-tool-surface: PASS"), `unexpected output: ${r.out}`);
+});
+
+test("T660/REQ-567: an unregistered action fails naming the action", () => {
+  const { defs, registry } = surfaceFixture();
+  delete registry.actions["table_a.run"];
+  const r = runSurfaceGate("ungrouped", defs, registry);
+  assert(r.code === 1, `expected exit 1, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("unregistered action: table_a.run"), `missing unregistered-action defect: ${r.out}`);
+});
+
+test("T660/REQ-567: a duplicated entry declaration fails naming the group", () => {
+  const { defs, registry } = surfaceFixture();
+  registry.actions["lookup_b.run"].entry = true;
+  const r = runSurfaceGate("duplicate", defs, registry);
+  assert(r.code === 1, `expected exit 1, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("group lookup: expected exactly one entry action"), `missing duplicate-entry defect: ${r.out}`);
+});
+
+test("T660/REQ-567: an unknown surface term fails naming the term", () => {
+  const { defs, registry } = surfaceFixture();
+  registry.actions["resolve_a.run"].group = "adventure";
+  const r = runSurfaceGate("unknown", defs, registry);
+  assert(r.code === 1, `expected exit 1, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("unknown group adventure"), `missing unknown-group defect: ${r.out}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

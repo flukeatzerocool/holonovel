@@ -31,10 +31,12 @@ import {
   checkReqWorkedExamples,
   checkReqThresholds,
   checkBaseCapabilityDefaults,
+  checkNewBucketB,
 } from "./lib/req-checks.js";
 import { walkTsFiles as walkTsFilesRaw } from "./lib/walk.js";
 import { computeSpecContentHash, readPhaseMapHash } from "./lib/phase-map-hash.js";
 import { parseSubworkflowMap } from "./lib/subworkflow.js";
+import { expandReqCitations } from "./lib/req-citations.js";
 
 const __dirname = import.meta.dirname;
 const SPEC = path.resolve(__dirname, "..", "holonovel.md");
@@ -1412,7 +1414,7 @@ function gatherSourceCites(): Set<string> {
   for (const f of IMPL_SRC_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
-    for (const m of content.matchAll(/\bREQ-(\d{3}[a-z0-9]*)\b/g)) cites.add("REQ-" + m[1]);
+    for (const id of expandReqCitations(content)) cites.add(id);
   }
   return cites;
 }
@@ -1736,6 +1738,18 @@ function checkPlaceholderStubs(): string[] {
 // Return the set of base REQ IDs recorded in the committed coverage register.
 // Used by the G4 guard to distinguish a pre-existing gap (already triaged and
 // committed) from a REQ first introduced by the current change.
+function readCommittedRegisterBReqs(): Set<string> {
+  const reqs = new Set<string>();
+  const regPath = path.resolve(__dirname, "..", "spec", "audit", "req-coverage.md");
+  let content = "";
+  try { content = fs.readFileSync(regPath, "utf-8"); } catch { return reqs; }
+  for (const line of content.split("\n")) {
+    const m = line.match(/^\|\s*(REQ-\d{3})\s*\|[^|]*\|[^|]*\|\s*([A-E])\s*\|/);
+    if (m && m[2] === "B") reqs.add(m[1]);
+  }
+  return reqs;
+}
+
 function readCommittedRegisterReqs(): Set<string> {
   const reqs = new Set<string>();
   const regPath = path.resolve(__dirname, "..", "spec", "audit", "req-coverage.md");
@@ -1794,6 +1808,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-247": "adventure structure extraction — §6.3 discovery heuristic",
   "REQ-225": "Ruleset Wisdom extraction — build-time; cited for build-time provenance in wisdom.ts",
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
+  "REQ-214": "table classification — build-time extraction of generation vs lookup tables; cited in the additional-tools header alongside REQ-213",
   "REQ-373": "terminal builder-scope non-goal — the reference holonovel build statically registers ruleset-derived tools by design (the MCP SDK's runtime registration is acknowledged and deliberately unused); recorded in DECISIONS.md and exercised by T424's waiver branch; no re-activation trigger",
   "REQ-124": "§5.6 ruleset-dependent NPC damage resolution — needs a ruleset with a defensive-stat/damage model and zero-health threshold, which the ruleset-free reference host does not provide; re-activate with such a package (spec-code comparison SC-2)",
   "REQ-123": "§5.6 builder-defined NPC stat fields — derived from a ruleset's own stat-block conventions at discovery; the ruleset-free reference host's package format carries no stat-block schema, so the NPC surface exposes narrative fields only. Re-activate with a stat-block ruleset (spec-code comparison SC-6)",
@@ -2476,6 +2491,18 @@ function main(): void {
     errors += newGapIssues.length;
   } else {
     console.log("PASS: No un-cited REQs newly added since the committed register");
+  }
+
+  // B5 — a REQ that newly buckets to B (cited, no exercised test) is a
+  // coverage regression. Existing B rows are tolerated until their evidence
+  // lands; after the register is regenerated at B=0, any B fails.
+  const committedB = readCommittedRegisterBReqs();
+  const newBIssues = checkNewBucketB(implRows, committedB);
+  if (newBIssues.length > 0) {
+    for (const issue of newBIssues) console.log(`ERROR: ${issue}`);
+    errors += newBIssues.length;
+  } else {
+    console.log("PASS: No new bucket-B REQs");
   }
 
   // B3 — a REQ new since the committed register that buckets to C must have a

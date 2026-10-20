@@ -111,11 +111,11 @@ function contentHash(index: any, model: any, tools: any, resources: any, prompts
 // Copy the committed fixture's five content files into `dir`, write a manifest,
 // and return the content hash. `packageFormat` may be the live constant, a prior
 // value, or `undefined` (legacy — no package_format field).
-function seedPackage(dir: string, slug: string, packageFormat: string | undefined): string {
+function seedPackage(dir: string, slug: string, packageFormat: string | undefined, toolsOverride?: any[]): string {
   mkdirSync(dir, { recursive: true });
   const index = JSON.parse(readFileSync(join(FIXTURE_DIR, "index.json"), "utf-8"));
   const model = JSON.parse(readFileSync(join(FIXTURE_DIR, "model.json"), "utf-8"));
-  const tools = JSON.parse(readFileSync(join(FIXTURE_DIR, "tools.json"), "utf-8"));
+  const tools = toolsOverride ?? JSON.parse(readFileSync(join(FIXTURE_DIR, "tools.json"), "utf-8"));
   const resources = JSON.parse(readFileSync(join(FIXTURE_DIR, "resources.json"), "utf-8"));
   const prompts = JSON.parse(readFileSync(join(FIXTURE_DIR, "prompts.json"), "utf-8"));
   const hash = contentHash(index, model, tools, resources, prompts);
@@ -279,6 +279,58 @@ async function main() {
       // (which prints "<slug> — source: ..."), even though it appears in the
       // per-package summary as "current: current".
       assertNotContains(r.stdout, "current — source:");
+    });
+  }
+
+  // ── T672 (REQ-579) — legacy package rebuild, deferral, and load ──
+  {
+    const installDir = join(DATA_DIR, "rulesets");
+    const baseTool: any = {
+      name: "legacy_lookup", title: "Legacy Lookup", kind: "lookup",
+      description: "Look up a legacy thing. Use when: resolving. Do NOT use when: unknown — use core_mechanic.",
+      inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } } },
+    };
+    const rebuiltTool: any = {
+      ...baseTool, name: "rebuilt_lookup", group: "lookup", phases: ["scene"], collection: "things",
+    };
+    seedPackage(join(installDir, "precontract"), "precontract", PACKAGE_FORMAT, [baseTool]);
+    seedPackage(join(installDir, "rebuilt"), "rebuilt", PACKAGE_FORMAT, [rebuiltTool]);
+    seedPackage(join(installDir, "noemitter"), "noemitter", PRIOR_PKG, [baseTool]);
+    const registry = JSON.parse(readFileSync(join(DATA_DIR, "ruleset-registry.json"), "utf-8"));
+    registry.precontract = { source: join(DATA_DIR, "src"), package_format: PACKAGE_FORMAT, built_at: "2026-08-30T00:00:00Z" };
+    registry.rebuilt = { source: join(DATA_DIR, "src"), package_format: PACKAGE_FORMAT, built_at: "2026-08-30T00:00:00Z" };
+    writeFileSync(join(DATA_DIR, "ruleset-registry.json"), JSON.stringify(registry, null, 2) + "\n");
+
+    await test("T672/REQ-579: pre-contract package reported, no-emitter deferred, rebuilt package loads", async () => {
+      const report = runRootScript("update-rulesets.ts");
+      if (report.status !== 0) throw new Error(`update-rulesets failed: ${report.stdout} ${report.stderr}`);
+      assertContains(report.stdout, "precontract");
+      assertContains(report.stdout, "missing surface declaration");
+      assertContains(report.stdout, "noemitter");
+      assertContains(report.stdout, "no registry entry");
+
+      const proc = await boot();
+      try {
+        const loaded = await call(proc, "manage_novel", { action: "create", name: "legacy-load", ruleset: "precontract" });
+        if (/not installed|load-rejected|incompatible/i.test(loaded)) throw new Error(`pre-contract package did not load: ${loaded.slice(0, 200)}`);
+        const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+        const rebuilds: { slug: string }[] = health.legacy_package_rebuilds ?? [];
+        if (!rebuilds.some((entry) => entry.slug === "precontract")) {
+          throw new Error(`precontract not reported for rebuild: ${JSON.stringify(rebuilds)}`);
+        }
+
+        const rebuilt = await call(proc, "manage_novel", { action: "create", name: "rebuilt-load", ruleset: "rebuilt" });
+        if (/not installed|load-rejected|incompatible/i.test(rebuilt)) throw new Error(`rebuilt package did not load: ${rebuilt.slice(0, 200)}`);
+        const health2 = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+        if ((health2.legacy_package_rebuilds ?? []).some((entry: any) => entry.slug === "rebuilt")) {
+          throw new Error("rebuilt package was still reported for rebuild");
+        }
+        if ((health2.ruleset_tool_quality?.conformant ?? 0) < 1) {
+          throw new Error(`no conformant ruleset tool was loaded: ${JSON.stringify(health2.ruleset_tool_quality)}`);
+        }
+      } finally {
+        proc.kill();
+      }
     });
   }
 

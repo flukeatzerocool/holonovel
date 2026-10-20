@@ -115,18 +115,32 @@ async function run(): Promise<void> {
       assert(!text.includes("belongs to group"), `lookup was refused: ${text.slice(0, 160)}`);
     });
 
-    await test("T577/T574: take_turn mints a handle and record consumes it", async () => {
+    await test("T670/T667: take_turn mints a handle and record consumes it", async () => {
       const turn = await call(proc, "take_turn", { intent: "look around the room" });
       assert(turn.includes("[TURN]"), `take_turn did not mint a handle: ${turn.slice(0, 200)}`);
+      assert(turn.includes("Suggested next actions"), `take_turn lacked suggestions: ${turn.slice(0, 200)}`);
       const handle = turn.match(/\[TURN\]\s+(\S+)/)?.[1];
       assert(handle, `no handle parsed: ${turn.slice(0, 200)}`);
       const bad = await call(proc, "manage_story", { action: "record", type: "moment", entry: "x", turn_handle: "not-a-handle" });
       assert(bad.includes("[STATE_CONFLICT]"), `invalid handle was accepted: ${bad.slice(0, 160)}`);
       const good = await call(proc, "manage_story", { action: "record", type: "moment", entry: "A turn was recorded.", turn_handle: handle });
       assert(!good.includes("[STATE_CONFLICT]"), `valid handle refused: ${good.slice(0, 160)}`);
+      const replay = await call(proc, "manage_story", { action: "record", type: "moment", entry: "Replay.", turn_handle: handle });
+      assert(replay.includes("[STATE_CONFLICT]"), `consumed handle was accepted: ${replay.slice(0, 160)}`);
+      const noHandle = await call(proc, "manage_story", { action: "record", type: "moment", entry: "No handle." });
+      assert(!noHandle.includes("[STATE_CONFLICT]"), `recording without a handle refused: ${noHandle.slice(0, 160)}`);
     });
 
-    await test("T577: close_session returns recap and context", async () => {
+    await test("T670: open_session resumes, sets the badge, and returns a recap", async () => {
+      const recap = await call(proc, "open_session", { badge: "player" });
+      assert(recap.trim().length > 0, "open_session returned no content");
+      assert(recap.includes("surface-guards"), `open_session recap lacked the Novel: ${recap.slice(0, 200)}`);
+      const forbidden = await call(proc, "manage_scene", { action: "presence", entity_ids: [] });
+      assert(forbidden.includes("[FORBIDDEN]"), `open_session did not switch to Player: ${forbidden.slice(0, 160)}`);
+      await call(proc, "open_session", { badge: "game_master" });
+    });
+
+    await test("T670: close_session returns recap and context", async () => {
       const text = await call(proc, "close_session", {});
       assert(text.trim().length > 0, "close_session returned no content");
       assert(text.includes("narrative_orientation") || text.includes("context") || text.includes("{"),

@@ -286,3 +286,19 @@ export function checkBaseCapabilityDefaults(text: string): string[] {
   }
   return issues;
 }
+
+// A REQ that newly buckets to B (cited but no exercised test) is a coverage
+// regression. REQs already recorded as B in the committed register are
+// tolerated until their evidence lands, so the check can be added without a
+// flag day.
+export function checkNewBucketB(
+  rows: Array<{ reqId: string; title: string; bucket: string }>,
+  committedB: Set<string>,
+): string[] {
+  const issues: string[] = [];
+  for (const row of rows) {
+    if (row.bucket !== "B" || committedB.has(row.reqId)) continue;
+    issues.push(`new bucket-B REQ ${row.reqId} ${row.title} — cited but has no exercised test`);
+  }
+  return issues;
+}

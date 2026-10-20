@@ -15,6 +15,7 @@
 import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
+import { CORE_TOOL_GROUPS } from "../holonovel/src/rulesets.js";
 
 const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
@@ -32,18 +33,35 @@ function loadRegistry(): Record<string, RegistryEntry> {
   catch { return {}; }
 }
 
-function installedManifests(): { slug: string; package_format?: string }[] {
+// REQ-579 — a package whose tools predate the surface contract needs a
+// rebuild even when its package-format fingerprint is current.
+function missingSurfaceDeclaration(slug: string): boolean {
+  const toolsPath = join(installDir, slug, "tools.json");
+  if (!existsSync(toolsPath)) return false;
+  try {
+    const tools = JSON.parse(readFileSync(toolsPath, "utf-8"));
+    if (!Array.isArray(tools)) return false;
+    return tools.some((tool: any) =>
+      !tool?.group || !(CORE_TOOL_GROUPS as readonly string[]).includes(tool.group)
+      || !Array.isArray(tool?.phases) || tool.phases.length === 0);
+  } catch {
+    return false;
+  }
+}
+
+function installedManifests(): { slug: string; package_format?: string; missing_surface: boolean }[] {
   if (!existsSync(installDir)) return [];
-  const out: { slug: string; package_format?: string }[] = [];
+  const out: { slug: string; package_format?: string; missing_surface: boolean }[] = [];
   for (const entry of readdirSync(installDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const manifestPath = join(installDir, entry.name, "manifest.json");
     if (!existsSync(manifestPath)) continue;
+    const missing_surface = missingSurfaceDeclaration(entry.name);
     try {
       const m = JSON.parse(readFileSync(manifestPath, "utf-8"));
-      out.push({ slug: entry.name, package_format: m.package_format });
+      out.push({ slug: entry.name, package_format: m.package_format, missing_surface });
     } catch {
-      out.push({ slug: entry.name });
+      out.push({ slug: entry.name, missing_surface });
     }
   }
   return out;
@@ -58,15 +76,15 @@ console.log(`Current package-format fingerprint: ${current}`);
 console.log(`Install directory: ${installDir}`);
 console.log("");
 for (const pkg of packages) {
-  const state = pkg.package_format === current
-    ? "current"
-    : pkg.package_format
-      ? "STALE (fingerprint mismatch)"
-      : "STALE (no fingerprint)";
+  const state = pkg.package_format !== current
+    ? (pkg.package_format ? "STALE (fingerprint mismatch)" : "STALE (no fingerprint)")
+    : pkg.missing_surface
+      ? "STALE (missing surface declaration)"
+      : "current";
   console.log(`  ${pkg.slug}: ${state}`);
 }
 
-const stale = packages.filter((p) => p.package_format !== current);
+const stale = packages.filter((p) => p.package_format !== current || p.missing_surface);
 console.log("");
 if (stale.length === 0) {
   console.log("No stale packages — all installed packages match the current package-format fingerprint.");
