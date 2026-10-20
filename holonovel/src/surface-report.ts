@@ -35,11 +35,23 @@ export interface SurfaceBudgets {
   small: number;
 }
 
+export interface SurfaceCatalogSize {
+  bytes: number;
+  tokens: number;
+}
+
+export interface SurfaceCatalogProfiles {
+  full: SurfaceCatalogSize;
+  standard: SurfaceCatalogSize;
+  small: SurfaceCatalogSize;
+}
+
 export interface SurfaceReportInput {
   registry: SurfaceRegistry | null;
   live: Set<string>;
   profile: string;
   catalogBytes: number;
+  catalogProfiles?: SurfaceCatalogProfiles;
   overrides: number;
   budgets: SurfaceBudgets;
 }
@@ -65,6 +77,7 @@ export interface SurfaceReport {
   workflow_calls: { total: number; by_group: Record<string, number> };
   catalog_bytes: number;
   catalog_tokens_estimate: number;
+  catalog_profiles: SurfaceCatalogProfiles;
   overrides: number;
   budgets: SurfaceBudgets;
 }
@@ -75,6 +88,11 @@ function toolNameOf(key: string): string {
 
 export function buildSurfaceReport(input: SurfaceReportInput): SurfaceReport {
   const { registry, live, profile, catalogBytes, overrides, budgets } = input;
+  const catalogProfiles = input.catalogProfiles ?? {
+    full: { bytes: catalogBytes, tokens: Math.ceil(catalogBytes / 4) },
+    standard: { bytes: catalogBytes, tokens: Math.ceil(catalogBytes / 4) },
+    small: { bytes: catalogBytes, tokens: Math.ceil(catalogBytes / 4) },
+  };
   const declared = registry ? Object.keys(registry.actions) : [];
   const groups = registry?.taxonomy.groups ?? [];
   const isCompatibility = (key: string): boolean => !!registry?.actions[key]?.compatibility;
@@ -172,6 +190,7 @@ export function buildSurfaceReport(input: SurfaceReportInput): SurfaceReport {
     workflow_calls: { total: workflowTotal, by_group: workflowCalls },
     catalog_bytes: catalogBytes,
     catalog_tokens_estimate: Math.ceil(catalogBytes / 4),
+    catalog_profiles: catalogProfiles,
     overrides,
     budgets,
   };

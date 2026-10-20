@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Tool-surface catalog harness (REQ-568, REQ-570, REQ-572, REQ-580). [gate]
-// Exercises T661 (conformance report), T663 (projected catalog), T665 (group
-// directory), and T673 (surface-profile precedence).
+// Exercises T661 (conformance report), T663/T676/T677 (catalog projection),
+// T665 (group directory), T673 (surface-profile precedence), and T678
+// (measured profiles and budgets).
 //
 // Exit codes: 0 = pass, 1 = one or more assertions failed, 2 = fatal error.
 
@@ -125,7 +126,7 @@ function assertArray(value: unknown, message: string): void {
   assert(Array.isArray(value), message);
 }
 
-const GLOBALS = ["set_badge", "manage_session", "respond_decision"];
+const GLOBALS = ["set_badge", "manage_session", "respond_decision", "open_session", "close_session"];
 
 function fixtureRegistry(): SurfaceRegistry {
   const decl = (group: string, entry: boolean, successors: string[] = []) => ({
@@ -238,13 +239,17 @@ async function run(): Promise<void> {
     assert(typeof surface.workflow_calls?.total === "number", "missing workflow call count");
     assert(typeof surface.catalog_bytes === "number", "missing catalog bytes");
     assert(typeof surface.catalog_tokens_estimate === "number", "missing catalog token estimate");
+    for (const profile of ["full", "standard", "small"]) {
+      assert(typeof surface.catalog_profiles?.[profile]?.bytes === "number", `missing ${profile} catalog bytes`);
+      assert(typeof surface.catalog_profiles?.[profile]?.tokens === "number", `missing ${profile} catalog tokens`);
+    }
     assert(typeof surface.budgets?.standard === "number" && typeof surface.budgets?.small === "number", "missing budgets");
     assert(typeof surface.overrides === "number", "missing override count");
   });
 
-  await test("T663: default and selected groups project, ordering is stable", async () => {
+  await test("T663: small profile projects the active group, ordering is stable", async () => {
     const full = toolNames(await listTools(standard, { _meta: { profile: "full" } }));
-    const projected = toolNames(await listTools(standard));
+    const projected = toolNames(await listTools(standard, { _meta: { profile: "small" } }));
     assert(projected.length > 0 && projected.length < full.length, `default projection ${projected.length} vs full ${full.length}`);
     assert(projected.every((name) => full.includes(name)), "projection returned an unknown tool or was not a subset");
     for (const name of GLOBALS) assert(projected.includes(name), `default projection missing global ${name}`);
@@ -252,11 +257,11 @@ async function run(): Promise<void> {
     const groups = await readGroups(standard);
     const lookup = groups.find((group) => group.group === "lookup");
     assert(lookup?.tools?.length > 0, "lookup group has no tools in the directory");
-    const lookupPage = toolNames(await listTools(standard, { _meta: { group: "lookup" } }));
+    const lookupPage = toolNames(await listTools(standard, { _meta: { profile: "small", group: "lookup" } }));
     assert(lookupPage.some((name) => lookup.tools.includes(name)), "group selection returned no lookup tool");
     for (const name of GLOBALS) assert(lookupPage.includes(name), `group selection missing global ${name}`);
 
-    const again = toolNames(await listTools(standard, { _meta: { group: "lookup" } }));
+    const again = toolNames(await listTools(standard, { _meta: { profile: "small", group: "lookup" } }));
     assert(JSON.stringify(again) === JSON.stringify(lookupPage), "group projection ordering is not stable");
   });
 
@@ -321,7 +326,14 @@ async function run(): Promise<void> {
     const smallLeanNames = toolNames(await listTools(smallLean));
     const leanBriefing = await badgeBriefing(smallLean);
 
-    assert(smallFullNames.length < fullNames.length, `small catalog ${smallFullNames.length} not smaller than full ${fullNames.length}`);
+    const standard = await boot("standard", "full");
+    await call(standard, "manage_novel", { action: "create", name: "standard-profile" });
+    await call(standard, "set_badge", { badge: "game_master" });
+    const standardNames = toolNames(await listTools(standard));
+    assert(JSON.stringify(standardNames) === JSON.stringify(fullNames),
+      `standard catalog ${standardNames.length} != full ${fullNames.length}`);
+    assert(smallFullNames.length < standardNames.length,
+      `small catalog ${smallFullNames.length} not smaller than standard ${standardNames.length}`);
     assert(JSON.stringify(smallFullNames) === JSON.stringify(smallLeanNames),
       "changing the guidance profile changed the catalog projection");
     assert(fullBriefing.includes("Read the current state, resolve mechanics through tools, then"),
@@ -330,6 +342,66 @@ async function run(): Promise<void> {
       `lean guidance orientation missing: ${leanBriefing.slice(0, 200)}`);
     assert(!leanBriefing.includes("Read the current state, resolve mechanics through tools, then"),
       "lean guidance still carried the full orientation");
+  });
+
+  await test("T676: standard is call-complete and lean", async () => {
+    const proc = await boot("standard");
+    await call(proc, "manage_novel", { action: "create", name: "standard-lean" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const full = await listTools(proc, { _meta: { profile: "full" } });
+    const leaned = await listTools(proc, { _meta: { profile: "standard" } });
+    const fullNames = toolNames(full);
+    const standardNames = toolNames(leaned);
+    assert(JSON.stringify(standardNames) === JSON.stringify(fullNames), "standard catalog is not call-complete");
+    const fullBytes = Buffer.byteLength(JSON.stringify(full.result.tools), "utf8");
+    const standardBytes = Buffer.byteLength(JSON.stringify(leaned.result.tools), "utf8");
+    assert(standardBytes < fullBytes, `standard ${standardBytes}B is not smaller than full ${fullBytes}B`);
+    const sample = leaned.result.tools.find((tool: any) => tool.name === "manage_lore");
+    assert(sample && JSON.stringify(sample.outputSchema) === JSON.stringify({ type: "object" }),
+      `standard output schema was not a presence marker: ${JSON.stringify(sample?.outputSchema)}`);
+    const crossGroup = await call(proc, "manage_countdown", { action: "list" });
+    assert(!crossGroup.includes("belongs to group"), `standard cross-group call refused: ${crossGroup.slice(0, 160)}`);
+  });
+
+  await test("T677: small is a summary discovery catalog", async () => {
+    const proc = await boot("small");
+    await call(proc, "manage_novel", { action: "create", name: "small-summary" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const small = await listTools(proc, { _meta: { profile: "small" } });
+    const standard = await listTools(proc, { _meta: { profile: "standard" } });
+    const smallNames = toolNames(small);
+    const standardNames = toolNames(standard);
+    assert(smallNames.length < standardNames.length, "small is not smaller than standard");
+    assert(smallNames.every((name) => standardNames.includes(name)), "small introduced an unknown tool");
+    const smallBytes = Buffer.byteLength(JSON.stringify(small.result.tools), "utf8");
+    const standardBytes = Buffer.byteLength(JSON.stringify(standard.result.tools), "utf8");
+    assert(smallBytes <= Math.ceil(standardBytes * 0.1),
+      `small ${smallBytes}B exceeds one tenth of standard ${standardBytes}B`);
+    for (const tool of small.result.tools) {
+      assert(!String(tool.description ?? "").includes("Do NOT use when"), `${tool.name} kept a full description`);
+      assert(JSON.stringify(tool.outputSchema) === JSON.stringify({ type: "object" }), `${tool.name} kept an output body`);
+      for (const property of Object.values(tool.inputSchema?.properties ?? {})) {
+        assert(!(property as any).description, `${tool.name} kept a parameter description`);
+      }
+    }
+  });
+
+  await test("T678: measured catalog profiles and budgets are reported", async () => {
+    const proc = await boot("full");
+    await call(proc, "manage_novel", { action: "create", name: "measured-profiles" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await listTools(proc);
+    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const surface = health.tool_surface;
+    const profiles = surface.catalog_profiles;
+    assert(profiles.full.tokens > profiles.standard.tokens, "standard is not leaner than full");
+    assert(profiles.standard.tokens > profiles.small.tokens, "small is not leaner than standard");
+    assert(profiles.standard.tokens <= Math.ceil(profiles.full.tokens * 0.9),
+      `standard ${profiles.standard.tokens} exceeds 90% of full ${profiles.full.tokens}`);
+    assert(profiles.small.tokens <= Math.ceil(profiles.full.tokens * 0.1),
+      `small ${profiles.small.tokens} exceeds 10% of full ${profiles.full.tokens}`);
+    assert(surface.budgets.standard === Math.ceil(profiles.full.tokens * 0.9), "recorded standard budget drifted");
+    assert(surface.budgets.small === Math.ceil(profiles.full.tokens * 0.1), "recorded small budget drifted");
   });
 }
 

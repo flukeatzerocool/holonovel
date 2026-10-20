@@ -27,9 +27,11 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { computeContextSignals } from "../src/core/tdqs.js";
+import { projectToolList, type SurfaceRegistryLike } from "../src/core/surface-projection.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT_PATH = join(ROOT, "tool-definitions.json");
+const REGISTRY_PATH = join(ROOT, "tool-surface-registry.json");
 const SERVER_SCRIPT = join(ROOT, "src", "index.ts");
 
 interface ToolRecord {
@@ -58,10 +60,23 @@ interface HiddenAlias {
   action_enum?: string[];
 }
 
+interface CatalogSize {
+  tools: number;
+  bytes: number;
+  tokens: number;
+}
 interface Artifact {
   schema_version: number;
   tool_count: number;
   tools_list_bytes: number;
+  surface_footprint: {
+    estimator: string;
+    profiles: {
+      full: CatalogSize;
+      standard: CatalogSize;
+      small: CatalogSize & { groups: Record<string, CatalogSize> };
+    };
+  };
   tools: ToolRecord[];
   hidden_aliases: HiddenAlias[];
 }
@@ -146,12 +161,31 @@ function buildRecord(t: any): ToolRecord {
   };
 }
 
-function buildArtifact(tools: any[], hiddenAliases: HiddenAlias[] = []): Artifact {
+function catalogSize(tools: unknown[]): CatalogSize {
+  const bytes = Buffer.byteLength(JSON.stringify(tools), "utf-8");
+  return { tools: tools.length, bytes, tokens: Math.ceil(bytes / 4) };
+}
+function surfaceFootprint(tools: any[], registry: SurfaceRegistryLike): Artifact["surface_footprint"] {
+  const sizeFor = (profile: "full" | "standard" | "small", group: string | null = null): CatalogSize =>
+    catalogSize(projectToolList(tools, { profile, group, activeGroup: "table", registry }));
+  const full = sizeFor("full");
+  const standard = sizeFor("standard");
+  const groups: Record<string, CatalogSize> = {};
+  let small = { tools: 0, bytes: 0, tokens: 0 };
+  for (const group of registry.taxonomy.groups) {
+    const measured = sizeFor("small", group);
+    groups[group] = measured;
+    if (measured.bytes > small.bytes) small = measured;
+  }
+  return { estimator: "utf8-bytes-div-4-ceil", profiles: { full, standard, small: { ...small, groups } } };
+}
+function buildArtifact(tools: any[], registry: SurfaceRegistryLike, hiddenAliases: HiddenAlias[] = []): Artifact {
   const records = tools.map(buildRecord).sort((a, b) => a.name.localeCompare(b.name));
   return {
     schema_version: 2,
     tool_count: records.length,
     tools_list_bytes: Buffer.byteLength(JSON.stringify(tools), "utf-8"),
+    surface_footprint: surfaceFootprint(tools, registry),
     tools: records,
     hidden_aliases: hiddenAliases
       .map((alias) => ({
@@ -209,7 +243,7 @@ async function main(): Promise<void> {
   let result: any;
   let health: any;
   try {
-    result = await send(proc, { method: "tools/list", params: {} });
+    result = await send(proc, { method: "tools/list", params: { _meta: { profile: "full" } } });
     health = await send(proc, {
       method: "tools/call",
       params: { name: "manage_session", arguments: { action: "health" } },
@@ -222,7 +256,14 @@ async function main(): Promise<void> {
   const healthText = (health?.result?.content ?? []).map((part: any) => part?.text ?? "").join("\n");
   const hiddenAliases = parseHiddenAliases(healthText);
 
-  const rendered = serialize(buildArtifact(tools, hiddenAliases));
+  let registry: SurfaceRegistryLike;
+  try {
+    registry = JSON.parse(readFileSync(REGISTRY_PATH, "utf8")) as SurfaceRegistryLike;
+  } catch {
+    console.error(`FATAL: unreadable registry: ${REGISTRY_PATH}`);
+    process.exit(2);
+  }
+  const rendered = serialize(buildArtifact(tools, registry, hiddenAliases));
 
   if (toStdout) { process.stdout.write(rendered); process.exit(0); }
 

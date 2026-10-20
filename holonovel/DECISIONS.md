@@ -6,10 +6,12 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 19,957 tokens; standard 9,979; small 1,996; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 25,852 tokens; standard 22,351; small 1,153; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Tool Surface Contract — 2026-10-19
 
+- **Re-baseline (2026-10-20).** The baseline is now measured from the serialized projected `tools/list` payload, not a reduced snapshot. Full 25,852 tokens; standard 22,351 (86.5% of full; call-complete, with output-schema bodies reduced to a presence marker); small 1,153 worst-case (4.5% of full; active-group entry tools plus the five globals as a one-line summary). The default remains `full`. Budgets: standard at most 90% of full, small at most 10%. `surface-budget` verifies baseline freshness; `surface-replay` gates full and standard at visibility 1.0 and mean calls 1.0. (REQ-548b, REQ-568, REQ-570, REQ-571, REQ-575, REQ-580)
+- **TDQS proxy correction (2026-10-20).** Conciseness measures description bytes, not full-definition bytes; Parameter Semantics scores 5 at complete schema coverage; Behavioral Transparency counts distinct concepts with morphological variants; the runtime schema converter preserves `.describe()` and enum values. Every host tool now scores 5.0 on the deterministic proxy, and live and static reports agree (T679/T680). Server coherence is 4.3/5: naming, disambiguation, and completeness are 5; tool-count appropriateness is 2 at 36 tools. The deterministic proxy is not the external LLM-graded TDQS score. (REQ-450, REQ-552)
 - **Decision.** The surface is declared by a committed registry (`holonovel/tool-surface-registry.json`) mapping all 211 actions to one of eight intent groups, a phase set, an entry flag, and a mutation class. `tools/list` accepts a group and profile; `TTRPG_SURFACE_PROFILE` defaults to `full`, so the pre-contract catalog is unchanged. (REQ-567, REQ-570, REQ-580)
 - **Baseline.** 30 tools, 211 actions, 16,040 full-catalog tokens under the pinned estimator. Worst-case standard projection 6,481 tokens (budget 8,020); worst-case small projection 196 tokens (budget 1,604). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
 - **Gates.** `check-tool-surface` (registry coverage, entry uniqueness, group balance) and `surface-budget` (profile budgets) are wired into `check:fast` and `check`.

@@ -1,14 +1,16 @@
 // surface.ts — shared helpers for the Tool Surface Contract scripts.
 // [informational] Pure functions over the committed surface registry; no I/O.
 
-export interface SurfaceDeclaration {
-  group: string;
-  entry: boolean;
-  compatibility?: { replacement: string; retired?: boolean };
-}
-export interface SurfaceRegistryLike {
-  actions: Record<string, SurfaceDeclaration>;
-}
+import {
+  SURFACE_GLOBALS,
+  entryTools as projectEntryTools,
+  toolGroups as projectToolGroups,
+  type SurfaceDeclaration,
+  type SurfaceRegistryLike,
+} from "../../holonovel/src/core/surface-projection.js";
+
+export { SURFACE_GLOBALS };
+export type { SurfaceDeclaration, SurfaceRegistryLike };
 
 export interface SurfaceAlias {
   name: string;
@@ -17,33 +19,12 @@ export interface SurfaceAlias {
   retired: boolean;
 }
 
-export const SURFACE_GLOBALS = new Set([
-  "set_badge",
-  "manage_session",
-  "respond_decision",
-  "open_session",
-  "close_session",
-]);
-
 export function toolGroups(registry: SurfaceRegistryLike, tool: string): Set<string> {
-  const groups = new Set<string>();
-  const prefix = `${tool}.`;
-  for (const [key, decl] of Object.entries(registry.actions)) {
-    if (decl.compatibility) continue;
-    if (key === tool || key.startsWith(prefix)) groups.add(decl.group);
-  }
-  return groups;
+  return projectToolGroups(registry, tool);
 }
 
 export function entryTools(registry: SurfaceRegistryLike, group: string): string[] {
-  const tools = new Set<string>();
-  for (const [key, decl] of Object.entries(registry.actions)) {
-    if (decl.compatibility) continue;
-    if (decl.group === group && decl.entry) {
-      tools.add(key.includes(".") ? key.slice(0, key.indexOf(".")) : key);
-    }
-  }
-  return [...tools];
+  return [...projectEntryTools(registry, group)];
 }
 
 export function surfaceAliases(registry: SurfaceRegistryLike): SurfaceAlias[] {

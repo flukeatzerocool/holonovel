@@ -1,21 +1,22 @@
 #!/usr/bin/env npx tsx
 /**
  * surface-replay.ts — deterministic surface-replay proxy for the Tool Surface
- * Contract (REQ-569, Appendix T.3). [informational]
+ * Contract (REQ-569, Appendix T.3). [informational; gate with --check]
  *
- * Runs a fixed intent set against the full, standard, and small projections and
- * reports expected-tool visibility, the mean number of calls needed to reach
- * the expected tool (a group switch counts as one extra call), and catalog
- * size. This is a proxy for live-model tool selection, not a substitute for it:
- * a real model run remains advisory and is recorded separately.
+ * Runs a fixed intent set through the shared projection for the full,
+ * standard, and small profiles and reports expected-tool visibility, the mean
+ * number of calls needed to reach the expected tool (a group switch counts as
+ * one extra call), and catalog size. `full` and `standard` must be
+ * call-complete: visibility 1.0 and mean calls 1.0. `small` is a discovery
+ * catalog and is reported without a call-cost gate.
  *
- * Flags: --check (fail when the full projection hides an expected tool),
- * --write (record the baseline), --json (machine-readable). Exit codes:
+ * Flags: --check (default; fail when full or standard hides an expected tool),
+ * --write (record the baseline), --json (machine-readable), --help. Exit codes:
  * 0 = report, 1 = --check defect, 2 = fatal.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SURFACE_GLOBALS, entryTools, toolGroups as groupsFor } from "./lib/surface.js";
+import { projectToolList, type SurfaceRegistryLike, type SurfaceTool } from "../holonovel/src/core/surface-projection.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DEFS = join(ROOT, "holonovel", "tool-definitions.json");
@@ -23,9 +24,25 @@ const REGISTRY = join(ROOT, "holonovel", "tool-surface-registry.json");
 const OUT = join(ROOT, "spec", "audit", "tool-surface-replay.json");
 
 interface ToolDefinition { name: string; description?: string; }
-interface Declaration { group: string; entry: boolean; }
-interface Registry { taxonomy: { groups: string[] }; actions: Record<string, Declaration>; }
+interface Registry extends SurfaceRegistryLike { taxonomy: { groups: string[] } }
 interface Intent { intent: string; tool: string; group: string; }
+
+const ARGV = process.argv.slice(2);
+const KNOWN = new Set(["--check", "--write", "--json", "--help", "-h"]);
+for (const arg of ARGV) {
+  if (!KNOWN.has(arg)) {
+    console.error(`[surface-replay] unknown flag: ${arg}`);
+    process.exit(1);
+  }
+}
+if (ARGV.includes("--help") || ARGV.includes("-h")) {
+  console.log("surface-replay — deterministic visibility and call-cost proxy\n");
+  console.log("Usage: npx tsx scripts/surface-replay.ts [--check] [--write] [--json]\n");
+  console.log("  --check  fail when full or standard hides an expected tool (default)");
+  console.log("  --write  record spec/audit/tool-surface-replay.json");
+  console.log("  --json   machine-readable payload to stdout");
+  process.exit(0);
+}
 
 // Thirty fixed intents spanning the play loop and both backstage modes.
 const INTENTS: Intent[] = [
@@ -69,18 +86,10 @@ function readJson<T>(path: string): T {
   if (!existsSync(path)) fail(`missing artifact: ${path}`);
   try { return JSON.parse(readFileSync(path, "utf8")) as T; } catch { fail(`unreadable JSON: ${path}`); }
 }
-function visible(registry: Registry, tool: string, group: string, profile: string): boolean {
-  if (profile === "full") return true;
-  if (SURFACE_GLOBALS.has(tool)) return true;
-  const declared = groupsFor(registry, tool);
-  if (declared.has(group)) return true;
-  if (declared.has("lookup") || declared.has("maintain")) return true;
-  if (profile === "small") return entryTools(registry, group).includes(tool);
-  return false;
-}
 
 const defs = readJson<{ tools: ToolDefinition[] }>(DEFS);
 const registry = readJson<Registry>(REGISTRY);
+const tools = defs.tools as SurfaceTool[];
 const profiles = ["full", "standard", "small"] as const;
 const startGroup = (intent: Intent): string => {
   if (intent.group === "table" || intent.group === "referee" || intent.group === "author") return intent.group;
@@ -89,40 +98,49 @@ const startGroup = (intent: Intent): string => {
 const results = profiles.map((profile) => {
   const rows = INTENTS.map((intent) => {
     const group = startGroup(intent);
-    const shown = visible(registry, intent.tool, group, profile);
+    const projected = projectToolList(tools, { profile, group: null, activeGroup: group, registry });
+    const shown = projected.some((tool) => tool.name === intent.tool);
     return { ...intent, start_group: group, visible: shown, calls: shown ? 1 : 2 };
   });
-  const visibleCount = rows.filter((r) => r.visible).length;
+  const visibleCount = rows.filter((row) => row.visible).length;
   return {
     profile,
     intents: rows.length,
     expected_tool_visible: visibleCount,
     visibility_rate: Number((visibleCount / rows.length).toFixed(3)),
-    mean_calls: Number((rows.reduce((sum, r) => sum + r.calls, 0) / rows.length).toFixed(3)),
+    mean_calls: Number((rows.reduce((sum, row) => sum + row.calls, 0) / rows.length).toFixed(3)),
     rows,
   };
 });
-const defects = results[0].rows.filter((r) => !r.visible).map((r) => `${r.intent}: ${r.tool} hidden in full`);
+const defects: string[] = [];
+for (const result of results) {
+  if (result.profile !== "full" && result.profile !== "standard") continue;
+  const hidden = result.rows.filter((row) => !row.visible);
+  if (hidden.length > 0) {
+    defects.push(`${hidden.length} intent(s) hidden in ${result.profile}: ${hidden.map((row) => row.intent).join("; ")}`);
+  }
+  if (result.mean_calls !== 1) defects.push(`${result.profile} costs ${result.mean_calls} mean calls (expected 1.0)`);
+}
 const payload = {
-  schema_version: 1,
+  schema_version: 2,
   proxy: "expected-tool visibility and group-switch call cost; live-model selection is advisory",
   intents: INTENTS.length,
   profiles: results,
   defects,
 };
 
-if (process.argv.includes("--write")) {
+if (ARGV.includes("--write")) {
   writeFileSync(OUT, JSON.stringify(payload, null, 2) + "\n");
   console.log(`surface-replay: wrote ${OUT}`);
 }
-if (process.argv.includes("--json")) {
+if (ARGV.includes("--json")) {
   console.log(JSON.stringify(payload, null, 2));
 } else if (defects.length) {
   for (const defect of defects) console.error(`FAIL: ${defect}`);
 } else {
   console.log(
     `surface-replay: ${INTENTS.length} intents — ` +
-      results.map((r) => `${r.profile} visibility ${r.visibility_rate} mean calls ${r.mean_calls}`).join("; "),
+      results.map((result) => `${result.profile} visibility ${result.visibility_rate} mean calls ${result.mean_calls}`).join("; "),
   );
 }
 process.exit(defects.length === 0 ? 0 : 1);

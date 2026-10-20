@@ -34,6 +34,7 @@ export interface ContextSignals {
   hasAnnotations: boolean;
   titleIsMeaningful: boolean;
   definitionBytes: number;
+  descriptionBytes: number;
 }
 
 export type Dimension =
@@ -177,6 +178,7 @@ export function computeContextSignals(def: ToolDefinition): ContextSignals {
   const hasAnnotations = !!annotations && Object.keys(annotations).length > 0;
   const title = typeof def.title === "string" ? def.title : "";
   const titleIsMeaningful = title.trim() !== "" && title !== def.name && title.length > def.name.length;
+  const descriptionBytes = Buffer.byteLength(typeof def.description === "string" ? def.description : "", "utf-8");
   const definitionBytes = Buffer.byteLength(
     JSON.stringify({
       name: def.name,
@@ -203,6 +205,7 @@ export function computeContextSignals(def: ToolDefinition): ContextSignals {
     hasAnnotations,
     titleIsMeaningful,
     definitionBytes,
+    descriptionBytes,
   };
 }
 
@@ -288,21 +291,33 @@ export function dimensionProxies(def: ToolDefinition, signals: ContextSignals, s
   const purpose = tautology ? 2 : hasUseWhen && hasNotWhen && namesSibling(notClause, siblings, def.name) ? 5 : hasUseWhen ? 4 : 3;
   const usage = hasNotWhen && namesSibling(notClause, siblings, def.name) ? 5 : hasNotWhen ? 4 : hasUseWhen ? 3 : 2;
 
-  const behavioralTokens = (lower.match(/persist|audit|read-only|mutating|reversib|append-only|destructive/gi) ?? []).length;
-  const behavior = clamp(behavioralTokens >= 3 ? 5 : behavioralTokens >= 2 ? 4 : 3);
+  // Count distinct behavioral concepts, not repeated substrings. Morphological
+  // variants count as one concept (persist/persisted/persists).
+  const behavioralConcepts = [
+    /persist/,
+    /audit/,
+    /read-only|does not mutate|no mutat/,
+    /mutat/,
+    /reversib|revert|undo/,
+    /append-only/,
+    /destructive|irreversib/,
+    /writes?|saves?/,
+  ].filter((pattern) => pattern.test(lower)).length;
+  const behavior = clamp(behavioralConcepts >= 3 ? 5 : behavioralConcepts >= 2 ? 4 : 3);
 
   const paramCount = signals.paramCount;
   const coverage = signals.schemaDescriptionCoverage;
   let parameters: number;
-  if (paramCount === 0) parameters = 4;
-  else if (coverage > 80) parameters = 3;
+  if (paramCount === 0) parameters = 5;
+  else if (coverage >= 100) parameters = 5;
+  else if (coverage >= 80) parameters = 4;
   else if (coverage >= 50) parameters = 3;
   else parameters = 2;
-  if (paramCount > 0 && /\b(interacts?|conflicts? with|requires .* when|only when|together with)\b/i.test(desc)) {
+  if (parameters < 5 && paramCount > 0 && /\b(interacts?|conflicts? with|requires .* when|only when|together with)\b/i.test(desc)) {
     parameters = clamp(parameters + 1);
   }
 
-  const bytes = signals.definitionBytes;
+  const bytes = signals.descriptionBytes;
   const conciseness = clamp(desc.length >= 30 && bytes <= budget ? 5 : bytes <= budget ? 4 : 3);
 
   const completeness = signals.hasOutputSchema && signals.paramsWithDescriptions === paramCount ? 5 : signals.hasOutputSchema ? 4 : 3;

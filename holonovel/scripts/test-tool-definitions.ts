@@ -4,7 +4,7 @@
 // guard (REQ-429), ruleset tool-quality conformance guard (REQ-430), and the
 // gate-classification table guard (REQ-137a/REQ-137b) and the Holodeck
 // behavioral-config discovery guard (REQ-388). Exercises T151, T450, T509,
-// T510, T511, T512, and T644–T648.
+// T510, T511, T512, T644–T648, and T679–T680.
 //
 // T644 (REQ-552): deterministic TDQS conformance over the live registered
 // surface, reported in spec_health.tdqs.
@@ -49,7 +49,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
-import { applyHardGates, shadowCandidates, computeContextSignals } from "../src/core/tdqs.js";
+import { applyHardGates, shadowCandidates, computeContextSignals, scoreTool } from "../src/core/tdqs.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -279,6 +279,32 @@ async function main() {
     assert(["A", "B", "C", "D", "F"].includes(t.description_quality_tier), `bad tier '${t.description_quality_tier}'`);
     assert(Array.isArray(t.below_passing) && t.below_passing.length === 0, `tools below passing tier: ${JSON.stringify(t.below_passing)}`);
     assert(t.hard_gate_defects && typeof t.hard_gate_defects === "object", "tdqs.hard_gate_defects missing");
+  });
+
+  // ── T679/T680 (REQ-552): every host tool reaches the top proxy score, and
+  // the live report agrees with the static computation.
+  await test(`T679/REQ-552: every host tool scores 5.0 on the deterministic proxy`, async () => {
+    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const t = health.tdqs;
+    assert(t.mean_tdqs === 5, `mean TDQS ${t.mean_tdqs} != 5.0`);
+    assert(t.min_tdqs === 5, `min TDQS ${t.min_tdqs} != 5.0`);
+    assert(t.coherence?.completeness === 5, `coherence completeness ${t.coherence?.completeness} != 5`);
+    assert(t.coherence?.namingConsistency === 5, `coherence naming ${t.coherence?.namingConsistency} != 5`);
+    assert(t.coherence?.disambiguation === 5, `coherence disambiguation ${t.coherence?.disambiguation} != 5`);
+    const siblings = tools.map((tool) => tool.name);
+    const scores = tools.map((tool) => scoreTool(tool, siblings, recordedDescriptionBudget()));
+    const below = scores.filter((score) => score.tdqs !== 5).map((score) => `${score.name}=${score.tdqs}`);
+    assert(below.length === 0, `tools below 5.0: ${below.join(", ")}`);
+  });
+
+  await test(`T680/REQ-552: live and static proxies agree`, async () => {
+    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const siblings = tools.map((tool) => tool.name);
+    const scores = tools.map((tool) => scoreTool(tool, siblings, recordedDescriptionBudget()));
+    const mean = Number((scores.reduce((sum, score) => sum + score.tdqs, 0) / scores.length).toFixed(1));
+    const min = Math.min(...scores.map((score) => score.tdqs));
+    assert(health.tdqs.mean_tdqs === mean, `live mean ${health.tdqs.mean_tdqs} != static ${mean}`);
+    assert(health.tdqs.min_tdqs === min, `live min ${health.tdqs.min_tdqs} != static ${min}`);
   });
 
   // ── T645 (REQ-553): hard gates — missing, tautological, contradiction.

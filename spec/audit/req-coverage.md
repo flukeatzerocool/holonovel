@@ -505,9 +505,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
 | REQ-546 | Corpus retention bound | 5.28 Knowledge Corpus | C | T628 | — |
 | REQ-547 | Identity candidate retention bound | 5.26 Character Identity | C | T630 | — |
-| REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T642, T634, T635 | — |
+| REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T642, T677, T634, T635 | — |
 | REQ-551 | Extraction structural verification (1 sub-part) | 5.2 Extraction and Confidence | E | T638, T639 | — |
-| REQ-552 | TDQS conformance contract | 5.3 Tools, Resources, and Lookups | C | T644 | — |
+| REQ-552 | TDQS conformance contract | 5.3 Tools, Resources, and Lookups | C | T644, T679, T680 | — |
 | REQ-553 | Tool-definition hard gates | 5.3 Tools, Resources, and Lookups | C | T645 | — |
 | REQ-554 | Server tool-surface coherence | 5.3 Tools, Resources, and Lookups | C | T646 | — |
 | REQ-555 | Shadowing-risk report | 5.3 Tools, Resources, and Lookups | C | T647 | — |
@@ -523,18 +523,18 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-565 | Bundled starter Novel | 5.9 Novel Persistence and Transport | C | T658 | — |
 | REQ-566 | Starter freshness and provenance | 5.9 Novel Persistence and Transport | C | T659 | — |
 | REQ-567 | Tool surface declaration | 5.3 Tools, Resources, and Lookups | C | T660 | — |
-| REQ-568 | Surface conformance report | 5.3 Tools, Resources, and Lookups | C | T661 | — |
+| REQ-568 | Surface conformance report | 5.3 Tools, Resources, and Lookups | C | T661, T678 | — |
 | REQ-569 | Surface baseline evaluation | 5.3 Tools, Resources, and Lookups | C | T662 | — |
-| REQ-570 | Projected catalog | 5.3 Tools, Resources, and Lookups | C | T663 | — |
-| REQ-571 | Catalog budgets | 5.3 Tools, Resources, and Lookups | C | T664 | — |
+| REQ-570 | Projected catalog | 5.3 Tools, Resources, and Lookups | C | T663, T676, T677 | — |
+| REQ-571 | Catalog budgets | 5.3 Tools, Resources, and Lookups | C | T664, T678 | — |
 | REQ-572 | Group directory | 5.3 Tools, Resources, and Lookups | C | T665 | — |
 | REQ-573 | Precondition enforcement | 5.3 Tools, Resources, and Lookups | C | T666 | — |
 | REQ-574 | Turn handles | 5.3 Tools, Resources, and Lookups | C | T667 | — |
-| REQ-575 | Cross-group edges | 5.3 Tools, Resources, and Lookups | C | T668 | — |
+| REQ-575 | Cross-group edges | 5.3 Tools, Resources, and Lookups | C | T668, T676 | — |
 | REQ-576 | Audited override | 5.3 Tools, Resources, and Lookups | C | T669 | — |
 | REQ-577 | Composite session and turn actions | 5.3 Tools, Resources, and Lookups | C | T670 | — |
 | REQ-578 | Generated surface conformance | 5.3 Tools, Resources, and Lookups | C | T671 | — |
 | REQ-579 | Legacy package rebuild | 5.3 Tools, Resources, and Lookups | C | T672 | — |
-| REQ-580 | Surface profile precedence | 5.3 Tools, Resources, and Lookups | C | T673 | — |
+| REQ-580 | Surface profile precedence | 5.3 Tools, Resources, and Lookups | C | T673, T676, T677 | — |
 | REQ-581 | Split-tool compatibility | 5.3 Tools, Resources, and Lookups | C | T674, T675 | — |
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-20 — Tool surface re-baseline, profile redesign, TDQS 5/5
+
+- Re-baselined the surface from the serialized projected `tools/list` payload:
+  full 25,852 tokens, standard 22,351, small 1,153 worst-case. Budgets are now
+  standard ≤90% of full and small ≤10%; `surface-budget` also gates baseline
+  freshness.
+- Redefined the opt-in `standard` profile as call-complete: all 36 tools and 214
+  actions, full input schemas and descriptions, output schemas reduced to a
+  presence marker. No call requires a group switch. The default remains `full`.
+- Redesigned `small` as a genuine discovery catalog: active-group entry tools
+  plus the five globals, one-line purpose, parameter names/types, and the entry
+  action enum. It previously serialized identically to `standard`.
+- Consolidated the projection into `holonovel/src/core/surface-projection.ts`,
+  shared by the runtime, `surface-budget`, and `surface-replay`, so measured and
+  served catalogs cannot drift.
+- Fixed the deterministic TDQS proxy (description-byte conciseness, complete
+  schema coverage, morphological behavioral concepts) and the runtime schema
+  converter's dropped parameter descriptions. All 36 host tools now score 5.0;
+  server coherence is 4.3/5 (tool-count appropriateness is 2 at 36 tools).
+  Added T676–T680 and the `spec_health.tool_surface.catalog_profiles` report.
+
 ## 2026-10-20 — Surface consolidation and compatibility accounting
 
 - Consolidated the three base-capability resolvers (`resolve_fate`,

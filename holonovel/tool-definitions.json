@@ -1,7 +1,69 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 103202,
+  "tools_list_bytes": 103407,
+  "surface_footprint": {
+    "estimator": "utf8-bytes-div-4-ceil",
+    "profiles": {
+      "full": {
+        "tools": 36,
+        "bytes": 103407,
+        "tokens": 25852
+      },
+      "standard": {
+        "tools": 36,
+        "bytes": 89403,
+        "tokens": 22351
+      },
+      "small": {
+        "tools": 6,
+        "bytes": 4609,
+        "tokens": 1153,
+        "groups": {
+          "table": {
+            "tools": 6,
+            "bytes": 4609,
+            "tokens": 1153
+          },
+          "explore": {
+            "tools": 6,
+            "bytes": 3538,
+            "tokens": 885
+          },
+          "resolve": {
+            "tools": 6,
+            "bytes": 4562,
+            "tokens": 1141
+          },
+          "narrate": {
+            "tools": 6,
+            "bytes": 4597,
+            "tokens": 1150
+          },
+          "lookup": {
+            "tools": 6,
+            "bytes": 3908,
+            "tokens": 977
+          },
+          "referee": {
+            "tools": 6,
+            "bytes": 3657,
+            "tokens": 915
+          },
+          "author": {
+            "tools": 6,
+            "bytes": 3881,
+            "tokens": 971
+          },
+          "maintain": {
+            "tools": 6,
+            "bytes": 4046,
+            "tokens": 1012
+          }
+        }
+      }
+    }
+  },
   "tools": [
     {
       "name": "close_session",
@@ -36,7 +98,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1017
+        "definitionBytes": 1017,
+        "descriptionBytes": 320
       },
       "category": "",
       "gate": ""
@@ -87,7 +150,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1745
+        "definitionBytes": 1745,
+        "descriptionBytes": 472
       },
       "category": "",
       "gate": ""
@@ -143,7 +207,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2053
+        "definitionBytes": 2053,
+        "descriptionBytes": 569
       },
       "category": "",
       "gate": ""
@@ -221,7 +286,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3924
+        "definitionBytes": 3924,
+        "descriptionBytes": 602
       },
       "category": "",
       "gate": ""
@@ -289,7 +355,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3643
+        "definitionBytes": 3643,
+        "descriptionBytes": 908
       },
       "category": "",
       "gate": ""
@@ -376,7 +443,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5635
+        "definitionBytes": 5635,
+        "descriptionBytes": 528
       },
       "category": "",
       "gate": ""
@@ -456,7 +524,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5240
+        "definitionBytes": 5240,
+        "descriptionBytes": 818
       },
       "category": "",
       "gate": ""
@@ -515,7 +584,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3045
+        "definitionBytes": 3045,
+        "descriptionBytes": 904
       },
       "category": "",
       "gate": ""
@@ -568,7 +638,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2089
+        "definitionBytes": 2089,
+        "descriptionBytes": 528
       },
       "category": "",
       "gate": ""
@@ -616,7 +687,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1432
+        "definitionBytes": 1432,
+        "descriptionBytes": 365
       },
       "category": "",
       "gate": ""
@@ -691,7 +763,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4369
+        "definitionBytes": 4369,
+        "descriptionBytes": 629
       },
       "category": "",
       "gate": ""
@@ -745,7 +818,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2530
+        "definitionBytes": 2530,
+        "descriptionBytes": 418
       },
       "category": "",
       "gate": ""
@@ -809,7 +883,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3233
+        "definitionBytes": 3233,
+        "descriptionBytes": 579
       },
       "category": "",
       "gate": ""
@@ -861,7 +936,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1689
+        "definitionBytes": 1689,
+        "descriptionBytes": 388
       },
       "category": "",
       "gate": ""
@@ -902,7 +978,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1395
+        "definitionBytes": 1395,
+        "descriptionBytes": 509
       },
       "category": "",
       "gate": ""
@@ -959,7 +1036,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2653
+        "definitionBytes": 2653,
+        "descriptionBytes": 798
       },
       "category": "",
       "gate": ""
@@ -1016,7 +1094,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2296
+        "definitionBytes": 2296,
+        "descriptionBytes": 903
       },
       "category": "",
       "gate": ""
@@ -1096,7 +1175,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4764
+        "definitionBytes": 4764,
+        "descriptionBytes": 905
       },
       "category": "",
       "gate": ""
@@ -1148,7 +1228,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1782
+        "definitionBytes": 1782,
+        "descriptionBytes": 434
       },
       "category": "",
       "gate": ""
@@ -1228,7 +1309,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4132
+        "definitionBytes": 4132,
+        "descriptionBytes": 695
       },
       "category": "",
       "gate": ""
@@ -1283,7 +1365,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2170
+        "definitionBytes": 2170,
+        "descriptionBytes": 380
       },
       "category": "",
       "gate": ""
@@ -1333,7 +1416,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1688
+        "definitionBytes": 1688,
+        "descriptionBytes": 365
       },
       "category": "",
       "gate": ""
@@ -1395,7 +1479,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2981
+        "definitionBytes": 2981,
+        "descriptionBytes": 942
       },
       "category": "",
       "gate": ""
@@ -1463,7 +1548,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4432
+        "definitionBytes": 4432,
+        "descriptionBytes": 653
       },
       "category": "",
       "gate": ""
@@ -1524,7 +1610,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3737
+        "definitionBytes": 3737,
+        "descriptionBytes": 893
       },
       "category": "",
       "gate": ""
@@ -1590,7 +1677,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4124
+        "definitionBytes": 4124,
+        "descriptionBytes": 386
       },
       "category": "",
       "gate": ""
@@ -1645,7 +1733,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2146
+        "definitionBytes": 2146,
+        "descriptionBytes": 488
       },
       "category": "",
       "gate": ""
@@ -1705,7 +1794,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2240
+        "definitionBytes": 2240,
+        "descriptionBytes": 510
       },
       "category": "",
       "gate": ""
@@ -1761,7 +1851,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2183
+        "definitionBytes": 2183,
+        "descriptionBytes": 470
       },
       "category": "",
       "gate": ""
@@ -1852,7 +1943,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6065
+        "definitionBytes": 6065,
+        "descriptionBytes": 771
       },
       "category": "",
       "gate": ""
@@ -1893,7 +1985,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1267
+        "definitionBytes": 1267,
+        "descriptionBytes": 368
       },
       "category": "",
       "gate": ""
@@ -1968,7 +2061,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4432
+        "definitionBytes": 4432,
+        "descriptionBytes": 809
       },
       "category": "",
       "gate": ""
@@ -1976,8 +2070,8 @@
     {
       "name": "respond_decision",
       "title": "Respond to Workflow Decision",
-      "description": "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
-      "description_bytes": 261,
+      "description": "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. The drain is mutating and audited; the applied outcome is not reversible. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
+      "description_bytes": 335,
       "action_enum": [],
       "param_count": 2,
       "required": [
@@ -2012,7 +2106,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1226
+        "definitionBytes": 1300,
+        "descriptionBytes": 335
       },
       "category": "",
       "gate": ""
@@ -2058,7 +2153,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1630
+        "definitionBytes": 1630,
+        "descriptionBytes": 496
       },
       "category": "",
       "gate": ""
@@ -2066,8 +2162,8 @@
     {
       "name": "set_badge",
       "title": "Set Active Badge",
-      "description": "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
-      "description_bytes": 289,
+      "description": "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Badge changes are mutating session state, audited, and reversible by switching back. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
+      "description_bytes": 374,
       "action_enum": [],
       "param_count": 1,
       "required": [
@@ -2100,7 +2196,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1164
+        "definitionBytes": 1249,
+        "descriptionBytes": 374
       },
       "category": "",
       "gate": ""
@@ -2108,8 +2205,8 @@
     {
       "name": "take_turn",
       "title": "Take Play Turn",
-      "description": "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only; the handle is session-scoped and expires.",
-      "description_bytes": 408,
+      "description": "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
+      "description_bytes": 454,
       "action_enum": [],
       "param_count": 2,
       "required": [
@@ -2143,7 +2240,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1274
+        "definitionBytes": 1320,
+        "descriptionBytes": 454
       },
       "category": "",
       "gate": ""

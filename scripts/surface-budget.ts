@@ -3,39 +3,63 @@
  * surface-budget.ts — deterministic catalog-budget measurement for the Tool
  * Surface Contract (REQ-571, Appendix T.3). [gate]
  *
- * Projects the committed tool snapshot through each intent group and profile,
- * measures the serialized UTF-8 size under the pinned estimator (bytes / 4),
- * and enforces the recorded budgets: `standard` at most half the full baseline
- * and `small` at most one tenth. `--write` records the baseline beside the
- * coverage register for the later model-replay harness (REQ-569).
+ * Reads the measured `surface_footprint` recorded in `tool-definitions.json`
+ * (full, standard, and per-group small projections under the pinned
+ * UTF-8-bytes/4 estimator), enforces the recorded budgets (`standard` at most
+ * 90% of the full baseline; `small` at most one tenth), and verifies the
+ * recorded baseline is fresh. `--write` re-records the baseline beside the
+ * coverage register for the replay harness (REQ-569).
  *
- * Flags: --check (default; fail on over-budget), --write (record baseline),
- * --json (machine-readable to stdout). Exit codes: 0 = pass, 1 = over budget
- * or usage error, 2 = fatal (missing/unreadable artifact).
+ * Flags: --check (default; fail on over-budget or stale baseline), --write
+ * (record baseline), --json (machine-readable to stdout), --help.
+ * Exit codes: 0 = pass, 1 = over budget or usage error, 2 = fatal
+ * (missing/unreadable artifact).
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SURFACE_GLOBALS, entryTools, surfaceAliases, toolGroups } from "./lib/surface.js";
+import { surfaceAliases, type SurfaceRegistryLike } from "./lib/surface.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DEFS = join(ROOT, "holonovel", "tool-definitions.json");
 const REGISTRY = join(ROOT, "holonovel", "tool-surface-registry.json");
 const BASELINE = join(ROOT, "spec", "audit", "tool-surface-baseline.json");
 
-interface ToolDefinition {
-  name: string;
-  title?: string;
-  description?: string;
-  action_enum?: string[];
+interface CatalogSize {
+  tools: number;
+  bytes: number;
+  tokens: number;
 }
-interface Declaration {
-  group: string;
-  entry: boolean;
-  compatibility?: { replacement: string; retired?: boolean };
+interface Footprint {
+  estimator: string;
+  profiles: {
+    full: CatalogSize;
+    standard: CatalogSize;
+    small: CatalogSize & { groups: Record<string, CatalogSize> };
+  };
 }
-interface Registry {
+interface Artifact {
+  tools_list_bytes?: number;
+  surface_footprint?: Footprint;
+}
+interface Registry extends SurfaceRegistryLike {
   taxonomy: { groups: string[] };
-  actions: Record<string, Declaration>;
+}
+
+const ARGV = process.argv.slice(2);
+const KNOWN = new Set(["--check", "--write", "--json", "--help", "-h"]);
+for (const arg of ARGV) {
+  if (!KNOWN.has(arg)) {
+    console.error(`[surface-budget] unknown flag: ${arg}`);
+    process.exit(1);
+  }
+}
+if (ARGV.includes("--help") || ARGV.includes("-h")) {
+  console.log("surface-budget — enforce catalog budgets and baseline freshness\n");
+  console.log("Usage: npx tsx scripts/surface-budget.ts [--check] [--write] [--json]\n");
+  console.log("  --check  fail on over-budget or stale baseline (default)");
+  console.log("  --write  re-record spec/audit/tool-surface-baseline.json");
+  console.log("  --json   machine-readable payload to stdout");
+  process.exit(0);
 }
 
 function fail(message: string): never {
@@ -50,56 +74,26 @@ function readJson<T>(path: string): T {
     fail(`unreadable JSON: ${path}`);
   }
 }
-function tokensFor(value: unknown): number {
-  return Math.ceil(Buffer.byteLength(JSON.stringify(value), "utf8") / 4);
-}
-const defs = readJson<{ tools: ToolDefinition[]; tools_list_bytes?: number }>(DEFS);
+
+const artifact = readJson<Artifact>(DEFS);
 const registry = readJson<Registry>(REGISTRY);
-const byName = new Map(defs.tools.map((tool) => [tool.name, tool]));
-const full = defs.tools;
-const fullTokens = tokensFor(full);
+const footprint = artifact.surface_footprint;
+if (!footprint) fail("tool-definitions.json is missing surface_footprint — run `npm run build-order`");
+
+const full = footprint.profiles.full;
+const standard = footprint.profiles.standard;
+const small = footprint.profiles.small;
 const budgets = {
-  standard: Math.ceil(fullTokens / 2),
-  small: Math.ceil(fullTokens / 10),
+  standard: Math.ceil(full.tokens * 0.9),
+  small: Math.ceil(full.tokens * 0.1),
 };
 
-const groups = registry.taxonomy.groups.map((group) => {
-  const members = full.filter((tool) => toolGroups(registry, tool.name).has(group));
-  const entries = entryTools(registry, group)
-    .map((name) => byName.get(name))
-    .filter((tool): tool is ToolDefinition => !!tool);
-  const standard = [...new Map([...members, ...[...SURFACE_GLOBALS].map((n) => byName.get(n))]
-    .filter((tool): tool is ToolDefinition => !!tool)
-    .map((tool) => [tool.name, tool])).values()];
-  const small = [...new Map([...entries, ...[...SURFACE_GLOBALS].map((n) => byName.get(n))]
-    .filter((tool): tool is ToolDefinition => !!tool)
-    .map((tool) => [tool.name, tool])).values()];
-  // Tier 0 is the small profile: name, group, and one-line purpose only.
-  const tier0 = small.map((tool) => ({
-    name: tool.name,
-    group: [...toolGroups(registry, tool.name)][0] ?? null,
-    purpose: (tool.description ?? "").split(".")[0] + ".",
-  }));
-  return {
-    group,
-    tools: members.length,
-    standard_tools: standard.length,
-    standard_tokens: tokensFor(standard),
-    small_tools: small.length,
-    small_tokens: tokensFor(tier0),
-  };
-});
-
-const worstStandard = Math.max(...groups.map((group) => group.standard_tokens));
-const worstSmall = Math.max(...groups.map((group) => group.small_tokens));
 const defects: string[] = [];
-if (worstStandard > budgets.standard) {
-  defects.push(
-    `standard projection ${worstStandard} tokens exceeds budget ${budgets.standard}`,
-  );
+if (standard.tokens > budgets.standard) {
+  defects.push(`standard projection ${standard.tokens} tokens exceeds budget ${budgets.standard}`);
 }
-if (worstSmall > budgets.small) {
-  defects.push(`small projection ${worstSmall} tokens exceeds budget ${budgets.small}`);
+if (small.tokens > budgets.small) {
+  defects.push(`small projection ${small.tokens} tokens exceeds budget ${budgets.small}`);
 }
 
 const declared = Object.values(registry.actions);
@@ -118,41 +112,68 @@ const canonicalTools = new Set(
 const compatibilityTools = new Set(
   [...byTool].filter(([, keys]) => keys.every((key) => !!registry.actions[key].compatibility)).map(([tool]) => tool),
 );
+
+const groups = registry.taxonomy.groups.map((group) => {
+  const measured = small.groups[group] ?? { tools: 0, bytes: 0, tokens: 0 };
+  return {
+    group,
+    tools: measured.tools,
+    standard_tools: standard.tools,
+    standard_tokens: standard.tokens,
+    small_tools: measured.tools,
+    small_tokens: measured.tokens,
+  };
+});
+
 const payload = {
   schema_version: 1,
-  estimator: "utf8-bytes-div-4-ceil",
+  estimator: footprint.estimator,
   baseline: {
-    tools: full.length,
+    tools: full.tools,
     actions: Object.keys(registry.actions).length,
     canonical_tools: canonicalTools.size,
     canonical_actions: canonicalActions,
     compatibility_tools: compatibilityTools.size,
     compatibility_actions: compatibilityActions,
     aliases: surfaceAliases(registry),
-    full_tokens: fullTokens,
-    tools_list_bytes: defs.tools_list_bytes ?? 0,
+    full_tokens: full.tokens,
+    tools_list_bytes: artifact.tools_list_bytes ?? 0,
   },
+  measurements: { full, standard, small },
   budgets,
-  worst_case: { standard_tokens: worstStandard, small_tokens: worstSmall },
+  worst_case: { standard_tokens: standard.tokens, small_tokens: small.tokens },
   groups,
   defects,
 };
 
-if (process.argv.includes("--write")) {
+if (ARGV.includes("--write")) {
   writeFileSync(BASELINE, JSON.stringify(payload, null, 2) + "\n");
   console.log(`surface-budget: wrote ${BASELINE}`);
+  process.exit(0);
 }
 
-if (process.argv.includes("--json")) {
+// Freshness: the recorded baseline must match the committed footprint.
+if (!existsSync(BASELINE)) {
+  defects.push("baseline is missing — run `npm run surface-budget -- --write`");
+} else {
+  const baseline = readJson<{ measurements?: unknown }>(BASELINE);
+  const recorded = JSON.stringify(baseline.measurements);
+  const measured = JSON.stringify(payload.measurements);
+  if (recorded !== measured) {
+    defects.push("baseline is stale — the measured footprint changed; run `npm run surface-budget -- --write`");
+  }
+}
+
+if (ARGV.includes("--json")) {
   console.log(JSON.stringify(payload, null, 2));
 } else if (defects.length) {
   console.error("[surface-budget] budget defects:");
   for (const defect of defects) console.error(`  - ${defect}`);
 } else {
   console.log(
-    `surface-budget: PASS — full ${fullTokens} tokens; ` +
-      `standard ${worstStandard}/${budgets.standard}; ` +
-      `small ${worstSmall}/${budgets.small}`,
+    `surface-budget: PASS — full ${full.tokens} tokens; ` +
+      `standard ${standard.tokens}/${budgets.standard}; ` +
+      `small ${small.tokens}/${budgets.small}`,
   );
 }
 
