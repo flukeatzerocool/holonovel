@@ -379,7 +379,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-410 | Token footprint in performance record | 5.7 Determinism, Safety, and Performance | C | T479 | — |
 | REQ-411 | Stable-metadata caching | 5.3 Tools, Resources, and Lookups | C | T480 | — |
 | REQ-412 | Turn-handoff directive (1 sub-part) | 5.20 Narrative Turn Conventions | C | T482, T640 | — |
-| REQ-413 | Action-discriminator tool surface | 5.3 Tools, Resources, and Lookups | C | T486 | — |
+| REQ-413 | Action-discriminator tool surface | 5.3 Tools, Resources, and Lookups | C | T486, T675 | — |
 | REQ-414 | Schema-surface economy | 5.3 Tools, Resources, and Lookups | C | T487 | — |
 | REQ-415 | Summary-first tool catalog | 5.3 Tools, Resources, and Lookups | C | T488 | — |
 | REQ-416 | Config default inheritance | 5.7 Determinism, Safety, and Performance | E | — | — |
@@ -536,5 +536,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-578 | Generated surface conformance | 5.3 Tools, Resources, and Lookups | C | T671 | — |
 | REQ-579 | Legacy package rebuild | 5.3 Tools, Resources, and Lookups | C | T672 | — |
 | REQ-580 | Surface profile precedence | 5.3 Tools, Resources, and Lookups | C | T673 | — |
-| REQ-581 | Split-tool compatibility | 5.3 Tools, Resources, and Lookups | C | T674 | — |
+| REQ-581 | Split-tool compatibility | 5.3 Tools, Resources, and Lookups | C | T674, T675 | — |
 

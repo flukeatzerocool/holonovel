@@ -178,6 +178,48 @@ async function run(): Promise<void> {
   await call(standard, "manage_novel", { action: "create", name: "tool-surface" });
   await call(standard, "set_badge", { badge: "game_master" });
 
+  await test("T675: canonical group spans reject three groups and accept a compatibility third", () => {
+    const spanDecl = (group: string, compatibility?: { replacement: string }) => ({
+      group,
+      phases: ["scene"],
+      entry: group === "explore",
+      mutation_class: "read",
+      ruleset: null,
+      preconditions: [],
+      successors: [],
+      edges: [],
+      ...(compatibility ? { compatibility } : {}),
+    });
+    const spanning: SurfaceRegistry = {
+      schema_version: 1,
+      taxonomy: { groups: ["explore", "lookup", "referee"], phases: ["scene"], mutation_classes: ["read"] },
+      actions: {
+        "gamma.read": spanDecl("explore"),
+        "gamma.scan": spanDecl("lookup"),
+        "gamma.ref": spanDecl("referee"),
+      },
+    };
+    const before = buildSurfaceReport({
+      registry: spanning, live: new Set(Object.keys(spanning.actions)), profile: "full",
+      catalogBytes: 100, overrides: 0, budgets: { standard: 50, small: 10 },
+    });
+    assert(before.span_violations.some((v) => v.startsWith("gamma:")), `three-group span not reported: ${JSON.stringify(before.span_violations)}`);
+    const fixed: SurfaceRegistry = {
+      ...spanning,
+      actions: {
+        ...spanning.actions,
+        "gamma.ref": spanDecl("referee", { replacement: "gamma.scan" }),
+      },
+    };
+    const after = buildSurfaceReport({
+      registry: fixed, live: new Set(Object.keys(fixed.actions)), profile: "full",
+      catalogBytes: 100, overrides: 0, budgets: { standard: 50, small: 10 },
+    });
+    assert(after.span_violations.length === 0, `compatibility third group still flagged: ${JSON.stringify(after.span_violations)}`);
+    assert(after.canonical.tools === 1 && after.compatibility.actions === 1,
+      `canonical/compat accounting was ${JSON.stringify({ canonical: after.canonical, compatibility: after.compatibility })}`);
+  });
+
   await test("T661: spec_health.tool_surface reports every contract field", async () => {
     const health = JSON.parse(await call(standard, "manage_session", { action: "health" }));
     const surface = health?.tool_surface;

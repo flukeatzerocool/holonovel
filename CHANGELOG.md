@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-20 — Surface consolidation and compatibility accounting
+
+- Consolidated the three base-capability resolvers (`resolve_fate`,
+  `resolve_ironsworn`, `resolve_forged`) and the generic ruleset table roll into
+  one `resolve_mechanic` action-discriminator tool (REQ-413). The prior tool
+  names and `manage_ruleset (action: roll)` remain callable as hidden
+  compatibility aliases, are omitted from `tools/list`, and are advertised in
+  `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).
+- Re-pointed REQ-434–443, REQ-400/407, and the Appendix F roll tests to the
+  consolidated action names; added the canonical/compatibility glossary terms
+  and the Appendix T.3 declaration rule.
+- Added T675 and the `check-tool-surface` two-group span gate over canonical
+  actions. The five 2026-10-19 split-duplicate action sets are now compatibility
+  declarations; all eight alias families are scheduled for retirement in the
+  next minor (REQ-581).
+- Canonical surface: 36 listed tools and 214 actions; 45 compatibility actions.
+  Recorded budget: 36 listed tools; full catalog 19,957 tokens.
+
 ## 2026-10-20 — Tool Surface coverage evidence
 
 - The coverage audit now expands slash and range REQ citation shorthand in

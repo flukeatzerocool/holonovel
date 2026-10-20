@@ -54,6 +54,13 @@ interface ToolDefinition {
   action_enum?: string[];
 }
 
+interface HiddenAlias {
+  name: string;
+  kind: "tool" | "action";
+  replacement: string;
+  action_enum?: string[];
+}
+
 interface Declaration {
   group: string;
   phases: string[];
@@ -63,6 +70,7 @@ interface Declaration {
   preconditions: string[];
   successors: string[];
   edges: string[];
+  compatibility?: { replacement: string; retired?: boolean };
 }
 
 interface Registry {
@@ -93,7 +101,7 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-const defs = readJson<{ tools: ToolDefinition[] }>(DEFS);
+const defs = readJson<{ tools: ToolDefinition[]; hidden_aliases?: HiddenAlias[] }>(DEFS);
 const registry = readJson<Registry>(REGISTRY);
 const defects: string[] = [];
 
@@ -122,6 +130,14 @@ for (const tool of defs.tools) {
   const actions = tool.action_enum?.length ? tool.action_enum : [null];
   for (const action of actions) live.set(action ? `${tool.name}.${action}` : tool.name, tool);
 }
+for (const alias of defs.hidden_aliases ?? []) {
+  if (alias.kind === "action") {
+    live.set(alias.name, { name: alias.name.split(".")[0] });
+  } else {
+    const actions = alias.action_enum?.length ? alias.action_enum : [null];
+    for (const action of actions) live.set(action ? `${alias.name}.${action}` : alias.name, { name: alias.name });
+  }
+}
 
 for (const key of live.keys()) {
   if (!registry.actions[key]) defects.push(`unregistered action: ${key}`);
@@ -130,8 +146,19 @@ for (const key of Object.keys(registry.actions)) {
   if (!live.has(key)) defects.push(`declaration names no registered action: ${key}`);
 }
 
+// REQ-581 — a compatibility declaration must name a resolvable replacement.
+for (const [key, decl] of Object.entries(registry.actions)) {
+  if (!decl.compatibility) continue;
+  if (!decl.compatibility.replacement) {
+    defects.push(`${key}: compatibility declaration has no replacement`);
+  } else if (!registry.actions[decl.compatibility.replacement]) {
+    defects.push(`${key}: compatibility replacement '${decl.compatibility.replacement}' is not declared`);
+  }
+}
+
 const entriesByGroup = new Map<string, string[]>();
 const toolsByGroup = new Map<string, Set<string>>();
+const actionsByTool = new Map<string, string[]>();
 for (const [key, decl] of Object.entries(registry.actions)) {
   if (!groups.has(decl.group)) defects.push(`${key}: unknown group ${decl.group}`);
   if (!mutationClasses.has(decl.mutation_class)) {
@@ -144,13 +171,18 @@ for (const [key, decl] of Object.entries(registry.actions)) {
       if (!phases.has(phase)) defects.push(`${key}: unknown phase ${phase}`);
     }
   }
+  const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
+  const toolActions = actionsByTool.get(tool) ?? [];
+  toolActions.push(key);
+  actionsByTool.set(tool, toolActions);
+  if (decl.compatibility) continue;
   if (decl.entry) {
     const entries = entriesByGroup.get(decl.group) ?? [];
     entries.push(key);
     entriesByGroup.set(decl.group, entries);
   }
   const tools = toolsByGroup.get(decl.group) ?? new Set<string>();
-  tools.add(key.includes(".") ? key.slice(0, key.indexOf(".")) : key);
+  tools.add(tool);
   toolsByGroup.set(decl.group, tools);
 }
 
@@ -167,10 +199,35 @@ for (const group of groups) {
   }
 }
 
+// REQ-413 — canonical actions of one tool may span at most two intent groups.
+const groupSpans: Record<string, string[]> = {};
+const spanViolations: string[] = [];
+for (const [tool, keys] of actionsByTool) {
+  const canonical = keys.filter((key) => !registry.actions[key].compatibility);
+  if (canonical.length === 0) continue;
+  const span = [...new Set(canonical.map((key) => registry.actions[key].group))].sort();
+  groupSpans[tool] = span;
+  if (span.length > 2) spanViolations.push(`${tool}: ${span.join(", ")}`);
+}
+for (const violation of spanViolations) {
+  defects.push(`group span exceeds two: ${violation}`);
+}
+
+const canonicalActions = Object.values(registry.actions).filter((decl) => !decl.compatibility).length;
+const compatibilityActions = Object.values(registry.actions).filter((decl) => !!decl.compatibility).length;
+const canonicalTools = [...actionsByTool].filter(([, keys]) =>
+  keys.some((key) => !registry.actions[key].compatibility),
+).length;
+const compatibilityTools = [...actionsByTool].filter(([, keys]) =>
+  keys.every((key) => !!registry.actions[key].compatibility),
+).length;
+
 const catalogBytes = (defs as { tools_list_bytes?: number }).tools_list_bytes ?? 0;
 const payload = {
   status: defects.length === 0 ? "OK" : "FAIL",
   actions: Object.keys(registry.actions).length,
+  canonical: { tools: canonicalTools, actions: canonicalActions },
+  compatibility: { tools: compatibilityTools, actions: compatibilityActions },
   groups: [...groups],
   tool_counts: Object.fromEntries(
     [...groups].map((group) => [group, toolsByGroup.get(group)?.size ?? 0]),
@@ -178,6 +235,8 @@ const payload = {
   entry_actions: Object.fromEntries(
     [...groups].map((group) => [group, entriesByGroup.get(group)?.[0] ?? null]),
   ),
+  group_spans: groupSpans,
+  span_violations: spanViolations,
   catalog_bytes: catalogBytes,
   catalog_tokens_estimate: Math.ceil(catalogBytes / 4),
   defects,

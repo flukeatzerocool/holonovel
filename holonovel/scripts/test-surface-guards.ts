@@ -165,6 +165,38 @@ async function run(): Promise<void> {
       assert(!fresh?._meta?.deprecated, `replacement is deprecated: ${JSON.stringify(fresh?._meta)}`);
     });
 
+    await test("T675: hidden compatibility aliases are omitted from tools/list but remain callable", async () => {
+      const listed = await send(proc, { method: "tools/list", params: { _meta: { profile: "full" } } });
+      const names = (listed?.result?.tools ?? []).map((t: any) => t.name);
+      for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged"]) {
+        assert(!names.includes(name), `${name} must be hidden from tools/list`);
+      }
+      assert(names.includes("resolve_mechanic"), "resolve_mechanic missing from tools/list");
+      const alias = await call(proc, "resolve_fate", { action: "fate_point", op: "list" });
+      assert(!alias.includes("not found") && !alias.includes("Invalid"), `hidden alias not callable: ${alias.slice(0, 160)}`);
+      const canonical = await call(proc, "resolve_mechanic", { action: "fate_point", op: "list" });
+      assert(!canonical.includes("not found"), `canonical action failed: ${canonical.slice(0, 160)}`);
+      const roll = await call(proc, "manage_ruleset", { action: "roll", table: "weather" });
+      assert(!roll.includes("Invalid option") && !roll.includes("Invalid enum"), `hidden roll action failed validation: ${roll.slice(0, 160)}`);
+    });
+
+    await test("T675: spec_health and the group directory advertise hidden aliases", async () => {
+      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const surface = health?.tool_surface;
+      assert(surface?.canonical?.tools === 36, `canonical tools ${surface?.canonical?.tools}`);
+      assert(surface?.canonical?.actions === 214, `canonical actions ${surface?.canonical?.actions}`);
+      assert(surface?.compatibility?.tools === 3, `compatibility tools ${surface?.compatibility?.tools}`);
+      assert(surface?.compatibility?.actions === 45, `compatibility actions ${surface?.compatibility?.actions}`);
+      const aliases = (surface?.compatibility?.aliases ?? []).map((a: any) => a.name);
+      for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_ruleset.roll"]) {
+        assert(aliases.includes(name), `alias ${name} missing from spec_health`);
+      }
+      const resource = await send(proc, { method: "resources/read", params: { uri: "holonovel://tool-groups" } });
+      const text = resource?.result?.contents?.[0]?.text ?? "{}";
+      const payload = JSON.parse(text);
+      assert(Array.isArray(payload.aliases) && payload.aliases.length >= 4, `group directory aliases missing: ${text.slice(0, 200)}`);
+    });
+
     await test("T669: Editor override bypasses and is surfaced", async () => {
       const switched = await call(proc, "set_badge", { badge: "none" });
       assert(switched.includes("Editor"), `Editor switch failed: ${switched.slice(0, 160)}`);

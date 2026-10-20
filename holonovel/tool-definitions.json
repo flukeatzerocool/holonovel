@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "tool_count": 38,
-  "tools_list_bytes": 106902,
+  "tool_count": 36,
+  "tools_list_bytes": 103202,
   "tools": [
     {
       "name": "close_session",
@@ -1040,16 +1040,7 @@
         "set_secret",
         "reveal",
         "secret_list",
-        "knowledge",
-        "corpus_register",
-        "corpus_list",
-        "corpus_get",
-        "corpus_route",
-        "corpus_grant",
-        "corpus_deny",
-        "corpus_access",
-        "corpus_consume",
-        "corpus_acquisitions"
+        "knowledge"
       ],
       "param_count": 24,
       "required": [
@@ -1105,7 +1096,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4908
+        "definitionBytes": 4764
       },
       "category": "",
       "gate": ""
@@ -1172,24 +1163,14 @@
         "resume",
         "switch",
         "end",
-        "export",
-        "import",
         "rename",
         "description",
         "list",
-        "archive",
-        "unarchive",
         "info",
         "genre",
         "complete_session_zero",
-        "clone",
-        "branch",
         "save_context",
-        "get_context",
-        "checkpoint_set",
-        "checkpoint_list",
-        "checkpoint_restore",
-        "checkpoint_remove"
+        "get_context"
       ],
       "param_count": 26,
       "required": [
@@ -1247,7 +1228,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4265
+        "definitionBytes": 4132
       },
       "category": "",
       "gate": ""
@@ -1360,15 +1341,14 @@
     {
       "name": "manage_ruleset",
       "title": "Ruleset Package Management",
-      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. search and roll accept an optional slug and work with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
-      "description_bytes": 906,
+      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll), which remains callable here as a hidden compatibility alias. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
+      "description_bytes": 942,
       "action_enum": [
         "search",
         "install",
         "remove",
         "list",
         "bind",
-        "roll",
         "import_supplementary",
         "remove_supplementary"
       ],
@@ -1415,7 +1395,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2958
+        "definitionBytes": 2981
       },
       "category": "",
       "gate": ""
@@ -1428,8 +1408,6 @@
       "action_enum": [
         "set",
         "directive",
-        "presence",
-        "autonomy",
         "choices",
         "oracle"
       ],
@@ -1485,7 +1463,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4454
+        "definitionBytes": 4432
       },
       "category": "",
       "gate": ""
@@ -1499,14 +1477,7 @@
         "recap",
         "verbosity",
         "briefing_order",
-        "compress",
-        "compact",
-        "health",
-        "subscribe",
-        "discover",
-        "category",
-        "event",
-        "history"
+        "discover"
       ],
       "param_count": 15,
       "required": [
@@ -1553,7 +1524,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3808
+        "definitionBytes": 3737
       },
       "category": "",
       "gate": ""
@@ -1810,13 +1781,7 @@
         "create_exit",
         "remove_exit",
         "convert",
-        "generate",
-        "causal_propose",
-        "causal_admit",
-        "causal_reject",
-        "causal_list",
-        "causal_state",
-        "causal_ingress"
+        "generate"
       ],
       "param_count": 39,
       "required": [
@@ -1887,7 +1852,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6159
+        "definitionBytes": 6065
       },
       "category": "",
       "gate": ""
@@ -1934,34 +1899,50 @@
       "gate": ""
     },
     {
-      "name": "resolve_fate",
-      "title": "Resolve Fate Actions",
-      "description": "Resolve Fate-style actions with Fudge dice, aspects, Fate points, and stress. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. stress with neither track nor consequence clears all tracks and consequences. Rolls and their state writes are recorded and are not individually reversible. Use when: rolling 4dF against a difficulty, invoking or compelling aspects, spending or refreshing Fate points, or marking stress and consequences. Do NOT use when: resolving a d20 skill check — use the bound ruleset's roll tools or run_command (action: resolve).",
-      "description_bytes": 649,
+      "name": "resolve_mechanic",
+      "title": "Resolve Mechanics",
+      "description": "Resolve uncertain actions across the host's base mechanics: Fate Fudge dice, aspects, Fate points, and stress; Ironsworn momentum, moves, and progress; Forged action rolls, stress, trauma, and downtime; and generic ruleset table rolls. Rolls and state changes persist to the Novel and are audited; a roll with no following write is flagged as an uncommitted roll. Revert the most recent mutation with manage_history (action: undo). fate_roll uses dF, ironsworn_move compares an action die against two challenge dice, and forged_action_roll takes the highest of a d6 pool. Use when: resolving a Fate, Ironsworn, or Forged mechanic, or rolling on a ruleset generation table. Do NOT use when: resolving a ruleset skill check — use the bound ruleset's roll tools; managing vows — use manage_vow (action: set).",
+      "description_bytes": 809,
       "action_enum": [
         "roll",
-        "aspect",
+        "fate_roll",
+        "fate_aspect",
         "fate_point",
-        "stress"
+        "fate_stress",
+        "ironsworn_momentum",
+        "ironsworn_move",
+        "ironsworn_progress",
+        "forged_action_roll",
+        "forged_stress",
+        "forged_downtime"
       ],
-      "param_count": 13,
+      "param_count": 22,
       "required": [
         "action"
       ],
       "params": {
-        "amount": "Fate points to spend or grant (fate_point); defaults to 1.",
-        "consequence": "Consequence to record or clear (stress).",
-        "dice": "Fudge dice notation (roll), e.g. '4dF'; defaults to 4dF.",
-        "difficulty": "Opposition to beat (roll); defaults to 0.",
-        "entity_id": "Entity or NPC id (aspect/fate_point/stress).",
-        "modifier": "Skill rating added to the roll (roll).",
-        "name": "Aspect name (aspect); consequence label (stress).",
-        "op": "Sub-operation: aspect (create, invoke, compel, remove, list), fate_point (spend, grant, refresh, list), or stress (mark, clear, list).",
-        "seed": "Deterministic seed (roll).",
-        "shifts": "Shifts to mark on a stress track (stress); defaults to 1.",
-        "skill": "Skill name for the roll label (roll).",
-        "target": "Aspect target: 'scene' or an entity/NPC id (aspect); defaults to 'scene'.",
-        "track": "Stress track to mark or clear (stress)."
+        "adds": "Stat and bonuses added to the action die (ironsworn_move).",
+        "amount": "Fate points (fate_point), stress (fate_stress, forged_stress, forged_downtime), or momentum (ironsworn_momentum); defaults to 1.",
+        "burn": "Burn momentum to replace the action score (ironsworn_move).",
+        "consequence": "Consequence to record or clear (fate_stress).",
+        "cost": "Stress cost to resist (forged_stress); defaults to 2.",
+        "dice": "Fudge dice notation (fate_roll) or dice pool size (forged_action_roll).",
+        "difficulty": "Opposition to beat (fate_roll); defaults to 0.",
+        "effect": "Effect (forged_action_roll); defaults to standard.",
+        "entity_id": "Entity or NPC id (fate_aspect, fate_point, fate_stress, ironsworn_momentum, ironsworn_move, forged_stress, forged_downtime).",
+        "modifier": "Skill rating added to the roll (fate_roll).",
+        "name": "Aspect name, progress-track name, move name, action name, or consequence label.",
+        "op": "Sub-operation for aspect, fate_point, stress, momentum, progress, or downtime.",
+        "position": "Position (forged_action_roll); defaults to risky.",
+        "rank": "Progress-track rank (ironsworn_progress).",
+        "seed": "Deterministic seed (fate_roll, ironsworn_move, ironsworn_progress, forged_action_roll, roll).",
+        "shifts": "Shifts to mark on a stress track (fate_stress); defaults to 1.",
+        "skill": "Skill name for the roll label (fate_roll).",
+        "slug": "Ruleset slug for a Novel-independent roll (roll).",
+        "table": "Generation table to roll on (roll).",
+        "target": "Aspect target: 'scene' or an entity/NPC id (fate_aspect); defaults to 'scene'.",
+        "ticks": "Progress to mark (ironsworn_progress); defaults to 1.",
+        "track": "Stress track to mark or clear (fate_stress)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -1974,10 +1955,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 14,
+        "paramCount": 23,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 14,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 23,
+        "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1987,115 +1968,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2826
-      },
-      "category": "",
-      "gate": ""
-    },
-    {
-      "name": "resolve_forged",
-      "title": "Forged in the Dark",
-      "description": "Resolve Blades in the Dark-style actions: action rolls with position and effect, stress and trauma with resistance, and downtime recovery. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. action_roll with dice 0 rolls the lower of two d6; stress name labels the resist consequence or the trauma mark. Rolls and their state writes are recorded and are not individually reversible. Use when: rolling an action against the highest die, marking or resisting stress, or recovering during downtime. Do NOT use when: tracking a progress clock — use manage_countdown (action: set).",
-      "description_bytes": 675,
-      "action_enum": [
-        "action_roll",
-        "stress",
-        "downtime"
-      ],
-      "param_count": 9,
-      "required": [
-        "action"
-      ],
-      "params": {
-        "amount": "Stress to mark or clear (stress/downtime); defaults to 1.",
-        "cost": "Stress cost to resist (stress); defaults to 2.",
-        "dice": "Dice pool size (action_roll); defaults to 2.",
-        "effect": "Effect (action_roll); defaults to standard.",
-        "entity_id": "Entity or NPC id (stress/downtime).",
-        "name": "Action name (action_roll) or consequence label (stress resist).",
-        "op": "Sub-operation: stress (mark, clear, resist, list), downtime (recover, indulge_vice, list).",
-        "position": "Position (action_roll); defaults to risky.",
-        "seed": "Deterministic seed (action_roll)."
-      },
-      "output_fields": {
-        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
-        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "context_signals": {
-        "paramCount": 10,
-        "requiredParamCount": 1,
-        "paramsWithDescriptions": 10,
-        "paramsWithEnums": 3,
-        "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": false,
-        "requiredFieldCount": 1,
-        "schemaDepth": 1,
-        "unionChoiceCount": 0,
-        "invocationCost": 1,
-        "hasOutputSchema": true,
-        "hasAnnotations": true,
-        "titleIsMeaningful": true,
-        "definitionBytes": 2436
-      },
-      "category": "",
-      "gate": ""
-    },
-    {
-      "name": "resolve_ironsworn",
-      "title": "Resolve Ironsworn Moves",
-      "description": "Resolve Ironsworn-style actions: momentum, the action-roll move framework, and progress tracks. Rolls and state changes (points, stress, momentum, progress) persist to the Novel; a roll with no following write is flagged as an uncommitted roll. move's burn replaces the action die with momentum and ignores adds; progress rank defaults to dangerous. Rolls and their state writes are recorded and are not individually reversible. Use when: setting or burning momentum, rolling a move against two challenge dice, or marking and testing a progress track. Do NOT use when: managing vows — use manage_vow (action: set).",
-      "description_bytes": 616,
-      "action_enum": [
-        "momentum",
-        "move",
-        "progress"
-      ],
-      "param_count": 9,
-      "required": [
-        "action"
-      ],
-      "params": {
-        "adds": "Stat and bonuses added to the action die (move).",
-        "amount": "Amount to set/gain/lose (momentum); defaults to 1.",
-        "burn": "Burn momentum to replace the action score (move).",
-        "entity_id": "Entity or NPC id (momentum, move burn).",
-        "name": "Move name (move) or progress-track name (progress).",
-        "op": "Sub-operation: momentum (set, gain, lose, reset, list), progress (create, mark, test, list).",
-        "rank": "Progress-track rank (progress).",
-        "seed": "Deterministic seed (move, progress test).",
-        "ticks": "Progress to mark (progress); defaults to 1."
-      },
-      "output_fields": {
-        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
-        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "context_signals": {
-        "paramCount": 10,
-        "requiredParamCount": 1,
-        "paramsWithDescriptions": 10,
-        "paramsWithEnums": 2,
-        "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": false,
-        "requiredFieldCount": 1,
-        "schemaDepth": 1,
-        "unionChoiceCount": 0,
-        "invocationCost": 1,
-        "hasOutputSchema": true,
-        "hasAnnotations": true,
-        "titleIsMeaningful": true,
-        "definitionBytes": 2347
+        "definitionBytes": 4432
       },
       "category": "",
       "gate": ""
@@ -2274,6 +2147,252 @@
       },
       "category": "",
       "gate": ""
+    }
+  ],
+  "hidden_aliases": [
+    {
+      "name": "manage_lore.corpus_access",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_access",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_acquisitions",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_acquisitions",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_consume",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_consume",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_deny",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_deny",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_get",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_get",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_grant",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_grant",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_list",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_list",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_register",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_register",
+      "retired": false
+    },
+    {
+      "name": "manage_lore.corpus_route",
+      "kind": "action",
+      "replacement": "manage_corpus.corpus_route",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.archive",
+      "kind": "action",
+      "replacement": "manage_archive.archive",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.branch",
+      "kind": "action",
+      "replacement": "manage_archive.branch",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.checkpoint_list",
+      "kind": "action",
+      "replacement": "manage_archive.checkpoint_list",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.checkpoint_remove",
+      "kind": "action",
+      "replacement": "manage_archive.checkpoint_remove",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.checkpoint_restore",
+      "kind": "action",
+      "replacement": "manage_archive.checkpoint_restore",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.checkpoint_set",
+      "kind": "action",
+      "replacement": "manage_archive.checkpoint_set",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.clone",
+      "kind": "action",
+      "replacement": "manage_archive.clone",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.export",
+      "kind": "action",
+      "replacement": "manage_archive.export",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.import",
+      "kind": "action",
+      "replacement": "manage_archive.import",
+      "retired": false
+    },
+    {
+      "name": "manage_novel.unarchive",
+      "kind": "action",
+      "replacement": "manage_archive.unarchive",
+      "retired": false
+    },
+    {
+      "name": "manage_ruleset.roll",
+      "kind": "action",
+      "replacement": "resolve_mechanic.roll",
+      "retired": false
+    },
+    {
+      "name": "manage_scene.autonomy",
+      "kind": "action",
+      "replacement": "manage_staging.autonomy",
+      "retired": false
+    },
+    {
+      "name": "manage_scene.presence",
+      "kind": "action",
+      "replacement": "manage_staging.presence",
+      "retired": false
+    },
+    {
+      "name": "manage_session.category",
+      "kind": "action",
+      "replacement": "manage_diagnostics.category",
+      "retired": false
+    },
+    {
+      "name": "manage_session.compact",
+      "kind": "action",
+      "replacement": "manage_diagnostics.compact",
+      "retired": false
+    },
+    {
+      "name": "manage_session.compress",
+      "kind": "action",
+      "replacement": "manage_diagnostics.compress",
+      "retired": false
+    },
+    {
+      "name": "manage_session.event",
+      "kind": "action",
+      "replacement": "manage_diagnostics.event",
+      "retired": false
+    },
+    {
+      "name": "manage_session.health",
+      "kind": "action",
+      "replacement": "manage_diagnostics.health",
+      "retired": false
+    },
+    {
+      "name": "manage_session.history",
+      "kind": "action",
+      "replacement": "manage_diagnostics.history",
+      "retired": false
+    },
+    {
+      "name": "manage_session.subscribe",
+      "kind": "action",
+      "replacement": "manage_diagnostics.subscribe",
+      "retired": false
+    },
+    {
+      "name": "manage_world.causal_admit",
+      "kind": "action",
+      "replacement": "manage_causality.causal_admit",
+      "retired": false
+    },
+    {
+      "name": "manage_world.causal_ingress",
+      "kind": "action",
+      "replacement": "manage_causality.causal_ingress",
+      "retired": false
+    },
+    {
+      "name": "manage_world.causal_list",
+      "kind": "action",
+      "replacement": "manage_causality.causal_list",
+      "retired": false
+    },
+    {
+      "name": "manage_world.causal_propose",
+      "kind": "action",
+      "replacement": "manage_causality.causal_propose",
+      "retired": false
+    },
+    {
+      "name": "manage_world.causal_reject",
+      "kind": "action",
+      "replacement": "manage_causality.causal_reject",
+      "retired": false
+    },
+    {
+      "name": "manage_world.causal_state",
+      "kind": "action",
+      "replacement": "manage_causality.causal_state",
+      "retired": false
+    },
+    {
+      "name": "resolve_fate",
+      "kind": "tool",
+      "replacement": "resolve_mechanic",
+      "retired": false,
+      "action_enum": [
+        "aspect",
+        "fate_point",
+        "roll",
+        "stress"
+      ]
+    },
+    {
+      "name": "resolve_forged",
+      "kind": "tool",
+      "replacement": "resolve_mechanic",
+      "retired": false,
+      "action_enum": [
+        "action_roll",
+        "downtime",
+        "stress"
+      ]
+    },
+    {
+      "name": "resolve_ironsworn",
+      "kind": "tool",
+      "replacement": "resolve_mechanic",
+      "retired": false,
+      "action_enum": [
+        "momentum",
+        "move",
+        "progress"
+      ]
     }
   ]
 }

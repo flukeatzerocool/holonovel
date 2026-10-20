@@ -118,7 +118,7 @@ async function main() {
 
     await test("T278/T240: clone_novel creates an independent copy", async () => {
       await call(proc, "manage_world", { action: "create_thing",  name: "sword", description: "A sharp blade." });
-      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Clonekeeper", mind: { directive: "Guard the fork's secret.", auto_play: true } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
       await call(proc, "manage_novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
@@ -126,7 +126,7 @@ async function main() {
       assertContains(list, "fork");
       assertContains(list, "renamed");
       await call(proc, "manage_novel", { action: "switch",  slug: "fork" });
-      const forkFate = JSON.parse(await call(proc, "resolve_fate", { action: "fate_point",  op: "list" }));
+      const forkFate = JSON.parse(await call(proc, "resolve_mechanic", { action: "fate_point",  op: "list" }));
       const forkPc1 = forkFate.find((f: any) => f.entity_id === "pc_1");
       if (!forkPc1 || forkPc1.fate_points !== 2) throw new Error(`clone dropped base-capability state: ${JSON.stringify(forkFate)}`);
       if (npcId) {
@@ -280,7 +280,7 @@ async function main() {
       await call(proc, "manage_novel", { action: "create",  name: "archive-me" });
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_world", { action: "create_room",  name: "archived-room", description: "d" });
-      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Archivist", mind: { directive: "Keep the archive sealed." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
       await call(proc, "manage_novel", { action: "archive",  slug: "archive-me" });
@@ -295,7 +295,7 @@ async function main() {
       await call(proc, "manage_novel", { action: "unarchive",  slug: "archive-me" });
       const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.slug !== "archive-me") throw new Error("unarchive did not restore active novel");
-      const fateAfter = JSON.parse(await call(proc, "resolve_fate", { action: "fate_point",  op: "list" }));
+      const fateAfter = JSON.parse(await call(proc, "resolve_mechanic", { action: "fate_point",  op: "list" }));
       const pc1 = fateAfter.find((f: any) => f.entity_id === "pc_1");
       if (!pc1 || pc1.fate_points !== 2) throw new Error(`archive/unarchive dropped base-capability state: ${JSON.stringify(fateAfter)}`);
       if (npcId) {

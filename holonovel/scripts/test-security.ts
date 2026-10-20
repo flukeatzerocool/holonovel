@@ -165,7 +165,7 @@ async function main() {
       }
       if (t.annotations.openWorldHint !== false) throw new Error(`T536 tool '${t.name}' openWorldHint must be false (REQ-051 no-network)`);
     }
-    const mutatingNames = ["set_badge", "respond_decision", "manage_history", "manage_character", "manage_npc", "manage_world", "run_command", "manage_combat", "manage_scene", "manage_countdown", "manage_lore", "manage_condition", "manage_faction", "manage_relationship", "manage_vow", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_story", "manage_note", "manage_session", "manage_adventure", "manage_novel", "manage_ruleset", "manage_codex", "manage_synthesis"];
+    const mutatingNames = ["set_badge", "respond_decision", "manage_history", "manage_character", "manage_npc", "manage_world", "run_command", "manage_combat", "manage_scene", "manage_countdown", "manage_lore", "manage_condition", "manage_faction", "manage_relationship", "manage_vow", "resolve_mechanic", "manage_story", "manage_note", "manage_session", "manage_adventure", "manage_novel", "manage_ruleset", "manage_codex", "manage_synthesis"];
     for (const name of mutatingNames) {
       const t = tools.find((x) => x.name === name);
       if (!t) throw new Error(`T536 mutating tool '${name}' not registered`);

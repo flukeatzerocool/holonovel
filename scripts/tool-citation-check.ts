@@ -24,7 +24,10 @@ const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT = join(ROOT, "holonovel", "tool-definitions.json");
 const HOST_VERB_RE = /^(manage|resolve|run|respond|set)_/;
 
-interface Artifact { tools: { name: string; action_enum: string[] }[]; }
+interface Artifact {
+  tools: { name: string; action_enum: string[] }[];
+  hidden_aliases?: { name: string; kind: "tool" | "action"; replacement: string; action_enum?: string[] }[];
+}
 
 if (!existsSync(ARTIFACT)) {
   console.error(`FATAL: ${ARTIFACT} not found — run \`npx tsx holonovel/scripts/generate-tool-definitions.ts\`.`);
@@ -35,6 +38,16 @@ try { artifact = JSON.parse(readFileSync(ARTIFACT, "utf-8")); }
 catch (e) { console.error(`FATAL: tool-definitions.json is not valid JSON: ${(e as Error).message}`); process.exit(2); }
 
 const byName = new Map(artifact.tools.map((t) => [t.name, t]));
+for (const alias of artifact.hidden_aliases ?? []) {
+  if (alias.kind === "tool") {
+    byName.set(alias.name, { name: alias.name, action_enum: [...(alias.action_enum ?? [])] });
+  } else {
+    const toolName = alias.name.split(".")[0];
+    const action = alias.name.split(".")[1];
+    const tool = byName.get(toolName);
+    if (tool && action && !tool.action_enum.includes(action)) tool.action_enum.push(action);
+  }
+}
 const violations: { req: string; tool: string; action: string; reason: string }[] = [];
 
 for (const b of extractActionBindings(readSpec())) {

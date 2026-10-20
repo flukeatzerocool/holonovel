@@ -140,6 +140,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   resolve_fate: MUTATING,
   resolve_ironsworn: MUTATING,
   resolve_forged: MUTATING,
+  resolve_mechanic: MUTATING,
   manage_story: MUTATING,
   manage_note: MUTATING,
   manage_session: MUTATING,
@@ -705,7 +706,8 @@ function zodToJsonSchema(schema: any, depth = 0): any {
 
 function registeredToolDefinitions(): ToolDefinition[] {
   const tools: Record<string, any> = (server as any)._registeredTools ?? {};
-  return Object.entries(tools).map(([name, tool]) => ({
+  const hidden = hiddenAliasNames();
+  return Object.entries(tools).filter(([name]) => !hidden.has(name)).map(([name, tool]) => ({
     name,
     title: typeof tool?.title === "string" ? tool.title : "",
     description: typeof tool?.description === "string" ? tool.description : "",
@@ -767,6 +769,7 @@ interface SurfaceDeclaration {
   preconditions: string[];
   successors: string[];
   edges: string[];
+  compatibility?: { replacement: string; retired?: boolean };
 }
 interface SurfaceRegistry {
   schema_version: number;
@@ -822,6 +825,7 @@ function toolGroupSet(name: string): Set<string> {
   if (!reg) return groups;
   const prefix = `${name}.`;
   for (const [key, decl] of Object.entries(reg.actions)) {
+    if (decl.compatibility) continue;
     if (key === name || key.startsWith(prefix)) groups.add(decl.group);
   }
   return groups;
@@ -831,11 +835,75 @@ function entryToolsFor(group: string): Set<string> {
   const tools = new Set<string>();
   if (!reg) return tools;
   for (const [key, decl] of Object.entries(reg.actions)) {
+    if (decl.compatibility) continue;
     if (decl.group === group && decl.entry) {
       tools.add(key.includes(".") ? key.slice(0, key.indexOf(".")) : key);
     }
   }
   return tools;
+}
+// REQ-581 — hidden compatibility aliases. A tool whose every declaration is a
+// compatibility alias is omitted from tools/list; a tool carrying a mix keeps
+// its canonical actions and hides the compatibility action from its schema.
+function hiddenAliasNames(): Set<string> {
+  const reg = surfaceRegistry();
+  const hidden = new Set<string>();
+  if (!reg) return hidden;
+  const byTool = new Map<string, SurfaceDeclaration[]>();
+  for (const [key, decl] of Object.entries(reg.actions)) {
+    const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
+    const list = byTool.get(tool) ?? [];
+    list.push(decl);
+    byTool.set(tool, list);
+  }
+  for (const [tool, decls] of byTool) {
+    if (decls.length > 0 && decls.every((decl) => !!decl.compatibility)) hidden.add(tool);
+  }
+  return hidden;
+}
+function hiddenActionAliases(): Map<string, string> {
+  const reg = surfaceRegistry();
+  const hidden = new Map<string, string>();
+  if (!reg) return hidden;
+  for (const [key, decl] of Object.entries(reg.actions)) {
+    if (!decl.compatibility || !key.includes(".")) continue;
+    hidden.set(key, decl.compatibility.replacement);
+  }
+  return hidden;
+}
+function surfaceAliasList(): Array<{ name: string; kind: "tool" | "action"; replacement: string; retired: boolean }> {
+  const reg = surfaceRegistry();
+  if (!reg) return [];
+  const byTool = new Map<string, Array<[string, SurfaceDeclaration]>>();
+  for (const [key, decl] of Object.entries(reg.actions)) {
+    const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
+    const list = byTool.get(tool) ?? [];
+    list.push([key, decl]);
+    byTool.set(tool, list);
+  }
+  const aliases: Array<{ name: string; kind: "tool" | "action"; replacement: string; retired: boolean }> = [];
+  for (const [tool, entries] of byTool) {
+    const compat = entries.filter(([, decl]) => !!decl.compatibility);
+    if (compat.length === 0) continue;
+    if (compat.length === entries.length) {
+      aliases.push({
+        name: tool,
+        kind: "tool",
+        replacement: compat[0][1].compatibility!.replacement.split(".")[0],
+        retired: compat.some(([, decl]) => !!decl.compatibility!.retired),
+      });
+    } else {
+      for (const [key, decl] of compat) {
+        aliases.push({
+          name: key,
+          kind: "action",
+          replacement: decl.compatibility!.replacement,
+          retired: !!decl.compatibility!.retired,
+        });
+      }
+    }
+  }
+  return aliases.sort((a, b) => a.name.localeCompare(b.name));
 }
 function projectToolList<T extends { name: string }>(
   tools: T[],
@@ -866,6 +934,7 @@ function groupDirectory(): GroupDirectoryEntry[] {
   const out: GroupDirectoryEntry[] = [];
   for (const group of reg.taxonomy.groups) {
     const members = Object.entries(reg.actions).filter(([key, decl]) => {
+      if (decl.compatibility) return false;
       if (decl.group !== group) return false;
       const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
       return toolsVisibleToBadge(tool, badge);
@@ -926,6 +995,20 @@ function surfaceRefusal(name: string, args: Record<string, unknown>): string | n
   return `[ERROR] [STATE_CONFLICT] ${name} (${action}) belongs to group '${decl.group}'. Next: activate group '${decl.group}' or set TTRPG_SURFACE_PROFILE=full.`;
 }
 
+// REQ-581 — a retired compatibility alias refuses with the replacement named,
+// regardless of badge. This is a tombstone, not a projection refusal.
+function retiredAliasRefusal(name: string, args: Record<string, unknown>): string | null {
+  const reg = surfaceRegistry();
+  if (!reg) return null;
+  const action = typeof args?.action === "string" ? args.action : null;
+  const key = action ? `${name}.${action}` : name;
+  const decl = reg.actions[key] ?? reg.actions[name];
+  if (!decl?.compatibility?.retired) return null;
+  const replacement = decl.compatibility.replacement;
+  const subject = action ? `${name} (action: ${action})` : name;
+  return `[ERROR] [NOT_FOUND] ${subject} is retired. Use ${replacement}.`;
+}
+
 // REQ-576 — only a refusal that the Editor badge actually bypasses is counted
 // and audited; ordinary Editor calls do not inflate the override surface.
 function surfaceGuard(name: string, args: Record<string, unknown>): string | null {
@@ -951,6 +1034,8 @@ function installSurfaceGuards(): void {
     return;
   }
   low.setRequestHandler(CallToolRequestSchema, async (req: any, extra: any) => {
+    const retired = retiredAliasRefusal(req?.params?.name, req?.params?.arguments ?? {});
+    if (retired) return { content: [{ type: "text", text: retired }], isError: true };
     const refusal = surfaceGuard(req?.params?.name, req?.params?.arguments ?? {});
     if (refusal) {
       return { content: [{ type: "text", text: refusal }], isError: true };
@@ -1726,9 +1811,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Relationships": ["manage_relationship"],
   "Vows": ["manage_vow"],
   "Countdowns": ["manage_countdown"],
-  "Fate": ["resolve_fate"],
-  "Ironsworn": ["resolve_ironsworn"],
-  "Forged in the Dark": ["resolve_forged"],
+  "Base Capabilities": ["resolve_mechanic"],
   "Lore": ["manage_lore", "manage_corpus"],
   "Story Journal": ["manage_story"],
   "Notes": ["manage_note"],
@@ -1746,7 +1829,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 const GMToolsSet = new Set([
   "manage_scene", "manage_combat", "manage_condition", "manage_npc", "manage_faction", "manage_relationship", "manage_vow",
   "manage_countdown", "manage_causality", "manage_lore", "manage_story", "manage_note", "manage_world", "manage_adventure", "manage_novel",
-  "manage_synthesis", "manage_codex", "manage_ruleset", "manage_session", "resolve_fate", "resolve_ironsworn", "resolve_forged",
+  "manage_synthesis", "manage_codex", "manage_ruleset", "manage_session", "resolve_fate", "resolve_ironsworn", "resolve_forged", "resolve_mechanic",
   "manage_belief", "manage_identity", "manage_agent",
 ]);
 
@@ -2441,6 +2524,14 @@ async function toolDiscovery(query?: string) {
     result += "\n### Intent Groups\n\n";
     for (const group of groups) {
       result += `- **${group.group}** — entry: \`${group.entry}\` (${group.tools.length} tools)\n`;
+    }
+  }
+  // REQ-581 — hidden compatibility aliases stay discoverable here.
+  const aliases = surfaceAliasList();
+  if (aliases.length > 0) {
+    result += "\n### Compatibility Aliases\n\n";
+    for (const alias of aliases) {
+      result += `- \`${alias.name}\` → \`${alias.replacement}\`${alias.retired ? " [retired]" : ""}\n`;
     }
   }
   result += "\nUse the intro prompt to get started, or badge_briefing for current badge guidance.";
@@ -5019,7 +5110,7 @@ server.registerTool("resolve_fate", {
       const sign = extra > 0 ? "+" : "−";
       audit("fate_roll", { notation: r.notation, skill: args.skill ?? null, difficulty, total: r.total, ladder });
       if (difficulty > 0 || args.skill) {
-        novel.uncommitted_rolls.push({ roll: `${label} → ${ladder}`, suggested_tool: "resolve_fate (action: stress)", at: new Date().toISOString() });
+        novel.uncommitted_rolls.push({ roll: `${label} → ${ladder}`, suggested_tool: "resolve_mechanic (action: fate_stress)", at: new Date().toISOString() });
         if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
         state.saveNovel(novel);
       }
@@ -5232,7 +5323,7 @@ server.registerTool("resolve_ironsworn", {
       }
       const band = bandFor(actionScore, c1, c2);
       audit("ironsworn_move", { name: args.name ?? null, adds, action_die: actionDie, challenge_dice: [c1, c2], band, burned });
-      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Move"} → ${band}`, suggested_tool: "resolve_ironsworn (action: progress)", at: new Date().toISOString() });
+      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Move"} → ${band}`, suggested_tool: "resolve_mechanic (action: ironsworn_progress)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
       return ok(`${args.name ?? "Move"}\nAction die: ${actionDie}${adds !== 0 ? ` + ${adds}` : ""} = ${actionScore}${burned ? " (momentum burn)" : ""}\nChallenge dice: ${c1}, ${c2}\n${band}`);
@@ -5313,7 +5404,7 @@ server.registerTool("resolve_forged", {
       const highest = Math.max(...rolls);
       const band = highest >= 6 ? "Critical success" : highest >= 4 ? "Partial success" : "Miss";
       audit("forged_action_roll", { name: args.name ?? null, dice: rolls, highest, position, effect, band });
-      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Action"} → ${band}`, suggested_tool: "resolve_forged (action: stress)", at: new Date().toISOString() });
+      novel.uncommitted_rolls.push({ roll: `${args.name ?? "Action"} → ${band}`, suggested_tool: "resolve_mechanic (action: forged_stress)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
       return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}`);
@@ -5391,6 +5482,62 @@ server.registerTool("resolve_forged", {
     default:
       return err("INVALID_INPUT", `Unknown forged action '${args.action}'. Valid actions: action_roll, stress, downtime.`);
   }
+});
+
+// REQ-413/REQ-581 — consolidated resolution surface. The three legacy
+// base-capability tools stay registered as hidden compatibility aliases; this
+// entry tool is the canonical dispatcher and the resolve-group entry.
+const RESOLVE_MECHANIC_SCHEMA = {
+  action: z.enum([
+    "roll",
+    "fate_roll", "fate_aspect", "fate_point", "fate_stress",
+    "ironsworn_momentum", "ironsworn_move", "ironsworn_progress",
+    "forged_action_roll", "forged_stress", "forged_downtime",
+  ]).describe("roll (ruleset table), fate_* (Fate), ironsworn_* (Ironsworn), or forged_* (Forged in the Dark)."),
+  dice: z.union([z.string(), z.number()]).optional().describe("Fudge dice notation (fate_roll) or dice pool size (forged_action_roll)."),
+  skill: z.string().optional().describe("Skill name for the roll label (fate_roll)."),
+  modifier: z.number().optional().describe("Skill rating added to the roll (fate_roll)."),
+  difficulty: z.number().optional().describe("Opposition to beat (fate_roll); defaults to 0."),
+  seed: z.string().optional().describe("Deterministic seed (fate_roll, ironsworn_move, ironsworn_progress, forged_action_roll, roll)."),
+  op: z.string().optional().describe("Sub-operation for aspect, fate_point, stress, momentum, progress, or downtime."),
+  name: z.string().optional().describe("Aspect name, progress-track name, move name, action name, or consequence label."),
+  target: z.string().optional().describe("Aspect target: 'scene' or an entity/NPC id (fate_aspect); defaults to 'scene'."),
+  entity_id: z.string().optional().describe("Entity or NPC id (fate_aspect, fate_point, fate_stress, ironsworn_momentum, ironsworn_move, forged_stress, forged_downtime)."),
+  amount: z.number().optional().describe("Fate points (fate_point), stress (fate_stress, forged_stress, forged_downtime), or momentum (ironsworn_momentum); defaults to 1."),
+  track: z.enum(["physical", "mental"]).optional().describe("Stress track to mark or clear (fate_stress)."),
+  shifts: z.number().optional().describe("Shifts to mark on a stress track (fate_stress); defaults to 1."),
+  consequence: z.enum(["mild", "moderate", "severe"]).optional().describe("Consequence to record or clear (fate_stress)."),
+  adds: z.number().optional().describe("Stat and bonuses added to the action die (ironsworn_move)."),
+  burn: z.boolean().optional().describe("Burn momentum to replace the action score (ironsworn_move)."),
+  rank: z.enum(["troublesome", "dangerous", "formidable", "extreme", "epic"]).optional().describe("Progress-track rank (ironsworn_progress)."),
+  ticks: z.number().optional().describe("Progress to mark (ironsworn_progress); defaults to 1."),
+  position: z.enum(["controlled", "risky", "desperate"]).optional().describe("Position (forged_action_roll); defaults to risky."),
+  effect: z.enum(["limited", "standard", "great"]).optional().describe("Effect (forged_action_roll); defaults to standard."),
+  cost: z.number().optional().describe("Stress cost to resist (forged_stress); defaults to 2."),
+  table: z.string().optional().describe("Generation table to roll on (roll)."),
+  slug: z.string().optional().describe("Ruleset slug for a Novel-independent roll (roll)."),
+};
+server.registerTool("resolve_mechanic", {
+  title: "Resolve Mechanics",
+  description: "Resolve uncertain actions across the host's base mechanics: Fate Fudge dice, aspects, Fate points, and stress; Ironsworn momentum, moves, and progress; Forged action rolls, stress, trauma, and downtime; and generic ruleset table rolls. Rolls and state changes persist to the Novel and are audited; a roll with no following write is flagged as an uncommitted roll. Revert the most recent mutation with manage_history (action: undo). fate_roll uses dF, ironsworn_move compares an action die against two challenge dice, and forged_action_roll takes the highest of a d6 pool. Use when: resolving a Fate, Ironsworn, or Forged mechanic, or rolling on a ruleset generation table. Do NOT use when: resolving a ruleset skill check — use the bound ruleset's roll tools; managing vows — use manage_vow (action: set).",
+  inputSchema: RESOLVE_MECHANIC_SCHEMA,
+}, async (args: any) => {
+  const action = String(args.action ?? "");
+  const call = async (tool: string, mapped: Record<string, unknown>) => {
+    const handler = (server as unknown as {
+      _registeredTools?: Record<string, { handler?: (a: any, e: any) => Promise<any> }>;
+    })._registeredTools?.[tool]?.handler;
+    if (typeof handler !== "function") {
+      return err("INTERNAL_ERROR", `Resolution handler '${tool}' is unavailable.`);
+    }
+    return handler(mapped, {});
+  };
+  if (action === "roll") return call("manage_ruleset", { ...args, action: "roll" });
+  if (action === "fate_point") return call("resolve_fate", { ...args, action: "fate_point" });
+  if (action.startsWith("fate_")) return call("resolve_fate", { ...args, action: action.slice("fate_".length) });
+  if (action.startsWith("ironsworn_")) return call("resolve_ironsworn", { ...args, action: action.slice("ironsworn_".length) });
+  if (action.startsWith("forged_")) return call("resolve_forged", { ...args, action: action.slice("forged_".length) });
+  return err("INVALID_INPUT", `Unknown resolution action '${action}'. Valid actions: roll, fate_roll, fate_aspect, fate_point, fate_stress, ironsworn_momentum, ironsworn_move, ironsworn_progress, forged_action_roll, forged_stress, forged_downtime.`);
 });
 
 // Story journal (REQ-246, REQ-331, REQ-333) — consolidated record/update/remove/list/promote surface.
@@ -7686,9 +7833,9 @@ function extractSupplementaryWisdom(raw: string): Array<{ module: string; key: s
 
 server.registerTool("manage_ruleset", {
   title: "Ruleset Package Management",
-  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, roll on a generation table, or import/remove a supplementary ruleset. search and roll accept an optional slug and work with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; roll and search are read-only. Use when: searching rules content, installing/removing/listing packages, binding a Novel, rolling a table (roll), or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search and roll are read-only.",
+  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll), which remains callable here as a hidden compatibility alias. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
   inputSchema: {
-    action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, roll, import_supplementary, or remove_supplementary."),
+    action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, import_supplementary, or remove_supplementary."),
     query: z.string().optional().describe("Search query (search)."),
     max_results: z.number().optional().describe("Maximum results (search)."),
     slug: z.string().optional().describe("Ruleset slug (install/remove/bind/import_supplementary/remove_supplementary)."),
@@ -8161,7 +8308,7 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
     // derived-surface freshness (read-only advisory).
     briefing_consistency: briefingConsistency(),
-    tool_count: ((server as any)._registeredTools ? Object.keys((server as any)._registeredTools).length : 0),
+    tool_count: (() => { const hidden = hiddenAliasNames(); return Object.keys((server as any)._registeredTools ?? {}).filter((name) => !hidden.has(name)).length; })(),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
     resource_uris, // REQ-139 — resource URI presence from the live resource map.
@@ -8373,7 +8520,7 @@ server.registerResource("tool-groups", "holonovel://tool-groups", { title: "Tool
   contents: [{
     uri: "holonovel://tool-groups",
     mimeType: "application/json",
-    text: JSON.stringify({ profile: surfaceProfile(), groups: groupDirectory() }, null, 2),
+    text: JSON.stringify({ profile: surfaceProfile(), groups: groupDirectory(), aliases: surfaceAliasList() }, null, 2),
   }],
 }));
 
@@ -8559,7 +8706,7 @@ server.registerResource("audit-novel-archive", "audit://novel/archive", { title:
 
 // Guidance resources
 server.registerResource("guidance-player", "guidance://player", { title: "Player Guidance" }, async () => ({
-  contents: [{ uri: "guidance://player", text: "## Player Guidance\n\nDescribe what your character does; the GM/narrator resolves declared actions through the world parser. Use run_command (action: suggest, \"<intent>\") to map an intent to tool calls, and player-callable tools such as manage_character (action: sheet), resolve_fate, and manage_ruleset (action: search) for your own rolls and lookups.", mimeType: "text/markdown" }],
+  contents: [{ uri: "guidance://player", text: "## Player Guidance\n\nDescribe what your character does; the GM/narrator resolves declared actions through the world parser. Use run_command (action: suggest, \"<intent>\") to map an intent to tool calls, and player-callable tools such as manage_character (action: sheet), resolve_mechanic (action: fate_roll), and manage_ruleset (action: search) for your own rolls and lookups.", mimeType: "text/markdown" }],
 }));
 
 server.registerResource("guidance-gm", "guidance://game_master", { title: "GM Guidance" }, async () => ({
@@ -9947,7 +10094,7 @@ ${novel.ruleset
   : "You run the parser directly (ruleset-free Novel). Use run_command (action: execute, \"<command>\") to look, go, examine, take, open, unlock."}
 Player-callable tools:
 - run_command (action: suggest, "<intent>") — map an intent to tool calls
-- resolve_fate / resolve_ironsworn / resolve_forged — dice and resolution
+- resolve_mechanic — Fate, Ironsworn, Forged, and table resolution
 - manage_ruleset (action: search) and lookup tools — rules lookups
 - manage_character (action: sheet) — your character sheet
 - manage_character (action: signal) — pacing, tone, or boundary feedback
@@ -10033,7 +10180,7 @@ Commit every narratable change to state in the same turn you narrate it — scen
       // scene type (scene, journal, countdown, note, personality, NPC, vow,
       // event log, belief/evidence, identity, causal state, corpus, semantic
       // index, knowledge graph, agent tasks, perception, base capabilities).
-      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · manage_session (event) · manage_belief (admit/perception_record) · manage_identity (accept) · manage_world (causal_propose) · manage_lore (corpus_register) · manage_knowledge (index_build/graph_build) · manage_agent (create) · resolve_fate (aspect) · resolve_ironsworn (momentum) · resolve_forged (stress)`;
+      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · manage_diagnostics (event) · manage_belief (admit/perception_record) · manage_identity (accept) · manage_causality (causal_propose) · manage_corpus (corpus_register) · manage_knowledge (index_build/graph_build) · manage_agent (create) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.
@@ -10426,7 +10573,24 @@ function installBadgeFilteredToolList(): void {
     if (requestedGroup && !surfaceRegistry()?.taxonomy.groups.includes(requestedGroup)) {
       throw new McpError(ErrorCode.InvalidParams, `[INVALID_INPUT] unknown group: ${requestedGroup}`);
     }
-    const tools = projectToolList(visible as Array<{ name: string }>, requestedGroup, requestedProfile);
+    const projected = projectToolList(visible as Array<{ name: string }>, requestedGroup, requestedProfile);
+    // REQ-581 — compatibility aliases stay callable but are not listed.
+    const hiddenTools = hiddenAliasNames();
+    const hiddenActions = hiddenActionAliases();
+    const tools = projected
+      .filter((tool: any) => !hiddenTools.has(tool.name))
+      .map((tool: any) => {
+        const hidden = [...hiddenActions.keys()]
+          .filter((key) => key.startsWith(`${tool.name}.`))
+          .map((key) => key.slice(tool.name.length + 1));
+        if (hidden.length === 0) return tool;
+        const clone = structuredClone(tool);
+        const actionSchema = clone?.inputSchema?.properties?.action;
+        if (Array.isArray(actionSchema?.enum)) {
+          actionSchema.enum = actionSchema.enum.filter((value: string) => !hidden.includes(value));
+        }
+        return clone;
+      });
     return { ...full, tools };
   });
 }

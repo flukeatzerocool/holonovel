@@ -105,6 +105,9 @@ do not alter meaning are editorial and do not require a version bump.
 |               | instance; one active per connection. Isolated from other Novels.                  |
 | Connection     | Retired name for the Session state tier (§7.7) — see Session. In prose, a "connection" denotes the ephemeral MCP transport, which holds no state of its own.   |
 | Session        | A term with four senses, disambiguated by context. As a state tier (§7.7), the ephemeral connection scoping discarded on restart or Novel switch. As a Holodeck archetype (§7.7.0), content scoped to the operator's presence (GM Context, Notes, Narrative Directive, Voice Feedback). As a tool, the `session` tool (`manage_session (action: recap)`, `manage_session (action: health)`, `manage_session (action: briefing_order)`). In prose, "the active play session" means the Story. |
+| Canonical surface | The tools and actions a server lists in `tools/list` and counts against the recorded tool budget (REQ-429, REQ-581). Compatibility aliases are excluded. |
+| Compatibility alias | A prior tool or action name kept callable for one minor version after a rename, split, or consolidation. It is omitted from `tools/list`, filtered identically to its replacement, and advertised in `spec_health` and the group directory (REQ-581). |
+| Minor version | The next versioned release after the release that introduces a compatibility alias, recorded with its date in `ROADMAP.md`. |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
 | Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P59) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |

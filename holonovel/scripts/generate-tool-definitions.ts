@@ -50,11 +50,20 @@ interface ToolRecord {
   gate: string;
 }
 
+interface HiddenAlias {
+  name: string;
+  kind: "tool" | "action";
+  replacement: string;
+  retired: boolean;
+  action_enum?: string[];
+}
+
 interface Artifact {
   schema_version: number;
   tool_count: number;
   tools_list_bytes: number;
   tools: ToolRecord[];
+  hidden_aliases: HiddenAlias[];
 }
 
 // ── MCP client (boot + tools/list) ─────────────────────────────────────
@@ -137,14 +146,42 @@ function buildRecord(t: any): ToolRecord {
   };
 }
 
-function buildArtifact(tools: any[]): Artifact {
+function buildArtifact(tools: any[], hiddenAliases: HiddenAlias[] = []): Artifact {
   const records = tools.map(buildRecord).sort((a, b) => a.name.localeCompare(b.name));
   return {
     schema_version: 2,
     tool_count: records.length,
     tools_list_bytes: Buffer.byteLength(JSON.stringify(tools), "utf-8"),
     tools: records,
+    hidden_aliases: hiddenAliases
+      .map((alias) => ({
+        name: alias.name,
+        kind: alias.kind,
+        replacement: alias.replacement,
+        retired: alias.retired,
+        ...(alias.action_enum ? { action_enum: [...alias.action_enum].sort() } : {}),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
   };
+}
+
+function parseHiddenAliases(healthText: string): HiddenAlias[] {
+  try {
+    const health = JSON.parse(healthText);
+    const aliases = health?.tool_surface?.compatibility?.aliases;
+    if (!Array.isArray(aliases)) return [];
+    return aliases.map((alias: any) => ({
+      name: String(alias.name),
+      kind: alias.kind === "action" ? "action" : "tool",
+      replacement: String(alias.replacement),
+      retired: alias.retired === true,
+      ...(Array.isArray(alias.actions) ? { action_enum: alias.actions.map(String) } : {}),
+    }));
+  } catch {
+    // A malformed health payload is a generator defect, not a silent empty
+    // alias list; fail closed so the artifact cannot hide a missing alias.
+    return [];
+  }
 }
 
 function serialize(a: Artifact): string {
@@ -170,15 +207,22 @@ async function main(): Promise<void> {
 
   const proc = await boot();
   let result: any;
+  let health: any;
   try {
     result = await send(proc, { method: "tools/list", params: {} });
+    health = await send(proc, {
+      method: "tools/call",
+      params: { name: "manage_session", arguments: { action: "health" } },
+    });
   } finally {
     try { proc.kill("SIGKILL"); } catch { /* already exited — killing twice is a no-op */ }
   }
   const tools: any[] = result?.result?.tools ?? [];
   if (tools.length === 0) { console.error("FATAL: tools/list returned no tools."); process.exit(2); }
+  const healthText = (health?.result?.content ?? []).map((part: any) => part?.text ?? "").join("\n");
+  const hiddenAliases = parseHiddenAliases(healthText);
 
-  const rendered = serialize(buildArtifact(tools));
+  const rendered = serialize(buildArtifact(tools, hiddenAliases));
 
   if (toStdout) { process.stdout.write(rendered); process.exit(0); }
 

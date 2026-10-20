@@ -365,11 +365,11 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w3b", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "player" });
-    const roll = await call(p, "manage_ruleset", { action: "roll",  table: "secret_table" });
+    const roll = await call(p, "resolve_mechanic", { action: "roll",  table: "secret_table" });
     assertContains(roll, "[FORBIDDEN]", "REQ-216 player table filtered");
     assertNotContains(roll, "hidden", "REQ-216 table content not revealed");
     await call(p, "set_badge", { badge: "game_master" });
-    const gmRoll = await call(p, "manage_ruleset", { action: "roll",  table: "secret_table" });
+    const gmRoll = await call(p, "resolve_mechanic", { action: "roll",  table: "secret_table" });
     assertContains(gmRoll, "Roll:", "REQ-216 GM sees table result");
     passed++;
     await kill(p);
@@ -1625,7 +1625,7 @@ async function main() {
     await call(p, "manage_character", { action: "set_active",  entity_id: "character_01" });
     await call(p, "set_badge", { badge: "player" });
     const groups: Array<[string, string, Record<string, unknown>]> = [
-      ["dice-resolution", "resolve_fate", { action: "roll" }],
+      ["dice-resolution", "resolve_mechanic", { action: "fate_roll" }],
       ["ruleset lookup", "manage_ruleset", { action: "search", query: "x" }],
       ["character sheet", "manage_character", { action: "sheet", entity_id: "character_01" }],
       ["action suggestions", "run_command", { action: "suggest" }],

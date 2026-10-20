@@ -1,5 +1,9 @@
 # Roadmap
 
+## Retire REQ-581 compatibility aliases (next minor)
+
+- Retire the five 2026-10-19 split-duplicate action sets and the four 2026-10-20 consolidation aliases (`resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and `manage_ruleset (action: roll)`) at the next minor release. The hidden aliases are advertised in `spec_health.tool_surface` and `holonovel://tool-groups`; a tombstone returns `[NOT_FOUND]` naming the replacement. Target release: the next CalVer minor after 2026.10.20. (REQ-581)
+
 <!--
   Format: one `## <title>` per upcoming item, followed by 1–3 bullet lines.
   Newest first. Remove entries once they ship (they move to CHANGELOG.md).

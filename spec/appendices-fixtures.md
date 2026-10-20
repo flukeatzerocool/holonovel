@@ -155,7 +155,7 @@ A correct extraction of the fixture includes at least:
 - **Actions**: `roll_move` (Resolution, MUST), `create_delver` (Command, MUST —
   a REQ-042 workflow raising sequential `[NEED_INPUT]` decisions: stat array, then knack),
   `manage_condition (action: apply)` / `manage_condition (action: remove)` (Command, MUST), `start_confrontation` /
-  `advance_confrontation` / `end_confrontation` (Command, MUST), `manage_ruleset (action: roll)`
+  `advance_confrontation` / `end_confrontation` (Command, MUST), `resolve_mechanic (action: roll)`
   (Generation, MUST), `snapshot_confrontation` / `load_confrontation` (Command, SHOULD).
   Eight MUST actions; ten domain tools registered. The five confrontation operations are
   Game Master; every other registered tool is both.
@@ -320,7 +320,7 @@ wounds, `Lantern Oil` → 3 uses (light property), `Blessed Pouch` → reroll on
 Knacks table — the dedup logic must collapse it into a cross-reference to the existing
 `knacks` anchor rather than registering a separate entity.
 
-Run `manage_ruleset (action: roll)` for "gear" with a fixed seed and assert the result returns a valid row
+Run `resolve_mechanic (action: roll)` for "gear" with a fixed seed and assert the result returns a valid row
 from the gear table with its mechanical fields rendered. The RNG is already verified by
 G2's B.4 preflight; no additional witness values are needed.
 
@@ -630,7 +630,7 @@ A correct extraction of the fixture includes at least:
   MUST — REQ-042 workflow with sequential `[NEED_INPUT]` decisions: stat array,
   then boon), `manage_condition (action: apply)` / `manage_condition (action: remove)` (Command, MUST),
   `init_cliffhanger` / `advance_cliffhanger` / `end_cliffhanger` (Command,
-  MUST), `manage_ruleset (action: roll)` (Generation, MUST), `manage_ruleset (action: search)` (Canonical, MUST),
+  MUST), `resolve_mechanic (action: roll)` (Generation, MUST), `manage_ruleset (action: search)` (Canonical, MUST),
   `session` (Meta, MUST — its `health` action serves the `spec_health` report). Nine MUST tools registered. Cliffhanger
   operations and `session` are Game Master; every other tool is both.
 - **Tables**: gadgets (lookup + generation, with inline mechanical fields:
@@ -1065,7 +1065,7 @@ A correct extraction of the fixture includes at least:
   defect 1), so no advance tool exists.
 - **Actions**: `roll_gambit` (Resolution, MUST), `create_courtier` (Command, MUST —
   REQ-042 workflow with sequential `[NEED_INPUT]` decisions), `manage_condition (action: apply)` /
-  `manage_condition (action: remove)` (Command, MUST), `manage_ruleset (action: roll)` (Generation, MUST). Four MUST
+  `manage_condition (action: remove)` (Command, MUST), `resolve_mechanic (action: roll)` (Generation, MUST). Four MUST
   tools registered.
 - **Tables**: Court Boons (lookup + generation — rows 3 and 5 lack descriptions,
   a content finding).

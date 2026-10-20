@@ -628,6 +628,16 @@ pass and completion-oracle green. Fix evidence: regression tests in
   model"). Bounded first step: register package prompts at runtime; full
   generation remains open.
 
+- **REQ-581 compatibility aliases (scheduled 2026-10-20):** the five
+  2026-10-19 split-duplicate action sets and the four 2026-10-20 consolidation
+  aliases (`resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and
+  `manage_ruleset (action: roll)`) remain callable for one minor version
+  (`holonovel/tool-surface-registry.json` compatibility declarations;
+  `holonovel/src/index.ts` hidden-alias projection). They are scheduled on
+  ROADMAP.md ("Retire REQ-581 compatibility aliases (next minor)"). The
+  canonical surface is 36 tools / 214 actions; compatibility is 3 hidden tools
+  plus 1 hidden action carrying 45 actions. (REQ-581)
+
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
 ## Closed-P3 (recorded, no action)
