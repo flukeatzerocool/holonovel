@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "estimator": "utf8-bytes-div-4-ceil",
+  "baseline": {
+    "tools": 38,
+    "actions": 248,
+    "full_tokens": 20836,
+    "tools_list_bytes": 106902
+  },
+  "budgets": {
+    "standard": 10418,
+    "small": 2084
+  },
+  "worst_case": {
+    "standard_tokens": 8145,
+    "small_tokens": 262
+  },
+  "groups": [
+    {
+      "group": "table",
+      "tools": 7,
+      "standard_tools": 7,
+      "standard_tokens": 3546,
+      "small_tools": 6,
+      "small_tokens": 254
+    },
+    {
+      "group": "explore",
+      "tools": 3,
+      "standard_tools": 8,
+      "standard_tokens": 3351,
+      "small_tools": 6,
+      "small_tokens": 229
+    },
+    {
+      "group": "resolve",
+      "tools": 7,
+      "standard_tools": 12,
+      "standard_tokens": 5476,
+      "small_tools": 6,
+      "small_tokens": 262
+    },
+    {
+      "group": "narrate",
+      "tools": 4,
+      "standard_tools": 8,
+      "standard_tokens": 3466,
+      "small_tools": 6,
+      "small_tokens": 251
+    },
+    {
+      "group": "lookup",
+      "tools": 7,
+      "standard_tools": 12,
+      "standard_tokens": 6308,
+      "small_tools": 6,
+      "small_tokens": 262
+    },
+    {
+      "group": "referee",
+      "tools": 10,
+      "standard_tools": 15,
+      "standard_tokens": 8145,
+      "small_tools": 6,
+      "small_tokens": 221
+    },
+    {
+      "group": "author",
+      "tools": 8,
+      "standard_tools": 13,
+      "standard_tokens": 6611,
+      "small_tools": 6,
+      "small_tokens": 254
+    },
+    {
+      "group": "maintain",
+      "tools": 4,
+      "standard_tools": 8,
+      "standard_tokens": 3524,
+      "small_tools": 5,
+      "small_tokens": 195
+    }
+  ],
+  "defects": []
+}

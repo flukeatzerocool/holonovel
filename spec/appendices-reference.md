@@ -1300,6 +1300,21 @@ date-stamps matching CHANGELOG entries.
 | REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
 | REQ-565 | Bundled starter Novel | 2026-10-12 |
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
+| REQ-567 | Tool surface declaration | 2026-10-19 |
+| REQ-568 | Surface conformance report | 2026-10-19 |
+| REQ-569 | Surface baseline evaluation | 2026-10-19 |
+| REQ-570 | Projected catalog | 2026-10-19 |
+| REQ-571 | Catalog budgets | 2026-10-19 |
+| REQ-572 | Group directory | 2026-10-19 |
+| REQ-580 | Surface profile precedence | 2026-10-19 |
+| REQ-573 | Precondition enforcement | 2026-10-19 |
+| REQ-575 | Cross-group edges | 2026-10-19 |
+| REQ-576 | Audited override | 2026-10-19 |
+| REQ-578 | Generated surface conformance | 2026-10-19 |
+| REQ-577 | Composite session and turn actions | 2026-10-19 |
+| REQ-574 | Turn handles | 2026-10-19 |
+| REQ-579 | Legacy package rebuild | 2026-10-19 |
+| REQ-581 | Split-tool compatibility | 2026-10-19 |
 
 ---
 
@@ -1957,6 +1972,21 @@ diet.
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 | T658 | Automated | Bundled starter Novel: on a fresh data directory, assert the starter seeds once and is listed and resumable under the no-ruleset server and playable through `run_command (action: execute)`; delete it and assert the sentinel prevents re-seed; set `TTRPG_STARTER_NOVEL=off` and assert nothing seeds; point it at a missing asset and assert seeding is skipped without failing startup. | REQ-565 |
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
+| T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
+| T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, catalog size per profile, and active profile; add an action and assert the report updates without restart; assert a duplicate entry is reported. | REQ-568 |
+| T662 | Automated | Surface baseline: assert the baseline reports tool-selection accuracy, tool calls per intent, and catalog size over at least thirty fixed intents; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
+| T663 | Automated | Projected catalog: assert a default listing under an active scene returns the active group plus the three globals; assert a group selection returns that group; assert an unknown group returns `[INVALID_INPUT]`; assert ordering is stable across calls. | REQ-570 |
+| T664 | Automated | Catalog budgets: assert a fixture projection over the recorded profile budget fails the gate naming the profile and measured value; assert the standard profile measures at or below half the full baseline. | REQ-571 |
+| T665 | Automated | Group directory: assert every declared group appears once with a resolvable entry action; assert a badge change filters the directory; assert the resource and `manage_session (action: discover)` return the same groups. | REQ-572 |
+| T673 | Automated | Surface profile precedence: assert a small surface profile with a full guidance profile returns a small catalog and full orientation; assert changing only the guidance profile leaves the catalog projection unchanged. | REQ-580 |
+| T666 | Automated | Precondition enforcement: assert advancing combat before init refuses with `[STATE_CONFLICT]` and a next step naming init; assert a Player-badge refusal omits GM-only state. | REQ-573 |
+| T668 | Automated | Cross-group edges: assert a declared resolve-to-narrate edge succeeds; assert an undeclared lookup call from resolve succeeds because lookup is cross-cutting; assert an undeclared referee call from explore refuses naming referee. | REQ-575 |
+| T669 | Automated | Audited override: assert an Editor-badge bypass succeeds and records an audit entry; assert the same call under Player refuses. | REQ-576 |
+| T671 | Automated | Generated surface conformance: assert an ungrouped generated action fails `build-ruleset` naming it; assert a conformant package emits; assert a flagged installed package loads without blocking. | REQ-578 |
+| T670 | Automated | Composite session and turn actions: assert `open_session` resumes, sets the badge, and returns a recap; assert `take_turn` returns a resolution, suggestions, and a handle; assert `close_session` returns a recap and saved context. | REQ-577 |
+| T667 | Automated | Turn handles: assert `take_turn` returns a handle; assert recording with it succeeds once and a replay refuses; assert recording without a handle still works. | REQ-574 |
+| T672 | Automated | Legacy package rebuild: assert a pre-contract package is reported for rebuild; assert a rebuilt package loads with declarations; assert a no-emitter package is deferred with its reason. | REQ-579 |
+| T674 | Automated | Split-tool compatibility: assert the prior name succeeds and `tools/list` advertises the replacement metadata; assert the replacement carries no deprecation; assert badge filtering matches. | REQ-581 |
 
 ---
 
@@ -3177,4 +3207,95 @@ prerequisite for the Appendices E and F entries and for the package-quality
 audit of REQ-430.
 
 _Check:_ T509, T536, T642, T644, T645, T646, T647, T648.
+
+### T.3 Tool Surface Contract
+
+T.2 grades a tool definition. This contract grades the surface an agent must
+navigate: how actions are grouped by user intent, how the surface is projected
+to a caller, and how a ruleset package's generated tools conform. TDQS remains
+the external definition rubric; this contract is reported beside it and never
+folded into the TDQS score.
+
+**Intent groups.** Every registered action declares exactly one primary group.
+
+| Group | User goal | Default phases |
+|---|---|---|
+| `table` | Open, resume, orient, or close a session | `none`, `setup`, `scene`, `closed` |
+| `explore` | Move, look, and interact with the scene | `scene`, `combat` |
+| `resolve` | Resolve an uncertain action | `scene`, `combat`, `downtime` |
+| `narrate` | Frame, record, and recap the fiction | `scene`, `downtime` |
+| `lookup` | Find a rule, item, lore, or reference | all |
+| `referee` | Run the world as Game Master | all |
+| `author` | Author out of play under the Editor badge | all |
+| `maintain` | Health, history, and diagnostics | all |
+
+`lookup` and `maintain` are cross-cutting. The remaining groups follow the play
+loop: `table` → `explore` → `resolve` → `narrate` → `table`, with `referee` and
+`author` as modes. Group order is stable and is the order a directory lists
+them in.
+
+**Phases.** A Novel carries one phase: `none` (no Novel active), `setup`
+(session zero or character creation), `scene` (exploration or social play),
+`combat`, `downtime`, or `closed`. An action declares the phases in which it is
+callable. An action whose phase is unmet refuses with a corrective next step. Phase inference
+uses the Novel's persisted state; when inference is ambiguous, the server keeps
+the current phase and the Editor badge may override.
+
+**Declaration fields.** Every action declares `group`, `phases`, `entry`
+(exactly one per group), `mutation_class` (`read`, `write`, `destructive`, or
+`idempotent`), `ruleset` (slug or null), `preconditions` (zero or more
+predicates from the host vocabulary), `successors` (zero or more
+`tool.action` references), and `edges` (zero or more declared cross-group
+edges). Preconditions and successors are declarative metadata; they do not
+grant access.
+
+**Cross-group edges.** An action may declare a named edge to another group.
+An out-of-group call succeeds only when the active group declares an edge to
+the called group. An edge is directional and names the reason it is
+permitted. Undeclared out-of-group calls refuse with the group to activate.
+
+**Extension groups.** The core groups are host-owned. A ruleset package may
+declare an extension group when no core group fits an action honestly. The
+package supplies the group's name, purpose, entry action, member actions, and
+a justification. The build records the extension in DECISIONS.md and
+`spec_health`; an extension group may not duplicate a core group's purpose.
+An action that fits no core or declared extension group is a build defect.
+
+**Profiles and precedence.** A surface profile selects how much of the catalog
+a caller sees: `full` (the complete surface), `standard` (the active group plus
+the always-visible global tools), or `small` (the active group's entry action
+plus the globals). `TTRPG_SURFACE_PROFILE` governs catalog projection only;
+`TTRPG_GUIDANCE_PROFILE` continues to govern orientation and verbosity. When
+both are set, the surface profile determines the catalog and the guidance
+profile determines orientation.
+
+**Always-visible globals.** `set_badge`, `manage_session (action: discover)`,
+and `respond_decision` are visible in every profile. `discover` returns the
+group directory: each group's purpose, entry action, members, prerequisites,
+and successor group.
+
+**Measurement.** Catalog size is the UTF-8 byte length of the projected
+`tools/list` payload divided by four, rounded up. The full-surface baseline is
+recorded before projection ships. The `standard` budget is at most half that
+baseline; the `small` budget is at most one tenth. Both budgets are recorded in
+DECISIONS.md and reported in `spec_health`.
+
+**Surface proxies.** The deterministic report covers group coverage, orphan
+actions, entry-point uniqueness, per-group balance (tools per group), declared
+edge validity, and catalog size per profile. A group with more than ten tools
+is over-balanced and splits; a group with fewer than two merges. Action counts
+are reported but not gated, because one tool may legitimately carry many
+actions.
+
+**Replay proxy.** The deterministic replay records expected-tool visibility and
+the group-switch call cost for a fixed intent set; live-model selection remains
+advisory and is recorded separately.
+
+**Generated tools.** Every ruleset-derived action declares the same fields and
+maps into a core or declared extension group. The package emitter
+refuses a surface with a missing, unknown, duplicated, or over-budget group.
+The host flags a non-conformant installed package in `spec_health` without
+blocking loading, consistent with REQ-430.
+
+_Check:_ T660, T661, T662.
 

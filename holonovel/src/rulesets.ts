@@ -53,11 +53,22 @@ export interface RulesetIndexEntry {
   confidence: string;
 }
 
+// REQ-578 / Appendix T.3 — the host-owned intent taxonomy. Keep in step with
+// `holonovel/tool-surface-registry.json`; `check-tool-surface` asserts parity.
+export const CORE_TOOL_GROUPS = [
+  "table", "explore", "resolve", "narrate", "lookup", "referee", "author", "maintain",
+] as const;
+export const CORE_TOOL_PHASES = [
+  "none", "setup", "scene", "combat", "downtime", "closed",
+] as const;
+
 export interface RulesetToolSchema {
   name: string;
   title: string;
   description: string;
   kind: "lookup" | "search" | "roll" | "table" | "info";
+  group?: string;
+  phases?: string[];
   collection?: string;
   // REQ-558c — fixed dice notation for a roll tool when the caller supplies
   // none (e.g. a percentile `1d100` skill check); absent → host default `1d20`.
@@ -205,6 +216,22 @@ export function validateToolSchema(schema: RulesetToolSchema): string[] {
   // REQ-558c — a declared defaultDice must be valid NdM / NdF notation.
   if (schema.defaultDice !== undefined && !/^(\d+)?d[fF](?:[+-]\d+)?$|^\d+d\d+(?:[+-]\d+)?$/i.test(String(schema.defaultDice).trim())) {
     defects.push(`defaultDice '${schema.defaultDice}' is not valid dice notation`);
+  }
+  // REQ-578 / Appendix T.3 — every generated tool declares a host group and at
+  // least one phase; unknown values are build defects.
+  if (!schema.group) {
+    defects.push("missing surface group");
+  } else if (!(CORE_TOOL_GROUPS as readonly string[]).includes(schema.group)) {
+    defects.push(`unknown surface group '${schema.group}'`);
+  }
+  if (!Array.isArray(schema.phases) || schema.phases.length === 0) {
+    defects.push("missing surface phases");
+  } else {
+    for (const phase of schema.phases) {
+      if (!(CORE_TOOL_PHASES as readonly string[]).includes(phase)) {
+        defects.push(`unknown surface phase '${phase}'`);
+      }
+    }
   }
   return defects;
 }
