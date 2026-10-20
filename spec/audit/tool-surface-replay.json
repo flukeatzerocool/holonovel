@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "proxy": "expected-tool visibility and group-switch call cost; live-model selection is advisory",
   "intents": 30,
   "profiles": [
@@ -255,9 +255,9 @@
     {
       "profile": "standard",
       "intents": 30,
-      "expected_tool_visible": 21,
-      "visibility_rate": 0.7,
-      "mean_calls": 1.3,
+      "expected_tool_visible": 30,
+      "visibility_rate": 1,
+      "mean_calls": 1,
       "rows": [
         {
           "intent": "start a new campaign",
@@ -352,72 +352,72 @@
           "tool": "manage_combat",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "advance the round",
           "tool": "manage_combat",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "apply a condition",
           "tool": "manage_condition",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "make a fate roll",
           "tool": "resolve_mechanic",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "make an ironsworn move",
           "tool": "resolve_mechanic",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "make a forged action roll",
           "tool": "resolve_mechanic",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "track my vow",
           "tool": "manage_vow",
           "group": "resolve",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "record this story beat",
           "tool": "manage_story",
           "group": "narrate",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "set the scene",
           "tool": "manage_scene",
           "group": "narrate",
           "start_group": "explore",
-          "visible": false,
-          "calls": 2
+          "visible": true,
+          "calls": 1
         },
         {
           "intent": "recap what happened",
@@ -504,9 +504,9 @@
     {
       "profile": "small",
       "intents": 30,
-      "expected_tool_visible": 21,
-      "visibility_rate": 0.7,
-      "mean_calls": 1.3,
+      "expected_tool_visible": 11,
+      "visibility_rate": 0.367,
+      "mean_calls": 1.633,
       "rows": [
         {
           "intent": "start a new campaign",
@@ -545,16 +545,16 @@
           "tool": "manage_character",
           "group": "table",
           "start_group": "table",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "create a character",
           "tool": "manage_character",
           "group": "table",
           "start_group": "table",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "look around the room",
@@ -593,8 +593,8 @@
           "tool": "manage_ruleset",
           "group": "resolve",
           "start_group": "explore",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "start combat",
@@ -681,24 +681,24 @@
           "tool": "manage_ruleset",
           "group": "lookup",
           "start_group": "explore",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "look up a lore entry",
           "tool": "manage_lore",
           "group": "lookup",
           "start_group": "explore",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "search the knowledge index",
           "tool": "manage_knowledge",
           "group": "lookup",
           "start_group": "explore",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "create an NPC",
@@ -713,32 +713,32 @@
           "tool": "manage_countdown",
           "group": "referee",
           "start_group": "referee",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "generate an adventure",
           "tool": "manage_adventure",
           "group": "author",
           "start_group": "author",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "export my novel",
           "tool": "manage_archive",
           "group": "author",
           "start_group": "author",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "undo the last change",
           "tool": "manage_history",
           "group": "maintain",
           "start_group": "explore",
-          "visible": true,
-          "calls": 1
+          "visible": false,
+          "calls": 2
         },
         {
           "intent": "show me the tool groups",

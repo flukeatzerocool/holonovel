@@ -86,7 +86,7 @@ function assert(condition: unknown, message: string): void {
 }
 
 async function run(): Promise<void> {
-  const proc = await boot("standard");
+  const proc = await boot("small");
   try {
     await call(proc, "manage_novel", { action: "create", name: "surface-guards" });
     // Novel creation activates the Editor badge, which intentionally bypasses

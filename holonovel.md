@@ -540,7 +540,7 @@ Every successful tool response SHALL carry a machine-readable structured result 
 *Acceptance criterion:* a canonical lookup, a dice roll, and a drained decision each return a structured result matching their text envelope. _Check:_ T632.
 
 **REQ-548b — Output-schema declaration.**
-Every registered tool SHALL declare an output schema in `tools/list` describing the structured result of REQ-548a. The schema SHALL document each reported field with a description, not merely declare the envelope, so the description need not explain return values (REQ-024c). The schema SHALL derive from the live result contract at call time, SHALL remain stable across calls producing the same result shape (REQ-411), and SHALL NOT be a separately maintained catalog. A summary listing MAY omit the schema body while retaining its presence indicator.
+Every registered tool SHALL declare an output schema in `tools/list` describing the structured result of REQ-548a. The schema SHALL document each reported field with a description, not merely declare the envelope, so descriptions need not explain returns (REQ-024c). The schema SHALL derive from the live result contract at call time, SHALL remain stable across calls producing the same result shape (REQ-411), and SHALL NOT be a separately maintained catalog. The `standard` profile MAY omit the schema body while retaining its presence indicator; `full` carries the documented body.
 *Acceptance criterion:* every listed tool declares an output schema whose reported fields carry descriptions; a schema detail request returns it; adding a tool updates the listing without restart. _Check:_ T633.
 
 **REQ-548c — Structured error results.**
@@ -1189,7 +1189,7 @@ Every advertised tool SHALL describe each input parameter in its JSON Schema —
 Every registered tool, host or ruleset-derived, SHALL meet the TDQS conformance contract of REQ-552. Its description SHALL enumerate every action, declare a mutation-class annotation (read-only, destructive, idempotent, or open-world), disclose side effects (persistence, audit, badge gating, reversibility) for each mutating action, and state the return or error behavior for each action. Parameter guidance belongs to the input schema (REQ-427); the description adds only what the schema cannot express (REQ-024c). *Acceptance criterion:* every registered tool carries an annotation matching its mutation class and a description naming all of its actions with side-effect and return behavior. A mutating action lacking side-effect disclosure is a definition defect. _Check:_ T536.
 
 **REQ-552 — TDQS conformance contract.**
-Every registered tool, host or ruleset-derived, SHALL conform to the TDQS standard the build pins in Appendix T.2, evaluated against that standard's six weighted dimensions, hard gates, and passing tier. The deterministic proxy of each dimension SHALL be computed over the live registered surface, not a maintained copy. `spec_health` SHALL report each tool's dimension proxies, the aggregate and minimum proxy, the resulting tier, and every hard-gate defect. The externally graded score remains authoritative; a deterministic proxy SHALL NOT be published as the TDQS score. *Acceptance criterion:* `spec_health` reports every registered tool's dimension proxies and hard-gate status, and no tool falls below the passing tier on the deterministic proxy. _Check:_ T644.
+Every registered tool, host or ruleset-derived, SHALL conform to the TDQS standard the build pins in Appendix T.2, evaluated against its six dimensions, hard gates, and passing tier. Each dimension's deterministic proxy SHALL be computed over the live registered surface, not a maintained copy. `spec_health` SHALL report each tool's dimension proxies, aggregate and minimum, tier, and hard-gate defects. The externally graded score remains authoritative; a deterministic proxy SHALL NOT be published as the TDQS score. *Acceptance criterion:* `spec_health` reports every registered tool's proxies and hard-gate status; every host tool scores 5.0 on the deterministic proxy; live and static reports agree; no ruleset-derived tool falls below the passing tier. _Check:_ T644, T679, T680.
 
 **REQ-553 — Tool-definition hard gates.**
 A tool definition SHALL be defective, independent of its graded dimensions, when its description is absent, restates only the tool's name or title, or contradicts the tool's declared annotations. A description that asserts a read-only operation for a tool declaring mutation, or asserts a mutation for a tool declaring read-only, is a contradiction. A hard-gate defect SHALL be named in `spec_health` with the offending tool and gate and SHALL fail the tool-definition conformance gate. *Acceptance criterion:* fixtures with a missing, tautological, and annotation-contradicting description are each reported and fail the gate; a conformant definition passes. _Check:_ T645.
@@ -1455,22 +1455,22 @@ Every registered tool and action SHALL declare exactly one primary intent group,
 The build SHALL provide a reproducible baseline over a fixed intent set that reports tool-selection accuracy or its deterministic replay proxy, tool calls per intent, and catalog size under the pinned estimator for the full surface. The baseline SHALL be recorded in DECISIONS.md and consumed by the projected-surface comparison. *Acceptance criterion:* the baseline reports all three metrics over at least thirty fixed intents and fails when the intent set or estimator changes without a recorded re-baseline. _Check:_ T662.
 
 **REQ-570 — Projected catalog.**
-`tools/list` SHALL accept a group selection and default to the active phase's group plus the always-visible global tools. Group selection SHALL preserve stable ordering, SHALL NOT require a prior state mutation, and SHALL return `[ERROR] [INVALID_INPUT]` for an unknown group. *Acceptance criterion:* a default listing under an active scene returns that group plus the three globals; a group selection returns that group; an unknown group returns `[INVALID_INPUT]`. _Check:_ T663.
+`tools/list` SHALL accept a group selection. Under the `small` profile the default listing SHALL be the active phase's entry tools plus the five always-visible globals; under `full` and `standard` it SHALL be the complete surface. Group selection SHALL preserve stable ordering, SHALL NOT require a prior state mutation, and SHALL return `[ERROR] [INVALID_INPUT]` for an unknown group. *Acceptance criterion:* a small default listing returns the active group's entry tools plus the globals; a standard listing returns every canonical tool; a group selection returns that group plus the globals; an unknown group returns `[INVALID_INPUT]`. _Check:_ T663, T676, T677.
 
 **REQ-571 — Catalog budgets.**
-The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL be recorded in DECISIONS.md and SHALL NOT exceed half the full-surface baseline recorded by REQ-569. `spec_health` SHALL report the measured value, the budget, and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the standard profile reports at or below half the recorded baseline. _Check:_ T664.
+The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL NOT exceed ninety percent of the full-surface baseline recorded by REQ-569; the small budget SHALL NOT exceed ten percent. `spec_health` SHALL report each profile's measured value, its budget, and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the recorded standard and small baselines satisfy their ratios. _Check:_ T664, T678.
 
 **REQ-572 — Group directory.**
 The server SHALL expose a group directory as a resource and through `manage_session (action: discover)`, listing each group's purpose, entry action, members, prerequisites, and successor group. The directory SHALL be derived from the live registry and badge-filtered. *Acceptance criterion:* every declared group appears once with a resolvable entry action; a badge change filters the directory. _Check:_ T665.
 
 **REQ-580 — Surface profile precedence.**
-The server SHALL accept a surface-profile setting of full, standard, or small that governs catalog projection only; guidance posture remains governed by `TTRPG_GUIDANCE_PROFILE`. When both are set, the surface profile SHALL determine the catalog projection and the guidance profile SHALL determine orientation and verbosity. The setting SHALL be classified as behavioral in §7.6 and coupled per §7.7.1a. *Acceptance criterion:* a small surface profile with a full guidance profile returns a small catalog and full orientation; changing only the guidance profile does not change the catalog projection. _Check:_ T673.
+The server SHALL accept a surface-profile setting of full, standard, or small governing catalog projection only; guidance remains governed by `TTRPG_GUIDANCE_PROFILE`. `full` SHALL return the complete detailed surface; `standard` SHALL return the complete surface with output-schema presence markers; `small` SHALL return the active group's entry tools plus globals as a one-line summary. The default is `full`. When both are set, the surface profile SHALL determine the catalog and the guidance profile SHALL determine orientation and verbosity. It is behavioral in §7.6 and coupled per §7.7.1a. *Acceptance criterion:* standard lists every canonical tool; small returns a summary subset; the guidance profile never changes the catalog. _Check:_ T673, T676, T677.
 
 **REQ-573 — Precondition enforcement.**
 A mutating action whose declared precondition is unmet SHALL NOT execute and SHALL return `[ERROR] [STATE_CONFLICT]` with a structured next step naming the required tool and action. The refusal SHALL be auditable and SHALL NOT disclose state the caller's badge cannot access. *Acceptance criterion:* advancing combat before init refuses with a next step naming init; a Player-badge refusal omits GM-only state. _Check:_ T666.
 
 **REQ-575 — Cross-group edges.**
-An action MAY declare named cross-group edges; a call from outside the active projection SHALL succeed only when an edge from the active group to the called group is declared, or the called action is an entry action or belongs to a cross-cutting group. An undeclared out-of-group call SHALL refuse with a next step naming the group to activate. *Acceptance criterion:* a declared resolve-to-narrate edge succeeds; an undeclared lookup call from resolve succeeds because lookup is cross-cutting; an undeclared referee call from explore refuses naming referee. _Check:_ T668.
+Under the `small` profile, an action MAY declare named cross-group edges; a call from outside the active projection SHALL succeed only when an edge from the active group to the called group is declared, or the called action is an entry action or belongs to a cross-cutting group. An undeclared out-of-group call SHALL refuse with a next step naming the group to activate. `full` and `standard` are call-complete and SHALL NOT refuse a cross-group call. *Acceptance criterion:* a declared resolve-to-narrate edge succeeds under small; an undeclared lookup call from resolve succeeds because lookup is cross-cutting; an undeclared referee call from explore refuses under small and succeeds under standard. _Check:_ T668, T676.
 
 **REQ-576 — Audited override.**
 Only the Editor badge SHALL bypass a precondition or projection refusal, and every bypass SHALL be audited, surfaced in `spec_health`, and SHALL NOT alter the refusal contract for Player or Game Master badges. *Acceptance criterion:* an Editor bypass succeeds and records an audit entry; the same call under Player refuses. _Check:_ T669.
@@ -6896,7 +6896,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
 | `TTRPG_GUIDANCE_PROFILE` | No | Runtime guidance and presentation posture — `full` (default) or `lean`. `lean` prioritizes orientation scaffolding, terse enumeration defaults, and summary-first catalogs for constrained narrators (REQ-388, REQ-412a). Behavioral — couples per P58. |
-| `TTRPG_SURFACE_PROFILE` | No | Catalog projection profile — `full` (default), `standard`, or `small`. Selects how much of the tool catalog `tools/list` returns; orientation and verbosity remain governed by `TTRPG_GUIDANCE_PROFILE` (REQ-570, REQ-580). Behavioral — couples per P60. |
+| `TTRPG_SURFACE_PROFILE` | No | Catalog projection profile — `full` (default, complete detailed surface), `standard` (complete surface with output-schema presence markers, no group switch), or `small` (active-group entry tools plus globals, one-line summary). Orientation and verbosity remain governed by `TTRPG_GUIDANCE_PROFILE` (REQ-570, REQ-580). Behavioral — couples per P60. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_STARTER_NOVEL` | No | Bundled starter Novel slug seeded once on a fresh install (REQ-565). Defaults to `torre-nosferatu`; set to `off` to disable seeding. |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
@@ -10622,6 +10622,11 @@ diet.
 | T672 | Automated | Legacy package rebuild: assert a pre-contract package is reported for rebuild; assert a rebuilt package loads with declarations; assert a no-emitter package is deferred with its reason. | REQ-579 |
 | T674 | Automated | Split-tool compatibility: assert the prior name succeeds and `tools/list` advertises the replacement metadata; assert the replacement carries no deprecation; assert badge filtering matches. | REQ-581 |
 | T675 | Automated | Compatibility accounting: assert a canonical tool spanning three groups fails `check-tool-surface`, and the same span passes when the third group is a compatibility declaration; assert a compatibility declaration with an unresolved replacement fails; assert `tools/list` omits hidden aliases while `tools/call` succeeds; assert `spec_health.tool_surface` and `holonovel://tool-groups` name each replacement; assert canonical and compatibility counts are reported separately; assert a retired alias returns `[NOT_FOUND]` naming its replacement; assert hidden aliases inherit the replacement's badge and ruleset filtering. | REQ-581, REQ-413 |
+| T676 | Automated | Standard call-completeness: assert the standard catalog names every tool in the full catalog, serializes smaller than full, reduces every output schema to a presence marker, and permits a cross-group call without a group switch. | REQ-570, REQ-575, REQ-580 |
+| T677 | Automated | Small summary catalog: assert small is a strict subset of standard, measures at most one tenth of standard, carries one-line descriptions, omits parameter descriptions, and returns a presence-only output schema. | REQ-548b, REQ-570, REQ-580 |
+| T678 | Automated | Measured profiles and budgets: assert `spec_health.tool_surface.catalog_profiles` reports measured bytes and tokens for full, standard, and small; standard is at most 90% of full; small is at most 10% of full; the reported budgets match the measured baseline. | REQ-568, REQ-571 |
+| T679 | Automated | Top proxy score: assert every host tool scores 5.0 on the deterministic TDQS proxy, and coherence naming, disambiguation, and completeness report 5. | REQ-552 |
+| T680 | Automated | Proxy agreement: assert the live `spec_health.tdqs` mean and minimum agree with the static deterministic computation over the registered definitions. | REQ-552 |
 
 ---
 
@@ -12153,13 +12158,15 @@ never folded into it (REQ-555).
 | Purpose Clarity | One sentence naming verb + resource + scope, distinguishing the tool from its siblings | Purpose buried, or a title that merely restates the name |
 | Usage Guidelines | A "Use when:" clause and a "Do NOT use when:" clause naming the sibling to prefer instead | Missing disambiguation from a sibling tool |
 | Behavioral Transparency | Per mutating action, what persists, whether it is audited, and whether it is reversible; plus return/error behavior | A mutating action whose side effects are undisclosed |
-| Parameter Semantics | Schema owns per-parameter meaning, allowed values, format, range, and default (REQ-427); the description adds only cross-parameter interactions the schema cannot express | A per-action parameter enumeration duplicating the schema (REQ-024c) |
+| Parameter Semantics | Schema owns per-parameter meaning, allowed values, format, range, and default (REQ-427); the description adds only cross-parameter interactions the schema cannot express | A per-action parameter enumeration duplicating the schema (REQ-024c), or a parameter without a schema description |
 | Conciseness & Structure | Front-loaded; no restatement of schema or annotations; within the recorded description budget | Padding, or an over-budget description |
 | Contextual Completeness | The output schema documents every reported field (REQ-548b) | A bare result envelope, or undocumented result fields |
 
-The description's job is to add information the structured fields do not carry;
-it earns no credit for restating the schema or the annotations (REQ-024c,
-REQ-392). Titles are human-readable expansions of the tool name (REQ-024a) and
+A definition scores the top Parameter Semantics proxy when every parameter
+carries a schema description; a cross-parameter interaction clause may raise a
+partial-coverage score by one tier. The description's job is to add information
+the structured fields do not carry; it earns no credit for restating the schema
+or the annotations (REQ-024c, REQ-392). Titles are human-readable expansions of the tool name (REQ-024a) and
 SHALL be at least as long as the name. The description-size budget is recorded
 once in DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
 reports the aggregate listing size (REQ-392). A conformant definition is a
@@ -12229,23 +12236,26 @@ a justification. The build records the extension in DECISIONS.md and
 An action that fits no core or declared extension group is a build defect.
 
 **Profiles and precedence.** A surface profile selects how much of the catalog
-a caller sees: `full` (the complete surface), `standard` (the active group plus
-the always-visible global tools), or `small` (the active group's entry action
-plus the globals). `TTRPG_SURFACE_PROFILE` governs catalog projection only;
+a caller sees: `full` (the complete detailed surface; the default), `standard`
+(the complete surface with output-schema bodies reduced to a presence marker, so
+no call requires a group switch), or `small` (the active group's entry tools
+plus the globals, reduced to a one-line purpose and parameter names/types).
+`TTRPG_SURFACE_PROFILE` governs catalog projection only;
 `TTRPG_GUIDANCE_PROFILE` continues to govern orientation and verbosity. When
 both are set, the surface profile determines the catalog and the guidance
 profile determines orientation.
 
-**Always-visible globals.** `set_badge`, `manage_session (action: discover)`,
-and `respond_decision` are visible in every profile. `discover` returns the
-group directory: each group's purpose, entry action, members, prerequisites,
-and successor group.
+**Always-visible globals.** `set_badge`, `manage_session`, `respond_decision`,
+`open_session`, and `close_session` are visible in every profile.
+`manage_session (action: discover)` returns the group directory: each group's
+purpose, entry action, members, prerequisites, and successor group.
 
 **Measurement.** Catalog size is the UTF-8 byte length of the projected
 `tools/list` payload divided by four, rounded up. The full-surface baseline is
-recorded before projection ships. The `standard` budget is at most half that
-baseline; the `small` budget is at most one tenth. Both budgets are recorded in
-DECISIONS.md and reported in `spec_health`.
+recorded before projection ships and is measured from the serialized full
+payload, not a reduced snapshot. The `standard` budget is at most ninety
+percent of that baseline; the `small` budget is at most ten percent. Both
+budgets are recorded in DECISIONS.md and reported in `spec_health` per profile.
 
 **Surface proxies.** The deterministic report covers group coverage, orphan
 actions, entry-point uniqueness, per-group balance (tools per group), declared

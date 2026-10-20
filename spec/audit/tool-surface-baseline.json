@@ -238,81 +238,140 @@
         "retired": false
       }
     ],
-    "full_tokens": 19957,
-    "tools_list_bytes": 103202
+    "full_tokens": 25852,
+    "tools_list_bytes": 103407
+  },
+  "measurements": {
+    "full": {
+      "tools": 36,
+      "bytes": 103407,
+      "tokens": 25852
+    },
+    "standard": {
+      "tools": 36,
+      "bytes": 89403,
+      "tokens": 22351
+    },
+    "small": {
+      "tools": 6,
+      "bytes": 4609,
+      "tokens": 1153,
+      "groups": {
+        "table": {
+          "tools": 6,
+          "bytes": 4609,
+          "tokens": 1153
+        },
+        "explore": {
+          "tools": 6,
+          "bytes": 3538,
+          "tokens": 885
+        },
+        "resolve": {
+          "tools": 6,
+          "bytes": 4562,
+          "tokens": 1141
+        },
+        "narrate": {
+          "tools": 6,
+          "bytes": 4597,
+          "tokens": 1150
+        },
+        "lookup": {
+          "tools": 6,
+          "bytes": 3908,
+          "tokens": 977
+        },
+        "referee": {
+          "tools": 6,
+          "bytes": 3657,
+          "tokens": 915
+        },
+        "author": {
+          "tools": 6,
+          "bytes": 3881,
+          "tokens": 971
+        },
+        "maintain": {
+          "tools": 6,
+          "bytes": 4046,
+          "tokens": 1012
+        }
+      }
+    }
   },
   "budgets": {
-    "standard": 9979,
-    "small": 1996
+    "standard": 23267,
+    "small": 2586
   },
   "worst_case": {
-    "standard_tokens": 7457,
-    "small_tokens": 269
+    "standard_tokens": 22351,
+    "small_tokens": 1153
   },
   "groups": [
     {
       "group": "table",
-      "tools": 7,
-      "standard_tools": 7,
-      "standard_tokens": 3495,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 254
+      "small_tokens": 1153
     },
     {
       "group": "explore",
-      "tools": 2,
-      "standard_tools": 7,
-      "standard_tokens": 2687,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 229
+      "small_tokens": 885
     },
     {
       "group": "resolve",
-      "tools": 4,
-      "standard_tools": 9,
-      "standard_tokens": 4073,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 269
+      "small_tokens": 1141
     },
     {
       "group": "narrate",
-      "tools": 4,
-      "standard_tools": 8,
-      "standard_tokens": 3443,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 251
+      "small_tokens": 1150
     },
     {
       "group": "lookup",
-      "tools": 7,
-      "standard_tools": 12,
-      "standard_tokens": 6262,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 255
+      "small_tokens": 977
     },
     {
       "group": "referee",
-      "tools": 9,
-      "standard_tools": 14,
-      "standard_tokens": 7457,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 221
+      "small_tokens": 915
     },
     {
       "group": "author",
-      "tools": 7,
-      "standard_tools": 12,
-      "standard_tokens": 5802,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 254
+      "small_tokens": 971
     },
     {
       "group": "maintain",
-      "tools": 3,
-      "standard_tools": 8,
-      "standard_tokens": 3506,
+      "tools": 6,
+      "standard_tools": 36,
+      "standard_tokens": 22351,
       "small_tools": 6,
-      "small_tokens": 234
+      "small_tokens": 1012
     }
   ],
   "defects": []

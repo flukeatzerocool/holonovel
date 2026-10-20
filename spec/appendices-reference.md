@@ -1988,6 +1988,11 @@ diet.
 | T672 | Automated | Legacy package rebuild: assert a pre-contract package is reported for rebuild; assert a rebuilt package loads with declarations; assert a no-emitter package is deferred with its reason. | REQ-579 |
 | T674 | Automated | Split-tool compatibility: assert the prior name succeeds and `tools/list` advertises the replacement metadata; assert the replacement carries no deprecation; assert badge filtering matches. | REQ-581 |
 | T675 | Automated | Compatibility accounting: assert a canonical tool spanning three groups fails `check-tool-surface`, and the same span passes when the third group is a compatibility declaration; assert a compatibility declaration with an unresolved replacement fails; assert `tools/list` omits hidden aliases while `tools/call` succeeds; assert `spec_health.tool_surface` and `holonovel://tool-groups` name each replacement; assert canonical and compatibility counts are reported separately; assert a retired alias returns `[NOT_FOUND]` naming its replacement; assert hidden aliases inherit the replacement's badge and ruleset filtering. | REQ-581, REQ-413 |
+| T676 | Automated | Standard call-completeness: assert the standard catalog names every tool in the full catalog, serializes smaller than full, reduces every output schema to a presence marker, and permits a cross-group call without a group switch. | REQ-570, REQ-575, REQ-580 |
+| T677 | Automated | Small summary catalog: assert small is a strict subset of standard, measures at most one tenth of standard, carries one-line descriptions, omits parameter descriptions, and returns a presence-only output schema. | REQ-548b, REQ-570, REQ-580 |
+| T678 | Automated | Measured profiles and budgets: assert `spec_health.tool_surface.catalog_profiles` reports measured bytes and tokens for full, standard, and small; standard is at most 90% of full; small is at most 10% of full; the reported budgets match the measured baseline. | REQ-568, REQ-571 |
+| T679 | Automated | Top proxy score: assert every host tool scores 5.0 on the deterministic TDQS proxy, and coherence naming, disambiguation, and completeness report 5. | REQ-552 |
+| T680 | Automated | Proxy agreement: assert the live `spec_health.tdqs` mean and minimum agree with the static deterministic computation over the registered definitions. | REQ-552 |
 
 ---
 
@@ -3194,13 +3199,15 @@ never folded into it (REQ-555).
 | Purpose Clarity | One sentence naming verb + resource + scope, distinguishing the tool from its siblings | Purpose buried, or a title that merely restates the name |
 | Usage Guidelines | A "Use when:" clause and a "Do NOT use when:" clause naming the sibling to prefer instead | Missing disambiguation from a sibling tool |
 | Behavioral Transparency | Per mutating action, what persists, whether it is audited, and whether it is reversible; plus return/error behavior | A mutating action whose side effects are undisclosed |
-| Parameter Semantics | Schema owns per-parameter meaning, allowed values, format, range, and default (REQ-427); the description adds only cross-parameter interactions the schema cannot express | A per-action parameter enumeration duplicating the schema (REQ-024c) |
+| Parameter Semantics | Schema owns per-parameter meaning, allowed values, format, range, and default (REQ-427); the description adds only cross-parameter interactions the schema cannot express | A per-action parameter enumeration duplicating the schema (REQ-024c), or a parameter without a schema description |
 | Conciseness & Structure | Front-loaded; no restatement of schema or annotations; within the recorded description budget | Padding, or an over-budget description |
 | Contextual Completeness | The output schema documents every reported field (REQ-548b) | A bare result envelope, or undocumented result fields |
 
-The description's job is to add information the structured fields do not carry;
-it earns no credit for restating the schema or the annotations (REQ-024c,
-REQ-392). Titles are human-readable expansions of the tool name (REQ-024a) and
+A definition scores the top Parameter Semantics proxy when every parameter
+carries a schema description; a cross-parameter interaction clause may raise a
+partial-coverage score by one tier. The description's job is to add information
+the structured fields do not carry; it earns no credit for restating the schema
+or the annotations (REQ-024c, REQ-392). Titles are human-readable expansions of the tool name (REQ-024a) and
 SHALL be at least as long as the name. The description-size budget is recorded
 once in DECISIONS.md beside the REQ-429 tool budget; `spec_health.tools_list_bytes`
 reports the aggregate listing size (REQ-392). A conformant definition is a
@@ -3270,23 +3277,26 @@ a justification. The build records the extension in DECISIONS.md and
 An action that fits no core or declared extension group is a build defect.
 
 **Profiles and precedence.** A surface profile selects how much of the catalog
-a caller sees: `full` (the complete surface), `standard` (the active group plus
-the always-visible global tools), or `small` (the active group's entry action
-plus the globals). `TTRPG_SURFACE_PROFILE` governs catalog projection only;
+a caller sees: `full` (the complete detailed surface; the default), `standard`
+(the complete surface with output-schema bodies reduced to a presence marker, so
+no call requires a group switch), or `small` (the active group's entry tools
+plus the globals, reduced to a one-line purpose and parameter names/types).
+`TTRPG_SURFACE_PROFILE` governs catalog projection only;
 `TTRPG_GUIDANCE_PROFILE` continues to govern orientation and verbosity. When
 both are set, the surface profile determines the catalog and the guidance
 profile determines orientation.
 
-**Always-visible globals.** `set_badge`, `manage_session (action: discover)`,
-and `respond_decision` are visible in every profile. `discover` returns the
-group directory: each group's purpose, entry action, members, prerequisites,
-and successor group.
+**Always-visible globals.** `set_badge`, `manage_session`, `respond_decision`,
+`open_session`, and `close_session` are visible in every profile.
+`manage_session (action: discover)` returns the group directory: each group's
+purpose, entry action, members, prerequisites, and successor group.
 
 **Measurement.** Catalog size is the UTF-8 byte length of the projected
 `tools/list` payload divided by four, rounded up. The full-surface baseline is
-recorded before projection ships. The `standard` budget is at most half that
-baseline; the `small` budget is at most one tenth. Both budgets are recorded in
-DECISIONS.md and reported in `spec_health`.
+recorded before projection ships and is measured from the serialized full
+payload, not a reduced snapshot. The `standard` budget is at most ninety
+percent of that baseline; the `small` budget is at most ten percent. Both
+budgets are recorded in DECISIONS.md and reported in `spec_health` per profile.
 
 **Surface proxies.** The deterministic report covers group coverage, orphan
 actions, entry-point uniqueness, per-group balance (tools per group), declared

@@ -17,6 +17,12 @@ import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
 import { buildSurfaceReport } from "./surface-report.js";
+import {
+  SURFACE_GLOBALS,
+  normalizeProfile,
+  projectToolList as projectSurfaceTools,
+  toolGroups as surfaceToolGroups,
+} from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
@@ -688,20 +694,48 @@ function hostToolQuality() {
 // REQ-552/REQ-553/REQ-554/REQ-555 — deterministic TDQS conformance report over
 // the live registered surface. The graded TDQS is external; this reports the
 // build-contract proxies: hard gates, dimension proxies, coherence, shadowing.
+function zodBaseType(value: any): any {
+  let current = value;
+  for (let i = 0; i < 4 && current; i++) {
+    if (current.type === "optional" || current.type === "default" || current.type === "nullable") {
+      current = current.unwrap?.() ?? current._def?.innerType ?? null;
+      continue;
+    }
+    break;
+  }
+  return current;
+}
 function zodToJsonSchema(schema: any, depth = 0): any {
   if (!schema || typeof schema !== "object" || depth > 4) return { type: "string" };
-  const shape = (schema as any).shape;
-  if (!shape || typeof shape !== "object") return { type: "string" };
-  const properties: Record<string, any> = {};
-  const required: string[] = [];
-  for (const [key, value] of Object.entries(shape)) {
-    if (!isOptionalShape(schema, key)) required.push(key);
-    const ctor = (value as any)?._zod?.constructor?.name ?? (value as any)?.constructor?.name ?? "";
-    if (ctor === "ZodObject") properties[key] = zodToJsonSchema(value, depth + 1);
-    else if (ctor === "ZodArray") properties[key] = { type: "array", items: { type: "string" } };
-    else properties[key] = { type: "string" };
+  const base = zodBaseType(schema);
+  const description =
+    typeof schema?.description === "string" ? schema.description
+    : typeof base?.description === "string" ? base.description
+    : undefined;
+  const shape = base?.shape;
+  if (shape && typeof shape === "object") {
+    const properties: Record<string, any> = {};
+    const required: string[] = [];
+    for (const [key, value] of Object.entries(shape)) {
+      if (!isOptionalShape(base, key)) required.push(key);
+      properties[key] = zodToJsonSchema(value, depth + 1);
+    }
+    return { type: "object", properties, required, ...(description ? { description } : {}) };
   }
-  return { type: "object", properties, required };
+  if (base?.type === "array") {
+    const element = base._def?.element ?? base.element;
+    const items = element ? zodToJsonSchema(element, depth + 1) : { type: "string" };
+    return { type: "array", items, ...(description ? { description } : {}) };
+  }
+  if (base?.type === "enum") {
+    const values = base.options ?? Object.values(base.enum ?? {});
+    return { type: "string", enum: [...values], ...(description ? { description } : {}) };
+  }
+  const type = base?.type === "number" || base?.type === "bigint" ? "number"
+    : base?.type === "boolean" ? "boolean"
+    : base?.type === "object" ? "object"
+    : "string";
+  return { type, ...(description ? { description } : {}) };
 }
 
 function registeredToolDefinitions(): ToolDefinition[] {
@@ -715,6 +749,36 @@ function registeredToolDefinitions(): ToolDefinition[] {
     outputSchema: tool?.outputSchema ?? null,
     annotations: tool?.annotations ?? null,
   }));
+}
+
+interface CatalogSize { bytes: number; tokens: number; }
+interface MeasuredSurface { full: CatalogSize; standard: CatalogSize; small: CatalogSize; active: CatalogSize; }
+let surfaceMeasurementCache: { fingerprint: string; activeGroup: string; result: MeasuredSurface } | null = null;
+function catalogSize(tools: unknown[]): CatalogSize {
+  const bytes = Buffer.byteLength(JSON.stringify(tools), "utf-8");
+  return { bytes, tokens: Math.ceil(bytes / 4) };
+}
+let liveToolCache: any[] | null = null;
+function measuredSurface(): MeasuredSurface {
+  const fingerprint = registrationFingerprint();
+  const activeGroup = activeSurfaceGroup();
+  if (surfaceMeasurementCache && surfaceMeasurementCache.fingerprint === fingerprint && surfaceMeasurementCache.activeGroup === activeGroup) {
+    return surfaceMeasurementCache.result;
+  }
+  const registry = surfaceRegistry();
+  const definitions = (liveToolCache ?? registeredToolDefinitions()) as any[];
+  const sizeFor = (profile: "full" | "standard" | "small", group: string | null = null): CatalogSize =>
+    catalogSize(projectSurfaceTools(definitions as any, { profile, group, activeGroup, registry }) as unknown[]);
+  const full = sizeFor("full");
+  const standard = sizeFor("standard");
+  let small: CatalogSize = { bytes: 0, tokens: 0 };
+  for (const group of registry?.taxonomy.groups ?? []) {
+    const measured = sizeFor("small", group);
+    if (measured.bytes > small.bytes) small = measured;
+  }
+  const result = { full, standard, small, active: { full, standard, small }[surfaceProfile()] };
+  surfaceMeasurementCache = { fingerprint, activeGroup, result };
+  return result;
 }
 
 function tdqsHealth() {
@@ -789,7 +853,6 @@ function surfaceRegistry(): SurfaceRegistry | null {
   }
   return surfaceRegistryCache;
 }
-const SURFACE_GLOBALS = new Set(["set_badge", "manage_session", "respond_decision", "open_session", "close_session"]);
 let surfaceOverrideCount = 0;
 
 // REQ-574/577 — composite turn handles. A handle is minted by `take_turn` and
@@ -810,8 +873,7 @@ function toolResultText(result: any): string {
   return (result?.content ?? []).map((part: any) => part?.text ?? "").join("\n");
 }
 function surfaceProfile(): "full" | "standard" | "small" {
-  const value = (process.env.TTRPG_SURFACE_PROFILE ?? "full").toLowerCase();
-  return value === "standard" || value === "small" ? value : "full";
+  return normalizeProfile(process.env.TTRPG_SURFACE_PROFILE);
 }
 function activeSurfaceGroup(): string {
   const novel = state.activeNovel;
@@ -820,27 +882,7 @@ function activeSurfaceGroup(): string {
   return "explore";
 }
 function toolGroupSet(name: string): Set<string> {
-  const reg = surfaceRegistry();
-  const groups = new Set<string>();
-  if (!reg) return groups;
-  const prefix = `${name}.`;
-  for (const [key, decl] of Object.entries(reg.actions)) {
-    if (decl.compatibility) continue;
-    if (key === name || key.startsWith(prefix)) groups.add(decl.group);
-  }
-  return groups;
-}
-function entryToolsFor(group: string): Set<string> {
-  const reg = surfaceRegistry();
-  const tools = new Set<string>();
-  if (!reg) return tools;
-  for (const [key, decl] of Object.entries(reg.actions)) {
-    if (decl.compatibility) continue;
-    if (decl.group === group && decl.entry) {
-      tools.add(key.includes(".") ? key.slice(0, key.indexOf(".")) : key);
-    }
-  }
-  return tools;
+  return surfaceToolGroups(surfaceRegistry(), name);
 }
 // REQ-581 — hidden compatibility aliases. A tool whose every declaration is a
 // compatibility alias is omitted from tools/list; a tool carrying a mix keeps
@@ -912,14 +954,12 @@ function projectToolList<T extends { name: string }>(
 ): T[] {
   const requested =
     profile === "full" || profile === "standard" || profile === "small" ? profile : surfaceProfile();
-  const selected = group ?? activeSurfaceGroup();
-  if (requested === "full" && !group) return tools;
-  const entries = requested === "small" ? entryToolsFor(selected) : new Set<string>();
-  return tools.filter((tool) => {
-    if (SURFACE_GLOBALS.has(tool.name)) return true;
-    if (entries.has(tool.name)) return true;
-    return toolGroupSet(tool.name).has(selected);
-  });
+  return projectSurfaceTools(tools as any, {
+    profile: requested,
+    group: group ?? null,
+    activeGroup: activeSurfaceGroup(),
+    registry: surfaceRegistry(),
+  }) as T[];
 }
 interface GroupDirectoryEntry {
   group: string;
@@ -984,9 +1024,9 @@ function surfaceRefusal(name: string, args: Record<string, unknown>): string | n
     }
   }
 
-  // REQ-575 — cross-group projection. The default `full` profile is
-  // unprojected, so this check is inert until a narrower profile is selected.
-  if (surfaceProfile() === "full") return null;
+  // REQ-575 — cross-group refusal applies only to the small discovery
+  // catalog. Standard is call-complete, so it never costs a group switch.
+  if (surfaceProfile() !== "small") return null;
   const active = activeSurfaceGroup();
   if (decl.group === active) return null;
   if (decl.group === "lookup" || decl.group === "maintain") return null;
@@ -2111,7 +2151,7 @@ function badgeLabel(badge: Badge): string {
 // context; REQ-305 — observer mode: read-only spectator, AI plays both roles.
 server.registerTool("set_badge", {
   title: "Set Active Badge",
-  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
+  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Badge changes are mutating session state, audited, and reversible by switching back. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
   inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]).describe("The badge to activate: player, game_master, observer, or none (Editor).") },
 }, async ({ badge }) => {
   const novel = state.activeNovel;
@@ -2138,7 +2178,7 @@ function canon(text: string): string {
 
 server.registerTool("respond_decision", {
   title: "Respond to Workflow Decision",
-  description: "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
+  description: "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. The drain is mutating and audited; the applied outcome is not reversible. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
   inputSchema: { decision: z.string().describe("The canonical decision text the workflow is waiting on."), option: z.string().describe("The chosen option, or 'cancel' to abort the workflow and restore its snapshot.") },
 }, async ({ decision, option }) => {
   requireNotObserver();
@@ -8417,18 +8457,23 @@ function buildSpecHealth(): Record<string, unknown> {
     })(),
     tool_parameter_counts: cachedMetadata().toolParameterCounts,
     tool_required_param_counts: cachedMetadata().toolRequiredParamCounts,
-    tools_list_bytes: cachedMetadata().toolsListBytes,
+    tools_list_bytes: measuredSurface().active.bytes,
     // REQ-567, REQ-568, REQ-569, REQ-570, REQ-571, REQ-572, REQ-580 — Tool Surface Contract report, derived from the
     // committed registry and the live registrations at call time.
     tool_surface: (() => {
-      const tokens = Math.ceil(cachedMetadata().toolsListBytes / 4);
+      const measured = measuredSurface();
       return buildSurfaceReport({
         registry: surfaceRegistry(),
         live: liveSurfaceActions(),
         profile: surfaceProfile(),
-        catalogBytes: cachedMetadata().toolsListBytes,
+        catalogBytes: measured.active.bytes,
+        catalogProfiles: {
+          full: measured.full,
+          standard: measured.standard,
+          small: measured.small,
+        },
         overrides: surfaceOverrideCount,
-        budgets: { standard: Math.ceil(tokens / 2), small: Math.ceil(tokens / 10) },
+        budgets: { standard: Math.ceil(measured.full.tokens * 0.9), small: Math.ceil(measured.full.tokens * 0.1) },
       });
     })(),
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
@@ -8488,7 +8533,7 @@ function buildSpecHealth(): Record<string, unknown> {
     catalog_verbosity: enumerationVerbosity,
     ...schemaSurfaceMetrics(),
     token_footprint: {
-      tools_list_bytes: cachedMetadata().toolsListBytes,
+      tools_list_bytes: measuredSurface().active.bytes,
       prompt_scaffold_bytes: cachedMetadata().promptBytes,
     },
     // REQ-346 — narrative coherence disposition (G7). Derived from the §5.12
@@ -10526,7 +10571,7 @@ server.registerTool("close_session", {
 
 server.registerTool("take_turn", {
   title: "Take Play Turn",
-  description: "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only; the handle is session-scoped and expires.",
+  description: "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
   inputSchema: {
     intent: z.string().describe("Player intent to resolve (take_turn)."),
     entity_id: z.string().optional().describe("Acting entity id (take_turn)."),
@@ -10542,6 +10587,39 @@ server.registerTool("take_turn", {
 
 // ── Transport ──────────────────────────────────────────────────────
 
+// REQ-581 — strip compatibility aliases from a tool list. Shared by the
+// request handler and the startup warm-up so measurements never depend on the
+// last caller's badge.
+function stripHiddenCatalog(tools: any[]): any[] {
+  const hiddenTools = hiddenAliasNames();
+  const hiddenActions = hiddenActionAliases();
+  return tools
+    .filter((tool: any) => !hiddenTools.has(tool.name))
+    .map((tool: any) => {
+      const hidden = [...hiddenActions.keys()]
+        .filter((key) => key.startsWith(`${tool.name}.`))
+        .map((key) => key.slice(tool.name.length + 1));
+      if (hidden.length === 0) return tool;
+      const clone = structuredClone(tool);
+      const actionSchema = clone?.inputSchema?.properties?.action;
+      if (Array.isArray(actionSchema?.enum)) {
+        actionSchema.enum = actionSchema.enum.filter((value: string) => !hidden.includes(value));
+      }
+      return clone;
+    });
+}
+let originalToolListHandler: ((request: any, extra: any) => Promise<any>) | null = null;
+async function warmCatalogCache(): Promise<void> {
+  if (!originalToolListHandler) return;
+  try {
+    const full = await originalToolListHandler({ method: "tools/list", params: { _meta: { profile: "full" } } }, {});
+    liveToolCache = stripHiddenCatalog(full?.tools ?? []);
+    surfaceMeasurementCache = null;
+  } catch {
+    // Best-effort: the first tools/list request warms the cache instead.
+  }
+}
+
 // REQ-137b — badge-filtered `tools/list`. The MCP SDK's high-level McpServer
 // owns the ListTools handler; wrap it (reusing the SDK's tool serialization)
 // so the active badge filters the returned catalog. Best-effort: if the handler
@@ -10553,10 +10631,16 @@ function installBadgeFilteredToolList(): void {
     process.stderr.write("[holonovel] badge-filtered tools/list unavailable; serving unfiltered catalog\n");
     return;
   }
+  originalToolListHandler = original;
   low.setRequestHandler(ListToolsRequestSchema, async (req: any, extra: any) => {
     const full = await original(req, extra);
     const badge = getBadge();
-    const visible = (full?.tools ?? []).filter((t: any) => toolsVisibleToBadge(t.name, badge));
+    const canonical = stripHiddenCatalog(full?.tools ?? []);
+    // Cache the unfiltered canonical catalog so health measurements do not
+    // depend on the last caller's badge (REQ-392, REQ-568).
+    liveToolCache = canonical as any[];
+    surfaceMeasurementCache = null;
+    const visible = canonical.filter((tool: any) => toolsVisibleToBadge(tool.name, badge));
     // REQ-570/580 — group and profile projection. The default profile is
     // `full`, so an unconfigured server serves the same catalog as before.
     // Group and profile are non-standard list parameters; MCP carries them in
@@ -10573,24 +10657,7 @@ function installBadgeFilteredToolList(): void {
     if (requestedGroup && !surfaceRegistry()?.taxonomy.groups.includes(requestedGroup)) {
       throw new McpError(ErrorCode.InvalidParams, `[INVALID_INPUT] unknown group: ${requestedGroup}`);
     }
-    const projected = projectToolList(visible as Array<{ name: string }>, requestedGroup, requestedProfile);
-    // REQ-581 — compatibility aliases stay callable but are not listed.
-    const hiddenTools = hiddenAliasNames();
-    const hiddenActions = hiddenActionAliases();
-    const tools = projected
-      .filter((tool: any) => !hiddenTools.has(tool.name))
-      .map((tool: any) => {
-        const hidden = [...hiddenActions.keys()]
-          .filter((key) => key.startsWith(`${tool.name}.`))
-          .map((key) => key.slice(tool.name.length + 1));
-        if (hidden.length === 0) return tool;
-        const clone = structuredClone(tool);
-        const actionSchema = clone?.inputSchema?.properties?.action;
-        if (Array.isArray(actionSchema?.enum)) {
-          actionSchema.enum = actionSchema.enum.filter((value: string) => !hidden.includes(value));
-        }
-        return clone;
-      });
+    const tools = projectToolList(visible as Array<{ name: string }>, requestedGroup, requestedProfile);
     return { ...full, tools };
   });
 }
@@ -10600,6 +10667,7 @@ async function main() {
   installBadgeFilteredToolList();
   installSurfaceGuards();
   await server.connect(transport);
+  await warmCatalogCache();
 }
 
 main().catch((e) => {

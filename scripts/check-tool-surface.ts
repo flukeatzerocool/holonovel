@@ -101,7 +101,12 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-const defs = readJson<{ tools: ToolDefinition[]; hidden_aliases?: HiddenAlias[] }>(DEFS);
+const defs = readJson<{
+  tools: ToolDefinition[];
+  hidden_aliases?: HiddenAlias[];
+  tools_list_bytes?: number;
+  surface_footprint?: { profiles: { full: { tokens: number } } };
+}>(DEFS);
 const registry = readJson<Registry>(REGISTRY);
 const defects: string[] = [];
 
@@ -222,7 +227,8 @@ const compatibilityTools = [...actionsByTool].filter(([, keys]) =>
   keys.every((key) => !!registry.actions[key].compatibility),
 ).length;
 
-const catalogBytes = (defs as { tools_list_bytes?: number }).tools_list_bytes ?? 0;
+const catalogBytes = defs.tools_list_bytes ?? 0;
+const catalogTokens = defs.surface_footprint?.profiles.full.tokens ?? Math.ceil(catalogBytes / 4);
 const payload = {
   status: defects.length === 0 ? "OK" : "FAIL",
   actions: Object.keys(registry.actions).length,
@@ -238,7 +244,7 @@ const payload = {
   group_spans: groupSpans,
   span_violations: spanViolations,
   catalog_bytes: catalogBytes,
-  catalog_tokens_estimate: Math.ceil(catalogBytes / 4),
+  catalog_tokens_estimate: catalogTokens,
   defects,
 };
 
