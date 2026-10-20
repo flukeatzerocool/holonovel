@@ -11,15 +11,41 @@
  * under-balanced. Deterministic; reads only committed files.
  *
  * Exit codes: 0 = conformant, 1 = defects, 2 = fatal (missing/unreadable
- * artifact). Flags: `--json` (machine-readable payload to stdout).
+ * artifact). Flags: `--json` (machine-readable payload to stdout), `--defs`
+ * and `--registry` (override the committed artifact paths; used by the T660
+ * fixture tests), `--help`.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CORE_TOOL_GROUPS, CORE_TOOL_PHASES } from "../holonovel/src/rulesets.js";
+import { parseValueFlag, handleHelp } from "./lib/args.js";
+
+const USAGE = `Usage: npx tsx scripts/check-tool-surface.ts [--json] [--defs FILE] [--registry FILE] [--help]
+
+Exit codes: 0 = conformant, 1 = defects, 2 = fatal (missing/unreadable artifact).
+`;
+
+const ARGV = process.argv.slice(2);
+handleHelp(ARGV, USAGE);
+
+const VALUE_FLAGS = new Set(["--defs", "--registry"]);
+const BOOLEAN_FLAGS = new Set(["--json", "--help", "-h"]);
+for (const arg of ARGV) {
+  if (!arg.startsWith("-") || VALUE_FLAGS.has(arg) || BOOLEAN_FLAGS.has(arg)) continue;
+  console.error(`[check-tool-surface] unknown flag: ${arg}`);
+  process.exit(1);
+}
+for (const flag of VALUE_FLAGS) {
+  const i = ARGV.indexOf(flag);
+  if (i !== -1 && (ARGV[i + 1] === undefined || ARGV[i + 1].startsWith("--"))) {
+    console.error(`[check-tool-surface] ${flag} requires a file path`);
+    process.exit(1);
+  }
+}
 
 const ROOT = join(import.meta.dirname, "..");
-const DEFS = join(ROOT, "holonovel", "tool-definitions.json");
-const REGISTRY = join(ROOT, "holonovel", "tool-surface-registry.json");
+const DEFS = parseValueFlag(ARGV, "--defs") ?? join(ROOT, "holonovel", "tool-definitions.json");
+const REGISTRY = parseValueFlag(ARGV, "--registry") ?? join(ROOT, "holonovel", "tool-surface-registry.json");
 const MIN_TOOLS_PER_GROUP = 2;
 const MAX_TOOLS_PER_GROUP = 10;
 

@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-10-20 — Tool Surface coverage evidence
+
+- The coverage audit now expands slash and range REQ citation shorthand in
+  source comments, so a comment such as `REQ-567/568` or `REQ-570–572` counts
+  for every REQ it names. This closes the false gaps on REQ-569 and REQ-571,
+  which were source-cited but invisible to the parser. (REQ-569, REQ-571)
+- Added exercised tests for the remaining surface contracts: the conformance
+  report, projected catalog, group directory, profile precedence, composite
+  session and turn actions, turn handles, and the registry fixture gate.
+  All eight previously unevidenced surface REQs now carry exercised evidence.
+  (REQ-567, REQ-568, REQ-570, REQ-572, REQ-574, REQ-577, REQ-579, REQ-580)
+- `spec_health.tool_surface` now reports per-group balance, entry-point
+  uniqueness, and workflow call counts, and its derivation is exercised
+  against a fixture registry with an orphan action and a duplicate entry.
+  (REQ-568)
+- `tools/list` reads group and profile selections from request metadata,
+  rejects an unknown group with `[INVALID_INPUT]`, and projects an explicit
+  `full` profile correctly. The group directory is badge-filtered and is now
+  served at `holonovel://tool-groups`; the prior URI was not a valid URL.
+  (REQ-570, REQ-572, REQ-580)
+- The Update workflow now reports packages whose tools predate the surface
+  contract as needing a rebuild, alongside package-format staleness and
+  no-emitter deferrals. (REQ-579)
+- A REQ that newly buckets to “cited but no exercised test” now fails the
+  coverage audit, so the regression cannot land silently again.
+- The surface harness now validates every registered concrete and templated
+  resource URI, so an unreadable resource scheme fails the test instead of
+  shipping silently. The dedicated-evidence backlog remains report-only and
+  is recorded as closed-P3.
+
 ## 2026-10-20 — Tool Surface Contract
 
 - Every registered tool and action now declares an intent group, phase, entry

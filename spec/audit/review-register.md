@@ -11,6 +11,20 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Tool Surface coverage evidence (SR-1, SR-2, SR-3, SR-4, SR-5, SR-9) —
+  resolved 2026-10-20:** the strict coverage audit had reported REQ-569 and
+  REQ-571 as uncited because `gatherSourceCites` read only explicit `REQ-NNN`
+  tokens (`scripts/validate.ts:1415`), and eight surface REQs had no exercised
+  test. Citation expansion now reads slash/range shorthand
+  (`scripts/lib/req-citations.ts`), the surface block carries explicit tokens
+  (`holonovel/src/index.ts:759`, `:8265`), and exercised tests cover T660,
+  T661, T663, T665, T667, T670, T672, and T673. The mislabelled T574/T577
+  surface tests were renamed to their real IDs, and `DECISIONS.md:20` no
+  longer claims T649 covers REQ-579. New bucket-B REQs now fail
+  (`scripts/lib/req-checks.ts`). Evidence: `validate --impl-audit=strict` →
+  exit 0, A=0/B=0; `test:tool-surface` → 6/6; `test:ruleset-gates` → 13/13;
+  `test:fingerprints` → 9/9; `test:all` → 44/44; `check:full` → exit 0.
+
 - **Harness/agent process improvements (AH-1, AH-2, AH-3) — resolved
   2026-10-05:** AH-3 is satisfied by `build-review` v2.6, whose Output
   Contract now requires the `build-review passed.` token as the first Build
@@ -617,6 +631,15 @@ pass and completion-oracle green. Fix evidence: regression tests in
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
 ## Closed-P3 (recorded, no action)
+
+- **Dedicated-evidence backlog (`compare-spec-code --dedicated`) — closed
+  2026-10-20:** the detector (`scripts/compare-spec-code.ts:477-484`) flags
+  bucket-C REQs whose exercised tests are shared with other REQs in Appendix F.
+  It reports 131 REQs, not the three samples (REQ-415/T488, REQ-427/T509,
+  REQ-463/T553) cited in the 2026-10-20 AAR. The report is intentionally
+  report-only and over-flags ordinary multi-REQ test bundles; no gate consumes
+  it. Record-and-close; re-open only if a dedicated-evidence gate is proposed.
+  The resource-URI failure class it exposed is separately guarded by T665.
 
 - **Competitor-learned architecture-isolation gate (L1)** (closed 2026-10-08,
   commit `fb861cf`): a module-import boundary gate generalizing REQ-492's

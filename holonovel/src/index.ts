@@ -9,13 +9,14 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
+import { buildSurfaceReport } from "./surface-report.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
@@ -756,7 +757,7 @@ function cachedMetadata(): MetadataCache {
 // Prime the cache once at startup so the first tools/list read is warm.
 cachedMetadata();
 
-// ── Tool Surface Contract (REQ-567, REQ-568, REQ-570–572, REQ-580) ──
+// ── Tool Surface Contract (REQ-567, REQ-568, REQ-570, REQ-571, REQ-572, REQ-580) ──
 interface SurfaceDeclaration {
   group: string;
   phases: string[];
@@ -842,7 +843,7 @@ function projectToolList<T extends { name: string }>(
   profile?: string,
 ): T[] {
   const requested =
-    profile === "standard" || profile === "small" ? profile : surfaceProfile();
+    profile === "full" || profile === "standard" || profile === "small" ? profile : surfaceProfile();
   const selected = group ?? activeSurfaceGroup();
   if (requested === "full" && !group) return tools;
   const entries = requested === "small" ? entryToolsFor(selected) : new Set<string>();
@@ -861,14 +862,22 @@ interface GroupDirectoryEntry {
 function groupDirectory(): GroupDirectoryEntry[] {
   const reg = surfaceRegistry();
   if (!reg) return [];
-  return reg.taxonomy.groups.map((group) => {
-    const members = Object.entries(reg.actions).filter(([, decl]) => decl.group === group);
+  const badge = getBadge();
+  const out: GroupDirectoryEntry[] = [];
+  for (const group of reg.taxonomy.groups) {
+    const members = Object.entries(reg.actions).filter(([key, decl]) => {
+      if (decl.group !== group) return false;
+      const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
+      return toolsVisibleToBadge(tool, badge);
+    });
+    if (members.length === 0) continue;
     const entry = members.find(([, decl]) => decl.entry)?.[0] ?? null;
     const tools = new Set(
       members.map(([key]) => (key.includes(".") ? key.slice(0, key.indexOf(".")) : key)),
     );
-    return { group, entry, tools: [...tools].sort(), actions: members.length };
-  });
+    out.push({ group, entry, tools: [...tools].sort(), actions: members.length });
+  }
+  return out;
 }
 function liveSurfaceActions(): Set<string> {
   const live = new Set<string>();
@@ -8262,33 +8271,18 @@ function buildSpecHealth(): Record<string, unknown> {
     tool_parameter_counts: cachedMetadata().toolParameterCounts,
     tool_required_param_counts: cachedMetadata().toolRequiredParamCounts,
     tools_list_bytes: cachedMetadata().toolsListBytes,
-    // REQ-567/568/569/570–572/580/571 — Tool Surface Contract report, derived from the
+    // REQ-567, REQ-568, REQ-569, REQ-570, REQ-571, REQ-572, REQ-580 — Tool Surface Contract report, derived from the
     // committed registry and the live registrations at call time.
     tool_surface: (() => {
-      const reg = surfaceRegistry();
-      const live = liveSurfaceActions();
-      const declared = reg ? Object.keys(reg.actions) : [];
-      const directory = groupDirectory();
       const tokens = Math.ceil(cachedMetadata().toolsListBytes / 4);
-      return {
+      return buildSurfaceReport({
+        registry: surfaceRegistry(),
+        live: liveSurfaceActions(),
         profile: surfaceProfile(),
-        actions: declared.length,
-        coverage: {
-          live: live.size,
-          declared: declared.length,
-          orphan_actions: [...live].filter((key) => !reg?.actions[key]),
-          missing_actions: declared.filter((key) => !live.has(key)),
-        },
-        groups: Object.fromEntries(directory.map((group) => [group.group, group.tools.length])),
-        entries: Object.fromEntries(directory.map((group) => [group.group, group.entry])),
-        catalog_bytes: cachedMetadata().toolsListBytes,
-        catalog_tokens_estimate: tokens,
+        catalogBytes: cachedMetadata().toolsListBytes,
         overrides: surfaceOverrideCount,
-        budgets: {
-          standard: Math.ceil(tokens / 2),
-          small: Math.ceil(tokens / 10),
-        },
-      };
+        budgets: { standard: Math.ceil(tokens / 2), small: Math.ceil(tokens / 10) },
+      });
     })(),
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
@@ -8375,9 +8369,9 @@ function buildSpecHealth(): Record<string, unknown> {
 
 // Novel resources
 // REQ-572 — group directory: the same intent groups the projection uses.
-server.registerResource("tool-groups", "tool_groups://", { title: "Tool Groups", mimeType: "application/json" }, async () => ({
+server.registerResource("tool-groups", "holonovel://tool-groups", { title: "Tool Groups", mimeType: "application/json" }, async () => ({
   contents: [{
-    uri: "tool_groups://",
+    uri: "holonovel://tool-groups",
     mimeType: "application/json",
     text: JSON.stringify({ profile: surfaceProfile(), groups: groupDirectory() }, null, 2),
   }],
@@ -10418,11 +10412,21 @@ function installBadgeFilteredToolList(): void {
     const visible = (full?.tools ?? []).filter((t: any) => toolsVisibleToBadge(t.name, badge));
     // REQ-570/580 — group and profile projection. The default profile is
     // `full`, so an unconfigured server serves the same catalog as before.
-    const tools = projectToolList(
-      visible as Array<{ name: string }>,
-      typeof req?.params?.group === "string" ? req.params.group : undefined,
-      typeof req?.params?.profile === "string" ? req.params.profile : undefined,
-    );
+    // Group and profile are non-standard list parameters; MCP carries them in
+    // `_meta`, which the request schema preserves. Direct handler calls may
+    // still pass them at the top level.
+    const params = req?.params ?? {};
+    const meta = params._meta ?? {};
+    const requestedGroup = typeof params.group === "string"
+      ? params.group
+      : typeof meta.group === "string" ? meta.group : undefined;
+    const requestedProfile = typeof params.profile === "string"
+      ? params.profile
+      : typeof meta.profile === "string" ? meta.profile : undefined;
+    if (requestedGroup && !surfaceRegistry()?.taxonomy.groups.includes(requestedGroup)) {
+      throw new McpError(ErrorCode.InvalidParams, `[INVALID_INPUT] unknown group: ${requestedGroup}`);
+    }
+    const tools = projectToolList(visible as Array<{ name: string }>, requestedGroup, requestedProfile);
     return { ...full, tools };
   });
 }

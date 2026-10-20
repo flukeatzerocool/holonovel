@@ -4,6 +4,7 @@
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
+import { checkNewBucketB } from "./lib/req-checks.js";
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
@@ -380,6 +381,25 @@ test("guarded-rule: a one-sided change passes", () => {
   ]) {
     if (decideGuardedRuleChange(input) !== null) throw new Error(`unexpected failure for ${JSON.stringify(input)}`);
   }
+});
+
+test("new bucket-B: an existing B row is tolerated", () => {
+  const issues = checkNewBucketB([{ reqId: "REQ-568", title: "Known", bucket: "B" }], new Set(["REQ-568"]));
+  if (issues.length !== 0) throw new Error(`unexpected issues: ${JSON.stringify(issues)}`);
+});
+
+test("new bucket-B: a newly classified B row fails", () => {
+  const issues = checkNewBucketB([{ reqId: "REQ-999", title: "New", bucket: "B" }], new Set());
+  if (!issues.some((i) => i.includes("REQ-999"))) throw new Error(`expected REQ-999 to fail; got ${JSON.stringify(issues)}`);
+});
+
+test("new bucket-B: A, C, and E rows are ignored", () => {
+  const issues = checkNewBucketB([
+    { reqId: "REQ-901", title: "Gap", bucket: "A" },
+    { reqId: "REQ-902", title: "Evidenced", bucket: "C" },
+    { reqId: "REQ-903", title: "Builder", bucket: "E" },
+  ], new Set());
+  if (issues.length !== 0) throw new Error(`unexpected issues: ${JSON.stringify(issues)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
