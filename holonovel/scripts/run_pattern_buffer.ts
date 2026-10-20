@@ -750,7 +750,7 @@ async function main() {
     "manage_adventure", "manage_character", "manage_codex", "manage_combat", "run_command", "manage_condition", "manage_countdown",
     "manage_faction", "manage_history", "manage_lore", "manage_note", "manage_novel", "manage_npc", "manage_relationship",
     "respond_decision", "manage_ruleset", "manage_scene", "manage_session", "set_badge", "manage_story", "manage_synthesis",
-    "manage_vow", "manage_world", "resolve_fate", "resolve_ironsworn", "resolve_forged",
+    "manage_vow", "manage_world", "resolve_mechanic",
   ].sort();
   const resourceUris = [
     "room://{id}", "thing://{id}", "world://map", "world://kinds", "scene://history",

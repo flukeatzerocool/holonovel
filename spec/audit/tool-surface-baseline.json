@@ -2,49 +2,283 @@
   "schema_version": 1,
   "estimator": "utf8-bytes-div-4-ceil",
   "baseline": {
-    "tools": 38,
-    "actions": 248,
-    "full_tokens": 20836,
-    "tools_list_bytes": 106902
+    "tools": 36,
+    "actions": 259,
+    "canonical_tools": 36,
+    "canonical_actions": 214,
+    "compatibility_tools": 3,
+    "compatibility_actions": 45,
+    "aliases": [
+      {
+        "name": "manage_lore.corpus_access",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_access",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_acquisitions",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_acquisitions",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_consume",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_consume",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_deny",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_deny",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_get",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_get",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_grant",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_grant",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_list",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_list",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_register",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_register",
+        "retired": false
+      },
+      {
+        "name": "manage_lore.corpus_route",
+        "kind": "action",
+        "replacement": "manage_corpus.corpus_route",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.archive",
+        "kind": "action",
+        "replacement": "manage_archive.archive",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.branch",
+        "kind": "action",
+        "replacement": "manage_archive.branch",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.checkpoint_list",
+        "kind": "action",
+        "replacement": "manage_archive.checkpoint_list",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.checkpoint_remove",
+        "kind": "action",
+        "replacement": "manage_archive.checkpoint_remove",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.checkpoint_restore",
+        "kind": "action",
+        "replacement": "manage_archive.checkpoint_restore",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.checkpoint_set",
+        "kind": "action",
+        "replacement": "manage_archive.checkpoint_set",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.clone",
+        "kind": "action",
+        "replacement": "manage_archive.clone",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.export",
+        "kind": "action",
+        "replacement": "manage_archive.export",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.import",
+        "kind": "action",
+        "replacement": "manage_archive.import",
+        "retired": false
+      },
+      {
+        "name": "manage_novel.unarchive",
+        "kind": "action",
+        "replacement": "manage_archive.unarchive",
+        "retired": false
+      },
+      {
+        "name": "manage_ruleset.roll",
+        "kind": "action",
+        "replacement": "resolve_mechanic.roll",
+        "retired": false
+      },
+      {
+        "name": "manage_scene.autonomy",
+        "kind": "action",
+        "replacement": "manage_staging.autonomy",
+        "retired": false
+      },
+      {
+        "name": "manage_scene.presence",
+        "kind": "action",
+        "replacement": "manage_staging.presence",
+        "retired": false
+      },
+      {
+        "name": "manage_session.category",
+        "kind": "action",
+        "replacement": "manage_diagnostics.category",
+        "retired": false
+      },
+      {
+        "name": "manage_session.compact",
+        "kind": "action",
+        "replacement": "manage_diagnostics.compact",
+        "retired": false
+      },
+      {
+        "name": "manage_session.compress",
+        "kind": "action",
+        "replacement": "manage_diagnostics.compress",
+        "retired": false
+      },
+      {
+        "name": "manage_session.event",
+        "kind": "action",
+        "replacement": "manage_diagnostics.event",
+        "retired": false
+      },
+      {
+        "name": "manage_session.health",
+        "kind": "action",
+        "replacement": "manage_diagnostics.health",
+        "retired": false
+      },
+      {
+        "name": "manage_session.history",
+        "kind": "action",
+        "replacement": "manage_diagnostics.history",
+        "retired": false
+      },
+      {
+        "name": "manage_session.subscribe",
+        "kind": "action",
+        "replacement": "manage_diagnostics.subscribe",
+        "retired": false
+      },
+      {
+        "name": "manage_world.causal_admit",
+        "kind": "action",
+        "replacement": "manage_causality.causal_admit",
+        "retired": false
+      },
+      {
+        "name": "manage_world.causal_ingress",
+        "kind": "action",
+        "replacement": "manage_causality.causal_ingress",
+        "retired": false
+      },
+      {
+        "name": "manage_world.causal_list",
+        "kind": "action",
+        "replacement": "manage_causality.causal_list",
+        "retired": false
+      },
+      {
+        "name": "manage_world.causal_propose",
+        "kind": "action",
+        "replacement": "manage_causality.causal_propose",
+        "retired": false
+      },
+      {
+        "name": "manage_world.causal_reject",
+        "kind": "action",
+        "replacement": "manage_causality.causal_reject",
+        "retired": false
+      },
+      {
+        "name": "manage_world.causal_state",
+        "kind": "action",
+        "replacement": "manage_causality.causal_state",
+        "retired": false
+      },
+      {
+        "name": "resolve_fate",
+        "kind": "tool",
+        "replacement": "resolve_mechanic",
+        "retired": false
+      },
+      {
+        "name": "resolve_forged",
+        "kind": "tool",
+        "replacement": "resolve_mechanic",
+        "retired": false
+      },
+      {
+        "name": "resolve_ironsworn",
+        "kind": "tool",
+        "replacement": "resolve_mechanic",
+        "retired": false
+      }
+    ],
+    "full_tokens": 19957,
+    "tools_list_bytes": 103202
   },
   "budgets": {
-    "standard": 10418,
-    "small": 2084
+    "standard": 9979,
+    "small": 1996
   },
   "worst_case": {
-    "standard_tokens": 8145,
-    "small_tokens": 262
+    "standard_tokens": 7457,
+    "small_tokens": 269
   },
   "groups": [
     {
       "group": "table",
       "tools": 7,
       "standard_tools": 7,
-      "standard_tokens": 3546,
+      "standard_tokens": 3495,
       "small_tools": 6,
       "small_tokens": 254
     },
     {
       "group": "explore",
-      "tools": 3,
-      "standard_tools": 8,
-      "standard_tokens": 3351,
+      "tools": 2,
+      "standard_tools": 7,
+      "standard_tokens": 2687,
       "small_tools": 6,
       "small_tokens": 229
     },
     {
       "group": "resolve",
-      "tools": 7,
-      "standard_tools": 12,
-      "standard_tokens": 5476,
+      "tools": 4,
+      "standard_tools": 9,
+      "standard_tokens": 4073,
       "small_tools": 6,
-      "small_tokens": 262
+      "small_tokens": 269
     },
     {
       "group": "narrate",
       "tools": 4,
       "standard_tools": 8,
-      "standard_tokens": 3466,
+      "standard_tokens": 3443,
       "small_tools": 6,
       "small_tokens": 251
     },
@@ -52,33 +286,33 @@
       "group": "lookup",
       "tools": 7,
       "standard_tools": 12,
-      "standard_tokens": 6308,
+      "standard_tokens": 6262,
       "small_tools": 6,
-      "small_tokens": 262
+      "small_tokens": 255
     },
     {
       "group": "referee",
-      "tools": 10,
-      "standard_tools": 15,
-      "standard_tokens": 8145,
+      "tools": 9,
+      "standard_tools": 14,
+      "standard_tokens": 7457,
       "small_tools": 6,
       "small_tokens": 221
     },
     {
       "group": "author",
-      "tools": 8,
-      "standard_tools": 13,
-      "standard_tokens": 6611,
+      "tools": 7,
+      "standard_tools": 12,
+      "standard_tokens": 5802,
       "small_tools": 6,
       "small_tokens": 254
     },
     {
       "group": "maintain",
-      "tools": 4,
+      "tools": 3,
       "standard_tools": 8,
-      "standard_tokens": 3524,
-      "small_tools": 5,
-      "small_tokens": 195
+      "standard_tokens": 3506,
+      "small_tools": 6,
+      "small_tokens": 234
     }
   ],
   "defects": []

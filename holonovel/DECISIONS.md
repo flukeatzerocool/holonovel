@@ -1,12 +1,12 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** e400b551e0adbc5668407b00b2d9b81a7f73481eb69f3b3ea7a2c4524c5aafcb
+**Spec hash:** dadd4c3fab52d0e4e962a4fcfdca37ec30d31f546ebdbcc9dce225c243f63285
 
-**Recorded tool budget:** 38 (REQ-429)
+**Recorded tool budget:** 36 listed (214 canonical actions; 3 hidden tool aliases + 1 hidden action alias carrying 45 compatibility actions) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 20,836 tokens; standard 10,418; small 2,084; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 19,957 tokens; standard 9,979; small 1,996; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Tool Surface Contract — 2026-10-19
 
@@ -14,6 +14,7 @@
 - **Baseline.** 30 tools, 211 actions, 16,040 full-catalog tokens under the pinned estimator. Worst-case standard projection 6,481 tokens (budget 8,020); worst-case small projection 196 tokens (budget 1,604). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
 - **Gates.** `check-tool-surface` (registry coverage, entry uniqueness, group balance) and `surface-budget` (profile budgets) are wired into `check:fast` and `check`.
 - **Enforcement.** REQ-573 preconditions (combat-active), REQ-575 cross-group edges, and REQ-576 audited Editor override are implemented in the `tools/call` guard; the override count is reported in `spec_health.tool_surface.overrides`. `test:surface-guards` exercises T666/T668/T669 and the REQ-577/REQ-574 composites (T670/T667) and is wired into `test:all`. Cross-group enforcement is inert under the default `full` profile.
+- **Consolidation.** `resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and `manage_ruleset (action: roll)` are consolidated into `resolve_mechanic` under REQ-413. The three prior tool names and the prior roll action remain callable as hidden compatibility aliases under REQ-581; they are omitted from `tools/list` and advertised by `spec_health.tool_surface` and `holonovel://tool-groups`. The canonical surface is 36 tools and 214 actions; compatibility declarations total 45 actions. `check-tool-surface` now enforces the two-group span limit over canonical actions, and `manage_ruleset` is author + lookup only.
 - **Five splits.** `manage_session` → `manage_diagnostics`, `manage_world` → `manage_causality`, `manage_novel` → `manage_archive`, `manage_scene` → `manage_staging`, and `manage_lore` → `manage_corpus` landed under REQ-413 with REQ-581 compatibility. Each original name remains callable for one minor version and advertises its replacement in `_meta`; the split tool delegates to the same handler. Recorded budget 30 → 35. Baseline re-recorded at full 20,836 / standard 8,145 / small 262 tokens. Deterministic replay (30 intents): full visibility 1.0 / mean calls 1.0; standard and small 0.733 / 1.267. Composites `open_session`, `close_session`, and `take_turn` landed under REQ-577; `take_turn` mints the REQ-574 handle consumed by `manage_story (action: record)`.
 - **Generated surfaces.** REQ-578 is implemented: `RulesetToolSchema` requires `group` and `phases`, the dnd2024 emitter assigns them from `kind` and tool name, and `test-ruleset-gates` covers T671. The dnd2024 package was re-emitted with a new content hash; the host flags ungrouped legacy packages without blocking them.
 - **Aliases.** REQ-581 is implemented at the catalog level: each split original carries `_meta { deprecated: true, replacement: <tool> }`, and `test-surface-guards` asserts the metadata and the replacement's absence. Response-level deprecation notices are not emitted because several originals return machine-parsed JSON.
@@ -35,6 +36,13 @@
 - The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-20 (Surface consolidation and compatibility accounting)
+
+- **Delta class:** minor. Changed surfaces: Surface consolidation and compatibility accounting; Tool Surface coverage evidence; Tool Surface Contract; Ruleset hydration contract reconciled with host-level serving; Bundled starter Novel (Torre Nosferatu).
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
+
+<!-- @spec-update:dadd4c3fab52d0e4e962a4fcfdca37ec30d31f546ebdbcc9dce225c243f63285 -->
 
 ### Holonovel Spec Update — 2026-10-12 (Ruleset hydration contract reconciled with host-level serving)
 
@@ -116,7 +124,7 @@
 ### Holonovel Spec Update — 2026-10-03 (Convert/Build hardening, supplement overlay, and mechanical reliability)
 
 - **Delta class:** minor. Changed surfaces: Convert/Build hardening, supplement overlay, and mechanical reliability; Update job updates all user data on a deployed instance; Script audit, consolidation, and standards hardening; Script quality gate, role-tag enforcement, and REQ-278 phase-map hash; Holosuite III (Understudies + method audit) and Pattern Buffer follow-on port.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:4b1d3479f3f0cd12897621447f844ae2d6694c1fcc8f83fc0358276e7d889e0a -->
 
@@ -130,42 +138,42 @@
 ### Holonovel Spec Update — 2026-09-30 (Review remediation: Player parser contract, derived-stat order, tracking)
 
 - **Delta class:** minor. Changed surfaces: Review remediation: Player parser contract, derived-stat order, tracking; SWSE author-from-scratch harness and restart-safe entity ids.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:2f5a31227f7dbb9bd73ffe35667c01ae0299a75ce810f5b00280d878e86f4426 -->
 
 ### Holonovel Spec Update — 2026-09-30 (SWSE author-from-scratch harness and restart-safe entity ids)
 
 - **Delta class:** minor. Changed surfaces: SWSE author-from-scratch harness and restart-safe entity ids.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:1cf1f1c2ae7cb33d937aec4aa98cb497d854c188a003cbec9f4259c370ad571c -->
 
 ### Holonovel Spec Update — 2026-09-30 (SWSE author-from-scratch harness and restart-safe entity ids)
 
 - **Delta class:** minor. Changed surfaces: SWSE author-from-scratch harness and restart-safe entity ids.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:ad6184465dd5165b1b1013816e957c871e76a6d18856a1e96152125006f7aef8 -->
 
 ### Holonovel Spec Update — 2026-09-30 (SWSE author-from-scratch harness and restart-safe entity ids)
 
 - **Delta class:** minor. Changed surfaces: SWSE author-from-scratch harness and restart-safe entity ids.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:d0da1af54e68b4b5f18ac5382e04dc4a0655f1832abf8e52cd85e238dbf218f8 -->
 
 ### Holonovel Spec Update — 2026-09-30 (SWSE author-from-scratch harness and restart-safe entity ids)
 
 - **Delta class:** minor. Changed surfaces: SWSE author-from-scratch harness and restart-safe entity ids; Persona/GM playtest matrix and mission-driven fixes; Parser/briefing fixes from simulated play; optional key binding (REQ-284f); Simulated-play harness promoted to the repo; player-parser divergence recorded; World-model persistence: exits/doorRefs survive reload; badge-correct player briefing.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:941cfe944c3b15c1f19f1667c4d4881d3ebe809c65497eefe16fc13923d56852 -->
 
 ### Holonovel Spec Update — 2026-09-29 (Parser/briefing fixes from simulated play; optional key binding REQ-284f)
 
 - **Delta class:** minor. Changed surfaces: Parser/briefing fixes from simulated play; optional key binding (REQ-284f); Simulated-play harness promoted to the repo; player-parser divergence recorded; World-model persistence: exits/doorRefs survive reload; badge-correct player briefing; TDQS conformance: description fixes, derived-surface merge, enforcement layer; Roadmap closure: spec-delta body detection, parallel suite, `engines` floor.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:5ab426621ef27c6e27c9a49caf26ac22fbd562b8493934587bfc523a94d7fa3b -->
 
@@ -187,7 +195,7 @@
 ### Holonovel Spec Update — 2026-09-27 (Push-pipeline review fixes and runtime efficiency)
 
 - **Delta class:** minor. Changed surfaces: Push-pipeline review fixes and runtime efficiency; Push-pipeline hardening and shell-discipline enforcement; AAR recommendation remediation; Spec↔code conformance follow-up (F1–F5); Guarded-rule-change gate.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** `npm run assemble` ok (SHA dadd4c3f…); `npm run build-order` complete — check 0 errors, 187 proofreading warnings; package_format `8991384c…`; `npm run check:fast` PASS (0 errors, 0 warnings); `npm run check` PASS (0 errors); holonovel `test:all` 44/44; `test:surface-guards` 12/12 (T675); coverage register current.
 
 <!-- @spec-update:37feb37bf6329acd5896e80ddd068916ce566bf6d69bc50883a3cfc55ac9de40 -->
 
@@ -257,9 +265,7 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_faction` | un-gated | Player, Game Master |
 | `manage_relationship` | GM-only | Game Master |
 | `manage_vow` | un-gated | Player, Game Master |
-| `resolve_fate` | un-gated | Player, Game Master |
-| `resolve_ironsworn` | un-gated | Player, Game Master |
-| `resolve_forged` | un-gated | Player, Game Master |
+| `resolve_mechanic` | un-gated | Player, Game Master |
 | `manage_story` | GM-only | Game Master |
 | `manage_note` | un-gated | Player, Game Master |
 | `manage_belief` | un-gated | Player, Game Master |
@@ -277,6 +283,10 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_ruleset` | un-gated | Player, Game Master |
 | `manage_codex` | un-gated | Player, Game Master |
 | `manage_synthesis` | un-gated | Player, Game Master |
+
+### Compatibility aliases
+
+`resolve_fate`, `resolve_ironsworn`, and `resolve_forged` are hidden compatibility aliases of `resolve_mechanic`; `manage_ruleset (action: roll)` is a hidden action alias of `resolve_mechanic (action: roll)`. Each inherits the replacement's gate (un-gated), is omitted from `tools/list`, and is advertised in `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).
 
 ## Configuration classification (REQ-388c)
 

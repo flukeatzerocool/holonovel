@@ -223,18 +223,18 @@ async function main() {
     });
 
     await test("T279/T241: checkpoints save, list, restore, remove", async () => {
-      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Checkpointer", mind: { directive: "Original directive." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
       await call(proc, "manage_novel", { action: "checkpoint_set",  label: "pre-combat" });
       const list = await call(proc, "manage_novel", { action: "checkpoint_list" });
       assertContains(list, "pre-combat");
-      await call(proc, "resolve_fate", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
+      await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       if (npcId) await call(proc, "manage_npc", { action: "update", npc_id: npcId, mind: { directive: "Changed directive." } });
       const restore = await call(proc, "manage_novel", { action: "checkpoint_restore",  label: "pre-combat" });
       assertContains(restore, "[NEED_INPUT]");
       await call(proc, "respond_decision", { decision: "restore_checkpoint:pre-combat", option: "yes" });
-      const fates = JSON.parse(await call(proc, "resolve_fate", { action: "fate_point",  op: "list" }));
+      const fates = JSON.parse(await call(proc, "resolve_mechanic", { action: "fate_point",  op: "list" }));
       const pc1 = fates.find((f: any) => f.entity_id === "pc_1");
       if (!pc1 || pc1.fate_points !== 2) throw new Error(`checkpoint dropped base-capability state: ${JSON.stringify(fates)}`);
       if (npcId) {
@@ -267,7 +267,7 @@ async function main() {
     });
 
     await test("T254/T213: roll_on_table reports no tables in ruleset-free mode", async () => {
-      const roll = await call(proc, "manage_ruleset", { action: "roll",  table: "weather", seed: "7" });
+      const roll = await call(proc, "resolve_mechanic", { action: "roll",  table: "weather", seed: "7" });
       assertContains(roll, "[NOT_FOUND]");
     });
 

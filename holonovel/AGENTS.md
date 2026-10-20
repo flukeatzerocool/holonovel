@@ -38,7 +38,7 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 38 action-discriminator tools, 40 resources and 21 resource templates, 5 prompts.
+src/index.ts            McpServer: 36 action-discriminator tools, 40 resources and 21 resource templates, 5 prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
                         Narrative-intent verbs (ask/tell/give/show/throw) and
@@ -70,7 +70,7 @@ src/index.ts            McpServer: 38 action-discriminator tools, 40 resources a
 - **manage_archive** (action: export/import/archive/unarchive/clone/branch/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — archival and checkpoint surfaces; split from `manage_novel` (REQ-413/REQ-581)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
-- **manage_ruleset** (action: search/install/remove/list/bind/roll) — ruleset lookup, package, and generation-table roll
+- **manage_ruleset** (action: search/install/remove/list/bind/import_supplementary/remove_supplementary) — ruleset lookup and package management; the table roll moved to `resolve_mechanic (action: roll)`
 - **manage_scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
 - **manage_staging** (action: presence/autonomy) — scene presence and autonomy staging; split from `manage_scene` (REQ-413/REQ-581)
 - **manage_session** (action: recap/verbosity/briefing_order/compress/compact/health/subscribe/discover/category/event/history) — session recap, verbosity, briefing order, audit summary prompt (compress), irreversible audit-log compaction (compact), event subscriptions, tool discovery/category reassignment, event-log append/read (REQ-455–457/REQ-460), and the `spec_health` report
@@ -84,14 +84,12 @@ src/index.ts            McpServer: 38 action-discriminator tools, 40 resources a
 - **manage_identity** (action: stage/accept/reject/list/snapshot/bootstrap) — Roster-tier character identity: staged candidates, accepted facets, versioned kernel (REQ-473–REQ-483)
 - **manage_knowledge** (action: index_build/index_status/index_list/index_search/index_relations/graph_build/graph_status/graph_get/graph_nodes/graph_edges/graph_neighbors) — derived semantic index (REQ-504–REQ-509) and knowledge-graph projection (REQ-510–REQ-514); in-memory, advisory, read-only reads
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)
-- **resolve_fate** (action: roll/aspect/fate_point/stress) — Fudge dice, aspects, Fate points, stress/consequences
-- **resolve_ironsworn** (action: momentum/move/progress) — Ironsworn momentum, move framework, progress tracks
-- **resolve_forged** (action: action_roll/stress/downtime) — Forged in the Dark action rolls, stress/trauma, downtime
+- **resolve_mechanic** (action: roll/fate_roll/fate_aspect/fate_point/fate_stress/ironsworn_momentum/ironsworn_move/ironsworn_progress/forged_action_roll/forged_stress/forged_downtime) — ruleset table rolls plus Fate, Ironsworn, and Forged in the Dark base capabilities; the prior `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` names remain callable as hidden compatibility aliases (REQ-413/REQ-581)
 
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) as explicit booleans, set in the `TOOL_ANNOTATIONS` map in
-`src/index.ts`. All 38 tools are command/hybrid (`destructiveHint: true`);
+`src/index.ts`. All 36 tools are command/hybrid (`destructiveHint: true`);
 `openWorldHint` is `false` everywhere (REQ-051 — no network). Registering a host
 tool without a map entry throws at startup; ruleset-derived tools (REQ-379)
 compute their hints from `schema.kind` — all are read-only (none mutates Novel

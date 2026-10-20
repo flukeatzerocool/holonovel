@@ -15,7 +15,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { SURFACE_GLOBALS, entryTools, toolGroups } from "./lib/surface.js";
+import { SURFACE_GLOBALS, entryTools, surfaceAliases, toolGroups } from "./lib/surface.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DEFS = join(ROOT, "holonovel", "tool-definitions.json");
@@ -31,6 +31,7 @@ interface ToolDefinition {
 interface Declaration {
   group: string;
   entry: boolean;
+  compatibility?: { replacement: string; retired?: boolean };
 }
 interface Registry {
   taxonomy: { groups: string[] };
@@ -101,12 +102,33 @@ if (worstSmall > budgets.small) {
   defects.push(`small projection ${worstSmall} tokens exceeds budget ${budgets.small}`);
 }
 
+const declared = Object.values(registry.actions);
+const canonicalActions = declared.filter((decl) => !decl.compatibility).length;
+const compatibilityActions = declared.filter((decl) => !!decl.compatibility).length;
+const byTool = new Map<string, string[]>();
+for (const key of Object.keys(registry.actions)) {
+  const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
+  const keys = byTool.get(tool) ?? [];
+  keys.push(key);
+  byTool.set(tool, keys);
+}
+const canonicalTools = new Set(
+  [...byTool].filter(([, keys]) => keys.some((key) => !registry.actions[key].compatibility)).map(([tool]) => tool),
+);
+const compatibilityTools = new Set(
+  [...byTool].filter(([, keys]) => keys.every((key) => !!registry.actions[key].compatibility)).map(([tool]) => tool),
+);
 const payload = {
   schema_version: 1,
   estimator: "utf8-bytes-div-4-ceil",
   baseline: {
     tools: full.length,
     actions: Object.keys(registry.actions).length,
+    canonical_tools: canonicalTools.size,
+    canonical_actions: canonicalActions,
+    compatibility_tools: compatibilityTools.size,
+    compatibility_actions: compatibilityActions,
+    aliases: surfaceAliases(registry),
     full_tokens: fullTokens,
     tools_list_bytes: defs.tools_list_bytes ?? 0,
   },

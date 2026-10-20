@@ -182,19 +182,18 @@ async function main() {
   // ── T511 (REQ-429): every persisted entity type has a read/enumerate action.
   await test("T511/REQ-429: server-wide action-discriminator surface within the recorded tool budget", () => {
     const toolNames = new Set(tools.map((t) => t.name));
-    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_belief", "manage_identity", "manage_knowledge", "manage_agent", "manage_session"];
+    const requiredEntityTools = ["manage_novel", "manage_character", "manage_npc", "manage_world", "manage_faction", "manage_vow", "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_codex", "manage_combat", "manage_condition", "manage_relationship", "resolve_mechanic", "manage_belief", "manage_identity", "manage_knowledge", "manage_agent", "manage_session"];
     for (const name of requiredEntityTools) {
       assert(toolNames.has(name), `missing entity tool '${name}'`);
     }
     const readActionHints: Record<string, string[]> = {
       manage_novel: ["info", "list"], manage_character: ["sheet", "roster_list"], manage_npc: ["list", "get"],
-      manage_world: ["create_room", "causal_state"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
-      manage_lore: ["list", "get", "corpus_list", "corpus_get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
-      manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_fate: ["roll", "aspect", "fate_point", "stress"],
-      resolve_ironsworn: ["momentum", "move", "progress"], resolve_forged: ["action_roll", "stress", "downtime"],
+      manage_world: ["create_room"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
+      manage_lore: ["list", "get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
+      manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_mechanic: ["fate_roll", "fate_aspect", "fate_point", "fate_stress", "ironsworn_momentum", "ironsworn_move", "ironsworn_progress", "forged_action_roll", "forged_stress", "forged_downtime", "roll"],
       manage_belief: ["list", "get", "perception_list"], manage_identity: ["list", "snapshot"],
       manage_knowledge: ["index_status", "index_list", "graph_status", "graph_get", "graph_nodes", "graph_edges"],
-      manage_agent: ["list", "get"], manage_session: ["event", "history"],
+      manage_agent: ["list", "get"], manage_session: ["discover"],
     };
     for (const [name, actions] of Object.entries(readActionHints)) {
       const tool = tools.find((t) => t.name === name);
