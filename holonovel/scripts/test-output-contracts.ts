@@ -78,8 +78,8 @@ const RULESET_PKG = {
     },
   },
   tools: [
-    { name: "lookup_spell", title: "Lookup Spell", description: "Look up a spell's full rules text by name. Use when: you need a spell's casting details. Do NOT use when: you need to roll a check — use roll_check.", kind: "lookup", collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell name to look up." } } } },
-    { name: "roll_check", title: "Roll Check", description: "Roll a dice check with an optional skill label. Use when: you need to resolve a skill or ability check. Do NOT use when: you need spell text — use lookup_spell.", kind: "roll", inputSchema: { type: "object", properties: { dice: { type: "string", description: "Dice notation, e.g. 1d20." }, skill: { type: "string", description: "Optional skill label for the check." } } } },
+    { name: "lookup_spell", title: "Lookup Spell", description: "Look up a spell's full rules text by name. Use when: you need a spell's casting details. Do NOT use when: you need to roll a check — use roll_check.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell name to look up." } } } },
+    { name: "roll_check", title: "Roll Check", description: "Roll a dice check with an optional skill label. Use when: you need to resolve a skill or ability check. Do NOT use when: you need spell text — use lookup_spell.", kind: "roll", group: "resolve", phases: ["scene", "combat", "downtime"], inputSchema: { type: "object", properties: { dice: { type: "string", description: "Dice notation, e.g. 1d20." }, skill: { type: "string", description: "Optional skill label for the check." } } } },
   ],
   resources: [], prompts: [],
 };
@@ -110,7 +110,7 @@ const SECOND_PKG: any = {
   ],
   model: { concepts: { shield: { name: "Shield", ac_bonus: 2 } }, tables: {}, generation_tables: {} },
   tools: [
-    { name: "lookup_item", title: "Lookup Item", description: "Look up an item's full rules text. Use when: you need an item's details. Do NOT use when: you need a spell — use lookup_spell.", kind: "lookup", collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The item name to look up." } } } },
+    { name: "lookup_item", title: "Lookup Item", description: "Look up an item's full rules text. Use when: you need an item's details. Do NOT use when: you need a spell — use lookup_spell.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The item name to look up." } } } },
   ],
   resources: [], prompts: [],
 };

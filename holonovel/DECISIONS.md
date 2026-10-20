@@ -2,9 +2,24 @@
 
 **Spec hash:** e400b551e0adbc5668407b00b2d9b81a7f73481eb69f3b3ea7a2c4524c5aafcb
 
-**Recorded tool budget:** 30 (REQ-429)
+**Recorded tool budget:** 38 (REQ-429)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
+
+**Recorded surface budgets:** full 20,836 tokens; standard 10,418; small 2,084; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+
+### Tool Surface Contract — 2026-10-19
+
+- **Decision.** The surface is declared by a committed registry (`holonovel/tool-surface-registry.json`) mapping all 211 actions to one of eight intent groups, a phase set, an entry flag, and a mutation class. `tools/list` accepts a group and profile; `TTRPG_SURFACE_PROFILE` defaults to `full`, so the pre-contract catalog is unchanged. (REQ-567, REQ-570, REQ-580)
+- **Baseline.** 30 tools, 211 actions, 16,040 full-catalog tokens under the pinned estimator. Worst-case standard projection 6,481 tokens (budget 8,020); worst-case small projection 196 tokens (budget 1,604). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
+- **Gates.** `check-tool-surface` (registry coverage, entry uniqueness, group balance) and `surface-budget` (profile budgets) are wired into `check:fast` and `check`.
+- **Enforcement.** REQ-573 preconditions (combat-active), REQ-575 cross-group edges, and REQ-576 audited Editor override are implemented in the `tools/call` guard; the override count is reported in `spec_health.tool_surface.overrides`. `test:surface-guards` exercises T666/T668/T669 and is wired into `test:all`. Cross-group enforcement is inert under the default `full` profile.
+- **Five splits.** `manage_session` → `manage_diagnostics`, `manage_world` → `manage_causality`, `manage_novel` → `manage_archive`, `manage_scene` → `manage_staging`, and `manage_lore` → `manage_corpus` landed under REQ-413 with REQ-581 compatibility. Each original name remains callable for one minor version and advertises its replacement in `_meta`; the split tool delegates to the same handler. Recorded budget 30 → 35. Baseline re-recorded at full 20,836 / standard 8,145 / small 262 tokens. Deterministic replay (30 intents): full visibility 1.0 / mean calls 1.0; standard and small 0.733 / 1.267. Composites `open_session`, `close_session`, and `take_turn` landed under REQ-577; `take_turn` mints the REQ-574 handle consumed by `manage_story (action: record)`.
+- **Generated surfaces.** REQ-578 is implemented: `RulesetToolSchema` requires `group` and `phases`, the dnd2024 emitter assigns them from `kind` and tool name, and `test-ruleset-gates` covers T671. The dnd2024 package was re-emitted with a new content hash; the host flags ungrouped legacy packages without blocking them.
+- **Aliases.** REQ-581 is implemented at the catalog level: each split original carries `_meta { deprecated: true, replacement: <tool> }`, and `test-surface-guards` asserts the metadata and the replacement's absence. Response-level deprecation notices are not emitted because several originals return machine-parsed JSON.
+- **Legacy packages.** REQ-579 is implemented by `scripts/update-rulesets.ts` and T649/T672: stale packages are reported with a rebuild invocation, and a package with no recorded source is deferred with its reason.
+- **Replay and alignment.** The deterministic replay proxy is recorded in `spec/audit/tool-surface-replay.json` (30 intents; full visibility 1.0 / mean calls 1.0; standard and small 0.733 / 1.267). A live-model selection run remains advisory, not a gate. REQ-067d categories now carry their intent group, and the group directory lists every group.
+- **Deferred.** No planned surface item is open; the live-model accuracy run and the strict implementation-coverage audit for REQ-569/REQ-571 remain follow-ups.
 
 ### Bundled starter Novel (Torre Nosferatu) — 2026-10-12
 
@@ -230,11 +245,14 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_character` | un-gated | Player, Game Master |
 | `run_command` | un-gated | Player, Game Master |
 | `manage_world` | GM-only | Game Master |
+| `manage_causality` | GM-only | Game Master |
 | `manage_combat` | un-gated | Player, Game Master |
 | `manage_scene` | un-gated | Player, Game Master |
+| `manage_staging` | un-gated | Player, Game Master |
 | `manage_npc` | un-gated | Player, Game Master |
 | `manage_countdown` | un-gated | Player, Game Master |
 | `manage_lore` | un-gated | Player, Game Master |
+| `manage_corpus` | un-gated | Player, Game Master |
 | `manage_condition` | un-gated | Player, Game Master |
 | `manage_faction` | un-gated | Player, Game Master |
 | `manage_relationship` | GM-only | Game Master |
@@ -249,8 +267,13 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_knowledge` | un-gated | Player, Game Master |
 | `manage_agent` | un-gated | Player, Game Master |
 | `manage_session` | un-gated | Player, Game Master |
+| `manage_diagnostics` | un-gated | Player, Game Master |
+| `open_session` | un-gated | Player, Game Master |
+| `close_session` | un-gated | Player, Game Master |
+| `take_turn` | un-gated | Player, Game Master |
 | `manage_adventure` | un-gated | Player, Game Master |
 | `manage_novel` | un-gated | Player, Game Master |
+| `manage_archive` | un-gated | Player, Game Master |
 | `manage_ruleset` | un-gated | Player, Game Master |
 | `manage_codex` | un-gated | Player, Game Master |
 | `manage_synthesis` | un-gated | Player, Game Master |
@@ -275,7 +298,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.10.12 |
+| Spec version | 2026.10.20 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

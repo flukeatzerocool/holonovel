@@ -522,4 +522,19 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-564 | Update-workflow tool-quality remediation | 5.18 Workflow Entry Points | E | — | — |
 | REQ-565 | Bundled starter Novel | 5.9 Novel Persistence and Transport | C | T658 | — |
 | REQ-566 | Starter freshness and provenance | 5.9 Novel Persistence and Transport | C | T659 | — |
+| REQ-567 | Tool surface declaration | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-568 | Surface conformance report | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-569 | Surface baseline evaluation | 5.3 Tools, Resources, and Lookups | A | T662 | — |
+| REQ-570 | Projected catalog | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-571 | Catalog budgets | 5.3 Tools, Resources, and Lookups | A | T664 | — |
+| REQ-572 | Group directory | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-573 | Precondition enforcement | 5.3 Tools, Resources, and Lookups | C | T666 | — |
+| REQ-574 | Turn handles | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-575 | Cross-group edges | 5.3 Tools, Resources, and Lookups | C | T668 | — |
+| REQ-576 | Audited override | 5.3 Tools, Resources, and Lookups | C | T669 | — |
+| REQ-577 | Composite session and turn actions | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-578 | Generated surface conformance | 5.3 Tools, Resources, and Lookups | C | T671 | — |
+| REQ-579 | Legacy package rebuild | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-580 | Surface profile precedence | 5.3 Tools, Resources, and Lookups | B | — | — |
+| REQ-581 | Split-tool compatibility | 5.3 Tools, Resources, and Lookups | C | T674 | — |
 

@@ -475,7 +475,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
 | 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562 |
-| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
@@ -1089,12 +1089,13 @@ No advertised tool SHALL expose more parameters than a ceiling recorded at build
 *Acceptance criterion:* No tool exceeds the recorded ceiling (per-action for action-discriminator tools); an operation needing more inputs splits into a compact entry call plus a refinement path; `spec_health` reports per-tool and per-action parameter counts. _Check:_ T477.
 
 **REQ-413 — Action-discriminator tool surface.**
-When the builder determines that a group of operations shares a domain but not a common
-input or output contract, the operations SHALL be exposed as one entry tool carrying an
-action discriminator rather than as sibling tools. Each action SHALL be documented as
-its own sub-REQ. The discriminator SHALL name actions in the ruleset's own terms, and the
-parameters and contract of each action SHALL be recoverable from `spec_health`.
-Consolidation SHALL NOT alter any action's output contract.
+When operations share a domain but not a common input or output contract, they SHALL be
+exposed as one entry tool with an action discriminator rather than as sibling tools. Each
+action SHALL be documented as its own sub-REQ. The discriminator SHALL name actions in the
+ruleset's terms, and each action's parameters and contract SHALL be recoverable from
+`spec_health`. Consolidation SHALL NOT alter an action's output contract. Each action SHALL
+declare its primary intent group from Appendix T.3, and a tool spanning more than two
+groups SHALL be split.
 *Acceptance criterion:* a domain with distinct operations exposes one entry tool whose
 discriminator enumerates them; each action is documented as a sub-REQ; `spec_health`
 exposes per-action contracts. _Check:_ T486.
@@ -1113,11 +1114,12 @@ validation is unchanged; `spec_health` reports the nested-form count. _Check:_ T
 
 **REQ-415 — Summary-first tool catalog.**
 Enumeration of the tool catalog SHALL return summary entries by default and expose full
-schema and description on a detail request, so a caller pays for full tool definitions
-only on demand. The summary view SHALL be derived from the live registry at call time and
-SHALL NOT be a separately maintained list, preserving the count derivation of REQ-025c. A
-detail request SHALL require no intervening state mutation, and `spec_health` SHALL report
-the active catalog verbosity.
+schema and description on a detail request, so a caller pays for full definitions only on
+demand. The summary view SHALL expose tier 0 (name, group, one-line purpose), tier 1
+(description, parameters), and tier 2 (full schema). It SHALL be derived from the live
+registry, not a separately maintained list, preserving REQ-025c. A detail request SHALL
+require no intervening state mutation, and `spec_health` SHALL report the active catalog
+verbosity.
 *Acceptance criterion:* `tools/list` returns summaries by default; a detail request returns
 full definitions; counts still match the live registry; `spec_health` reports the
 verbosity. _Check:_ T488.
@@ -1190,7 +1192,12 @@ Every registered tool, host or ruleset-derived, SHALL conform to the TDQS standa
 A tool definition SHALL be defective, independent of its graded dimensions, when its description is absent, restates only the tool's name or title, or contradicts the tool's declared annotations. A description that asserts a read-only operation for a tool declaring mutation, or asserts a mutation for a tool declaring read-only, is a contradiction. A hard-gate defect SHALL be named in `spec_health` with the offending tool and gate and SHALL fail the tool-definition conformance gate. *Acceptance criterion:* fixtures with a missing, tautological, and annotation-contradicting description are each reported and fail the gate; a conformant definition passes. _Check:_ T645.
 
 **REQ-554 — Server tool-surface coherence.**
-The registered surface SHALL satisfy the four TDQS coherence dimensions — disambiguation, naming consistency, tool-count appropriateness, and completeness — evaluated as deterministic proxies over the live registry. Tool names SHALL share one `verb_noun` convention. Every pair of tools whose purposes overlap SHALL be disambiguated in both descriptions or merged. The registered count SHALL remain within the budget recorded in DECISIONS.md (REQ-429), and each coherence proxy SHALL be reported in `spec_health`. *Acceptance criterion:* the four coherence proxies are reported; no registered name deviates from the recorded convention; no overlapping pair remains undisambiguated. _Check:_ T646.
+The surface SHALL satisfy the four TDQS coherence dimensions — disambiguation, naming
+consistency, tool-count appropriateness, and completeness — as deterministic proxies. Tool
+names SHALL share one `verb_noun` convention. Overlapping tools SHALL be disambiguated or
+merged. The count SHALL remain within the DECISIONS.md budget (REQ-429), and each proxy
+SHALL be reported in `spec_health`. Grouping coherence SHALL be reported beside the four
+dimensions, and the external TDQS score SHALL remain unchanged. *Acceptance criterion:* the four coherence proxies are reported; no registered name deviates from the recorded convention; no overlapping pair remains undisambiguated. _Check:_ T646.
 
 **REQ-555 — Shadowing-risk report.**
 The build SHALL evaluate each registered tool's invocation cost over its required subtree as the TDQS standard defines and SHALL derive the deterministic shadow candidates from those costs using the standard's ratio and absolute-gap rule. A candidate whose purpose genuinely overlaps a cheaper sibling SHALL be reported in `spec_health` as a shadowing risk naming the dearer tool, the cheaper sibling, and both costs. Shadowing risk SHALL be reported beside the coherence score, not folded into it. *Acceptance criterion:* a fixture with an expensive qualified query and a cheap flat lookup reports one shadowing risk naming both tools and their costs; an asymmetric but non-overlapping pair reports none. _Check:_ T647.
@@ -1346,7 +1353,7 @@ Output is badge-filtered. When a Novel is active, tool listings and query result
 An empty mapping restores builder defaults. *Acceptance criterion:* `manage_session (action: discover)` returns an intro pointer, task-map with one-line descriptions, and a `badge_briefing` pointer; `manage_session (action: discover, query="combat")` returns the most relevant combat tools with example invocations. _Check:_ T62, T118.
 
 **REQ-067d — Task-map intent routing.**
-`manage_session (action: discover)` SHALL include, for each task-map category, at least one example intent paired with the tool and action serving it, derived from the live registry and extraction model at call time. The examples SHALL show only tools visible to the caller per REQ-067b and SHALL NOT be a separately maintained list. A discovery query SHALL return the same example form for matching tools. Example invocations SHALL render from the tool's JSON Schema `properties` and `required` fields and SHALL NOT expose schema internals.
+`manage_session (action: discover)` SHALL include, for each task-map category, at least one example intent paired with the tool and action serving it, derived from the live registry and extraction model at call time. The examples SHALL show only tools visible to the caller per REQ-067b and SHALL NOT be a separately maintained list. A query SHALL return the same example form. Examples SHALL render from the schema's `properties` and `required` fields without exposing internals. Each category SHALL name its intent group, and the directory SHALL list every group.
 *Acceptance criterion:* discovery returns an example invocation per category reflecting live registrations; adding a tool updates its category example without restart. _Check:_ T636.
 **REQ-063a — Connection introduction (Part a).**
 The server provides an `intro` prompt, listed first in `prompts/list`. The prompt takes no arguments, is visible to all badges, and serves as a conversation starter — a brief overview of the ruleset, its core mechanic, and concrete next actions a player can take. The tone is engaging and energetic; the anti-slop catalogue (REQ-070, Appendix J) governs GM and Player narration in the story, not server onboarding prompts. The `manage_session (action: discover)` action and `badge_briefing` each point to it. For intent-to-tool mapping, callers are directed to `run_command (action: suggest)` (REQ-084) — no `use_tool` or `lookup_rule` prompt is provided.
@@ -1434,6 +1441,51 @@ THE server SHALL register a `run_command (action: resolve)` tool that resolves a
 
 **REQ-323b — command resolve action (Part b).**
 Against a wall returns `blocked` with the constraint named. Player badge returns `[FORBIDDEN]`. _Check:_ T367. *Out of scope:* real-time collaboration tools and tools that modify the ruleset source. Server-to-client notifications are governed by REQ-433.
+
+**REQ-567 — Tool surface declaration.**
+Every registered tool and action SHALL declare exactly one primary intent group, loop phase, entry status, mutation class, ruleset scope, preconditions, and successor from the vocabularies defined in Appendix T.3; a declaration that is missing, duplicated, or names an unknown term is a registration defect. The committed registry SHALL be the single source of truth from which advertised metadata is generated, and a missing or duplicated registry entry SHALL fail the build. *Acceptance criterion:* every registered action resolves to exactly one registry entry, and a fixture with an ungrouped, duplicated, or unknown-term action fails the build naming the tool and action. _Check:_ T660.
+
+**REQ-568 — Surface conformance report.**
+`spec_health.tool_surface` SHALL report group coverage, orphan actions, entry-point uniqueness, per-group balance, workflow call counts, the measured catalog size per profile, and the active profile, derived from the live registry at call time. A reported value SHALL NOT be a maintained literal. *Acceptance criterion:* adding an action updates the report without restart; a fixture with an orphan action and a duplicate entry reports both. _Check:_ T661.
+
+**REQ-569 — Surface baseline evaluation.**
+The build SHALL provide a reproducible baseline over a fixed intent set that reports tool-selection accuracy or its deterministic replay proxy, tool calls per intent, and catalog size under the pinned estimator for the full surface. The baseline SHALL be recorded in DECISIONS.md and consumed by the projected-surface comparison. *Acceptance criterion:* the baseline reports all three metrics over at least thirty fixed intents and fails when the intent set or estimator changes without a recorded re-baseline. _Check:_ T662.
+
+**REQ-570 — Projected catalog.**
+`tools/list` SHALL accept a group selection and default to the active phase's group plus the always-visible global tools. Group selection SHALL preserve stable ordering, SHALL NOT require a prior state mutation, and SHALL return `[ERROR] [INVALID_INPUT]` for an unknown group. *Acceptance criterion:* a default listing under an active scene returns that group plus the three globals; a group selection returns that group; an unknown group returns `[INVALID_INPUT]`. _Check:_ T663.
+
+**REQ-571 — Catalog budgets.**
+The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL be recorded in DECISIONS.md and SHALL NOT exceed half the full-surface baseline recorded by REQ-569. `spec_health` SHALL report the measured value, the budget, and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the standard profile reports at or below half the recorded baseline. _Check:_ T664.
+
+**REQ-572 — Group directory.**
+The server SHALL expose a group directory as a resource and through `manage_session (action: discover)`, listing each group's purpose, entry action, members, prerequisites, and successor group. The directory SHALL be derived from the live registry and badge-filtered. *Acceptance criterion:* every declared group appears once with a resolvable entry action; a badge change filters the directory. _Check:_ T665.
+
+**REQ-580 — Surface profile precedence.**
+The server SHALL accept a surface-profile setting of full, standard, or small that governs catalog projection only; guidance posture remains governed by `TTRPG_GUIDANCE_PROFILE`. When both are set, the surface profile SHALL determine the catalog projection and the guidance profile SHALL determine orientation and verbosity. The setting SHALL be classified as behavioral in §7.6 and coupled per §7.7.1a. *Acceptance criterion:* a small surface profile with a full guidance profile returns a small catalog and full orientation; changing only the guidance profile does not change the catalog projection. _Check:_ T673.
+
+**REQ-573 — Precondition enforcement.**
+A mutating action whose declared precondition is unmet SHALL NOT execute and SHALL return `[ERROR] [STATE_CONFLICT]` with a structured next step naming the required tool and action. The refusal SHALL be auditable and SHALL NOT disclose state the caller's badge cannot access. *Acceptance criterion:* advancing combat before init refuses with a next step naming init; a Player-badge refusal omits GM-only state. _Check:_ T666.
+
+**REQ-575 — Cross-group edges.**
+An action MAY declare named cross-group edges; a call from outside the active projection SHALL succeed only when an edge from the active group to the called group is declared, or the called action is an entry action or belongs to a cross-cutting group. An undeclared out-of-group call SHALL refuse with a next step naming the group to activate. *Acceptance criterion:* a declared resolve-to-narrate edge succeeds; an undeclared lookup call from resolve succeeds because lookup is cross-cutting; an undeclared referee call from explore refuses naming referee. _Check:_ T668.
+
+**REQ-576 — Audited override.**
+Only the Editor badge SHALL bypass a precondition or projection refusal, and every bypass SHALL be audited, surfaced in `spec_health`, and SHALL NOT alter the refusal contract for Player or Game Master badges. *Acceptance criterion:* an Editor bypass succeeds and records an audit entry; the same call under Player refuses. _Check:_ T669.
+
+**REQ-578 — Generated surface conformance.**
+A ruleset-derived tool and action SHALL carry the declaration of REQ-567, mapping into the host taxonomy or a declared extension group. The package emitter SHALL refuse to emit a surface with a missing, unknown, or over-budget group, and the host SHALL flag a non-conformant installed package in `spec_health` without blocking loading. *Acceptance criterion:* an ungrouped generated action fails `build-ruleset` naming it; a conformant package emits; a flagged installed package loads. _Check:_ T671.
+
+**REQ-581 — Split-tool compatibility.**
+A tool renamed or split by this contract SHALL remain callable under its prior name for one minor version and SHALL advertise its replacement in the tool catalog metadata. The alias SHALL be badge- and ruleset-filtered identically to the replacement, and the replacement SHALL NOT advertise a deprecation. *Acceptance criterion:* the prior name succeeds and `tools/list` carries the replacement metadata; the replacement carries none; the alias disappears in the next minor version. _Check:_ T674.
+
+**REQ-579 — Legacy package rebuild.**
+A package installed before the surface contract SHALL be rebuilt through its committed emitter before it is loadable; a package without a committed emitter SHALL be recorded deferred with its reason. The Update workflow SHALL report every stale package and its rebuild or deferral outcome. *Acceptance criterion:* a pre-contract package is reported for rebuild; a rebuilt package loads with declarations; a no-emitter package is deferred with its reason. _Check:_ T672.
+
+**REQ-577 — Composite session and turn actions.**
+The server SHALL expose deterministic composite actions for session open, turn resolution, and session close that bundle the constituent tool calls and return one result. A composite that mutates state SHALL be audited as one workflow and SHALL NOT exceed the parameter ceiling. *Acceptance criterion:* `open_session` resumes, sets the badge, and returns a recap in one result; `take_turn` returns a resolution, suggestions, and a handle; `close_session` returns a recap and saved context. _Check:_ T670.
+
+**REQ-574 — Turn handles.**
+The server SHALL mint a turn handle when a composite turn is resolved and SHALL accept that handle as an optional argument on the story-record action, consuming it on success. An unknown or already-consumed handle SHALL refuse with `[STATE_CONFLICT]` and a next step naming the turn action. *Acceptance criterion:* `take_turn` returns a handle; recording with it succeeds once; replaying the same handle refuses; recording without a handle still works. _Check:_ T667.
 
 ### 5.4 Decision workflows
 
@@ -2756,7 +2808,8 @@ request path for full entries, so a caller enumerating a set pays for full recor
 demand. The lean default applies to enumeration tools only — it SHALL NOT reduce the
 verbose full-entry contract of REQ-060 for lookups, rolls, or single-entry reads. A detail
 request SHALL require no intervening state mutation, and `spec_health` SHALL report the
-active enumeration verbosity.
+active enumeration verbosity. Enumeration reads SHALL respect the active surface profile
+(REQ-580).
 *Acceptance criterion:* A collection read returns summary entries by default; requesting
 detail returns full entries; a lookup under the default still returns the full REQ-060
 entry; `spec_health` reports the enumeration mode. _Check:_ T478.
@@ -4207,7 +4260,7 @@ On startup the host SHALL scan the install directory, validate package integrity
 Cold start — process start to first tool response — SHALL meet the REQ-100 tier for the single largest installed package regardless of the total installed set. The aggregate installed size SHALL NOT add startup time. `spec_health` SHALL report `rulesets_installed`, `rulesets_hydrated`, and aggregate installed index bytes, and computing that report SHALL NOT hydrate an installed package. *Acceptance criterion:* A host with five installed packages starts within the single-largest-package tier, hydrates only packages actually used, and reports the count hydrated when the report was requested. _Check:_ T454, T455.
 
 **REQ-391a — Scoped tool listing (Part a).**
-`tools/list` SHALL, absent a filter, return only the active Novel's ruleset tools plus infrastructure tools. A `scope=all` parameter SHALL return the full listing per REQ-381b. With no Novel active, the default listing SHALL return infrastructure tools plus installed-ruleset metadata, and SHALL NOT force hydration of inactive packages. *Acceptance criterion:* Under a D&D-bound Novel, the default `tools/list` returns infrastructure plus `dnd5e_*` tools only; `tools/list(scope=all)` returns every loaded package's tools with `inapplicable` hints. _Check:_ T456.
+`tools/list` SHALL, absent a filter, return only the active Novel's ruleset tools plus infrastructure tools. A `scope=all` parameter SHALL return the full listing per REQ-381b. A `group` selection SHALL return only that intent group plus the always-visible global tools (REQ-570). With no Novel active, the default listing SHALL return infrastructure tools plus installed-ruleset metadata, and SHALL NOT force hydration of inactive packages. *Acceptance criterion:* Under a D&D-bound Novel, the default `tools/list` returns infrastructure plus `dnd5e_*` tools only; `tools/list(scope=all)` returns every loaded package's tools with `inapplicable` hints. _Check:_ T456.
 
 **REQ-391b — On-demand schema delivery (Part b).**
 A mechanism SHALL exist for a client to retrieve an individual tool's full schema or a single ruleset's tool set on demand, distinct from the default listing. Default listing entries MAY carry abbreviated descriptions when full schemas are retrievable on demand; the abbreviated form SHALL preserve each tool's name, category, and one-line purpose. _Check:_ T457.
@@ -4287,7 +4340,7 @@ When the Update workflow runs against a deployed instance, it SHALL remediate ev
 The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 **REQ-429 — Server-wide action-discriminator surface.**
-The server SHALL expose action-discriminator tools rather than a sibling tool per operation, consolidating related persisted entity types under one tool (REQ-413). The registered catalog SHALL match a budget recorded in DECISIONS.md; adding a tool SHALL require updating that recorded budget and the per-tool justification (REQ-021) in the same change. Every persisted type SHALL be enumerable through a `list` action and readable through a `get`, `info`, `status`, or `knowledge` action on a registered entity tool. Tool names SHALL follow a uniform `verb_noun` (snake_case) convention, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` count equals the recorded budget and every persisted type has read and enumeration actions. _Check:_ T511.
+The server SHALL expose action-discriminator tools rather than a sibling tool per operation, consolidating related persisted entity types under one tool (REQ-413). The catalog SHALL match a budget recorded in DECISIONS.md; adding a tool SHALL update that budget and the per-tool justification (REQ-021). The budget SHALL bind the raw surface, and each surface profile SHALL bind a projected budget. Every persisted type SHALL be enumerable through `list` and readable through `get`, `info`, `status`, or `knowledge` on a registered entity tool. Names SHALL follow one `verb_noun` convention, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` count equals the recorded budget and every persisted type has read and enumeration actions. _Check:_ T511.
 
 ### 5.19 State Persistence Guardrails
 
@@ -6840,6 +6893,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
 | `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
 | `TTRPG_GUIDANCE_PROFILE` | No | Runtime guidance and presentation posture — `full` (default) or `lean`. `lean` prioritizes orientation scaffolding, terse enumeration defaults, and summary-first catalogs for constrained narrators (REQ-388, REQ-412a). Behavioral — couples per P58. |
+| `TTRPG_SURFACE_PROFILE` | No | Catalog projection profile — `full` (default), `standard`, or `small`. Selects how much of the tool catalog `tools/list` returns; orientation and verbosity remain governed by `TTRPG_GUIDANCE_PROFILE` (REQ-570, REQ-580). Behavioral — couples per P60. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
 | `TTRPG_STARTER_NOVEL` | No | Bundled starter Novel slug seeded once on a fresh install (REQ-565). Defaults to `torre-nosferatu`; set to `off` to disable seeding. |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
@@ -7148,6 +7202,7 @@ fuzzy, or semantic matching.
 | P57 | Session → Narrative-memory | GM narrative directives containing recording keywords toggle automatic story-journal moments — "auto-record moments" enables TTRPG_AUTO_RECORD, "stop auto-recording" disables it | Mechanical | The GM controls what the story remembers |
 | P58 | Session → Guidance | GM narrative directives containing action-quantity keywords adjust the proactive action budget — "more options" raises TTRPG_MAX_AVAILABLE_ACTIONS, "fewer options" lowers it | Mechanical | The GM controls how many choices the story offers |
 | P59 | Session → Session | GM narrative directives containing safety-gate keywords set narration-validation and state-drift enforcement — "validate my narration" enables TTRPG_NARRATION_VALIDATION, "warn on state drift" sets TTRPG_STATE_GATE to warn | Mechanical | The GM tunes the server's safety gates in plain English |
+| P60 | Session → Surface | GM narrative directives containing catalog keywords select TTRPG_SURFACE_PROFILE — "show all tools" selects full, "use a small catalog" selects small | Navigational | The GM controls how much of the tool catalog the narrator sees |
 
 #### 7.7.1 Cross-property coupling
 
@@ -7263,6 +7318,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → Story Journal | P57 | Directive recording keywords ("auto-record moments", "stop auto-recording") toggle TTRPG_AUTO_RECORD | The GM controls what the story remembers — directive keywords toggle automatic journaling | GM-only | Mechanical | REQ-081, REQ-405 |
 | Narrative Directive → Available Actions [non-property] | P58 | Directive action-quantity keywords ("more options", "fewer options") adjust TTRPG_MAX_AVAILABLE_ACTIONS | The GM controls how many choices the story offers — directive keywords adjust the action budget | GM-only | Mechanical | REQ-081, REQ-084 |
 | Narrative Directive → Guidance Profile [non-property] | P58 | Directive guidance keywords ("keep it lean", "full guidance") select TTRPG_GUIDANCE_PROFILE | The GM sets how much scaffolding the narrator receives — directive keywords select the guidance profile | GM-only | Navigational | REQ-081, REQ-412a |
+| Narrative Directive → Surface Profile [non-property] | P60 | Directive catalog keywords ("show all tools", "use a small catalog") select TTRPG_SURFACE_PROFILE | The GM controls how much of the tool catalog the narrator sees — directive keywords select the surface profile | GM-only | Navigational | REQ-081, REQ-570 |
 | Narrative Directive → Narration Validation [non-property] | P59 | Directive validation keywords ("validate my narration", "narrate freely") toggle TTRPG_NARRATION_VALIDATION | The GM tunes the server's safety gates in plain English — directive keywords toggle pre-narration validation | GM-only | Mechanical | REQ-081, REQ-312 |
 | Narrative Directive → State Gate [non-property] | P59 | Directive state keywords ("warn on state drift", "block on state drift") set TTRPG_STATE_GATE | The GM tunes the server's safety gates in plain English — directive keywords set the state-drift gate | GM-only | Mechanical | REQ-081, REQ-403 |
 | Event Log → Lore | P16 | Event-log entries whose observations match lore triggers promote to knowledge-carrying records carrying their contributing source ordinals | Remembered observations become known facts with provenance | — | Navigational | REQ-460 |
@@ -9875,6 +9931,21 @@ date-stamps matching CHANGELOG entries.
 | REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
 | REQ-565 | Bundled starter Novel | 2026-10-12 |
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
+| REQ-567 | Tool surface declaration | 2026-10-19 |
+| REQ-568 | Surface conformance report | 2026-10-19 |
+| REQ-569 | Surface baseline evaluation | 2026-10-19 |
+| REQ-570 | Projected catalog | 2026-10-19 |
+| REQ-571 | Catalog budgets | 2026-10-19 |
+| REQ-572 | Group directory | 2026-10-19 |
+| REQ-580 | Surface profile precedence | 2026-10-19 |
+| REQ-573 | Precondition enforcement | 2026-10-19 |
+| REQ-575 | Cross-group edges | 2026-10-19 |
+| REQ-576 | Audited override | 2026-10-19 |
+| REQ-578 | Generated surface conformance | 2026-10-19 |
+| REQ-577 | Composite session and turn actions | 2026-10-19 |
+| REQ-574 | Turn handles | 2026-10-19 |
+| REQ-579 | Legacy package rebuild | 2026-10-19 |
+| REQ-581 | Split-tool compatibility | 2026-10-19 |
 
 ---
 
@@ -10532,6 +10603,21 @@ diet.
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 | T658 | Automated | Bundled starter Novel: on a fresh data directory, assert the starter seeds once and is listed and resumable under the no-ruleset server and playable through `run_command (action: execute)`; delete it and assert the sentinel prevents re-seed; set `TTRPG_STARTER_NOVEL=off` and assert nothing seeds; point it at a missing asset and assert seeding is skipped without failing startup. | REQ-565 |
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
+| T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
+| T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, catalog size per profile, and active profile; add an action and assert the report updates without restart; assert a duplicate entry is reported. | REQ-568 |
+| T662 | Automated | Surface baseline: assert the baseline reports tool-selection accuracy, tool calls per intent, and catalog size over at least thirty fixed intents; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
+| T663 | Automated | Projected catalog: assert a default listing under an active scene returns the active group plus the three globals; assert a group selection returns that group; assert an unknown group returns `[INVALID_INPUT]`; assert ordering is stable across calls. | REQ-570 |
+| T664 | Automated | Catalog budgets: assert a fixture projection over the recorded profile budget fails the gate naming the profile and measured value; assert the standard profile measures at or below half the full baseline. | REQ-571 |
+| T665 | Automated | Group directory: assert every declared group appears once with a resolvable entry action; assert a badge change filters the directory; assert the resource and `manage_session (action: discover)` return the same groups. | REQ-572 |
+| T673 | Automated | Surface profile precedence: assert a small surface profile with a full guidance profile returns a small catalog and full orientation; assert changing only the guidance profile leaves the catalog projection unchanged. | REQ-580 |
+| T666 | Automated | Precondition enforcement: assert advancing combat before init refuses with `[STATE_CONFLICT]` and a next step naming init; assert a Player-badge refusal omits GM-only state. | REQ-573 |
+| T668 | Automated | Cross-group edges: assert a declared resolve-to-narrate edge succeeds; assert an undeclared lookup call from resolve succeeds because lookup is cross-cutting; assert an undeclared referee call from explore refuses naming referee. | REQ-575 |
+| T669 | Automated | Audited override: assert an Editor-badge bypass succeeds and records an audit entry; assert the same call under Player refuses. | REQ-576 |
+| T671 | Automated | Generated surface conformance: assert an ungrouped generated action fails `build-ruleset` naming it; assert a conformant package emits; assert a flagged installed package loads without blocking. | REQ-578 |
+| T670 | Automated | Composite session and turn actions: assert `open_session` resumes, sets the badge, and returns a recap; assert `take_turn` returns a resolution, suggestions, and a handle; assert `close_session` returns a recap and saved context. | REQ-577 |
+| T667 | Automated | Turn handles: assert `take_turn` returns a handle; assert recording with it succeeds once and a replay refuses; assert recording without a handle still works. | REQ-574 |
+| T672 | Automated | Legacy package rebuild: assert a pre-contract package is reported for rebuild; assert a rebuilt package loads with declarations; assert a no-emitter package is deferred with its reason. | REQ-579 |
+| T674 | Automated | Split-tool compatibility: assert the prior name succeeds and `tools/list` advertises the replacement metadata; assert the replacement carries no deprecation; assert badge filtering matches. | REQ-581 |
 
 ---
 
@@ -12077,6 +12163,97 @@ prerequisite for the Appendices E and F entries and for the package-quality
 audit of REQ-430.
 
 _Check:_ T509, T536, T642, T644, T645, T646, T647, T648.
+
+### T.3 Tool Surface Contract
+
+T.2 grades a tool definition. This contract grades the surface an agent must
+navigate: how actions are grouped by user intent, how the surface is projected
+to a caller, and how a ruleset package's generated tools conform. TDQS remains
+the external definition rubric; this contract is reported beside it and never
+folded into the TDQS score.
+
+**Intent groups.** Every registered action declares exactly one primary group.
+
+| Group | User goal | Default phases |
+|---|---|---|
+| `table` | Open, resume, orient, or close a session | `none`, `setup`, `scene`, `closed` |
+| `explore` | Move, look, and interact with the scene | `scene`, `combat` |
+| `resolve` | Resolve an uncertain action | `scene`, `combat`, `downtime` |
+| `narrate` | Frame, record, and recap the fiction | `scene`, `downtime` |
+| `lookup` | Find a rule, item, lore, or reference | all |
+| `referee` | Run the world as Game Master | all |
+| `author` | Author out of play under the Editor badge | all |
+| `maintain` | Health, history, and diagnostics | all |
+
+`lookup` and `maintain` are cross-cutting. The remaining groups follow the play
+loop: `table` → `explore` → `resolve` → `narrate` → `table`, with `referee` and
+`author` as modes. Group order is stable and is the order a directory lists
+them in.
+
+**Phases.** A Novel carries one phase: `none` (no Novel active), `setup`
+(session zero or character creation), `scene` (exploration or social play),
+`combat`, `downtime`, or `closed`. An action declares the phases in which it is
+callable. An action whose phase is unmet refuses with a corrective next step. Phase inference
+uses the Novel's persisted state; when inference is ambiguous, the server keeps
+the current phase and the Editor badge may override.
+
+**Declaration fields.** Every action declares `group`, `phases`, `entry`
+(exactly one per group), `mutation_class` (`read`, `write`, `destructive`, or
+`idempotent`), `ruleset` (slug or null), `preconditions` (zero or more
+predicates from the host vocabulary), `successors` (zero or more
+`tool.action` references), and `edges` (zero or more declared cross-group
+edges). Preconditions and successors are declarative metadata; they do not
+grant access.
+
+**Cross-group edges.** An action may declare a named edge to another group.
+An out-of-group call succeeds only when the active group declares an edge to
+the called group. An edge is directional and names the reason it is
+permitted. Undeclared out-of-group calls refuse with the group to activate.
+
+**Extension groups.** The core groups are host-owned. A ruleset package may
+declare an extension group when no core group fits an action honestly. The
+package supplies the group's name, purpose, entry action, member actions, and
+a justification. The build records the extension in DECISIONS.md and
+`spec_health`; an extension group may not duplicate a core group's purpose.
+An action that fits no core or declared extension group is a build defect.
+
+**Profiles and precedence.** A surface profile selects how much of the catalog
+a caller sees: `full` (the complete surface), `standard` (the active group plus
+the always-visible global tools), or `small` (the active group's entry action
+plus the globals). `TTRPG_SURFACE_PROFILE` governs catalog projection only;
+`TTRPG_GUIDANCE_PROFILE` continues to govern orientation and verbosity. When
+both are set, the surface profile determines the catalog and the guidance
+profile determines orientation.
+
+**Always-visible globals.** `set_badge`, `manage_session (action: discover)`,
+and `respond_decision` are visible in every profile. `discover` returns the
+group directory: each group's purpose, entry action, members, prerequisites,
+and successor group.
+
+**Measurement.** Catalog size is the UTF-8 byte length of the projected
+`tools/list` payload divided by four, rounded up. The full-surface baseline is
+recorded before projection ships. The `standard` budget is at most half that
+baseline; the `small` budget is at most one tenth. Both budgets are recorded in
+DECISIONS.md and reported in `spec_health`.
+
+**Surface proxies.** The deterministic report covers group coverage, orphan
+actions, entry-point uniqueness, per-group balance (tools per group), declared
+edge validity, and catalog size per profile. A group with more than ten tools
+is over-balanced and splits; a group with fewer than two merges. Action counts
+are reported but not gated, because one tool may legitimately carry many
+actions.
+
+**Replay proxy.** The deterministic replay records expected-tool visibility and
+the group-switch call cost for a fixed intent set; live-model selection remains
+advisory and is recorded separately.
+
+**Generated tools.** Every ruleset-derived action declares the same fields and
+maps into a core or declared extension group. The package emitter
+refuses a surface with a missing, unknown, duplicated, or over-budget group.
+The host flags a non-conformant installed package in `spec_health` without
+blocking loading, consistent with REQ-430.
+
+_Check:_ T660, T661, T662.
 
 ---
 

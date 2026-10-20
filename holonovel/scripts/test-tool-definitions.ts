@@ -360,13 +360,13 @@ async function main() {
   const badLookup = {
     name: "bad_lookup", title: "",
     description: "Look up.",
-    kind: "lookup", collection: "concepts",
+    kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts",
     inputSchema: { type: "object", properties: { key: { type: "string" } } },
   };
   const goodRoll = {
     name: "good_roll", title: "Roll Check",
     description: "Roll a check. Use when: resolving a check. Do NOT use when: looking things up.",
-    kind: "roll",
+    kind: "roll", group: "resolve", phases: ["scene", "combat", "downtime"],
     inputSchema: { type: "object", properties: { dice: { type: "string", description: "Dice notation, e.g. 1d20." } } },
   };
 
@@ -414,10 +414,10 @@ async function main() {
     const badDir = mkdtempSync(join(tmpdir(), "holonovel-ruleset-bad-"));
     const goodDir = mkdtempSync(join(tmpdir(), "holonovel-ruleset-good-"));
     writeFileSync(join(badDir, "tools.json"), JSON.stringify([
-      { name: "lookup_spell", title: "Spells", description: "Look up a spell. Use when: casting. Do NOT use when: rolling.", kind: "lookup", inputSchema: { type: "object", properties: { key: { type: "string" } } } },
+      { name: "lookup_spell", title: "Spells", description: "Look up a spell. Use when: casting. Do NOT use when: rolling.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], inputSchema: { type: "object", properties: { key: { type: "string" } } } },
     ]));
     writeFileSync(join(goodDir, "tools.json"), JSON.stringify([
-      { name: "lookup_spell", title: "Spells", description: "Look up a spell. Use when: casting. Do NOT use when: rolling.", kind: "lookup", inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell key." } } } },
+      { name: "lookup_spell", title: "Spells", description: "Look up a spell. Use when: casting. Do NOT use when: rolling.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell key." } } } },
     ]));
     const bad = spawnSync("npx", ["tsx", gate, badDir], { cwd: ROOT, encoding: "utf-8" });
     assert(bad.status === 1, `non-conformant package should exit 1, got ${bad.status}: ${bad.stdout}${bad.stderr}`);

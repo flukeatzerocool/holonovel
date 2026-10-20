@@ -1,0 +1,755 @@
+{
+  "schema_version": 1,
+  "proxy": "expected-tool visibility and group-switch call cost; live-model selection is advisory",
+  "intents": 30,
+  "profiles": [
+    {
+      "profile": "full",
+      "intents": 30,
+      "expected_tool_visible": 30,
+      "visibility_rate": 1,
+      "mean_calls": 1,
+      "rows": [
+        {
+          "intent": "start a new campaign",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "resume my campaign",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "switch to another novel",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "end the session",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "show my character sheet",
+          "tool": "manage_character",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "create a character",
+          "tool": "manage_character",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "look around the room",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "go north",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "pick up the lantern",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "examine the door",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "roll a skill check",
+          "tool": "manage_ruleset",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "start combat",
+          "tool": "manage_combat",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "advance the round",
+          "tool": "manage_combat",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "apply a condition",
+          "tool": "manage_condition",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "make a fate roll",
+          "tool": "resolve_fate",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "make an ironsworn move",
+          "tool": "resolve_ironsworn",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "make a forged action roll",
+          "tool": "resolve_forged",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "track my vow",
+          "tool": "manage_vow",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "record this story beat",
+          "tool": "manage_story",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "set the scene",
+          "tool": "manage_scene",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "recap what happened",
+          "tool": "manage_session",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "search the rules for grappling",
+          "tool": "manage_ruleset",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "look up a lore entry",
+          "tool": "manage_lore",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "search the knowledge index",
+          "tool": "manage_knowledge",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "create an NPC",
+          "tool": "manage_npc",
+          "group": "referee",
+          "start_group": "referee",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "set a countdown",
+          "tool": "manage_countdown",
+          "group": "referee",
+          "start_group": "referee",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "generate an adventure",
+          "tool": "manage_adventure",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "export my novel",
+          "tool": "manage_archive",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "undo the last change",
+          "tool": "manage_history",
+          "group": "maintain",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "show me the tool groups",
+          "tool": "manage_session",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "profile": "standard",
+      "intents": 30,
+      "expected_tool_visible": 22,
+      "visibility_rate": 0.733,
+      "mean_calls": 1.267,
+      "rows": [
+        {
+          "intent": "start a new campaign",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "resume my campaign",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "switch to another novel",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "end the session",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "show my character sheet",
+          "tool": "manage_character",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "create a character",
+          "tool": "manage_character",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "look around the room",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "go north",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "pick up the lantern",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "examine the door",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "roll a skill check",
+          "tool": "manage_ruleset",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "start combat",
+          "tool": "manage_combat",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "advance the round",
+          "tool": "manage_combat",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "apply a condition",
+          "tool": "manage_condition",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "make a fate roll",
+          "tool": "resolve_fate",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "make an ironsworn move",
+          "tool": "resolve_ironsworn",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "make a forged action roll",
+          "tool": "resolve_forged",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "track my vow",
+          "tool": "manage_vow",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "record this story beat",
+          "tool": "manage_story",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "set the scene",
+          "tool": "manage_scene",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "recap what happened",
+          "tool": "manage_session",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "search the rules for grappling",
+          "tool": "manage_ruleset",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "look up a lore entry",
+          "tool": "manage_lore",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "search the knowledge index",
+          "tool": "manage_knowledge",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "create an NPC",
+          "tool": "manage_npc",
+          "group": "referee",
+          "start_group": "referee",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "set a countdown",
+          "tool": "manage_countdown",
+          "group": "referee",
+          "start_group": "referee",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "generate an adventure",
+          "tool": "manage_adventure",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "export my novel",
+          "tool": "manage_archive",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "undo the last change",
+          "tool": "manage_history",
+          "group": "maintain",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "show me the tool groups",
+          "tool": "manage_session",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        }
+      ]
+    },
+    {
+      "profile": "small",
+      "intents": 30,
+      "expected_tool_visible": 22,
+      "visibility_rate": 0.733,
+      "mean_calls": 1.267,
+      "rows": [
+        {
+          "intent": "start a new campaign",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "resume my campaign",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "switch to another novel",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "end the session",
+          "tool": "manage_novel",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "show my character sheet",
+          "tool": "manage_character",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "create a character",
+          "tool": "manage_character",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "look around the room",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "go north",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "pick up the lantern",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "examine the door",
+          "tool": "run_command",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "roll a skill check",
+          "tool": "manage_ruleset",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "start combat",
+          "tool": "manage_combat",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "advance the round",
+          "tool": "manage_combat",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "apply a condition",
+          "tool": "manage_condition",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "make a fate roll",
+          "tool": "resolve_fate",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "make an ironsworn move",
+          "tool": "resolve_ironsworn",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "make a forged action roll",
+          "tool": "resolve_forged",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "track my vow",
+          "tool": "manage_vow",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "record this story beat",
+          "tool": "manage_story",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2
+        },
+        {
+          "intent": "set the scene",
+          "tool": "manage_scene",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "recap what happened",
+          "tool": "manage_session",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "search the rules for grappling",
+          "tool": "manage_ruleset",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "look up a lore entry",
+          "tool": "manage_lore",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "search the knowledge index",
+          "tool": "manage_knowledge",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "create an NPC",
+          "tool": "manage_npc",
+          "group": "referee",
+          "start_group": "referee",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "set a countdown",
+          "tool": "manage_countdown",
+          "group": "referee",
+          "start_group": "referee",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "generate an adventure",
+          "tool": "manage_adventure",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "export my novel",
+          "tool": "manage_archive",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "undo the last change",
+          "tool": "manage_history",
+          "group": "maintain",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1
+        },
+        {
+          "intent": "show me the tool groups",
+          "tool": "manage_session",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1
+        }
+      ]
+    }
+  ],
+  "defects": []
+}

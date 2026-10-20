@@ -45,6 +45,7 @@ const TESTS = [
   "test:ironsworn",
   "test:forged",
   "test:security",
+  "test:surface-guards",
   "test:event-log",
   "test:belief",
   "test:identity",

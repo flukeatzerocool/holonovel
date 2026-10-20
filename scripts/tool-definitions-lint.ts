@@ -30,8 +30,8 @@ import {
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT = join(ROOT, "holonovel", "tool-definitions.json");
 const DECISIONS = join(ROOT, "holonovel", "DECISIONS.md");
-const VERB_ALLOWLIST = ["manage", "resolve", "run", "respond", "set"];
-const NAME_RE = /^(manage|resolve|run|respond|set)_[a-z][a-z0-9_]*$/;
+const VERB_ALLOWLIST = ["manage", "resolve", "run", "respond", "set", "open", "close", "take"];
+const NAME_RE = /^(manage|resolve|run|respond|set|open|close|take)_[a-z][a-z0-9_]*$/;
 // REQ-450 disclosure vocabulary: a mutating tool must disclose persistence and
 // reversibility (or that the mutation is irreversible/derived). Recorded in
 // DECISIONS.md beside the description budget.

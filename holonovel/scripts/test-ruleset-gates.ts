@@ -16,6 +16,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
+import { validateToolSchema } from "../src/rulesets.js";
 import { isColophonHeading } from "../../scripts/lib/front-matter.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -46,9 +47,9 @@ function goodParts() {
       concepts: {}, resolution: {}, roles: {},
     },
     tools: [
-      { name: "core_mechanic", title: "Core", description: "Core mechanic. Use when: asked. Do NOT use when: rolling — use roll_check.", kind: "info", inputSchema: { type: "object", properties: {} } },
-      { name: "roll_check", title: "Roll", description: "Roll a d100 check. Use when: checking. Do NOT use when: info — use core_mechanic.", kind: "roll", defaultDice: "1d100", inputSchema: { type: "object", properties: { modifier: { type: "number", description: "mod" } }, required: ["modifier"] } },
-      { name: "lookup_thing", title: "Thing", description: "Look up a thing. Use when: resolving. Do NOT use when: unknown — use core_mechanic.", kind: "lookup", collection: "things", inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } }, required: ["key"] } },
+      { name: "core_mechanic", title: "Core", description: "Core mechanic. Use when: asked. Do NOT use when: rolling — use roll_check.", kind: "info", group: "table", phases: ["none", "setup", "scene", "closed"], inputSchema: { type: "object", properties: {} } },
+      { name: "roll_check", title: "Roll", description: "Roll a d100 check. Use when: checking. Do NOT use when: info — use core_mechanic.", kind: "roll", group: "resolve", phases: ["scene", "combat", "downtime"], defaultDice: "1d100", inputSchema: { type: "object", properties: { modifier: { type: "number", description: "mod" } }, required: ["modifier"] } },
+      { name: "lookup_thing", title: "Thing", description: "Look up a thing. Use when: resolving. Do NOT use when: unknown — use core_mechanic.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "things", inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } }, required: ["key"] } },
     ],
   };
 }
@@ -109,6 +110,37 @@ test("T654/REQ-561: two emissions of identical parts are byte-identical", () => 
     const ca = readFileSync(join(a, f), "utf-8"), cb = readFileSync(join(b, f), "utf-8");
     assert(ca === cb, `${f} differs between emissions`);
   }
+});
+
+test("T671/REQ-578: generated tool with no surface group fails", () => {
+  const schema: any = {
+    name: "orphan_tool", title: "Orphan", kind: "lookup",
+    description: "Look up. Use when: looking. Do NOT use when: not — use core_mechanic.",
+    inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } } },
+  };
+  const defects = validateToolSchema(schema);
+  assert(defects.includes("missing surface group"), `missing-group not reported: ${defects.join("; ")}`);
+  assert(defects.includes("missing surface phases"), `missing-phases not reported: ${defects.join("; ")}`);
+});
+
+test("T671/REQ-578: unknown surface group fails", () => {
+  const schema: any = {
+    name: "bad_group", title: "Bad", kind: "lookup", group: "adventure",
+    phases: ["scene"],
+    description: "Look up. Use when: looking. Do NOT use when: not — use core_mechanic.",
+    inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } } },
+  };
+  assert(validateToolSchema(schema).some((d) => d.includes("unknown surface group")), "unknown-group not reported");
+});
+
+test("T671/REQ-578: conformant generated tool passes the surface check", () => {
+  const schema: any = {
+    name: "lookup_thing", title: "Thing", kind: "lookup", group: "lookup",
+    phases: ["scene"], collection: "things",
+    description: "Look up a thing. Use when: resolving. Do NOT use when: unknown — use core_mechanic.",
+    inputSchema: { type: "object", properties: { key: { type: "string", description: "k" } } },
+  };
+  assert(validateToolSchema(schema).length === 0, validateToolSchema(schema).join("; "));
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

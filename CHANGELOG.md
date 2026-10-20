@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-10-20 — Tool Surface Contract
+
+- Every registered tool and action now declares an intent group, phase, entry
+  status, mutation class, and successor in a committed registry, with a live
+  `spec_health.tool_surface` report covering coverage, orphans, entry
+  uniqueness, balance, and catalog size. (REQ-567, REQ-568)
+- `tools/list` can be projected by intent group and profile. The default
+  `full` profile is unchanged; `standard` and `small` reduce the projected
+  catalog by about 61% and 99% within recorded budgets, and `spec_health`
+  reports the active profile and measured size. (REQ-570, REQ-571, REQ-580)
+- Added deterministic surface gates: `check-tool-surface` validates the
+  registry, `surface-budget` enforces profile budgets, and `surface-replay`
+  records a 30-intent expected-tool visibility proxy. (REQ-569)
+- Preconditions, declared cross-group edges, and an audited Editor override are
+  enforced before tool handlers run; refusals name the required next action.
+  (REQ-573, REQ-575, REQ-576)
+- Split five intent-opaque tools by purpose: `manage_diagnostics`,
+  `manage_causality`, `manage_archive`, `manage_staging`, and
+  `manage_corpus`. The original names remain callable for one minor version and
+  advertise their replacements in catalog metadata. (REQ-413, REQ-581)
+- Added `open_session`, `close_session`, and `take_turn` composites; `take_turn`
+  mints a turn handle that `manage_story (action: record)` consumes. (REQ-574,
+  REQ-577)
+- Ruleset-generated tools must declare a surface group and phases; the
+  dnd2024 emitter assigns them and the package gate refuses ungrouped
+  surfaces. Legacy packages missing declarations are reported for rebuild.
+  (REQ-578, REQ-579)
+- Discovery categories now name their intent group, and the group directory
+  lists every group. (REQ-067d)
+
 ## 2026-10-12 — Ruleset hydration contract reconciled with host-level serving
 
 - Reconciled REQ-390a/b with REQ-558: an installed ruleset package hydrates

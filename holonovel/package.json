@@ -1,6 +1,6 @@
 {
   "name": "holonovel",
-  "version": "2026.10.12",
+  "version": "2026.10.20",
   "description": "Holonovel MCP server — world-model base for tabletop RPG play. Provides core scaffold (state management, badge gating, macros, Ruleset Wisdom) and world-model layer (rooms, things, exits, parser commands, kind hierarchy). Consumed by TTRPG servers as a build-time dependency.",
   "type": "module",
   "main": "dist/index.js",
@@ -52,6 +52,7 @@
     "test:ironsworn": "tsx scripts/test-ironsworn.ts",
     "test:forged": "tsx scripts/test-forged.ts",
     "test:security": "tsx scripts/test-security.ts",
+    "test:surface-guards": "tsx scripts/test-surface-guards.ts",
     "test:event-log": "tsx scripts/test-event-log.ts",
     "test:belief": "tsx scripts/test-belief.ts",
     "test:identity": "tsx scripts/test-identity.ts",

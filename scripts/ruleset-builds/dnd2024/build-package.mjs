@@ -70,10 +70,23 @@ function main() {
   }
 
   const newToolNames = new Set(newTools.map((t) => t.name));
+  // REQ-578 / Appendix T.3 — generated tools declare a host intent group and
+  // the phases they serve. Lookups are cross-cutting; rolls serve resolution;
+  // the core-mechanic explainer is table orientation.
+  const allPhases = ["none", "setup", "scene", "combat", "downtime", "closed"];
+  const surfaceFor = (tool) => {
+    if (tool.name === "core_mechanic") {
+      return { group: "table", phases: ["none", "setup", "scene", "closed"] };
+    }
+    if (tool.kind === "roll") {
+      return { group: "resolve", phases: ["scene", "combat", "downtime"] };
+    }
+    return { group: "lookup", phases: allPhases };
+  };
   const mergedTools = base["tools.json"]
     .filter((t) => !newToolNames.has(t.name))
-    .map((t) => ({ ...t, description: sanitizeReadOnlyDescription(t.description) }));
-  for (const t of newTools) mergedTools.push({ ...t, description: sanitizeReadOnlyDescription(t.description) });
+    .map((t) => ({ ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description) }));
+  for (const t of newTools) mergedTools.push({ ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description) });
 
   const resources = base["resources.json"];
   const prompts = base["prompts.json"];

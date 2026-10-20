@@ -9,7 +9,7 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
@@ -90,7 +90,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.12",
+  version: "2026.10.20",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -124,11 +124,14 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_character: MUTATING,
   manage_npc: MUTATING,
   manage_world: MUTATING,
+  manage_causality: MUTATING,
   run_command: MUTATING,
   manage_combat: MUTATING,
   manage_scene: MUTATING,
+  manage_staging: MUTATING,
   manage_countdown: MUTATING,
   manage_lore: MUTATING,
+  manage_corpus: MUTATING,
   manage_condition: MUTATING,
   manage_faction: MUTATING,
   manage_relationship: MUTATING,
@@ -139,8 +142,13 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_story: MUTATING,
   manage_note: MUTATING,
   manage_session: MUTATING,
+  manage_diagnostics: MUTATING,
+  open_session: MUTATING,
+  close_session: MUTATING,
+  take_turn: READ_ONLY,
   manage_adventure: MUTATING,
   manage_novel: MUTATING,
+  manage_archive: MUTATING,
   manage_ruleset: MUTATING,
   manage_codex: MUTATING,
   manage_synthesis: MUTATING,
@@ -195,7 +203,7 @@ server.registerTool = ((name: string, config: any, handler: any) => {
 // REQ-137a/REQ-137b — gate classification. The DECISIONS.md gate table records
 // un-gated / GM-only / Player for every registered tool; these sets mirror it
 // and drive badge-filtered tools/list. T151 asserts the two agree.
-const GM_ONLY_TOOLS = new Set(["manage_world", "manage_relationship", "manage_story"]);
+const GM_ONLY_TOOLS = new Set(["manage_world", "manage_causality", "manage_relationship", "manage_story"]);
 const PLAYER_ONLY_TOOLS = new Set<string>([]);
 function toolGate(name: string): "un-gated" | "GM-only" | "Player" {
   if (GM_ONLY_TOOLS.has(name)) return "GM-only";
@@ -747,6 +755,200 @@ function cachedMetadata(): MetadataCache {
 }
 // Prime the cache once at startup so the first tools/list read is warm.
 cachedMetadata();
+
+// ── Tool Surface Contract (REQ-567, REQ-568, REQ-570–572, REQ-580) ──
+interface SurfaceDeclaration {
+  group: string;
+  phases: string[];
+  entry: boolean;
+  mutation_class: string;
+  ruleset: string | null;
+  preconditions: string[];
+  successors: string[];
+  edges: string[];
+}
+interface SurfaceRegistry {
+  schema_version: number;
+  taxonomy: { groups: string[]; phases: string[]; mutation_classes: string[] };
+  actions: Record<string, SurfaceDeclaration>;
+}
+let surfaceRegistryCache: SurfaceRegistry | null | undefined;
+function surfaceRegistry(): SurfaceRegistry | null {
+  if (surfaceRegistryCache !== undefined) return surfaceRegistryCache;
+  try {
+    const file = path.join(__dirname, "..", "tool-surface-registry.json");
+    surfaceRegistryCache = JSON.parse(fs.readFileSync(file, "utf8")) as SurfaceRegistry;
+  } catch {
+    // The registry is a build artifact; a missing copy degrades to the full
+    // catalog rather than failing server startup.
+    surfaceRegistryCache = null;
+  }
+  return surfaceRegistryCache;
+}
+const SURFACE_GLOBALS = new Set(["set_badge", "manage_session", "respond_decision", "open_session", "close_session"]);
+let surfaceOverrideCount = 0;
+
+// REQ-574/577 — composite turn handles. A handle is minted by `take_turn` and
+// consumed by `manage_story (action: record)`; it is session-scoped, bounded,
+// and never persisted.
+interface TurnHandle { intent: string; created: number; }
+const turnHandles = new Map<string, TurnHandle>();
+function mintTurnHandle(intent: string): string {
+  const id = crypto.randomUUID();
+  turnHandles.set(id, { intent, created: Date.now() });
+  while (turnHandles.size > 64) {
+    const oldest = turnHandles.keys().next().value;
+    if (oldest) turnHandles.delete(oldest);
+  }
+  return id;
+}
+function toolResultText(result: any): string {
+  return (result?.content ?? []).map((part: any) => part?.text ?? "").join("\n");
+}
+function surfaceProfile(): "full" | "standard" | "small" {
+  const value = (process.env.TTRPG_SURFACE_PROFILE ?? "full").toLowerCase();
+  return value === "standard" || value === "small" ? value : "full";
+}
+function activeSurfaceGroup(): string {
+  const novel = state.activeNovel;
+  if (!novel) return "table";
+  if (novel.combat?.active) return "resolve";
+  return "explore";
+}
+function toolGroupSet(name: string): Set<string> {
+  const reg = surfaceRegistry();
+  const groups = new Set<string>();
+  if (!reg) return groups;
+  const prefix = `${name}.`;
+  for (const [key, decl] of Object.entries(reg.actions)) {
+    if (key === name || key.startsWith(prefix)) groups.add(decl.group);
+  }
+  return groups;
+}
+function entryToolsFor(group: string): Set<string> {
+  const reg = surfaceRegistry();
+  const tools = new Set<string>();
+  if (!reg) return tools;
+  for (const [key, decl] of Object.entries(reg.actions)) {
+    if (decl.group === group && decl.entry) {
+      tools.add(key.includes(".") ? key.slice(0, key.indexOf(".")) : key);
+    }
+  }
+  return tools;
+}
+function projectToolList<T extends { name: string }>(
+  tools: T[],
+  group?: string,
+  profile?: string,
+): T[] {
+  const requested =
+    profile === "standard" || profile === "small" ? profile : surfaceProfile();
+  const selected = group ?? activeSurfaceGroup();
+  if (requested === "full" && !group) return tools;
+  const entries = requested === "small" ? entryToolsFor(selected) : new Set<string>();
+  return tools.filter((tool) => {
+    if (SURFACE_GLOBALS.has(tool.name)) return true;
+    if (entries.has(tool.name)) return true;
+    return toolGroupSet(tool.name).has(selected);
+  });
+}
+interface GroupDirectoryEntry {
+  group: string;
+  entry: string | null;
+  tools: string[];
+  actions: number;
+}
+function groupDirectory(): GroupDirectoryEntry[] {
+  const reg = surfaceRegistry();
+  if (!reg) return [];
+  return reg.taxonomy.groups.map((group) => {
+    const members = Object.entries(reg.actions).filter(([, decl]) => decl.group === group);
+    const entry = members.find(([, decl]) => decl.entry)?.[0] ?? null;
+    const tools = new Set(
+      members.map(([key]) => (key.includes(".") ? key.slice(0, key.indexOf(".")) : key)),
+    );
+    return { group, entry, tools: [...tools].sort(), actions: members.length };
+  });
+}
+function liveSurfaceActions(): Set<string> {
+  const live = new Set<string>();
+  for (const [name, tool] of Object.entries(
+    ((server as unknown as { _registeredTools?: Record<string, unknown> })._registeredTools ?? {}),
+  )) {
+    const action = (tool as { inputSchema?: { shape?: Record<string, any> } })?.inputSchema?.shape?.action;
+    const values =
+      action?._def?.values ?? action?._def?.innerType?._def?.values ?? action?._def?.type?._def?.values;
+    if (Array.isArray(values) && values.length) {
+      for (const value of values) live.add(`${name}.${String(value)}`);
+    } else {
+      live.add(name);
+    }
+  }
+  return live;
+}
+
+// REQ-573/575 — mechanical refusal before a tool handler runs. Returns a
+// refusal envelope or null. The Editor bypass lives in surfaceGuard.
+function surfaceRefusal(name: string, args: Record<string, unknown>): string | null {
+  const reg = surfaceRegistry();
+  if (!reg) return null;
+  const action = typeof args?.action === "string" ? args.action : null;
+  const key = action ? `${name}.${action}` : name;
+  const decl = reg.actions[key] ?? reg.actions[name];
+  if (!decl) return null;
+
+  // Always-visible globals are callable from every group (REQ-570).
+  if (SURFACE_GLOBALS.has(name)) return null;
+
+  for (const precondition of decl.preconditions ?? []) {
+    if (precondition === "combat_active" && !state.activeNovel?.combat?.active) {
+      return `[ERROR] [STATE_CONFLICT] ${name} (${action}) requires an active combat. Next: manage_combat (action: init).`;
+    }
+  }
+
+  // REQ-575 — cross-group projection. The default `full` profile is
+  // unprojected, so this check is inert until a narrower profile is selected.
+  if (surfaceProfile() === "full") return null;
+  const active = activeSurfaceGroup();
+  if (decl.group === active) return null;
+  if (decl.group === "lookup" || decl.group === "maintain") return null;
+  if (decl.entry) return null;
+  if ((decl.edges ?? []).includes(active)) return null;
+  return `[ERROR] [STATE_CONFLICT] ${name} (${action}) belongs to group '${decl.group}'. Next: activate group '${decl.group}' or set TTRPG_SURFACE_PROFILE=full.`;
+}
+
+// REQ-576 — only a refusal that the Editor badge actually bypasses is counted
+// and audited; ordinary Editor calls do not inflate the override surface.
+function surfaceGuard(name: string, args: Record<string, unknown>): string | null {
+  const refusal = surfaceRefusal(name, args);
+  if (!refusal) return null;
+  if (getBadge() === "none") {
+    surfaceOverrideCount++;
+    audit(
+      "surface_override",
+      { tool: name, action: args?.action ?? null, reason: "editor-badge" },
+      "[override]",
+    );
+    return null;
+  }
+  return refusal;
+}
+
+function installSurfaceGuards(): void {
+  const low = (server as unknown as { server?: any }).server;
+  const original = low?._requestHandlers?.get?.("tools/call");
+  if (typeof original !== "function") {
+    process.stderr.write("[holonovel] surface guards unavailable; serving unguarded calls\n");
+    return;
+  }
+  low.setRequestHandler(CallToolRequestSchema, async (req: any, extra: any) => {
+    const refusal = surfaceGuard(req?.params?.name, req?.params?.arguments ?? {});
+    if (refusal) {
+      return { content: [{ type: "text", text: refusal }], isError: true };
+    }
+    return original(req, extra);
+  });
+}
 
 // REQ-409 — enumeration verbosity, session-scoped. Lean (summary) is the
 // default; a per-call `detail: true` requests full entries for a single call.
@@ -1504,11 +1706,11 @@ function worldSnapshot(): void {
 const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Badge & Workflow": ["set_badge", "respond_decision", "manage_history"],
   "Characters": ["manage_character"],
-  "World Model": ["run_command", "manage_world"],
+  "World Model": ["run_command", "manage_world", "manage_causality"],
   "Lookups": ["manage_ruleset"],
   "Combat": ["manage_combat"],
   "Conditions": ["manage_condition"],
-  "Narrative": ["manage_scene"],
+  "Narrative": ["manage_scene", "manage_staging"],
   "NPCs": ["manage_npc"],
   "Factions": ["manage_faction"],
   "Secrets": ["manage_lore"],
@@ -1518,13 +1720,13 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Fate": ["resolve_fate"],
   "Ironsworn": ["resolve_ironsworn"],
   "Forged in the Dark": ["resolve_forged"],
-  "Lore": ["manage_lore"],
+  "Lore": ["manage_lore", "manage_corpus"],
   "Story Journal": ["manage_story"],
   "Notes": ["manage_note"],
   "Codex": ["manage_codex"],
   "Adventure": ["manage_adventure"],
-  "Session": ["manage_session"],
-  "Novel Lifecycle": ["manage_novel"],
+  "Session": ["manage_session", "manage_diagnostics", "open_session", "close_session", "take_turn"],
+  "Novel Lifecycle": ["manage_novel", "manage_archive"],
   "Synthesis": ["manage_synthesis"],
   "Belief & Evidence": ["manage_belief"],
   "Identity": ["manage_identity"],
@@ -1534,7 +1736,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 
 const GMToolsSet = new Set([
   "manage_scene", "manage_combat", "manage_condition", "manage_npc", "manage_faction", "manage_relationship", "manage_vow",
-  "manage_countdown", "manage_lore", "manage_story", "manage_note", "manage_world", "manage_adventure", "manage_novel",
+  "manage_countdown", "manage_causality", "manage_lore", "manage_story", "manage_note", "manage_world", "manage_adventure", "manage_novel",
   "manage_synthesis", "manage_codex", "manage_ruleset", "manage_session", "resolve_fate", "resolve_ironsworn", "resolve_forged",
   "manage_belief", "manage_identity", "manage_agent",
 ]);
@@ -2208,7 +2410,8 @@ async function toolDiscovery(query?: string) {
     if (displayTools.length > 0) {
       // REQ-067d — task-map intent routing: each category carries an example
       // invocation derived from the live registry, not a maintained list.
-      result += `**${cat}:** ${displayTools.join(", ")}\n`;
+      const leadGroup = [...toolGroupSet(displayTools[0])][0];
+      result += `**${cat}:** ${displayTools.join(", ")}${leadGroup ? ` [group: ${leadGroup}]` : ""}\n`;
       const leadDef = registeredTools[displayTools[0]];
       if (leadDef) result += `Example: ${buildExampleInvocation(displayTools[0], leadDef.inputSchema)}\n`;
     }
@@ -2221,6 +2424,14 @@ async function toolDiscovery(query?: string) {
     }
     for (const [cat, tools] of userCategories) {
       result += `**${cat}:** ${tools.join(", ")}\n`;
+    }
+  }
+  // REQ-572 — group directory alongside the existing task map.
+  const groups = groupDirectory();
+  if (groups.length > 0) {
+    result += "\n### Intent Groups\n\n";
+    for (const group of groups) {
+      result += `- **${group.group}** — entry: \`${group.entry}\` (${group.tools.length} tools)\n`;
     }
   }
   result += "\nUse the intro prompt to get started, or badge_briefing for current badge guidance.";
@@ -3202,10 +3413,7 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 
 // World (REQ-201, REQ-328, REQ-329, REQ-368) — consolidated room/thing/exit/convert surface with
 // the previously-missing update_room/update_thing lifecycle (completeness).
-server.registerTool("manage_world", {
-  title: "World Model Management",
-  description: "Manage the world model — rooms, things, exits, and the causal transition ledger of objective-state changes. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). create_thing honors location_type only when location is set; kind forces property defaults. Use when: creating, updating, removing, or bulk-converting locations and objects, or proposing, admitting, refusing, or reading objective-state transitions (causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress). Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve); recording what an entity believes — use manage_belief.",
-  inputSchema: {
+const MANAGE_WORLD_SCHEMA = {
     action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert", "generate", "causal_propose", "causal_admit", "causal_reject", "causal_list", "causal_state", "causal_ingress"]).describe("World: create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, convert, or generate. Causal: causal_propose, causal_admit, causal_reject, causal_list, causal_state, or causal_ingress."),
     name: z.string().optional().describe("Room/thing name (create/update/remove)."),
     description: z.string().optional().describe("Optional description (create/update)."),
@@ -3246,7 +3454,13 @@ server.registerTool("manage_world", {
     causal_origin_source: z.enum(["narrative", "machine", "ruleset"]).optional().describe("narrative, machine, or ruleset (causal_propose)."),
     causal_source_ordinal: z.number().optional().describe("Contributing event-log ordinal (causal_propose; default the latest event)."),
     causal_proposal_id: z.string().optional().describe("Recorded proposal id (causal_admit/causal_reject)."),
-  },
+  };
+
+server.registerTool("manage_world", {
+  _meta: { deprecated: true, replacement: "manage_causality" },
+  title: "World Model Management",
+  description: "Manage the world model — rooms, things, exits, and the causal transition ledger of objective-state changes. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). create_thing honors location_type only when location is set; kind forces property defaults. Use when: creating, updating, removing, or bulk-converting locations and objects, or proposing, admitting, refusing, or reading objective-state transitions (causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress). Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve); recording what an entity believes — use manage_belief.",
+  inputSchema: MANAGE_WORLD_SCHEMA,
 }, async (args: any) => {
   if (typeof args.action === "string" && args.action.startsWith("causal_")) return handleCausalActions(mergeScopedArgs(args, "causal"));
   switch (args.action) {
@@ -3620,6 +3834,22 @@ server.registerTool("manage_combat", {
   }
 });
 
+// REQ-413 / REQ-581 — split the manage_world surface. The original name remains
+// callable for one minor version; this tool exposes the named subset.
+const MANAGE_WORLD_SCHEMA_ACTIONS = ["causal_propose", "causal_admit", "causal_reject", "causal_list", "causal_state", "causal_ingress"] as const;
+server.registerTool("manage_causality", {
+  title: "Causality Management",
+  description: "Manage objective causal state and transition proposals. Use when: proposing a causal transition (causal_propose), admitting or rejecting a proposal (causal_admit, causal_reject), listing proposals (causal_list), inspecting causal state (causal_state), or ingressing an external event (causal_ingress). Do NOT use when: changing rooms, things, or exits — use manage_world. Proposals persist and are audited; revert with manage_history (action: undo); list and state are read-only; admit, reject, and ingress mutate Novel state.",
+  inputSchema: {
+    ...MANAGE_WORLD_SCHEMA,
+    action: z.enum(MANAGE_WORLD_SCHEMA_ACTIONS).describe("causal_propose, causal_admit, causal_reject, causal_list, causal_state, causal_ingress."),
+  },
+}, async (args: any, extra: any) => {
+  const target = (server as any)._registeredTools?.["manage_world"];
+  if (!target?.handler) return err("STATE_CONFLICT", "manage_world handler unavailable.");
+  return target.handler(args, extra);
+});
+
 // --- Narrative (GM) ---
 
 // REQ-335/337/353 — derive a scene description from world-model state when
@@ -3757,10 +3987,7 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
 // consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
-server.registerTool("manage_scene", {
-  title: "Scene Management",
-  description: "Manage the active scene and its narrative framing — scene description, directive, party presence, and oracle rolls, distinct from the world model's rooms and things. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set derives the description from location only when description is omitted. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
-  inputSchema: {
+const MANAGE_SCENE_SCHEMA = {
     action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
     description: z.string().optional().describe("Scene description (set)."),
     location: z.string().optional().describe("Scene location (set)."),
@@ -3788,7 +4015,13 @@ server.registerTool("manage_scene", {
     question: z.string().optional().describe("Question to resolve (oracle)."),
     likelihood: z.enum(["almost_certain", "likely", "50_50", "unlikely", "small_chance"]).optional().describe("Likelihood tier (oracle)."),
     seed: z.string().optional().describe("Deterministic seed (oracle)."),
-  },
+  };
+
+server.registerTool("manage_scene", {
+  _meta: { deprecated: true, replacement: "manage_staging" },
+  title: "Scene Management",
+  description: "Manage the active scene and its narrative framing — scene description, directive, party presence, and oracle rolls, distinct from the world model's rooms and things. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set derives the description from location only when description is omitted. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
+  inputSchema: MANAGE_SCENE_SCHEMA,
 }, async (args: any) => {
   switch (args.action) {
     case "set": {
@@ -4080,6 +4313,22 @@ server.registerTool("manage_npc", {
   }
 });
 
+// REQ-413 / REQ-581 — split the manage_scene surface. The original name remains
+// callable for one minor version; this tool exposes the named subset.
+const MANAGE_SCENE_SCHEMA_ACTIONS = ["presence", "autonomy"] as const;
+server.registerTool("manage_staging", {
+  title: "Scene Staging Management",
+  description: "Manage scene presence and autonomy staging. Use when: setting which entities are present (presence) or adjusting NPC and world autonomy for the scene (autonomy). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence and autonomy persist to the Novel and are audited; revert with manage_history (action: undo).",
+  inputSchema: {
+    ...MANAGE_SCENE_SCHEMA,
+    action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy."),
+  },
+}, async (args: any, extra: any) => {
+  const target = (server as any)._registeredTools?.["manage_scene"];
+  if (!target?.handler) return err("STATE_CONFLICT", "manage_scene handler unavailable.");
+  return target.handler(args, extra);
+});
+
 // --- Countdowns (GM) ---
 
 // Countdown (REQ-329, REQ-358, REQ-368) — consolidated set/advance/remove/list surface.
@@ -4193,10 +4442,7 @@ server.registerTool("manage_countdown", {
 // --- Lore (GM) ---
 
 // Lore (REQ-083, REQ-094, REQ-234, REQ-328) — consolidated CRUD + list/get + interchange surface.
-server.registerTool("manage_lore", {
-  title: "Lore Management",
-  description: "Manage the active Novel's lore entries — shared, durable world facts every caller recalls — and the knowledge corpus of cold reference material. Mutating actions (including corpus_register, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume) persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; merge or replace writes. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or registering, routing, granting, denying, consuming, or inspecting corpus reference material (corpus_* actions). Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; registering a reusable gameplay artifact — use manage_codex.",
-  inputSchema: {
+const MANAGE_LORE_SCHEMA = {
     action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge", "corpus_register", "corpus_list", "corpus_get", "corpus_route", "corpus_grant", "corpus_deny", "corpus_access", "corpus_consume", "corpus_acquisitions"]).describe("Lore: set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge. Corpus: corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, or corpus_acquisitions."),
     key: z.string().optional().describe("Lore key (set/update/remove/toggle/group/get)."),
     content: z.string().optional().describe("Lore content (set/update)."),
@@ -4222,7 +4468,13 @@ server.registerTool("manage_lore", {
     corpus_entity_id: z.string().optional().describe("Entity acquiring or inspected (corpus_consume/corpus_acquisitions/corpus_access/corpus_grant/corpus_deny)."),
     corpus_mode: z.enum(["read", "research", "taught", "import"]).optional().describe("read, research, taught, or import (corpus_consume; default read)."),
     corpus_domains: z.array(z.string()).optional().describe("Knowledge domains the entity may access (corpus_access)."),
-  },
+  };
+
+server.registerTool("manage_lore", {
+  _meta: { deprecated: true, replacement: "manage_corpus" },
+  title: "Lore Management",
+  description: "Manage the active Novel's lore entries — shared, durable world facts every caller recalls — and the knowledge corpus of cold reference material. Mutating actions (including corpus_register, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume) persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; merge or replace writes. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or registering, routing, granting, denying, consuming, or inspecting corpus reference material (corpus_* actions). Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; registering a reusable gameplay artifact — use manage_codex.",
+  inputSchema: MANAGE_LORE_SCHEMA,
 }, async (args: any) => {
   if (typeof args.action === "string" && args.action.startsWith("corpus_")) return handleCorpusActions(mergeScopedArgs(args, "corpus"));
   switch (args.action) {
@@ -4491,6 +4743,22 @@ server.registerTool("manage_condition", {
     default:
       return err("INVALID_INPUT", `Unknown condition action '${args.action}'. Valid actions: apply, remove, list.`);
   }
+});
+
+// REQ-413 / REQ-581 — split the manage_lore surface. The original name remains
+// callable for one minor version; this tool exposes the named subset.
+const MANAGE_LORE_SCHEMA_ACTIONS = ["corpus_register", "corpus_list", "corpus_get", "corpus_route", "corpus_grant", "corpus_deny", "corpus_access", "corpus_consume", "corpus_acquisitions"] as const;
+server.registerTool("manage_corpus", {
+  title: "Knowledge Corpus",
+  description: "Manage the cold-reference knowledge corpus. Use when: registering, listing, reading, routing, granting, denying, accessing, consuming, or inspecting acquisitions of corpus documents (corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions). Do NOT use when: writing Novel lore entries or secrets — use manage_lore. corpus_register, corpus_route, corpus_grant, and corpus_deny persist access state; revert with manage_history (action: undo); corpus_list, corpus_get, corpus_access, and corpus_acquisitions are read-only; corpus_consume records usage.",
+  inputSchema: {
+    ...MANAGE_LORE_SCHEMA,
+    action: z.enum(MANAGE_LORE_SCHEMA_ACTIONS).describe("corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions."),
+  },
+}, async (args: any, extra: any) => {
+  const target = (server as any)._registeredTools?.["manage_lore"];
+  if (!target?.handler) return err("STATE_CONFLICT", "manage_lore handler unavailable.");
+  return target.handler(args, extra);
 });
 
 // --- Factions (GM) ---
@@ -5129,12 +5397,16 @@ server.registerTool("manage_story", {
     offset: z.number().min(0).optional().describe("Optional pagination offset (list)."),
     limit: z.number().min(0).optional().describe("Optional page size (list)."),
     key: z.string().optional().describe("Optional lore key (promote)."),
+    turn_handle: z.string().optional().describe("Turn handle minted by take_turn (record); consumed on success."),
   },
 }, async (args: any) => {
   switch (args.action) {
     case "record": {
       requireGM();
       const novel = requireNovel();
+      if (args.turn_handle !== undefined && !turnHandles.has(args.turn_handle)) {
+        return err("STATE_CONFLICT", "Unknown or expired turn_handle. Next: take_turn.");
+      }
       const { type, entry } = args;
       // REQ-129b1 — story journal cardinality refusal.
       const storyRefusal = capGuard("story", novel.story_journal.length);
@@ -5161,6 +5433,7 @@ server.registerTool("manage_story", {
       // REQ-455 — a journal moment is an observation that enters play.
       recordEvent("story", `${type}: ${entry}`, "game_master");
       state.saveNovel(novel);
+      if (args.turn_handle !== undefined) turnHandles.delete(args.turn_handle);
       return ok(`Story entry #${index} recorded (${type}).`);
     }
     case "update": {
@@ -6364,10 +6637,7 @@ const handlePerceptionActions = async (args: any) => {
   }
 };
 
-server.registerTool("manage_session", {
-  title: "Session Management",
-  description: "Manage session-level surfaces, diagnostics, and tool discovery, distinct from story content and Novel lifecycle. event with supersede appends a replacement and marks that ordinal superseded. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
-  inputSchema: {
+const MANAGE_SESSION_SCHEMA = {
     action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
@@ -6384,7 +6654,14 @@ server.registerTool("manage_session", {
     supersede: z.number().optional().describe("Ordinal of an event this observation replaces (event)."),
     through_ordinal: z.number().optional().describe("Return events up to and including this ordinal (history)."),
     include_superseded: z.boolean().optional().describe("Include superseded events (history; default true)."),
-  },
+  };
+
+server.registerTool("manage_session", {
+  _meta: { deprecated: true, replacement: "manage_diagnostics" },
+  title: "Session Management",
+  description: "Manage session-level surfaces, diagnostics, and tool discovery, distinct from story content and Novel lifecycle. event with supersede appends a replacement and marks that ordinal superseded. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
+  inputSchema: MANAGE_SESSION_SCHEMA,
+
 }, async (args: any) => {
   switch (args.action) {
     case "event": {
@@ -6580,6 +6857,23 @@ Options: yes, cancel`);
     default:
       return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history.`);
   }
+});
+
+// REQ-413 / REQ-581 — split the maintenance actions out of `manage_session`.
+// The original name stays callable for one minor version (REQ-581); the split
+// tool exposes only the diagnostics subset and delegates to the same handler.
+const DIAGNOSTICS_ACTIONS = ["health", "compress", "compact", "subscribe", "category", "event", "history"] as const;
+server.registerTool("manage_diagnostics", {
+  title: "Session Diagnostics",
+  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), or appending and reading the Novel event log (event, history). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, and history are read-only.",
+  inputSchema: {
+    ...MANAGE_SESSION_SCHEMA,
+    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, compress, compact, subscribe, category, event, or history."),
+  },
+}, async (args: any, extra: any) => {
+  const target = (server as any)._registeredTools?.["manage_session"];
+  if (!target?.handler) return err("STATE_CONFLICT", "Session handler unavailable.");
+  return target.handler(args, extra);
 });
 
 // Slug-ify a free-text premise into a stable identifier for adventure storage
@@ -6886,10 +7180,7 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
   } catch { return null; /* module not present on disk — nothing to embed */ }
 }
 
-server.registerTool("manage_novel", {
-  title: "Novel Save Management",
-  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; strict turns a reference-validation failure into a hard block. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note).",
-  inputSchema: {
+const MANAGE_NOVEL_SCHEMA = {
     action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "complete_session_zero", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, complete_session_zero, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
     slug: z.string().optional().describe("Novel slug (resume/switch/archive/unarchive/info)."),
@@ -6917,7 +7208,13 @@ server.registerTool("manage_novel", {
     include_checkpoints: z.boolean().optional().describe("Include checkpoints in export (default false; export)."),
     trim_audit_sessions: z.number().optional().describe("Keep only the most recent N sessions' audit entries in the clone (clone; default full copy)."),
     label: z.string().optional().describe("Checkpoint label (checkpoint_set/list/restore/remove)."),
-  },
+  };
+
+server.registerTool("manage_novel", {
+  _meta: { deprecated: true, replacement: "manage_archive" },
+  title: "Novel Save Management",
+  description: "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; strict turns a reference-validation failure into a hard block. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note).",
+  inputSchema: MANAGE_NOVEL_SCHEMA,
 }, async (args: any) => {
   switch (args.action) {
     case "create": {
@@ -7550,6 +7847,22 @@ server.registerTool("manage_ruleset", {
   }
 });
 
+// REQ-413 / REQ-581 — split the manage_novel surface. The original name remains
+// callable for one minor version; this tool exposes the named subset.
+const MANAGE_NOVEL_SCHEMA_ACTIONS = ["export", "import", "archive", "unarchive", "clone", "branch", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"] as const;
+server.registerTool("manage_archive", {
+  title: "Novel Archive Management",
+  description: "Manage Novel archival and checkpoint surfaces. Use when: exporting or importing a Novel (export, import), archiving or unarchiving it (archive, unarchive), cloning or branching it (clone, branch), or setting, listing, restoring, or removing a checkpoint (checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove). Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Export and import write files or Novel state; archive, unarchive, clone, branch, and checkpoint mutations persist; revert with manage_history (action: undo); checkpoint_list is read-only.",
+  inputSchema: {
+    ...MANAGE_NOVEL_SCHEMA,
+    action: z.enum(MANAGE_NOVEL_SCHEMA_ACTIONS).describe("export, import, archive, unarchive, clone, branch, checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove."),
+  },
+}, async (args: any, extra: any) => {
+  const target = (server as any)._registeredTools?.["manage_novel"];
+  if (!target?.handler) return err("STATE_CONFLICT", "manage_novel handler unavailable.");
+  return target.handler(args, extra);
+});
+
 // REQ-022 resource URI catalog — presence is reported against this fixed list.
 const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "novel://current", title: "Active Novel" },
@@ -7632,6 +7945,7 @@ const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
   { variable: "campaign_memory_max_facts", tunable: true, path: "manage_scene (action: directive, 'more campaign notes')" },
   { variable: "world_reactivity", tunable: true, path: "manage_scene (action: directive, 'the world reacts')" },
   { variable: "guidance_profile", tunable: true, path: "manage_scene (action: directive, 'keep it lean')" },
+  { variable: "surface_profile", tunable: true, path: "manage_scene (action: directive, 'show all tools')" },
   { variable: "narration_validation", tunable: true, path: "manage_scene (action: directive, 'validate my narration')" },
   { variable: "state_gate", tunable: true, path: "manage_scene (action: directive, 'warn on state drift')" },
   { variable: "auto_record", tunable: true, path: "manage_scene (action: directive, 'auto-record moments')" },
@@ -7808,6 +8122,13 @@ function buildSpecHealth(): Record<string, unknown> {
       : undefined,
     // REQ-430 — conformant vs non-conformant ruleset-derived tool counts.
     ruleset_tool_quality: isGM ? rulesets.toolQualityCounts() : undefined,
+    // REQ-579 — packages whose tools predate the surface contract; the Update
+    // workflow rebuilds those with a committed emitter and defers the rest.
+    legacy_package_rebuilds: isGM
+      ? rulesets.toolQualityAlerts()
+          .filter((a) => a.defects.some((d) => d.includes("surface group") || d.includes("surface phases")))
+          .map((a) => ({ slug: a.slug, tool: a.tool, reason: "missing surface declaration" }))
+      : undefined,
     // REQ-450 — deterministic host-tool quality signals (report-only).
     host_tool_quality: hostToolQuality(),
     // REQ-552/553/554/555 — deterministic TDQS conformance report over the live
@@ -7941,6 +8262,34 @@ function buildSpecHealth(): Record<string, unknown> {
     tool_parameter_counts: cachedMetadata().toolParameterCounts,
     tool_required_param_counts: cachedMetadata().toolRequiredParamCounts,
     tools_list_bytes: cachedMetadata().toolsListBytes,
+    // REQ-567/568/569/570–572/580/571 — Tool Surface Contract report, derived from the
+    // committed registry and the live registrations at call time.
+    tool_surface: (() => {
+      const reg = surfaceRegistry();
+      const live = liveSurfaceActions();
+      const declared = reg ? Object.keys(reg.actions) : [];
+      const directory = groupDirectory();
+      const tokens = Math.ceil(cachedMetadata().toolsListBytes / 4);
+      return {
+        profile: surfaceProfile(),
+        actions: declared.length,
+        coverage: {
+          live: live.size,
+          declared: declared.length,
+          orphan_actions: [...live].filter((key) => !reg?.actions[key]),
+          missing_actions: declared.filter((key) => !live.has(key)),
+        },
+        groups: Object.fromEntries(directory.map((group) => [group.group, group.tools.length])),
+        entries: Object.fromEntries(directory.map((group) => [group.group, group.entry])),
+        catalog_bytes: cachedMetadata().toolsListBytes,
+        catalog_tokens_estimate: tokens,
+        overrides: surfaceOverrideCount,
+        budgets: {
+          standard: Math.ceil(tokens / 2),
+          small: Math.ceil(tokens / 10),
+        },
+      };
+    })(),
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
     // REQ-253 — active tool-output verbosity mode.
@@ -8025,6 +8374,15 @@ function buildSpecHealth(): Record<string, unknown> {
 // ── Resources ──────────────────────────────────────────────────────
 
 // Novel resources
+// REQ-572 — group directory: the same intent groups the projection uses.
+server.registerResource("tool-groups", "tool_groups://", { title: "Tool Groups", mimeType: "application/json" }, async () => ({
+  contents: [{
+    uri: "tool_groups://",
+    mimeType: "application/json",
+    text: JSON.stringify({ profile: surfaceProfile(), groups: groupDirectory() }, null, 2),
+  }],
+}));
+
 server.registerResource("novel-current", "novel://current", { title: "Active Novel" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "novel://current", text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
@@ -9980,6 +10338,67 @@ Select the tool whose registered action classification matches the intent.`;
   return { messages: [{ role: "user", content: { type: "text" as const, text: applyPromptBudget(text) } }] };
 });
 
+// REQ-577 — deterministic session and turn composites. Each bundles the
+// constituent tool calls and returns one result; session composites are audited
+// as one workflow, and take_turn mints the REQ-574 handle consumed by
+// manage_story (action: record).
+server.registerTool("open_session", {
+  title: "Open Play Session",
+  description: "Open a play session by resuming a Novel, activating a badge, and returning a recap. Use when: starting or resuming a session (open_session), especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn. Resume and badge changes persist and are audited; revert with manage_history (action: undo).",
+  inputSchema: {
+    novel: z.string().optional().describe("Novel slug to resume (open_session)."),
+    badge: z.enum(["player", "game_master", "observer", "none"]).optional().describe("Badge to activate (open_session)."),
+  },
+}, async (args: any) => {
+  const parts: string[] = [];
+  const novelTool = (server as any)._registeredTools?.["manage_novel"];
+  const badgeTool = (server as any)._registeredTools?.["set_badge"];
+  const sessionTool = (server as any)._registeredTools?.["manage_session"];
+  if (args.novel && novelTool?.handler) {
+    parts.push(toolResultText(await novelTool.handler({ action: "resume", slug: args.novel }, undefined)));
+  }
+  if (args.badge && badgeTool?.handler) {
+    parts.push(toolResultText(await badgeTool.handler({ badge: args.badge }, undefined)));
+  }
+  if (sessionTool?.handler) {
+    parts.push(toolResultText(await sessionTool.handler({ action: "recap" }, undefined)));
+  }
+  return raw(parts.filter(Boolean).join("\n\n"));
+});
+
+server.registerTool("close_session", {
+  title: "Close Play Session",
+  description: "Close a play session by returning a recap and saving the current context. Use when: ending a session (close_session) or checkpointing the narrative context. Do NOT use when: archiving or exporting a Novel — use manage_archive. Context and recap state persist and are audited; revert with manage_history (action: undo).",
+  inputSchema: {},
+}, async () => {
+  const parts: string[] = [];
+  const sessionTool = (server as any)._registeredTools?.["manage_session"];
+  const novelTool = (server as any)._registeredTools?.["manage_novel"];
+  if (sessionTool?.handler) {
+    parts.push(toolResultText(await sessionTool.handler({ action: "recap" }, undefined)));
+  }
+  if (novelTool?.handler) {
+    parts.push(toolResultText(await novelTool.handler({ action: "save_context" }, undefined)));
+  }
+  return raw(parts.filter(Boolean).join("\n\n"));
+});
+
+server.registerTool("take_turn", {
+  title: "Take Play Turn",
+  description: "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only; the handle is session-scoped and expires.",
+  inputSchema: {
+    intent: z.string().describe("Player intent to resolve (take_turn)."),
+    entity_id: z.string().optional().describe("Acting entity id (take_turn)."),
+  },
+}, async (args: any) => {
+  const run = (server as any)._registeredTools?.["run_command"];
+  if (!run?.handler) return err("STATE_CONFLICT", "Parser unavailable.");
+  const resolved = await run.handler({ action: "resolve", intent: args.intent, entity_id: args.entity_id }, undefined);
+  const suggested = await run.handler({ action: "suggest", intent: args.intent, entity_id: args.entity_id }, undefined);
+  const handle = mintTurnHandle(args.intent);
+  return raw(`[TURN] ${handle}\n\nIntent resolution:\n${toolResultText(resolved)}\n\nSuggested next actions:\n${toolResultText(suggested)}`);
+});
+
 // ── Transport ──────────────────────────────────────────────────────
 
 // REQ-137b — badge-filtered `tools/list`. The MCP SDK's high-level McpServer
@@ -9996,7 +10415,14 @@ function installBadgeFilteredToolList(): void {
   low.setRequestHandler(ListToolsRequestSchema, async (req: any, extra: any) => {
     const full = await original(req, extra);
     const badge = getBadge();
-    const tools = (full?.tools ?? []).filter((t: any) => toolsVisibleToBadge(t.name, badge));
+    const visible = (full?.tools ?? []).filter((t: any) => toolsVisibleToBadge(t.name, badge));
+    // REQ-570/580 — group and profile projection. The default profile is
+    // `full`, so an unconfigured server serves the same catalog as before.
+    const tools = projectToolList(
+      visible as Array<{ name: string }>,
+      typeof req?.params?.group === "string" ? req.params.group : undefined,
+      typeof req?.params?.profile === "string" ? req.params.profile : undefined,
+    );
     return { ...full, tools };
   });
 }
@@ -10004,6 +10430,7 @@ function installBadgeFilteredToolList(): void {
 async function main() {
   const transport = new StdioServerTransport();
   installBadgeFilteredToolList();
+  installSurfaceGuards();
   await server.connect(transport);
 }
 
