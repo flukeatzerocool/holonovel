@@ -20,7 +20,9 @@ function hashDir(dir: string): string {
   if (!existsSync(dir)) return "";
   const h = createHash("sha256");
   try {
-    const files = execSync("git ls-files", { cwd: dir, encoding: "utf-8" }).trim().split("\n").filter(Boolean).sort();
+    // -c includes tracked files, -o includes untracked (non-ignored) files, so a
+    // new source file changes the fingerprint before it is committed.
+    const files = execSync("git ls-files -co --exclude-standard", { cwd: dir, encoding: "utf-8" }).trim().split("\n").filter(Boolean).sort();
     for (const file of files) {
       const p = join(dir, file);
       try {
@@ -54,12 +56,15 @@ interface Fingerprint {
   spec_hash: string;
   scripts_hash: string;
   holonovel_src_hash: string;
+  holonovel_scripts_hash: string;
+  holonovel_pkg_hash: string;
+  hooks_hash: string;
   holonovel_world_hash: string;
   holonovel_vendor_hash: string;
   root_version: string;
 }
 
-function loadFingerprint(): Fingerprint | null {
+function loadFingerprint(): Partial<Fingerprint> | null {
   if (!existsSync(FINGERPRINT_PATH)) return null;
   try { return JSON.parse(readFileSync(FINGERPRINT_PATH, "utf-8")); }
   catch { return null; }
@@ -72,12 +77,28 @@ function saveFingerprint(fp: Fingerprint): void {
   writeFileSync(FINGERPRINT_PATH, JSON.stringify(fp, null, 2) + "\n");
 }
 
+function hashFiles(paths: string[]): string {
+  const h = createHash("sha256");
+  for (const p of paths) {
+    h.update(p);
+    h.update(hashFile(p));
+  }
+  return h.digest("hex");
+}
+
 function computeCurrent(): Fingerprint {
   const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
   return {
     spec_hash: hashDir(join(root, "spec")),
     scripts_hash: hashDir(join(root, "scripts")),
     holonovel_src_hash: hashDir(join(root, "holonovel", "src")),
+    holonovel_scripts_hash: hashDir(join(root, "holonovel", "scripts")),
+    holonovel_pkg_hash: hashFiles(
+      ["package.json", "package-lock.json", "tool-definitions.json", "server.json"].map((f) =>
+        join(root, "holonovel", f)
+      )
+    ),
+    hooks_hash: hashDir(join(root, ".githooks")),
     holonovel_world_hash: hashDir(join(root, "holonovel", "src", "world")),
     holonovel_vendor_hash: hashDir(join(root, "holonovel", "narrative_world_model")),
     root_version: rootPkg.version,
@@ -138,9 +159,17 @@ const current = computeCurrent();
 const saved = loadFingerprint();
 const firstRun = !saved;
 
-const specChanged = firstRun || current.spec_hash !== saved.spec_hash;
-const scriptsChanged = firstRun || current.scripts_hash !== saved.scripts_hash;
-const holoSrcChanged = firstRun || current.holonovel_src_hash !== saved.holonovel_src_hash;
+// A missing field means the saved fingerprint predates it; treat that as a
+// change so an upgraded build-order runs a full pass instead of skipping.
+const changed = (key: keyof Fingerprint): boolean =>
+  firstRun || !saved || saved[key] === undefined || current[key] !== saved[key];
+
+const specChanged = changed("spec_hash");
+const scriptsChanged = changed("scripts_hash");
+const holoSrcChanged = changed("holonovel_src_hash");
+const holoScriptsChanged = changed("holonovel_scripts_hash");
+const holoPkgChanged = changed("holonovel_pkg_hash");
+const hooksChanged = changed("hooks_hash");
 
 const steps: Step[] = [];
 
@@ -174,18 +203,19 @@ if (specChanged) {
 // Step 1c: Regenerate the tool-definitions snapshot (REQ-450) BEFORE the check
 // gate — `npm run check` includes `check-tool-definitions-sync`, so a tool
 // description or schema change must be captured before the gate reads it.
-if (holoSrcChanged || !existsSync(join(root, "holonovel", "tool-definitions.json"))) {
+if (holoSrcChanged || holoScriptsChanged || !existsSync(join(root, "holonovel", "tool-definitions.json"))) {
   steps.push({ label: "1c. Regenerate tool definitions", fn: () => run("1c. Regenerate tool definitions", "npx tsx holonovel/scripts/generate-tool-definitions.ts") });
 } else {
   steps.push({ label: "1c. Regenerate tool definitions", fn: () => skip("1c. Regenerate tool definitions", "holonovel/src/ unchanged") });
 }
 
-// Step 2: Check spec (depends on spec/ or scripts/ — a validator change is a
-// review-surface change and must re-run the check even when spec/ is untouched).
-if (specChanged || scriptsChanged) {
+// Step 2: Check spec. The gate suite consumes holonovel/src, holonovel/scripts,
+// the server package files, and the hooks, so any of those changing must re-run
+// it even when spec/ and scripts/ are untouched.
+if (specChanged || scriptsChanged || holoSrcChanged || holoScriptsChanged || holoPkgChanged || hooksChanged) {
   steps.push({ label: "2. Check spec", fn: () => runChecked("2. Check spec", "npm run check") });
 } else {
-  steps.push({ label: "2. Check spec", fn: () => skip("2. Check spec", "spec/ and scripts/ unchanged") });
+  steps.push({ label: "2. Check spec", fn: () => skip("2. Check spec", "spec/, scripts/, server source, and hooks unchanged") });
 }
 
 // Step 2b: Near-duplicate scan (informational — detect-near-dupes exits 0
@@ -204,10 +234,10 @@ if (specChanged) {
 }
 
 // Step 4: Typecheck holonovel
-if (holoSrcChanged) {
+if (holoSrcChanged || holoScriptsChanged) {
   steps.push({ label: "4. Typecheck holonovel", fn: () => run("4. Typecheck holonovel", "npm run typecheck", join(root, "holonovel")) });
 } else {
-  steps.push({ label: "4. Typecheck holonovel", fn: () => skip("4. Typecheck holonovel", "holonovel/src/ unchanged") });
+  steps.push({ label: "4. Typecheck holonovel", fn: () => skip("4. Typecheck holonovel", "holonovel/src/ and holonovel/scripts/ unchanged") });
 }
 
 // Step 5: Version-bump — always runs so a new CHANGELOG entry advances the

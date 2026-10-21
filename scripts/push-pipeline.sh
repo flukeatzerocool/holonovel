@@ -16,8 +16,8 @@
 #
 # NOTE: step 2b fetches origin before the delta classification (step 3) so the
 # comparison base is current; step 4b runs the server harness suite unless the
-# delta is patch/editorial with an unchanged contract fingerprint (§6.7
-# Patch/Editorial = G0 only; --full-tests forces it); step 4c prints the
+# delta is patch/editorial with an unchanged contract fingerprint and no server
+# path changed (§6.7 Patch/Editorial = G0 only; --full-tests forces it); step 4c prints the
 # conformance-evidence report (report-only) to surface the false-C risk pool;
 # step 4d runs the implementation-coverage strict gate once and exports
 # HOLONOVEL_PIPELINE_STRICT so .githooks/pre-push does not repeat it per push.
@@ -42,7 +42,7 @@
 # the mirror push can succeed.
 #
 # Usage:
-#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests]
+#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests] [--allow-missing-deploy] [--allow-untracked]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
 #   --yes (-y)   Skip confirmation prompt before push/deploy.
 #   --allow-pending  Override the pending-update block (REQ-394) — operator escape hatch.
@@ -50,8 +50,13 @@
 #   --auto-update  Run outside a session: execute the §6.7 update command
 #                  (HOLONOVEL_INVOKE_UPDATE=1) instead of only printing it.
 #   --full-tests  Always run the server harness suite, even for a patch/editorial
-#                 delta. Default: skip it when the delta is patch/editorial and no
-#                 contract fingerprint changed (§6.7 Patch/Editorial = G0 only).
+#                 delta. Default: run it whenever a server path changed; skip only
+#                 when the delta is patch/editorial and no server path changed.
+#   --allow-missing-deploy  Skip (with a warning) when the deploy clone is absent.
+#                 Default: fail closed, because REQ-418 treats deployment as a gate.
+#   --allow-untracked  Permit untracked files in the commit surface (for a change
+#                 that authors new files). Default: abort so leftovers are not
+#                 swept into the commit by the staging step.
 #   --help (-h)  Show this message.
 
 set -euo pipefail
@@ -60,7 +65,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests]
+Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests] [--allow-missing-deploy] [--allow-untracked]
 
   --dry-run        Full pipeline including file writes — skip git commit, push, deploy.
   --yes (-y)       Skip confirmation prompt before push/deploy.
@@ -68,6 +73,8 @@ Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-pu
   --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
   --auto-update    Execute the §6.7 update command (HOLONOVEL_INVOKE_UPDATE=1).
   --full-tests     Always run the server harness suite (skip the patch/editorial exemption).
+  --allow-missing-deploy  Skip deploy verification when the deploy clone is absent.
+  --allow-untracked  Permit untracked files in the commit surface.
   --help (-h)      Show this message.
 EOF
 }
@@ -80,6 +87,8 @@ ALLOW_PENDING=false
 NO_PUSH=false
 AUTO_UPDATE=false
 FULL_TESTS=false
+ALLOW_MISSING_DEPLOY=false
+ALLOW_UNTRACKED=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -89,6 +98,8 @@ for arg in "$@"; do
     --no-push) NO_PUSH=true ;;
     --auto-update) AUTO_UPDATE=true ;;
     --full-tests) FULL_TESTS=true ;;
+    --allow-missing-deploy) ALLOW_MISSING_DEPLOY=true ;;
+    --allow-untracked) ALLOW_UNTRACKED=true ;;
     --help|-h)
       usage
       exit 0
@@ -143,10 +154,13 @@ export HOLONOVEL_PIPELINE=1
 # so a --dry-run restores the wiki working tree to its pre-run bytes.
 STATE_SNAPSHOT=""
 BEFORE_UNTRACKED=""
+BEFORE_IGNORED=""
 snapshot_state() {
   STATE_SNAPSHOT="$(mktemp -d)"
   BEFORE_UNTRACKED="$STATE_SNAPSHOT/untracked-before"
+  BEFORE_IGNORED="$STATE_SNAPSHOT/ignored-before"
   git ls-files --others --exclude-standard > "$BEFORE_UNTRACKED" 2>/dev/null || true
+  git ls-files --others --ignored --exclude-standard > "$BEFORE_IGNORED" 2>/dev/null || true
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
     if [[ -f "$f" ]]; then cp "$f" "$STATE_SNAPSHOT/$(basename "$f")"; fi
   done
@@ -166,6 +180,15 @@ restore_worktree() {
     while IFS= read -r p; do
       [[ -n "$p" ]] && rm -rf -- "$p"
     done < <(comm -13 <(sort "$BEFORE_UNTRACKED") <(sort "$after"))
+  fi
+  # Remove ignored files the run created (e.g. a fresh .holonovel-state
+  # fingerprint) so --dry-run leaves no new state behind.
+  if [[ -n "$BEFORE_IGNORED" && -f "$BEFORE_IGNORED" ]]; then
+    local after_ignored="$STATE_SNAPSHOT/ignored-after"
+    git ls-files --others --ignored --exclude-standard > "$after_ignored" 2>/dev/null || true
+    while IFS= read -r p; do
+      [[ -n "$p" ]] && rm -rf -- "$p"
+    done < <(comm -13 <(sort "$BEFORE_IGNORED") <(sort "$after_ignored"))
   fi
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
     local b="$(basename "$f")"
@@ -204,7 +227,29 @@ if ! git diff --cached --exit-code --quiet 2>/dev/null; then
   exit 1
 fi
 
-if $DRY_RUN; then snapshot_state; fi
+snapshot_state
+
+# Preflight: untracked files in the commit surface would be swept in by the
+# staging step below. Abort and let the operator decide (add, ignore, or remove).
+COMMIT_SURFACE_UNTRACKED="$(grep -E '^(spec/|scripts/|holonovel/|\.github/)|^(CHANGELOG|README)\.md$' "$BEFORE_UNTRACKED" || true)"
+if [[ -n "$COMMIT_SURFACE_UNTRACKED" ]]; then
+  if ! $ALLOW_UNTRACKED; then
+    echo -e "${RED}Untracked files exist in the commit surface — add, ignore, or remove them before running.${NC}"
+    echo "$COMMIT_SURFACE_UNTRACKED"
+    echo -e "${YELLOW}To publish a change that authors new files, re-run with --allow-untracked.${NC}"
+    exit 1
+  fi
+  echo -e "${YELLOW}  --allow-untracked: these files will be staged:${NC}"
+  echo "$COMMIT_SURFACE_UNTRACKED"
+fi
+
+# The pipeline publishes `main` while tagging HEAD, so any other branch would
+# push a stale main and tag an unmerged commit.
+CURRENT_BRANCH="$(git symbolic-ref --short -q HEAD || true)"
+if [[ "$CURRENT_BRANCH" != "main" ]]; then
+  echo -e "${RED}Refusing to publish from '${CURRENT_BRANCH:-detached HEAD}'. Switch to main first.${NC}"
+  exit 1
+fi
 
 # ── 1. Build order (assemble, check, propagate, wisdom, typecheck, version) ──
 
@@ -220,10 +265,9 @@ if ! git diff --quiet -- holonovel/src/generated/contract-fingerprints.ts 2>/dev
   CONTRACT_CHANGED=true
 fi
 
-# ── 2. Cross-property coupling ──
-
-echo -e "${GREEN}=== 2. Refresh README and wiki from spec ===${NC}"
-npm run refresh-properties
+# Step 2 is intentionally absent: build-order step 5b already refreshes README
+# and wiki markers from the assembled spec. A second refresh here was duplicate
+# work.
 
 # ── 2b. Fetch origin so the delta base is current (REQ-418) ──
 # The delta classification and the pending-push count both compare against
@@ -298,14 +342,30 @@ done
 
 # ── 4b. Server harness suite (a red harness blocks the push) ──
 # §6.7 scopes a Patch/Editorial delta to G0 only (no Pattern Buffer), so the
-# suite is skipped when every server's delta is patch/editorial and no contract
-# fingerprint changed. The pending-update gate above has already passed, so the
-# implementation fingerprints match the spec. --full-tests forces the suite.
+# suite is skipped when every server's delta is patch/editorial, no contract
+# fingerprint changed, and no server path changed. Server source and harness
+# edits are not visible in the spec delta, so probe the tree directly.
+# --full-tests forces the suite.
+
+SERVER_PATHS=()
+for server in "${SERVERS[@]}"; do
+  SERVER_PATHS+=(
+    "$server/src" "$server/scripts" "$server/package.json"
+    "$server/package-lock.json" "$server/tool-definitions.json" "$server/server.json"
+  )
+done
+SERVER_CHANGED=false
+if ! git diff --quiet "$DELTA_BASE" -- "${SERVER_PATHS[@]}" 2>/dev/null; then
+  SERVER_CHANGED=true
+fi
+if [[ -n "$(git ls-files --others --exclude-standard -- "${SERVER_PATHS[@]}")" ]]; then
+  SERVER_CHANGED=true
+fi
 
 NEED_TESTS=false
 for server in "${SERVERS[@]}"; do
   DELTA_CLASS="${DELTA_CLASS_OF[$server]}"
-  if [[ "$DELTA_CLASS" == "minor" || "$DELTA_CLASS" == "major" ]] || $CONTRACT_CHANGED || $FULL_TESTS; then
+  if [[ "$DELTA_CLASS" == "minor" || "$DELTA_CLASS" == "major" ]] || $CONTRACT_CHANGED || $SERVER_CHANGED || $FULL_TESTS; then
     NEED_TESTS=true
   fi
 done
@@ -315,7 +375,7 @@ if $NEED_TESTS; then
   (cd holonovel && npm run test:all) || { echo -e "${RED}Server harness suite FAILED${NC}"; exit 1; }
 else
   echo -e "${GREEN}=== 4b. Server harness suite (test:all) ===${NC}"
-  echo -e "${YELLOW}  Skipped: patch/editorial delta with unchanged contract fingerprint (§6.7 G0-only). Use --full-tests to force.${NC}"
+  echo -e "${YELLOW}  Skipped: patch/editorial delta, no contract fingerprint change, no server path change (§6.7 G0-only). Use --full-tests to force.${NC}"
 fi
 
 # ── 4c. Conformance evidence report (informational) ──
@@ -334,7 +394,7 @@ fi
 # outside the pipeline. A red gate blocks publication.
 
 echo -e "${GREEN}=== 4d. Implementation-coverage strict gate ===${NC}"
-if ! npm run validate:sdd -- --impl-audit=strict; then
+if ! npm run validate:fast -- --impl-audit=strict; then
   echo -e "${RED}  Implementation-coverage strict gate FAILED — bucket-A (gap) REQs present.${NC}"
   echo -e "${YELLOW}  Every server-runtime REQ must be evidenced (C) or builder-side (E) before push.${NC}"
   exit 1
@@ -409,6 +469,9 @@ done
 # (already staged above).
 git add scripts/ holonovel/ .github/
 
+echo -e "${GREEN}  Staged changes:${NC}"
+git diff --cached --stat
+
 HAS_COMMIT=true
 TAG_TO_PUSH=""
 if git diff --staged --quiet 2>/dev/null; then
@@ -418,11 +481,24 @@ fi
 
 if $HAS_COMMIT; then
   COMMIT_DATE=$(date +%Y-%m-%d)
-  git commit -m "Push pipeline $COMMIT_DATE
+  # Follow the repo convention: a date-headed CHANGELOG entry (heading plus its
+  # bullets) is the commit message. Fall back to the mechanical summary only
+  # when the changelog has no parseable entry.
+  COMMIT_MSG="$(awk 'BEGIN{n=0} /^## [0-9]/{n++} n==1{print} n==2{exit}' CHANGELOG.md 2>/dev/null || true)"
+  if [[ -n "$COMMIT_MSG" ]]; then
+    if [[ "$(printf '%s\n' "$COMMIT_MSG" | sed -n '1p')" != "## $COMMIT_DATE"* ]]; then
+      echo -e "${YELLOW}  WARNING: top CHANGELOG entry is not dated $COMMIT_DATE — add today's entry.${NC}"
+    fi
+    printf '%s\n' "$COMMIT_MSG" > "$STATE_SNAPSHOT/commit-message.txt"
+    git commit -F "$STATE_SNAPSHOT/commit-message.txt"
+  else
+    echo -e "${YELLOW}  WARNING: no dated CHANGELOG entry found — using the mechanical message.${NC}"
+    git commit -m "Push pipeline $COMMIT_DATE
 
   Build-order: spec assembled, checked, propagated to server, server
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
+  fi
   DID_COMMIT=true
 fi
 
@@ -548,7 +624,7 @@ fi
 # ── 9. Deploy to MCP target ──
 
 echo -e "${GREEN}=== 9. Deploy to MCP target ===${NC}"
-DEPLOY_DIR="$HOME/Holonovel-deployed"
+DEPLOY_DIR="${HOLONOVEL_DEPLOY_DIR:-$HOME/Holonovel-deployed}"
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
   # Deploy clone is a git-pull-only mirror: discard any uncommitted working-tree
   # edits before the pull, matching the AGENTS.md Two-Repo Workflow contract
@@ -608,7 +684,12 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
     echo "  Deployed copy already at latest."
   fi
 else
-  echo -e "${YELLOW}  Deploy directory not found at $DEPLOY_DIR, skipping.${NC}"
+  if ! $ALLOW_MISSING_DEPLOY; then
+    echo -e "${RED}Deploy directory not found at $DEPLOY_DIR — deployment is a gate (REQ-418).${NC}"
+    echo -e "${YELLOW}Provision the clone, or re-run with --allow-missing-deploy (or set HOLONOVEL_DEPLOY_DIR).${NC}"
+    exit 1
+  fi
+  echo -e "${YELLOW}  Deploy directory not found at $DEPLOY_DIR — skipping (--allow-missing-deploy).${NC}"
 fi
 
 # ── 9b. Verify the deployed tree (REQ-418) ──
@@ -623,7 +704,7 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
   done
   DID_DEPLOY=true
 else
-  echo -e "${YELLOW}  Deploy directory not found; skipping verification.${NC}"
+  echo -e "${YELLOW}  Deploy directory not found — skipping verification (--allow-missing-deploy).${NC}"
 fi
 
 # ── 9c. Registry publication check (non-fatal, REQ-428) ──
