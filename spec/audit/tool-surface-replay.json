@@ -1,755 +1,1869 @@
 {
-  "schema_version": 2,
-  "proxy": "expected-tool visibility and group-switch call cost; live-model selection is advisory",
-  "intents": 30,
+  "schema_version": 4,
+  "proxy": "expected-action selection precision, wrong-selection count, visibility, and group-switch call cost; live-model selection is advisory",
+  "intents": 40,
+  "precision_floor": 0.9,
+  "routing_source": "holonovel/tool-routing.json",
   "profiles": [
     {
       "profile": "full",
-      "intents": 30,
-      "expected_tool_visible": 30,
+      "intents": 40,
+      "expected_tool_visible": 40,
       "visibility_rate": 1,
+      "expected_action_selected": 40,
+      "selection_precision": 1,
+      "wrong_selection_count": 0,
       "mean_calls": 1,
       "rows": [
         {
           "intent": "start a new campaign",
           "tool": "manage_novel",
+          "action": "create",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "resume my campaign",
           "tool": "manage_novel",
+          "action": "resume",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "resume"
+          },
+          "correct": true
         },
         {
           "intent": "switch to another novel",
           "tool": "manage_novel",
+          "action": "switch",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "switch"
+          },
+          "correct": true
         },
         {
           "intent": "end the session",
-          "tool": "manage_novel",
+          "tool": "close_session",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": true
         },
         {
           "intent": "show my character sheet",
           "tool": "manage_character",
+          "action": "sheet",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "sheet"
+          },
+          "correct": true
         },
         {
           "intent": "create a character",
           "tool": "manage_character",
+          "action": "create",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "look around the room",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "go north",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "pick up the lantern",
           "tool": "run_command",
+          "action": "execute",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
         },
         {
           "intent": "examine the door",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "roll a skill check",
-          "tool": "manage_ruleset",
+          "tool": "resolve_mechanic",
+          "action": "roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "roll"
+          },
+          "correct": true
         },
         {
           "intent": "start combat",
           "tool": "manage_combat",
+          "action": "init",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "init"
+          },
+          "correct": true
         },
         {
           "intent": "advance the round",
           "tool": "manage_combat",
+          "action": "advance",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "advance"
+          },
+          "correct": true
         },
         {
           "intent": "apply a condition",
           "tool": "manage_condition",
+          "action": "apply",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_condition",
+            "action": "apply"
+          },
+          "correct": true
         },
         {
           "intent": "make a fate roll",
           "tool": "resolve_mechanic",
+          "action": "fate_roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "fate_roll"
+          },
+          "correct": true
         },
         {
           "intent": "make an ironsworn move",
           "tool": "resolve_mechanic",
+          "action": "ironsworn_move",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "ironsworn_move"
+          },
+          "correct": true
         },
         {
           "intent": "make a forged action roll",
           "tool": "resolve_mechanic",
+          "action": "forged_action_roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "forged_action_roll"
+          },
+          "correct": true
         },
         {
           "intent": "track my vow",
           "tool": "manage_vow",
+          "action": "set",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_vow",
+            "action": "set"
+          },
+          "correct": true
         },
         {
           "intent": "record this story beat",
           "tool": "manage_story",
+          "action": "record",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_story",
+            "action": "record"
+          },
+          "correct": true
         },
         {
           "intent": "set the scene",
           "tool": "manage_scene",
+          "action": "set",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_scene",
+            "action": "set"
+          },
+          "correct": true
         },
         {
           "intent": "recap what happened",
           "tool": "manage_session",
+          "action": "recap",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_session",
+            "action": "recap"
+          },
+          "correct": true
         },
         {
           "intent": "search the rules for grappling",
           "tool": "manage_ruleset",
+          "action": "search",
           "group": "lookup",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_ruleset",
+            "action": "search"
+          },
+          "correct": true
         },
         {
           "intent": "look up a lore entry",
           "tool": "manage_lore",
+          "action": "get",
           "group": "lookup",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_lore",
+            "action": "get"
+          },
+          "correct": true
         },
         {
           "intent": "search the knowledge index",
           "tool": "manage_knowledge",
+          "action": "index_search",
           "group": "lookup",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_knowledge",
+            "action": "index_search"
+          },
+          "correct": true
         },
         {
           "intent": "create an NPC",
           "tool": "manage_npc",
+          "action": "create",
           "group": "referee",
           "start_group": "referee",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_npc",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "set a countdown",
           "tool": "manage_countdown",
+          "action": "set",
           "group": "referee",
           "start_group": "referee",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_countdown",
+            "action": "set"
+          },
+          "correct": true
         },
         {
           "intent": "generate an adventure",
           "tool": "manage_adventure",
+          "action": "generate",
           "group": "author",
           "start_group": "author",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_adventure",
+            "action": "generate"
+          },
+          "correct": true
         },
         {
           "intent": "export my novel",
           "tool": "manage_archive",
+          "action": "export",
           "group": "author",
           "start_group": "author",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_archive",
+            "action": "export"
+          },
+          "correct": true
         },
         {
           "intent": "undo the last change",
           "tool": "manage_history",
+          "action": "undo",
           "group": "maintain",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_history",
+            "action": "undo"
+          },
+          "correct": true
         },
         {
           "intent": "show me the tool groups",
           "tool": "manage_session",
+          "action": "discover",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_session",
+            "action": "discover"
+          },
+          "correct": true
+        },
+        {
+          "intent": "roll initiative",
+          "tool": "manage_combat",
+          "action": "init",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "init"
+          },
+          "correct": true
+        },
+        {
+          "intent": "who is in the room",
+          "tool": "run_command",
+          "action": "resolve",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
+        },
+        {
+          "intent": "save my progress",
+          "tool": "manage_novel",
+          "action": "save_context",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "save_context"
+          },
+          "correct": true
+        },
+        {
+          "intent": "look up a monster",
+          "tool": "manage_ruleset",
+          "action": "search",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_ruleset",
+            "action": "search"
+          },
+          "correct": true
+        },
+        {
+          "intent": "give the NPC an item",
+          "tool": "run_command",
+          "action": "execute",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
+        },
+        {
+          "intent": "show my inventory",
+          "tool": "manage_character",
+          "action": "sheet",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "sheet"
+          },
+          "correct": true
+        },
+        {
+          "intent": "end combat",
+          "tool": "manage_combat",
+          "action": "end",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "end"
+          },
+          "correct": true
+        },
+        {
+          "intent": "begin a new character",
+          "tool": "manage_character",
+          "action": "create",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "create"
+          },
+          "correct": true
+        },
+        {
+          "intent": "what are my options",
+          "tool": "manage_scene",
+          "action": "choices",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_scene",
+            "action": "choices"
+          },
+          "correct": true
+        },
+        {
+          "intent": "archive this campaign",
+          "tool": "manage_archive",
+          "action": "archive",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_archive",
+            "action": "archive"
+          },
+          "correct": true
         }
       ]
     },
     {
       "profile": "standard",
-      "intents": 30,
-      "expected_tool_visible": 30,
+      "intents": 40,
+      "expected_tool_visible": 40,
       "visibility_rate": 1,
+      "expected_action_selected": 40,
+      "selection_precision": 1,
+      "wrong_selection_count": 0,
       "mean_calls": 1,
       "rows": [
         {
           "intent": "start a new campaign",
           "tool": "manage_novel",
+          "action": "create",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "resume my campaign",
           "tool": "manage_novel",
+          "action": "resume",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "resume"
+          },
+          "correct": true
         },
         {
           "intent": "switch to another novel",
           "tool": "manage_novel",
+          "action": "switch",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "switch"
+          },
+          "correct": true
         },
         {
           "intent": "end the session",
-          "tool": "manage_novel",
+          "tool": "close_session",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": true
         },
         {
           "intent": "show my character sheet",
           "tool": "manage_character",
+          "action": "sheet",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "sheet"
+          },
+          "correct": true
         },
         {
           "intent": "create a character",
           "tool": "manage_character",
+          "action": "create",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "look around the room",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "go north",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "pick up the lantern",
           "tool": "run_command",
+          "action": "execute",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
         },
         {
           "intent": "examine the door",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "roll a skill check",
-          "tool": "manage_ruleset",
+          "tool": "resolve_mechanic",
+          "action": "roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "roll"
+          },
+          "correct": true
         },
         {
           "intent": "start combat",
           "tool": "manage_combat",
+          "action": "init",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "init"
+          },
+          "correct": true
         },
         {
           "intent": "advance the round",
           "tool": "manage_combat",
+          "action": "advance",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "advance"
+          },
+          "correct": true
         },
         {
           "intent": "apply a condition",
           "tool": "manage_condition",
+          "action": "apply",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_condition",
+            "action": "apply"
+          },
+          "correct": true
         },
         {
           "intent": "make a fate roll",
           "tool": "resolve_mechanic",
+          "action": "fate_roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "fate_roll"
+          },
+          "correct": true
         },
         {
           "intent": "make an ironsworn move",
           "tool": "resolve_mechanic",
+          "action": "ironsworn_move",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "ironsworn_move"
+          },
+          "correct": true
         },
         {
           "intent": "make a forged action roll",
           "tool": "resolve_mechanic",
+          "action": "forged_action_roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "forged_action_roll"
+          },
+          "correct": true
         },
         {
           "intent": "track my vow",
           "tool": "manage_vow",
+          "action": "set",
           "group": "resolve",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_vow",
+            "action": "set"
+          },
+          "correct": true
         },
         {
           "intent": "record this story beat",
           "tool": "manage_story",
+          "action": "record",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_story",
+            "action": "record"
+          },
+          "correct": true
         },
         {
           "intent": "set the scene",
           "tool": "manage_scene",
+          "action": "set",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_scene",
+            "action": "set"
+          },
+          "correct": true
         },
         {
           "intent": "recap what happened",
           "tool": "manage_session",
+          "action": "recap",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_session",
+            "action": "recap"
+          },
+          "correct": true
         },
         {
           "intent": "search the rules for grappling",
           "tool": "manage_ruleset",
+          "action": "search",
           "group": "lookup",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_ruleset",
+            "action": "search"
+          },
+          "correct": true
         },
         {
           "intent": "look up a lore entry",
           "tool": "manage_lore",
+          "action": "get",
           "group": "lookup",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_lore",
+            "action": "get"
+          },
+          "correct": true
         },
         {
           "intent": "search the knowledge index",
           "tool": "manage_knowledge",
+          "action": "index_search",
           "group": "lookup",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_knowledge",
+            "action": "index_search"
+          },
+          "correct": true
         },
         {
           "intent": "create an NPC",
           "tool": "manage_npc",
+          "action": "create",
           "group": "referee",
           "start_group": "referee",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_npc",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "set a countdown",
           "tool": "manage_countdown",
+          "action": "set",
           "group": "referee",
           "start_group": "referee",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_countdown",
+            "action": "set"
+          },
+          "correct": true
         },
         {
           "intent": "generate an adventure",
           "tool": "manage_adventure",
+          "action": "generate",
           "group": "author",
           "start_group": "author",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_adventure",
+            "action": "generate"
+          },
+          "correct": true
         },
         {
           "intent": "export my novel",
           "tool": "manage_archive",
+          "action": "export",
           "group": "author",
           "start_group": "author",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_archive",
+            "action": "export"
+          },
+          "correct": true
         },
         {
           "intent": "undo the last change",
           "tool": "manage_history",
+          "action": "undo",
           "group": "maintain",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_history",
+            "action": "undo"
+          },
+          "correct": true
         },
         {
           "intent": "show me the tool groups",
           "tool": "manage_session",
+          "action": "discover",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_session",
+            "action": "discover"
+          },
+          "correct": true
+        },
+        {
+          "intent": "roll initiative",
+          "tool": "manage_combat",
+          "action": "init",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "init"
+          },
+          "correct": true
+        },
+        {
+          "intent": "who is in the room",
+          "tool": "run_command",
+          "action": "resolve",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
+        },
+        {
+          "intent": "save my progress",
+          "tool": "manage_novel",
+          "action": "save_context",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "save_context"
+          },
+          "correct": true
+        },
+        {
+          "intent": "look up a monster",
+          "tool": "manage_ruleset",
+          "action": "search",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_ruleset",
+            "action": "search"
+          },
+          "correct": true
+        },
+        {
+          "intent": "give the NPC an item",
+          "tool": "run_command",
+          "action": "execute",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
+        },
+        {
+          "intent": "show my inventory",
+          "tool": "manage_character",
+          "action": "sheet",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "sheet"
+          },
+          "correct": true
+        },
+        {
+          "intent": "end combat",
+          "tool": "manage_combat",
+          "action": "end",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "end"
+          },
+          "correct": true
+        },
+        {
+          "intent": "begin a new character",
+          "tool": "manage_character",
+          "action": "create",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_character",
+            "action": "create"
+          },
+          "correct": true
+        },
+        {
+          "intent": "what are my options",
+          "tool": "manage_scene",
+          "action": "choices",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_scene",
+            "action": "choices"
+          },
+          "correct": true
+        },
+        {
+          "intent": "archive this campaign",
+          "tool": "manage_archive",
+          "action": "archive",
+          "group": "author",
+          "start_group": "author",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_archive",
+            "action": "archive"
+          },
+          "correct": true
         }
       ]
     },
     {
       "profile": "small",
-      "intents": 30,
-      "expected_tool_visible": 11,
-      "visibility_rate": 0.367,
-      "mean_calls": 1.633,
+      "intents": 40,
+      "expected_tool_visible": 14,
+      "visibility_rate": 0.35,
+      "expected_action_selected": 14,
+      "selection_precision": 0.35,
+      "wrong_selection_count": 26,
+      "mean_calls": 1.65,
       "rows": [
         {
           "intent": "start a new campaign",
           "tool": "manage_novel",
+          "action": "create",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "resume my campaign",
           "tool": "manage_novel",
+          "action": "resume",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "resume"
+          },
+          "correct": true
         },
         {
           "intent": "switch to another novel",
           "tool": "manage_novel",
+          "action": "switch",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "switch"
+          },
+          "correct": true
         },
         {
           "intent": "end the session",
-          "tool": "manage_novel",
+          "tool": "close_session",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": true
         },
         {
           "intent": "show my character sheet",
           "tool": "manage_character",
+          "action": "sheet",
           "group": "table",
           "start_group": "table",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "list"
+          },
+          "correct": false
         },
         {
           "intent": "create a character",
           "tool": "manage_character",
+          "action": "create",
           "group": "table",
           "start_group": "table",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "create"
+          },
+          "correct": false
         },
         {
           "intent": "look around the room",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "go north",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "pick up the lantern",
           "tool": "run_command",
+          "action": "execute",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
         },
         {
           "intent": "examine the door",
           "tool": "run_command",
+          "action": "resolve",
           "group": "explore",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
         },
         {
           "intent": "roll a skill check",
-          "tool": "manage_ruleset",
+          "tool": "resolve_mechanic",
+          "action": "roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "start combat",
           "tool": "manage_combat",
+          "action": "init",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "advance the round",
           "tool": "manage_combat",
+          "action": "advance",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "apply a condition",
           "tool": "manage_condition",
+          "action": "apply",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "make a fate roll",
           "tool": "resolve_mechanic",
+          "action": "fate_roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "make an ironsworn move",
           "tool": "resolve_mechanic",
+          "action": "ironsworn_move",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": false
         },
         {
           "intent": "make a forged action roll",
           "tool": "resolve_mechanic",
+          "action": "forged_action_roll",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "track my vow",
           "tool": "manage_vow",
+          "action": "set",
           "group": "resolve",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "set_badge",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "record this story beat",
           "tool": "manage_story",
+          "action": "record",
           "group": "narrate",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "manage_session",
+            "action": "briefing_order"
+          },
+          "correct": false
         },
         {
           "intent": "set the scene",
           "tool": "manage_scene",
+          "action": "set",
           "group": "narrate",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "set_badge",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "recap what happened",
           "tool": "manage_session",
+          "action": "recap",
           "group": "narrate",
           "start_group": "explore",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_session",
+            "action": "recap"
+          },
+          "correct": true
         },
         {
           "intent": "search the rules for grappling",
           "tool": "manage_ruleset",
+          "action": "search",
           "group": "lookup",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "look up a lore entry",
           "tool": "manage_lore",
+          "action": "get",
           "group": "lookup",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": false
         },
         {
           "intent": "search the knowledge index",
           "tool": "manage_knowledge",
+          "action": "index_search",
           "group": "lookup",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "create an NPC",
           "tool": "manage_npc",
+          "action": "create",
           "group": "referee",
           "start_group": "referee",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_npc",
+            "action": "create"
+          },
+          "correct": true
         },
         {
           "intent": "set a countdown",
           "tool": "manage_countdown",
+          "action": "set",
           "group": "referee",
           "start_group": "referee",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "set_badge",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "generate an adventure",
           "tool": "manage_adventure",
+          "action": "generate",
           "group": "author",
           "start_group": "author",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "export my novel",
           "tool": "manage_archive",
+          "action": "export",
           "group": "author",
           "start_group": "author",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "manage_codex",
+            "action": "capture"
+          },
+          "correct": false
         },
         {
           "intent": "undo the last change",
           "tool": "manage_history",
+          "action": "undo",
           "group": "maintain",
           "start_group": "explore",
           "visible": false,
-          "calls": 2
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
         },
         {
           "intent": "show me the tool groups",
           "tool": "manage_session",
+          "action": "discover",
           "group": "table",
           "start_group": "table",
           "visible": true,
-          "calls": 1
+          "calls": 1,
+          "selected": {
+            "tool": "manage_session",
+            "action": "discover"
+          },
+          "correct": true
+        },
+        {
+          "intent": "roll initiative",
+          "tool": "manage_combat",
+          "action": "init",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
+        },
+        {
+          "intent": "who is in the room",
+          "tool": "run_command",
+          "action": "resolve",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
+        },
+        {
+          "intent": "save my progress",
+          "tool": "manage_novel",
+          "action": "save_context",
+          "group": "table",
+          "start_group": "table",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "save_context"
+          },
+          "correct": true
+        },
+        {
+          "intent": "look up a monster",
+          "tool": "manage_ruleset",
+          "action": "search",
+          "group": "lookup",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": false
+        },
+        {
+          "intent": "give the NPC an item",
+          "tool": "run_command",
+          "action": "execute",
+          "group": "explore",
+          "start_group": "explore",
+          "visible": true,
+          "calls": 1,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
+        },
+        {
+          "intent": "show my inventory",
+          "tool": "manage_character",
+          "action": "sheet",
+          "group": "table",
+          "start_group": "table",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "list"
+          },
+          "correct": false
+        },
+        {
+          "intent": "end combat",
+          "tool": "manage_combat",
+          "action": "end",
+          "group": "resolve",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
+        },
+        {
+          "intent": "begin a new character",
+          "tool": "manage_character",
+          "action": "create",
+          "group": "table",
+          "start_group": "table",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "create"
+          },
+          "correct": false
+        },
+        {
+          "intent": "what are my options",
+          "tool": "manage_scene",
+          "action": "choices",
+          "group": "narrate",
+          "start_group": "explore",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
+        },
+        {
+          "intent": "archive this campaign",
+          "tool": "manage_archive",
+          "action": "archive",
+          "group": "author",
+          "start_group": "author",
+          "visible": false,
+          "calls": 2,
+          "selected": {
+            "tool": "manage_codex",
+            "action": "capture"
+          },
+          "correct": false
         }
       ]
     }
   ],
+  "held_out": {
+    "intents": 10,
+    "selection_precision": 0.4,
+    "wrong_selection_count": 6,
+    "rows": [
+      {
+        "intent": "begin a fresh story",
+        "tool": "manage_novel",
+        "action": "create",
+        "group": "table",
+        "start_group": "table",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "manage_novel",
+          "action": "create"
+        },
+        "correct": true
+      },
+      {
+        "intent": "go back to my saved game",
+        "tool": "manage_novel",
+        "action": "resume",
+        "group": "table",
+        "start_group": "table",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "manage_novel",
+          "action": "resume"
+        },
+        "correct": true
+      },
+      {
+        "intent": "what is in this place",
+        "tool": "run_command",
+        "action": "resolve",
+        "group": "explore",
+        "start_group": "explore",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "manage_character",
+          "action": "create"
+        },
+        "correct": false
+      },
+      {
+        "intent": "grab the sword",
+        "tool": "run_command",
+        "action": "execute",
+        "group": "explore",
+        "start_group": "explore",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "close_session",
+          "action": null
+        },
+        "correct": false
+      },
+      {
+        "intent": "test my agility",
+        "tool": "resolve_mechanic",
+        "action": "roll",
+        "group": "resolve",
+        "start_group": "explore",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "resolve_mechanic",
+          "action": "roll"
+        },
+        "correct": true
+      },
+      {
+        "intent": "kick off a fight",
+        "tool": "manage_combat",
+        "action": "init",
+        "group": "resolve",
+        "start_group": "explore",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "manage_combat",
+          "action": "end"
+        },
+        "correct": false
+      },
+      {
+        "intent": "next turn",
+        "tool": "manage_combat",
+        "action": "advance",
+        "group": "resolve",
+        "start_group": "explore",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "take_turn",
+          "action": null
+        },
+        "correct": false
+      },
+      {
+        "intent": "wrap up the session",
+        "tool": "close_session",
+        "group": "table",
+        "start_group": "table",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "close_session",
+          "action": null
+        },
+        "correct": true
+      },
+      {
+        "intent": "jot down this event",
+        "tool": "manage_story",
+        "action": "record",
+        "group": "narrate",
+        "start_group": "explore",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "manage_diagnostics",
+          "action": "event"
+        },
+        "correct": false
+      },
+      {
+        "intent": "send the campaign to a file",
+        "tool": "manage_archive",
+        "action": "export",
+        "group": "author",
+        "start_group": "author",
+        "visible": true,
+        "calls": 1,
+        "selected": {
+          "tool": "manage_archive",
+          "action": "archive"
+        },
+        "correct": false
+      }
+    ]
+  },
   "defects": []
 }

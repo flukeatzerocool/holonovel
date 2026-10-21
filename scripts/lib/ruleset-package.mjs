@@ -21,11 +21,14 @@ export function computeContentHash(index, model, tools, resources, prompts) {
 // package from the canonical parts, deriving the content hash from the parts
 // only (never the timestamp). Two emissions from identical parts + a fixed
 // `builtAt` are byte-identical.
-export function emitPackage(dir, { slug, name, hostVersion, packageFormat, index, model, tools, resources = [], prompts = [], builtAt = "1970-01-01T00:00:00.000Z" }) {
+export function emitPackage(dir, { slug, name, hostVersion, packageFormat, index, model, tools, resources = [], prompts = [], builtAt = "1970-01-01T00:00:00.000Z", sourceWorkflow }) {
   const manifest = {
     slug, name, host_version: hostVersion, package_format: packageFormat,
     content_hash: computeContentHash(index, model, tools, resources, prompts),
     built_at: builtAt, counts: {},
+    // REQ-585 — a converted package declares its source so the structure gate
+    // can require per-table verification.
+    ...(sourceWorkflow ? { source_workflow: sourceWorkflow } : {}),
   };
   const files = {
     "manifest.json": manifest, "index.json": index, "model.json": model,

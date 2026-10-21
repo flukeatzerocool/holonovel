@@ -38,9 +38,12 @@ if (!existsSync(toolsPath)) { console.error(`FATAL: ${toolsPath} not found`); pr
 
 let model: Record<string, any>;
 let tools: Record<string, any>[];
+let manifest: Record<string, any> = {};
 try {
   model = JSON.parse(readFileSync(modelPath, "utf-8"));
   tools = JSON.parse(readFileSync(toolsPath, "utf-8"));
+  const manifestPath = join(dir, "manifest.json");
+  if (existsSync(manifestPath)) manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
 } catch (e) { console.error(`FATAL: package JSON is invalid: ${(e as Error).message}`); process.exit(2); }
 
 const normId = (s: unknown) => String(s ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -65,6 +68,21 @@ function backingEntry(model: Record<string, any>, toolName: string): any {
 }
 
 const violations: string[] = [];
+
+// REQ-585 — a converted source declares itself, and every generation table
+// must then be verified or explicitly excluded with a reason.
+if (manifest.source_workflow === "convert") {
+  for (const coll of ["generation_tables", "tables"]) {
+    for (const [key, entry] of Object.entries((model[coll] ?? {}) as Record<string, any>)) {
+      const verified = entry?.structure_verified === true;
+      const excluded = typeof entry?.structure_excluded === "string" && entry.structure_excluded.trim().length > 0;
+      if (!verified && !excluded) {
+        violations.push(`converted ${coll} '${key}' has no structure verification or exclusion reason`);
+      }
+    }
+  }
+}
+
 const advisories: string[] = [];
 const seenNames = new Map<string, string>();
 const tableColls = ["tables", "generation_tables"];
@@ -91,6 +109,19 @@ function checkCollection(collName: string, coll: Record<string, any>): void {
 
 for (const tool of tools) {
   if (!tool || typeof tool !== "object") continue;
+  // (e) REQ-578/REQ-582 — a declared intent group must match the user goal
+  // recorded during extraction. Tools without a recorded goal (legacy packages)
+  // are unaffected.
+  if (typeof tool.user_goal === "string" && tool.user_goal && typeof tool.group === "string" && tool.group) {
+    if (tool.user_goal !== tool.group) {
+      violations.push(`tool '${tool.name}' declares group '${tool.group}' but records user goal '${tool.user_goal}'`);
+    }
+    // (f) REQ-584 — routing text must name the recorded goal.
+    const desc = String(tool.description ?? "");
+    if (!desc.toLowerCase().includes(tool.user_goal.toLowerCase())) {
+      violations.push(`tool '${tool.name}' description does not name its recorded user goal '${tool.user_goal}'`);
+    }
+  }
   if (tool.kind === "info") {
     // (a) info tool must be backed by a model entry.
     if (!backingEntry(model, tool.name)) violations.push(`info tool '${tool.name}' has no backing model entry`);

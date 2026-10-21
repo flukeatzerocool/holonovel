@@ -1,5 +1,58 @@
 # Changelog
 
+## 2026-10-21 — Close the intent/selection gaps: converted-table and performance gates, routing baseline
+
+- T685 (REQ-585): a package manifest now declares `source_workflow`; a converted
+  package must mark every generation table `structure_verified` or record a
+  `structure_excluded` reason. `check-ruleset-model` enforces it, `emitPackage`
+  carries the declaration, and `test:ruleset-gates` exercises verified, excluded,
+  and unmarked tables.
+- T686 (REQ-586): new `check-performance-record` gate over a composed record
+  (scope, spec and ruleset hashes, environment, eight terms with value-or-reason
+  waivers). Added `spec/audit/performance-record.json` for the reference host —
+  cold start 780 ms, mean search latency 35 ms, prompt footprint 68 tokens,
+  selection precision 1.0 — and `spec_health.performance_record` reports an
+  installed record. Wired into `check` and `check:fast`.
+- Routing baseline (REQ-584): added `holonovel/tool-routing.json` (representative
+  user utterances per action), a weighted deterministic router, ten near-miss
+  intents, and a 0.90 precision floor. The 40-intent baseline moves from 0.567
+  (13 wrong) to 1.0 (0 wrong); a separate held-out set reports 0.40 as an
+  advisory generalization signal, showing lexical routing is vocabulary-bound.
+- Reconciled `holonovel/DECISIONS.md`: 36 tools / 214 canonical actions / 45
+  retired declarations, 25,856 / 22,355 / 1,153 token baselines, the 40-intent
+  replay figures, and the 0.90 REQ-114c threshold.
+
+## 2026-10-21 — Intent as a build input; selection as a measured outcome
+
+- Added REQ-582: every extracted action records the user goal it serves and the
+  source anchor supporting it; the recorded goal, not the tool name or action
+  kind, is the declaration source for its intent group. REQ-413 now measures a
+  tool's group span over those extracted goals, and REQ-578 rejects a generated
+  action whose declared group differs from its recorded goal.
+- Replaced REQ-569's "selection accuracy or its replay proxy" loophole with a
+  deterministic expected-action baseline (precision, wrong-selection count,
+  calls per intent, catalog size) that includes ambiguous and near-miss intents.
+  REQ-114c now defines selection coverage against the expected action, and §6.5
+  gains a Tool-selection coverage metric (≥90%) with updated exit counts.
+- Added REQ-583 (per-ruleset selection telemetry in `spec_health`), REQ-584
+  (routing text derived from the extraction record), REQ-585 (converted-table
+  structure verification before generation-tool registration), REQ-586 (one
+  end-to-end pipeline performance record), REQ-587 (byte-stable catalog prefix
+  with a reported cacheable length), and REQ-588 (search result budget with
+  suppressed-result reporting and truncation pointers).
+- Added `TTRPG_SEARCH_MAX_TOKENS` as a non-behavioral presentation setting;
+  implemented the three runtime contracts in `holonovel/src` and the new
+  `test:selection` harness (T683/T687/T688). The reference package emitter now
+  prefers a recorded `user_goal`, and `check-ruleset-model` enforces goal/group
+  agreement and goal-bearing routing text (T681/T684).
+- Repaired stale acceptance references: REQ-382b and T443 now use
+  `manage_ruleset (action: search)` instead of unregistered
+  `dnd5e_search_rules`/`starfinder_search_rules`; REQ-244b's "nine metrics"
+  count now says "all Phase 1 metrics".
+- `surface-replay` schema v3 reports expected-action precision and
+  wrong-selection count; the recorded baseline is 0.567 precision on the fixed
+  30-intent set, which surfaces the routing-text gap the new REQ-584 addresses.
+
 ## 2026-10-21 — Retire REQ-581 aliases; register package prompts at runtime
 
 - **Breaking:** retired all 45 REQ-581 compatibility declarations — the five

@@ -10,7 +10,9 @@
  * Exit codes: 0 = pass, 1 = assertion failure, 2 = fatal.
  */
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from "./lib/parse-spec.js";
 
 const root = join(import.meta.dirname, "..");
@@ -23,7 +25,14 @@ function check(ok: boolean, label: string): void {
 }
 
 function run(args: string[]): string {
-  return execFileSync("npx", ["tsx", ...args], { cwd: root, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
+  return execFileSync("npx", ["tsx", ...args], { cwd: root, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+}
+function runCode(args: string[]): { code: number; out: string } {
+  try {
+    return { code: 0, out: run(args) };
+  } catch (e: any) {
+    return { code: Number(e?.status ?? -1), out: `${e?.stdout ?? ""}${e?.stderr ?? ""}` };
+  }
 }
 
 function main(): void {
@@ -63,6 +72,44 @@ function main(): void {
   const spec = readSpec();
   const headerCount = extractReqHeaders(spec).length;
   check(extractReqBodies(spec).size === headerCount, `body parser covers every REQ header (${extractReqBodies(spec).size}/${headerCount})`);
+
+  // T686 (REQ-586) — the performance-record gate accepts a complete record and
+  // rejects a missing term or an unreasoned waiver.
+  const perfDir = mkdtempSync(join(tmpdir(), "perf-record-"));
+  const goodRecord = {
+    schema_version: 1,
+    scope: "reference-host",
+    measured_at: "2026-10-21",
+    environment: "linux x86_64, node 24, 16GB",
+    spec_hash: "a".repeat(64),
+    ruleset_content_hash: "b".repeat(64),
+    terms: {
+      conversion_fidelity: { waived: "authored Markdown source" },
+      extraction_completeness: 0.97,
+      tool_selection_coverage: 0.93,
+      mean_calls_per_intent: 1.0,
+      catalog_tokens: 25856,
+      prompt_tokens: 1234,
+      cold_start_ms: 850,
+      query_latency_ms: 12,
+    },
+  };
+  const write = (name: string, value: any): string => {
+    const path = join(perfDir, name);
+    writeFileSync(path, JSON.stringify(value, null, 2));
+    return path;
+  };
+  const good = runCode(["scripts/check-performance-record.ts", write("good.json", goodRecord)]);
+  check(good.code === 0, "performance-record gate accepts a complete record");
+  const missing = JSON.parse(JSON.stringify(goodRecord));
+  delete missing.terms.prompt_tokens;
+  const missingRun = runCode(["scripts/check-performance-record.ts", write("missing.json", missing)]);
+  check(missingRun.code === 1 && missingRun.out.includes("missing term 'prompt_tokens'"), "performance-record gate rejects a missing term");
+  const unreasoned = JSON.parse(JSON.stringify(goodRecord));
+  unreasoned.terms.conversion_fidelity = { waived: "" };
+  const unreasonedRun = runCode(["scripts/check-performance-record.ts", write("unreasoned.json", unreasoned)]);
+  check(unreasonedRun.code === 1 && unreasonedRun.out.includes("waiver without a reason"), "performance-record gate rejects an unreasoned waiver");
+  rmSync(perfDir, { recursive: true, force: true });
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

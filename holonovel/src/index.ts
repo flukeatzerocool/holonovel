@@ -82,6 +82,17 @@ function computeSpecHash(): string {
 
 const SPEC_HASH = computeSpecHash();
 
+// REQ-586 — an installed pipeline performance record is reported by
+// spec_health as the most recent measurement. A malformed record is treated as
+// absent rather than failing startup.
+let performanceRecord: Record<string, any> | null = null;
+try {
+  const recordPath = path.join(DATA_DIR, "performance-record.json");
+  if (fs.existsSync(recordPath)) performanceRecord = JSON.parse(fs.readFileSync(recordPath, "utf-8"));
+} catch {
+  // malformed or unreadable record: report as absent
+}
+
 const RULESET_DIR = process.env.TTRPG_RULESET_DIRS ?? path.join(DATA_DIR, "rulesets");
 
 // ── State ──────────────────────────────────────────────────────────
@@ -864,6 +875,26 @@ function surfaceRegistry(): SurfaceRegistry | null {
 }
 let surfaceOverrideCount = 0;
 
+// REQ-583 — observed selection signals, accumulated since startup from the
+// refusal and dispatch paths. Reported in spec_health beside the static surface
+// report; no outbound inference is involved.
+const selectionTelemetry = {
+  projection_refusals: 0,
+  undeclared_cross_group_calls: 0,
+  unknown_tool_calls: 0,
+  discovery_to_call: 0,
+};
+let discoveryPendingCall = false;
+
+// REQ-588 — search result budget. Presentation-only: bounds the context one
+// search call returns; excess results are suppressed and counted.
+function searchMaxTokens(): number {
+  const raw = process.env.TTRPG_SEARCH_MAX_TOKENS;
+  const n = raw === undefined ? NaN : Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 20000;
+}
+let searchBudgetStats = { max_tokens: searchMaxTokens(), last_returned: 0, last_suppressed: 0 };
+
 // REQ-574/577 — composite turn handles. A handle is minted by `take_turn` and
 // consumed by `manage_story (action: record)`; it is session-scoped, bounded,
 // and never persisted.
@@ -966,6 +997,7 @@ function surfaceRefusal(name: string, args: Record<string, unknown>): string | n
 
   for (const precondition of decl.preconditions ?? []) {
     if (precondition === "combat_active" && !state.activeNovel?.combat?.active) {
+      selectionTelemetry.projection_refusals++;
       return `[ERROR] [STATE_CONFLICT] ${name} (${action}) requires an active combat. Next: manage_combat (action: init).`;
     }
   }
@@ -978,6 +1010,8 @@ function surfaceRefusal(name: string, args: Record<string, unknown>): string | n
   if (decl.group === "lookup" || decl.group === "maintain") return null;
   if (decl.entry) return null;
   if ((decl.edges ?? []).includes(active)) return null;
+  selectionTelemetry.projection_refusals++;
+  selectionTelemetry.undeclared_cross_group_calls++;
   return `[ERROR] [STATE_CONFLICT] ${name} (${action}) belongs to group '${decl.group}'. Next: activate group '${decl.group}' or set TTRPG_SURFACE_PROFILE=full.`;
 }
 
@@ -1006,6 +1040,18 @@ function installSurfaceGuards(): void {
     return;
   }
   low.setRequestHandler(CallToolRequestSchema, async (req: any, extra: any) => {
+    const name = req?.params?.name;
+    const callArgs = req?.params?.arguments ?? {};
+    const registered = Object.keys((server as unknown as { _registeredTools?: Record<string, unknown> })._registeredTools ?? {});
+    if (typeof name === "string" && registered.length > 0 && !registered.includes(name)) {
+      selectionTelemetry.unknown_tool_calls++;
+    }
+    if (name === "manage_session" && callArgs?.action === "discover") {
+      discoveryPendingCall = true;
+    } else if (discoveryPendingCall && name !== "manage_session") {
+      selectionTelemetry.discovery_to_call++;
+      discoveryPendingCall = false;
+    }
     const retired = retiredAliasRefusal(surfaceRegistry(), req?.params?.name, req?.params?.arguments ?? {});
     if (retired) return { content: [{ type: "text", text: retired }], isError: true };
     const refusal = surfaceGuard(req?.params?.name, req?.params?.arguments ?? {});
@@ -7880,8 +7926,26 @@ server.registerTool("manage_ruleset", {
         const hits = rulesets.search(slug, String(args.query), args.max_results ?? 10);
         if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${args.query}'.`);
         const total = rulesets.search(slug, String(args.query), 100000).length;
-        const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2) + sourceBlock(h)).join("\n");
-        return raw(truncateOutput("search_rules", body + countReport(hits.length, total)));
+        // REQ-588 — bound the context one search returns; report suppressed
+        // results and truncate an oversized passage with a resource pointer.
+        const budget = searchMaxTokens();
+        const perResultChars = Math.max(200, Math.floor((budget * 4) / Math.max(1, Math.min(hits.length, 10))));
+        const rendered: string[] = [];
+        let usedChars = 0;
+        for (const h of hits) {
+          const entry = JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2) + sourceBlock(h);
+          let text = entry;
+          if (entry.length > perResultChars) {
+            text = entry.slice(0, perResultChars) + `\n[truncated — read ruleset://${slug}/${h.id ?? h.anchor}]`;
+          }
+          if (rendered.length > 0 && usedChars + text.length > budget * 4) break;
+          rendered.push(text);
+          usedChars += text.length;
+        }
+        const suppressed = Math.max(0, total - rendered.length);
+        searchBudgetStats = { max_tokens: budget, last_returned: rendered.length, last_suppressed: suppressed };
+        const body = rendered.join("\n");
+        return raw(truncateOutput("search_rules", body + countReport(rendered.length, total)));
       }
       if (rulesets.installedSlugs().length > 0) {
         return ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`);
@@ -8461,20 +8525,30 @@ function buildSpecHealth(): Record<string, unknown> {
     // committed registry and the live registrations at call time.
     tool_surface: (() => {
       const measured = measuredSurface();
-      return buildSurfaceReport({
-        registry: surfaceRegistry(),
-        live: liveSurfaceActions(),
-        profile: surfaceProfile(),
-        catalogBytes: measured.active.bytes,
-        catalogProfiles: {
-          full: measured.full,
-          standard: measured.standard,
-          small: measured.small,
-        },
-        overrides: surfaceOverrideCount,
-        budgets: { standard: Math.ceil(measured.full.tokens * 0.9), small: Math.ceil(measured.full.tokens * 0.1) },
-      });
+      return {
+        ...buildSurfaceReport({
+          registry: surfaceRegistry(),
+          live: liveSurfaceActions(),
+          profile: surfaceProfile(),
+          catalogBytes: measured.active.bytes,
+          catalogProfiles: {
+            full: measured.full,
+            standard: measured.standard,
+            small: measured.small,
+          },
+          overrides: surfaceOverrideCount,
+          budgets: { standard: Math.ceil(measured.full.tokens * 0.9), small: Math.ceil(measured.full.tokens * 0.1) },
+        }),
+        // REQ-587 — the serialized default catalog is the cacheable prefix.
+        cacheable_prefix_bytes: measured.active.bytes,
+      };
     })(),
+    // REQ-583 — observed selection signals; absent when no package is loaded.
+    ...(rulesets.installedSlugs().length > 0 ? { selection_telemetry: { ...selectionTelemetry } } : {}),
+    // REQ-588 — search result budget and the last call's returned/suppressed counts.
+    search_budget: { ...searchBudgetStats, max_tokens: searchMaxTokens() },
+    // REQ-586 — installed end-to-end performance record, when present.
+    ...(performanceRecord ? { performance_record: performanceRecord } : {}),
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
     // REQ-253 — active tool-output verbosity mode.

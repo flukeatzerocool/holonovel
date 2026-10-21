@@ -768,7 +768,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-243c | Synthesis population during spec-driven updates (Part c) | 2026-08-11 |
 | REQ-243d | Synthesis population during spec-driven updates (Part d) | 2026-08-11 |
 | REQ-244a | Convergence cache key (Part a) | 2026-08-11 |
-| REQ-244b | Convergence cache key (Part b) | 2026-08-11 |
+| REQ-244b | Convergence cache key (Part b) | 2026-10-21 |
 | REQ-244c | Convergence cache key (Part c) | 2026-08-11 |
 | REQ-244d | Convergence cache key (Part d) | 2026-08-11 |
 | REQ-244e | Convergence cache key (Part e) | 2026-08-11 |
@@ -1065,7 +1065,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-381b | Ruleset-scoped tool gating (Part b) | 2026-08-11 |
 | REQ-381c | Ruleset-scoped tool gating (Part c) | 2026-08-11 |
 | REQ-382a | Per-ruleset extraction isolation (Part a) | 2026-08-11 |
-| REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-08-11 |
+| REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-10-21 |
 | REQ-382c | Per-ruleset extraction isolation (Part c) | 2026-08-11 |
 | REQ-383a | Host ruleset health (Part a) | 2026-08-11 |
 | REQ-383b | Host ruleset health (Part b) | 2026-08-11 |
@@ -1111,7 +1111,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-410 | Token footprint in performance record | 2026-08-21 |
 | REQ-411 | Stable-metadata caching | 2026-08-21 |
 | REQ-412 | Turn-handoff directive | 2026-08-22 |
-| REQ-413 | Action-discriminator tool surface | 2026-08-22 |
+| REQ-413 | Action-discriminator tool surface | 2026-10-21 |
 | REQ-414 | Schema-surface economy | 2026-08-22 |
 | REQ-415 | Summary-first tool catalog | 2026-08-22 |
 | REQ-416 | Config default inheritance | 2026-08-22 |
@@ -1245,7 +1245,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-548c | Structured error results | 2026-09-26 |
 | REQ-548d | Machine-readable decision options | 2026-09-26 |
 | REQ-067d | Task-map intent routing | 2026-09-26 |
-| REQ-114c | Tool-selection coverage (Part c) | 2026-09-26 |
+| REQ-114c | Tool-selection coverage (Part c) | 2026-10-21 |
 | REQ-551 | Extraction structural verification | 2026-09-26 |
 | REQ-551a | Extractor divergence flags (Part a) | 2026-09-26 |
 | REQ-552 | TDQS conformance contract | 2026-10-02 |
@@ -1302,7 +1302,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
 | REQ-567 | Tool surface declaration | 2026-10-19 |
 | REQ-568 | Surface conformance report | 2026-10-19 |
-| REQ-569 | Surface baseline evaluation | 2026-10-19 |
+| REQ-569 | Surface baseline evaluation | 2026-10-21 |
 | REQ-570 | Projected catalog | 2026-10-19 |
 | REQ-571 | Catalog budgets | 2026-10-19 |
 | REQ-572 | Group directory | 2026-10-19 |
@@ -1310,11 +1310,18 @@ date-stamps matching CHANGELOG entries.
 | REQ-573 | Precondition enforcement | 2026-10-19 |
 | REQ-575 | Cross-group edges | 2026-10-19 |
 | REQ-576 | Audited override | 2026-10-19 |
-| REQ-578 | Generated surface conformance | 2026-10-19 |
+| REQ-578 | Generated surface conformance | 2026-10-21 |
 | REQ-577 | Composite session and turn actions | 2026-10-19 |
 | REQ-574 | Turn handles | 2026-10-19 |
 | REQ-579 | Legacy package rebuild | 2026-10-19 |
 | REQ-581 | Split-tool compatibility | 2026-10-19 |
+| REQ-582 | Action user-goal classification | 2026-10-21 |
+| REQ-583 | Selection telemetry | 2026-10-21 |
+| REQ-584 | Derived routing text | 2026-10-21 |
+| REQ-585 | Converted-table tool fidelity | 2026-10-21 |
+| REQ-586 | Pipeline performance record | 2026-10-21 |
+| REQ-587 | Stable catalog prefix | 2026-10-21 |
+| REQ-588 | Search result budget | 2026-10-21 |
 
 ---
 
@@ -1792,7 +1799,7 @@ diet.
 | T440 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T441 | Automated | Novel ruleset binding: call `manage_novel (action: create, "test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `manage_novel (action: info)`. Call `manage_novel (action: create, "test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T442 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
-| T443 | Automated | Extraction isolation: call `dnd5e_search_rules("fireball")` under D&D Novel — assert D&D-only results. Call `starfinder_search_rules("laser")` under Starfinder Novel — assert Starfinder-only results. Assert no cross-contamination in source anchors. | REQ-382 |
+| T443 | Automated | Extraction isolation: call `manage_ruleset (action: search, "fireball")` under a D&D Novel — assert D&D-only results. Call the same action under a Starfinder Novel — assert Starfinder-only results or `[NOT_FOUND]`. Assert no cross-contamination in source anchors. | REQ-382 |
 | T444 | Automated | Combined spec_health: assert `spec_health.ruleset_health` contains per-ruleset sections with independent counts. Assert `combined` section includes `ruleset_prefix_map` and total tool count. Assert Player badge sees only active Novel's ruleset health. | REQ-383 |
 | T445 | Automated | Cross-ruleset switching: create D&D and Starfinder Novels. Switch between them — assert ruleset-derived tool availability changes. Assert audit log records both switches. Assert D&D Novel state unchanged after switching back. | REQ-384 |
 | T446 | Automated | run_command (action: suggest) scoping: call `run_command (action: suggest, "attack")` under D&D Novel — assert D&D-prefixed tool suggestions only. Same intent under Starfinder Novel — assert Starfinder-prefixed only. | REQ-385 |
@@ -1949,7 +1956,7 @@ diet.
 | T634 | Automated | Structured error results: an unknown canonical name returns a structured error with category, corrective action, and badge-filtered values. | REQ-548c |
 | T635 | Automated | Machine-readable decision options: a `[NEED_INPUT]` decision carries a structured option set matching its text options. | REQ-548d |
 | T636 | Automated | Task-map intent routing: discovery returns an example invocation per category reflecting live registrations. | REQ-067d |
-| T637 | Automated | Tool-selection coverage: DECISIONS.md records the per-tool selection result and the recorded threshold. | REQ-114c |
+| T637 | Automated | Tool-selection coverage: assert every registered action has a curated intent whose expected action it is; assert a fixture selecting a sibling action records a wrong selection naming both actions; assert the recorded threshold matches §6.5. | REQ-114c |
 | T638 | Automated | Extraction structural verification: DECISIONS.md records the structural-check disposition. | REQ-551 |
 | T639 | Automated | Extractor divergence flags: DECISIONS.md records the divergence-disposition policy. | REQ-551a |
 | T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
@@ -1974,7 +1981,7 @@ diet.
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
-| T662 | Automated | Surface baseline: assert the baseline reports tool-selection accuracy, tool calls per intent, and catalog size over at least thirty fixed intents; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
+| T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
 | T663 | Automated | Projected catalog: assert a default listing under an active scene returns the active group plus the three globals; assert a group selection returns that group; assert an unknown group returns `[INVALID_INPUT]`; assert ordering is stable across calls. | REQ-570 |
 | T664 | Automated | Catalog budgets: assert a fixture projection over the recorded profile budget fails the gate naming the profile and measured value; assert the standard profile measures at or below half the full baseline. | REQ-571 |
 | T665 | Automated | Group directory: assert every declared group appears once with a resolvable entry action; assert a badge change filters the directory; assert the resource and `manage_session (action: discover)` return the same groups. | REQ-572 |
@@ -1993,6 +2000,14 @@ diet.
 | T678 | Automated | Measured profiles and budgets: assert `spec_health.tool_surface.catalog_profiles` reports measured bytes and tokens for full, standard, and small; standard is at most 90% of full; small is at most 10% of full; the reported budgets match the measured baseline. | REQ-568, REQ-571 |
 | T679 | Automated | Top proxy score: assert every host tool scores 5.0 on the deterministic TDQS proxy, and coherence naming, disambiguation, and completeness report 5. | REQ-552 |
 | T680 | Automated | Proxy agreement: assert the live `spec_health.tdqs` mean and minimum agree with the static deterministic computation over the registered definitions. | REQ-552 |
+| T681 | Automated | Action user-goal classification: assert a reference table records `lookup` from its source anchor, a combat procedure records `resolve`, and an action whose evidence supports no group fails Discovery naming it; assert a generated action whose declared group differs from its recorded goal fails naming both. | REQ-582, REQ-578 |
+| T682 | Automated | Expected-action precision: assert the surface baseline counts a sibling-action selection as a wrong selection and reports precision and wrong-selection count; assert a baseline that reports visibility only fails. | REQ-569 |
+| T683 | Automated | Selection telemetry: trigger a projection refusal, an undeclared cross-group call, and an unknown tool name; assert `spec_health` reports each per-ruleset count; assert a host with no package reports no selection section. | REQ-583 |
+| T684 | Automated | Derived routing text: assert every ruleset-derived tool description names its recorded goal and source anchor; assert a fixture naming an unrecorded goal fails naming the tool. | REQ-584 |
+| T685 | Automated | Converted-table tool fidelity: assert a converted table matching its source registers; assert a merged-column table is excluded from generation registration with a recorded reason; assert a registered unverified table fails verification naming it. | REQ-585 |
+| T686 | Automated | Pipeline performance record: assert one record carries every required term; assert a missing term fails handoff naming it; assert a conversion-skipped build records that term as waived; assert `spec_health` reports the record. | REQ-586 |
+| T687 | Automated | Stable catalog prefix: assert two invocations with unchanged registration, badge, and scope return byte-identical catalogs and the same reported prefix length; assert a registration change alters the prefix and updates the report. | REQ-587 |
+| T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
 
 ---
 
@@ -3305,9 +3320,10 @@ is over-balanced and splits; a group with fewer than two merges. Action counts
 are reported but not gated, because one tool may legitimately carry many
 actions.
 
-**Replay proxy.** The deterministic replay records expected-tool visibility and
-the group-switch call cost for a fixed intent set; live-model selection remains
-advisory and is recorded separately.
+**Replay proxy.** The deterministic replay records expected-action selection precision,
+wrong-selection count, and the group-switch call cost for a fixed intent set that includes
+ambiguous and near-miss intents; live-model selection remains advisory and is recorded
+separately.
 
 **Generated tools.** Every ruleset-derived action declares the same fields and
 maps into a core or declared extension group. The package emitter

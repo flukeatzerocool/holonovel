@@ -47,6 +47,7 @@ const TESTS = [
   "test:security",
   "test:surface-guards",
   "test:tool-surface",
+  "test:selection",
   "test:event-log",
   "test:belief",
   "test:identity",

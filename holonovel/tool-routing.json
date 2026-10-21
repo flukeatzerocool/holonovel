@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "purpose": "Reference-host routing text (REQ-584). Each action lists representative user utterances used by the deterministic expected-action baseline (REQ-569). Ruleset builds supply their own hints from the extraction record.",
+  "actions": {
+    "manage_novel.create": [
+      "begin a campaign",
+      "start a new story"
+    ],
+    "manage_novel.resume": [
+      "continue an existing campaign",
+      "load a saved game",
+      "resume a campaign"
+    ],
+    "manage_novel.switch": [
+      "change the active campaign",
+      "open a different story",
+      "switch to a novel"
+    ],
+    "manage_novel.end": [
+      "finish the story",
+      "conclude the campaign"
+    ],
+    "manage_novel.save_context": [
+      "save progress",
+      "preserve the current context"
+    ],
+    "close_session": [
+      "end the session",
+      "wrap up the session"
+    ],
+    "manage_character.sheet": [
+      "view character details",
+      "show inventory"
+    ],
+    "manage_character.create": [
+      "make a new character",
+      "begin character creation"
+    ],
+    "run_command.resolve": [
+      "explore the room",
+      "move to another room",
+      "examine an object",
+      "look around",
+      "who is present",
+      "move north",
+      "describe the surroundings"
+    ],
+    "run_command.execute": [
+      "pick up an object",
+      "take an item",
+      "give an item to someone",
+      "drop an object",
+      "give an item"
+    ],
+    "resolve_mechanic.roll": [
+      "make a skill check",
+      "test an ability",
+      "roll a die"
+    ],
+    "resolve_mechanic.fate_roll": [
+      "make a fate roll",
+      "invoke a fate aspect"
+    ],
+    "resolve_mechanic.ironsworn_move": [
+      "make an ironsworn move"
+    ],
+    "resolve_mechanic.forged_action_roll": [
+      "make a forged action roll"
+    ],
+    "manage_combat.init": [
+      "begin a fight",
+      "roll initiative",
+      "determine turn order",
+      "start combat"
+    ],
+    "manage_combat.advance": [
+      "advance the round",
+      "move to the next turn"
+    ],
+    "manage_combat.end": [
+      "conclude the fight",
+      "leave combat"
+    ],
+    "manage_condition.apply": [
+      "apply a condition",
+      "inflict a status"
+    ],
+    "manage_vow.set": [
+      "make a vow",
+      "commit to a goal"
+    ],
+    "manage_story.record": [
+      "log a story event",
+      "note what happened",
+      "record a story beat"
+    ],
+    "manage_scene.set": [
+      "describe the scene",
+      "frame the situation"
+    ],
+    "manage_scene.choices": [
+      "present options",
+      "list possible actions"
+    ],
+    "manage_session.recap": [
+      "summarize the session",
+      "recap what happened"
+    ],
+    "manage_session.discover": [
+      "list available tools",
+      "show tool categories"
+    ],
+    "manage_ruleset.search": [
+      "find a rule",
+      "look up a creature or spell",
+      "look up a monster",
+      "search the rules"
+    ],
+    "manage_lore.get": [
+      "read a lore entry",
+      "retrieve a legend",
+      "look up lore"
+    ],
+    "manage_knowledge.index_search": [
+      "search the knowledge index",
+      "query indexed notes"
+    ],
+    "manage_npc.create": [
+      "create an npc",
+      "add a non-player character"
+    ],
+    "manage_countdown.set": [
+      "add a timer",
+      "create a countdown"
+    ],
+    "manage_adventure.generate": [
+      "create an adventure",
+      "generate a scenario",
+      "generate an adventure"
+    ],
+    "manage_archive.export": [
+      "export a copy",
+      "save the novel externally"
+    ],
+    "manage_archive.archive": [
+      "archive the campaign",
+      "store the story"
+    ],
+    "manage_history.undo": [
+      "undo an edit",
+      "revert the last change"
+    ]
+  }
+}

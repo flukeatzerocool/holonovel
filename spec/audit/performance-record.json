@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "scope": "reference-host",
+  "measured_at": "2026-10-21",
+  "environment": "Linux x86_64; Node v24.18.0; cold start measured from spawn to manage_diagnostics (action: health); query latency is the mean of 5 manage_ruleset (action: search) calls over the dnd2024 package",
+  "spec_hash": "6045dc2b2717fed21245622dc7d5a862f7cba8d6a4435ccbe3f39a24c60a9517",
+  "ruleset_content_hash": "e398c8b0b3b7e6e4c1f3ef547c30bbddc38b68803405c0396448491b5d4c59b7",
+  "terms": {
+    "conversion_fidelity": {
+      "waived": "build-stage term; the record scope is the reference host and the dnd2024 package source is authored Markdown"
+    },
+    "extraction_completeness": {
+      "waived": "build-stage term; the record scope is the reference host and no ruleset build ran in this measurement"
+    },
+    "tool_selection_coverage": 1.0,
+    "mean_calls_per_intent": 1.0,
+    "catalog_tokens": 25856,
+    "prompt_tokens": 68,
+    "cold_start_ms": 780,
+    "query_latency_ms": 35
+  },
+  "hash_method": "spec_hash is the SHA-256 of the assembled holonovel.md (host SPEC_HASH); ruleset_content_hash is the package content hash"
+}
