@@ -18,7 +18,7 @@ function send(proc: any, msg: any): Promise<any> { return new Promise((r) => { c
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON */ } } }); }
 async function boot() { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "brief", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); return (r.result?.content ?? []).map((x: any) => x?.text ?? "").join("\n"); }
-async function health(p: any): Promise<any> { return JSON.parse(await call(p, "manage_session", { action: "health" })); }
+async function health(p: any): Promise<any> { return JSON.parse(await call(p, "manage_diagnostics", { action: "health" })); }
 async function promptText(p: any, name: string): Promise<string> { const r = await send(p, { method: "prompts/get", params: { name, arguments: {} } }); return (r.result?.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n"); }
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
@@ -30,8 +30,8 @@ async function newNovel(p: any, name: string) { await call(p, "manage_novel", { 
 async function main() {
   await test("T620/REQ-515: the briefing reports the event-log cursor", async () => {
     const p = await boot(); await newNovel(p, "bc1");
-    await call(p, "manage_session", { action: "event", text: "one" });
-    await call(p, "manage_session", { action: "event", text: "two" });
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    await call(p, "manage_diagnostics", { action: "event", text: "two" });
     const bc = (await health(p)).briefing_consistency;
     assert(bc.available === true && bc.through_ordinal === 2, "cursor wrong: " + JSON.stringify(bc));
     await kill(p);
@@ -61,7 +61,7 @@ async function main() {
 
   await test("T623/REQ-518: repeated reports are identical", async () => {
     const p = await boot(); await newNovel(p, "bc4");
-    await call(p, "manage_session", { action: "event", text: "x" });
+    await call(p, "manage_diagnostics", { action: "event", text: "x" });
     const a = JSON.stringify((await health(p)).briefing_consistency);
     const b = JSON.stringify((await health(p)).briefing_consistency);
     assert(a === b, "consistency report is not deterministic: " + a + " vs " + b);
@@ -70,7 +70,7 @@ async function main() {
 
   await test("T624/REQ-519: the consistency report mutates nothing", async () => {
     const p = await boot(); await newNovel(p, "bc5");
-    await call(p, "manage_session", { action: "event", text: "one" });
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
     const before = (await health(p)).briefing_consistency.through_ordinal;
     await health(p); await health(p);
     const after = (await health(p)).briefing_consistency.through_ordinal;

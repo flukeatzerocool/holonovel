@@ -21,7 +21,7 @@ function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) =>
 async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "causal", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 const readRes = resourceReader(send, { throwOnError: false });
-const causal = (p: any, args: any) => { const out: any = { action: `causal_${args.action}` }; for (const [k, v] of Object.entries(args)) if (k !== "action") out[`causal_${k}`] = v; return call(p, "manage_world", out); };
+const causal = (p: any, args: any) => { const out: any = { action: `causal_${args.action}` }; for (const [k, v] of Object.entries(args)) if (k !== "action") out[`causal_${k}`] = v; return call(p, "manage_causality", out); };
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;

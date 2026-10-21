@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.10.20)
+# AGENTS.md — holonovel MCP Server (v2026.10.21)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -38,7 +38,7 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 36 action-discriminator tools, 40 resources and 21 resource templates, 5 prompts.
+src/index.ts            McpServer: 36 action-discriminator tools, 40 resources and 21 resource templates, 5 host prompts plus installed package prompts.
                         Entry point for STDIO transport. Badge gating via
                         requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
                         Narrative-intent verbs (ask/tell/give/show/throw) and
@@ -47,12 +47,12 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
                         [vehicle-entry]/[vehicle-exit] story-journal moments).
 ```
 
-## Tool Surface (38 tools — the REQ-429 recorded budget in DECISIONS.md)
+## Tool Surface (36 tools — the REQ-429 recorded budget in DECISIONS.md)
 
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
 - **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/update/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
 - **manage_npc** (action: create/update/remove/list/get) — GM NPC management
-- **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate/causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — world-model rooms, things, exits, and objective-state transition validation (REQ-484–REQ-495)
+- **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate) — world-model rooms, things, and exits (REQ-484–REQ-495)
 - **manage_causality** (action: causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — objective causal state and transition ledger; split from `manage_world` (REQ-413/REQ-581)
 - **run_command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
 - **manage_combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle
@@ -61,21 +61,21 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **manage_faction** (action: create/update/remove/list) — GM factions and progress clocks
 - **manage_vow** (action: set/milestone/resolve/forsake/list) — GM narrative vows
 - **manage_relationship** (action: set/get) — directed entity relationships
-- **manage_lore** (action: set/update/remove/toggle/group/suggest/list/get/export/import/set_secret/reveal/secret_list/knowledge/corpus_register/corpus_list/corpus_get/corpus_route/corpus_grant/corpus_deny/corpus_access/corpus_consume/corpus_acquisitions) — Novel lore entries, secrets, and the knowledge corpus of cold reference material (REQ-496–REQ-503)
+- **manage_lore** (action: set/update/remove/toggle/group/suggest/list/get/export/import/set_secret/reveal/secret_list/knowledge) — Novel lore entries and secrets (REQ-496–REQ-503)
 - **manage_corpus** (action: corpus_register/corpus_list/corpus_get/corpus_route/corpus_grant/corpus_deny/corpus_access/corpus_consume/corpus_acquisitions) — cold-reference corpus; split from `manage_lore` (REQ-413/REQ-581)
 - **manage_story** (action: record/update/remove/list/promote) — story journal beats
 - **manage_note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
 - **manage_codex** (action: set/list/get/capture/import/delete) — server-level, out-of-play reusable content library (Editor and Game Master badges; a Player badge mid-adventure is refused; reads are not badge-filtered)
-- **manage_novel** (action: create/resume/switch/end/export/import/rename/description/list/archive/unarchive/info/genre/complete_session_zero/clone/branch/save_context/get_context/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — save-file lifecycle, including event-log branching (REQ-458/REQ-459)
+- **manage_novel** (action: create/resume/switch/end/rename/description/list/info/genre/complete_session_zero/save_context/get_context) — save-file lifecycle (REQ-458/REQ-459)
 - **manage_archive** (action: export/import/archive/unarchive/clone/branch/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — archival and checkpoint surfaces; split from `manage_novel` (REQ-413/REQ-581)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
 - **manage_ruleset** (action: search/install/remove/list/bind/import_supplementary/remove_supplementary) — ruleset lookup and package management; the table roll moved to `resolve_mechanic (action: roll)`
-- **manage_scene** (action: set/directive/presence/autonomy/choices/oracle) — scene state and narrative framing
+- **manage_scene** (action: set/directive/choices/oracle) — scene state and narrative framing
 - **manage_staging** (action: presence/autonomy) — scene presence and autonomy staging; split from `manage_scene` (REQ-413/REQ-581)
-- **manage_session** (action: recap/verbosity/briefing_order/compress/compact/health/subscribe/discover/category/event/history) — session recap, verbosity, briefing order, audit summary prompt (compress), irreversible audit-log compaction (compact), event subscriptions, tool discovery/category reassignment, event-log append/read (REQ-455–457/REQ-460), and the `spec_health` report
+- **manage_session** (action: recap/verbosity/briefing_order/discover) — session recap, verbosity, briefing order, and tool discovery
 
-- **manage_diagnostics** (action: health/compress/compact/subscribe/category/event/history) — split maintenance subset of `manage_session`; the original name remains callable for one minor version (REQ-413/REQ-581)
+- **manage_diagnostics** (action: health/compress/compact/subscribe/category/event/history) — diagnostics and maintenance; the retired `manage_session` action aliases return `[NOT_FOUND]` naming this tool (REQ-413/REQ-581)
 
 - **open_session** (novel?/badge?) — composite: resume, badge, recap (REQ-577)
 - **close_session** (no params) — composite: recap and save context (REQ-577)
@@ -84,7 +84,14 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **manage_identity** (action: stage/accept/reject/list/snapshot/bootstrap) — Roster-tier character identity: staged candidates, accepted facets, versioned kernel (REQ-473–REQ-483)
 - **manage_knowledge** (action: index_build/index_status/index_list/index_search/index_relations/graph_build/graph_status/graph_get/graph_nodes/graph_edges/graph_neighbors) — derived semantic index (REQ-504–REQ-509) and knowledge-graph projection (REQ-510–REQ-514); in-memory, advisory, read-only reads
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)
-- **resolve_mechanic** (action: roll/fate_roll/fate_aspect/fate_point/fate_stress/ironsworn_momentum/ironsworn_move/ironsworn_progress/forged_action_roll/forged_stress/forged_downtime) — ruleset table rolls plus Fate, Ironsworn, and Forged in the Dark base capabilities; the prior `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` names remain callable as hidden compatibility aliases (REQ-413/REQ-581)
+- **resolve_mechanic** (action: roll/fate_roll/fate_aspect/fate_point/fate_stress/ironsworn_momentum/ironsworn_move/ironsworn_progress/forged_action_roll/forged_stress/forged_downtime) — ruleset table rolls plus Fate, Ironsworn, and Forged in the Dark base capabilities; the retired `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` tombstones return `[NOT_FOUND]` naming this tool (REQ-413/REQ-581)
+
+**Prompts (REQ-023a, REQ-138, REQ-389c).** The five host prompts are registered
+as literals; installed package `prompts.json` entries are registered at startup
+and after `manage_ruleset (action: install)`, and deregistered after
+`manage_ruleset (action: remove)`. `spec_health.prompt_count` and
+`prompt_health` include package prompts; collisions are reported under
+`spec_health.package_prompts.errors`.
 
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,

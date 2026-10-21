@@ -201,7 +201,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "resume",  slug: "workflow-t266" }); // connection 3 → auto-cancel
 
     await test("T266a: staleness auto-cancels at threshold (workflow drained)", async () => {
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, '"active_novel": "workflow-t266"');
       // pending_workflow should be null (drained) — not report an open decision.
       const undo = await call(proc, "manage_history", {});
@@ -223,7 +223,7 @@ async function main() {
       await call(proc, "manage_novel", { action: "resume",  slug: "workflow-t266b" });
     }
     await test("T266c: threshold 0 disables auto-cancel (workflow still pending)", async () => {
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       // pending_workflow still reports an open decision.
       assertContains(health, "character_creation");
     });
@@ -234,7 +234,7 @@ async function main() {
   {
     const proc = await boot({ TTRPG_SYNTHESIS_AUTO_TRIGGER: "on" });
     await test("T323/REQ-263: TTRPG_SYNTHESIS_AUTO_TRIGGER is surfaced in health", async () => {
-      const h = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const h = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (h.synthesis_auto_trigger !== "on") throw new Error(`expected synthesis_auto_trigger 'on', got ${JSON.stringify(h.synthesis_auto_trigger)}`);
     });
     await kill(proc);

@@ -178,7 +178,7 @@ async function main() {
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T498/REQ-420: package-format fingerprint flags prior-fingerprint package, keeps current", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const alerts: { slug: string; reason: string }[] = health.ruleset_package_alerts ?? [];
       const stale = alerts.find((a) => a.slug === "stale");
       if (!stale) throw new Error(`no stale alert; alerts=${JSON.stringify(alerts)}`);
@@ -195,7 +195,7 @@ async function main() {
     });
 
     await test("T503/REQ-420+REQ-423: legacy package without package_format flagged, not hard-blocked", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const alerts: { slug: string; reason: string }[] = health.ruleset_package_alerts ?? [];
       const legacy = alerts.find((a) => a.slug === "legacy");
       if (!legacy) throw new Error(`no legacy alert; alerts=${JSON.stringify(alerts)}`);
@@ -217,7 +217,7 @@ async function main() {
     await test("T501/REQ-423: prior data-format fingerprint flags Novel/roster/codex/notes, still loads", async () => {
       const res = await call(proc, "manage_novel", { action: "resume",  slug: "prior-novel" });
       assertContains(res, "prior-novel");
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const stale: Record<string, string> = health.data_health?.stale ?? {};
       if (!stale["novel:prior-novel"]) throw new Error(`novel not flagged stale; stale=${JSON.stringify(stale)}`);
       for (const k of ["roster", "codex", "server-notes"]) {
@@ -235,7 +235,7 @@ async function main() {
       writeFileSync(join(DATA_DIR, "novels", "legacy-novel.json"), JSON.stringify(legacy, null, 2) + "\n");
       const res = await call(proc, "manage_novel", { action: "resume",  slug: "legacy-novel" });
       assertContains(res, "legacy-novel");
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const stale: Record<string, string> = health.data_health?.stale ?? {};
       if (!stale["novel:legacy-novel"]) throw new Error(`legacy novel not flagged; stale=${JSON.stringify(stale)}`);
       assertContains(stale["novel:legacy-novel"], "missing data-format fingerprint");
@@ -313,7 +313,7 @@ async function main() {
       try {
         const loaded = await call(proc, "manage_novel", { action: "create", name: "legacy-load", ruleset: "precontract" });
         if (/not installed|load-rejected|incompatible/i.test(loaded)) throw new Error(`pre-contract package did not load: ${loaded.slice(0, 200)}`);
-        const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+        const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
         const rebuilds: { slug: string }[] = health.legacy_package_rebuilds ?? [];
         if (!rebuilds.some((entry) => entry.slug === "precontract")) {
           throw new Error(`precontract not reported for rebuild: ${JSON.stringify(rebuilds)}`);
@@ -321,7 +321,7 @@ async function main() {
 
         const rebuilt = await call(proc, "manage_novel", { action: "create", name: "rebuilt-load", ruleset: "rebuilt" });
         if (/not installed|load-rejected|incompatible/i.test(rebuilt)) throw new Error(`rebuilt package did not load: ${rebuilt.slice(0, 200)}`);
-        const health2 = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+        const health2 = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
         if ((health2.legacy_package_rebuilds ?? []).some((entry: any) => entry.slug === "rebuilt")) {
           throw new Error("rebuilt package was still reported for rebuild");
         }

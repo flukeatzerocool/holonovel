@@ -1825,7 +1825,7 @@ export class StateManager {
   }
 
   // REQ-240b — keep only the most recent `keepSessions` sessions' audit entries.
-  // Used by `manage_novel (action: clone, trim_audit_sessions)`.
+  // Used by `manage_archive (action: clone, trim_audit_sessions)`.
   trimAuditLogToSessions(log: AuditEntry[], keepSessions: number): AuditEntry[] {
     if (!Number.isInteger(keepSessions) || keepSessions < 1) return log;
     const boundaries: number[] = [];

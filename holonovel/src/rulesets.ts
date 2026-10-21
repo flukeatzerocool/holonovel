@@ -422,6 +422,23 @@ export class RulesetManager {
     }
   }
 
+  // REQ-023a/REQ-389 — startup prompt registration reads a package's declared
+  // prompts from prompts.json WITHOUT hydrating its index/model. REQ-389c —
+  // removal deregisters them through the host prompt surface.
+  promptDeclarations(slug: string): RulesetPrompt[] {
+    const p = path.join(this.installDir, slug, "prompts.json");
+    if (!fs.existsSync(p)) return [];
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
+      if (!Array.isArray(parsed)) {
+        throw new Error("prompts.json must contain an array");
+      }
+      return parsed as RulesetPrompt[];
+    } catch (e: any) {
+      throw new Error(`Ruleset '${slug}' has an unreadable prompts.json: ${e?.message ?? e}`);
+    }
+  }
+
   // REQ-430 — validate a package's declared tool schemas at load (from
   // tools.json) without hydrating its index/model, so non-conformant tools are
   // flagged in spec_health while REQ-390 lazy hydration is preserved.

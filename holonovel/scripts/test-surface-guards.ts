@@ -135,7 +135,7 @@ async function run(): Promise<void> {
       const recap = await call(proc, "open_session", { badge: "player" });
       assert(recap.trim().length > 0, "open_session returned no content");
       assert(recap.includes("surface-guards"), `open_session recap lacked the Novel: ${recap.slice(0, 200)}`);
-      const forbidden = await call(proc, "manage_scene", { action: "presence", entity_ids: [] });
+      const forbidden = await call(proc, "manage_combat", { action: "init" });
       assert(forbidden.includes("[FORBIDDEN]"), `open_session did not switch to Player: ${forbidden.slice(0, 160)}`);
       await call(proc, "open_session", { badge: "game_master" });
     });
@@ -148,7 +148,7 @@ async function run(): Promise<void> {
     });
 
     await test("T664/T662: tool_surface reports the budget and active profile", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const surface = health?.tool_surface;
       assert(surface && typeof surface.catalog_tokens_estimate === "number", "missing catalog token estimate");
       assert(surface?.budgets?.standard > 0 && surface?.budgets?.small > 0, "missing profile budgets");
@@ -165,31 +165,48 @@ async function run(): Promise<void> {
       assert(!fresh?._meta?.deprecated, `replacement is deprecated: ${JSON.stringify(fresh?._meta)}`);
     });
 
-    await test("T675: hidden compatibility aliases are omitted from tools/list but remain callable", async () => {
+    await test("T675: retired compatibility aliases are hidden and name their replacements", async () => {
       const listed = await send(proc, { method: "tools/list", params: { _meta: { profile: "full" } } });
-      const names = (listed?.result?.tools ?? []).map((t: any) => t.name);
+      const tools = listed?.result?.tools ?? [];
+      const names = tools.map((t: any) => t.name);
       for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged"]) {
         assert(!names.includes(name), `${name} must be hidden from tools/list`);
       }
       assert(names.includes("resolve_mechanic"), "resolve_mechanic missing from tools/list");
-      const alias = await call(proc, "resolve_fate", { action: "fate_point", op: "list" });
-      assert(!alias.includes("not found") && !alias.includes("Invalid"), `hidden alias not callable: ${alias.slice(0, 160)}`);
+      const ruleset = tools.find((t: any) => t.name === "manage_ruleset");
+      const session = tools.find((t: any) => t.name === "manage_session");
+      assert(!ruleset?.inputSchema?.properties?.action?.enum?.includes("roll"), "retired roll action still advertised");
+      assert(!session?.inputSchema?.properties?.action?.enum?.includes("health"), "retired health action still advertised");
+      const retired: Array<[string, Record<string, unknown>, string]> = [
+        ["resolve_fate", { action: "fate_point" }, "resolve_mechanic.fate_point"],
+        ["resolve_ironsworn", { action: "move" }, "resolve_mechanic.ironsworn_move"],
+        ["resolve_forged", { action: "stress" }, "resolve_mechanic.forged_stress"],
+        ["manage_ruleset", { action: "roll", table: "weather" }, "resolve_mechanic.roll"],
+        ["manage_session", { action: "health" }, "manage_diagnostics.health"],
+      ];
+      for (const [name, args, replacement] of retired) {
+        const text = await call(proc, name, args);
+        assert(text.includes("[NOT_FOUND]"), `${name} (${String(args.action)}) was not refused: ${text.slice(0, 160)}`);
+        assert(text.includes(replacement), `${name} (${String(args.action)}) did not name ${replacement}: ${text.slice(0, 160)}`);
+      }
       const canonical = await call(proc, "resolve_mechanic", { action: "fate_point", op: "list" });
-      assert(!canonical.includes("not found"), `canonical action failed: ${canonical.slice(0, 160)}`);
-      const roll = await call(proc, "manage_ruleset", { action: "roll", table: "weather" });
-      assert(!roll.includes("Invalid option") && !roll.includes("Invalid enum"), `hidden roll action failed validation: ${roll.slice(0, 160)}`);
+      assert(!canonical.includes("[NOT_FOUND]"), `canonical action failed: ${canonical.slice(0, 160)}`);
     });
 
     await test("T675: spec_health and the group directory advertise hidden aliases", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const surface = health?.tool_surface;
       assert(surface?.canonical?.tools === 36, `canonical tools ${surface?.canonical?.tools}`);
       assert(surface?.canonical?.actions === 214, `canonical actions ${surface?.canonical?.actions}`);
       assert(surface?.compatibility?.tools === 3, `compatibility tools ${surface?.compatibility?.tools}`);
       assert(surface?.compatibility?.actions === 45, `compatibility actions ${surface?.compatibility?.actions}`);
-      const aliases = (surface?.compatibility?.aliases ?? []).map((a: any) => a.name);
+      assert(surface?.compatibility?.retired === 45, `retired actions ${surface?.compatibility?.retired}`);
+      const aliases = surface?.compatibility?.aliases ?? [];
       for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_ruleset.roll"]) {
-        assert(aliases.includes(name), `alias ${name} missing from spec_health`);
+        assert(aliases.some((a: any) => a.name === name), `alias ${name} missing from spec_health`);
+      }
+      for (const alias of aliases) {
+        assert(alias.retired === true, `alias ${alias.name} not reported retired`);
       }
       const resource = await send(proc, { method: "resources/read", params: { uri: "holonovel://tool-groups" } });
       const text = resource?.result?.contents?.[0]?.text ?? "{}";
@@ -202,7 +219,7 @@ async function run(): Promise<void> {
       assert(switched.includes("Editor"), `Editor switch failed: ${switched.slice(0, 160)}`);
       const text = await call(proc, "manage_faction", { action: "create", name: "The Guild" });
       assert(!text.includes("belongs to group"), `override did not bypass: ${text.slice(0, 160)}`);
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assert(health.includes("tool_surface"), `health missing tool_surface: ${health.slice(0, 160)}`);
       assert(/"overrides":\s*[1-9]/.test(health), `override not counted: ${health.slice(0, 300)}`);
     });

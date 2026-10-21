@@ -97,7 +97,7 @@ async function main() {
     });
 
     await test("T75: generated adventure is stored on the active Novel", async () => {
-      const ex = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      const ex = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       if (!ex.novel.generated_adventure) throw new Error("generated_adventure not stored on Novel");
       assertContains(JSON.stringify(ex.novel.generated_adventure), "goblin king");
     });
@@ -140,7 +140,7 @@ async function main() {
     });
 
     await test("T76: the batch created an NPC and a lore entry", async () => {
-      const ex = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      const ex = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       const npcCount = Object.keys(ex.novel.npcs).length;
       const loreKeys = Object.keys(ex.novel.lore);
       if (npcCount < 1) throw new Error(`expected >=1 NPC, got ${npcCount}`);
@@ -148,12 +148,12 @@ async function main() {
     });
 
     await test("T76: undo rolls back scene + NPC + lore as one target", async () => {
-      const exBefore = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      const exBefore = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       const npcsBefore = Object.keys(exBefore.novel.npcs).length;
       const loreBefore = Object.keys(exBefore.novel.lore).length;
       await call(proc, "manage_adventure", { action: "generate_encounter",  context: "second alley" });
       await call(proc, "manage_history", {});
-      const exAfter = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      const exAfter = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       if (Object.keys(exAfter.novel.npcs).length !== npcsBefore) throw new Error(`undo did not restore npc count (${npcsBefore} → ${Object.keys(exAfter.novel.npcs).length})`);
       if (Object.keys(exAfter.novel.lore).length !== loreBefore) throw new Error(`undo did not restore lore count (${loreBefore} → ${Object.keys(exAfter.novel.lore).length})`);
     });

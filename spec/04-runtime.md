@@ -131,7 +131,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_RULESET`      | No       | Build-time path list for single-ruleset fixture builds (Appendices B/N); the runtime host loads ruleset packages and never reads ruleset Markdown (REQ-389a, REQ-390) |
 | `TTRPG_BADGE`      | No       | Default active badge on startup (`player`, `game_master`, `observer`, `none`). `none` is the Editor badge — full access, default on Novel creation and resume. |
 | `TTRPG_AI_ROLE`   | No       | AI narrative role — `counterpart` (default, opposite of active badge), `game_master`, or `player`. Determines orientation content in `badge_briefing` per REQ-304. Read at startup, applies to all connections. |
-| `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_scene (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
+| `TTRPG_AUTONOMY`   | No       | Launch-time seed for new-Novel autonomy slider defaults, comma-separated `level,confirmation,safety,creativity` (e.g. `mechanical_prompt,prompt,safe,standard`). Read at startup; overridable per-Novel via `manage_staging (action: autonomy)` (REQ-306). The four slider defaults are `mechanical_prompt`, `prompt`, `safe`, `standard` when absent. Behavioral — couples per P45. |
 | `TTRPG_GUIDANCE_PROFILE` | No | Runtime guidance and presentation posture — `full` (default) or `lean`. `lean` prioritizes orientation scaffolding, terse enumeration defaults, and summary-first catalogs for constrained narrators (REQ-388, REQ-412a). Behavioral — couples per P58. |
 | `TTRPG_SURFACE_PROFILE` | No | Catalog projection profile — `full` (default, complete detailed surface), `standard` (complete surface with output-schema presence markers, no group switch), or `small` (active-group entry tools plus globals, one-line summary). Orientation and verbosity remain governed by `TTRPG_GUIDANCE_PROFILE` (REQ-570, REQ-580). Behavioral — couples per P60. |
 | `TTRPG_NOVEL`       | No¹      | Default slug of the Novel to activate on startup. Multiple Novels may coexist on disk; this variable selects the initial active Novel for the first connection. If absent, the server starts with no Novel active.      |
@@ -157,11 +157,11 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
 | `TTRPG_DESCRIPTION_BUDGET` | No | Byte budget applied to a ruleset-derived tool description at load (default 1000, matching the REQ-024c recorded budget); a description over budget is flagged in `spec_health` (REQ-430). |
-| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_session (action: compact)` archives older entries |
+| `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_diagnostics (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
-| `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_novel (action: export)` output (default `false`; REQ-096h) |
+| `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_archive (action: export)` output (default `false`; REQ-096h) |
 | `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
 | `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
 | `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
@@ -267,7 +267,7 @@ discarded by `manage_novel (action: end)`):
 | Event Log | Narrative-memory | read/write (REQ-455; append-only, GM-sourced entries GM-only) | read/write (own observations; badge-filtered per REQ-032) |
 | Evidence | Knowledge-carrying | read/write (REQ-461; mutation GM-only) | read-only (own entity, badge-filtered per REQ-472) |
 | Belief State | Knowledge-carrying | read/write (REQ-465; engine-maintained by reconciliation) | read-only (own entity, badge-filtered per REQ-472) |
-| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_world (action: causal_state)`) | read-only (objective state per REQ-495) |
+| Causal State | Spatial | read/write (REQ-486; engine-maintained via `manage_causality (action: causal_state)`) | read-only (objective state per REQ-495) |
 | Transition Ledger | Narrative-memory | read/write (REQ-484; append-only, GM-sourced) | read-only (badge-filtered per REQ-495) |
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
@@ -541,7 +541,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Narrative Directive → Pacing Window | P44 | Directive text containing pacing keywords ("faster", "slower", "brisk", "leisurely") adjusts TTRPG_PACING_WINDOW | The GM sets the story's tempo — directive pacing keywords adjust the window | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Autonomy | P45 | Directive text containing autonomy keywords ("NPCs act independently", "characters drive themselves") enables TTRPG_NPC_AUTONOMY; directive text containing disabling keywords disables it | The GM delegates character control — directive autonomy keywords toggle NPC autonomy | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → NPC Mind | P45 | Directive text containing NPC-mind keywords ("NPCs think for themselves") enables TTRPG_NPC_MIND; directive text containing disabling keywords disables it | The GM delegates character thought — directive mind keywords toggle NPC auto-play | GM-only | Mechanical | REQ-081, REQ-339d |
-| Narrative Directive → Autonomy `[non-property]` | P45 | Directive autonomy keywords also map to `manage_scene (action: autonomy)` sliders — "play it safe" sets `safety=safe`, "hardcore mode" sets `safety=hardcore` — text evaluated at resolution time | The operator tunes the AI's grip in plain English | GM-only | Mechanical | REQ-081, REQ-306 |
+| Narrative Directive → Autonomy `[non-property]` | P45 | Directive autonomy keywords also map to `TTRPG_AUTONOMY` and the `manage_staging (action: autonomy)` sliders — "play it safe" sets `safety=safe`, "hardcore mode" sets `safety=hardcore` — text evaluated at resolution time | The operator tunes the AI's grip in plain English | GM-only | Mechanical | REQ-081, REQ-306 |
 | Narrative Directive → World in Motion | P46 | Directive text containing reactivity keywords ("the world reacts", "living world", "active factions") enables TTRPG_WORLD_REACTIVITY; disabling keywords disable it | The world comes alive on command — directive reactivity keywords enable world reactivity | GM-only | Mechanical | REQ-081 |
 | Narrative Directive → Synthesis | P47 | Directive text containing synthesis keywords ("use voice patterns", "activate lore templates", "use action patterns", "add flavor") maps to the corresponding synthesis module or TTRPG_SYNTHESIS_AUTO_TRIGGER activation | The GM activates story flavor in plain English — directive keywords map to synthesis modules | GM-only | Mechanical | REQ-081, REQ-260 |
 | Server Notes → Narrative Threads | P23 | Server notes with `narrative_tag` surface in `badge_briefing` supplementary guidance alongside synthesis items | Server notes advise; they don't act — narrative-tagged notes surface in briefing | — | Navigational | REQ-365, REQ-285 |
@@ -602,8 +602,8 @@ archetype rules (§7.7.0). Session-scoped groups (GM Context, Notes, Server
 Notes) couple per their pattern rules (P17, P23, P32); pairs not covered by
 those rules produce no couplings. Input-validation workflows —
 character-creation step-by-step decisions (REQ-104, REQ-151, REQ-152),
-confirmation prompts (`manage_novel (action: end)` REQ-140, `manage_novel (action: checkpoint_restore)` REQ-241,
-`manage_session (action: compact)` REQ-239), and parser command disambiguation (§5.10) — are
+confirmation prompts (`manage_novel (action: end)` REQ-140, `manage_archive (action: checkpoint_restore)` REQ-241,
+`manage_diagnostics (action: compact)` REQ-239), and parser command disambiguation (§5.10) — are
 single-property input workflows, not cross-property couplings; they produce no
 coupling rows.
 

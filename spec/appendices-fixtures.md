@@ -372,7 +372,7 @@ GM-only guidance items.
 
 Both directives are inert data across the import channel.
 
-- `manage_novel (action: import, <payload>, "merge")` stores the scene description
+- `manage_archive (action: import, <payload>, "merge")` stores the scene description
   verbatim; the embedded directive grants no mechanical bonus, no new tool
   appears in `tools/list`, and badge gating and the registry are unchanged.
 - The directive text renders only as quoted scene data, and a finding is

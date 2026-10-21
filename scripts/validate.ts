@@ -1270,7 +1270,7 @@ function checkConfigCouplingAnnotations(text: string): string[] {
   const couplingEndMarker = text.indexOf("##### 7.7.1b", couplingStart);
   const couplingText = couplingStart === -1 ? "" : text.slice(couplingStart, couplingEndMarker === -1 ? text.length : couplingEndMarker);
 
-  const configAliases: Record<string, string[]> = { TTRPG_AUTONOMY: ["scene (action: autonomy)"] };
+  const configAliases: Record<string, string[]> = { TTRPG_AUTONOMY: ["manage_staging (action: autonomy)"] };
 
   // Standing Rule 11 — a plain `Behavioral` config needs a natural-language
   // path, i.e. a coupling row whose source archetype is Session. Parse the

@@ -9,7 +9,7 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
@@ -17,6 +17,7 @@ import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
 import { buildSurfaceReport } from "./surface-report.js";
+import { hiddenActionAliases, hiddenAliasNames, retiredAliasRefusal, surfaceAliasList } from "./core/surface-aliases.js";
 import {
   SURFACE_GLOBALS,
   normalizeProfile,
@@ -46,7 +47,7 @@ import {
 import { dispatchCommand, resolveGoMovement, ParserResult } from "./world/parser.js";
 import {
   RulesetManager, rollDice, computeContentHash,
-  RulesetToolSchema, rulesetAnnotations,
+  RulesetToolSchema, RulesetPrompt, rulesetAnnotations,
 } from "./rulesets.js";
 import { conformanceReport, type ToolDefinition } from "./core/tdqs.js";
 import {
@@ -97,7 +98,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.20",
+  version: "2026.10.21",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -590,6 +591,10 @@ interface MetadataCache {
   actionToolNames: Set<string>;
   promptBytes: number;
 }
+interface PackagePromptEntry { slug: string; prompt: RulesetPrompt }
+const packagePrompts = new Map<string, PackagePromptEntry>();
+const packagePromptErrors: Array<{ slug: string; reason: string }> = [];
+
 function registrationFingerprint(): string {
   const tools = (server as any)._registeredTools ?? {};
   const prompts = (server as any)._registeredPrompts ?? {};
@@ -597,6 +602,8 @@ function registrationFingerprint(): string {
     .update([...Object.keys(tools)].sort().join(","))
     .update("|")
     .update([...Object.keys(prompts)].sort().join(","))
+    .update("|")
+    .update([...packagePrompts.keys()].sort().join(","))
     .digest("hex");
 }
 let metadataCache: MetadataCache | null = null;
@@ -740,7 +747,7 @@ function zodToJsonSchema(schema: any, depth = 0): any {
 
 function registeredToolDefinitions(): ToolDefinition[] {
   const tools: Record<string, any> = (server as any)._registeredTools ?? {};
-  const hidden = hiddenAliasNames();
+  const hidden = hiddenAliasNames(surfaceRegistry());
   return Object.entries(tools).filter(([name]) => !hidden.has(name)).map(([name, tool]) => ({
     name,
     title: typeof tool?.title === "string" ? tool.title : "",
@@ -798,7 +805,9 @@ function tdqsHealth() {
 
 function promptScaffoldBytes() {
   const prompts: any[] = (server as any)._registeredPrompts ? Object.values((server as any)._registeredPrompts) : [];
-  return prompts.reduce((n, p) => n + Buffer.byteLength(p?.description ?? "", "utf-8") + Buffer.byteLength(p?.name ?? "", "utf-8") + 32, 0);
+  const hostBytes = prompts.reduce((n, p) => n + Buffer.byteLength(p?.description ?? "", "utf-8") + Buffer.byteLength(p?.name ?? "", "utf-8") + 32, 0);
+  const packageBytes = packagePromptList().reduce((n, p) => n + Buffer.byteLength(p.description, "utf-8") + Buffer.byteLength(p.name, "utf-8") + 32, 0);
+  return hostBytes + packageBytes;
 }
 
 // Return cached metadata when registrations are unchanged; recompute otherwise.
@@ -883,69 +892,6 @@ function activeSurfaceGroup(): string {
 }
 function toolGroupSet(name: string): Set<string> {
   return surfaceToolGroups(surfaceRegistry(), name);
-}
-// REQ-581 — hidden compatibility aliases. A tool whose every declaration is a
-// compatibility alias is omitted from tools/list; a tool carrying a mix keeps
-// its canonical actions and hides the compatibility action from its schema.
-function hiddenAliasNames(): Set<string> {
-  const reg = surfaceRegistry();
-  const hidden = new Set<string>();
-  if (!reg) return hidden;
-  const byTool = new Map<string, SurfaceDeclaration[]>();
-  for (const [key, decl] of Object.entries(reg.actions)) {
-    const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
-    const list = byTool.get(tool) ?? [];
-    list.push(decl);
-    byTool.set(tool, list);
-  }
-  for (const [tool, decls] of byTool) {
-    if (decls.length > 0 && decls.every((decl) => !!decl.compatibility)) hidden.add(tool);
-  }
-  return hidden;
-}
-function hiddenActionAliases(): Map<string, string> {
-  const reg = surfaceRegistry();
-  const hidden = new Map<string, string>();
-  if (!reg) return hidden;
-  for (const [key, decl] of Object.entries(reg.actions)) {
-    if (!decl.compatibility || !key.includes(".")) continue;
-    hidden.set(key, decl.compatibility.replacement);
-  }
-  return hidden;
-}
-function surfaceAliasList(): Array<{ name: string; kind: "tool" | "action"; replacement: string; retired: boolean }> {
-  const reg = surfaceRegistry();
-  if (!reg) return [];
-  const byTool = new Map<string, Array<[string, SurfaceDeclaration]>>();
-  for (const [key, decl] of Object.entries(reg.actions)) {
-    const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
-    const list = byTool.get(tool) ?? [];
-    list.push([key, decl]);
-    byTool.set(tool, list);
-  }
-  const aliases: Array<{ name: string; kind: "tool" | "action"; replacement: string; retired: boolean }> = [];
-  for (const [tool, entries] of byTool) {
-    const compat = entries.filter(([, decl]) => !!decl.compatibility);
-    if (compat.length === 0) continue;
-    if (compat.length === entries.length) {
-      aliases.push({
-        name: tool,
-        kind: "tool",
-        replacement: compat[0][1].compatibility!.replacement.split(".")[0],
-        retired: compat.some(([, decl]) => !!decl.compatibility!.retired),
-      });
-    } else {
-      for (const [key, decl] of compat) {
-        aliases.push({
-          name: key,
-          kind: "action",
-          replacement: decl.compatibility!.replacement,
-          retired: !!decl.compatibility!.retired,
-        });
-      }
-    }
-  }
-  return aliases.sort((a, b) => a.name.localeCompare(b.name));
 }
 function projectToolList<T extends { name: string }>(
   tools: T[],
@@ -1035,20 +981,6 @@ function surfaceRefusal(name: string, args: Record<string, unknown>): string | n
   return `[ERROR] [STATE_CONFLICT] ${name} (${action}) belongs to group '${decl.group}'. Next: activate group '${decl.group}' or set TTRPG_SURFACE_PROFILE=full.`;
 }
 
-// REQ-581 — a retired compatibility alias refuses with the replacement named,
-// regardless of badge. This is a tombstone, not a projection refusal.
-function retiredAliasRefusal(name: string, args: Record<string, unknown>): string | null {
-  const reg = surfaceRegistry();
-  if (!reg) return null;
-  const action = typeof args?.action === "string" ? args.action : null;
-  const key = action ? `${name}.${action}` : name;
-  const decl = reg.actions[key] ?? reg.actions[name];
-  if (!decl?.compatibility?.retired) return null;
-  const replacement = decl.compatibility.replacement;
-  const subject = action ? `${name} (action: ${action})` : name;
-  return `[ERROR] [NOT_FOUND] ${subject} is retired. Use ${replacement}.`;
-}
-
 // REQ-576 — only a refusal that the Editor badge actually bypasses is counted
 // and audited; ordinary Editor calls do not inflate the override surface.
 function surfaceGuard(name: string, args: Record<string, unknown>): string | null {
@@ -1074,7 +1006,7 @@ function installSurfaceGuards(): void {
     return;
   }
   low.setRequestHandler(CallToolRequestSchema, async (req: any, extra: any) => {
-    const retired = retiredAliasRefusal(req?.params?.name, req?.params?.arguments ?? {});
+    const retired = retiredAliasRefusal(surfaceRegistry(), req?.params?.name, req?.params?.arguments ?? {});
     if (retired) return { content: [{ type: "text", text: retired }], isError: true };
     const refusal = surfaceGuard(req?.params?.name, req?.params?.arguments ?? {});
     if (refusal) {
@@ -1129,6 +1061,53 @@ for (const slug of eagerSlugs) {
   if (rulesets.isInstalled(slug)) {
     try { rulesets.hydrate(slug); } catch { /* hydration failures surfaced at call time */ }
   }
+}
+
+// REQ-023a/REQ-389c — package prompts are host-served at runtime. The map is
+// rebuilt from installed packages so install/remove and name collisions resolve
+// deterministically without restarting the server.
+function reloadPackagePrompts(): void {
+  packagePrompts.clear();
+  packagePromptErrors.length = 0;
+  const hostPrompts = new Set(Object.keys((server as any)._registeredPrompts ?? {}));
+  for (const slug of [...rulesets.installedSlugs()].sort()) {
+    let declarations: RulesetPrompt[];
+    try {
+      declarations = rulesets.promptDeclarations(slug);
+    } catch (e: any) {
+      packagePromptErrors.push({ slug, reason: e?.message ?? String(e) });
+      continue;
+    }
+    for (const prompt of declarations) {
+      const name = typeof prompt?.name === "string" ? prompt.name.trim() : "";
+      const text = typeof prompt?.text === "string" ? prompt.text : "";
+      if (!name || !text.trim()) {
+        packagePromptErrors.push({ slug, reason: `prompt '${name || "(unnamed)"}' needs a non-empty name and text` });
+        continue;
+      }
+      if (hostPrompts.has(name)) {
+        packagePromptErrors.push({ slug, reason: `prompt '${name}' collides with a host prompt` });
+        continue;
+      }
+      if (packagePrompts.has(name)) {
+        packagePromptErrors.push({ slug, reason: `prompt '${name}' collides with package '${packagePrompts.get(name)!.slug}'` });
+        continue;
+      }
+      packagePrompts.set(name, { slug, prompt });
+    }
+  }
+  for (const error of packagePromptErrors) {
+    process.stderr.write(`[holonovel] package prompt skipped (${error.slug}): ${error.reason}\n`);
+  }
+}
+function packagePromptList(): Array<{ name: string; title: string; description: string }> {
+  return [...packagePrompts.entries()]
+    .map(([name, entry]) => ({
+      name,
+      title: entry.prompt.title ?? name,
+      description: `Ruleset prompt from ${entry.slug}.`,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // ── REQ-065a / REQ-187a — build-fingerprint persistence and drift ───
@@ -2567,7 +2546,7 @@ async function toolDiscovery(query?: string) {
     }
   }
   // REQ-581 — hidden compatibility aliases stay discoverable here.
-  const aliases = surfaceAliasList();
+  const aliases = surfaceAliasList(surfaceRegistry());
   if (aliases.length > 0) {
     result += "\n### Compatibility Aliases\n\n";
     for (const alias of aliases) {
@@ -5978,7 +5957,7 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management",
-  description: "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel and are audited; list/get/evidence/conflicts and the perception reads are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing evidence (retract), inspecting stances (list), reading one question (get), listing evidence (evidence), finding contradictions (conflicts), forcing recomputation (reconcile), or recording and reading perceptions (perception_* actions). Do NOT use when: recording objective world truth — use manage_world (action: causal_propose); recording shared lore or consumed reference material — use manage_lore.",
+  description: "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel and are audited; list/get/evidence/conflicts and the perception reads are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing evidence (retract), inspecting stances (list), reading one question (get), listing evidence (evidence), finding contradictions (conflicts), forcing recomputation (reconcile), or recording and reading perceptions (perception_* actions). Do NOT use when: recording objective world truth — use manage_causality (action: causal_propose); recording shared lore or consumed reference material — use manage_lore.",
   inputSchema: {
     action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "perception_record", "perception_list", "perception_for_entity", "perception_for_event"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
@@ -6571,7 +6550,7 @@ function gatherGraphSources(novel: NovelState): GraphSourceSet {
 // and read actions never mutate Novel state.
 server.registerTool("manage_knowledge", {
   title: "Derived Knowledge",
-  description: "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore (including its corpus_* actions); recording a relationship — use manage_relationship.",
+  description: "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording a relationship — use manage_relationship.",
   inputSchema: {
     action: z.enum(["index_build", "index_status", "index_list", "index_search", "index_relations", "graph_build", "graph_status", "graph_get", "graph_nodes", "graph_edges", "graph_neighbors"]).describe("index_* actions operate the semantic index; graph_* actions operate the knowledge graph."),
     query: z.string().optional().describe("Query text to rank candidates against (index_search)."),
@@ -7873,7 +7852,7 @@ function extractSupplementaryWisdom(raw: string): Array<{ module: string; key: s
 
 server.registerTool("manage_ruleset", {
   title: "Ruleset Package Management",
-  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll), which remains callable here as a hidden compatibility alias. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
+  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll); the former roll action here is retired and returns [NOT_FOUND] naming resolve_mechanic (action: roll). Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, import_supplementary, or remove_supplementary."),
     query: z.string().optional().describe("Search query (search)."),
@@ -7919,6 +7898,7 @@ server.registerTool("manage_ruleset", {
         // REQ-446/448 — install provenance + security-event audit: the slug,
         // content hash, and source are recorded and tagged.
         audit("install_ruleset", { slug: pkg.slug, content_hash: pkg.manifest.content_hash ?? null, source: pkg.manifest.source_license ?? null });
+        reloadPackagePrompts();
         return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
       } catch (e: any) {
         return err("STATE_CONFLICT", e.message);
@@ -7932,6 +7912,8 @@ server.registerTool("manage_ruleset", {
       }
       try {
         rulesets.removePackage(args.slug);
+        reloadPackagePrompts();
+        (server as any).sendPromptListChanged?.();
         audit("remove_ruleset", { slug: args.slug });
         return ok(`Ruleset '${args.slug}' removed.`);
       } catch (e: any) {
@@ -8132,7 +8114,7 @@ function briefingConsistency(): Record<string, unknown> {
 // `Behavioral`) additionally carry a natural-language access path.
 interface HolodeckConfigEntry { variable: string; tunable: boolean; path?: string; }
 const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
-  { variable: "autonomy", tunable: true, path: "manage_scene (action: autonomy)" },
+  { variable: "autonomy", tunable: true, path: "manage_staging (action: autonomy)" },
   { variable: "pacing_window", tunable: true, path: "manage_character (action: signal, pace, faster/slower)" },
   { variable: "npc_autonomy", tunable: true, path: "manage_scene (action: directive, 'NPCs act independently')" },
   { variable: "npc_mind", tunable: true, path: "manage_scene (action: directive, 'NPCs think for themselves')" },
@@ -8198,14 +8180,30 @@ function buildSpecHealth(): Record<string, unknown> {
   });
 
   const prompts: any[] = (server as any)._registeredPrompts ? Object.values((server as any)._registeredPrompts) : [];
-  const prompt_health = prompts.map((p: any) => ({
-    name: p?.name ?? "unknown",
-    present: true,
-    length: 0,
-    budget: p?.arguments?.length ?? "n/a",
-    within: true,
-    stale_references: (p?.name ?? "") in BUILDER_CATEGORIES ? [] : [],
-  }));
+  const promptBudget = briefingBudget();
+  const prompt_health = [
+    ...prompts.map((p: any) => ({
+      name: p?.name ?? "unknown",
+      present: true,
+      length: 0,
+      budget: promptBudget,
+      within: true,
+      stale_references: (p?.name ?? "") in BUILDER_CATEGORIES ? [] : [] as string[],
+    })),
+    ...packagePromptList().map((p) => {
+      const entry = packagePrompts.get(p.name)!;
+      const length = entry.prompt.text.length;
+      return {
+        name: p.name,
+        present: true,
+        length,
+        budget: promptBudget,
+        within: length <= promptBudget,
+        stale_references: [] as string[],
+        source: entry.slug,
+      };
+    }),
+  ];
 
   const synthesisCounts = synthesisModuleCounts();
   const synthesis_active = state.enriched;
@@ -8348,8 +8346,9 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
     // derived-surface freshness (read-only advisory).
     briefing_consistency: briefingConsistency(),
-    tool_count: (() => { const hidden = hiddenAliasNames(); return Object.keys((server as any)._registeredTools ?? {}).filter((name) => !hidden.has(name)).length; })(),
-    prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0),
+    tool_count: (() => { const hidden = hiddenAliasNames(surfaceRegistry()); return Object.keys((server as any)._registeredTools ?? {}).filter((name) => !hidden.has(name)).length; })(),
+    prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0) + packagePrompts.size,
+    package_prompts: { installed: packagePrompts.size, errors: packagePromptErrors },
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
     resource_uris, // REQ-139 — resource URI presence from the live resource map.
     prompt_health, // REQ-138 — per-prompt presence, length, budget, stale refs.
@@ -8565,7 +8564,7 @@ server.registerResource("tool-groups", "holonovel://tool-groups", { title: "Tool
   contents: [{
     uri: "holonovel://tool-groups",
     mimeType: "application/json",
-    text: JSON.stringify({ profile: surfaceProfile(), groups: groupDirectory(), aliases: surfaceAliasList() }, null, 2),
+    text: JSON.stringify({ profile: surfaceProfile(), groups: groupDirectory(), aliases: surfaceAliasList(surfaceRegistry()) }, null, 2),
   }],
 }));
 
@@ -10571,7 +10570,7 @@ server.registerTool("close_session", {
 
 server.registerTool("take_turn", {
   title: "Take Play Turn",
-  description: "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
+  description: "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use resolve_mechanic (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
   inputSchema: {
     intent: z.string().describe("Player intent to resolve (take_turn)."),
     entity_id: z.string().optional().describe("Acting entity id (take_turn)."),
@@ -10591,8 +10590,8 @@ server.registerTool("take_turn", {
 // request handler and the startup warm-up so measurements never depend on the
 // last caller's badge.
 function stripHiddenCatalog(tools: any[]): any[] {
-  const hiddenTools = hiddenAliasNames();
-  const hiddenActions = hiddenActionAliases();
+  const hiddenTools = hiddenAliasNames(surfaceRegistry());
+  const hiddenActions = hiddenActionAliases(surfaceRegistry());
   return tools
     .filter((tool: any) => !hiddenTools.has(tool.name))
     .map((tool: any) => {
@@ -10662,10 +10661,48 @@ function installBadgeFilteredToolList(): void {
   });
 }
 
+// REQ-023a/REQ-389c — package prompts are advertised and served through a
+// wrapper over the SDK's prompt handlers. The SDK has no prompt deregistration
+// API, so the host-owned map is authoritative for the installed set.
+function installPackagePromptSurface(): void {
+  const low = (server as any).server;
+  const originalList = low?._requestHandlers?.get?.("prompts/list");
+  const originalGet = low?._requestHandlers?.get?.("prompts/get");
+  if (typeof originalList !== "function" || typeof originalGet !== "function") {
+    process.stderr.write("[holonovel] package prompt surface unavailable; serving host prompts only\n");
+    return;
+  }
+  low.setRequestHandler(ListPromptsRequestSchema, async (req: any, extra: any) => {
+    const result = await originalList(req, extra);
+    return { ...result, prompts: [...(result?.prompts ?? []), ...packagePromptList()] };
+  });
+  low.setRequestHandler(GetPromptRequestSchema, async (req: any, extra: any) => {
+    const name = req?.params?.name;
+    const entry = packagePrompts.get(name);
+    if (!entry) return originalGet(req, extra);
+    const active = state.activeNovel;
+    if (active?.ruleset && active.ruleset !== entry.slug) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `[ERROR] [INVALID_INPUT] Prompt '${name}' belongs to ruleset '${entry.slug}'; active Novel uses '${active.ruleset}'.`,
+      );
+    }
+    return {
+      description: entry.prompt.title ?? name,
+      messages: [{
+        role: "user",
+        content: { type: "text" as const, text: applyPromptBudget(entry.prompt.text) },
+      }],
+    };
+  });
+}
+
 async function main() {
   const transport = new StdioServerTransport();
+  reloadPackagePrompts();
   installBadgeFilteredToolList();
   installSurfaceGuards();
+  installPackagePromptSurface();
   await server.connect(transport);
   await warmCatalogCache();
 }

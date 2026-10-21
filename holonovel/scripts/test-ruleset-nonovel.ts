@@ -192,7 +192,7 @@ async function main() {
 
   await test("T651/REQ-558d: spec_health reports installed packages and confidence", async () => {
     const p = await boot();
-    const out = await call(p, "manage_session", { action: "health" });
+    const out = await call(p, "manage_diagnostics", { action: "health" });
     assertContains(out, SLUG, "installed package reported");
     assertNotContains(out, "N/A — ruleset-free", "confidence reflects installed packages");
     await kill(p);

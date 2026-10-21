@@ -78,7 +78,7 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
 
     // --- Invariant: read-only actions never move the fingerprint -------------
     let before = fingerprintOf(readNovel(dataDir));
-    await client.call("manage_session", { action: "health" });
+    await client.call("manage_diagnostics", { action: "health" });
     await client.call("run_command", { action: "execute", command: "look" });
     let after = fingerprintOf(readNovel(dataDir));
     record(ctx, "read_only_no_mutation", fingerprintStable(before, after).ok, fingerprintStable(before, after).detail, 1, ["REQ-041"], P_READONLY);

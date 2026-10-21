@@ -195,7 +195,7 @@ const S30_STEPS: PBStep[] = [
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-supp" }), assert: assertOK },
   { label: "import supplementary Wisdom", action: T("manage_ruleset", { action: "import_supplementary", slug: "pb-supp", wisdom: [{ content: "PB supplementary guidance" }] }), assert: (r) => assertContains(r, "Wisdom-only", "supp-import ") },
   { label: "supplementary Wisdom listed in synthesis", action: T("manage_synthesis", { action: "list" }), assert: (r) => assertContains(r, "supplementary:pb-supp", "supp-list ") },
-  { label: "spec_health reports the supplementary import", action: T("manage_session", { action: "health" }), assert: (r) => assertContains(r, "pb-supp", "supp-health ") },
+  { label: "spec_health reports the supplementary import", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "pb-supp", "supp-health ") },
   { label: "remove supplementary ruleset", action: T("manage_ruleset", { action: "remove_supplementary", slug: "pb-supp" }), assert: (r) => assertContains(r, "Removed", "supp-remove ") },
 ];
 
@@ -261,7 +261,7 @@ function buildRegister(): PBSubworkflow[] {
 const S1_STEPS: PBStep[] = [
   { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-tool-sweep" }), assert: assertOK },
-  { label: "session health (spec_health read)", action: T("manage_session", { action: "health" }), assert: (r) => assertContains(r, "spec_version", "health ") },
+  { label: "session health (spec_health read)", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "spec_version", "health ") },
   { label: "world://kinds resource", action: R("world://kinds"), assert: (r) => assertContains(r, "Kind Hierarchy", "kinds ") },
   { label: "badge_briefing prompt", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Briefing", "briefing ") },
   { label: "create_room", action: T("manage_world", { action: "create_room", name: "Sweep Room", description: "Sweep." }), assert: (r) => assertContains(r, "created", "room ") },
@@ -287,7 +287,7 @@ const S13_STEPS: PBStep[] = [
   { label: "character in A", action: T("manage_character", { action: "create", name: "ISO-HERO-A" }), assert: assertOK },
   { label: "novel B (switches active)", action: T("manage_novel", { action: "create", name: "pb-isol-B" }), assert: assertOK },
   { label: "world://map in B excludes A's room", action: R("world://map"), assert: (r) => assertNotContains(r, "isolated-room-A", "isolation-map ") },
-  { label: "session health in B: no A entities", action: T("manage_session", { action: "health" }), assert: (r) => {
+  { label: "session health in B: no A entities", action: T("manage_diagnostics", { action: "health" }), assert: (r) => {
     assertNotContains(r, "ISO-Hero-A", "isolation-entities ");
     assertContains(r, "entities", "health-entities ");
   } },
@@ -375,11 +375,11 @@ const S29_STEPS: PBStep[] = [
   { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-interchange" }), assert: assertOK },
   { label: "mutate (scene)", action: T("manage_scene", { action: "set", description: "The treasury vault." }), assert: assertOK },
-  { label: "export json", action: T("manage_novel", { action: "export", format: "json" }), assert: (r) => assertContains(r, "format_version", "export-json ") },
-  { label: "export lore-only scope", action: T("manage_novel", { action: "export", format: "json", scope: "lore" }), assert: (r) => assertContains(r, "lore", "export-lore ") },
-  { label: "import dry-run valid", action: T("manage_novel", { action: "import", data: "{\"slug\":\"x\",\"name\":\"X\"}", mode: "dry-run" }), assert: (r) => assertContains(r, "would be imported", "dryrun-valid ") },
-  { label: "import dry-run broken-ref reports", action: T("manage_novel", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "dry-run", strict: true }), assert: (r) => assertContains(r, "reference failure", "dryrun-broken ") },
-  { label: "import strict replace blocks", action: T("manage_novel", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "replace", strict: true }), assert: assertError },
+  { label: "export json", action: T("manage_archive", { action: "export", format: "json" }), assert: (r) => assertContains(r, "format_version", "export-json ") },
+  { label: "export lore-only scope", action: T("manage_archive", { action: "export", format: "json", scope: "lore" }), assert: (r) => assertContains(r, "lore", "export-lore ") },
+  { label: "import dry-run valid", action: T("manage_archive", { action: "import", data: "{\"slug\":\"x\",\"name\":\"X\"}", mode: "dry-run" }), assert: (r) => assertContains(r, "would be imported", "dryrun-valid ") },
+  { label: "import dry-run broken-ref reports", action: T("manage_archive", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "dry-run", strict: true }), assert: (r) => assertContains(r, "reference failure", "dryrun-broken ") },
+  { label: "import strict replace blocks", action: T("manage_archive", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "replace", strict: true }), assert: assertError },
   { label: "command suggest combat category", action: T("run_command", { action: "suggest", intent: "attack the goblin" }), assert: (r) => assertContains(r.toLowerCase(), "combat", "suggest-combat ") },
 ];
 
@@ -459,7 +459,7 @@ const S14_STEPS: PBStep[] = [
   { label: "advance 4", action: T("manage_countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
   { label: "advance 5", action: T("manage_countdown", { action: "advance", name: "Ticker" }), assert: assertOK },
   { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-  { label: "spec_health player-filtered", action: T("manage_session", { action: "health" }), assert: (r) => assertContains(r, "spec_version", "health-filter ") },
+  { label: "spec_health player-filtered", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "spec_version", "health-filter ") },
 ];
 
 const S22_STEPS: PBStep[] = [
@@ -514,7 +514,7 @@ const S15_STEPS: PBStep[] = [
   { label: "state survived alternations", action: R("world://map"), assert: (r) => assertContains(r, "Stress Room", "alternation ") },
   { label: "corrupt the Novel file", action: { kind: "file", op: "corrupt", path: () => novelFile("pb-stress") }, assert: (r) => assertContains(r, "corrupted", "corrupt ") },
   { label: "restart (no resume)", action: RS(), assert: assertOK },
-  { label: "spec_health reports the corruption", action: T("manage_session", { action: "health" }), assert: (r) => assertContains(r, "corrupt", "corruption-warning ") },
+  { label: "spec_health reports the corruption", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "corrupt", "corruption-warning ") },
   { label: "set_badge GM after restart", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "server still serves a fresh Novel", action: T("manage_novel", { action: "create", name: "pb-stress-recovered" }), assert: assertOK },
   { label: "recovered entity A", action: T("manage_character", { action: "create", name: "Recovered A" }), assert: (r) => { assertOK(r, "ra "); capture("stressA2", /Entity id (\S+?)\./)(r); } },
@@ -588,11 +588,11 @@ const S24_STEPS: PBStep[] = [
   { label: "session 2 mutation", action: T("manage_scene", { action: "set", description: "Session two opens." }), assert: assertOK },
   { label: "recap scoped to s2", action: T("manage_session", { action: "recap", session_id: "s2" }), assert: (r) => assertContains(r, "two", "recap-s2 ") },
   { label: "restart with retention 1", action: RS("pb-session", { TTRPG_SESSION_ID: "s2", TTRPG_AUDIT_RETENTION_SESSIONS: "1" }), assert: assertOK },
-  { label: "compact prompts confirmation", action: T("manage_session", { action: "compact" }), assert: (r) => assertContains(r, "NEED_INPUT", "compact-prompt ") },
+  { label: "compact prompts confirmation", action: T("manage_diagnostics", { action: "compact" }), assert: (r) => assertContains(r, "NEED_INPUT", "compact-prompt ") },
   { label: "confirm compaction", action: T("respond_decision", { decision: "compact", option: "yes" }), assert: assertOK },
   { label: "audit archive holds the compacted session", action: R("audit://novel/archive"), assert: (r) => assertContains(r, "s1", "archive ") },
   { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
-  { label: "player compact → FORBIDDEN", action: T("manage_session", { action: "compact" }), assert: (r) => assertContains(r, "FORBIDDEN", "player-compact ") },
+  { label: "player compact → FORBIDDEN", action: T("manage_diagnostics", { action: "compact" }), assert: (r) => assertContains(r, "FORBIDDEN", "player-compact ") },
 ];
 
 // S25 — State durability: backups, checkpoints, clones (blocking).
@@ -602,15 +602,15 @@ const S25_STEPS: PBStep[] = [
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-durable" }), assert: assertOK },
   ...repeat(10, (i) => ({ label: `durability mutation ${i + 1}`, action: T("manage_scene", { action: "set", description: `Durability mutation ${i + 1}.` }), assert: assertOK })),
   { label: "three rotated backups exist", action: { kind: "file", op: "count", path: () => `${novelFile("pb-durable")}.bak`, pattern: ".bak." }, assert: (r) => { if (Number(r) < 3) throw new Error(`expected >=3 backups, got ${r}`); } },
-  { label: "checkpoint set", action: T("manage_novel", { action: "checkpoint_set", label: "a" }), assert: assertOK },
-  { label: "checkpoint list shows a", action: T("manage_novel", { action: "checkpoint_list" }), assert: (r) => assertContains(r, "a", "cp-list ") },
+  { label: "checkpoint set", action: T("manage_archive", { action: "checkpoint_set", label: "a" }), assert: assertOK },
+  { label: "checkpoint list shows a", action: T("manage_archive", { action: "checkpoint_list" }), assert: (r) => assertContains(r, "a", "cp-list ") },
   { label: "mutations after checkpoint", action: T("manage_scene", { action: "set", description: "After checkpoint A." }), assert: assertOK },
-  { label: "checkpoint restore prompts", action: T("manage_novel", { action: "checkpoint_restore", label: "a" }), assert: (r) => assertContains(r, "NEED_INPUT", "cp-restore-prompt ") },
+  { label: "checkpoint restore prompts", action: T("manage_archive", { action: "checkpoint_restore", label: "a" }), assert: (r) => assertContains(r, "NEED_INPUT", "cp-restore-prompt ") },
   { label: "confirm checkpoint restore", action: T("respond_decision", { decision: "restore_checkpoint:a", option: "yes" }), assert: assertOK },
   { label: "restore reverted the mutation", action: R("scene://current"), assert: (r) => assertNotContains(r, "After checkpoint A", "cp-revert ") },
-  { label: "re-set a checkpoint for removal", action: T("manage_novel", { action: "checkpoint_set", label: "b" }), assert: assertOK },
-  { label: "checkpoint remove", action: T("manage_novel", { action: "checkpoint_remove", label: "b" }), assert: assertOK },
-  { label: "clone creates independent Novel", action: T("manage_novel", { action: "clone", source_slug: "pb-durable", new_name: "pb-durable-clone" }), assert: (r) => assertContains(r, "Cloned", "clone ") },
+  { label: "re-set a checkpoint for removal", action: T("manage_archive", { action: "checkpoint_set", label: "b" }), assert: assertOK },
+  { label: "checkpoint remove", action: T("manage_archive", { action: "checkpoint_remove", label: "b" }), assert: assertOK },
+  { label: "clone creates independent Novel", action: T("manage_archive", { action: "clone", source_slug: "pb-durable", new_name: "pb-durable-clone" }), assert: (r) => assertContains(r, "Cloned", "clone ") },
   { label: "resume the clone", action: T("manage_novel", { action: "resume", slug: "pb-durable-clone" }), assert: assertOK },
   { label: "mutate clone", action: T("manage_scene", { action: "set", description: "Only the clone changes." }), assert: assertOK },
   { label: "resume source", action: T("manage_novel", { action: "resume", slug: "pb-durable" }), assert: assertOK },

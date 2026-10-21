@@ -1146,20 +1146,20 @@ four items is incomplete and blocks handoff.
     with session IDs and timestamps; `manage_session (action: recap, session_id="s1")` returns only s1
     entries; `manage_session (action: recap, session_id="s2")` returns only s2 entries; `manage_session (action: recap)`
     returns all entries; `spec_health` reports per-session metrics array. With
-    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_session (action: compact)` prompts `[NEED_INPUT]`
+    `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_diagnostics (action: compact)` prompts `[NEED_INPUT]`
     confirmation; on confirm, session 1 entries removed from live log,
     `audit://novel/archive` returns session 1 summary; `manage_session (action: recap, session_id="s1")`
     returns the summary from archive; `manage_session (action: recap)` returns only session 2 entries.
-    Player badge `manage_session (action: compact)` returns `[FORBIDDEN]`. (Non-blocking.)
+    Player badge `manage_diagnostics (action: compact)` returns `[FORBIDDEN]`. (Non-blocking.)
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
     files; corrupt primary and `.bak.1` — restart, assert restore from `.bak.2` with
     `[restored-from-backup]` audit entry; `manage_novel (action: end)` removes all backups.
-    `manage_novel (action: checkpoint_set, "a")` → 5 mutations → `manage_novel (action: checkpoint_restore, "a")` with `[NEED_INPUT]`
-    confirm → assert all 5 mutations reversed; `manage_novel (action: checkpoint_remove)` removes entry;
+    `manage_archive (action: checkpoint_set, "a")` → 5 mutations → `manage_archive (action: checkpoint_restore, "a")` with `[NEED_INPUT]`
+    confirm → assert all 5 mutations reversed; `manage_archive (action: checkpoint_remove)` removes entry;
     `TTRPG_MAX_CHECKPOINTS=1` overflow discards oldest; checkpoint survives restart
-    and Novel switch; `manage_novel (action: export, json, include_checkpoints=true)` includes
-    checkpoints key; Player badge returns `[FORBIDDEN]`. `manage_novel (action: clone, "src", "dst")`
+    and Novel switch; `manage_archive (action: export, json, include_checkpoints=true)` includes
+    checkpoints key; Player badge returns `[FORBIDDEN]`. `manage_archive (action: clone, "src", "dst")`
     creates independent Novel; mutating clone does not affect source; duplicate slug
     returns `[STATE_CONFLICT]`; `trim_audit_sessions=2` retains only 2 most recent
     sessions; Player badge returns `[FORBIDDEN]`. (Blocking.)
@@ -1197,12 +1197,12 @@ four items is incomplete and blocks handoff.
     tag:"formal"}])` — assert `entity://<id>/voice_examples` returns examples;
     `entity://<id>/personality` reflects `manage_character (action: personality)` fields.
     `manage_session (action: recap, format="lonelog")` — assert output in Lonelog notation (`###` scene
-    headers, `@` actions, `=>` outcomes); `manage_session (action: compress, format="lonelog")` —
+    headers, `@` actions, `=>` outcomes); `manage_diagnostics (action: compress, format="lonelog")` —
     assert compressed Lonelog entries. (Non-blocking.)
-29. **Novel export/import cycle** — `manage_novel (action: export, "json")` → `manage_novel (action: import, data,
-    "dry-run")` reports changes without side effects → `manage_novel (action: import, data, "replace")`
-    restores exported state → re-`manage_novel (action: export, "json")` matches original.
-    `manage_novel (action: export, "json", "lore")` produces lore-only payload. `manage_novel (action: import, data,
+29. **Novel export/import cycle** — `manage_archive (action: export, "json")` → `manage_archive (action: import, data,
+    "dry-run")` reports changes without side effects → `manage_archive (action: import, data, "replace")`
+    restores exported state → re-`manage_archive (action: export, "json")` matches original.
+    `manage_archive (action: export, "json", "lore")` produces lore-only payload. `manage_archive (action: import, data,
     "dry-run", strict=true)` with broken references reports all failures and blocks
     import. Assert `run_command (action: suggest, "attack the goblin")` returns at least one
     combat-category tool with registered name and REQ-015 classification. (Blocking.)
