@@ -263,7 +263,7 @@ async function main() {
     assert(defects.length === 0, `${defects.length} authoring-standard defects:\n  ${defects.slice(0, 20).join("\n  ")}`);
     console.log(`    (${tools.length} tools within ${budget}B budget; output fields documented)`);
     // REQ-450/REQ-025 — runtime mirror of the static lint, reported in spec_health.
-    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const q = health.host_tool_quality;
     assert(q && typeof q.checked === "number", "spec_health.host_tool_quality missing");
     assert(q.defective === 0, `host tool quality defects: ${JSON.stringify(q.defects)}`);
@@ -271,7 +271,7 @@ async function main() {
 
   // ── T644 (REQ-552): deterministic TDQS conformance over the live surface.
   await test(`T644/REQ-552: spec_health.tdqs reports every registered tool at or above the passing tier`, async () => {
-    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const t = health.tdqs;
     assert(t && typeof t === "object", "spec_health.tdqs missing (REQ-552)");
     assert(t.tool_count === tools.length, `tdqs.tool_count ${t.tool_count} != registered ${tools.length}`);
@@ -284,7 +284,7 @@ async function main() {
   // ── T679/T680 (REQ-552): every host tool reaches the top proxy score, and
   // the live report agrees with the static computation.
   await test(`T679/REQ-552: every host tool scores 5.0 on the deterministic proxy`, async () => {
-    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const t = health.tdqs;
     assert(t.mean_tdqs === 5, `mean TDQS ${t.mean_tdqs} != 5.0`);
     assert(t.min_tdqs === 5, `min TDQS ${t.min_tdqs} != 5.0`);
@@ -298,7 +298,7 @@ async function main() {
   });
 
   await test(`T680/REQ-552: live and static proxies agree`, async () => {
-    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const siblings = tools.map((tool) => tool.name);
     const scores = tools.map((tool) => scoreTool(tool, siblings, recordedDescriptionBudget()));
     const mean = Number((scores.reduce((sum, score) => sum + score.tdqs, 0) / scores.length).toFixed(1));
@@ -318,7 +318,7 @@ async function main() {
 
   // ── T646 (REQ-554): server tool-surface coherence proxies.
   await test("T646/REQ-554: coherence proxies report one naming convention and no undisambiguated overlap", async () => {
-    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const c = health.tdqs?.coherence;
     assert(c && typeof c === "object", "spec_health.tdqs.coherence missing (REQ-554)");
     for (const k of ["disambiguation", "namingConsistency", "toolCountAppropriateness", "completeness", "coherence"]) {
@@ -399,7 +399,7 @@ async function main() {
   const proc2 = await boot();
   const list2 = await send(proc2, { method: "tools/list", params: { scope: "all" } });
   const names2 = new Set(((list2.result?.tools ?? []) as any[]).map((t: any) => t.name));
-  const health = JSON.parse(await call(proc2, "manage_session", { action: "health" }));
+  const health = JSON.parse(await call(proc2, "manage_diagnostics", { action: "health" }));
 
   await test("T512/REQ-430: non-conformant ruleset tool flagged in spec_health without blocking registration", () => {
     assert(names2.has("tqtest_bad_lookup"), "bad_lookup tool not registered");
@@ -422,7 +422,7 @@ async function main() {
     goodRoll,
   ]);
   const proc3 = await boot();
-  const health3 = JSON.parse(await call(proc3, "manage_session", { action: "health" }));
+  const health3 = JSON.parse(await call(proc3, "manage_diagnostics", { action: "health" }));
   await test("T512/REQ-430: conformant rebuild clears the tool-quality flag", () => {
     const counts = health3.ruleset_tool_quality;
     if (!counts || counts.conformant !== 2 || counts.non_conformant !== 0) {
@@ -453,7 +453,7 @@ async function main() {
 
   // ── T450 (REQ-388a–d) ───────────────────────────────────────────────
   const procT450 = await boot({ TTRPG_PACING_WINDOW: "6", TTRPG_NPC_AUTONOMY: "off", TTRPG_WORLD_REACTIVITY: "on" });
-  const health450 = JSON.parse(await call(procT450, "manage_session", { action: "health" }));
+  const health450 = JSON.parse(await call(procT450, "manage_diagnostics", { action: "health" }));
   await test("T450/REQ-388: holodeck_config reports behavioral-config coverage", () => {
     const hc = health450.holodeck_config;
     assert(hc, "spec_health is missing holodeck_config");

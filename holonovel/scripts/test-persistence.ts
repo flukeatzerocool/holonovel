@@ -121,7 +121,7 @@ async function main() {
       await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Clonekeeper", mind: { directive: "Guard the fork's secret.", auto_play: true } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
-      await call(proc, "manage_novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
+      await call(proc, "manage_archive", { action: "clone",  source_slug: "renamed", new_name: "fork" });
       const list = await call(proc, "manage_novel", { action: "list" });
       assertContains(list, "fork");
       assertContains(list, "renamed");
@@ -144,14 +144,14 @@ async function main() {
       const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.slug !== "renamed") throw new Error(`rename conflict altered active slug: ${info.slug}`);
       // clone "renamed" onto existing "fork" must refuse (REQ-240).
-      const cloneConflict = await call(proc, "manage_novel", { action: "clone",  source_slug: "renamed", new_name: "fork" });
+      const cloneConflict = await call(proc, "manage_archive", { action: "clone",  source_slug: "renamed", new_name: "fork" });
       assertContains(cloneConflict, "[STATE_CONFLICT]");
       const still = await call(proc, "manage_novel", { action: "info",  slug: "fork" });
       assertContains(still, "fork");
     });
 
     await test("T100/T281/T096: export produces a valid interchange manifest; import validates", async () => {
-      const exported = await call(proc, "manage_novel", { action: "export",  format: "json" });
+      const exported = await call(proc, "manage_archive", { action: "export",  format: "json" });
       const parsed = JSON.parse(exported); // must be parseable JSON
       assertContains(exported, "\"slug\"");
       assertContains(exported, "\"name\"");
@@ -159,7 +159,7 @@ async function main() {
       assertContains(exported, "\"format_version\"");
       assertContains(exported, "\"manifest\"");
       assertContains(exported, "\"novel\"");
-      const dryrun = await call(proc, "manage_novel", { action: "import",  data: exported, mode: "dry-run" });
+      const dryrun = await call(proc, "manage_archive", { action: "import",  data: exported, mode: "dry-run" });
       assertContains(dryrun, "valid manifest");
     });
 
@@ -173,7 +173,7 @@ async function main() {
       await call(proc, "manage_countdown", { action: "set",  name: "court adjourns", ticks: 5, type: "narrative", scope: "throne room" });
       await call(proc, "manage_lore", { action: "set",  key: "the_crown", content: "The crown is a forgery.", triggers: ["the_crown"] });
 
-      const before = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      const before = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       const roomsBefore = Object.keys(before.novel.world.rooms).sort();
       const thingsBefore = Object.keys(before.novel.world.things).sort();
       const exitsBefore = before.novel.world.rooms["throne room"].exits;
@@ -187,8 +187,8 @@ async function main() {
       }
 
       // Replace-import the export back and re-export — tiers must survive.
-      await call(proc, "manage_novel", { action: "import",  data: JSON.stringify(before), mode: "replace" });
-      const after = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      await call(proc, "manage_archive", { action: "import",  data: JSON.stringify(before), mode: "replace" });
+      const after = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       if (JSON.stringify(Object.keys(after.novel.world.rooms).sort()) !== JSON.stringify(roomsBefore)) {
         throw new Error(`round-trip rooms mismatch: before=${roomsBefore} after=${Object.keys(after.novel.world.rooms).sort()}`);
       }
@@ -211,12 +211,12 @@ async function main() {
     });
 
     await test("T78/T99/T093: metadata in spec_health lists Novels", async () => {
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "novel");
     });
 
     await test("T101/T160/T097: spec_health reports novel health", async () => {
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "health");
     });
 
@@ -259,7 +259,7 @@ async function main() {
       await call(proc, "manage_novel", { action: "create",  name: "genre-novel" });
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_novel", { action: "genre",  genre: "noir" });
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.active_genre !== "noir") throw new Error(`active_genre missing: ${health.active_genre}`);
       const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.genre !== "noir") throw new Error(`genre not in novel_info: ${info.genre}`);
@@ -283,16 +283,16 @@ async function main() {
       await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Archivist", mind: { directive: "Keep the archive sealed." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
-      await call(proc, "manage_novel", { action: "archive",  slug: "archive-me" });
+      await call(proc, "manage_archive", { action: "archive",  slug: "archive-me" });
       const active = await call(proc, "manage_novel", { action: "list" });
       if (active.includes("archive-me")) throw new Error("archived novel still listed as active");
       const archived = await call(proc, "manage_novel", { action: "list",  filter: "archived" });
       assertContains(archived, "archive-me");
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (!JSON.stringify(health.archived_novels).includes("archive-me")) throw new Error("archived_novels missing");
       const resume = await call(proc, "manage_novel", { action: "resume",  slug: "archive-me" });
       assertContains(resume, "[STATE_CONFLICT]");
-      await call(proc, "manage_novel", { action: "unarchive",  slug: "archive-me" });
+      await call(proc, "manage_archive", { action: "unarchive",  slug: "archive-me" });
       const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.slug !== "archive-me") throw new Error("unarchive did not restore active novel");
       const fateAfter = JSON.parse(await call(proc, "resolve_mechanic", { action: "fate_point",  op: "list" }));
@@ -336,7 +336,7 @@ async function main() {
     // (map-based activation, REQ-088/REQ-065).
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "real-slug" });
     await test("T159/REQ-088: TTRPG_NOVEL activates a misnamed save by internal slug", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.active_novel !== "real-slug") throw new Error(`misnamed startup novel not active: ${health.active_novel}`);
     });
     await kill(proc);
@@ -348,7 +348,7 @@ async function main() {
     writeFileSync(join(dir, "novels", "auto-slug.json"), JSON.stringify({ slug: "auto-slug", name: "auto-slug", badge: "game_master", metadata: meta }));
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "auto-slug" });
     await test("T159/REQ-088: TTRPG_NOVEL resumes an existing Novel before any tool call", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.active_novel !== "auto-slug") throw new Error(`startup novel not active: ${health.active_novel}`);
     });
     await kill(proc);
@@ -356,7 +356,7 @@ async function main() {
     // T159b — create a missing Novel at startup.
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "brand-new" });
     await test("T159/REQ-088: TTRPG_NOVEL creates a missing Novel before any tool call", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.active_novel !== "brand-new") throw new Error(`created startup novel not active: ${health.active_novel}`);
     });
     await kill(proc);
@@ -374,7 +374,7 @@ async function main() {
       await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "persistence-test", version: "1.0.0" } } });
       p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
       await new Promise((r) => setTimeout(r, 250));
-      const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
       if (health.active_novel !== null) throw new Error(`corrupt startup novel became active: ${health.active_novel}`);
       const corrupted = Object.keys(health.data_health?.corrupted ?? {});
       if (!corrupted.includes("bad")) throw new Error(`corrupted slug not surfaced: ${JSON.stringify(health.data_health)}`);
@@ -418,7 +418,7 @@ async function main() {
 
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL_BACKUP_COUNT: "3", TTRPG_NOVEL: "rot" });
     await test("T276/REQ-238: corrupt primary + .bak.1 restores from .bak.2 with audited index", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.active_novel !== "rot") throw new Error(`restored startup novel not active: ${health.active_novel}`);
       // Force a save so the restored state (with its resume audit entry) lands
       // on disk, then inspect the audit log directly.
@@ -510,7 +510,7 @@ async function main() {
     const dir = mkdtempSync(join(tmpdir(), "holonovel-drift-test-"));
     let proc = await boot({ TTRPG_DATA_DIR: dir });
     await test("T226/REQ-187: fresh start persists the fingerprint with no drift", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.spec_hash_current !== true) throw new Error(`spec_hash_current should be true on a fresh start, got ${health.spec_hash_current}`);
       if ((health.build_drift ?? []).length !== 0) throw new Error(`fresh start reported drift: ${JSON.stringify(health.build_drift)}`);
       if (!existsSync(join(dir, "build-fingerprint.json"))) throw new Error("build-fingerprint.json was not written to the state dir");
@@ -528,7 +528,7 @@ async function main() {
 
     proc = await boot({ TTRPG_DATA_DIR: dir });
     await test("T224/REQ-065: startup drift comparison reports spec, version, and ruleset drift", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.spec_hash_current !== false) throw new Error("spec_hash_current should be false after drift");
       if (health.spec_hash !== "0".repeat(64)) throw new Error("spec_hash should report the stored value (REQ-187a)");
       const drift = (health.build_drift ?? []).join("\n");

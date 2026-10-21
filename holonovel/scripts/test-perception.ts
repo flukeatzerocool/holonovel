@@ -55,7 +55,7 @@ async function main() {
 
   await test("T617/REQ-543: perceptions carry event provenance", async () => {
     const p = await boot(); await newNovel(p, "pc4");
-    await call(p, "manage_session", { action: "event", text: "a horn sounds" });
+    await call(p, "manage_diagnostics", { action: "event", text: "a horn sounds" });
     await rec(p, { entity_id: "hero", summary: "heard the horn" }); // defaults to latest event ordinal
     const byEvent = JSON.parse(await perception(p, { action: "for_event", event_ordinal: 1 }));
     assert(byEvent.length === 1 && byEvent[0].entity_id === "hero", "event provenance wrong: " + JSON.stringify(byEvent));

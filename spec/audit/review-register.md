@@ -616,27 +616,29 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `TTRPG_AUTONOMY` (T485), `TTRPG_SYNTHESIS_AUTO_TRIGGER` (T323). Misses fell
   18 → 1; the recorded baseline was re-pinned to 1.
 
+- **REQ-581 compatibility aliases (resolved 2026-10-21):** the five
+  split-duplicate action sets and the four consolidation aliases
+  (`resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and
+  `manage_ruleset (action: roll)`) are retired tombstones. Each hidden
+  declaration returns `[NOT_FOUND]` naming its replacement; `tools/list` omits
+  them; `spec_health.tool_surface` reports 45 retired declarations; T675 covers
+  the tombstone refusal and T674 covers the compatibility mechanism. The
+  canonical surface is unchanged at 36 tools / 214 actions. (REQ-581)
+  The guarded-rule co-change is incidental: Appendix M's authoring rules were
+  not edited. The shared appendices file also carries the T674/T675 catalogue
+  correction, and `scripts/validate.ts` updated the `TTRPG_AUTONOMY` alias to
+  the canonical `manage_staging (action: autonomy)` token.
+
 ## Scheduled-roadmap
 
 - **Prompt generation from the ruleset model (P1, scheduled 2026-10-12):**
   REQ-078a and §6.4.1 require build-time prompt generation from the ruleset
-  model, and REQ-023a/REQ-127 require ruleset-native terminology, but the
-  reference host emits all five prompts as hardcoded literals
-  (`holonovel/src/index.ts:9328,9378,9797,9889,9936`) and never registers the
-  package `prompts.json` (`holonovel/src/rulesets.ts:68-83`). Normative REQ
-  unevidenced → scheduled on ROADMAP.md ("Prompt generation from the ruleset
-  model"). Bounded first step: register package prompts at runtime; full
-  generation remains open.
-
-- **REQ-581 compatibility aliases (scheduled 2026-10-20):** the five
-  2026-10-19 split-duplicate action sets and the four 2026-10-20 consolidation
-  aliases (`resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and
-  `manage_ruleset (action: roll)`) remain callable for one minor version
-  (`holonovel/tool-surface-registry.json` compatibility declarations;
-  `holonovel/src/index.ts` hidden-alias projection). They are scheduled on
-  ROADMAP.md ("Retire REQ-581 compatibility aliases (next minor)"). The
-  canonical surface is 36 tools / 214 actions; compatibility is 3 hidden tools
-  plus 1 hidden action carrying 45 actions. (REQ-581)
+  model, and REQ-023a/REQ-127 require ruleset-native terminology. The bounded
+  first step landed on 2026-10-21: installed package `prompts.json` entries are
+  registered, served, and deregistered at runtime (T453/T155), with collisions
+  and ruleset mismatches reported. The five host prompt bodies remain
+  hardcoded literals, so full build-time generation remains open and stays on
+  ROADMAP.md ("Prompt generation from the ruleset model").
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 

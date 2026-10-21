@@ -246,7 +246,7 @@ async function main(): Promise<void> {
     result = await send(proc, { method: "tools/list", params: { _meta: { profile: "full" } } });
     health = await send(proc, {
       method: "tools/call",
-      params: { name: "manage_session", arguments: { action: "health" } },
+      params: { name: "manage_diagnostics", arguments: { action: "health" } },
     });
   } finally {
     try { proc.kill("SIGKILL"); } catch { /* already exited — killing twice is a no-op */ }

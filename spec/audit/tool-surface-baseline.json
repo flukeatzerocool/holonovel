@@ -13,244 +13,244 @@
         "name": "manage_lore.corpus_access",
         "kind": "action",
         "replacement": "manage_corpus.corpus_access",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_acquisitions",
         "kind": "action",
         "replacement": "manage_corpus.corpus_acquisitions",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_consume",
         "kind": "action",
         "replacement": "manage_corpus.corpus_consume",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_deny",
         "kind": "action",
         "replacement": "manage_corpus.corpus_deny",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_get",
         "kind": "action",
         "replacement": "manage_corpus.corpus_get",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_grant",
         "kind": "action",
         "replacement": "manage_corpus.corpus_grant",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_list",
         "kind": "action",
         "replacement": "manage_corpus.corpus_list",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_register",
         "kind": "action",
         "replacement": "manage_corpus.corpus_register",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_lore.corpus_route",
         "kind": "action",
         "replacement": "manage_corpus.corpus_route",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.archive",
         "kind": "action",
         "replacement": "manage_archive.archive",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.branch",
         "kind": "action",
         "replacement": "manage_archive.branch",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.checkpoint_list",
         "kind": "action",
         "replacement": "manage_archive.checkpoint_list",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.checkpoint_remove",
         "kind": "action",
         "replacement": "manage_archive.checkpoint_remove",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.checkpoint_restore",
         "kind": "action",
         "replacement": "manage_archive.checkpoint_restore",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.checkpoint_set",
         "kind": "action",
         "replacement": "manage_archive.checkpoint_set",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.clone",
         "kind": "action",
         "replacement": "manage_archive.clone",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.export",
         "kind": "action",
         "replacement": "manage_archive.export",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.import",
         "kind": "action",
         "replacement": "manage_archive.import",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_novel.unarchive",
         "kind": "action",
         "replacement": "manage_archive.unarchive",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_ruleset.roll",
         "kind": "action",
         "replacement": "resolve_mechanic.roll",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_scene.autonomy",
         "kind": "action",
         "replacement": "manage_staging.autonomy",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_scene.presence",
         "kind": "action",
         "replacement": "manage_staging.presence",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.category",
         "kind": "action",
         "replacement": "manage_diagnostics.category",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.compact",
         "kind": "action",
         "replacement": "manage_diagnostics.compact",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.compress",
         "kind": "action",
         "replacement": "manage_diagnostics.compress",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.event",
         "kind": "action",
         "replacement": "manage_diagnostics.event",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.health",
         "kind": "action",
         "replacement": "manage_diagnostics.health",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.history",
         "kind": "action",
         "replacement": "manage_diagnostics.history",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_session.subscribe",
         "kind": "action",
         "replacement": "manage_diagnostics.subscribe",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_world.causal_admit",
         "kind": "action",
         "replacement": "manage_causality.causal_admit",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_world.causal_ingress",
         "kind": "action",
         "replacement": "manage_causality.causal_ingress",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_world.causal_list",
         "kind": "action",
         "replacement": "manage_causality.causal_list",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_world.causal_propose",
         "kind": "action",
         "replacement": "manage_causality.causal_propose",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_world.causal_reject",
         "kind": "action",
         "replacement": "manage_causality.causal_reject",
-        "retired": false
+        "retired": true
       },
       {
         "name": "manage_world.causal_state",
         "kind": "action",
         "replacement": "manage_causality.causal_state",
-        "retired": false
+        "retired": true
       },
       {
         "name": "resolve_fate",
         "kind": "tool",
         "replacement": "resolve_mechanic",
-        "retired": false
+        "retired": true
       },
       {
         "name": "resolve_forged",
         "kind": "tool",
         "replacement": "resolve_mechanic",
-        "retired": false
+        "retired": true
       },
       {
         "name": "resolve_ironsworn",
         "kind": "tool",
         "replacement": "resolve_mechanic",
-        "retired": false
+        "retired": true
       }
     ],
-    "full_tokens": 25852,
-    "tools_list_bytes": 103407
+    "full_tokens": 25856,
+    "tools_list_bytes": 103424
   },
   "measurements": {
     "full": {
       "tools": 36,
-      "bytes": 103407,
-      "tokens": 25852
+      "bytes": 103424,
+      "tokens": 25856
     },
     "standard": {
       "tools": 36,
-      "bytes": 89403,
-      "tokens": 22351
+      "bytes": 89420,
+      "tokens": 22355
     },
     "small": {
       "tools": 6,
@@ -301,11 +301,11 @@
     }
   },
   "budgets": {
-    "standard": 23267,
+    "standard": 23271,
     "small": 2586
   },
   "worst_case": {
-    "standard_tokens": 22351,
+    "standard_tokens": 22355,
     "small_tokens": 1153
   },
   "groups": [
@@ -313,7 +313,7 @@
       "group": "table",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 1153
     },
@@ -321,7 +321,7 @@
       "group": "explore",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 885
     },
@@ -329,7 +329,7 @@
       "group": "resolve",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 1141
     },
@@ -337,7 +337,7 @@
       "group": "narrate",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 1150
     },
@@ -345,7 +345,7 @@
       "group": "lookup",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 977
     },
@@ -353,7 +353,7 @@
       "group": "referee",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 915
     },
@@ -361,7 +361,7 @@
       "group": "author",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 971
     },
@@ -369,7 +369,7 @@
       "group": "maintain",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 22351,
+      "standard_tokens": 22355,
       "small_tools": 6,
       "small_tokens": 1012
     }

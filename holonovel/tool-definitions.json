@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 103407,
+  "tools_list_bytes": 103424,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 103407,
-        "tokens": 25852
+        "bytes": 103424,
+        "tokens": 25856
       },
       "standard": {
         "tools": 36,
-        "bytes": 89403,
-        "tokens": 22351
+        "bytes": 89420,
+        "tokens": 22355
       },
       "small": {
         "tools": 6,
@@ -295,8 +295,8 @@
     {
       "name": "manage_belief",
       "title": "Belief Management",
-      "description": "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel and are audited; list/get/evidence/conflicts and the perception reads are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing evidence (retract), inspecting stances (list), reading one question (get), listing evidence (evidence), finding contradictions (conflicts), forcing recomputation (reconcile), or recording and reading perceptions (perception_* actions). Do NOT use when: recording objective world truth — use manage_world (action: causal_propose); recording shared lore or consumed reference material — use manage_lore.",
-      "description_bytes": 908,
+      "description": "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel and are audited; list/get/evidence/conflicts and the perception reads are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing evidence (retract), inspecting stances (list), reading one question (get), listing evidence (evidence), finding contradictions (conflicts), forcing recomputation (reconcile), or recording and reading perceptions (perception_* actions). Do NOT use when: recording objective world truth — use manage_causality (action: causal_propose); recording shared lore or consumed reference material — use manage_lore.",
+      "description_bytes": 912,
       "action_enum": [
         "list",
         "get",
@@ -355,8 +355,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3643,
-        "descriptionBytes": 908
+        "definitionBytes": 3647,
+        "descriptionBytes": 912
       },
       "category": "",
       "gate": ""
@@ -1045,8 +1045,8 @@
     {
       "name": "manage_knowledge",
       "title": "Derived Knowledge",
-      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_lore (including its corpus_* actions); recording a relationship — use manage_relationship.",
-      "description_bytes": 903,
+      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording a relationship — use manage_relationship.",
+      "description_bytes": 872,
       "action_enum": [
         "index_build",
         "index_status",
@@ -1094,8 +1094,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2296,
-        "descriptionBytes": 903
+        "definitionBytes": 2265,
+        "descriptionBytes": 872
       },
       "category": "",
       "gate": ""
@@ -1425,8 +1425,8 @@
     {
       "name": "manage_ruleset",
       "title": "Ruleset Package Management",
-      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll), which remains callable here as a hidden compatibility alias. Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
-      "description_bytes": 942,
+      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll); the former roll action here is retired and returns [NOT_FOUND] naming resolve_mechanic (action: roll). Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
+      "description_bytes": 984,
       "action_enum": [
         "search",
         "install",
@@ -1479,8 +1479,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2981,
-        "descriptionBytes": 942
+        "definitionBytes": 3023,
+        "descriptionBytes": 984
       },
       "category": "",
       "gate": ""
@@ -2205,8 +2205,8 @@
     {
       "name": "take_turn",
       "title": "Take Play Turn",
-      "description": "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use manage_ruleset (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
-      "description_bytes": 454,
+      "description": "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use resolve_mechanic (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
+      "description_bytes": 456,
       "action_enum": [],
       "param_count": 2,
       "required": [
@@ -2240,8 +2240,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1320,
-        "descriptionBytes": 454
+        "definitionBytes": 1322,
+        "descriptionBytes": 456
       },
       "category": "",
       "gate": ""
@@ -2252,217 +2252,217 @@
       "name": "manage_lore.corpus_access",
       "kind": "action",
       "replacement": "manage_corpus.corpus_access",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_acquisitions",
       "kind": "action",
       "replacement": "manage_corpus.corpus_acquisitions",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_consume",
       "kind": "action",
       "replacement": "manage_corpus.corpus_consume",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_deny",
       "kind": "action",
       "replacement": "manage_corpus.corpus_deny",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_get",
       "kind": "action",
       "replacement": "manage_corpus.corpus_get",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_grant",
       "kind": "action",
       "replacement": "manage_corpus.corpus_grant",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_list",
       "kind": "action",
       "replacement": "manage_corpus.corpus_list",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_register",
       "kind": "action",
       "replacement": "manage_corpus.corpus_register",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_lore.corpus_route",
       "kind": "action",
       "replacement": "manage_corpus.corpus_route",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.archive",
       "kind": "action",
       "replacement": "manage_archive.archive",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.branch",
       "kind": "action",
       "replacement": "manage_archive.branch",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.checkpoint_list",
       "kind": "action",
       "replacement": "manage_archive.checkpoint_list",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.checkpoint_remove",
       "kind": "action",
       "replacement": "manage_archive.checkpoint_remove",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.checkpoint_restore",
       "kind": "action",
       "replacement": "manage_archive.checkpoint_restore",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.checkpoint_set",
       "kind": "action",
       "replacement": "manage_archive.checkpoint_set",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.clone",
       "kind": "action",
       "replacement": "manage_archive.clone",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.export",
       "kind": "action",
       "replacement": "manage_archive.export",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.import",
       "kind": "action",
       "replacement": "manage_archive.import",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_novel.unarchive",
       "kind": "action",
       "replacement": "manage_archive.unarchive",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_ruleset.roll",
       "kind": "action",
       "replacement": "resolve_mechanic.roll",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_scene.autonomy",
       "kind": "action",
       "replacement": "manage_staging.autonomy",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_scene.presence",
       "kind": "action",
       "replacement": "manage_staging.presence",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.category",
       "kind": "action",
       "replacement": "manage_diagnostics.category",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.compact",
       "kind": "action",
       "replacement": "manage_diagnostics.compact",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.compress",
       "kind": "action",
       "replacement": "manage_diagnostics.compress",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.event",
       "kind": "action",
       "replacement": "manage_diagnostics.event",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.health",
       "kind": "action",
       "replacement": "manage_diagnostics.health",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.history",
       "kind": "action",
       "replacement": "manage_diagnostics.history",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_session.subscribe",
       "kind": "action",
       "replacement": "manage_diagnostics.subscribe",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_world.causal_admit",
       "kind": "action",
       "replacement": "manage_causality.causal_admit",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_world.causal_ingress",
       "kind": "action",
       "replacement": "manage_causality.causal_ingress",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_world.causal_list",
       "kind": "action",
       "replacement": "manage_causality.causal_list",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_world.causal_propose",
       "kind": "action",
       "replacement": "manage_causality.causal_propose",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_world.causal_reject",
       "kind": "action",
       "replacement": "manage_causality.causal_reject",
-      "retired": false
+      "retired": true
     },
     {
       "name": "manage_world.causal_state",
       "kind": "action",
       "replacement": "manage_causality.causal_state",
-      "retired": false
+      "retired": true
     },
     {
       "name": "resolve_fate",
       "kind": "tool",
       "replacement": "resolve_mechanic",
-      "retired": false,
+      "retired": true,
       "action_enum": [
         "aspect",
         "fate_point",
@@ -2474,7 +2474,7 @@
       "name": "resolve_forged",
       "kind": "tool",
       "replacement": "resolve_mechanic",
-      "retired": false,
+      "retired": true,
       "action_enum": [
         "action_roll",
         "downtime",
@@ -2485,7 +2485,7 @@
       "name": "resolve_ironsworn",
       "kind": "tool",
       "replacement": "resolve_mechanic",
-      "retired": false,
+      "retired": true,
       "action_enum": [
         "momentum",
         "move",

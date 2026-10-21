@@ -1,8 +1,8 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** dadd4c3fab52d0e4e962a4fcfdca37ec30d31f546ebdbcc9dce225c243f63285
+**Spec hash:** 1ea4087550a373e6f0cb0cc492c8952223d419a07d74bb2dcaadd271cf90059b
 
-**Recorded tool budget:** 36 listed (214 canonical actions; 3 hidden tool aliases + 1 hidden action alias carrying 45 compatibility actions) (REQ-429, REQ-581)
+**Recorded tool budget:** 36 listed (214 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 45 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
@@ -16,13 +16,32 @@
 - **Baseline.** 30 tools, 211 actions, 16,040 full-catalog tokens under the pinned estimator. Worst-case standard projection 6,481 tokens (budget 8,020); worst-case small projection 196 tokens (budget 1,604). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
 - **Gates.** `check-tool-surface` (registry coverage, entry uniqueness, group balance) and `surface-budget` (profile budgets) are wired into `check:fast` and `check`.
 - **Enforcement.** REQ-573 preconditions (combat-active), REQ-575 cross-group edges, and REQ-576 audited Editor override are implemented in the `tools/call` guard; the override count is reported in `spec_health.tool_surface.overrides`. `test:surface-guards` exercises T666/T668/T669 and the REQ-577/REQ-574 composites (T670/T667) and is wired into `test:all`. Cross-group enforcement is inert under the default `full` profile.
-- **Consolidation.** `resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and `manage_ruleset (action: roll)` are consolidated into `resolve_mechanic` under REQ-413. The three prior tool names and the prior roll action remain callable as hidden compatibility aliases under REQ-581; they are omitted from `tools/list` and advertised by `spec_health.tool_surface` and `holonovel://tool-groups`. The canonical surface is 36 tools and 214 actions; compatibility declarations total 45 actions. `check-tool-surface` now enforces the two-group span limit over canonical actions, and `manage_ruleset` is author + lookup only.
-- **Five splits.** `manage_session` → `manage_diagnostics`, `manage_world` → `manage_causality`, `manage_novel` → `manage_archive`, `manage_scene` → `manage_staging`, and `manage_lore` → `manage_corpus` landed under REQ-413 with REQ-581 compatibility. Each original name remains callable for one minor version and advertises its replacement in `_meta`; the split tool delegates to the same handler. Recorded budget 30 → 35. Baseline re-recorded at full 20,836 / standard 8,145 / small 262 tokens. Deterministic replay (30 intents): full visibility 1.0 / mean calls 1.0; standard and small 0.733 / 1.267. Composites `open_session`, `close_session`, and `take_turn` landed under REQ-577; `take_turn` mints the REQ-574 handle consumed by `manage_story (action: record)`.
+- **Consolidation.** `resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and `manage_ruleset (action: roll)` are consolidated into `resolve_mechanic` under REQ-413. The three prior tool names and the prior roll action are retired under REQ-581; they remain registered as tombstones that return `[NOT_FOUND]` naming `resolve_mechanic`, are omitted from `tools/list`, and are advertised by `spec_health.tool_surface` and `holonovel://tool-groups`. The canonical surface is 36 tools and 214 actions; 45 compatibility declarations are retired. `check-tool-surface` now enforces the two-group span limit over canonical actions, and `manage_ruleset` is author + lookup only.
+- **Five splits.** `manage_session` → `manage_diagnostics`, `manage_world` → `manage_causality`, `manage_novel` → `manage_archive`, `manage_scene` → `manage_staging`, and `manage_lore` → `manage_corpus` landed under REQ-413 with REQ-581 compatibility. Each split action set is retired; the original tool keeps its retained actions and advertises the split tool in `_meta`; the split tool delegates to the same handler. Recorded budget 30 → 35. Baseline re-recorded at full 20,836 / standard 8,145 / small 262 tokens. Deterministic replay (30 intents): full visibility 1.0 / mean calls 1.0; standard and small 0.733 / 1.267. Composites `open_session`, `close_session`, and `take_turn` landed under REQ-577; `take_turn` mints the REQ-574 handle consumed by `manage_story (action: record)`.
 - **Generated surfaces.** REQ-578 is implemented: `RulesetToolSchema` requires `group` and `phases`, the dnd2024 emitter assigns them from `kind` and tool name, and `test-ruleset-gates` covers T671. The dnd2024 package was re-emitted with a new content hash; the host flags ungrouped legacy packages without blocking them.
 - **Aliases.** REQ-581 is implemented at the catalog level: each split original carries `_meta { deprecated: true, replacement: <tool> }`, and `test-surface-guards` asserts the metadata and the replacement's absence. Response-level deprecation notices are not emitted because several originals return machine-parsed JSON.
 - **Legacy packages.** REQ-579 is implemented by `scripts/update-rulesets.ts` and T672 in `test-fingerprints`: stale packages are reported with a rebuild invocation, a package with no recorded source is deferred with its reason, and the rebuilt fixture loads with declarations.
 - **Replay and alignment.** The deterministic replay proxy is recorded in `spec/audit/tool-surface-replay.json` (30 intents; full visibility 1.0 / mean calls 1.0; standard and small 0.733 / 1.267). A live-model selection run remains advisory, not a gate. REQ-067d categories now carry their intent group, and the group directory lists every group.
 - **Deferred.** No planned surface item is open; the live-model accuracy run remains advisory.
+
+### Package prompts — 2026-10-21
+
+- **Decision.** Installed package `prompts.json` entries are registered at
+  startup and on `manage_ruleset (action: install)`, served through a wrapper
+  over the MCP SDK's `prompts/list` and `prompts/get` handlers, and
+  deregistered on `manage_ruleset (action: remove)` (REQ-023a, REQ-389c). The
+  SDK exposes no prompt deregistration API, so the host-owned map is
+  authoritative.
+- **Collision and filtering.** A package prompt whose name collides with a host
+  prompt or an earlier package prompt is skipped and reported in
+  `spec_health.package_prompts.errors`; re-scanning on install/remove resolves
+  collisions deterministically. `prompts/list` includes all entries; a
+  `prompts/get` for a package prompt whose ruleset differs from the active
+  Novel's binding refuses with `[ERROR] [INVALID_INPUT]`.
+- **Health.** `spec_health.prompt_count` and `prompt_health` include package
+  prompts; `prompt_health.budget` is the REQ-118 configured budget.
+- **Open.** Build-time generation of the five host prompt bodies from the
+  ruleset model remains open under REQ-078a/§6.4.1.
 
 ### Bundled starter Novel (Torre Nosferatu) — 2026-10-12
 
@@ -38,6 +57,13 @@
 - The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-21 (Retire REQ-581 aliases; register package prompts at runtime)
+
+- **Delta class:** minor. Changed surfaces: Retire REQ-581 aliases; register package prompts at runtime; Tool surface re-baseline, profile redesign, TDQS 5/5; Surface consolidation and compatibility accounting; Tool Surface coverage evidence; Tool Surface Contract.
+- **Verification:** `npm run assemble` ok (SHA 60fb9a5e…); `npm run build-order` complete — 0 errors, 192 proofreading warnings; package_format `aeb9d423…`, data_format `fc35429b…`; `npm run check:fast` PASS; `npm run check` 0 errors; holonovel `test:all` 44/44; version 2026.10.21; coverage register current.
+
+<!-- @spec-update:1ea4087550a373e6f0cb0cc492c8952223d419a07d74bb2dcaadd271cf90059b -->
 
 ### Holonovel Spec Update — 2026-10-20 (Surface consolidation and compatibility accounting)
 
@@ -288,13 +314,13 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 
 ### Compatibility aliases
 
-`resolve_fate`, `resolve_ironsworn`, and `resolve_forged` are hidden compatibility aliases of `resolve_mechanic`; `manage_ruleset (action: roll)` is a hidden action alias of `resolve_mechanic (action: roll)`. Each inherits the replacement's gate (un-gated), is omitted from `tools/list`, and is advertised in `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).
+`resolve_fate`, `resolve_ironsworn`, and `resolve_forged` are retired tombstones for `resolve_mechanic`; `manage_ruleset (action: roll)` is a retired action tombstone for `resolve_mechanic (action: roll)`. Each returns `[NOT_FOUND]` naming its replacement, is omitted from `tools/list`, and is advertised in `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).
 
 ## Configuration classification (REQ-388c)
 
 Behavioral `TTRPG_*` variables are classified in §7.6 and mirrored in the
 `HOLODECK_BEHAVIORAL` catalog in `src/index.ts`, surfaced by
-`manage_session (action: health).holodeck_config`. `Behavioral` variables are
+`manage_diagnostics (action: health).holodeck_config`. `Behavioral` variables are
 natural-language-tunable (a Session-source coupling row in §7.7.1a);
 `Behavioral (mechanical)` variables are engine-tuned (a non-Session coupling
 row). All other `TTRPG_*` variables are system or presentation.
@@ -310,7 +336,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.10.20 |
+| Spec version | 2026.10.21 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

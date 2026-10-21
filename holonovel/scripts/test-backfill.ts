@@ -196,7 +196,7 @@ async function main() {
     });
 
     await test("T15/T93/T171/T195: spec_health reports counts and health", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       assertContains(String(health.spec_version), "2026");
       if (typeof health.tool_count !== "number") throw new Error("spec_health missing tool_count");
       if (typeof health.resource_count !== "number") throw new Error("spec_health missing resource_count");
@@ -226,12 +226,12 @@ async function main() {
       await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Checkpointer", mind: { directive: "Original directive." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
-      await call(proc, "manage_novel", { action: "checkpoint_set",  label: "pre-combat" });
-      const list = await call(proc, "manage_novel", { action: "checkpoint_list" });
+      await call(proc, "manage_archive", { action: "checkpoint_set",  label: "pre-combat" });
+      const list = await call(proc, "manage_archive", { action: "checkpoint_list" });
       assertContains(list, "pre-combat");
       await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       if (npcId) await call(proc, "manage_npc", { action: "update", npc_id: npcId, mind: { directive: "Changed directive." } });
-      const restore = await call(proc, "manage_novel", { action: "checkpoint_restore",  label: "pre-combat" });
+      const restore = await call(proc, "manage_archive", { action: "checkpoint_restore",  label: "pre-combat" });
       assertContains(restore, "[NEED_INPUT]");
       await call(proc, "respond_decision", { decision: "restore_checkpoint:pre-combat", option: "yes" });
       const fates = JSON.parse(await call(proc, "resolve_mechanic", { action: "fate_point",  op: "list" }));
@@ -242,7 +242,7 @@ async function main() {
         assertContains(npcAfter, "Original directive.");
         if (npcAfter.toLowerCase().includes("changed directive")) throw new Error("checkpoint restore did not revert NPC mind");
       }
-      await call(proc, "manage_novel", { action: "checkpoint_remove",  label: "pre-combat" });
+      await call(proc, "manage_archive", { action: "checkpoint_remove",  label: "pre-combat" });
     });
 
     await test("T280/T242: notes set, list, remove", async () => {
@@ -273,7 +273,7 @@ async function main() {
 
     await test("T277/T239: compact requires confirmation and cancels cleanly", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "audit-room", description: "Audit." });
-      const ni = await call(proc, "manage_session", { action: "compact",  sessions: 1 });
+      const ni = await call(proc, "manage_diagnostics", { action: "compact",  sessions: 1 });
       assertContains(ni, "[NEED_INPUT]");
       const cancelled = await call(proc, "respond_decision", { decision: "compress_audit:1", option: "cancel" });
       assertContains(cancelled, "[OK]");
@@ -287,7 +287,7 @@ async function main() {
     });
 
     await test("T104: prompt health in spec_health", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.prompt_count !== "number") throw new Error("prompt_count missing");
     });
 
@@ -449,7 +449,7 @@ async function main() {
 
     await test("T41/T051: no outbound network access — server stays local", async () => {
       // The server is STDIO-local; assert no network endpoints are registered.
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "spec_version");
     });
 
@@ -492,7 +492,7 @@ async function main() {
     await test("T216/T218/T220/T074: multi-entity support — several characters exist", async () => {
       await call(proc, "manage_character", { action: "create",  name: "MultiOne", description: "1" });
       await call(proc, "manage_character", { action: "create",  name: "MultiTwo", description: "2" });
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if ((health.entities ?? 0) < 2) throw new Error(`expected ≥2 entities, got ${health.entities}`);
     });
 
@@ -512,7 +512,7 @@ async function main() {
     });
 
     await test("T483/T484/T485/T306: adjustable autonomy — set_autonomy changes level", async () => {
-      const auto = await call(proc, "manage_scene", { action: "autonomy",  level: "full" });
+      const auto = await call(proc, "manage_staging", { action: "autonomy",  level: "full" });
       assertContains(auto, "[OK] Autonomy set");
     });
 
@@ -593,7 +593,7 @@ async function main() {
       const proc2 = await boot({ TTRPG_WORKFLOW_STALENESS_CONNECTIONS: "3" });
       await call(proc2, "set_badge", { badge: "game_master" });
       await call(proc2, "manage_novel", { action: "resume",  slug: "bf4" });
-      const health = JSON.parse(await call(proc2, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc2, "manage_diagnostics", { action: "health" }));
       if (!health.pending_workflow) throw new Error("pending_workflow not surfaced");
       await kill(proc2);
       // Reboot a fresh proc for the remaining tests in this block. bf4 was
@@ -618,7 +618,7 @@ async function main() {
     });
 
     await test("T477/T488/T408: parameter ceiling recorded in spec_health", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.parameter_ceiling !== "number") throw new Error("parameter_ceiling missing");
       // T477's recoverable clause: each tool's parameter count is exposed.
       if (typeof health.tool_parameter_counts?.manage_character !== "number") {
@@ -627,18 +627,18 @@ async function main() {
     });
 
     await test("T478/T409: response-lean enumeration — spec_health reports summary counts", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.tool_count !== "number") throw new Error("tool_count missing");
     });
 
     await test("T479/T410: token footprint in performance record", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.token_footprint?.tools_list_bytes !== "number") throw new Error("token_footprint.tools_list_bytes missing");
     });
 
     await test("T480/T411: stable-metadata caching — repeated spec_health consistent", async () => {
-      const a = JSON.parse(await call(proc, "manage_session", { action: "health" }));
-      const b = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const a = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const b = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (a.tool_count !== b.tool_count) throw new Error("cached metadata drifted between calls");
     });
 
@@ -649,16 +649,16 @@ async function main() {
     });
 
     await test("T194/T159: synthesis briefing integration — spec_health reports synthesis status", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.synthesis_active !== "boolean") throw new Error("synthesis_active missing");
     });
 
     await test("S6/S17/REQ-030: single-user connection — one active badge serves the connection", async () => {
       await call(proc, "set_badge", { badge: "player" });
-      const p = await call(proc, "manage_session", { action: "health" });
+      const p = await call(proc, "manage_diagnostics", { action: "health" });
       if (JSON.parse(p).active_badge !== "player") throw new Error("badge did not persist per-connection");
       await call(proc, "set_badge", { badge: "game_master" });
-      const g = await call(proc, "manage_session", { action: "health" });
+      const g = await call(proc, "manage_diagnostics", { action: "health" });
       if (JSON.parse(g).active_badge !== "game_master") throw new Error("badge switch not reflected");
     });
 
@@ -794,7 +794,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create", name: "autonomy-preset" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T485/REQ-306: TTRPG_AUTONOMY seeds the new Novel's default autonomy level", async () => {
-      const auto = await call(proc, "manage_scene", { action: "autonomy" });
+      const auto = await call(proc, "manage_staging", { action: "autonomy" });
       assertContains(auto, "full");
     });
     await kill(proc);
@@ -825,7 +825,7 @@ async function main() {
     await call(proc, "set_badge", { badge: "game_master" });
     await call(proc, "manage_synthesis", { action: "run" });
     await test("T195/REQ-160: TTRPG_SYNTHESIS_STALE_DAYS=0 reports stale synthesis items", async () => {
-      const h = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const h = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const stale = h.synthesis_health?.stale_count;
       if (!(stale > 0)) throw new Error(`expected stale_count > 0 with threshold 0, got ${JSON.stringify(stale)}`);
       const list = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
@@ -843,7 +843,7 @@ async function main() {
     await call(proc, "manage_character", { action: "create", name: "P1" });
     await call(proc, "manage_character", { action: "create", name: "P2" });
     await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
-    await call(proc, "manage_scene", { action: "presence", entity_ids: ["character_01", "character_02"] });
+    await call(proc, "manage_staging", { action: "presence", entity_ids: ["character_01", "character_02"] });
     await test("REQ-307/REQ-074: scene-location set places the present party together", async () => {
       await call(proc, "manage_scene", { action: "set", description: "Bay", location: "Bay" });
       const party = JSON.parse(await readResource(proc, "party://current"));
@@ -865,7 +865,7 @@ async function main() {
     await call(proc, "manage_character", { action: "create", name: "P1" });
     await call(proc, "manage_character", { action: "create", name: "P2" });
     await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
-    await call(proc, "manage_scene", { action: "presence", entity_ids: ["character_01", "character_02"] });
+    await call(proc, "manage_staging", { action: "presence", entity_ids: ["character_01", "character_02"] });
     await test("REQ-307/REQ-074: parser climb co-locates the present party", async () => {
       await call(proc, "run_command", { action: "execute", command: "climb ladder" });
       const party = JSON.parse(await readResource(proc, "party://current"));

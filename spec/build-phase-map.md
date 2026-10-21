@@ -1,6 +1,6 @@
 # Build Phase → Spec File Map
 
-<!-- content hash: 2098a30bb8444c169663abb99326044d2fd1485e1786f3ad3ada7885dd32d531 -->
+<!-- content hash: 9e5777d4c77c1692a6daad89fa0be0eb54b02c083c8f6bd3941a2a4cdfd53504 -->
 
 The builder reads files on demand per build phase. The assembled `holonovel.md` contains
 all content for distribution and REQ-105; this table enables per-phase targeted loading

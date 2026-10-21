@@ -189,7 +189,7 @@ step on a host with at least two ruleset packages loaded. The workflow SHALL ver
    the ruleset-B entry in B's Novel.
 
 4. **Import rejection.** Export a ruleset-A Novel. Build a new host
-   that does not include ruleset A. Attempt to `manage_novel (action: import)` — assert
+   that does not include ruleset A. Attempt to `manage_archive (action: import)` — assert
    `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated.
 
 5. **Cross-ruleset Novel switching.** Create Novel A (ruleset A). Create

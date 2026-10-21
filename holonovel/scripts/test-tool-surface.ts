@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildSurfaceReport, type SurfaceRegistry } from "../src/surface-report.js";
+import { hiddenActionAliases, hiddenAliasNames, retiredAliasRefusal, surfaceAliasList } from "../src/core/surface-aliases.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -221,8 +222,49 @@ async function run(): Promise<void> {
       `canonical/compat accounting was ${JSON.stringify({ canonical: after.canonical, compatibility: after.compatibility })}`);
   });
 
+  await test("T674/T675: fixture aliases exercise both callable and retired branches", () => {
+    const aliasDecl = (group: string, compatibility?: { replacement: string; retired?: boolean }) => ({
+      group,
+      phases: ["scene"],
+      entry: false,
+      mutation_class: "read",
+      ruleset: null,
+      preconditions: [],
+      successors: [],
+      edges: [],
+      ...(compatibility ? { compatibility } : {}),
+    });
+    const fixture: SurfaceRegistry = {
+      schema_version: 1,
+      taxonomy: { groups: ["explore", "lookup"], phases: ["scene"], mutation_classes: ["read"] },
+      actions: {
+        "alpha.read": aliasDecl("explore"),
+        "legacy.read": aliasDecl("explore", { replacement: "alpha.read" }),
+        "delta.read": aliasDecl("explore", { replacement: "alpha.read", retired: true }),
+      },
+    };
+    assert(hiddenAliasNames(fixture).has("legacy"), "non-retired tool alias not hidden");
+    assert(hiddenAliasNames(fixture).has("delta"), "retired tool alias not hidden");
+    assert(hiddenActionAliases(fixture).get("legacy.read") === "alpha.read", "action alias replacement missing");
+    assert(retiredAliasRefusal(fixture, "legacy", { action: "read" }) === null, "non-retired alias refused");
+    const refusal = retiredAliasRefusal(fixture, "delta", { action: "read" });
+    assert(refusal?.includes("[NOT_FOUND]") && refusal.includes("alpha.read"), `retired refusal wrong: ${refusal}`);
+    const aliases = surfaceAliasList(fixture);
+    const legacy = aliases.find((entry) => entry.name === "legacy");
+    const delta = aliases.find((entry) => entry.name === "delta");
+    assert(legacy?.replacement === "alpha" && legacy.retired === false, `non-retired alias entry wrong: ${JSON.stringify(legacy)}`);
+    assert(delta?.replacement === "alpha" && delta.retired === true, `retired alias entry wrong: ${JSON.stringify(delta)}`);
+    const report = buildSurfaceReport({
+      registry: fixture, live: new Set(Object.keys(fixture.actions)), profile: "full",
+      catalogBytes: 100, overrides: 0, budgets: { standard: 50, small: 10 },
+    });
+    assert(report.canonical.actions === 1 && report.compatibility.actions === 2,
+      `alias accounting was ${JSON.stringify({ canonical: report.canonical, compatibility: report.compatibility })}`);
+    assert(report.compatibility.retired === 1, `retired count was ${report.compatibility.retired}`);
+  });
+
   await test("T661: spec_health.tool_surface reports every contract field", async () => {
-    const health = JSON.parse(await call(standard, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(standard, "manage_diagnostics", { action: "health" }));
     const surface = health?.tool_surface;
     assert(surface, "missing tool_surface");
     assert(surface.profile === "standard", `profile was ${surface.profile}`);
@@ -391,7 +433,7 @@ async function run(): Promise<void> {
     await call(proc, "manage_novel", { action: "create", name: "measured-profiles" });
     await call(proc, "set_badge", { badge: "game_master" });
     await listTools(proc);
-    const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const surface = health.tool_surface;
     const profiles = surface.catalog_profiles;
     assert(profiles.full.tokens > profiles.standard.tokens, "standard is not leaner than full");

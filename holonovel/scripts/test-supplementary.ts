@@ -38,13 +38,13 @@ async function main() {
     assert(r.includes("Wisdom-only"), "import did not report the waiver: " + r.slice(0, 120));
     const synth = await call(p, "manage_synthesis", { action: "list" });
     assert(synth.includes("supplementary:xanathars"), "supplementary Wisdom not surfaced in synthesis list: " + synth.slice(0, 200));
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     assert((health.supplementary_rulesets ?? []).some((s: any) => s.slug === "xanathars"), "spec_health missing supplementary entry");
     // Novel-scoped value persists across a process restart.
     await kill(p);
     const p2 = await boot();
     await call(p2, "manage_novel", { action: "resume", slug: "supp1" });
-    const health2 = JSON.parse(await call(p2, "manage_session", { action: "health" }));
+    const health2 = JSON.parse(await call(p2, "manage_diagnostics", { action: "health" }));
     assert((health2.supplementary_rulesets ?? []).some((s: any) => s.slug === "xanathars"), "supplementary import did not persist/resume");
     const rm = await call(p2, "manage_ruleset", { action: "remove_supplementary", slug: "xanathars" });
     assert(rm.includes("Removed"), "remove_supplementary failed: " + rm.slice(0, 120));
@@ -66,7 +66,7 @@ async function main() {
     const r = await call(p, "manage_ruleset", { action: "import_supplementary", slug: "tomefile", source: src });
     assert(r.includes("2 Wisdom"), "file extraction did not yield two Wisdom items: " + r.slice(0, 140));
     rmSync(src, { force: true });
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     assert((health.supplementary_gap ?? []).some((g: any) => g.slug === "tomefile"), "missing source not reported as [supplementary-gap]");
     await kill(p);
   });

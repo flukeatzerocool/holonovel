@@ -46,7 +46,7 @@ async function main() {
   // ── T552: event provenance (REQ-462) ─────────────────────────────────
   await test("T552/REQ-462: evidence cites the contributing event ordinal", async () => {
     const p = await boot(); await newNovel(p, "bel2");
-    await call(p, "manage_session", { action: "event", text: "I saw the ghost" });
+    await call(p, "manage_diagnostics", { action: "event", text: "I saw the ghost" });
     await admit(p, { entity_id: "hero", subject: "ghost", predicate: "exists", object: "true", polarity: "positive" });
     const ev = JSON.parse(await call(p, "manage_belief", { action: "evidence", entity_id: "hero" }));
     assert(JSON.stringify(ev[0].source_ordinals) === "[1]", "expected source_ordinals [1], got " + JSON.stringify(ev[0].source_ordinals));
@@ -163,7 +163,7 @@ async function main() {
   await test("T561/REQ-471: branch inherits beliefs, siblings stay isolated", async () => {
     const p = await boot(); await newNovel(p, "bel11");
     await admit(p, { entity_id: "hero", subject: "sky", predicate: "is", object: "blue", polarity: "positive", weight: 1, source: "a" });
-    await call(p, "manage_novel", { action: "branch", source_slug: "bel11", new_name: "bel11-b" });
+    await call(p, "manage_archive", { action: "branch", source_slug: "bel11", new_name: "bel11-b" });
     const child = await listBeliefs(p, "hero");
     assert(child.length === 1, "child did not inherit the parent's belief");
     // Diverge the child.

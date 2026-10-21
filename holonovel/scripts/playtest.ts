@@ -341,7 +341,7 @@ async function cmdInit(run: string): Promise<void> {
   const proc = await boot(run, cfg);
   const out: string[] = [];
   out.push(await call(proc, "set_badge", { badge: "game_master" }));
-  const health = await call(proc, "manage_session", { action: "health" });
+  const health = await call(proc, "manage_diagnostics", { action: "health" });
   out.push(await call(proc, "manage_adventure", { action: "load", slug: adventureSlug }));
   out.push(await call(proc, "manage_vow", { action: "set", name: centralVow, difficulty: "extreme", scope: "party" }));
   if (escapeRoom) out.push(await call(proc, "manage_scene", { action: "set", location: escapeRoom, beat: "setup" }));
@@ -487,7 +487,7 @@ async function cmdFinalize(run: string): Promise<void> {
 
   const proc = await boot(run, cfg);
   const catalog = await listTools(proc);
-  const health = await call(proc, "manage_session", { action: "health" });
+  const health = await call(proc, "manage_diagnostics", { action: "health" });
   await kill(proc);
   cfg.catalog_size = catalog.length;
   writeFileSync(join(run, "tools.json"), JSON.stringify(catalog, null, 2));

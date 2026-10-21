@@ -1882,7 +1882,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_access"
+        "replacement": "manage_corpus.corpus_access",
+        "retired": true
       }
     },
     "manage_lore.corpus_acquisitions": {
@@ -1902,7 +1903,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_acquisitions"
+        "replacement": "manage_corpus.corpus_acquisitions",
+        "retired": true
       }
     },
     "manage_lore.corpus_consume": {
@@ -1922,7 +1924,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_consume"
+        "replacement": "manage_corpus.corpus_consume",
+        "retired": true
       }
     },
     "manage_lore.corpus_deny": {
@@ -1942,7 +1945,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_deny"
+        "replacement": "manage_corpus.corpus_deny",
+        "retired": true
       }
     },
     "manage_lore.corpus_get": {
@@ -1962,7 +1966,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_get"
+        "replacement": "manage_corpus.corpus_get",
+        "retired": true
       }
     },
     "manage_lore.corpus_grant": {
@@ -1982,7 +1987,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_grant"
+        "replacement": "manage_corpus.corpus_grant",
+        "retired": true
       }
     },
     "manage_lore.corpus_list": {
@@ -2002,7 +2008,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_list"
+        "replacement": "manage_corpus.corpus_list",
+        "retired": true
       }
     },
     "manage_lore.corpus_register": {
@@ -2022,7 +2029,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_register"
+        "replacement": "manage_corpus.corpus_register",
+        "retired": true
       }
     },
     "manage_lore.corpus_route": {
@@ -2042,7 +2050,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_corpus.corpus_route"
+        "replacement": "manage_corpus.corpus_route",
+        "retired": true
       }
     },
     "manage_lore.export": {
@@ -2390,7 +2399,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.archive"
+        "replacement": "manage_archive.archive",
+        "retired": true
       }
     },
     "manage_novel.branch": {
@@ -2410,7 +2420,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.branch"
+        "replacement": "manage_archive.branch",
+        "retired": true
       }
     },
     "manage_novel.checkpoint_list": {
@@ -2430,7 +2441,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.checkpoint_list"
+        "replacement": "manage_archive.checkpoint_list",
+        "retired": true
       }
     },
     "manage_novel.checkpoint_remove": {
@@ -2450,7 +2462,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.checkpoint_remove"
+        "replacement": "manage_archive.checkpoint_remove",
+        "retired": true
       }
     },
     "manage_novel.checkpoint_restore": {
@@ -2470,7 +2483,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.checkpoint_restore"
+        "replacement": "manage_archive.checkpoint_restore",
+        "retired": true
       }
     },
     "manage_novel.checkpoint_set": {
@@ -2490,7 +2504,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.checkpoint_set"
+        "replacement": "manage_archive.checkpoint_set",
+        "retired": true
       }
     },
     "manage_novel.clone": {
@@ -2510,7 +2525,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.clone"
+        "replacement": "manage_archive.clone",
+        "retired": true
       }
     },
     "manage_novel.complete_session_zero": {
@@ -2595,7 +2611,8 @@
         "narrate"
       ],
       "compatibility": {
-        "replacement": "manage_archive.export"
+        "replacement": "manage_archive.export",
+        "retired": true
       }
     },
     "manage_novel.genre": {
@@ -2645,7 +2662,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.import"
+        "replacement": "manage_archive.import",
+        "retired": true
       }
     },
     "manage_novel.info": {
@@ -2755,7 +2773,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_archive.unarchive"
+        "replacement": "manage_archive.unarchive",
+        "retired": true
       }
     },
     "manage_npc.create": {
@@ -2998,7 +3017,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.roll"
+        "replacement": "resolve_mechanic.roll",
+        "retired": true
       }
     },
     "manage_ruleset.search": {
@@ -3035,7 +3055,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_staging.autonomy"
+        "replacement": "manage_staging.autonomy",
+        "retired": true
       }
     },
     "manage_scene.choices": {
@@ -3090,7 +3111,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_staging.presence"
+        "replacement": "manage_staging.presence",
+        "retired": true
       }
     },
     "manage_scene.set": {
@@ -3136,7 +3158,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.category"
+        "replacement": "manage_diagnostics.category",
+        "retired": true
       }
     },
     "manage_session.compact": {
@@ -3156,7 +3179,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.compact"
+        "replacement": "manage_diagnostics.compact",
+        "retired": true
       }
     },
     "manage_session.compress": {
@@ -3176,7 +3200,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.compress"
+        "replacement": "manage_diagnostics.compress",
+        "retired": true
       }
     },
     "manage_session.discover": {
@@ -3211,7 +3236,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.event"
+        "replacement": "manage_diagnostics.event",
+        "retired": true
       }
     },
     "manage_session.health": {
@@ -3231,7 +3257,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.health"
+        "replacement": "manage_diagnostics.health",
+        "retired": true
       }
     },
     "manage_session.history": {
@@ -3251,7 +3278,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.history"
+        "replacement": "manage_diagnostics.history",
+        "retired": true
       }
     },
     "manage_session.recap": {
@@ -3288,7 +3316,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_diagnostics.subscribe"
+        "replacement": "manage_diagnostics.subscribe",
+        "retired": true
       }
     },
     "manage_session.verbosity": {
@@ -3662,7 +3691,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_causality.causal_admit"
+        "replacement": "manage_causality.causal_admit",
+        "retired": true
       }
     },
     "manage_world.causal_ingress": {
@@ -3682,7 +3712,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_causality.causal_ingress"
+        "replacement": "manage_causality.causal_ingress",
+        "retired": true
       }
     },
     "manage_world.causal_list": {
@@ -3702,7 +3733,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_causality.causal_list"
+        "replacement": "manage_causality.causal_list",
+        "retired": true
       }
     },
     "manage_world.causal_propose": {
@@ -3722,7 +3754,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_causality.causal_propose"
+        "replacement": "manage_causality.causal_propose",
+        "retired": true
       }
     },
     "manage_world.causal_reject": {
@@ -3742,7 +3775,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_causality.causal_reject"
+        "replacement": "manage_causality.causal_reject",
+        "retired": true
       }
     },
     "manage_world.causal_state": {
@@ -3762,7 +3796,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "manage_causality.causal_state"
+        "replacement": "manage_causality.causal_state",
+        "retired": true
       }
     },
     "manage_world.convert": {
@@ -3966,7 +4001,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.fate_aspect"
+        "replacement": "resolve_mechanic.fate_aspect",
+        "retired": true
       }
     },
     "resolve_fate.fate_point": {
@@ -3983,7 +4019,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.fate_point"
+        "replacement": "resolve_mechanic.fate_point",
+        "retired": true
       }
     },
     "resolve_fate.roll": {
@@ -4000,7 +4037,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.fate_roll"
+        "replacement": "resolve_mechanic.fate_roll",
+        "retired": true
       }
     },
     "resolve_fate.stress": {
@@ -4017,7 +4055,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.fate_stress"
+        "replacement": "resolve_mechanic.fate_stress",
+        "retired": true
       }
     },
     "resolve_forged.action_roll": {
@@ -4034,7 +4073,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.forged_action_roll"
+        "replacement": "resolve_mechanic.forged_action_roll",
+        "retired": true
       }
     },
     "resolve_forged.downtime": {
@@ -4051,7 +4091,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.forged_downtime"
+        "replacement": "resolve_mechanic.forged_downtime",
+        "retired": true
       }
     },
     "resolve_forged.stress": {
@@ -4068,7 +4109,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.forged_stress"
+        "replacement": "resolve_mechanic.forged_stress",
+        "retired": true
       }
     },
     "resolve_ironsworn.momentum": {
@@ -4085,7 +4127,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.ironsworn_momentum"
+        "replacement": "resolve_mechanic.ironsworn_momentum",
+        "retired": true
       }
     },
     "resolve_ironsworn.move": {
@@ -4102,7 +4145,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.ironsworn_move"
+        "replacement": "resolve_mechanic.ironsworn_move",
+        "retired": true
       }
     },
     "resolve_ironsworn.progress": {
@@ -4119,7 +4163,8 @@
       "successors": [],
       "edges": [],
       "compatibility": {
-        "replacement": "resolve_mechanic.ironsworn_progress"
+        "replacement": "resolve_mechanic.ironsworn_progress",
+        "retired": true
       }
     },
     "resolve_mechanic.fate_aspect": {

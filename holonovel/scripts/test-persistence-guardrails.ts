@@ -141,7 +141,7 @@ async function main() {
     await test("T474/REQ-405: auto-moment recorded on scene transition", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "Transition A" });
       await call(proc, "manage_scene", { action: "set",  description: "Transition B" });
-      const exp = JSON.parse(await call(proc, "manage_novel", { action: "export",  format: "json" }));
+      const exp = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
       const story = exp.novel?.story_journal ?? exp.story_journal ?? [];
       const moments = story.filter((s: any) => s.type === "moment");
       if (moments.length < 1) throw new Error(`no auto-moments, got ${story.length} journal entries`);
@@ -220,7 +220,7 @@ async function main() {
       writeFileSync(file, JSON.stringify(corrupt));
       const resp = await call(proc, "manage_novel", { action: "resume",  slug: "corrupt-novel" });
       assertContains(resp, "[OK]");
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       // state_regression surfaces via the state_ledger token in briefing.
       const b = await briefing(proc);
       assertContains(b, "state-regression");
@@ -235,7 +235,7 @@ async function main() {
     writeFileSync(join(dir, "novels", "corrupt-skip.json"), "{ not valid json ");
     const proc = await boot({ TTRPG_DATA_DIR: dir });
     await test("T175/REQ-001a: corrupt novel on disk surfaces in spec_health.data_health.corrupted", async () => {
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const corrupted = Object.keys(health.data_health?.corrupted ?? {});
       if (!corrupted.includes("corrupt-skip")) throw new Error(`corrupt-skip not surfaced: ${JSON.stringify(health.data_health)}`);
     });

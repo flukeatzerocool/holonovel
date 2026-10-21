@@ -78,7 +78,7 @@ function kill(proc: ChildProcess): Promise<void> {
 }
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 async function health(proc: ChildProcess): Promise<any> {
-  return JSON.parse(await call(proc, "manage_session", { action: "health" }));
+  return JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
 }
 const readResource = resourceReader(send);
 async function promptText(proc: ChildProcess, name: string, args: Record<string, unknown> = {}): Promise<string> {
@@ -203,17 +203,17 @@ async function main() {
     const proc = await boot({ TTRPG_MAX_CHECKPOINTS: "1" });
     await freshNovel(proc, "ckpt-cap");
     await test("T279/REQ-241b: TTRPG_MAX_CHECKPOINTS discards the oldest", async () => {
-      await call(proc, "manage_novel", { action: "checkpoint_set", label: "first" });
-      await call(proc, "manage_novel", { action: "checkpoint_set", label: "second" });
-      const list = JSON.parse(await call(proc, "manage_novel", { action: "checkpoint_list" }));
+      await call(proc, "manage_archive", { action: "checkpoint_set", label: "first" });
+      await call(proc, "manage_archive", { action: "checkpoint_set", label: "second" });
+      const list = JSON.parse(await call(proc, "manage_archive", { action: "checkpoint_list" }));
       if (list.length !== 1 || list[0].label !== "second") throw new Error(`cap not applied: ${JSON.stringify(list)}`);
       const h = await health(proc);
       if (h.checkpoint_count !== 1 || typeof h.checkpoint_bytes !== "number") throw new Error(`health checkpoint fields wrong: ${JSON.stringify({ c: h.checkpoint_count, b: h.checkpoint_bytes })}`);
     });
     await test("T279/REQ-241b: export omits checkpoints unless include_checkpoints", async () => {
-      const without = JSON.parse(await call(proc, "manage_novel", { action: "export", format: "json", scope: "full" }));
+      const without = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", scope: "full" }));
       if ("checkpoints" in (without.novel ?? {})) throw new Error("checkpoints present without include_checkpoints");
-      const withCp = JSON.parse(await call(proc, "manage_novel", { action: "export", format: "json", scope: "full", include_checkpoints: true }));
+      const withCp = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", scope: "full", include_checkpoints: true }));
       if (!("checkpoints" in (withCp.novel ?? {}))) throw new Error("checkpoints missing with include_checkpoints=true");
     });
     await kill(proc);
@@ -225,7 +225,7 @@ async function main() {
     await freshNovel(proc, "embed-adv");
     await test("T100/REQ-096h: TTRPG_EXPORT_EMBED_ADVENTURES embeds adventure content", async () => {
       await call(proc, "manage_adventure", { action: "generate", premise: "A sealed lighthouse." });
-      const out = JSON.parse(await call(proc, "manage_novel", { action: "export", format: "json", scope: "full" }));
+      const out = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", scope: "full" }));
       if (out.manifest.adventures_embedded !== true) throw new Error("adventures_embedded not true");
       if (!out.adventure || !out.adventure.content_hash) throw new Error(`adventure not embedded: ${JSON.stringify(out.adventure)}`);
     });
@@ -247,7 +247,7 @@ async function main() {
     await test("T475/REQ-092h1: compressed Novel reloads under disabled compression with [compression-mismatch]", async () => {
       const listed = await call(proc2, "manage_novel", { action: "list" });
       if (!listed.includes("compressed")) throw new Error(`compressed novel did not reload: ${listed.substring(0, 160)}`);
-      const h = JSON.parse(await call(proc2, "manage_session", { action: "health" }));
+      const h = JSON.parse(await call(proc2, "manage_diagnostics", { action: "health" }));
       const mism = Object.keys(h.data_health?.compression_mismatch ?? {});
       if (mism.length === 0) throw new Error(`no compression mismatch surfaced: ${JSON.stringify(h.data_health)}`);
     });
@@ -275,7 +275,7 @@ async function main() {
     await call(p, "manage_note", { action: "set", key: "n3", content: "three" });
 
     await test("T277/REQ-239: compact archives old sessions and keeps the hash chain valid", async () => {
-      const ni = await call(p, "manage_session", { action: "compact", sessions: 2 });
+      const ni = await call(p, "manage_diagnostics", { action: "compact", sessions: 2 });
       assertContains(ni, "[NEED_INPUT]");
       const done = await call(p, "respond_decision", { decision: "compress_audit:2", option: "yes" });
       assertContains(done, "[OK]");
@@ -295,7 +295,7 @@ async function main() {
 
     await test("T278/REQ-240a: clone copies the audit tier and honors trim_audit_sessions", async () => {
       const before = await health(p);
-      const clone = await call(p, "manage_novel", { action: "clone", source_slug: "compact-novel", new_name: "clone-audit" });
+      const clone = await call(p, "manage_archive", { action: "clone", source_slug: "compact-novel", new_name: "clone-audit" });
       assertContains(clone, "[OK]");
       await call(p, "manage_novel", { action: "resume", slug: "clone-audit" });
       const after = await health(p);
@@ -340,7 +340,7 @@ async function main() {
     });
 
     await test("T474/REQ-405: TTRPG_AUTO_RECORD=false disables auto-moment by default", async () => {
-      const out = JSON.parse(await call(proc, "manage_novel", { action: "export", format: "json", scope: "full" }));
+      const out = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", scope: "full" }));
       if (out.novel?.auto_record !== false) throw new Error(`auto_record not false: ${out.novel?.auto_record}`);
     });
 
@@ -371,7 +371,7 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
 
     await test("T277/REQ-239: TTRPG_AUDIT_RETENTION_SESSIONS supplies compact's retained-session default", async () => {
-      const ni = await call(p, "manage_session", { action: "compact" });
+      const ni = await call(p, "manage_diagnostics", { action: "compact" });
       assertContains(ni, "[NEED_INPUT]");
       assertContains(ni, "most recent 1");
       const done = await call(p, "respond_decision", { decision: "compress_audit:1", option: "yes" });

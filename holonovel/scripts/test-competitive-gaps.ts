@@ -256,7 +256,7 @@ async function main() {
       assert(ok.source_license === "CC BY 4.0", "vendor-ok should carry its source_license");
       const bad = list.find((p: any) => p.slug === "vendor-bad");
       assert(!bad, "vendor-bad should be held inactive (absent from list)");
-      const health = JSON.parse(await call(proc, "manage_session", { action: "health" }));
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const alerts = health.ruleset_package_alerts ?? [];
       const unattributed = alerts.filter((a: any) => String(a.reason ?? "").includes("[license-unattributed]"));
       assert(unattributed.some((a: any) => String(a.slug) === "vendor-bad"), "vendor-bad should be flagged [license-unattributed]");
@@ -284,7 +284,7 @@ async function main() {
   {
     const proc = await boot();
     await newNovel(proc, "notify-test");
-    const sub = await call(proc, "manage_session", { action: "subscribe", topics: ["countdown_fire"] });
+    const sub = await call(proc, "manage_diagnostics", { action: "subscribe", topics: ["countdown_fire"] });
     assertContains(sub, "countdown_fire");
     await test("T519/REQ-433: subscribed countdown_fire emits a notification on expiry", async () => {
       await call(proc, "manage_countdown", { action: "set", name: "timer", ticks: 1, type: "narrative" });
@@ -294,7 +294,7 @@ async function main() {
       assert(notifications.some((n) => n.topic === "countdown_fire" && n.name === "timer"), `countdown_fire notification missing: ${JSON.stringify(notifications)}`);
     });
     await test("T519/REQ-433: unsubscribed topics emit nothing", async () => {
-      await call(proc, "manage_session", { action: "subscribe", topics: [] });
+      await call(proc, "manage_diagnostics", { action: "subscribe", topics: [] });
       await call(proc, "manage_countdown", { action: "set", name: "timer2", ticks: 1, type: "narrative" });
       notifications = [];
       await call(proc, "manage_countdown", { action: "advance", name: "timer2" });

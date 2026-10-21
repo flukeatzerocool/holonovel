@@ -104,7 +104,7 @@ async function main() {
     const cid = await makeCharacter(p, "Alice");
     const c1 = await stage(p, cid, "calling", "Wandering blade"); await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: c1 });
     const before = (await listIdentity(p, cid)).version;
-    await call(p, "manage_session", { action: "event", text: "the blade sings" });
+    await call(p, "manage_diagnostics", { action: "event", text: "the blade sings" });
     await call(p, "manage_belief", { action: "admit", entity_id: cid, subject: "hero", predicate: "is", object: "brave", polarity: "positive" });
     await call(p, "manage_scene", { action: "set", description: "a windswept pass" });
     const after = (await listIdentity(p, cid)).version;

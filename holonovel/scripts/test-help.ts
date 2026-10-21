@@ -139,7 +139,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "help-t118a" });
     await call(p, "set_badge", { badge: "game_master" });
-    const r = await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "Custom" });
+    const r = await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "Custom" });
     assertContains(r, "assigned to category 'Custom'", "T118a");
     const h = await call(p, "manage_session", { action: "discover" });
     assertContains(h, "**Custom:** manage_combat", "T118a override rendered");
@@ -151,8 +151,8 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "help-t118b" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "Custom" });
-    const r = await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "" });
+    await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "Custom" });
+    const r = await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "" });
     assertContains(r, "removed", "T118b");
     const h = await call(p, "manage_session", { action: "discover" });
     assertContains(h, "**Combat:** manage_combat", "T118b restored builder category");
@@ -164,7 +164,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "help-t118c" });
     await call(p, "set_badge", { badge: "game_master" });
-    const r = await call(p, "manage_session", { action: "category", tool_name: "bogus_tool", category: "X" });
+    const r = await call(p, "manage_diagnostics", { action: "category", tool_name: "bogus_tool", category: "X" });
     assertContains(r, "[ERROR] [NOT_FOUND]", "T118c");
     await kill(p);
   });
@@ -173,7 +173,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "help-t118d" });
     await call(p, "set_badge", { badge: "player" });
-    const r = await call(p, "manage_session", { action: "category", tool_name: "manage_combat", category: "X" });
+    const r = await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "X" });
     assertContains(r, "[FORBIDDEN]", "T118d");
     await kill(p);
   });

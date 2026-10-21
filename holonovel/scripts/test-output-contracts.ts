@@ -81,7 +81,11 @@ const RULESET_PKG = {
     { name: "lookup_spell", title: "Lookup Spell", description: "Look up a spell's full rules text by name. Use when: you need a spell's casting details. Do NOT use when: you need to roll a check — use roll_check.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell name to look up." } } } },
     { name: "roll_check", title: "Roll Check", description: "Roll a dice check with an optional skill label. Use when: you need to resolve a skill or ability check. Do NOT use when: you need spell text — use lookup_spell.", kind: "roll", group: "resolve", phases: ["scene", "combat", "downtime"], inputSchema: { type: "object", properties: { dice: { type: "string", description: "Dice notation, e.g. 1d20." }, skill: { type: "string", description: "Optional skill label for the check." } } } },
   ],
-  resources: [], prompts: [],
+  resources: [],
+  prompts: [
+    { name: "wave1test_intro", title: "Wave1 Introduction", text: "Welcome to the Wave1 test ruleset. This guide explains the fixture's tone and setting." },
+    { name: "wave1test_long", title: "Wave1 Long Guide", text: "## Section one\n" + "A long paragraph of fixture guidance. ".repeat(20) + "\n\n## Section two\nAnother paragraph of fixture guidance. ".repeat(20) },
+  ],
 };
 RULESET_PKG.manifest.content_hash = contentHash(RULESET_PKG);
 
@@ -95,7 +99,7 @@ function seedRuleset(): void {
     "model.json": RULESET_PKG.model,
     "tools.json": RULESET_PKG.tools,
     "resources.json": [],
-    "prompts.json": [],
+    "prompts.json": RULESET_PKG.prompts,
   };
   for (const [name, obj] of Object.entries(files)) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
 }
@@ -112,7 +116,8 @@ const SECOND_PKG: any = {
   tools: [
     { name: "lookup_item", title: "Lookup Item", description: "Look up an item's full rules text. Use when: you need an item's details. Do NOT use when: you need a spell — use lookup_spell.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The item name to look up." } } } },
   ],
-  resources: [], prompts: [],
+  resources: [],
+  prompts: [{ name: "intro", title: "Shadow Introduction", text: "This package prompt collides with the host intro prompt." }],
 };
 SECOND_PKG.manifest.content_hash = contentHash(SECOND_PKG);
 
@@ -125,7 +130,7 @@ function seedSecondRuleset(): void {
     "model.json": SECOND_PKG.model,
     "tools.json": SECOND_PKG.tools,
     "resources.json": [],
-    "prompts.json": [],
+    "prompts.json": SECOND_PKG.prompts,
   };
   for (const [name, obj] of Object.entries(files)) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
 }
@@ -243,7 +248,7 @@ async function main() {
   await test("T105/REQ-106 + T486/REQ-413 + T487/REQ-414 + T488/REQ-415: spec_health surfaces", async () => {
     const p = await boot({ TTRPG_SPEC_REPO_URL: "https://example.com/spec" });
     await call(p, "manage_novel", { action: "create",  name: "w1h" });
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     assertContains(JSON.stringify(health.spec_repo_url), "example.com", "REQ-106 spec_repo_url");
     if (!("catalog_verbosity" in health)) throw new Error("REQ-415 catalog_verbosity missing");
     if (!("action_discriminators" in health)) throw new Error("REQ-413 action_discriminators missing");
@@ -303,7 +308,7 @@ async function main() {
     if (!/complete/i.test(done)) throw new Error(`complete_session_zero failed: ${done.slice(0, 200)}`);
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Session zero: [✓]", "REQ-089f briefing marker");
-    await call(p, "manage_novel", { action: "clone", source_slug: "w1tz", new_name: "w1tz-copy" });
+    await call(p, "manage_archive", { action: "clone", source_slug: "w1tz", new_name: "w1tz-copy" });
     const cloneFile = JSON.parse(readFileSync(join(DATA_DIR, "novels", "w1tz-copy.json"), "utf8"));
     if (cloneFile.session_zero_completed !== true) throw new Error("clone dropped session_zero_completed (REQ-089c)");
     await kill(p);
@@ -319,7 +324,7 @@ async function main() {
   await test("T152/REQ-138 + T153/REQ-139 + T204/REQ-169 + T289/REQ-269: spec_health reporting surfaces", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w1k" });
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!Array.isArray(health.prompt_health) || health.prompt_health.length === 0) throw new Error("REQ-138 prompt_health empty");
     for (const ph of health.prompt_health) {
       if (!("name" in ph) || !("within" in ph) || !("stale_references" in ph)) throw new Error("REQ-138 prompt_health shape");
@@ -529,7 +534,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "g2", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const samples: [string, any][] = [
-      ["manage_session", { action: "health" }],
+      ["manage_diagnostics", { action: "health" }],
       ["wave1test_lookup_spell", { key: "fireball" }],
       ["manage_npc", { action: "get",  name: "does-not-exist" }],
       ["manage_story", { action: "record",  type: "bogus", entry: "x" }],
@@ -618,7 +623,7 @@ async function main() {
     const recap = await call(p, "manage_session", { action: "recap" });
     assertContains(recap, "narrative_orientation", "REQ-279 orientation field");
     assertContains(recap, "The party weighs the two doors", "REQ-279 decision in orientation");
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!Array.isArray(health.sessions)) throw new Error("REQ-237 sessions array missing");
     passed++;
     await kill(p);
@@ -837,7 +842,7 @@ async function main() {
     const smith2 = list2.filter((n: any) => n.name === "Blacksmith");
     if (smith2.length !== 1) throw new Error(`T384 duplicate NPCs: ${smith2.length}`);
     if (smith2[0].description !== "Renamed smith") throw new Error(`T384 in-place update failed: ${smith2[0].description}`);
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     assertContains(JSON.stringify(health), "codex", "T384 health codex counts");
     passed++;
     await kill(p);
@@ -883,7 +888,7 @@ async function main() {
     const id = Object.keys(npcs)[0];
     await call(p, "manage_combat", { action: "init",  participants: ["character_01", id] });
     await call(p, "manage_combat", { action: "advance" });
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof health.npc_memory_count !== "number") throw new Error("REQ-311 npc_memory_count missing");
     if (health.npc_memory_count < 1) throw new Error(`REQ-311 npc_memory_count ${health.npc_memory_count}`);
     passed++;
@@ -947,7 +952,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w6b" });
     const cat = await call(p, "manage_adventure", { action: "list" });
     assertContains(cat, "[No adventure modules found.]", "REQ-292 empty-state");
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof health.adventure_catalog_count !== "number") throw new Error("REQ-292 adventure_catalog_count");
     passed++;
     await kill(p);
@@ -1061,7 +1066,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w7e" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_session", { action: "verbosity",  mode: "terse" });
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (health.verbosity_mode !== "terse") throw new Error("REQ-253 verbosity_mode not reported");
     passed++;
     await kill(p);
@@ -1099,7 +1104,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w8b" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_npc", { action: "create",  name: "Corpse", stats: { hp: 0 } });
-    const h1 = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h1 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (h1.narration_validation !== "on") throw new Error("REQ-312 narration_validation missing");
     if (typeof h1.narration_rejection_count !== "number") throw new Error("REQ-312 rejection count");
     if (h1.startup_probes?.ruleset_scan !== "completed") throw new Error("REQ-417 probe status");
@@ -1112,9 +1117,9 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w9a" });
     await call(p, "set_badge", { badge: "game_master" });
-    const ca = await call(p, "manage_session", { action: "compress",  max_entries: 5 });
+    const ca = await call(p, "manage_diagnostics", { action: "compress",  max_entries: 5 });
     assertContains(ca, "Compressed audit log", "REQ-086 header line");
-    const bad = await call(p, "manage_session", { action: "compress",  max_entries: 0 });
+    const bad = await call(p, "manage_diagnostics", { action: "compress",  max_entries: 0 });
     assertContains(bad, "[INVALID_INPUT]", "REQ-086 zero entries");
     passed++;
     await kill(p);
@@ -1136,7 +1141,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w9c" });
     await call(p, "set_badge", { badge: "game_master" });
-    const health = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!Array.isArray(health.section_tokens) || health.section_tokens.length === 0) throw new Error("REQ-185/186 section_tokens missing");
     const bad = await call(p, "manage_session", { action: "briefing_order",  sections: ["not_a_token"] });
     assertContains(bad, "[INVALID_INPUT]", "REQ-082 unknown token");
@@ -1165,7 +1170,7 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     const bad = await call(p, "manage_synthesis", { action: "toggle",  module: "nope", enabled: false });
     assertContains(bad, "[INVALID_INPUT]", "REQ-231 unknown module");
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!("synthesis_auto_trigger" in h)) throw new Error("REQ-263 auto-trigger missing");
     passed++;
     await kill(p);
@@ -1188,7 +1193,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w9g" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_npc", { action: "create",  name: "MemNpc" });
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (h.campaign_memory?.npcs < 1) throw new Error("REQ-310 campaign_memory npcs missing");
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Campaign Memory", "REQ-310 briefing section");
@@ -1225,7 +1230,7 @@ async function main() {
     assertContains(b, "[OK]", "REQ-197 brief mode");
     const v = await call(p, "run_command", { command: "verbs" });
     assertContains(v, "Verb coverage", "REQ-283 verb tiers");
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof h.parser_verb_coverage?.core !== "number") throw new Error("REQ-283 parser_verb_coverage");
     if (h.description_mode !== "brief") throw new Error("REQ-197 description_mode");
     passed++;
@@ -1270,7 +1275,7 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     const c = await proto(p, "resources/read", { uri: "constraints://active" });
     assertContains(c, "[", "REQ-325 constraints resource");
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!("constraint_override_counts" in h)) throw new Error("REQ-325 constraint_override_counts");
     passed++;
     await kill(p);
@@ -1341,7 +1346,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w11a", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (h.rulesets_installed !== 1) throw new Error(`REQ-380 rulesets_installed ${h.rulesets_installed}`);
     const info = await call(p, "manage_novel", { action: "info" });
     assertContains(info, "wave1test", "REQ-380 info reports bound ruleset");
@@ -1366,6 +1371,72 @@ async function main() {
     assertContains(list, "wave1test", "REQ-389c list reports installed package");
     passed++;
     await kill(p);
+  });
+
+  await test("T453/T155/REQ-389c: package prompts register at startup and deregister on remove", async () => {
+    seedRuleset();
+    seedSecondRuleset();
+    const p = await boot();
+    const listed = await send(p, { method: "prompts/list", params: {} });
+    const prompts = listed?.result?.prompts ?? [];
+    const names = prompts.map((x: any) => x.name);
+    assertContains(names.join(","), "wave1test_intro", "package prompt listed");
+    assertContains(names.join(","), "intro", "host prompt still listed");
+    const host = prompts.find((x: any) => x.name === "intro");
+    assertContains(host?.description ?? host?.title ?? "", "Introduction", "host prompt title preserved");
+    const got = await send(p, { method: "prompts/get", params: { name: "wave1test_intro", arguments: {} } });
+    const messages = got?.result?.messages ?? [];
+    if (messages.length !== 1 || messages[0]?.role !== "user") throw new Error("package prompt did not return exactly one user message");
+    assertContains(messages[0]?.content?.text ?? "", "Wave1 test ruleset", "package prompt text served");
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    const ph = (health.prompt_health ?? []).find((x: any) => x.name === "wave1test_intro");
+    if (!ph || ph.length <= 0 || typeof ph.budget !== "number") throw new Error("package prompt health entry missing");
+    assertContains(JSON.stringify(health.package_prompts ?? {}), "collides with a host prompt", "host prompt collision reported");
+    await call(p, "manage_novel", { action: "create", name: "prompt-mismatch", ruleset: "wave2test" });
+    const mismatched = await send(p, { method: "prompts/get", params: { name: "wave1test_intro", arguments: {} } });
+    assertContains(mismatched?.error?.message ?? "", "[INVALID_INPUT]", "ruleset-mismatched package prompt refused");
+    await call(p, "set_badge", { badge: "game_master" });
+    const removed = await call(p, "manage_ruleset", { action: "remove", slug: "wave1test" });
+    assertContains(removed, "removed", "package removed");
+    const after = await send(p, { method: "prompts/list", params: {} });
+    const afterNames = (after?.result?.prompts ?? []).map((x: any) => x.name);
+    assertNotContains(afterNames.join(","), "wave1test_intro", "package prompt deregistered on remove");
+    const gone = await send(p, { method: "prompts/get", params: { name: "wave1test_intro", arguments: {} } });
+    if (!gone?.error) throw new Error("removed package prompt still served");
+    await kill(p);
+    seedRuleset();
+    passed++;
+  });
+
+  await test("T155/REQ-118: package prompt text respects the prompt budget", async () => {
+    seedRuleset();
+    const p = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "80" });
+    const got = await send(p, { method: "prompts/get", params: { name: "wave1test_long", arguments: {} } });
+    const text = (got?.result?.messages ?? []).map((m: any) => m?.content?.text ?? "").join("\n");
+    assertContains(text, "[truncated", "package prompt budget truncation");
+    await kill(p);
+    passed++;
+  });
+
+  await test("T453/REQ-389c: runtime install registers prompts without restart", async () => {
+    const p = await boot();
+    await call(p, "set_badge", { badge: "game_master" });
+    const runtime: any = {
+      manifest: { slug: "rtprompt", name: "Runtime Prompt", host_version: "2026.10.20", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-10-20", counts: { index: 0 } },
+      index: [], model: {}, tools: [], resources: [],
+      prompts: [{ name: "runtime_intro", title: "Runtime Introduction", text: "A runtime-installed package prompt." }],
+    };
+    runtime.manifest.content_hash = contentHash(runtime);
+    const installed = await call(p, "manage_ruleset", { action: "install", slug: "rtprompt", manifest: runtime.manifest, index: [], model: {}, tools: [], resources: [], prompts: runtime.prompts });
+    assertContains(installed, "installed", "runtime package installed");
+    const listed = await send(p, { method: "prompts/list", params: {} });
+    assertContains((listed?.result?.prompts ?? []).map((x: any) => x.name).join(","), "runtime_intro", "runtime prompt registered without restart");
+    const removed = await call(p, "manage_ruleset", { action: "remove", slug: "rtprompt" });
+    assertContains(removed, "removed", "runtime package removed");
+    const after = await send(p, { method: "prompts/list", params: {} });
+    assertNotContains((after?.result?.prompts ?? []).map((x: any) => x.name).join(","), "runtime_intro", "runtime prompt deregistered");
+    await kill(p);
+    passed++;
   });
 
   // ── REQ-389b corrupted-hash rejection ──
@@ -1395,7 +1466,7 @@ async function main() {
     assertContains(pre, "Evocation", "REQ-558 unbound package tool serves");
     await call(p, "manage_novel", { action: "create",  name: "w11l", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (h.rulesets_installed !== 2) throw new Error(`REQ-390b installed ${h.rulesets_installed}`);
     if (h.rulesets_hydrated !== 1) throw new Error(`REQ-390b hydrated ${h.rulesets_hydrated} (expected only the used package; spec_health must not hydrate)`);
     const after = await call(p, "wave1test_lookup_spell", { key: "fireball" });
@@ -1409,11 +1480,11 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "wS1" });
     await call(p, "set_badge", { badge: "game_master" });
-    const before = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const before = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!("synthesis_active" in before)) throw new Error("REQ-160 synthesis_active absent");
     if (!before.synthesis_health || typeof before.synthesis_health.module_counts !== "object") throw new Error("REQ-160 module_counts absent");
     await call(p, "manage_synthesis", { action: "run" });
-    const after = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const after = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (after.synthesis_health.synthesis_active !== true) throw new Error("REQ-160 synthesis_active not true after run");
     for (const mod of ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"]) {
       if (!(mod in after.synthesis_health.module_counts)) throw new Error(`REQ-160 module_counts missing ${mod}`);
@@ -1446,7 +1517,7 @@ async function main() {
     seedRuleset();
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w11b", ruleset: "wave1test" });
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof h.rulesets_hydrated !== "number") throw new Error("REQ-393 update preservation");
     if (typeof h.tools_list_bytes !== "number") throw new Error("REQ-392 tools_list_bytes");
     const list = await call(p, "manage_ruleset", { action: "list" });
@@ -1471,7 +1542,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w11d" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_character", { action: "create" });
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!("pending_workflow" in h)) throw new Error("REQ-193 staleness surface");
     passed++;
     await kill(p);
@@ -1524,7 +1595,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w12b" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = JSON.parse(await call(p, "manage_session", { action: "health" }));
+    const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     const of = h.output_formats;
     if (!of || !Array.isArray(of.declared)) throw new Error("T506 output_formats.declared missing");
     if (!Array.isArray(of.universal) || !of.universal.includes("html")) throw new Error("T506 universal html missing");

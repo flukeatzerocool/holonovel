@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-21 — Retire REQ-581 aliases; register package prompts at runtime
+
+- **Breaking:** retired all 45 REQ-581 compatibility declarations — the five
+  split-duplicate action sets (`manage_session`, `manage_world`, `manage_novel`,
+  `manage_scene`, `manage_lore`) and the four consolidation aliases
+  (`resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and
+  `manage_ruleset (action: roll)`). Each tombstone returns
+  `[ERROR] [NOT_FOUND]` naming its replacement; `tools/list` omits them and
+  `spec_health.tool_surface` reports 45 retired declarations. Migrated every
+  in-repo caller (harnesses, playtest, holosuite, tool-definition generator) and
+  the spec's call-form references to the canonical split/consolidated tools.
+- Registered installed package `prompts.json` entries at runtime (REQ-023a,
+  REQ-389c): startup load, install registration, remove deregistration, prompt
+  budget enforcement, collision reporting under
+  `spec_health.package_prompts.errors`, and ruleset-mismatch refusal. Added
+  `promptDeclarations` to the ruleset manager and extended T152/T155/T453.
+- Runtime registration is the bounded first step for REQ-078a; full build-time
+  generation of the five host prompt bodies remains open on ROADMAP.md.
+
 ## 2026-10-20 — Tool surface re-baseline, profile redesign, TDQS 5/5
 
 - Re-baselined the surface from the serialized projected `tools/list` payload:

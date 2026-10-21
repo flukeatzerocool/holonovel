@@ -113,7 +113,7 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
 
     // --- Liveness: a well-formed call still succeeds after the battery ------
     step++;
-    const health = await client.call("manage_session", { action: "health" });
+    const health = await client.call("manage_diagnostics", { action: "health" });
     record(ctx, "server_live_after_battery", health.text.trim().length > 0 && !health.isError, health.isError ? "health call errored" : "server responsive", step, ["REQ-002"], P_PROTOCOL);
   } catch (e) {
     ctx.failed++;

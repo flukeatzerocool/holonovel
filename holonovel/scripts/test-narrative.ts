@@ -169,7 +169,7 @@ async function main() {
       await call(proc, "manage_scene", { action: "set",  description: "Scene C" });
       const factions = await call(proc, "manage_relationship", { action: "get",  entity_id: "none" }).catch(() => "");
       void factions;
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, '"active_badge": "game_master"');
     });
 
@@ -189,7 +189,7 @@ async function main() {
     });
 
     await test("T398/401: audit records faction autonomous advancement", async () => {
-      const health = await call(proc, "manage_session", { action: "health" });
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, '"active_badge": "game_master"');
     });
 

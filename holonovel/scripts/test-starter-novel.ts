@@ -122,7 +122,7 @@ async function main(): Promise<void> {
   await test("T659/REQ-566: spec_health reports provenance with no stale flag", async () => {
     const c = await bootServer({ serverDir: SERVER_DIR, env: { TTRPG_BADGE: "game_master" } });
     try {
-      const health = await c.call("manage_session", { action: "health" });
+      const health = await c.call("manage_diagnostics", { action: "health" });
       const h = healthJson(health.text);
       assert(h.starter?.slug === SLUG, "starter slug reported");
       assert(h.starter?.seeded === true, "starter seeded reported");
