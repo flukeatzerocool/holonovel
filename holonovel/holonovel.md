@@ -477,12 +477,12 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
-| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562 |
-| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581 |
+| 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562, 582, 585 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
-| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449 |
+| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
@@ -975,8 +975,14 @@ PDF sources SHALL additionally follow the format-specific protocol (Appendix G.3
 
 **REQ-102c — Source conversion contract (Part c).**
 Flagged artifacts receive a disposition in DECISIONS.md (5): `fixed`, `waived`, or `pending`. Conversion fidelity rates appear in `spec_health` (REQ-025). *Acceptance criterion:* A converted PDF produces a fidelity report in `spec_health`; any content type below the Appendix H per-content-type fidelity threshold blocks the batch and records a disposition in DECISIONS.md (5). DECISIONS.md (2) records the selected converter and any cross-converter verification results in DECISIONS.md (5). _Check:_ T93.
+**REQ-582 — Action user-goal classification.**
+The builder SHALL record, for every extracted action, the user goal it serves — chosen from the Appendix T.3 intent groups or a declared extension group — together with the source anchor that supports the choice. A classification unsupported by its anchor is a discovery defect and SHALL NOT default to a group from the action kind or tool name. The recorded goal SHALL be the declaration source for the action's registered intent group. *Acceptance criterion:* a reference table classifies as lookup from its section, a combat procedure as resolve, and an action whose evidence supports no group fails Discovery naming it. _Check:_ T681.
+
 **REQ-562 — Convert front-matter exclusion.**
 When the Convert workflow is selected (§6.2), conversion SHALL exclude front matter and colophon content from the Markdown carried into Discovery: title pages, credits, editor/artist/typography lists, printing and edition dates, ISBN and copyright notices, and generated tables of contents. Excluded matter SHALL be recorded as a disposition in DECISIONS.md (5) and SHALL NOT appear in the discovery index, the model, or any `concepts` collection. The exclusion predicate SHALL be provided as a shared helper (`scripts/lib/front-matter`) so conversion and extraction share one implementation. *Acceptance criterion:* a converted source whose first pages are a title/credits colophon yields no index or concept entry citing an editor, artist, printing date, or ISBN. _Check:_ T655.
+
+**REQ-585 — Converted-table tool fidelity.**
+For a converted source, every table registered as a generation or lookup tool SHALL be verified against its source structure before registration. The package manifest SHALL declare whether its source was converted. A converted package SHALL mark each generation table verified or record its exclusion and reason; an unmarked table is a build defect. A table whose row count, header labels, or column count cannot be verified SHALL NOT be registered as a generation table. *Acceptance criterion:* a converted table matching its source registers; a merged-column table is excluded with a recorded reason; an unmarked generation table in a converted package fails verification naming it. _Check:_ T685.
 
 **REQ-559 — Package model contract.**
 A built ruleset package's model SHALL satisfy the model contract before handoff: every `info` tool resolves to a backing model entry; every table entry carries a human `name` (no auto-generated `${file}-${headers}-${rows}` key survives without one); and a `roll` tool's declared `defaultDice` is valid notation and matches any die named in its description. The contract SHALL be enforced by `check-ruleset-model` over the emitted package; duplicate entry names within a collection are advisory only (repeated source headings are legitimate). *Acceptance criterion:* a package whose info tool lacks a backing entry, whose table has only a generated key, or whose `defaultDice` contradicts its description fails the gate; a conformant package passes. _Check:_ T652.
@@ -1062,6 +1068,8 @@ mechanically verified by `scripts/validate.ts`. When a spec revision adds a new
 | REQ-551 | builder-side — assembly-time structural checks (scripts/validate.ts) |
 | REQ-559 | T652 (scripts/check-ruleset-model) |
 | REQ-562 | T655 (scripts/lib/front-matter) |
+| REQ-582 | T681 |
+| REQ-585 | T685 |
 
 **REQ-551 — Extraction structural verification.**
 Before a ruleset package is assembled, the builder SHALL run deterministic structural checks over the extracted model: every indexed anchor SHALL resolve to a source heading, every extracted entry SHALL carry a source anchor, and every declared cross-reference SHALL close against the index. A failed check SHALL block assembly and name the offending entries. The checks SHALL run without model inference.
@@ -1092,16 +1100,16 @@ No advertised tool SHALL expose more parameters than a ceiling recorded at build
 *Acceptance criterion:* No tool exceeds the recorded ceiling (per-action for action-discriminator tools); an operation needing more inputs splits into a compact entry call plus a refinement path; `spec_health` reports per-tool and per-action parameter counts. _Check:_ T477.
 
 **REQ-413 — Action-discriminator tool surface.**
-When operations share a domain but not a common input or output contract, they SHALL be
-exposed as one entry tool with an action discriminator rather than as sibling tools. Each
-action SHALL be documented as its own sub-REQ. The discriminator SHALL name actions in the
-ruleset's terms, and each action's parameters and contract SHALL be recoverable from
-`spec_health`. Consolidation SHALL NOT alter an action's output contract. Each action SHALL
-declare its primary intent group from Appendix T.3, and a tool spanning more than two
-groups SHALL be split.
-*Acceptance criterion:* a domain with distinct operations exposes one entry tool whose
-discriminator enumerates them; each action is documented as a sub-REQ; `spec_health`
-exposes per-action contracts. _Check:_ T486.
+When operations share a domain but not a common contract, they SHALL be exposed as one
+entry tool with an action discriminator rather than sibling tools. Each action SHALL have
+its own sub-REQ. The discriminator SHALL use the ruleset's terms, and each action's
+contract SHALL be recoverable from `spec_health`.
+Consolidation SHALL NOT alter an output contract. Each action SHALL declare one primary
+intent group from Appendix T.3; a tool spanning more than two groups SHALL be split, with
+the span measured over extracted user-goal classifications (REQ-582).
+*Acceptance criterion:* a domain with distinct operations exposes one entry tool
+enumerating them; each action is documented as a sub-REQ; `spec_health`
+exposes per-action contracts; a three-group extracted span is split. _Check:_ T486.
 
 **REQ-414 — Schema-surface economy.**
 A tool's advertised input schema SHALL prefer the most compact form that carries the same
@@ -1182,6 +1190,9 @@ The server truncates descriptions longer than three sentences in `tools/list`; t
 **REQ-024c — Tool documentation (Part c).**
 A tool `description` carries only information the input schema, output schema, and annotations do not — cross-parameter interactions, allowed ranges, or formats a schema cannot express — and SHALL NOT restate parameter guidance the schema already carries (REQ-392), such as a per-action parameter enumeration. The description SHALL fit the description-size budget recorded in DECISIONS.md. A tool `title` SHALL be a human-readable expansion at least as long as the tool name. *Acceptance criterion:* every registered tool's description fits the recorded budget, repeats no schema-carried parameter guidance, and its title is at least as long as its name; a description enumerating per-action parameters is a definition defect. _Check:_ T642.
 
+**REQ-584 — Derived routing text.**
+A ruleset-derived tool description SHALL state the user goal recorded for its actions and the source anchor that supports it. Its Use when clause SHALL use the ruleset's own terminology and SHALL derive from the extraction record rather than independent authoring. A description that names no recorded goal, or a goal absent from the extraction record, is a build defect. *Acceptance criterion:* every ruleset-derived tool description names its recorded goal and anchor; a fixture whose description names an unrecorded goal fails naming the tool. _Check:_ T684.
+
 **REQ-427 — Tool parameter semantics.**
 Every advertised tool SHALL describe each input parameter in its JSON Schema — its meaning, allowed values, and the default applied when omitted — so a caller can invoke the tool correctly without external documentation. An advertised parameter lacking a description is a definition defect. *Acceptance criterion:* the input schema of every registered tool carries a description on every parameter naming its meaning and, where applicable, its allowed values and default. _Check:_ T509.
 
@@ -1227,6 +1238,12 @@ coverage.
 *Acceptance criterion:* A repeated read of stable metadata returns the cached entry without
 recomputation; mutating a registration invalidates the cache and the next read reflects it;
 outputs are identical cached or not; `spec_health` reports coverage. _Check:_ T480.
+
+**REQ-587 — Stable catalog prefix.**
+Given unchanged registration, badge, and ruleset scope, the serialized default tool catalog SHALL be byte-identical across invocations. `spec_health` SHALL report the catalog's byte length as the cacheable prefix. A catalog whose bytes change without a registration, badge, or ruleset-scope change is a construction defect. *Acceptance criterion:* two invocations with unchanged scope return byte-identical catalogs and report the same prefix length; a registration change alters the prefix and updates the report. _Check:_ T687.
+
+**REQ-588 — Search result budget.**
+`manage_ruleset (action: search)` SHALL bound the total context it returns per call and SHALL report the count of results suppressed by that bound. A returned passage exceeding the per-result bound SHALL be truncated with a pointer to its `ruleset://` resource. The bound SHALL be configurable as a non-behavioral presentation setting and reported by `spec_health` with the most recent call's returned and suppressed counts. *Acceptance criterion:* a query exceeding the bound reports the suppressed count; an oversized passage truncates with a resolving resource pointer; the configured bound appears in `spec_health`. _Check:_ T688.
 **REQ-160a — Synthesis health reporting (Part a).**
 `spec_health` SHALL report synthesis status with these minimum fields. Field (a), `synthesis_active`, is a boolean indicating whether synthesis state exists. Field (b), `module_counts`, reports the per-module item count for each of the seven output modules (§11.1). Field (c), `stale_count`, counts inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`. Field (d), `activated_count`, counts synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159). Field (e), `fingerprint`, holds the synthesis fingerprint used for idempotence detection (ruleset content hash plus intake answers).
 
@@ -1451,8 +1468,11 @@ Every registered tool and action SHALL declare exactly one primary intent group,
 **REQ-568 — Surface conformance report.**
 `spec_health.tool_surface` SHALL report group coverage, orphan actions, entry-point uniqueness, per-group balance, workflow call counts, the measured catalog size per profile, and the active profile, derived from the live registry at call time. A reported value SHALL NOT be a maintained literal. *Acceptance criterion:* the report derives from the registry and live registrations on each call; a fixture with an orphan action and a duplicated entry declaration reports both. _Check:_ T661.
 
+**REQ-583 — Selection telemetry.**
+`spec_health` SHALL report per-ruleset observed selection signals accumulated since startup: projection refusals, undeclared cross-group calls, unrecognized tool names, and discovery-to-call conversions. Each signal SHALL derive from audited runtime events and SHALL NOT require outbound inference. The report SHALL give totals and per-signal counts and SHALL be absent when no package is loaded. *Acceptance criterion:* a fixture that triggers a projection refusal, an undeclared cross-group call, and an unknown tool name reports each count under its ruleset; a host with no package reports no selection section. _Check:_ T683.
+
 **REQ-569 — Surface baseline evaluation.**
-The build SHALL provide a reproducible baseline over a fixed intent set that reports tool-selection accuracy or its deterministic replay proxy, tool calls per intent, and catalog size under the pinned estimator for the full surface. The baseline SHALL be recorded in DECISIONS.md and consumed by the projected-surface comparison. *Acceptance criterion:* the baseline reports all three metrics over at least thirty fixed intents and fails when the intent set or estimator changes without a recorded re-baseline. _Check:_ T662.
+The build SHALL provide a reproducible baseline over a fixed intent set that reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size under the pinned estimator for the full surface. The intent set SHALL include ambiguous and near-miss intents. The baseline SHALL be recorded in DECISIONS.md and consumed by the projected-surface comparison. A proxy that reports only tool visibility or call cost does not satisfy this requirement. *Acceptance criterion:* the baseline reports all four metrics over at least thirty fixed intents, a fixture selecting a sibling action is counted as a wrong selection, and changing the intent set or estimator without a recorded re-baseline fails. _Check:_ T662, T682.
 
 **REQ-570 — Projected catalog.**
 `tools/list` SHALL accept a group selection. Under the `small` profile the default listing SHALL be the active phase's entry tools plus the five always-visible globals; under `full` and `standard` it SHALL be the complete surface. Group selection SHALL preserve stable ordering, SHALL NOT require a prior state mutation, and SHALL return `[ERROR] [INVALID_INPUT]` for an unknown group. *Acceptance criterion:* a small default listing returns the active group's entry tools plus the globals; a standard listing returns every canonical tool; a group selection returns that group plus the globals; an unknown group returns `[INVALID_INPUT]`. _Check:_ T663, T676, T677.
@@ -1476,7 +1496,7 @@ Under the `small` profile, an action MAY declare named cross-group edges; a call
 Only the Editor badge SHALL bypass a precondition or projection refusal, and every bypass SHALL be audited, surfaced in `spec_health`, and SHALL NOT alter the refusal contract for Player or Game Master badges. *Acceptance criterion:* an Editor bypass succeeds and records an audit entry; the same call under Player refuses. _Check:_ T669.
 
 **REQ-578 — Generated surface conformance.**
-A ruleset-derived tool and action SHALL carry the declaration of REQ-567, mapping into the host taxonomy or a declared extension group. The package emitter SHALL refuse to emit a surface with a missing, unknown, or over-budget group, and the host SHALL flag a non-conformant installed package in `spec_health` without blocking loading. *Acceptance criterion:* an ungrouped generated action fails `build-ruleset` naming it; a conformant package emits; a flagged installed package loads. _Check:_ T671.
+A ruleset-derived tool and action SHALL carry the declaration of REQ-567, mapping into the host taxonomy or a declared extension group. The declared group SHALL match the user goal recorded for that action during extraction. The package emitter SHALL refuse to emit a surface with a missing, unknown, or over-budget group, and the host SHALL flag a non-conformant installed package in `spec_health` without blocking loading. *Acceptance criterion:* an ungrouped generated action fails `build-ruleset` naming it; an action whose declared group differs from its recorded goal fails naming both; a conformant package emits; a flagged installed package loads. _Check:_ T671.
 
 **REQ-581 — Split-tool compatibility.**
 A tool renamed, split, or consolidated SHALL remain callable under its prior name for one minor version. The alias SHALL be omitted from `tools/list`, filtered like its replacement, and advertised with it in `spec_health` and the group directory. The replacement SHALL NOT be deprecated. Compatibility declarations are excluded from the tool budget, group-span limit, and entry uniqueness. A retired alias SHALL return `[NOT_FOUND]` naming its replacement until its tombstone is removed. `spec_health` SHALL report canonical, compatibility, and retired counts. *Acceptance criterion:* the prior name succeeds while `tools/list` omits it; both surfaces name the replacement; canonical counts exclude aliases; a retired alias names its replacement. _Check:_ T674, T675.
@@ -2770,6 +2790,9 @@ If fewer than five lookup categories exist, the builder measures all available c
 **REQ-100d — Performance benchmark (Part d).**
 For servers where `spec_health` reports no `search_index` field, the builder counts extracted items in RULESET_MODEL.md and records the count and method in DECISIONS.md (4). *Acceptance criterion:* The five lookup calls are one per registered lookup category; DECISIONS.md (4) records which categories the builder measured and their individual latencies. _Check:_ T87.
 
+**REQ-586 — Pipeline performance record.**
+The build SHALL record one end-to-end performance record composing conversion fidelity, extraction completeness, tool-selection coverage, mean calls per intent, catalog and prompt token footprint, cold-start time, and query latency. The record SHALL declare its scope: a ruleset build or the reference host. It SHALL name the ruleset content hash and the specification hash it was measured against, and `spec_health` SHALL report it as the most recent measurement. A term outside the declared scope SHALL carry a recorded waiver and reason. *Acceptance criterion:* a build missing a required term fails handoff naming it; a conversion-skipped build records that term as waived with a reason; `spec_health` reports the record beside the existing performance figures. _Check:_ T686.
+
 **REQ-410 — Token footprint in performance record.**
 The performance record of REQ-100 SHALL additionally capture the token footprint. The footprint is the aggregate byte size of the default tool listing (REQ-392) plus the prompt-budget consumption (REQ-118) under the measured tier. The record makes token efficiency a recorded, gated attribute rather than an aspiration. Measurements SHALL sit in DECISIONS.md (4) beside cold-start and latency figures and be reported by `spec_health` as the most recent measurement; a missing footprint record is a handoff defect.
 *Acceptance criterion:* DECISIONS.md (4) records listing bytes and prompt-budget consumption
@@ -3063,8 +3086,8 @@ The builder tests action suggestion coverage against a curated intent set spanni
 The builder records suggestion coverage below the §6.5 threshold — the share of curated intents for which `run_command (action: suggest)` returns at least one tool matching the expected action categories — as a finding in DECISIONS.md (5), naming the uncovered categories and their intents. Coverage testing is a build-time audit; suggestion mappings do not change at runtime. *Acceptance criterion:* The curated intent set in RULESET_MODEL.md covers every discovered action category; coverage below the §6.5 threshold records the uncovered categories and their intents in DECISIONS.md (5). _Check:_ T117.
 
 **REQ-114c — Tool-selection coverage (Part c).**
-The builder SHALL evaluate tool selection against a curated intent set spanning every registered tool and action, and SHALL record the per-tool selection result in DECISIONS.md. Coverage below the recorded threshold SHALL record the unselected tools and their intents as a finding. The evaluation SHALL be deterministic and repeatable without model inference.
-*Acceptance criterion:* the curated intent set exercises every registered action; an action with no selecting intent is recorded as a finding naming the action. _Check:_ T637.
+The builder SHALL evaluate tool selection against a curated intent set spanning every registered action, recording the expected action for each intent. Selection coverage SHALL be the share of intents whose expected action is the action selected at first choice. Coverage below the §6.5 tool-selection threshold SHALL record the wrongly selected or unselected actions and their intents as a finding. The evaluation SHALL be deterministic and repeatable without model inference.
+*Acceptance criterion:* every registered action has an intent whose expected action it is; a fixture selecting a sibling action records a wrong selection naming both actions. _Check:_ T637.
 **REQ-103a — Synthesis reversion (Part a).**
 The server provides a `manage_synthesis (action: revert)` tool — Game Master only. Removes all synthesis items (external web-sourced and internal Novel-state-synthesized, `[supplementary]`-tagged) from the Novel. Ruleset Wisdom (`[ruleset]` and `[vendor]`-tagged items) persists — `manage_synthesis (action: revert)` SHALL NOT remove or alter Ruleset Wisdom content. Player items (`[player]`-tagged) persist. Does not mutate mechanical fields, build-derived tool registrations, badge gating rules, or DECISIONS.md — the synthesis manifest and verification results remain for audit.
 
@@ -3191,7 +3214,7 @@ DECISIONS.md records the added count per module. _Check:_ T308.
 The builder SHALL compute a convergence cache key at the start of Phase 1. The key has five components. The first component is the ruleset content hash (REQ-044, sentinel `"none"` for ruleset-free). The second component is the specification content hash (REQ-187). The third component is the holonovel package version (B10). The fourth component is an aggregate hash of the `holonovel/narrative_world_model/` vendor directory. The fifth component is a narrative surface hash — a SHA-256 of the sorted, concatenated tool names, resource URIs, and prompt names for all narrative-category tools (excluding Novel lifecycle and Badge & Workflow tools).
 
 **REQ-244b — Convergence cache key (Part b).**
-When the cache key matches a prior successful convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics whose inputs the key fully captures. The builder MAY skip all nine metrics when the key matches, or individual metrics when it detects a partial match. Phase 2 metrics that depend on extraction quality (mechanics fidelity, suggestion coverage) MAY be skipped when the extraction model stays unchanged. Phase 2 metrics that depend on builder implementation quality (MUST coverage, process compliance, surface terminology, prompt health, resource URI completeness, truncation accuracy) SHALL always run fresh, except host-owned metrics dispositioned `host-verified` per §6.5.
+When the cache key matches a prior successful convergence recorded in DECISIONS.md (5), the builder MAY skip Phase 1 metrics whose inputs the key fully captures. The builder MAY skip all Phase 1 metrics when the key matches, or individual metrics when it detects a partial match. Phase 2 metrics that depend on extraction quality (mechanics fidelity, suggestion coverage, tool-selection coverage) MAY be skipped when the extraction model stays unchanged. Phase 2 metrics that depend on builder implementation quality (MUST coverage, process compliance, surface terminology, prompt health, resource URI completeness, truncation accuracy) SHALL always run fresh, except host-owned metrics dispositioned `host-verified` per §6.5.
 
 **REQ-244c — Convergence cache key (Part c).**
 Every skipped metric SHALL be recorded in DECISIONS.md (5) with the annotation `cached — convergence fingerprint match` and the cache key that produced the match. The operator MAY override the cache at intake with a `--no-cache` flag that forces the full convergence loop regardless of cache-key match. In non-interactive mode the defaults apply — cached results are reused when available. A full rebuild (cold checkout, no prior DECISIONS.md) has no cache key to match and runs the full convergence loop.
@@ -4202,7 +4225,7 @@ When no Novel is active, all tools are callable and no ruleset gating applies �
 Each ruleset's extraction model SHALL stay isolated from every other ruleset's model. The isolated model includes the search index, canonical lookup catalogues (spells, equipment, monsters, conditions, classes, abilities), generation tables, condition registry, constraint override catalog, and mechanical coupling metadata. A `manage_ruleset (action: search)` call under a D&D-bound Novel searches only the D&D index.
 
 **REQ-382b — Per-ruleset extraction isolation (Part b).**
-The same query under a Starfinder-bound Novel searches only the Starfinder index. The `lookup_spell`, `lookup_equipment`, `lookup_monster`, and `lookup_class` tools, plus analogous lookup tools, SHALL search only their ruleset's catalogue. The `resolve_mechanic (action: roll)` tool SHALL enumerate only tables extracted from the active Novel's ruleset. The `run_command (action: suggest)` tool SHALL return only tool suggestions from the active Novel's ruleset. `spec_health` SHALL report per-ruleset extraction metrics. *Acceptance criterion:* `dnd5e_search_rules("fireball")` under a D&D Novel returns D&D Fireball results with source anchors in the D&D ruleset. `starfinder_search_rules("fireball")` under a Starfinder Novel returns results from the Starfinder ruleset (or `[NOT_FOUND]`).
+The same query under a Starfinder-bound Novel searches only the Starfinder index. The `lookup_spell`, `lookup_equipment`, `lookup_monster`, and `lookup_class` tools, plus analogous lookup tools, SHALL search only their ruleset's catalogue. The `resolve_mechanic (action: roll)` tool SHALL enumerate only tables extracted from the active Novel's ruleset. The `run_command (action: suggest)` tool SHALL return only tool suggestions from the active Novel's ruleset. `spec_health` SHALL report per-ruleset extraction metrics. *Acceptance criterion:* `manage_ruleset (action: search, "fireball")` under a D&D Novel returns D&D Fireball results with source anchors in the D&D ruleset; the same query under a Starfinder-bound Novel returns Starfinder results or `[NOT_FOUND]`.
 
 **REQ-382c — Per-ruleset extraction isolation (Part c).**
 The same tool called under the wrong Novel returns per REQ-381. `spec_health` reports `ruleset_dnd5e` and `ruleset_starfinder` sections with independent counts. _Check:_ T443.
@@ -4956,7 +4979,11 @@ verifies it starts, and no further extraction occurs.
 7. **Guidance** — badge-addressed prose, verbatim, with attribution and badge scope.
    **Narrative tone samples** are a guidance subcategory: example-of-play passages that demonstrate
    the ruleset's narrative tone, tagged `[narrative-tone]` and surfaced in `badge_briefing`
-    (REQ-071).
+   (REQ-071).
+
+Each action entry also records the user goal it serves (REQ-582); selection coverage
+(REQ-114a–c) and the surface baseline (REQ-569) evaluate the action inventory this stage
+produces.
 
 **Category extraction order.** Within each chunk, the builder SHALL extract categories
 in dependency order — Concepts first (they define terms other categories reference),
@@ -5383,6 +5410,7 @@ translated into tools, resources, and state.
 | Mechanics fidelity   | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
 | Process compliance   | Pre-build answers present; verification workflow records present with timestamps after the most recent source-file modification | All present and fresh | Collect missing or re-run stale workflow, re-verify |
 | Suggestion coverage  | Curated intents producing ≥1 match     | ≥ 80%         | Re-extract action patterns, review mapping |
+| Tool-selection coverage | Curated intents whose first selected action matches the expected action / total curated intents | ≥ 90% | Re-derive routing text, split the tool, or re-extract the action |
 | Surface terminology  | Deprecated term count in implementation — grep for each term in Appendix R | 0 | Rename in source, re-verify |
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
@@ -5399,6 +5427,9 @@ empty result (no matching tool). If the ruleset provides no FAQ/errata material,
 the edge-case slot SHALL be filled with a second compound intent. The set
 composition SHALL be recorded in DECISIONS.md (4) alongside the coverage score.
 
+A wrong selection costs a recovery round-trip, so the tool-selection threshold sits above
+suggestion coverage.
+
 **Prompt health** measures whether prompts contain references to tools or resources
 that are no longer registered — a stale reference is a construction defect that
 produces broken output at runtime. The metric uses the same stale-reference detection
@@ -5408,8 +5439,8 @@ defined in REQ-138. A single stale reference across any prompt fails the metric.
 REQ-022 has a corresponding live registration. The metric uses the same presence
 detection defined in REQ-139. An absent URI template is a construction defect.
 
-Phase 2 exit: all ten metrics meet threshold (input-validation conditional —
-eleven when REQ-141 is in scope, nine otherwise), or 3 iterations without
+Phase 2 exit: all eleven metrics meet threshold (input-validation conditional —
+twelve when REQ-141 is in scope, ten otherwise), or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 100 indexed items, verification continues with the scalable golden transcript
 workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
@@ -6143,6 +6174,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-054 | S14i | Input safety |
 | REQ-055 | S5, S17 | Durability and resume |
 | REQ-100 | S13, S21 | Performance benchmark |
+| REQ-586 | S13, S21 | Pipeline performance record |
 | REQ-409 | S13, S21 | Response-lean enumeration reads |
 | REQ-410 | S13, S21 | Token footprint in performance record |
 | REQ-416 | S13, S21 | Config default inheritance |
@@ -6919,6 +6951,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
+| `TTRPG_SEARCH_MAX_TOKENS` | No | Maximum context returned by one `manage_ruleset (action: search)` call; excess results are suppressed and counted (REQ-588). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_DESCRIPTION_BUDGET` | No | Byte budget applied to a ruleset-derived tool description at load (default 1000, matching the REQ-024c recorded budget); a description over budget is flagged in `spec_health` (REQ-430). |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_diagnostics (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
@@ -9402,7 +9435,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-243c | Synthesis population during spec-driven updates (Part c) | 2026-08-11 |
 | REQ-243d | Synthesis population during spec-driven updates (Part d) | 2026-08-11 |
 | REQ-244a | Convergence cache key (Part a) | 2026-08-11 |
-| REQ-244b | Convergence cache key (Part b) | 2026-08-11 |
+| REQ-244b | Convergence cache key (Part b) | 2026-10-21 |
 | REQ-244c | Convergence cache key (Part c) | 2026-08-11 |
 | REQ-244d | Convergence cache key (Part d) | 2026-08-11 |
 | REQ-244e | Convergence cache key (Part e) | 2026-08-11 |
@@ -9699,7 +9732,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-381b | Ruleset-scoped tool gating (Part b) | 2026-08-11 |
 | REQ-381c | Ruleset-scoped tool gating (Part c) | 2026-08-11 |
 | REQ-382a | Per-ruleset extraction isolation (Part a) | 2026-08-11 |
-| REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-08-11 |
+| REQ-382b | Per-ruleset extraction isolation (Part b) | 2026-10-21 |
 | REQ-382c | Per-ruleset extraction isolation (Part c) | 2026-08-11 |
 | REQ-383a | Host ruleset health (Part a) | 2026-08-11 |
 | REQ-383b | Host ruleset health (Part b) | 2026-08-11 |
@@ -9745,7 +9778,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-410 | Token footprint in performance record | 2026-08-21 |
 | REQ-411 | Stable-metadata caching | 2026-08-21 |
 | REQ-412 | Turn-handoff directive | 2026-08-22 |
-| REQ-413 | Action-discriminator tool surface | 2026-08-22 |
+| REQ-413 | Action-discriminator tool surface | 2026-10-21 |
 | REQ-414 | Schema-surface economy | 2026-08-22 |
 | REQ-415 | Summary-first tool catalog | 2026-08-22 |
 | REQ-416 | Config default inheritance | 2026-08-22 |
@@ -9879,7 +9912,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-548c | Structured error results | 2026-09-26 |
 | REQ-548d | Machine-readable decision options | 2026-09-26 |
 | REQ-067d | Task-map intent routing | 2026-09-26 |
-| REQ-114c | Tool-selection coverage (Part c) | 2026-09-26 |
+| REQ-114c | Tool-selection coverage (Part c) | 2026-10-21 |
 | REQ-551 | Extraction structural verification | 2026-09-26 |
 | REQ-551a | Extractor divergence flags (Part a) | 2026-09-26 |
 | REQ-552 | TDQS conformance contract | 2026-10-02 |
@@ -9936,7 +9969,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
 | REQ-567 | Tool surface declaration | 2026-10-19 |
 | REQ-568 | Surface conformance report | 2026-10-19 |
-| REQ-569 | Surface baseline evaluation | 2026-10-19 |
+| REQ-569 | Surface baseline evaluation | 2026-10-21 |
 | REQ-570 | Projected catalog | 2026-10-19 |
 | REQ-571 | Catalog budgets | 2026-10-19 |
 | REQ-572 | Group directory | 2026-10-19 |
@@ -9944,11 +9977,18 @@ date-stamps matching CHANGELOG entries.
 | REQ-573 | Precondition enforcement | 2026-10-19 |
 | REQ-575 | Cross-group edges | 2026-10-19 |
 | REQ-576 | Audited override | 2026-10-19 |
-| REQ-578 | Generated surface conformance | 2026-10-19 |
+| REQ-578 | Generated surface conformance | 2026-10-21 |
 | REQ-577 | Composite session and turn actions | 2026-10-19 |
 | REQ-574 | Turn handles | 2026-10-19 |
 | REQ-579 | Legacy package rebuild | 2026-10-19 |
 | REQ-581 | Split-tool compatibility | 2026-10-19 |
+| REQ-582 | Action user-goal classification | 2026-10-21 |
+| REQ-583 | Selection telemetry | 2026-10-21 |
+| REQ-584 | Derived routing text | 2026-10-21 |
+| REQ-585 | Converted-table tool fidelity | 2026-10-21 |
+| REQ-586 | Pipeline performance record | 2026-10-21 |
+| REQ-587 | Stable catalog prefix | 2026-10-21 |
+| REQ-588 | Search result budget | 2026-10-21 |
 
 ---
 
@@ -10426,7 +10466,7 @@ diet.
 | T440 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T441 | Automated | Novel ruleset binding: call `manage_novel (action: create, "test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `manage_novel (action: info)`. Call `manage_novel (action: create, "test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T442 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
-| T443 | Automated | Extraction isolation: call `dnd5e_search_rules("fireball")` under D&D Novel — assert D&D-only results. Call `starfinder_search_rules("laser")` under Starfinder Novel — assert Starfinder-only results. Assert no cross-contamination in source anchors. | REQ-382 |
+| T443 | Automated | Extraction isolation: call `manage_ruleset (action: search, "fireball")` under a D&D Novel — assert D&D-only results. Call the same action under a Starfinder Novel — assert Starfinder-only results or `[NOT_FOUND]`. Assert no cross-contamination in source anchors. | REQ-382 |
 | T444 | Automated | Combined spec_health: assert `spec_health.ruleset_health` contains per-ruleset sections with independent counts. Assert `combined` section includes `ruleset_prefix_map` and total tool count. Assert Player badge sees only active Novel's ruleset health. | REQ-383 |
 | T445 | Automated | Cross-ruleset switching: create D&D and Starfinder Novels. Switch between them — assert ruleset-derived tool availability changes. Assert audit log records both switches. Assert D&D Novel state unchanged after switching back. | REQ-384 |
 | T446 | Automated | run_command (action: suggest) scoping: call `run_command (action: suggest, "attack")` under D&D Novel — assert D&D-prefixed tool suggestions only. Same intent under Starfinder Novel — assert Starfinder-prefixed only. | REQ-385 |
@@ -10583,7 +10623,7 @@ diet.
 | T634 | Automated | Structured error results: an unknown canonical name returns a structured error with category, corrective action, and badge-filtered values. | REQ-548c |
 | T635 | Automated | Machine-readable decision options: a `[NEED_INPUT]` decision carries a structured option set matching its text options. | REQ-548d |
 | T636 | Automated | Task-map intent routing: discovery returns an example invocation per category reflecting live registrations. | REQ-067d |
-| T637 | Automated | Tool-selection coverage: DECISIONS.md records the per-tool selection result and the recorded threshold. | REQ-114c |
+| T637 | Automated | Tool-selection coverage: assert every registered action has a curated intent whose expected action it is; assert a fixture selecting a sibling action records a wrong selection naming both actions; assert the recorded threshold matches §6.5. | REQ-114c |
 | T638 | Automated | Extraction structural verification: DECISIONS.md records the structural-check disposition. | REQ-551 |
 | T639 | Automated | Extractor divergence flags: DECISIONS.md records the divergence-disposition policy. | REQ-551a |
 | T640 | Automated | Play-loop orientation token: `badge_briefing` includes the orientation token under each AI role. | REQ-412a |
@@ -10608,7 +10648,7 @@ diet.
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
-| T662 | Automated | Surface baseline: assert the baseline reports tool-selection accuracy, tool calls per intent, and catalog size over at least thirty fixed intents; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
+| T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
 | T663 | Automated | Projected catalog: assert a default listing under an active scene returns the active group plus the three globals; assert a group selection returns that group; assert an unknown group returns `[INVALID_INPUT]`; assert ordering is stable across calls. | REQ-570 |
 | T664 | Automated | Catalog budgets: assert a fixture projection over the recorded profile budget fails the gate naming the profile and measured value; assert the standard profile measures at or below half the full baseline. | REQ-571 |
 | T665 | Automated | Group directory: assert every declared group appears once with a resolvable entry action; assert a badge change filters the directory; assert the resource and `manage_session (action: discover)` return the same groups. | REQ-572 |
@@ -10627,6 +10667,14 @@ diet.
 | T678 | Automated | Measured profiles and budgets: assert `spec_health.tool_surface.catalog_profiles` reports measured bytes and tokens for full, standard, and small; standard is at most 90% of full; small is at most 10% of full; the reported budgets match the measured baseline. | REQ-568, REQ-571 |
 | T679 | Automated | Top proxy score: assert every host tool scores 5.0 on the deterministic TDQS proxy, and coherence naming, disambiguation, and completeness report 5. | REQ-552 |
 | T680 | Automated | Proxy agreement: assert the live `spec_health.tdqs` mean and minimum agree with the static deterministic computation over the registered definitions. | REQ-552 |
+| T681 | Automated | Action user-goal classification: assert a reference table records `lookup` from its source anchor, a combat procedure records `resolve`, and an action whose evidence supports no group fails Discovery naming it; assert a generated action whose declared group differs from its recorded goal fails naming both. | REQ-582, REQ-578 |
+| T682 | Automated | Expected-action precision: assert the surface baseline counts a sibling-action selection as a wrong selection and reports precision and wrong-selection count; assert a baseline that reports visibility only fails. | REQ-569 |
+| T683 | Automated | Selection telemetry: trigger a projection refusal, an undeclared cross-group call, and an unknown tool name; assert `spec_health` reports each per-ruleset count; assert a host with no package reports no selection section. | REQ-583 |
+| T684 | Automated | Derived routing text: assert every ruleset-derived tool description names its recorded goal and source anchor; assert a fixture naming an unrecorded goal fails naming the tool. | REQ-584 |
+| T685 | Automated | Converted-table tool fidelity: assert a converted table matching its source registers; assert a merged-column table is excluded from generation registration with a recorded reason; assert a registered unverified table fails verification naming it. | REQ-585 |
+| T686 | Automated | Pipeline performance record: assert one record carries every required term; assert a missing term fails handoff naming it; assert a conversion-skipped build records that term as waived; assert `spec_health` reports the record. | REQ-586 |
+| T687 | Automated | Stable catalog prefix: assert two invocations with unchanged registration, badge, and scope return byte-identical catalogs and the same reported prefix length; assert a registration change alters the prefix and updates the report. | REQ-587 |
+| T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
 
 ---
 
@@ -12264,9 +12312,10 @@ is over-balanced and splits; a group with fewer than two merges. Action counts
 are reported but not gated, because one tool may legitimately carry many
 actions.
 
-**Replay proxy.** The deterministic replay records expected-tool visibility and
-the group-switch call cost for a fixed intent set; live-model selection remains
-advisory and is recorded separately.
+**Replay proxy.** The deterministic replay records expected-action selection precision,
+wrong-selection count, and the group-switch call cost for a fixed intent set that includes
+ambiguous and near-miss intents; live-model selection remains advisory and is recorded
+separately.
 
 **Generated tools.** Every ruleset-derived action declares the same fields and
 maps into a core or declared extension group. The package emitter

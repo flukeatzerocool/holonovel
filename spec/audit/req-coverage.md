@@ -533,8 +533,15 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-575 | Cross-group edges | 5.3 Tools, Resources, and Lookups | C | T668, T676 | — |
 | REQ-576 | Audited override | 5.3 Tools, Resources, and Lookups | C | T669 | — |
 | REQ-577 | Composite session and turn actions | 5.3 Tools, Resources, and Lookups | C | T670 | — |
-| REQ-578 | Generated surface conformance | 5.3 Tools, Resources, and Lookups | C | T671 | — |
+| REQ-578 | Generated surface conformance | 5.3 Tools, Resources, and Lookups | C | T671, T681 | — |
 | REQ-579 | Legacy package rebuild | 5.3 Tools, Resources, and Lookups | C | T672 | — |
 | REQ-580 | Surface profile precedence | 5.3 Tools, Resources, and Lookups | C | T673, T676, T677 | — |
 | REQ-581 | Split-tool compatibility | 5.3 Tools, Resources, and Lookups | C | T674, T675 | — |
+| REQ-582 | Action user-goal classification | 5.2 Extraction and Confidence | E | T681 | — |
+| REQ-583 | Selection telemetry | 5.3 Tools, Resources, and Lookups | C | T683 | — |
+| REQ-584 | Derived routing text | 5.3 Tools, Resources, and Lookups | E | T684 | — |
+| REQ-585 | Converted-table tool fidelity | 5.2 Extraction and Confidence | E | T685 | — |
+| REQ-586 | Pipeline performance record | 5.7 Determinism, Safety, and Performance | C | T686 | — |
+| REQ-587 | Stable catalog prefix | 5.3 Tools, Resources, and Lookups | C | T687 | — |
+| REQ-588 | Search result budget | 5.3 Tools, Resources, and Lookups | C | T688 | — |
 

@@ -11,6 +11,14 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Appendix M guard acknowledgment — resolved 2026-10-21:** the staged diff
+  touches `spec/appendices-reference.md` (Appendix E manifest rows and the
+  T685/T686 test-catalogue rows) and `scripts/validate.ts` (the intended-gap
+  whitelist), but it does not change an Appendix M authoring rule or the
+  validator pattern that enforces one. Recorded per the pre-commit
+  `check-guarded-rule-change` guard. Evidence: `npm run validate:sdd` → 0
+  errors; `npm run check:fast` → PASS.
+
 - **Tool Surface coverage evidence (SR-1, SR-2, SR-3, SR-4, SR-5, SR-9) —
   resolved 2026-10-20:** the strict coverage audit had reported REQ-569 and
   REQ-571 as uncited because `gatherSourceCites` read only explicit `REQ-NNN`

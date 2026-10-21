@@ -205,6 +205,62 @@ test("T660/REQ-567: an unknown surface term fails naming the term", () => {
   assert(r.out.includes("unknown group adventure"), `missing unknown-group defect: ${r.out}`);
 });
 
+test("T681/REQ-582: an action grouped against its recorded user goal fails", () => {
+  const parts: any = goodParts();
+  parts.tools[2] = { ...parts.tools[2], user_goal: "resolve", group: "lookup" };
+  const dir = join(TMP, "goal-mismatch");
+  emitPackage(dir, parts);
+  const r = runGate(dir);
+  assert(r.code === 1, `expected exit 1, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("records user goal 'resolve'"), `missing goal mismatch: ${r.out}`);
+});
+
+test("T684/REQ-584: a description that omits its recorded goal fails", () => {
+  const parts: any = goodParts();
+  parts.tools[2] = { ...parts.tools[2], user_goal: "lookup", description: "Look up a thing. Use when: resolving. Do NOT use when: unknown — use core_mechanic." };
+  const dir = join(TMP, "goal-text");
+  emitPackage(dir, parts);
+  const r = runGate(dir);
+  assert(r.code === 1, `expected exit 1, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("does not name its recorded user goal 'lookup'"), `missing routing-text defect: ${r.out}`);
+});
+
+test("T681/REQ-582: a goal-matched action with routing text passes", () => {
+  const parts: any = goodParts();
+  parts.tools[2] = { ...parts.tools[2], user_goal: "lookup", group: "lookup", description: "Look up a thing (lookup). Use when: resolving. Do NOT use when: unknown — use core_mechanic." };
+  const dir = join(TMP, "goal-good");
+  emitPackage(dir, parts);
+  const r = runGate(dir);
+  assert(r.code === 0, `expected exit 0, got ${r.code}: ${r.out}`);
+});
+
+test("T685/REQ-585: a converted table marked verified passes", () => {
+  const parts: any = goodParts();
+  parts.model.generation_tables["gen-1"].structure_verified = true;
+  const dir = join(TMP, "convert-verified");
+  emitPackage(dir, { ...parts, sourceWorkflow: "convert" });
+  const r = runGate(dir);
+  assert(r.code === 0, `expected exit 0, got ${r.code}: ${r.out}`);
+});
+
+test("T685/REQ-585: a converted table excluded with a reason passes", () => {
+  const parts: any = goodParts();
+  parts.model.generation_tables["gen-1"].structure_excluded = "merged column in source table";
+  const dir = join(TMP, "convert-excluded");
+  emitPackage(dir, { ...parts, sourceWorkflow: "convert" });
+  const r = runGate(dir);
+  assert(r.code === 0, `expected exit 0, got ${r.code}: ${r.out}`);
+});
+
+test("T685/REQ-585: an unmarked converted table fails naming it", () => {
+  const parts: any = goodParts();
+  const dir = join(TMP, "convert-unmarked");
+  emitPackage(dir, { ...parts, sourceWorkflow: "convert" });
+  const r = runGate(dir);
+  assert(r.code === 1, `expected exit 1, got ${r.code}: ${r.out}`);
+  assert(r.out.includes("generation_tables 'gen-1' has no structure verification"), `missing converted-table defect: ${r.out}`);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 rmSync(TMP, { recursive: true, force: true });
 if (failed === 0) harnessComplete();

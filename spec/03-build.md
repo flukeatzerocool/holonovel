@@ -303,7 +303,11 @@ verifies it starts, and no further extraction occurs.
 7. **Guidance** — badge-addressed prose, verbatim, with attribution and badge scope.
    **Narrative tone samples** are a guidance subcategory: example-of-play passages that demonstrate
    the ruleset's narrative tone, tagged `[narrative-tone]` and surfaced in `badge_briefing`
-    (REQ-071).
+   (REQ-071).
+
+Each action entry also records the user goal it serves (REQ-582); selection coverage
+(REQ-114a–c) and the surface baseline (REQ-569) evaluate the action inventory this stage
+produces.
 
 **Category extraction order.** Within each chunk, the builder SHALL extract categories
 in dependency order — Concepts first (they define terms other categories reference),
@@ -730,6 +734,7 @@ translated into tools, resources, and state.
 | Mechanics fidelity   | B.2 expected model excerpt verified | All items     | Re-extract, reclassify, or log defect    |
 | Process compliance   | Pre-build answers present; verification workflow records present with timestamps after the most recent source-file modification | All present and fresh | Collect missing or re-run stale workflow, re-verify |
 | Suggestion coverage  | Curated intents producing ≥1 match     | ≥ 80%         | Re-extract action patterns, review mapping |
+| Tool-selection coverage | Curated intents whose first selected action matches the expected action / total curated intents | ≥ 90% | Re-derive routing text, split the tool, or re-extract the action |
 | Surface terminology  | Deprecated term count in implementation — grep for each term in Appendix R | 0 | Rename in source, re-verify |
 | Prompt health        | Stale reference count per prompt — sum of stale references across all registered prompts | 0 | Fix stale references in prompt source, re-verify |
 | Resource URI completeness | Registered URIs matching REQ-022 catalog / total REQ-022 URI templates | 100% | Register missing URI, re-verify |
@@ -746,6 +751,9 @@ empty result (no matching tool). If the ruleset provides no FAQ/errata material,
 the edge-case slot SHALL be filled with a second compound intent. The set
 composition SHALL be recorded in DECISIONS.md (4) alongside the coverage score.
 
+A wrong selection costs a recovery round-trip, so the tool-selection threshold sits above
+suggestion coverage.
+
 **Prompt health** measures whether prompts contain references to tools or resources
 that are no longer registered — a stale reference is a construction defect that
 produces broken output at runtime. The metric uses the same stale-reference detection
@@ -755,8 +763,8 @@ defined in REQ-138. A single stale reference across any prompt fails the metric.
 REQ-022 has a corresponding live registration. The metric uses the same presence
 detection defined in REQ-139. An absent URI template is a construction defect.
 
-Phase 2 exit: all ten metrics meet threshold (input-validation conditional —
-eleven when REQ-141 is in scope, nine otherwise), or 3 iterations without
+Phase 2 exit: all eleven metrics meet threshold (input-validation conditional —
+twelve when REQ-141 is in scope, ten otherwise), or 3 iterations without
 improvement. Residual gaps are logged in DECISIONS.md (5). For rulesets above
 100 indexed items, verification continues with the scalable golden transcript
 workflow (§8 G2 N-fixture path, verified by T90). The cross-model audit
@@ -1490,6 +1498,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-054 | S14i | Input safety |
 | REQ-055 | S5, S17 | Durability and resume |
 | REQ-100 | S13, S21 | Performance benchmark |
+| REQ-586 | S13, S21 | Pipeline performance record |
 | REQ-409 | S13, S21 | Response-lean enumeration reads |
 | REQ-410 | S13, S21 | Token footprint in performance record |
 | REQ-416 | S13, S21 | Config default inheritance |

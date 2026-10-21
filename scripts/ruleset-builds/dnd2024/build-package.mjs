@@ -75,13 +75,17 @@ function main() {
   // the core-mechanic explainer is table orientation.
   const allPhases = ["none", "setup", "scene", "combat", "downtime", "closed"];
   const surfaceFor = (tool) => {
-    if (tool.name === "core_mechanic") {
-      return { group: "table", phases: ["none", "setup", "scene", "closed"] };
+    // REQ-582/REQ-578 — a recorded user goal drives the declaration; the
+    // name/kind heuristic is the fallback for legacy extracted tools.
+    const group = tool.user_goal
+      ?? (tool.name === "core_mechanic" ? "table" : tool.kind === "roll" ? "resolve" : "lookup");
+    if (group === "table") {
+      return { group, phases: ["none", "setup", "scene", "closed"] };
     }
-    if (tool.kind === "roll") {
-      return { group: "resolve", phases: ["scene", "combat", "downtime"] };
+    if (group === "resolve") {
+      return { group, phases: ["scene", "combat", "downtime"] };
     }
-    return { group: "lookup", phases: allPhases };
+    return { group, phases: allPhases };
   };
   const mergedTools = base["tools.json"]
     .filter((t) => !newToolNames.has(t.name))

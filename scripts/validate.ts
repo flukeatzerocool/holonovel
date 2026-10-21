@@ -1890,6 +1890,11 @@ const INTENDED_GAP_REQS = new Set([
   // contracts owed by scripts/ and the Build/Convert workflows — not runtime
   // `holonovel/src` behavior.
   "REQ-559", "REQ-560", "REQ-561", "REQ-562",
+  // Intent/selection pipeline additions (2026-10-21): extraction-stage
+  // user-goal classification, derived routing text, converted-table fidelity,
+  // and the end-to-end performance record are builder-side contracts owed by
+  // the Build/Convert workflows and scripts/, not runtime `holonovel/src`.
+  "REQ-582", "REQ-584", "REQ-585",
   // §5.18 emitter mandate + automation (2026-10-10): the committed package
   // emitter (REQ-563) and Update-workflow tool-quality remediation (REQ-564) are
   // builder-side contracts owed by the ruleset-build assets and the update
