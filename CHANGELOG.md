@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-21 — Pipeline assumptions check: single gate manifest and publish hardening
+
+- Consolidated the `check` and `check:fast` gate lists into
+  `scripts/run-gates.ts`; both modes now delegate to one manifest, fast mode
+  buffers per-gate output, `action-conflicts` is gated with `--check` in both
+  modes, and root `typecheck` (`scripts/**/*.ts`) is part of the local gate.
+- Extended build-order change detection to `holonovel/scripts`, the server
+  package files, `.githooks`, and untracked non-ignored files, so a server-only
+  or harness-only change re-runs the check suite. `assemble.ts` rejects an
+  unknown top-level `spec/*.md` instead of silently omitting it.
+- Hardened `push-pipeline.sh`: refuse non-`main` branches, abort on pre-existing
+  untracked files in the commit surface (`--allow-untracked` opts in for changes
+  that author new files), run the harness suite when any server path changed,
+  fail closed when the deploy clone is absent (`--allow-missing-deploy` opts
+  out), derive the commit message from the top CHANGELOG entry, print the staged
+  stat, restore ignored state on `--dry-run`, drop the duplicate refresh, and
+  run the strict coverage audit via `validate:fast`.
+
 ## 2026-10-21 — Close the intent/selection gaps: converted-table and performance gates, routing baseline
 
 - T685 (REQ-585): a package manifest now declares `source_workflow`; a converted

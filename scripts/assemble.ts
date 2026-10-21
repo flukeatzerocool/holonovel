@@ -116,7 +116,32 @@ function assemble(): { content: string; report: string[] } {
   return { content: trimmed, report };
 }
 
+// Guard: a new top-level spec/*.md file that is not part of the canonical load
+// order would be committed but never assembled. Fail loudly instead.
+const ALLOWED_SOURCE_FILES = new Set([
+  ...CORE_FILES,
+  APPENDIX_REF,
+  APPENDIX_FIX,
+  APPENDIX_LIC,
+  APPENDIX_RUN,
+  "build-phase-map.md",
+]);
+
+function assertKnownSourceFiles(): void {
+  const unknown = fs
+    .readdirSync(SPEC_DIR)
+    .filter((entry) => entry.endsWith(".md") && !ALLOWED_SOURCE_FILES.has(entry))
+    .sort();
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unrecognized spec/ source file(s): ${unknown.join(", ")}. ` +
+        `Add them to scripts/assemble.ts or remove them before assembling.`
+    );
+  }
+}
+
 function main(): void {
+  assertKnownSourceFiles();
   const { content, report } = assemble();
 
   console.log("Assembling holonovel.md from spec/ files:");

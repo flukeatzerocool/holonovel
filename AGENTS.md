@@ -224,6 +224,12 @@ Capture the exit code of the un-piped command. A piped `check:fast` (e.g.
 mask a sibling failure (fingerprint-stale, marker drift). The trailing
 `check:fast: PASS` / `check:fast: FAIL` line is the tell.
 
+The gate list is the manifest in `scripts/run-gates.ts` — `check` and
+`check:fast` both delegate to it, so the two modes cannot drift. Fast mode
+buffers each parallel gate's output and prints per-gate `PASS` lines; full mode
+runs sequentially and stops at the first failure. Both modes gate
+`action-conflicts` with `--check` and run root `typecheck` (`scripts/**/*.ts`).
+
 This runs:
 
 | Command                    | What it checks                                    |
@@ -243,7 +249,8 @@ Also available separately:
 
 | Command              | What it checks                                    |
 |----------------------|---------------------------------------------------|
-| `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`)         |
+| `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`) — included in `check`/`check:fast` |
+| `npm run gates -- --list` | Print the gate manifest (`scripts/run-gates.ts`) |
 | `npm run build-order` | Assemble + check + propagate + source-propagate + typecheck + version sync — the holonovel→dnd5e pipeline (fingerprint-scoped) |
 | `npm run check`      | Full gate including proofreading pass (passive voice, readability, sentence analysis) and the validator self-tests — use for CI and pre-push |
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
@@ -257,21 +264,31 @@ The implementation-coverage audit runs unconditionally inside every `validate`
 invocation. Two optional flags extend it:
 
 - `npm run validate -- --write-register` — regenerate `spec/audit/req-coverage.md`.
-- `npm run validate:sdd -- --impl-audit=strict` — promote bucket-A (gap) REQs
-  to errors. `push-pipeline.sh` step 4d runs it once and exports
-  `HOLONOVEL_PIPELINE_STRICT`; `.githooks/pre-push` runs it for a direct push
-  and skips it when that marker is set. Passes when every server-runtime REQ is
-  evidenced and builder-side REQs are whitelisted.
+- `npm run validate -- --impl-audit=strict` — promote bucket-A (gap) REQs
+  to errors. `push-pipeline.sh` step 4d runs `validate:fast` with that flag once
+  and exports `HOLONOVEL_PIPELINE_STRICT`; `.githooks/pre-push` runs the full
+  form for a direct push and skips it when that marker is set. Passes when every
+  server-runtime REQ is evidenced and builder-side REQs are whitelisted.
 
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.
 
-`npm run build-order` re-runs the full `check` gate when either `spec/` or
-`scripts/` changes (a validator change is a review-surface change), adds an
+`npm run build-order` re-runs the full `check` gate when `spec/`, `scripts/`,
+`holonovel/src`, `holonovel/scripts`, the server package files, or `.githooks`
+change (a validator or harness change is a review-surface change), adds an
 informational near-duplicate scan, and prints the check summary
 (`N error(s), M warning(s)` plus `WARNING:` findings) instead of swallowing it.
-`push-pipeline.sh` therefore runs `test:validators` and `detect-dupes` as part
-of its review; the same changes are covered by `check:full` for CI.
+Its fingerprints include untracked non-ignored files, so a new source file
+triggers the gate before it is committed.
+
+`push-pipeline.sh` refuses to run off `main`, aborts when pre-existing untracked
+files sit in the commit surface (they would otherwise be swept in by staging;
+`--allow-untracked` opts in when the change authors new files), runs the server
+harness suite when any server path changed (not only when the spec delta is
+minor/major), and fails closed when the deploy clone is absent
+(`--allow-missing-deploy` opts out for non-publish environments). Its commit
+message is the top dated CHANGELOG entry, falling back to the mechanical
+summary only when no entry parses.
 
 `.githooks/pre-commit` runs `npm run check-guarded-rule-change`: a change that
 edits Appendix M's authoring rules and, in the same staged diff, the validator
