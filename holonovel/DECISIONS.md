@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 25,852 tokens; standard 22,351; small 1,153; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,572 tokens; standard 23,071; small 1,156; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### World-Model Provider Document — 2026-10-22
 
@@ -16,6 +16,7 @@
 
 ### Tool Surface Contract — 2026-10-19
 
+- **TDQS description pass (2026-10-22).** Rewrote 21 host descriptions against the published Glama TDQS breakdown (server A4.2 at the 2026-10-15 evaluation; tool-count proxy 3/5). The pass targets the sub-5 dimensions: parameter semantics beyond schema coverage, behavioral disclosure (badge requirements, removal, undo scope), conciseness (removed duplicated action lists), usage (removed the circular `manage_character` trigger), and completeness (`list`/`export` pagination and filters). Post-split originals now route to `manage_causality`, `manage_staging`, `manage_corpus`, `manage_diagnostics`, and `manage_archive` instead of restating the split surfaces. Missing undo snapshots were added to `manage_faction`, `manage_story`, and `manage_relationship`. **Finding:** `manage_character`, `manage_world`, `manage_vow`, `manage_belief`, `manage_identity`, `manage_session`, `manage_novel`, `manage_ruleset`, and `run_command` still mutate without a snapshot; their descriptions now state that no undo snapshot is taken. The deterministic proxy remains 5.0 mean/min; the external score is the authority. (REQ-024c, REQ-450, REQ-552, REQ-554)
 - **Scoped default and host-scoped coherence (2026-10-22).** `tools/list` now enforces REQ-391a: the default is infrastructure plus the active Novel's ruleset; `_meta.scope = "all"` returns the full catalog. Measured on the deployed host with four packages: 36 tools / 103,424 B / 25,856 tokens with no Novel; 60 tools with a dnd2024-bound Novel; 98 under `scope=all`. `spec_health.tdqs` reports `scope: "host"` (cached on the registration fingerprint); host coherence is 4.3/5 (naming, disambiguation, and completeness 5; tool-count appropriateness 2 at 36 tools), with ruleset-derived tools reported under `ruleset_tool_quality`. Health calls cache parsed package index reports; `manage_diagnostics (action: health)` median fell from ~333 ms to ~13 ms after the first call, and cold start to ~1.2 s with four packages. (REQ-391a, REQ-391c, REQ-392, REQ-430, REQ-554)
 
 - **Re-baseline (2026-10-20).** The baseline is now measured from the serialized projected `tools/list` payload, not a reduced snapshot. Full 25,852 tokens; standard 22,351 (86.5% of full; call-complete, with output-schema bodies reduced to a presence marker); small 1,153 worst-case (4.5% of full; active-group entry tools plus the five globals as a one-line summary). The default remains `full`. Budgets: standard at most 90% of full, small at most 10%. `surface-budget` verifies baseline freshness; `surface-replay` gates full and standard at visibility 1.0 and mean calls 1.0. (REQ-548b, REQ-568, REQ-570, REQ-571, REQ-575, REQ-580)

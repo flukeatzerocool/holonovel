@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-22 — TDQS description pass: parameter semantics, mutation disclosure, and undo fixes
+
+- Rewrote 21 host tool descriptions against the published Glama TDQS feedback:
+  added non-schema parameter semantics (condition expiry, relationship keying,
+  parser syntax, badge mapping), action-level read/write and removal disclosure,
+  and removed duplicated action enumerations (`manage_history`, `manage_novel`,
+  `manage_ruleset`).
+- Corrected post-split descriptions to route to the canonical split tools:
+  `manage_world` → `manage_causality`, `manage_scene` → `manage_staging`,
+  `manage_lore` → `manage_corpus`, `manage_session` → `manage_diagnostics`,
+  `manage_novel` → `manage_archive`.
+- Fixed missing undo snapshots in `manage_faction`, `manage_story`, and
+  `manage_relationship`; verified that remove followed by
+  `manage_history (action: undo)` restores the prior state.
+- Regenerated `holonovel/tool-definitions.json` and re-recorded
+  `spec/audit/tool-surface-baseline.json` (full 26,572 / standard 23,071 /
+  small 1,156 tokens); 36/36 tools pass `tool-definitions-lint` within the
+  1000 B budget, and the deterministic TDQS proxy is mean/min 5.0.
+- Finding not fixed in this pass: several other mutating tools
+  (`manage_character`, `manage_world`, `manage_vow`, `manage_belief`,
+  `manage_identity`, `manage_session`, `manage_novel`, `manage_ruleset`,
+  `run_command`) take no undo snapshot, so their descriptions now disclose that
+  rather than claiming `manage_history` undo. Follow-up: add the snapshots or
+  codify the no-undo tools.
+
 ## 2026-10-22 — Scoped tool listing, host-scoped TDQS coherence, and health caching
 
 - `tools/list` now implements REQ-391a: the default is infrastructure plus the

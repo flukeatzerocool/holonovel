@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 103424,
+  "tools_list_bytes": 106288,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 103424,
-        "tokens": 25856
+        "bytes": 106288,
+        "tokens": 26572
       },
       "standard": {
         "tools": 36,
-        "bytes": 89420,
-        "tokens": 22355
+        "bytes": 92284,
+        "tokens": 23071
       },
       "small": {
         "tools": 6,
-        "bytes": 4609,
-        "tokens": 1153,
+        "bytes": 4622,
+        "tokens": 1156,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4609,
-            "tokens": 1153
+            "bytes": 4619,
+            "tokens": 1155
           },
           "explore": {
             "tools": 6,
-            "bytes": 3538,
-            "tokens": 885
+            "bytes": 3567,
+            "tokens": 892
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4562,
-            "tokens": 1141
+            "bytes": 4594,
+            "tokens": 1149
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4597,
-            "tokens": 1150
+            "bytes": 4622,
+            "tokens": 1156
           },
           "lookup": {
             "tools": 6,
-            "bytes": 3908,
-            "tokens": 977
+            "bytes": 3937,
+            "tokens": 985
           },
           "referee": {
             "tools": 6,
-            "bytes": 3657,
-            "tokens": 915
+            "bytes": 3689,
+            "tokens": 923
           },
           "author": {
             "tools": 6,
-            "bytes": 3881,
-            "tokens": 971
+            "bytes": 3913,
+            "tokens": 979
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4046,
-            "tokens": 1012
+            "bytes": 4078,
+            "tokens": 1020
           }
         }
       }
@@ -107,8 +107,8 @@
     {
       "name": "manage_adventure",
       "title": "Adventure Management",
-      "description": "Generate, load, or list adventure content. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). generate defaults target to novel when one is active; a !force prefix bypasses the guard. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
-      "description_bytes": 472,
+      "description": "Generate, load, or list adventure content. generate writes an adventure scaffold into the target store (novel by default when one is active; a !force prefix bypasses the guard) and generate_encounter writes one encounter; both persist to the Novel, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load and list are read-only, and list accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 596,
       "action_enum": [
         "generate",
         "generate_encounter",
@@ -150,8 +150,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1745,
-        "descriptionBytes": 472
+        "definitionBytes": 1869,
+        "descriptionBytes": 596
       },
       "category": "",
       "gate": ""
@@ -295,8 +295,8 @@
     {
       "name": "manage_belief",
       "title": "Belief Management",
-      "description": "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel and are audited; list/get/evidence/conflicts and the perception reads are read-only. Revert the most recent mutation with manage_history (action: undo). Use when: recording what an entity has learned or believes (admit), suppressing evidence (retract), inspecting stances (list), reading one question (get), listing evidence (evidence), finding contradictions (conflicts), forcing recomputation (reconcile), or recording and reading perceptions (perception_* actions). Do NOT use when: recording objective world truth — use manage_causality (action: causal_propose); recording shared lore or consumed reference material — use manage_lore.",
-      "description_bytes": 912,
+      "description": "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. admit takes a subject/predicate/object proposition with a 0..1 weight and derives its question; source defaults to the active badge; retract suppresses evidence without deleting the ledger; reconcile recomputes stances after evidence changes. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; list/get/evidence/conflicts and the perception reads are read-only. The perception ledger is append-only and not reversible via manage_history, so correct a mistaken admit with retract. Use when: recording or inspecting what an entity learned or believes, finding contradictions, or logging perceptions. Do NOT use when: recording objective world truth — use manage_causality (action: causal_propose); recording shared lore — use manage_lore.",
+      "description_bytes": 960,
       "action_enum": [
         "list",
         "get",
@@ -355,8 +355,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3647,
-        "descriptionBytes": 912
+        "definitionBytes": 3695,
+        "descriptionBytes": 960
       },
       "category": "",
       "gate": ""
@@ -452,8 +452,8 @@
     {
       "name": "manage_character",
       "title": "Player Character Management",
-      "description": "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so a sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Use when: working with player characters. Do NOT use when: managing NPCs — use manage_npc.",
-      "description_bytes": 818,
+      "description": "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. sheet and roster_list are read-only; every other action mutates the Novel and persists the change. update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so one sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Changes are not reversible via manage_history; update corrects a sheet, and remove deletes the PC permanently. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
+      "description_bytes": 959,
       "action_enum": [
         "create",
         "stage",
@@ -524,8 +524,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5240,
-        "descriptionBytes": 818
+        "definitionBytes": 5381,
+        "descriptionBytes": 959
       },
       "category": "",
       "gate": ""
@@ -647,8 +647,8 @@
     {
       "name": "manage_condition",
       "title": "Condition Management",
-      "description": "Manage mechanical or narrative conditions on entities. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
-      "description_bytes": 365,
+      "description": "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. apply and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
+      "description_bytes": 619,
       "action_enum": [
         "apply",
         "remove",
@@ -687,8 +687,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1432,
-        "descriptionBytes": 365
+        "definitionBytes": 1686,
+        "descriptionBytes": 619
       },
       "category": "",
       "gate": ""
@@ -892,8 +892,8 @@
     {
       "name": "manage_faction",
       "title": "Faction Management",
-      "description": "Manage organizations in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: creating, revising, removing, or listing factions and their progress clocks. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
-      "description_bytes": 388,
+      "description": "Manage organizations in the active Novel: create, update, remove, or list factions, each carrying a name, description, goals, resources, and optional territory room names. name is required to create and faction_id targets an existing faction; the progress clock is Novel-internal and not set directly. create, update, and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); remove deletes the faction permanently unless undone, and list is read-only. Use when: creating, revising, removing, or listing factions. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
+      "description_bytes": 670,
       "action_enum": [
         "create",
         "update",
@@ -936,8 +936,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1689,
-        "descriptionBytes": 388
+        "definitionBytes": 1971,
+        "descriptionBytes": 670
       },
       "category": "",
       "gate": ""
@@ -945,8 +945,8 @@
     {
       "name": "manage_history",
       "title": "Undo and Redo History",
-      "description": "Undo or redo the most recent state mutation, restoring the prior per-badge snapshot. Undo reverts a mistaken or unwanted change; redo re-applies the most recently undone change. Both directions mutate Novel state and persist immediately (readOnlyHint false). Use when: reverting a mistaken change (action: undo) or restoring an undone change (action: redo). Do NOT use when: the target change is not the most recent mutation — use the entity tool that made it (e.g. manage_lore, manage_story, manage_world).",
-      "description_bytes": 509,
+      "description": "Undo or redo the most recent state mutation for the active badge, restoring the prior per-badge snapshot and clearing the redo stack on a new mutation. Both directions mutate Novel state and persist immediately (readOnlyHint false). The stack is per badge and capped by TTRPG_MAX_SNAPSHOT_DEPTH, and a pending workflow decision blocks both until resolved with respond_decision. Use when: reverting the last mutation (undo) or restoring an undone one (redo). Do NOT use when: an older change is the target — re-run the owning tool (e.g. manage_lore, manage_story, manage_world), because only the most recent mutation is stacked.",
+      "description_bytes": 629,
       "action_enum": [
         "undo",
         "redo"
@@ -978,8 +978,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1395,
-        "descriptionBytes": 509
+        "definitionBytes": 1515,
+        "descriptionBytes": 629
       },
       "category": "",
       "gate": ""
@@ -987,8 +987,8 @@
     {
       "name": "manage_identity",
       "title": "Identity Management",
-      "description": "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. Mutation (stage, accept, reject, bootstrap) persists the roster and is audited; list/snapshot are read-only. accept's perspective defaults to the candidate's stored perspective. Revert the most recent mutation with manage_history (action: undo); the compiled kernel is versioned. Use when: importing or authoring identity material (stage), accepting or rejecting a candidate (accept/reject), seeding from a character card (bootstrap), inspecting candidates and facets (list), or reading the compiled kernel (snapshot). Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
-      "description_bytes": 798,
+      "description": "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material, accept replaces a facet and bumps the identity version, and reject marks that candidate rejected without touching accepted facets; bootstrap seeds from a character card, and an accepted facet's prior value is not retained. accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only; identity changes are not reversible via manage_history, so reject a bad candidate before accepting it. Use when: staging identity material, accepting or rejecting a candidate, bootstrapping from a character card, or reading candidates, facets, or the compiled kernel. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+      "description_bytes": 961,
       "action_enum": [
         "stage",
         "accept",
@@ -1036,8 +1036,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2653,
-        "descriptionBytes": 798
+        "definitionBytes": 2816,
+        "descriptionBytes": 961
       },
       "category": "",
       "gate": ""
@@ -1045,8 +1045,8 @@
     {
       "name": "manage_knowledge",
       "title": "Derived Knowledge",
-      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build overwrite the prior in-memory projection and are audited; the Novel file stays authoritative and read-only actions never mutate Novel state. Use when: building or rebuilding the index (index_build) or the graph (graph_build); checking staleness (index_status/graph_status); listing indexed items (index_list); ranking candidates against a query (index_search); reading index relations (index_relations); reading the whole graph (graph_get), its nodes or edges (graph_nodes/graph_edges), or a node's neighbors (graph_neighbors). Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording a relationship — use manage_relationship.",
-      "description_bytes": 872,
+      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build replace the prior in-memory projection, are audited, and are safe to rebuild from the authoritative Novel file, which is never modified. The read actions (index_status, graph_status, index_list, index_search, index_relations, graph_get, graph_nodes, graph_edges, graph_neighbors) are read-only and do not mutate state. Use when: building or rebuilding the index or graph, checking staleness, listing or ranking indexed items, or reading relations and graph structure. Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording a relationship — use manage_relationship.",
+      "description_bytes": 812,
       "action_enum": [
         "index_build",
         "index_status",
@@ -1094,8 +1094,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2265,
-        "descriptionBytes": 872
+        "definitionBytes": 2205,
+        "descriptionBytes": 812
       },
       "category": "",
       "gate": ""
@@ -1103,8 +1103,8 @@
     {
       "name": "manage_lore",
       "title": "Lore Management",
-      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls — and the knowledge corpus of cold reference material. Mutating actions (including corpus_register, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume) persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; merge or replace writes. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or registering, routing, granting, denying, consuming, or inspecting corpus reference material (corpus_* actions). Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; registering a reusable gameplay artifact — use manage_codex.",
-      "description_bytes": 905,
+      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus (corpus_* actions here are compatibility aliases).",
+      "description_bytes": 982,
       "action_enum": [
         "set",
         "update",
@@ -1175,8 +1175,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4764,
-        "descriptionBytes": 905
+        "definitionBytes": 4841,
+        "descriptionBytes": 982
       },
       "category": "",
       "gate": ""
@@ -1237,8 +1237,8 @@
     {
       "name": "manage_novel",
       "title": "Novel Save Management",
-      "description": "Manage Novel save files: create, resume, switch, end, export, import, rename, describe, list, archive, unarchive, info, genre, clone, branch, save_context, get_context, or checkpoint. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). import defaults mode to dry-run; strict turns a reference-validation failure into a hard block. Use when: handling a campaign's lifecycle, interchange, return points, or branching a timeline. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note).",
-      "description_bytes": 695,
+      "description": "Manage Novel save files: lifecycle (create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context) and listing. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create and save_context persist to the Novel; list, info, and get_context are read-only. Lifecycle changes are not reversible via manage_history; clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note); use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
+      "description_bytes": 783,
       "action_enum": [
         "create",
         "resume",
@@ -1309,8 +1309,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4132,
-        "descriptionBytes": 695
+        "definitionBytes": 4220,
+        "descriptionBytes": 783
       },
       "category": "",
       "gate": ""
@@ -1318,8 +1318,8 @@
     {
       "name": "manage_npc",
       "title": "NPC Management",
-      "description": "Manage non-player characters in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
-      "description_bytes": 380,
+      "description": "Manage non-player characters in the active Novel. create requires a name; update, remove, and get target an existing npc_id; ruleset_reference links an optional stat block; mind is GM-only and never returned to the Player badge. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); remove deletes the NPC, while list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+      "description_bytes": 601,
       "action_enum": [
         "create",
         "update",
@@ -1365,8 +1365,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2170,
-        "descriptionBytes": 380
+        "definitionBytes": 2391,
+        "descriptionBytes": 601
       },
       "category": "",
       "gate": ""
@@ -1374,8 +1374,8 @@
     {
       "name": "manage_relationship",
       "title": "Relationship Management",
-      "description": "Manage directed relationships between entities, NPCs, or factions. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). Use when: setting or reading how two parties relate. Do NOT use when: tracking faction progress — use manage_faction (action: update).",
-      "description_bytes": 365,
+      "description": "Manage directed relationships between entities, NPCs, or factions. set is keyed by the ordered (entity_a, entity_b) pair and updates type, value, or description in place rather than duplicating; type is one of ally, rival, neutral, mentor, dependent, or suspicious, and value is an optional numeric strength. get returns outgoing and incoming edges separately. set requires the GM or Editor badge, persists to the Novel, and is undoable via manage_history (action: undo); get is read-only. Use when: setting or reading how two parties relate. Do NOT use when: tracking faction standing or progress — use manage_faction (action: update).",
+      "description_bytes": 638,
       "action_enum": [
         "set",
         "get"
@@ -1416,8 +1416,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1688,
-        "descriptionBytes": 365
+        "definitionBytes": 1961,
+        "descriptionBytes": 638
       },
       "category": "",
       "gate": ""
@@ -1425,8 +1425,8 @@
     {
       "name": "manage_ruleset",
       "title": "Ruleset Package Management",
-      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove a supplementary ruleset. search accepts an optional slug and works with no active Novel; binding scopes only Novel-dependent features. import_supplementary uses inline wisdom when present and reads source only when absent. install/remove are reversible via the paired action; search is read-only. Table rolls moved to resolve_mechanic (action: roll); the former roll action here is retired and returns [NOT_FOUND] naming resolve_mechanic (action: roll). Use when: searching rules content, installing/removing/listing packages, binding a Novel, or adding/removing supplementary Wisdom (import_supplementary/remove_supplementary). Do NOT use when: the ruleset name is unknown — use manage_session (action: discover). install/remove/import_supplementary/remove_supplementary mutate state and are audited; search is read-only.",
-      "description_bytes": 984,
+      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove supplementary Wisdom. search accepts an optional slug, works with no active Novel, and is read-only; install, remove, import_supplementary, and remove_supplementary mutate state, are audited, and are reversible via the paired action. install of an existing slug conflicts, and remove refuses while a Novel is bound to that slug. binding scopes only Novel-dependent features; import_supplementary uses inline wisdom when present and reads source only when absent. Table rolls are resolve_mechanic (action: roll). Use when: searching rules content, managing packages, binding a Novel, or adding/removing supplementary Wisdom. Do NOT use when: the ruleset name is unknown — use manage_session (action: discover).",
+      "description_bytes": 871,
       "action_enum": [
         "search",
         "install",
@@ -1479,8 +1479,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3023,
-        "descriptionBytes": 984
+        "definitionBytes": 2910,
+        "descriptionBytes": 871
       },
       "category": "",
       "gate": ""
@@ -1488,8 +1488,8 @@
     {
       "name": "manage_scene",
       "title": "Scene Management",
-      "description": "Manage the active scene and its narrative framing — scene description, directive, party presence, and oracle rolls, distinct from the world model's rooms and things. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set derives the description from location only when description is omitted. Use when: setting scene state (description, location, type), the narrative directive, party presence, AI autonomy, or when offering choices or resolving an oracle roll. Do NOT use when: recording a story beat — use manage_story (action: record).",
-      "description_bytes": 653,
+      "description": "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls, distinct from the world model's rooms and things. set writes the description, location, type, time, and atmosphere, deriving the description from location only when description is omitted; directive sets the narrative directive; choices offers player options; oracle resolves a chance question and records the roll. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo). Use when: setting scene state, issuing a directive, offering choices, or consulting the oracle. Do NOT use when: recording a story beat — use manage_story (action: record); staging party presence or autonomy — use manage_staging.",
+      "description_bytes": 797,
       "action_enum": [
         "set",
         "directive",
@@ -1548,8 +1548,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4432,
-        "descriptionBytes": 653
+        "definitionBytes": 4576,
+        "descriptionBytes": 797
       },
       "category": "",
       "gate": ""
@@ -1557,8 +1557,8 @@
     {
       "name": "manage_session",
       "title": "Session Management",
-      "description": "Manage session-level surfaces, diagnostics, and tool discovery, distinct from story content and Novel lifecycle. event with supersede appends a replacement and marks that ordinal superseded. Use when: recapping recent activity (recap), setting output verbosity (verbosity), reordering briefing sections (briefing_order), summarizing the audit log (compress) or compacting it irreversibly (compact), reporting server health (health), discovering or searching the tool catalog (discover), reassigning a tool's category for the session (category), or appending and reading the Novel event log (event, history). Category reassignment, event append, and audit compaction mutate Novel-scoped state and persist; recap/verbosity/briefing_order/health/discover/history are read-only diagnostics or session-scoped settings. Do NOT use when: recording story content — use manage_story (action: record).",
-      "description_bytes": 893,
+      "description": "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title. verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+      "description_bytes": 852,
       "action_enum": [
         "recap",
         "verbosity",
@@ -1610,8 +1610,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3737,
-        "descriptionBytes": 893
+        "definitionBytes": 3696,
+        "descriptionBytes": 852
       },
       "category": "",
       "gate": ""
@@ -1686,8 +1686,8 @@
     {
       "name": "manage_story",
       "title": "Story Journal Management",
-      "description": "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). promote uses index and writes lore under key (default derived). Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use manage_lore (action: set).",
-      "description_bytes": 488,
+      "description": "Manage the story journal — typed narrative memories (decision, moment, revelation, bond, consequence). record appends an entry and consumes the turn_handle minted by take_turn; update edits a mutable entry; decision and consequence entries are immutable and refuse update or promotion; remove deletes an entry by index; promote copies an entry into lore under a derived or supplied key. list filters by type and paginates with offset and limit, returning previews unless detail is set. Mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list is read-only. Use when: recording, editing, removing, listing, or promoting story beats. Do NOT use when: recording a durable world fact — use manage_lore (action: set).",
+      "description_bytes": 780,
       "action_enum": [
         "record",
         "update",
@@ -1733,8 +1733,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2146,
-        "descriptionBytes": 488
+        "definitionBytes": 2438,
+        "descriptionBytes": 780
       },
       "category": "",
       "gate": ""
@@ -1803,8 +1803,8 @@
     {
       "name": "manage_vow",
       "title": "Vow Management",
-      "description": "Track narrative vows, quests, and obligations with milestones. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's difficulty sets the rank track and the linked countdown's ticks; scope defaults to shared. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
-      "description_bytes": 470,
+      "description": "Track narrative vows, quests, and obligations with milestones. set creates a vow and links a countdown whose ticks follow the difficulty rank track (scope defaults to shared); milestone advances progress; resolve and forsake close the vow with distinct outcomes (fulfilled vs abandoned). Mutations require the GM or Editor badge and persist to the Novel; list is read-only. Vow changes are not reversible via manage_history; resolve and forsake are terminal choices. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
+      "description_bytes": 615,
       "action_enum": [
         "set",
         "milestone",
@@ -1851,8 +1851,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2183,
-        "descriptionBytes": 470
+        "definitionBytes": 2328,
+        "descriptionBytes": 615
       },
       "category": "",
       "gate": ""
@@ -1860,8 +1860,8 @@
     {
       "name": "manage_world",
       "title": "World Model Management",
-      "description": "Manage the world model — rooms, things, exits, and the causal transition ledger of objective-state changes. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). create_thing honors location_type only when location is set; kind forces property defaults. Use when: creating, updating, removing, or bulk-converting locations and objects, or proposing, admitting, refusing, or reading objective-state transitions (causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress). Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve); recording what an entity believes — use manage_belief.",
-      "description_bytes": 771,
+      "description": "Manage the world model — rooms, things, exits, and their spatial properties. create, update, remove, convert, and generate mutate the model and persist to the Novel; removing a room or thing is permanent — re-create it to restore the model. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. There are no read-only actions here; inspect state with run_command (action: execute). Use when: creating, updating, removing, bulk-converting, or generating locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve); proposing or admitting objective-state transitions — use manage_causality; recording what an entity believes — use manage_belief.",
+      "description_bytes": 800,
       "action_enum": [
         "create_room",
         "update_room",
@@ -1943,8 +1943,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6065,
-        "descriptionBytes": 771
+        "definitionBytes": 6094,
+        "descriptionBytes": 800
       },
       "category": "",
       "gate": ""
@@ -2070,8 +2070,8 @@
     {
       "name": "respond_decision",
       "title": "Respond to Workflow Decision",
-      "description": "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. The drain is mutating and audited; the applied outcome is not reversible. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
-      "description_bytes": 335,
+      "description": "Answer a pending workflow decision, atomically draining it and persisting the outcome to the Novel. option must match one of the emitted choices; 'cancel' aborts the workflow and restores its pre-workflow snapshot, while any applied outcome is not reversible. The drain is mutating and audited, and a second call with no pending decision returns STATE_CONFLICT. Use when: the server emitted a [NEED_INPUT] prompt and the caller must choose. Do NOT use when: no decision is pending — use set_badge or a state tool instead.",
+      "description_bytes": 523,
       "action_enum": [],
       "param_count": 2,
       "required": [
@@ -2106,8 +2106,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1300,
-        "descriptionBytes": 335
+        "definitionBytes": 1488,
+        "descriptionBytes": 523
       },
       "category": "",
       "gate": ""
@@ -2115,8 +2115,8 @@
     {
       "name": "run_command",
       "title": "Parser Command",
-      "description": "Execute a parser command, resolve a spatial intent, or suggest actions from intent. execute mutates world/entity state and persists to the Novel, reversible with manage_history (action: undo); resolve and suggest are read-only. Use when: a player or narrator takes a physical action (execute), needs the outcome of a movement without mutating state (resolve), or wants intent mapped to tool calls (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
-      "description_bytes": 496,
+      "description": "Execute a parser command, resolve a spatial intent, or map intent to tool calls. execute runs a parsed verb-and-noun command (for example 'take lamp' or 'go north') against the world model, mutates world/entity state, persists to the Novel, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes a movement outcome without mutating, and suggest returns recommended tool calls for an intent. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action (execute), needs a movement outcome without mutating state (resolve), or wants intent mapped to tools (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
+      "description_bytes": 855,
       "action_enum": [
         "execute",
         "resolve",
@@ -2153,8 +2153,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1630,
-        "descriptionBytes": 496
+        "definitionBytes": 1989,
+        "descriptionBytes": 855
       },
       "category": "",
       "gate": ""
@@ -2162,8 +2162,8 @@
     {
       "name": "set_badge",
       "title": "Set Active Badge",
-      "description": "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the session; always callable. Badge changes are mutating session state, audited, and reversible by switching back. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
-      "description_bytes": 374,
+      "description": "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the active Novel; always callable. Switching immediately re-filters tools/list, so a narrower badge can revoke tools mid-task and switching back restores them; badge changes are mutating session state, audited, and reversible by switching back. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
+      "description_bytes": 504,
       "action_enum": [],
       "param_count": 1,
       "required": [
@@ -2196,8 +2196,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1249,
-        "descriptionBytes": 374
+        "definitionBytes": 1379,
+        "descriptionBytes": 504
       },
       "category": "",
       "gate": ""
