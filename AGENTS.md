@@ -69,6 +69,10 @@ scripts/detect-near-dupes.ts   Near-duplicate paragraph detector
 scripts/check-traceability.ts  DECISIONS.md traceability drift check (Deferred/Waived
                            entries cross-referenced against registered tools/resources)
 scripts/update-server.ts  Fingerprint-scoped Update workflow invoker (§6.7)
+scripts/update.ts         Unified Update entry point: rebuilds stale packages through
+                          their recorded emitters and migrates stale user data (REQ-395c)
+scripts/lib/ruleset-registry.ts  Shared source-registry schema/load/save, installed-package
+                          scan, staleness predicate, and emitter resolution (REQ-421)
 scripts/ruleset-builds/swse/  SWSE package rebuild: authored character_creation
                           source + build-package.mjs (REQ-399a, REQ-395a)
 holonovel/scripts/generate-world-provider.ts  Emit the world-model provider

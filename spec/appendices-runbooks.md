@@ -7,8 +7,8 @@ before the workflow's full §6 sections — they are the "how do I actually run
 this" index into the normative text.
 
 The entry points are also emitted by their commands: `build-ruleset`,
-`update-server`, `update-rulesets`, and `migrate-user-data` print a pointer to
-this appendix when invoked without valid arguments.
+`update-server`, `update`, `update-rulesets`, and `migrate-user-data` print a
+pointer to this appendix when invoked without valid arguments.
 
 ### V.1 Add a ruleset (Build)
 
@@ -106,11 +106,12 @@ Update workflow (§6.7) driven manually.
 7. After the deploy pull, verify the deployed spec hash equals the published
    hash and the deployed fingerprints match (REQ-418). A deploy that cannot
    fast-forward fails with a deploy-failed notice, not a success marker.
-8. Reconcile user data (REQ-556): run `update-rulesets` to rebuild every stale
-   package from its recorded source, then `migrate-user-data --apply` to bring
-   every stale Novel, roster, codex, and server-note artifact to the current
-   data-format fingerprint. Record the per-tier outcome in `DECISIONS.md`; a
-   tier whose source is unavailable is recorded deferred, never dropped.
+8. Reconcile all tiers (REQ-556): run `update` (REQ-395c) — it plans every stale
+   package rebuild and artifact migration; re-run with `--apply` to rebuild each
+   stale package through its recorded emitter and bring every stale Novel,
+   roster, codex, and server-note artifact to the current data-format
+   fingerprint. Record the per-tier outcome in `DECISIONS.md`; a tier whose
+   source is unavailable is recorded deferred, never dropped.
 
 **Recovery.**
 
@@ -150,7 +151,9 @@ before re-binding.
 
 ### V.7 Update a ruleset
 
-**Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts).
+**Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts) for the
+compatibility report; `npm run update -- --packages-only` (scripts/update.ts,
+REQ-395c) to reconcile packages and user data together.
 
 **Happy path.**
 
@@ -178,7 +181,9 @@ host update; run it manually when only a package is stale.
 
 ### V.8 Migrate user data
 
-**Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts).
+**Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts), or
+`npm run update -- --data-only` (scripts/update.ts, REQ-395c) when reconciling
+packages and user data together.
 
 **Happy path.**
 

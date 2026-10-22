@@ -50,6 +50,7 @@
     "assemble": "npx tsx scripts/assemble.ts",
     "build-ruleset": "npx tsx scripts/build-ruleset.ts",
     "update-rulesets": "npx tsx scripts/update-rulesets.ts",
+    "update": "npx tsx scripts/update.ts",
     "migrate-user-data": "npx tsx scripts/migrate-user-data.ts",
     "build-order": "npx tsx scripts/build-order.ts",
     "spec-propagate": "npx tsx scripts/spec-propagate.ts",

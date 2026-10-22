@@ -13,36 +13,15 @@
  * opencode access must run the printed command manually.
  */
 
-import { readdirSync, existsSync, statSync, writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { readdirSync, existsSync, statSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
+import { loadRegistry, saveRegistry, type RegistryEntry } from "./lib/ruleset-registry.js";
 
 const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
 const installDir = process.env.TTRPG_RULESET_DIRS ?? join(dataDir, "rulesets");
 const decisionsFile = join(dataDir, "build-intake.md");
-// REQ-421 — slug→source registry under the state directory (REQ-397), survives
-// deploys and host updates, and is never committed to the spec repository.
-const registryFile = join(dataDir, "ruleset-registry.json");
-
-interface RegistryEntry {
-  source: string;
-  package_format: string;
-  built_at: string;
-}
-
-function loadRegistry(): Record<string, RegistryEntry> {
-  try {
-    return JSON.parse(readFileSync(registryFile, "utf-8"));
-  } catch {
-    return {};
-  }
-}
-
-function saveRegistry(entries: Record<string, RegistryEntry>): void {
-  mkdirSync(dataDir, { recursive: true });
-  writeFileSync(registryFile, JSON.stringify(entries, null, 2) + "\n", "utf-8");
-}
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 
@@ -106,7 +85,7 @@ if (intakes.length === 0) {
 }
 
 // REQ-421 — a bare slug (no `=path`) defaults to the recorded source path.
-const registry = loadRegistry();
+const registry = loadRegistry(dataDir);
 for (const intake of intakes) {
   if (intake.path === "" && registry[intake.slug]?.source) {
     intake.path = registry[intake.slug].source;
@@ -145,11 +124,19 @@ recordIntake(intakes);
 {
   const packageFormat = readAndCompute().packageFormat;
   const stamp = new Date().toISOString();
-  const next = loadRegistry();
+  const next = loadRegistry(dataDir);
   for (const intake of intakes) {
-    next[intake.slug] = { source: intake.path, package_format: packageFormat, built_at: stamp };
+    const entry: RegistryEntry = { source: intake.path, package_format: packageFormat, built_at: stamp };
+    // REQ-563/REQ-564 — record a committed emitter when the slug has one so
+    // `update` can rebuild without re-deriving the recipe.
+    const repoEmitter = join(root, "scripts", "ruleset-builds", intake.slug, "build-package.mjs");
+    if (existsSync(repoEmitter)) {
+      entry.emitter = repoEmitter;
+      entry.emitter_args = ["--baseline", "{dir}", "--out", "{dir}"];
+    }
+    next[intake.slug] = entry;
   }
-  saveRegistry(next);
+  saveRegistry(dataDir, next);
 }
 
 console.log("");
