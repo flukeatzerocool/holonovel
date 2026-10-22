@@ -71,6 +71,11 @@ scripts/check-traceability.ts  DECISIONS.md traceability drift check (Deferred/W
 scripts/update-server.ts  Fingerprint-scoped Update workflow invoker (§6.7)
 scripts/ruleset-builds/swse/  SWSE package rebuild: authored character_creation
                           source + build-package.mjs (REQ-399a, REQ-395a)
+holonovel/scripts/generate-world-provider.ts  Emit the world-model provider
+                          document from schema constants (REQ-200, REQ-202a);
+                          `--check` is a freshness gate
+holonovel/scripts/test-world-provider.ts      Gate the `world://kinds` payload
+                          (kinds, property contracts, parser catalog)
 ```
 
 ## Conventions

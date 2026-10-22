@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.10.21)
+# AGENTS.md — holonovel MCP Server (v2026.10.22)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -149,6 +149,7 @@ npm run start
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
 - **Bundled starter Novel:** on a fresh data directory the server seeds a ruleset-free tutorial Novel, `torre-nosferatu`, from the packaged `content/torre-nosferatu.json` before hydration (REQ-565). Seeded once — tombstone at `.holonovel-state/starter-seeded.json`; opt out with `TTRPG_STARTER_NOVEL=off`. The artifact is emitted from `content/torre-nosferatu.source.json` by `npm run build:starter-novel` and freshness-gated by `check-starter-freshness` (REQ-566).
 - **World Model:** Rooms, things, exits persisted within the Novel's JSON. Indexed at runtime as Maps.
+- **World-model provider document:** `narrative_world_model/world/world-model-provider.md` is generated from `world-model-provider.template.md` plus the schema constants in `src/world/model.ts` (`WORLD_MODEL_KINDS`, `WORLD_MODEL_PROPERTIES`, `BASE_PARSER_COMMANDS`). Regenerate with `npm run build:world-provider`; `check-world-provider` gates freshness, and `test:world-provider` gates the `world://kinds` payload.
 - **Snapshots:** Per-mutation snapshots per badge stack (`manage_history` action: undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.
 

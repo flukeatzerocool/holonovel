@@ -40,6 +40,7 @@ const TESTS = [
   "test:adventure",
   "test:g7",
   "test:tool-definitions",
+  "test:world-provider",
   "test:competitive-gaps",
   "test:fate",
   "test:ironsworn",

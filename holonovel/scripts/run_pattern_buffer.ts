@@ -375,9 +375,13 @@ function buildScenarios(): PBScenario[] {
       }},
       { label: "world://kinds", action: R("world://kinds"), assert: (r) => {
         assertContains(r, "Kind Hierarchy");
+        assertContains(r, "Property Contracts");
         assertContains(r, "Parser Commands");
         assertContains(r, "container");
         assertContains(r, "door");
+        assertContains(r, "device");
+        assertContains(r, "vehicle");
+        assertContains(r, "openable");
       }},
       { label: "room://the entrance chamber", action: R("room://the%20entrance%20chamber"), assert: (r) => {
         assertContains(r, "Entrance Chamber");

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-22 — World-model provider document is generated from the host schema
+
+- Single-sourced the world-model provider document. Kinds, property contracts,
+  the parser command catalog, the declarable-kind list, and property setters now
+  render from `src/world/model.ts` through `narrative_world_model/world/world-model-provider.template.md`;
+  `generate-world-provider` emits the committed document and
+  `check-world-provider` gates freshness.
+- `world://kinds` now carries the property-contract section required by REQ-202a,
+  including device and vehicle properties that the hand-authored document had
+  omitted. Added `test:world-provider` to the `check`/`check:fast` surface.
+- Removed the false "indexed at build time" claims from the provider document and
+  the vendored-content README, and reconciled the assertion grammar with the
+  parser (no `is not X` forms, no unsupported `<property> of <name>` form).
+- The declarable-kind list and the `manage_world (action: create_thing)` kind
+  validation now derive from the schema constants instead of duplicated arrays.
+
 ## 2026-10-21 — Stale-surface reconciliation: §10 coverage, vendor parity, and register hygiene
 
 - Fixed the §10 verifier prompt and T193 to name `G0a, G0b, and G2 through G8`

@@ -8,6 +8,12 @@
 
 **Recorded surface budgets:** full 25,852 tokens; standard 22,351; small 1,153; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
+### World-Model Provider Document — 2026-10-22
+
+- **Generated artifact.** `holonovel/narrative_world_model/world/world-model-provider.md` is emitted from `world-model-provider.template.md` plus the schema constants in `src/world/model.ts` (`WORLD_MODEL_KINDS`, `WORLD_MODEL_PROPERTIES`, `BASE_PARSER_COMMANDS`, `WORLD_MODEL_DECLARABLE_KINDS`, `ROOM_DIRECTIONS`, `verbCatalog`). `npm run generate-world-provider` writes it, `check-world-provider` gates freshness, and `test:world-provider` gates the `world://kinds` payload.
+- **Supersedes.** The 2026-08-08 rebuild note that the provider documentation was "indexed and surfaced at `world://kinds`" and the 2026-08-07 note that the server was created alongside that document as a build input. The document is now build output, not a build source.
+- **REQ-202a.** `world://kinds` now includes the property-contract section; the prior payload omitted it. (REQ-200, REQ-202a)
+
 ### Tool Surface Contract — 2026-10-19
 
 - **Re-baseline (2026-10-20).** The baseline is now measured from the serialized projected `tools/list` payload, not a reduced snapshot. Full 25,852 tokens; standard 22,351 (86.5% of full; call-complete, with output-schema bodies reduced to a presence marker); small 1,153 worst-case (4.5% of full; active-group entry tools plus the five globals as a one-line summary). The default remains `full`. Budgets: standard at most 90% of full, small at most 10%. `surface-budget` verifies baseline freshness; `surface-replay` gates full and standard at visibility 1.0 and mean calls 1.0. (REQ-548b, REQ-568, REQ-570, REQ-571, REQ-575, REQ-580)
@@ -336,7 +342,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.10.21 |
+| Spec version | 2026.10.22 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

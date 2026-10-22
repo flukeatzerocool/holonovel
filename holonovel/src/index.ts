@@ -41,6 +41,7 @@ import {
 import { DEFAULT_WISDOM, withWisdomKeys } from "./core/wisdom.js";
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
+  WORLD_MODEL_KINDS,
   createEmptyWorldModel, convertSource, worldMap, worldKinds, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection,
 } from "./world/model.js";
@@ -109,7 +110,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.21",
+  version: "2026.10.22",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -3676,7 +3677,7 @@ server.registerTool("manage_world", {
       worldSnapshot();
       const lower = args.name.toLowerCase();
       if (novel.world.things.has(lower)) return err("STATE_CONFLICT", `Thing '${args.name}' already exists.`);
-      const validKinds = ["thing", "container", "supporter", "door", "device", "vehicle", "person", "backdrop", "region"];
+      const validKinds = Object.keys(WORLD_MODEL_KINDS);
       const k = (args.kind && validKinds.includes(args.kind.toLowerCase())) ? args.kind.toLowerCase() as WorldKind : "thing";
       let locationType: "room" | "container" | "supporter" | "vehicle" | null = args.location ? "room" : null;
       if (args.location && args.location_type) {
