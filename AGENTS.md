@@ -68,7 +68,6 @@ scripts/validate-readme.ts    README guardrail (structure, voice, links, compari
 scripts/detect-near-dupes.ts   Near-duplicate paragraph detector
 scripts/check-traceability.ts  DECISIONS.md traceability drift check (Deferred/Waived
                            entries cross-referenced against registered tools/resources)
-scripts/fingerprint.ts    REQ-313 implementation fingerprint computation
 scripts/update-server.ts  Fingerprint-scoped Update workflow invoker (§6.7)
 scripts/ruleset-builds/swse/  SWSE package rebuild: authored character_creation
                           source + build-package.mjs (REQ-399a, REQ-395a)

@@ -5,7 +5,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
@@ -400,6 +400,104 @@ test("new bucket-B: A, C, and E rows are ignored", () => {
     { reqId: "REQ-903", title: "Builder", bucket: "E" },
   ], new Set());
   if (issues.length !== 0) throw new Error(`unexpected issues: ${JSON.stringify(issues)}`);
+});
+
+
+test("§10 coverage: a prompt that omits G0a and G5–G8 fails", () => {
+  const text = [
+    "## 8. Verification Workflows",
+    "| Workflow | Scope |",
+    "| G0a | Ruleset |",
+    "| G0b | Ruleset |",
+    "| G2 | Fixture |",
+    "| G5 | Ruleset |",
+    "",
+    "## 10. Independent Verification",
+    "2. Execute verification workflows G0b through G4; record evidence.",
+    "",
+    "| Workflow | Fields |",
+    "| G0a | x |",
+    "| G0b | x |",
+    "| G2 | x |",
+    "| G5 | x |",
+    "",
+    "## 11. Next",
+  ].join("\n");
+  const issues = checkIndependentVerificationCoverage(text);
+  if (!issues.some((i) => i.includes("missing g0a") && i.includes("g5"))) {
+    throw new Error(`expected Phase-1 coverage failure; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("§10 coverage: a full prompt with reserved G1 parenthetical passes", () => {
+  const text = [
+    "## 8. Verification Workflows",
+    "| Workflow | Scope |",
+    "| G0a | Ruleset |",
+    "| G0b | Ruleset |",
+    "| G2 | Fixture |",
+    "| G5 | Ruleset |",
+    "",
+    "## 10. Independent Verification",
+    "2. Execute verification workflows G0a, G0b, and G2 through G5 (G1 is reserved); record evidence.",
+    "",
+    "| Workflow | Fields |",
+    "| G0a | x |",
+    "| G0b | x |",
+    "| G2 | x |",
+    "| G5 | x |",
+    "",
+    "## 11. Next",
+  ].join("\n");
+  const issues = checkIndependentVerificationCoverage(text);
+  if (issues.length !== 0) throw new Error(`unexpected issues: ${JSON.stringify(issues)}`);
+});
+
+const EIGHT = [
+  ["ifcraftcorpus", "if-craft-corpus", "IF Craft Corpus"],
+  ["dmcp", "dmcp", "DMCP"],
+  ["lonelog", "lonelog", "Lonelog"],
+  ["bitd", "bitd", "BitD SRD"],
+  ["ironswornsrd", "ironsworn-srd", "Ironsworn: Starforged SRD"],
+  ["lazygm", "lazy-gm", "Sly Flourish Lazy GM Resource Document"],
+  ["alexandrian", "alexandrian", "The Alexandrian"],
+  ["dungeonworld", "dungeon-world", "Dungeon World SRD"],
+];
+
+function licenseFixture() {
+  return {
+    uRows: EIGHT.map(([, , source]) => ({ source, kind: "Narrative frameworks", license: "CC", copyright: "x" })),
+    s114Rows: EIGHT.map(([, , source]) => ({ source })),
+    manifestRows: EIGHT.map(([, dir]) => ({ source: dir, module: "supplementary_guidance", file: `${dir}/INDEX.md` })),
+    vendorDirs: EIGHT.map(([, dir]) => ({ name: dir, hasLicense: true })),
+    readmeSources: EIGHT.map(([, , source]) => source),
+  };
+}
+
+test("license parity: a complete set passes", () => {
+  const issues = checkLicenseSourceParity(licenseFixture());
+  if (issues.length !== 0) throw new Error(`unexpected issues: ${JSON.stringify(issues)}`);
+});
+
+test("license parity: a missing LICENSE fails", () => {
+  const fx = licenseFixture();
+  fx.vendorDirs[0] = { name: fx.vendorDirs[0].name, hasLicense: false };
+  const issues = checkLicenseSourceParity(fx);
+  if (!issues.some((i) => i.includes("no LICENSE"))) throw new Error(`expected LICENSE failure; got ${JSON.stringify(issues)}`);
+});
+
+test("license parity: an unlisted directory fails", () => {
+  const fx = licenseFixture();
+  fx.vendorDirs.push({ name: "extra-source", hasLicense: true });
+  const issues = checkLicenseSourceParity(fx);
+  if (!issues.some((i) => i.includes("extra-source"))) throw new Error(`expected unlisted-directory failure; got ${JSON.stringify(issues)}`);
+});
+
+test("license parity: a README miss fails", () => {
+  const fx = licenseFixture();
+  fx.readmeSources = fx.readmeSources.slice(1);
+  const issues = checkLicenseSourceParity(fx);
+  if (!issues.some((i) => i.includes("missing from footer"))) throw new Error(`expected README failure; got ${JSON.stringify(issues)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

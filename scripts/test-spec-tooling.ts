@@ -89,6 +89,7 @@ function main(): void {
       tool_selection_coverage: 0.93,
       mean_calls_per_intent: 1.0,
       catalog_tokens: 25856,
+      tools_list_bytes: 103424,
       prompt_tokens: 1234,
       cold_start_ms: 850,
       query_latency_ms: 12,

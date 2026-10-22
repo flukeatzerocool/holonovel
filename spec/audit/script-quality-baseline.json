@@ -7,12 +7,7 @@
       "disposition": "report-only",
       "justification": "TDQS heuristics whose false-positive rate is measured before promotion (DECISIONS.md W5c); invoked manually, not by a gate."
     },
-    {
-      "check": "reachability",
-      "path": "scripts/fingerprint.ts",
-      "disposition": "standalone-manual",
-      "justification": "Manual implementation-fingerprint inspection CLI; the live path is scripts/lib/fingerprints.ts via update-server.ts. Candidate for removal."
-    },
+
     {
       "check": "reachability",
       "path": "holonovel/scripts/retention-prune.ts",

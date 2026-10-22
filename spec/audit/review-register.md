@@ -109,9 +109,9 @@ condition — not a gate's emitted message; a message alone is not evidence.
   intentional divergence (`doAction`) baselined. New regression self-test
   `scripts/test-script-tooling.ts` (21/21) wired into `check` and `check:fast`.
   Evidence: `check:fast` PASS, `check` PASS, `test:all` 41/41,
-  `test-script-tooling` 21/21, `typecheck` clean. Retained:
-  `scripts/fingerprint.ts` remains a recorded removal candidate (P3,
-  allowlisted). Not script defects: `check-registry-publish` exits 1 because the
+  `test-script-tooling` 21/21, `typecheck` clean. The former manual
+  fingerprint-inspection CLI was removed on 2026-10-21 (see the Resolved
+  entry below). Not script defects: `check-registry-publish` exits 1 because the
   published registry lags the repo version; `spec-update-record --check` exits 1
   on the pending unpublished delta (publication gate).
 
@@ -836,6 +836,12 @@ pass and completion-oracle green. Fix evidence: regression tests in
   above — C2/C3/C4 promoted to hard checks, C4 narrowed to REQ-header-shape,
   the harness duplicates extracted, and the one intentional `doAction`
   divergence baselined.
+
+- **`scripts/fingerprint.ts` removal candidate (resolved 2026-10-21):** the
+  manual implementation-fingerprint inspection CLI was removed and its
+  reachability allowlist entry retired. The capability remains in
+  `scripts/lib/fingerprints.ts` (REQ-313a–d) and is consumed by
+  `scripts/update-server.ts`.
 
 ## Deferred-by-user
 
