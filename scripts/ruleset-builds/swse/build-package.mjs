@@ -28,7 +28,7 @@ import * as path from "node:path";
 import { computeContentHash } from "../../lib/ruleset-package.mjs";
 import {
   PACKAGE_FILES, parseBuildArgs, readJson, readPackageFormat, readHostVersion,
-  sanitizeReadOnlyDescription, writePackageFiles, backupInstallDir, runPackageGates,
+  sanitizeReadOnlyDescription, surfaceFor, buildTimestamp, writePackageFiles, backupInstallDir, runPackageGates,
 } from "../../lib/ruleset-build-kit.mjs";
 
 const SCRIPT_DIR = import.meta.dirname;
@@ -74,14 +74,16 @@ try {
   const baselineManifest = fs.existsSync(baselineManifestPath) ? readJson(baselineManifestPath) : {};
 
   const model = { ...baseline["model.json"], character_creation: authored };
-  const tools = baseline["tools.json"].map((t) => ({ ...t, description: sanitizeReadOnlyDescription(t.description) }));
+  const tools = baseline["tools.json"].map((t) => ({
+    ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description),
+  }));
 
   const packageFormat = readPackageFormat(REPO_ROOT);
   const hostVersion = readHostVersion(REPO_ROOT);
   const contentHash = computeContentHash(baseline["index.json"], model, tools, baseline["resources.json"], baseline["prompts.json"]);
   const manifest = {
     slug: SLUG, name: NAME, host_version: hostVersion, content_hash: contentHash,
-    built_at: new Date().toISOString(), counts: baselineManifest.counts ?? {}, package_format: packageFormat,
+    built_at: buildTimestamp(), counts: baselineManifest.counts ?? {}, package_format: packageFormat,
   };
 
   console.log(`build-package — ${SLUG}`);
@@ -94,11 +96,12 @@ try {
   console.log(`  damage stats:    ${REQUIRED_DAMAGE_STATS.join(", ")}`);
 
   if (opts.dryRun) { console.log("\nDry run — no files written."); process.exit(0); }
-  if (!opts.noBackup && fs.existsSync(outDir)) {
-    console.log(`  backup:          ${backupInstallDir(outDir, installDir, SLUG)}`);
-  }
 
-  writePackageFiles(outDir, {
+  // Gate before install: emit into a staging directory, run the package gates,
+  // and only then back up and copy over the target. A gate refusal leaves the
+  // installed package untouched.
+  const staging = `${outDir}.staging-${process.pid}`;
+  writePackageFiles(staging, {
     "manifest.json": manifest,
     "index.json": baseline["index.json"],
     "model.json": model,
@@ -106,8 +109,17 @@ try {
     "resources.json": baseline["resources.json"],
     "prompts.json": baseline["prompts.json"],
   });
-  const failures = runPackageGates(outDir, REPO_ROOT);
-  if (failures) { console.error(`\npackage gates failed (REQ-430) — ${SLUG} not finalized:\n${failures}`); process.exit(1); }
+  const failures = runPackageGates(staging, REPO_ROOT);
+  if (failures) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    console.error(`\npackage gates failed (REQ-430) — ${SLUG} not finalized:\n${failures}`);
+    process.exit(1);
+  }
+  if (!opts.noBackup && fs.existsSync(outDir)) {
+    console.log(`  backup:          ${backupInstallDir(outDir, installDir, SLUG)}`);
+  }
+  fs.cpSync(staging, outDir, { recursive: true });
+  fs.rmSync(staging, { recursive: true, force: true });
   console.log(`\nWrote ${PACKAGE_FILES.length} files to ${outDir}`);
   process.exit(0);
 } catch (e) {

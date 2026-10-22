@@ -49,6 +49,26 @@ export function sanitizeReadOnlyDescription(d) {
     .replace(/persists nothing/gi, "no persistence");
 }
 
+// REQ-578 / REQ-582 — a ruleset tool declares a host intent group and the
+// phases it serves. A recorded user goal wins; otherwise fall back to the
+// name/kind heuristic for legacy extracted tools. Shared so every emitter
+// declares surfaces by one rule.
+export const ALL_PHASES = ["none", "setup", "scene", "combat", "downtime", "closed"];
+export function surfaceFor(tool) {
+  const group = tool.user_goal
+    ?? (tool.name === "core_mechanic" ? "table" : tool.kind === "roll" ? "resolve" : "lookup");
+  if (group === "table") return { group, phases: ["none", "setup", "scene", "closed"] };
+  if (group === "resolve") return { group, phases: ["scene", "combat", "downtime"] };
+  return { group, phases: ALL_PHASES };
+}
+
+// REQ-561 — a fixed build timestamp makes re-emission byte-deterministic. The
+// override is honored for the determinism gate; production emission defaults to
+// the wall clock.
+export function buildTimestamp() {
+  return process.env.HOLONOVEL_BUILD_TIMESTAMP ?? new Date().toISOString();
+}
+
 // Generic emitter flag parser. `spec` maps a flag name (without --) to an
 // option key; boolean flags have null values. Always supports --help.
 export function parseBuildArgs(argv, spec = {}) {
@@ -125,7 +145,9 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
     base = readJson(path.join(scriptDir, "baseline.json"));
   }
 
-  const tools = base.tools.map((t) => ({ ...t, description: sanitizeReadOnlyDescription(t.description) }));
+  const tools = base.tools.map((t) => ({
+    ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description),
+  }));
   const packageFormat = readPackageFormat(repoRoot);
   const hostVersion = readHostVersion(repoRoot);
   const contentHash = computeContentHash(base.index, base.model, tools, base.resources, base.prompts);
@@ -134,7 +156,7 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
     name: base.name ?? name,
     host_version: hostVersion,
     content_hash: contentHash,
-    built_at: new Date().toISOString(),
+    built_at: buildTimestamp(),
     counts: base.counts ?? {},
     package_format: packageFormat,
   };
@@ -147,10 +169,12 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
   console.log(`  content_hash:   ${contentHash}`);
 
   if (opts.dryRun) { console.log("\nDry run — no files written."); return 0; }
-  if (!opts.noBackup && fs.existsSync(outDir)) {
-    console.log(`  backup:         ${backupInstallDir(outDir, installDir, slug)}`);
-  }
-  writePackageFiles(outDir, {
+
+  // Gate before install: emit into a staging directory, run the package gates,
+  // and only then back up and copy over the target. A gate refusal leaves the
+  // installed package untouched.
+  const staging = `${outDir}.staging-${process.pid}`;
+  writePackageFiles(staging, {
     "manifest.json": manifest,
     "index.json": base.index,
     "model.json": base.model,
@@ -158,11 +182,17 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
     "resources.json": base.resources,
     "prompts.json": base.prompts,
   });
-  const failures = runPackageGates(outDir, repoRoot);
+  const failures = runPackageGates(staging, repoRoot);
   if (failures) {
+    fs.rmSync(staging, { recursive: true, force: true });
     console.error(`\npackage gates failed (REQ-430) — ${slug} not finalized:\n${failures}`);
     return 1;
   }
+  if (!opts.noBackup && fs.existsSync(outDir)) {
+    console.log(`  backup:         ${backupInstallDir(outDir, installDir, slug)}`);
+  }
+  fs.cpSync(staging, outDir, { recursive: true });
+  fs.rmSync(staging, { recursive: true, force: true });
   console.log(`\nWrote ${PACKAGE_FILES.length} files to ${outDir}`);
   return 0;
 }

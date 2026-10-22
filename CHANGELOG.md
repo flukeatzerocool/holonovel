@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-22 — Ruleset emitters are deterministic; one `update` command reconciles packages and user data
+
+- Shared the REQ-578 surface rule in `scripts/lib/ruleset-build-kit.mjs`
+  (`surfaceFor`, `ALL_PHASES`) and added a fixed-timestamp override
+  (`HOLONOVEL_BUILD_TIMESTAMP`) so re-emission is byte-deterministic (REQ-561).
+- Hardened the dnd2024 and swse emitters to stage → gate → backup → install, so a
+  gate refusal leaves the installed package untouched (REQ-430, REQ-563).
+- Added `scripts/lib/ruleset-registry.ts` as the one registry schema and emitter
+  resolver; `build-ruleset` now records the emitter invocation when known (REQ-421).
+- Added the unified `update` entry point (REQ-395c): dry-run by default, rebuilds
+  stale packages through their recorded emitters, migrates stale user data, and
+  records each tier updated/current/deferred. `update-rulesets` remains the
+  compatibility reporter (REQ-422); REQ-556 now names `update`.
+- Added T689 (unified update: plan/apply/defer) and extended T649 to cover both tiers.
+
 ## 2026-10-22 — README aligned with the journey-first wiki; M8ven badge removed
 
 - README §1 now leads with the ruleset-free Torre Nosferatu path, so a fresh

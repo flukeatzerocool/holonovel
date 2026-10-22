@@ -4314,6 +4314,9 @@ The distribution SHALL expose a documented entry point — `build-ruleset` — t
 **REQ-395b — Workflow runbooks (Part b).**
 Every workflow named in §6.1 — Convert, Build, Synthesize, and Update — SHALL have a runbook: a short procedural guide naming the workflow's entry point, happy-path steps, and recovery steps. Each runbook SHALL be reachable from the reading guide (§0) and from its entry point's output. *Acceptance criterion:* a builder asked to add a ruleset reaches the Build runbook before §6.3 Discovery. _Check:_ T464.
 
+**REQ-395c — Update entry point (Part c).**
+The distribution SHALL expose `update`, reconciling every tier to the host's current fingerprints: stale installed packages SHALL be rebuilt through their recorded emitter (REQ-563, REQ-564) and stale persisted artifacts SHALL be migrated (REQ-424). The default invocation SHALL be a side-effect-free dry run; `--apply` SHALL write. An unresolved emitter or source SHALL be recorded deferred with its reason; every tier SHALL carry an outcome. With recording enabled, the per-tier outcome SHALL be appended under the state directory for the §6.7 workflow to record in DECISIONS.md (6). `update-rulesets` (REQ-422) remains the compatibility reporter. *Acceptance criterion:* one invocation reconciles both tiers, names deferred slugs, and reports no tier complete without an outcome. _Check:_ T689.
+
 **REQ-396 — Deploy preservation.**
 Any mechanism that updates a deployed host instance — a git pull, clean, checkout, or a similar deploy step — SHALL preserve the install directory, all installed ruleset packages, and all user-generated data. User-generated data covers Novels, roster, codex, server notes, and world-model data, byte-for-byte. Such a deploy SHALL NOT run destructive git operations that delete or revert the install directory or the user-data directory (REQ-397). *Acceptance criterion:* A deploy step that pulls and cleans untracked files leaves the install directory, installed packages, and every Novel, roster, codex, server-note, and world-model entry byte-for-byte identical; a deploy whose git operations would touch the install or user-data directory is rejected before any file is deleted. _Check:_ T465.
 
@@ -4339,7 +4342,7 @@ Before handoff, the Build workflow SHALL replay the emitted package against a ru
 Emitting a package twice from identical parts and a fixed build timestamp SHALL produce byte-identical files and an identical `content_hash` (REQ-420). The content hash SHALL be computed over the canonical parts only and SHALL NOT include the build timestamp. *Acceptance criterion:* two emissions of the same parts are byte-identical across all six package files, and re-emitting an unchanged source does not change `content_hash`. _Check:_ T654.
 
 **REQ-421 — Ruleset source registry.**
-The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, and its build timestamp. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
+The `build-ruleset` entry point (REQ-395a) SHALL record each accepted intake in a source registry stored under the server's state directory (REQ-397), mapping each slug to its build recipe — the ordered set of source paths and their roles (new package or supplement) — its package-format fingerprint, its build timestamp, and the emitter invocation when one is known. The registry SHALL survive deploys and host updates (REQ-396) and SHALL NOT be committed to the specification repository. Re-running `build-ruleset` for a registered slug SHALL default to the recorded recipe. *Acceptance criterion:* after a build the registry maps the slug to its recipe; a deploy preserves it; a re-run defaults to the recorded recipe. _Check:_ T499.
 
 **REQ-563 — Ruleset package emitter.**
 A reference ruleset package whose content is authored in this repository or delivered as a supplement overlay SHALL ship, in the git-tracked tree, a committed deterministic emitter and the committed durable source it consumes, such that a fresh clone re-emits it byte-identically (REQ-561) without an installed package. A ruleset deployed from outside this repository (REQ-432), or whose base content is produced only by the Build workflow's Discovery extraction, is outside this requirement. The emitter SHALL run the ruleset-package gates (REQ-430, REQ-559, REQ-560) and refuse to write on any reported defect. *Acceptance criterion:* a fresh clone re-emits each covered package byte-identically; a defective package is refused by the emitter naming the defect. _Check:_ T656.
@@ -4348,7 +4351,7 @@ A reference ruleset package whose content is authored in this repository or deli
 A supplement build SHALL record the base package's content hash, each supplement source's hash, and the resulting package content hash in DECISIONS.md (6) and the source registry (REQ-421). Re-running a supplement build SHALL be idempotent: with unchanged base and supplement sources it SHALL emit a byte-identical content hash, and it SHALL replace prior supplement content rather than duplicate it. `update-rulesets` SHALL report a supplement slug whose recorded base content hash no longer matches the installed base package. *Acceptance criterion:* re-running a supplement build with unchanged sources emits an identical content hash; a base-package change is reported by `update-rulesets`; prior supplement content is not duplicated. _Check:_ T650.
 
 **REQ-422 — Ruleset update entry point.**
-The distribution SHALL expose a documented entry point — `update-rulesets` — that lists installed packages whose package-format fingerprint (REQ-420) differs from the host's current value or is absent. The entry point SHALL emit the Build workflow invocation for each affected slug, reading slug-to-source mappings from the source registry (REQ-421). Invoked with no arguments, it SHALL print usage, the install directory, and a per-package compatibility summary. *Acceptance criterion:* `update-rulesets` reports each stale slug with its recorded source and prints a Build invocation; no stale slug is omitted. _Check:_ T500.
+The distribution SHALL expose a documented entry point — `update-rulesets` — that lists installed packages whose package-format fingerprint (REQ-420) differs from the host's current value or is absent. The entry point SHALL emit the Build workflow invocation for each affected slug, reading slug-to-source mappings from the source registry (REQ-421). Invoked with no arguments, it SHALL print usage, the install directory, and a per-package compatibility summary. The unified reconciler `update` (REQ-395c) supersedes it as the Update workflow entry point; this entry point remains the compatibility reporter. *Acceptance criterion:* `update-rulesets` reports each stale slug with its recorded source and prints a Build invocation; no stale slug is omitted. _Check:_ T500.
 
 **REQ-423 — User-data format fingerprint.**
 Every persisted user-data artifact — Novel, roster, codex, and server-note state — SHALL record a data-format fingerprint: a hash of the state-model sections (§5.6, §5.9, §5.19, §5.21–§5.28, §5.31–§5.32, §7.7, Appendix Q) of the assembled specification, computed at write. The host SHALL compare each artifact's fingerprint against its current value at startup and after a host update (§6.7) and SHALL surface a `[data-stale]` flag in `spec_health` naming the artifact and both fingerprints. Staleness SHALL NOT block loading — artifacts load per REQ-065 with inert fields preserved and defaults added. *Acceptance criterion:* an artifact written under a prior data-format fingerprint reports `[data-stale]` and still loads; user data survives byte-for-byte apart from the stamp. _Check:_ T501.
@@ -4357,7 +4360,7 @@ Every persisted user-data artifact — Novel, roster, codex, and server-note sta
 The distribution SHALL expose `migrate-user-data`, an entry point listing artifacts whose data-format fingerprint (REQ-423) differs from the host's value or is absent. When invoked, it SHALL re-serialize each artifact via the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults (REQ-065) on disk. Re-serialization SHALL recompute any checksum over the migrated payload (REQ-092). The default invocation SHALL be a side-effect-free dry run. A migration failing before completion SHALL leave the original unchanged and name it. *Acceptance criterion:* the default invocation changes nothing; an explicit run brings stale artifacts current on disk; re-export is unchanged; a re-stamped checksummed Novel validates without backup fallback. _Check:_ T502, T504.
 
 **REQ-556 — Update-workflow user-data reconciliation.**
-When the Update workflow runs against a deployed instance, it SHALL reconcile all tiers to the host's format fingerprints: stale installed ruleset packages SHALL be rebuilt through their committed emitter (REQ-563) from their sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. The workflow SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.
+When the Update workflow runs against a deployed instance, it SHALL invoke `update` (REQ-395c) to reconcile every tier to the host's fingerprints: stale packages SHALL be rebuilt through their committed emitter (REQ-563) from their sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. It SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.
 
 **REQ-564 — Update-workflow tool-quality remediation.**
 When the Update workflow runs against a deployed instance, it SHALL remediate every installed package surfaced in `ruleset_package_alerts` (REQ-430) through that package's committed emitter (REQ-563), rebuilding the package's durable source so the reported defect clears. A package whose remediation cannot be completed SHALL be recorded deferred with its reason. *Acceptance criterion:* a loaded package flagged for a tool-quality defect is rebuilt through its emitter and the flag clears; an un-remediable package is recorded deferred. _Check:_ T657.
@@ -9760,6 +9763,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-394 | Spec publication integrity | 2026-08-17 |
 | REQ-395a | Ruleset-build entry point (Part a) | 2026-08-18 |
 | REQ-395b | Workflow runbooks (Part b) | 2026-08-18 |
+| REQ-395c | Update entry point (Part c) | 2026-10-22 |
 | REQ-396 | Deploy preservation | 2026-08-18 |
 | REQ-397 | Untracked state location | 2026-08-19 |
 | REQ-398 | Deploy-model scope | 2026-08-19 |
@@ -10677,6 +10681,7 @@ diet.
 | T686 | Automated | Pipeline performance record: assert one record carries every required term; assert a missing term fails handoff naming it; assert a conversion-skipped build records that term as waived; assert `spec_health` reports the record. | REQ-586 |
 | T687 | Automated | Stable catalog prefix: assert two invocations with unchanged registration, badge, and scope return byte-identical catalogs and the same reported prefix length; assert a registration change alters the prefix and updates the report. | REQ-587 |
 | T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
+| T689 | Automated | Unified Update entry point: dry-run a stale package with a recorded emitter and assert it is planned and nothing is written; apply and assert the emitter runs, the registry advances, and a slug with no recorded emitter is deferred by name; assert the data tier runs in the same invocation. | REQ-395c |
 
 ---
 
@@ -12368,8 +12373,8 @@ before the workflow's full §6 sections — they are the "how do I actually run
 this" index into the normative text.
 
 The entry points are also emitted by their commands: `build-ruleset`,
-`update-server`, `update-rulesets`, and `migrate-user-data` print a pointer to
-this appendix when invoked without valid arguments.
+`update-server`, `update`, `update-rulesets`, and `migrate-user-data` print a
+pointer to this appendix when invoked without valid arguments.
 
 ### V.1 Add a ruleset (Build)
 
@@ -12467,11 +12472,12 @@ Update workflow (§6.7) driven manually.
 7. After the deploy pull, verify the deployed spec hash equals the published
    hash and the deployed fingerprints match (REQ-418). A deploy that cannot
    fast-forward fails with a deploy-failed notice, not a success marker.
-8. Reconcile user data (REQ-556): run `update-rulesets` to rebuild every stale
-   package from its recorded source, then `migrate-user-data --apply` to bring
-   every stale Novel, roster, codex, and server-note artifact to the current
-   data-format fingerprint. Record the per-tier outcome in `DECISIONS.md`; a
-   tier whose source is unavailable is recorded deferred, never dropped.
+8. Reconcile all tiers (REQ-556): run `update` (REQ-395c) — it plans every stale
+   package rebuild and artifact migration; re-run with `--apply` to rebuild each
+   stale package through its recorded emitter and bring every stale Novel,
+   roster, codex, and server-note artifact to the current data-format
+   fingerprint. Record the per-tier outcome in `DECISIONS.md`; a tier whose
+   source is unavailable is recorded deferred, never dropped.
 
 **Recovery.**
 
@@ -12511,7 +12517,9 @@ before re-binding.
 
 ### V.7 Update a ruleset
 
-**Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts).
+**Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts) for the
+compatibility report; `npm run update -- --packages-only` (scripts/update.ts,
+REQ-395c) to reconcile packages and user data together.
 
 **Happy path.**
 
@@ -12539,7 +12547,9 @@ host update; run it manually when only a package is stale.
 
 ### V.8 Migrate user data
 
-**Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts).
+**Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts), or
+`npm run update -- --data-only` (scripts/update.ts, REQ-395c) when reconciling
+packages and user data together.
 
 **Happy path.**
 

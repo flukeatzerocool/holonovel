@@ -163,6 +163,52 @@ function main(): void {
       assertContains(rules.stdout, "stale");
       assertContains(rules.stdout, "no registry entry");
     });
+
+    // ── REQ-395c / T689 — unified Update entry point ─────────────────
+    const emittedDir = join(RECONCILE_DIR, "rulesets", "emitted");
+    mkdirSync(emittedDir, { recursive: true });
+    writeFileSync(join(emittedDir, "manifest.json"), JSON.stringify({ slug: "emitted", package_format: "old" }, null, 2) + "\n");
+    const emitterPath = join(RECONCILE_DIR, "fixture-emitter.mjs");
+    writeFileSync(emitterPath, `#!/usr/bin/env node
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+const i = process.argv.indexOf("--out");
+const out = i >= 0 ? process.argv[i + 1] : process.cwd();
+const src = readFileSync(${JSON.stringify(join(ROOT, "holonovel", "src", "generated", "contract-fingerprints.ts"))}, "utf-8");
+const m = src.match(/export const PACKAGE_FORMAT = "([0-9a-f]+)";/);
+writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", package_format: m[1] }, null, 2) + "\\n");
+`);
+    const registryPath = join(RECONCILE_DIR, "ruleset-registry.json");
+    let seeded: any = {};
+    try { seeded = JSON.parse(readFileSync(registryPath, "utf-8")); } catch { seeded = {}; }
+    seeded.emitted = { source: RECONCILE_DIR, emitter: emitterPath, emitter_args: ["--out", "{dir}"], package_format: "old" };
+    writeFileSync(registryPath, JSON.stringify(seeded, null, 2) + "\n");
+
+    test("T689/REQ-395c: dry run plans a stale package and writes nothing", () => {
+      const dry = runScript("update.ts", ["--packages-only"], { TTRPG_DATA_DIR: RECONCILE_DIR });
+      if (dry.status !== 0) throw new Error(`update dry run failed: ${dry.stdout} ${dry.stderr}`);
+      assertContains(dry.stdout, "emitted: planned");
+      assertContains(dry.stdout, "no recorded emitter");
+      const manifest = JSON.parse(readFileSync(join(emittedDir, "manifest.json"), "utf-8"));
+      if (manifest.package_format !== "old") throw new Error("dry run mutated the package");
+    });
+
+    test("T689/REQ-395c: apply rebuilds through the recorded emitter and defers the unresolvable slug", () => {
+      const run = runScript("update.ts", ["--packages-only", "--apply"], { TTRPG_DATA_DIR: RECONCILE_DIR });
+      if (run.status !== 0) throw new Error(`update apply failed: ${run.stdout} ${run.stderr}`);
+      assertContains(run.stdout, "emitted: updated");
+      assertContains(run.stdout, "stale: deferred");
+      const manifest = JSON.parse(readFileSync(join(emittedDir, "manifest.json"), "utf-8"));
+      if (manifest.package_format === "old") throw new Error("package was not rebuilt");
+      const registry = JSON.parse(readFileSync(registryPath, "utf-8"));
+      if (registry.emitted.package_format === "old") throw new Error("registry was not advanced");
+    });
+
+    test("T689/REQ-395c: the data tier runs in the same invocation", () => {
+      const run = runScript("update.ts", ["--data-only", "--apply"], { TTRPG_DATA_DIR: RECONCILE_DIR });
+      if (run.status !== 0) throw new Error(`update data tier failed: ${run.stdout} ${run.stderr}`);
+      assertContains(run.stdout, "data    persisted artifacts: updated");
+    });
   } finally {
     // Drop the isolated temp baselines; the live .holonovel-state was never touched.
     rmSync(WORK_STATE_DIR, { recursive: true, force: true });

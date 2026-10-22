@@ -24,3 +24,14 @@ export function handleHelp(argv: string[], usage: string): boolean {
   }
   return false;
 }
+
+// Reject an unrecognized `-`-prefixed argument: diagnostic to stderr, exit 1.
+export function rejectUnknown(argv: string[], known: Set<string>, usage = ""): void {
+  for (const arg of argv) {
+    if (arg.startsWith("-") && !known.has(arg)) {
+      process.stderr.write(`unknown flag: ${arg}\n`);
+      if (usage) process.stderr.write(usage);
+      process.exit(1);
+    }
+  }
+}

@@ -1091,6 +1091,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-394 | Spec publication integrity | 2026-08-17 |
 | REQ-395a | Ruleset-build entry point (Part a) | 2026-08-18 |
 | REQ-395b | Workflow runbooks (Part b) | 2026-08-18 |
+| REQ-395c | Update entry point (Part c) | 2026-10-22 |
 | REQ-396 | Deploy preservation | 2026-08-18 |
 | REQ-397 | Untracked state location | 2026-08-19 |
 | REQ-398 | Deploy-model scope | 2026-08-19 |
@@ -2008,6 +2009,7 @@ diet.
 | T686 | Automated | Pipeline performance record: assert one record carries every required term; assert a missing term fails handoff naming it; assert a conversion-skipped build records that term as waived; assert `spec_health` reports the record. | REQ-586 |
 | T687 | Automated | Stable catalog prefix: assert two invocations with unchanged registration, badge, and scope return byte-identical catalogs and the same reported prefix length; assert a registration change alters the prefix and updates the report. | REQ-587 |
 | T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
+| T689 | Automated | Unified Update entry point: dry-run a stale package with a recorded emitter and assert it is planned and nothing is written; apply and assert the emitter runs, the registry advances, and a slug with no recorded emitter is deferred by name; assert the data tier runs in the same invocation. | REQ-395c |
 
 ---
 

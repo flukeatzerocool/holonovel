@@ -22,7 +22,7 @@ import * as path from "node:path";
 import { computeContentHash } from "../../lib/ruleset-package.mjs";
 import {
   parseBuildArgs, readJson, readPackageFormat, readHostVersion,
-  sanitizeReadOnlyDescription, writePackageFiles, runPackageGates,
+  sanitizeReadOnlyDescription, surfaceFor, buildTimestamp, writePackageFiles, runPackageGates,
 } from "../../lib/ruleset-build-kit.mjs";
 
 const HERE = import.meta.dirname;
@@ -70,23 +70,8 @@ function main() {
   }
 
   const newToolNames = new Set(newTools.map((t) => t.name));
-  // REQ-578 / Appendix T.3 — generated tools declare a host intent group and
-  // the phases they serve. Lookups are cross-cutting; rolls serve resolution;
-  // the core-mechanic explainer is table orientation.
-  const allPhases = ["none", "setup", "scene", "combat", "downtime", "closed"];
-  const surfaceFor = (tool) => {
-    // REQ-582/REQ-578 — a recorded user goal drives the declaration; the
-    // name/kind heuristic is the fallback for legacy extracted tools.
-    const group = tool.user_goal
-      ?? (tool.name === "core_mechanic" ? "table" : tool.kind === "roll" ? "resolve" : "lookup");
-    if (group === "table") {
-      return { group, phases: ["none", "setup", "scene", "closed"] };
-    }
-    if (group === "resolve") {
-      return { group, phases: ["scene", "combat", "downtime"] };
-    }
-    return { group, phases: allPhases };
-  };
+  // REQ-578 / Appendix T.3 — surfaces are declared by the shared emitter rule
+  // (ruleset-build-kit.surfaceFor) so every package declares them identically.
   const mergedTools = base["tools.json"]
     .filter((t) => !newToolNames.has(t.name))
     .map((t) => ({ ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description) }));
@@ -107,7 +92,7 @@ function main() {
     name: base["manifest.json"].name,
     host_version: readHostVersion(path.dirname(DEPLOYED)),
     content_hash: contentHash,
-    built_at: new Date().toISOString(),
+    built_at: buildTimestamp(),
     counts,
     package_format: readPackageFormat(path.dirname(DEPLOYED)),
   };
@@ -121,7 +106,10 @@ function main() {
   console.log(`  content_hash: ${contentHash}`);
 
   if (o.dryRun) { console.log("\nDry run — no files written."); return 0; }
-  writePackageFiles(outDir, {
+  // Gate before install: stage, gate, then copy over. A refusal leaves the
+  // installed package untouched.
+  const staging = `${outDir}.staging-${process.pid}`;
+  writePackageFiles(staging, {
     "manifest.json": manifest,
     "index.json": mergedIndex,
     "model.json": model,
@@ -129,8 +117,14 @@ function main() {
     "resources.json": resources,
     "prompts.json": prompts,
   });
-  const failures = runPackageGates(outDir, REPO_ROOT);
-  if (failures) { console.error(`\npackage gates failed (REQ-430) — dnd2024 not finalized:\n${failures}`); return 1; }
+  const failures = runPackageGates(staging, REPO_ROOT);
+  if (failures) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    console.error(`\npackage gates failed (REQ-430) — dnd2024 not finalized:\n${failures}`);
+    return 1;
+  }
+  fs.cpSync(staging, outDir, { recursive: true });
+  fs.rmSync(staging, { recursive: true, force: true });
   console.log(`\nWrote 6 files to ${outDir}`);
   return 0;
 }
