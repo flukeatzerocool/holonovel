@@ -64,6 +64,13 @@
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
 
+### Holonovel Spec Update — 2026-10-22 (World-model provider document is generated from the host schema)
+
+- **Delta class:** minor. Changed surfaces: World-model provider document is generated from the host schema; Stale-surface reconciliation: §10 coverage, vendor parity, and register hygiene; Pipeline assumptions check: single gate manifest and publish hardening; Close the intent/selection gaps: converted-table and performance gates, routing baseline; Intent as a build input; selection as a measured outcome.
+- **Verification:** `npm run build-order` complete (assemble → full `check` → propagate → version sync), 0 errors; holonovel `test:all` passed; `npm run validate:fast -- --impl-audit=strict` → 0 errors / 0 warnings, buckets A0/B0/C415/E124, coverage register current; contract fingerprints unchanged (package `2bef778b…`, data `fc35429b…`); spec SHA `f984bab9…`.
+
+<!-- @spec-update:f984bab95b31d5a8ab9578b356039cf2e9ef3034b55b5453f73c6d82c1c60d8b -->
+
 ### Holonovel Spec Update — 2026-10-21 (Retire REQ-581 aliases; register package prompts at runtime)
 
 - **Delta class:** minor. Changed surfaces: Retire REQ-581 aliases; register package prompts at runtime; Tool surface re-baseline, profile redesign, TDQS 5/5; Surface consolidation and compatibility accounting; Tool Surface coverage evidence; Tool Surface Contract.
