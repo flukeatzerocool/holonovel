@@ -249,6 +249,9 @@ export class RulesetManager {
   // REQ-430 — per-package tool-quality results computed at hydration: the count
   // of conformant tool schemas and the list of non-conformant ones with defects.
   private toolQuality = new Map<string, { conformant: number; alerts: { tool: string; defects: string[] }[] }>();
+  // REQ-390b — report-only index cache keyed by file mtime/size. Distinct from
+  // hydration: this does not populate `hydrated` or change the hydrated count.
+  private indexReportCache = new Map<string, { mtimeMs: number; size: number; entries: RulesetIndexEntry[] }>();
 
   constructor(installDir: string) {
     this.installDir = installDir;
@@ -263,6 +266,7 @@ export class RulesetManager {
     this.installed.clear();
     this.incompatible.clear();
     this.toolQuality.clear();
+    this.indexReportCache.clear();
     const errors: string[] = [];
     if (!fs.existsSync(this.installDir)) return errors;
     const entries = fs.readdirSync(this.installDir, { withFileTypes: true });
@@ -454,14 +458,21 @@ export class RulesetManager {
   }
 
   // REQ-390b/REQ-558d — read a package's index for an informational report
-  // (confidence, anchor counts) WITHOUT hydrating or caching it, so a
-  // spec_health read does not itself change the hydrated-package count.
+  // (confidence, anchor counts) WITHOUT hydrating it, so a spec_health read does
+  // not itself change the hydrated-package count. The parsed report is cached by
+  // file mtime/size, so repeated health calls do not re-parse multi-megabyte
+  // indexes; the cache is distinct from hydration.
   indexForReport(slug: string): RulesetIndexEntry[] {
     const p = path.join(this.installDir, slug, "index.json");
     if (!fs.existsSync(p)) return [];
     try {
+      const stat = fs.statSync(p);
+      const hit = this.indexReportCache.get(slug);
+      if (hit && hit.mtimeMs === stat.mtimeMs && hit.size === stat.size) return hit.entries;
       const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
-      return Array.isArray(parsed) ? parsed : [];
+      const entries = Array.isArray(parsed) ? parsed : [];
+      this.indexReportCache.set(slug, { mtimeMs: stat.mtimeMs, size: stat.size, entries });
+      return entries;
     } catch {
       // Unreadable/corrupt index contributes nothing here; the package's
       // rejection surfaces via hydration at call time (REQ-389b).

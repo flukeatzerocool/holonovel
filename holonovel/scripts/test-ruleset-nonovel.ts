@@ -122,10 +122,6 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   const content = resp.result?.content ?? [];
   return content.map((c: any) => c?.text ?? "").join("\n");
 }
-async function listTools(proc: ChildProcess): Promise<string[]> {
-  const resp = await send(proc, { method: "tools/list", params: {} });
-  return ((resp.result?.tools ?? []) as any[]).map((t) => t.name);
-}
 function kill(proc: ChildProcess): Promise<void> {
   return new Promise((resolve) => { proc.on("exit", () => resolve()); proc.kill(); });
 }
@@ -200,7 +196,9 @@ async function main() {
 
   await test("T653/REQ-560: every declared tool replays without [NOT_FOUND]", async () => {
     const p = await boot();
-    const names = await listTools(p);
+    // REQ-391a — with no Novel, package tools are reachable through scope=all.
+    const listed = await send(p, { method: "tools/list", params: { _meta: { scope: "all" } } });
+    const names = ((listed.result?.tools ?? []) as any[]).map((t) => t.name);
     for (const t of [`${SLUG}_search_rules`, `${SLUG}_lookup_thing`, `${SLUG}_roll_check`, `${SLUG}_roll_on_table`, `${SLUG}_core_mechanic`]) {
       assertContains(names.join(","), t, `tool ${t} registered`);
     }

@@ -76,7 +76,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
 async function listTools(proc: ChildProcess): Promise<string[]> {
-  const resp = await send(proc, { method: "tools/list", params: { scope: "all" } });
+  const resp = await send(proc, { method: "tools/list", params: { _meta: { scope: "all" } } });
   return ((resp.result?.tools ?? []) as any[]).map((t) => t.name);
 }
 function kill(proc: ChildProcess): Promise<void> {
