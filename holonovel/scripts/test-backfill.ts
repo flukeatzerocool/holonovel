@@ -370,10 +370,16 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
-    await test("T245/T202: world resources render map", async () => {
+    await test("T245/T202: world resources render map and kind contracts", async () => {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });
       const map = await readResource(proc, "world://map");
       assertContains(map, "parlor");
+      const kinds = await readResource(proc, "world://kinds");
+      assertContains(kinds, "## Property Contracts");
+      assertContains(kinds, "device");
+      assertContains(kinds, "vehicle");
+      assertContains(kinds, "openable");
+      assertContains(kinds, "switchable");
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 

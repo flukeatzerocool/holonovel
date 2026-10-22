@@ -16,6 +16,112 @@ export const WORLD_MODEL_KINDS = {
 
 export type WorldKind = keyof typeof WORLD_MODEL_KINDS;
 
+// REQ-201 — kinds accepted by the declarative assertion syntax. `region` is a
+// hierarchy kind but is not declared per-thing; keep this list in step with the
+// `convertSource` grammar and the provider template's `{{KIND_LIST}}`.
+export const WORLD_MODEL_DECLARABLE_KINDS = [
+  "thing", "container", "supporter", "door", "device", "vehicle", "person", "backdrop",
+] as const;
+
+export type DeclarableKind = (typeof WORLD_MODEL_DECLARABLE_KINDS)[number];
+
+// REQ-200/REQ-202a — documented property contracts. This table is the single
+// source for the `world://kinds` property section and the generated provider
+// document. `WorldThing` and the `convertSource` regexes remain the behavioral
+// source: adding a property or changing an accepted setter form requires
+// updating this table in the same change.
+export interface WorldPropertyContract {
+  name: string;
+  values: string;
+  contract: string;
+  group: string;
+  doc: "all-things" | WorldKind[];
+  settersNamed?: string[];
+  settersCurrent?: string[];
+}
+
+export const WORLD_MODEL_PROPERTIES: readonly WorldPropertyContract[] = [
+  {
+    name: "portable", values: "true / false", group: "Universal Properties (all things)", doc: "all-things",
+    contract: "IF false THEN the thing cannot be taken.",
+    settersNamed: ["is fixed", "is portable"], settersCurrent: ["It is fixed", "It is portable"],
+  },
+  {
+    name: "openable", values: "true / false", group: "Container Properties", doc: ["container"],
+    contract: "IF true THEN the thing has open/closed state.",
+    settersNamed: ["is openable"], settersCurrent: ["It is openable"],
+  },
+  {
+    name: "open", values: "true / false", group: "Container and Door Properties", doc: ["container", "door"],
+    contract: "IF true THEN contents are visible and accessible; a closed door blocks passage.",
+    settersNamed: ["is open"], settersCurrent: ["It is open", "It is closed"],
+  },
+  {
+    name: "lockable", values: "true / false", group: "Container and Door Properties", doc: ["container", "door"],
+    contract: "IF true THEN the thing has locked/unlocked state.",
+    settersNamed: ["is lockable"], settersCurrent: ["It is lockable"],
+  },
+  {
+    name: "locked", values: "true / false", group: "Container and Door Properties", doc: ["container", "door"],
+    contract: "IF true AND closed THEN the thing cannot be opened.",
+    settersNamed: ["is locked"], settersCurrent: ["It is locked"],
+  },
+  {
+    name: "capacity", values: "integer", group: "Supporter and Vehicle Properties", doc: ["supporter", "vehicle"],
+    contract: "Maximum number of things the supporter or vehicle can hold.",
+  },
+  {
+    name: "lit", values: "true / false", group: "Light Properties (things)", doc: "all-things",
+    contract: "Whether the thing provides light.",
+    settersNamed: ["is lit", "is dark"], settersCurrent: ["It is lit", "It is dark"],
+  },
+  {
+    name: "switchable", values: "true / false", group: "Device Properties", doc: ["device"],
+    contract: "IF true THEN the thing exposes switched on/off state.",
+    settersNamed: ["is switchable"], settersCurrent: ["It is switchable"],
+  },
+  {
+    name: "switched_on", values: "true / false", group: "Device Properties", doc: ["device"],
+    contract: "Current device state; set with `It is switched on.` or `It is switched off.`",
+    settersCurrent: ["It is switched on", "It is switched off"],
+  },
+  {
+    name: "enterable", values: "true / false", group: "Vehicle Properties", doc: ["vehicle"],
+    contract: "IF true THEN the thing has a virtual interior room.",
+    settersNamed: ["is enterable"], settersCurrent: ["It is enterable"],
+  },
+  {
+    name: "wearable", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "IF true THEN the thing can be worn on the body.",
+    settersNamed: ["is wearable"], settersCurrent: ["It is wearable"],
+  },
+  {
+    name: "readable", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "IF true THEN the thing carries discoverable `read_text`.",
+    settersNamed: ["is readable"], settersCurrent: ["It is readable"],
+  },
+  {
+    name: "edible", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "IF true THEN the thing can be eaten and is consumed on use.",
+    settersNamed: ["is edible"], settersCurrent: ["It is edible"],
+  },
+  {
+    name: "drinkable", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "IF true THEN the thing can be drunk and is consumed on use.",
+    settersNamed: ["is drinkable"], settersCurrent: ["It is drinkable"],
+  },
+  {
+    name: "climbable", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "IF true THEN the thing can be climbed.",
+    settersNamed: ["is climbable"], settersCurrent: ["It is climbable"],
+  },
+  {
+    name: "transparent", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "IF true THEN contents are visible without opening.",
+    settersNamed: ["is transparent"], settersCurrent: ["It is transparent"],
+  },
+];
+
 export const ROOM_DIRECTIONS = [
   "north", "south", "east", "west",
   "northeast", "northwest", "southeast", "southwest",
@@ -88,32 +194,32 @@ export function createEmptyWorldModel(): WorldModel {
 }
 
 export const BASE_PARSER_COMMANDS = [
-  { verb: "look", category: "navigation", args: [] },
-  { verb: "go", category: "navigation", args: ["direction"] },
-  { verb: "north", category: "navigation", args: [] },
-  { verb: "south", category: "navigation", args: [] },
-  { verb: "east", category: "navigation", args: [] },
-  { verb: "west", category: "navigation", args: [] },
-  { verb: "northeast", category: "navigation", args: [] },
-  { verb: "northwest", category: "navigation", args: [] },
-  { verb: "southeast", category: "navigation", args: [] },
-  { verb: "southwest", category: "navigation", args: [] },
-  { verb: "up", category: "navigation", args: [] },
-  { verb: "down", category: "navigation", args: [] },
-  { verb: "in", category: "navigation", args: [] },
-  { verb: "out", category: "navigation", args: [] },
-  { verb: "take", category: "object_interaction", args: ["thing"] },
-  { verb: "drop", category: "object_interaction", args: ["thing"] },
-  { verb: "inventory", category: "inventory", args: [] },
-  { verb: "i", category: "inventory", args: [] },
-  { verb: "open", category: "object_interaction", args: ["thing"] },
-  { verb: "close", category: "object_interaction", args: ["thing"] },
-  { verb: "unlock", category: "object_interaction", args: ["thing", "key"] },
-  { verb: "lock", category: "object_interaction", args: ["thing", "key"] },
-  { verb: "put", category: "object_interaction", args: ["thing", "target"] },
-  { verb: "search", category: "inspection", args: ["thing"] },
-  { verb: "examine", category: "inspection", args: ["thing"] },
-  { verb: "wait", category: "wait", args: [] },
+  { verb: "look", category: "navigation", args: [], effect: "Describe the current room: name, description, visible things, exits." },
+  { verb: "go", category: "navigation", args: ["direction"], effect: "Move through an exit in the given direction." },
+  { verb: "north", category: "navigation", args: [], effect: "Short-form alias for `go north`." },
+  { verb: "south", category: "navigation", args: [], effect: "Short-form alias for `go south`." },
+  { verb: "east", category: "navigation", args: [], effect: "Short-form alias for `go east`." },
+  { verb: "west", category: "navigation", args: [], effect: "Short-form alias for `go west`." },
+  { verb: "northeast", category: "navigation", args: [], effect: "Short-form alias for `go northeast`." },
+  { verb: "northwest", category: "navigation", args: [], effect: "Short-form alias for `go northwest`." },
+  { verb: "southeast", category: "navigation", args: [], effect: "Short-form alias for `go southeast`." },
+  { verb: "southwest", category: "navigation", args: [], effect: "Short-form alias for `go southwest`." },
+  { verb: "up", category: "navigation", args: [], effect: "Short-form alias for `go up`." },
+  { verb: "down", category: "navigation", args: [], effect: "Short-form alias for `go down`." },
+  { verb: "in", category: "navigation", args: [], effect: "Short-form alias for `go in`." },
+  { verb: "out", category: "navigation", args: [], effect: "Short-form alias for `go out`." },
+  { verb: "take", category: "object_interaction", args: ["thing"], effect: "Pick up a portable thing in the current room." },
+  { verb: "drop", category: "object_interaction", args: ["thing"], effect: "Drop a held thing in the current room." },
+  { verb: "inventory", category: "inventory", args: [], effect: "List held things." },
+  { verb: "i", category: "inventory", args: [], effect: "Short-form alias for `inventory`." },
+  { verb: "open", category: "object_interaction", args: ["thing"], effect: "Open an openable thing." },
+  { verb: "close", category: "object_interaction", args: ["thing"], effect: "Close an openable thing." },
+  { verb: "unlock", category: "object_interaction", args: ["thing", "key"], effect: "Unlock a lockable thing with the named key." },
+  { verb: "lock", category: "object_interaction", args: ["thing", "key"], effect: "Lock a lockable thing with the named key." },
+  { verb: "put", category: "object_interaction", args: ["thing", "target"], effect: "Place a thing inside or on a container or supporter." },
+  { verb: "search", category: "inspection", args: ["thing"], effect: "Examine a thing's contents (containers, supporters)." },
+  { verb: "examine", category: "inspection", args: ["thing"], effect: "Show a thing's description." },
+  { verb: "wait", category: "wait", args: [], effect: "Pass time; advance narrative countdowns." },
 ];
 
 export function resolveThingName(input: string, thingsInRoom: WorldThing[], inventory: string[]): WorldThing[] {
@@ -151,6 +257,13 @@ export interface ConvertResult {
   annotations: { encounters: number; npcs: number; traps: number; lore: number };
   warnings: { line: number; pattern: string; message: string }[];
 }
+
+// REQ-201 — the thing-kind grammar is derived from the declarable-kind list so
+// the parser and the documented assertion syntax cannot drift.
+const THING_KIND_DECLARATION = new RegExp(
+  `^(.+?) is a (${WORLD_MODEL_DECLARABLE_KINDS.join("|")})\\.\\s*(?:"(.*)")?\\s*$`,
+  "i",
+);
 
 function splitStatements(source: string): string[] {
   const statements: string[] = [];
@@ -423,7 +536,7 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
     }
 
     // Thing kind declaration: "<Name> is a <kind>." or "<Name> is a <kind>. "Description.""
-    const kindMatch = text.match(/^(.+?) is a (thing|container|supporter|door|device|vehicle|person|backdrop)\.\s*(?:"(.*)")?\s*$/i);
+    const kindMatch = text.match(THING_KIND_DECLARATION);
     if (kindMatch) {
       const name = kindMatch[1].trim();
       const kind = kindMatch[2].toLowerCase() as WorldKind;
@@ -616,6 +729,16 @@ export function worldKinds(): string {
   for (const [kind, def] of Object.entries(WORLD_MODEL_KINDS)) {
     const parent = def.parent ? ` (extends ${def.parent})` : "";
     lines.push(`- **${kind}**${parent}: ${def.description}`);
+  }
+
+  lines.push("\n## Property Contracts");
+  let lastGroup = "";
+  for (const prop of WORLD_MODEL_PROPERTIES) {
+    if (prop.group !== lastGroup) {
+      lines.push(`\n### ${prop.group}`);
+      lastGroup = prop.group;
+    }
+    lines.push(`- **${prop.name}** (${prop.values}): ${prop.contract}`);
   }
 
   lines.push("\n## Parser Commands");

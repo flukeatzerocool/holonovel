@@ -1,6 +1,6 @@
 {
   "name": "holonovel-spec",
-  "version": "2026.10.21",
+  "version": "2026.10.22",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {
@@ -36,6 +36,9 @@
     "check-ruleset-model": "npx tsx scripts/check-ruleset-model.ts",
     "check-reference-server-cleanliness": "npx tsx scripts/check-reference-server-cleanliness.ts",
     "check-starter-freshness": "npx tsx holonovel/scripts/check-starter-freshness.ts",
+    "test:world-provider": "npx tsx holonovel/scripts/test-world-provider.ts",
+    "generate-world-provider": "npx tsx holonovel/scripts/generate-world-provider.ts",
+    "check-world-provider": "npx tsx holonovel/scripts/generate-world-provider.ts --check",
     "test:ruleset-gates": "npx tsx holonovel/scripts/test-ruleset-gates.ts",
     "tool-citation-check": "npx tsx scripts/tool-citation-check.ts",
     "check:conformance": "npx tsx scripts/compare-spec-code.ts --gate",

@@ -42,6 +42,8 @@ const GATES: Gate[] = [
   { name: "test:spec-tooling", fast: npm("test:spec-tooling"), full: npm("test:spec-tooling") },
   { name: "test:script-tooling", fast: npm("test:script-tooling"), full: npm("test:script-tooling") },
   { name: "test:ruleset-gates", fast: npm("test:ruleset-gates"), full: npm("test:ruleset-gates") },
+  { name: "test:world-provider", fast: npm("test:world-provider"), full: npm("test:world-provider") },
+  { name: "check-world-provider", fast: npm("check-world-provider"), full: npm("check-world-provider") },
   { name: "validate-readme", fast: npm("validate-readme"), full: npm("validate-readme") },
   { name: "check-script-discipline", fast: npm("check-script-discipline"), full: npm("check-script-discipline") },
   { name: "check-script-quality", fast: npm("check-script-quality"), full: npm("check-script-quality") },
