@@ -772,7 +772,21 @@ function registeredToolDefinitions(): ToolDefinition[] {
 
 interface CatalogSize { bytes: number; tokens: number; }
 interface MeasuredSurface { full: CatalogSize; standard: CatalogSize; small: CatalogSize; active: CatalogSize; }
-let surfaceMeasurementCache: { fingerprint: string; activeGroup: string; result: MeasuredSurface } | null = null;
+// REQ-391a/REQ-391c — the default listing is scoped to infrastructure plus the
+// active Novel's ruleset. Package tools are slug-namespaced (REQ-430). With no
+// Novel active, no package tools appear, so the default size does not grow with
+// the installed-package count.
+function scopedCatalog<T extends { name: string }>(tools: T[], all = false): T[] {
+  if (all) return tools;
+  const slugs = rulesets.installedSlugs();
+  if (slugs.length === 0) return tools;
+  const active = state.activeNovel?.ruleset;
+  return tools.filter((tool) => {
+    const pkg = slugs.find((slug) => tool.name.startsWith(`${slug}_`));
+    return pkg === undefined || pkg === active;
+  });
+}
+let surfaceMeasurementCache: { fingerprint: string; activeGroup: string; activeSlug: string; result: MeasuredSurface } | null = null;
 function catalogSize(tools: unknown[]): CatalogSize {
   const bytes = Buffer.byteLength(JSON.stringify(tools), "utf-8");
   return { bytes, tokens: Math.ceil(bytes / 4) };
@@ -781,11 +795,15 @@ let liveToolCache: any[] | null = null;
 function measuredSurface(): MeasuredSurface {
   const fingerprint = registrationFingerprint();
   const activeGroup = activeSurfaceGroup();
-  if (surfaceMeasurementCache && surfaceMeasurementCache.fingerprint === fingerprint && surfaceMeasurementCache.activeGroup === activeGroup) {
+  const activeSlug = state.activeNovel?.ruleset ?? "";
+  if (surfaceMeasurementCache
+    && surfaceMeasurementCache.fingerprint === fingerprint
+    && surfaceMeasurementCache.activeGroup === activeGroup
+    && surfaceMeasurementCache.activeSlug === activeSlug) {
     return surfaceMeasurementCache.result;
   }
   const registry = surfaceRegistry();
-  const definitions = (liveToolCache ?? registeredToolDefinitions()) as any[];
+  const definitions = scopedCatalog((liveToolCache ?? registeredToolDefinitions()) as any[]);
   const sizeFor = (profile: "full" | "standard" | "small", group: string | null = null): CatalogSize =>
     catalogSize(projectSurfaceTools(definitions as any, { profile, group, activeGroup, registry }) as unknown[]);
   const full = sizeFor("full");
@@ -796,13 +814,26 @@ function measuredSurface(): MeasuredSurface {
     if (measured.bytes > small.bytes) small = measured;
   }
   const result = { full, standard, small, active: { full, standard, small }[surfaceProfile()] };
-  surfaceMeasurementCache = { fingerprint, activeGroup, result };
+  surfaceMeasurementCache = { fingerprint, activeGroup, activeSlug, result };
   return result;
 }
 
-function tdqsHealth() {
-  const report = conformanceReport(registeredToolDefinitions());
+// REQ-554 — the coherence proxies bind the host tool surface. Ruleset-derived
+// tools are namespaced per package and governed by REQ-430 (reported under
+// ruleset_tool_quality), so they are excluded here rather than blended into the
+// host's verb_noun and tool-count proxies.
+function hostToolDefinitions(): ToolDefinition[] {
+  const slugs = rulesets.installedSlugs();
+  return registeredToolDefinitions().filter(
+    (d) => !slugs.some((slug) => d.name.startsWith(`${slug}_`)),
+  );
+}
+
+let tdqsHealthCache: { fingerprint: string; result: ReturnType<typeof computeTdqsHealth> } | null = null;
+function computeTdqsHealth() {
+  const report = conformanceReport(hostToolDefinitions());
   return {
+    scope: "host" as const,
     tool_count: report.toolCount,
     mean_tdqs: report.meanTdqs,
     min_tdqs: report.minTdqs,
@@ -813,6 +844,14 @@ function tdqsHealth() {
     coherence: report.coherence,
     shadowing_risks: report.shadowingRisks,
   };
+}
+
+function tdqsHealth() {
+  const fingerprint = registrationFingerprint();
+  if (tdqsHealthCache?.fingerprint === fingerprint) return tdqsHealthCache.result;
+  const result = computeTdqsHealth();
+  tdqsHealthCache = { fingerprint, result };
+  return result;
 }
 
 function promptScaffoldBytes() {
@@ -10728,10 +10767,19 @@ function installBadgeFilteredToolList(): void {
     const requestedProfile = typeof params.profile === "string"
       ? params.profile
       : typeof meta.profile === "string" ? meta.profile : undefined;
+    const requestedScope = typeof params.scope === "string"
+      ? params.scope
+      : typeof meta.scope === "string" ? meta.scope : undefined;
     if (requestedGroup && !surfaceRegistry()?.taxonomy.groups.includes(requestedGroup)) {
       throw new McpError(ErrorCode.InvalidParams, `[INVALID_INPUT] unknown group: ${requestedGroup}`);
     }
-    const tools = projectToolList(visible as Array<{ name: string }>, requestedGroup, requestedProfile);
+    // REQ-391a — absent a group filter, the default listing is infrastructure
+    // plus the active Novel's ruleset; `scope=all` returns the full catalog. A
+    // group selection is itself the filter, so it spans the full catalog.
+    const base = requestedGroup
+      ? visible
+      : scopedCatalog(visible as Array<{ name: string }>, requestedScope === "all");
+    const tools = projectToolList(base as Array<{ name: string }>, requestedGroup, requestedProfile);
     return { ...full, tools };
   });
 }

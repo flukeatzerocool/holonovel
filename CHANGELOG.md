@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-22 — Scoped tool listing, host-scoped TDQS coherence, and health caching
+
+- `tools/list` now implements REQ-391a: the default is infrastructure plus the
+  active Novel's ruleset; `_meta.scope = "all"` returns the full catalog. With no
+  Novel, package tools are not listed (36 tools / 103,424 B / 25,856 tokens on
+  the four-package host).
+- `spec_health.tdqs` is host-scoped (`scope: "host"`) and cached on the
+  registration fingerprint; ruleset-derived tools remain under
+  `ruleset_tool_quality` (REQ-554).
+- Cached parsed package index reports for health (mtime/size keyed):
+  `manage_diagnostics (action: health)` median ~333 ms → ~13 ms; cold start
+  ~1.2 s with four packages.
+- Rewrote T456 to assert default/all/bound scoping; T512 uses `_meta.scope`;
+  refreshed the performance record and its DECISIONS entry.
+
 ## 2026-10-22 — Ruleset emitters are deterministic; one `update` command reconciles packages and user data
 
 - Shared the REQ-578 surface rule in `scripts/lib/ruleset-build-kit.mjs`

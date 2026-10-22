@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "scope": "reference-host",
-  "measured_at": "2026-10-21",
-  "environment": "Linux x86_64; Node v24.18.0; cold start measured from spawn to manage_diagnostics (action: health); query latency is the mean of 5 manage_ruleset (action: search) calls over the dnd2024 package",
-  "spec_hash": "f984bab95b31d5a8ab9578b356039cf2e9ef3034b55b5453f73c6d82c1c60d8b",
+  "measured_at": "2026-10-22",
+  "environment": "Linux x86_64; Node v24.18.0; four ruleset packages installed. Default tools/list is the REQ-391a scoped surface (infrastructure unless a Novel binds a ruleset); measured 36 tools / 103,424 bytes / 25,856 tokens with no Novel. Cold start is spawn to manage_diagnostics (action: health); repeated health calls cache the TDQS report and package index reads (median 13 ms after the first call). Query latency is the recorded mean of 5 manage_ruleset (action: search) calls over the dnd2024 package.",
+  "spec_hash": "6b361b0af476768917b567f8e827f81707502e8565439192455d7bc649fdd7be",
   "ruleset_content_hash": "e398c8b0b3b7e6e4c1f3ef547c30bbddc38b68803405c0396448491b5d4c59b7",
   "terms": {
     "conversion_fidelity": {
@@ -17,7 +17,7 @@
     "catalog_tokens": 25856,
     "tools_list_bytes": 103424,
     "prompt_tokens": 68,
-    "cold_start_ms": 780,
+    "cold_start_ms": 1214,
     "query_latency_ms": 35
   },
   "hash_method": "spec_hash is the SHA-256 of the assembled holonovel.md (host SPEC_HASH); ruleset_content_hash is the package content hash"

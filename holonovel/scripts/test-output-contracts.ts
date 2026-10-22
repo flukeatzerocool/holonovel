@@ -1516,7 +1516,21 @@ async function main() {
   await test("T460/REQ-393 + T459/REQ-392 + T456/REQ-391: update preservation, tool budget, scoped listing", async () => {
     seedRuleset();
     const p = await boot();
+    // REQ-391a — with no Novel active the default listing is infrastructure
+    // only; package tools are reachable through scope=all.
+    const def = await send(p, { method: "tools/list", params: {} });
+    const defNames = (def.result?.tools ?? []).map((t: any) => t.name);
+    if (!defNames.includes("manage_novel")) throw new Error("default listing omitted infrastructure tools");
+    if (defNames.some((n: string) => n.startsWith("wave1test_"))) throw new Error("default listing exposed a package tool with no Novel");
+    const all = await send(p, { method: "tools/list", params: { _meta: { scope: "all" } } });
+    const allNames = (all.result?.tools ?? []).map((t: any) => t.name);
+    if (!allNames.some((n: string) => n.startsWith("wave1test_"))) throw new Error("scope=all omitted package tools");
+
     await call(p, "manage_novel", { action: "create",  name: "w11b", ruleset: "wave1test" });
+    const bound = await send(p, { method: "tools/list", params: {} });
+    const boundNames = (bound.result?.tools ?? []).map((t: any) => t.name);
+    if (!boundNames.some((n: string) => n.startsWith("wave1test_"))) throw new Error("default listing omitted the active ruleset's tools");
+    if (!boundNames.includes("manage_novel")) throw new Error("bound default listing omitted infrastructure tools");
     const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof h.rulesets_hydrated !== "number") throw new Error("REQ-393 update preservation");
     if (typeof h.tools_list_bytes !== "number") throw new Error("REQ-392 tools_list_bytes");

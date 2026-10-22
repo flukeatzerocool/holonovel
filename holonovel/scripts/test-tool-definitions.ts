@@ -397,7 +397,7 @@ async function main() {
 
   seedTQPackage([badLookup, goodRoll]);
   const proc2 = await boot();
-  const list2 = await send(proc2, { method: "tools/list", params: { scope: "all" } });
+  const list2 = await send(proc2, { method: "tools/list", params: { _meta: { scope: "all" } } });
   const names2 = new Set(((list2.result?.tools ?? []) as any[]).map((t: any) => t.name));
   const health = JSON.parse(await call(proc2, "manage_diagnostics", { action: "health" }));
 
