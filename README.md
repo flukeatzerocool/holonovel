@@ -58,9 +58,10 @@ README DESIGN:
 
   Run a server (§1).
     Two h3 subsections. No introductory prose under the h2.
-    Install: one descriptive sentence, prerequisite (Node.js 24+), shell
-    code block for install, and copy-paste JSON config block with
-    `<path>` placeholder.
+    Install: a lede stating that a fresh install is playable with no
+    rulebook (the starter Novel), the base-server description, prerequisite
+    (Node.js 24+), shell code block for install, and copy-paste JSON config
+    block with `<path>` placeholder.
     Install a ruleset: drop-in packages, lazy loading, and the
     state-directory location.
     Config blocks use `json` language tag. Shell blocks use `sh`.
@@ -104,7 +105,7 @@ README DESIGN:
     competitor category — AI storytelling apps, generic LLM chat, and
     first-generation rules MCP servers. Never individual products. One
     closing prose paragraph (≤80 words) states the gap and names D&D 5e
-    and Starfinder.
+    and Starfinder. Rows name the concrete failure mode, not an abstraction.
 
   Refrain contract.
     "Your books. Your server. Your Holodeck." appears once, in the
@@ -150,7 +151,10 @@ README DESIGN:
     The README is not an API reference, a tool catalog, a spec document,
     or a changelog. It does not enumerate tools or parameters. It does
     not describe implementation details. It does not repeat information
-    found in CHANGELOG.md, AGENTS.md, or holonovel.md.
+    found in CHANGELOG.md, AGENTS.md, or holonovel.md. Task-based routing
+    lives in the wiki: the README links to Getting Started, Building a
+    Server, Game Mastering, and the FAQ at the point of need, and links the
+    wiki home once in the footer.
 
   Word budget.
     Total prose ≤ 1,500 words (excludes code blocks, config JSON,
@@ -176,8 +180,6 @@ README DESIGN:
 
 [![holonovel MCP server](https://glama.ai/mcp/servers/flukeatzerocool/holonovel/badges/card.svg)](https://glama.ai/mcp/servers/flukeatzerocool/holonovel)
 
-[![M8ven Live Monitored](https://m8ven.ai/badge/mcp/flukeatzerocool-holonovel-1n5aoa)](https://m8ven.ai/mcp/flukeatzerocool-holonovel-1n5aoa)
-
 A *holonovel* is a Star Trek holodeck program — an interactive story where you
 step inside as a character and the rules govern. Holonovel builds the server (the
 Holodeck). Your campaign is the program (the Novel). Your rulebooks become the
@@ -201,21 +203,22 @@ Your Holodeck.
 
 ### Install
 
+Install the base server and play — no rulebook required. The first start seeds a
+ruleset-free tutorial Novel, **Torre Nosferatu**, so a fresh install opens on a
+world you can enter immediately; set `TTRPG_STARTER_NOVEL=off` to skip it.
+
 The base server — a world-model MCP with rooms, things, exits, parser commands,
 narrative tools, and out-of-the-box mechanics from Fate, Ironsworn, and Blades in
 the Dark (Fudge dice, momentum, and stress tracks, no ruleset required). Install
 it, then install any number of ruleset packages — each drops in alongside the
-base and never modifies it. Node.js 24+ required.
+base and never modifies it. Node.js 24+ required. New to the server? Start with
+the [Getting Started guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Getting-Started).
 
 ```sh
 cd holonovel
 npm install
 npm run start
 ```
-
-On first start the server seeds a ruleset-free tutorial Novel, **Torre Nosferatu**,
-so a fresh install is immediately playable with no ruleset; set
-`TTRPG_STARTER_NOVEL=off` to skip it.
 
 Add to your MCP client:
 
@@ -240,7 +243,9 @@ per-user data location outside the project tree (or `.holonovel-state/` when the
 server runs outside one). Packages load lazily: a ruleset's tools and index
 hydrate only when you open a campaign bound to that ruleset, so stacking many
 packages costs you nothing up front. Install, remove, and list packages from the
-server tools, or just move files and restart.
+server tools, or just move files and restart. The [Building a Server
+guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Building-a-Server) walks a
+rulebook from PDF to package.
 
 Your campaign data and installed packages live in that state directory, outside
 the server tree — updating holonovel never touches them.
@@ -324,6 +329,8 @@ Switch between them at any time — no restart, no reload. The AI takes the
 opposite role automatically: when you're the player, the AI is your GM. Badge
 gating is not a prompt instruction. It is enforced server-side — the GM's
 secrets, lore entries, and narrative directives never leak to the Player badge.
+The [Game Mastering guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Game-Mastering)
+covers running a world from the opposite side of the screen.
 
 > "Set the scene: a flooded ossuary beneath the old cathedral. The air is thick
 > with stale incense and something older."
@@ -362,17 +369,18 @@ The game evolves without losing what you've built.
 
 | Category | What you're used to | How Holonovel differs |
 |----------|---------------------|-----------------------|
-| AI storytelling apps | Freeform AI storytellers — invent rules, forget consequences | Your rulebooks. Real dice. Real conditions. Not AI improv. |
-| Generic LLM chat | Forgets conditions mid-combat, invents spells, drifts from the ruleset | The server remembers every rule you gave it. Deterministic dice. Conditions that don't vanish mid-fight. |
+| AI storytelling apps | Freeform AI storytellers — memory drifts, conditions vanish, the world flattens | Your rulebooks. Real dice. Real conditions. Not AI improv. |
+| Generic LLM chat | Forgets conditions mid-combat, invents spells, railroads every conflict to a safe resolution | The server remembers every rule you gave it. Deterministic dice. Conditions that don't vanish mid-fight. |
 | First-generation rules MCP servers | Hand-built for one edition of one game. Rules lookup and nothing else. | Not locked to one system. One spec reads any rulebook — D&D 5e, Starfinder, or whatever's on your shelf. |
 
 Every tool in this space asks you to pick. Rules engines serve one system and
 stop there. AI storytellers improvise mechanics as they go. Holonovel doesn't
 pick. The server enforces every mechanic. The AI narrates. The Novel preserves
-everything — D&D 5e, Starfinder, or your own rulebook.
+everything — D&D 5e, Starfinder, or your own rulebook. Questions about a
+specific table's setup? See the [FAQ](https://git.gay/flukeatzerocool/Holonovel/wiki/FAQ).
 
 Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel).
-Guides for players, Game Masters, and builders live in the [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki).
+The [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki) routes players, Game Masters, and builders by task.
 
 License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
 D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a), if-craft-corpus (CC BY 4.0), dmcp (MIT,

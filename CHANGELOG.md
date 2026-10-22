@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-22 — README aligned with the journey-first wiki; M8ven badge removed
+
+- README §1 now leads with the ruleset-free Torre Nosferatu path, so a fresh
+  install reads as playable before any ruleset setup.
+- Added point-of-need links to Getting Started, Building a Server, Game
+  Mastering, and the FAQ; the footer now describes the wiki as a task router.
+- Sharpened the comparison table's "what you're used to" cells to name concrete
+  failure modes — memory drift, vanished conditions, railroaded conflicts.
+- Updated the README design comment to match the new Install order and routing
+  decision.
+- Removed the M8ven monitoring badge; the Glama server card remains.
+
 ## 2026-10-22 — World-model provider document is generated from the host schema
 
 - Single-sourced the world-model provider document. Kinds, property contracts,
