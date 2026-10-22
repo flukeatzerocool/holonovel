@@ -114,8 +114,8 @@ README DESIGN:
 
   License footer.
     Canonical-origin line, project-wiki link, then three attribution
-    lines: MIT, sources (Inform, four narrative
-    frameworks), Inform credit. RSS link. "Last updated: YYYY-MM-DD."
+    lines: MIT, sources (every row in Appendix U), Inform credit. RSS
+    link. "Last updated: YYYY-MM-DD."
     Date matches package.json version date. Update both or neither.
 
   Demo prompt maintenance.
@@ -375,7 +375,10 @@ Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzer
 Guides for players, Game Masters, and builders live in the [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki).
 
 License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
-if-craft-corpus (CC BY 4.0), dmcp (MIT, Shawn Rushefsky), lonelog (CC BY-SA 4.0),
-BitD SRD (CC BY 3.0, John Harper), Ironsworn SRD (CC BY 4.0, Shawn Tomkin),
-Fate SRD (CC BY 3.0, Evil Hat Productions).
+D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a), if-craft-corpus (CC BY 4.0), dmcp (MIT,
+Shawn Rushefsky), lonelog (CC BY-SA 4.0), BitD SRD (CC BY 3.0, John Harper),
+Ironsworn: Starforged SRD (CC BY 4.0, Shawn Tomkin), Sly Flourish Lazy GM Resource
+Document (CC BY 4.0, Mike Shea), The Alexandrian (CC BY 4.0, Justin Alexander),
+Dungeon World SRD (CC BY 3.0, Sage LaTorra and Adam Koebel), Fate SRD (CC BY 3.0,
+Evil Hat Productions), Ironsworn SRD (CC BY 4.0, Shawn Tomkin).
 [RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-21.

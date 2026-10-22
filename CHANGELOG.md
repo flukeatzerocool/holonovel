@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-21 — Stale-surface reconciliation: §10 coverage, vendor parity, and register hygiene
+
+- Fixed the §10 verifier prompt and T193 to name `G0a, G0b, and G2 through G8`
+  (`G1` reserved); added `checkIndependentVerificationCoverage`, which compares
+  the prompt and its Phase-2 table against the §8 workflow set and fails under
+  `--sdd-strict` when a workflow is omitted.
+- Vendored Dungeon World as the eighth narrative bundle
+  (`narrative/dungeon-world/INDEX.md`, `LICENSE`, MANIFEST rows, README entry);
+  added the missing LICENSE files for `alexandrian/`, `lazy-gm/`, and
+  `ironsworn-srd/`; retagged Fate and Ironsworn as Borrowed mechanics; §11.4
+  now names eight bundles and the README footer renders all twelve Appendix U
+  rows. Added `checkLicenseSourceParity` (Appendix U ↔ §11.4 table ↔ vendor
+  tree ↔ README), gated under `--sdd-strict`.
+- Reopened the proofread register with Batch 5 (0 errors, 195 warnings, all
+  accepted by policy) and added a report-only freshness warning that compares
+  the register's recorded count to the live run. Corrected the two stale
+  §5.13 citations to the Appendix M readability standard.
+- Removed the `scripts/fingerprint.ts` inspection CLI and its reachability
+  allowlist entry; the capability remains in `scripts/lib/fingerprints.ts`
+  (REQ-313a–d) via `scripts/update-server.ts`. `fmea` now inherits a family's
+  `_Check:` values for a sub-REQ with no own check and reports zero
+  high-severity undetected REQs.
+- Removed the stale `.opencode/build-worker.sh` and `.opencode/commands/queue.md`
+  plus the orphaned `.gitignore` build-queue stanza. Reconciled the 2026-10-08
+  and 2026-10-10 plan documents to their true statuses (including the
+  not-applicable mothership/robotech baseline) and recorded `tools_list_bytes`
+  in the performance record (REQ-410/REQ-586).
+
 ## 2026-10-21 — Pipeline assumptions check: single gate manifest and publish hardening
 
 - Consolidated the `check` and `check:fast` gate lists into

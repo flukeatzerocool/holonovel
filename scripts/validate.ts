@@ -32,6 +32,9 @@ import {
   checkReqThresholds,
   checkBaseCapabilityDefaults,
   checkNewBucketB,
+  checkIndependentVerificationCoverage,
+  checkLicenseSourceParity,
+  extractSection,
 } from "./lib/req-checks.js";
 import { walkTsFiles as walkTsFilesRaw } from "./lib/walk.js";
 import { computeSpecContentHash, readPhaseMapHash } from "./lib/phase-map-hash.js";
@@ -2267,12 +2270,14 @@ function main(): void {
   const terms = extractTerminology(text);
 
   const noProofread = process.argv.includes("--no-proofread");
+  let proofreadTotal = 0;
 
   console.log("\n=== PROOFREADING ===\n");
   if (noProofread) {
     console.log("SKIPPED: proofreading disabled (--no-proofread)");
   } else {
     const proof = consolidateProofreading(text, reqsWithSentences, terms);
+    proofreadTotal = Object.values(proof).reduce((n, arr) => n + arr.length, 0);
 
   const proofCats: [string[], string, string][] = [
     [proof.passive, "PASS: Passive voice within threshold", "WARNING"],
@@ -2308,6 +2313,84 @@ function main(): void {
 
   const staleRefIssues = checkStaleGateReferences(text);
   if (staleRefIssues.length > 0) { for (const issue of staleRefIssues) console.log(`WARNING: ${issue}`); warnings += staleRefIssues.length; }
+
+  const indepIssues = checkIndependentVerificationCoverage(text);
+  if (indepIssues.length > 0) {
+    for (const issue of indepIssues) {
+      if (sddStrict) { console.log(`ERROR: ${issue}`); errors++; }
+      else { console.log(`WARNING: ${issue}`); warnings++; }
+    }
+  } else console.log("PASS: §10 executes every §8 verification workflow");
+
+  // Source-license parity: Appendix U ↔ §11.4 table ↔ vendor tree ↔ README.
+  try {
+    const narrativeDir = path.resolve(import.meta.dirname, "..", "holonovel", "narrative_world_model", "narrative");
+    const manifestPath = path.resolve(import.meta.dirname, "..", "holonovel", "narrative_world_model", "MANIFEST.md");
+    const readmePath = path.resolve(import.meta.dirname, "..", "README.md");
+    const uRows = text.split("\n").flatMap((line) => {
+      const cells = line.split("|").map((c) => c.trim());
+      if (cells.length !== 6) return [];
+      const kind = cells[2];
+      if (!["Narrative frameworks", "Ruleset data", "World model conventions", "Borrowed mechanics"].includes(kind)) return [];
+      return [{ source: cells[1], kind, license: cells[3], copyright: cells[4] }];
+    });
+    const s114 = extractSection(text, /^###\s*11\.4\s/);
+    const s114Rows = s114.split("\n").flatMap((line) => {
+      const cells = line.split("|").map((c) => c.trim());
+      if (cells.length !== 5) return [];
+      if (!/^[A-Za-z]/.test(cells[1])) return [];
+      if (/^(Source|Dungeon World SRD)$/.test(cells[1]) && cells[1] === "Source") return [];
+      return [{ source: cells[1] }];
+    });
+    const manifestRows = fs.readFileSync(manifestPath, "utf-8").split("\n").flatMap((line) => {
+      const cells = line.split("|").map((c) => c.trim());
+      if (cells.length !== 12) return [];
+      return [{ source: cells[1], module: cells[2], file: cells[3] }];
+    });
+    const vendorDirs = fs.readdirSync(narrativeDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => ({ name: d.name, hasLicense: fs.existsSync(path.join(narrativeDir, d.name, "LICENSE")) }));
+    const footer: string[] = [];
+    const lines = fs.readFileSync(readmePath, "utf-8").split("\n");
+    const startLine = lines.findIndex((l) => l.includes("Built from:"));
+    if (startLine >= 0) {
+      const chunks: string[] = [];
+      for (let i = startLine; i < lines.length; i++) {
+        if (i > startLine && (/^\[RSS\]/.test(lines[i].trim()) || lines[i].includes("Last updated:"))) break;
+        const chunk = i === startLine
+          ? lines[i].slice(lines[i].indexOf("Built from:") + "Built from:".length)
+          : lines[i];
+        if (i > startLine && !chunk.trim()) break;
+        chunks.push(chunk.trim());
+      }
+      const joined = chunks.join(" ").replace(/\.$/, "");
+      const split = (s: string): string[] => {
+        const out: string[] = [];
+        let depth = 0, cur = "";
+        for (const ch of s) {
+          if (ch === "(") depth++;
+          if (ch === ")") depth = Math.max(0, depth - 1);
+          if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+        }
+        out.push(cur);
+        return out;
+      };
+      for (let part of split(joined)) {
+        part = part.replace(/^and\s+/i, "").trim();
+        if (part) footer.push(part);
+      }
+    }
+    const licenseIssues = checkLicenseSourceParity({ uRows, s114Rows, manifestRows, vendorDirs, readmeSources: footer });
+    if (licenseIssues.length > 0) {
+      for (const issue of licenseIssues) {
+        if (sddStrict) { console.log(`ERROR: ${issue}`); errors++; }
+        else { console.log(`WARNING: ${issue}`); warnings++; }
+      }
+    } else console.log("PASS: Appendix U, §11.4, vendor tree, and README agree");
+  } catch (e: any) {
+    console.log(`WARNING: license-source parity check skipped: ${e?.message ?? e}`);
+    warnings++;
+  }
 
   const appendixIssues = checkAppendixRange(text);
   if (appendixIssues.length > 0) { for (const issue of appendixIssues) console.log(`WARNING: ${issue}`); warnings += appendixIssues.length; }
@@ -2540,6 +2623,24 @@ function main(): void {
     const staleRegister = checkCoverageRegisterFresh(renderCoverageRegister(implRows, specHash));
     if (staleRegister) { console.log(`ERROR: ${staleRegister}`); errors++; }
     else console.log("PASS: Coverage register is current");
+  }
+
+  if (!noProofread) {
+    try {
+      const registerPath = path.resolve(import.meta.dirname, "..", "spec", "audit", "proofread-register.md");
+      const register = fs.readFileSync(registerPath, "utf-8");
+      const recorded = [...register.matchAll(/0 errors, (\d+) warnings/g)];
+      const last = recorded.length ? Number(recorded[recorded.length - 1][1]) : null;
+      if (last === null) {
+        console.log("NOTE: proofread register has no recorded warning count");
+      } else if (last !== proofreadTotal) {
+        console.log(`WARNING: proofread register records ${last} warnings; live run produced ${proofreadTotal}`);
+      } else {
+        console.log(`PASS: proofread register matches live warning count (${proofreadTotal})`);
+      }
+    } catch (e: any) {
+      console.log(`NOTE: proofread-register freshness check skipped: ${e?.message ?? e}`);
+    }
   }
 
   console.log(`\n${errors} error(s), ${warnings} warning(s)`);

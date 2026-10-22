@@ -39,3 +39,7 @@ ruleset index terms) and is computed at build time; it is recorded as
 | IF Craft Corpus (CC-BY 4.0) | voice_examples | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
 | IF Craft Corpus (CC-BY 4.0) | supplementary_guidance | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
 | IF Craft Corpus (CC-BY 4.0) | adventure_advice | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
+| Dungeon World SRD (CC-BY 3.0) | supplementary_guidance | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 4 | 4 | 0 | 0 | (build-time) | 2026-10-21 |
+| Dungeon World SRD (CC-BY 3.0) | adventure_advice | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 4 | 4 | 0 | 0 | (build-time) | 2026-10-21 |
+| Dungeon World SRD (CC-BY 3.0) | lore_templates | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 2 | 1 | 1 | 0 | (build-time) | 2026-10-21 |
+| Dungeon World SRD (CC-BY 3.0) | narrative_voices | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 2 | 2 | 0 | 0 | (build-time) | 2026-10-21 |

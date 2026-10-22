@@ -24,6 +24,7 @@ const TERMS = [
   "tool_selection_coverage",
   "mean_calls_per_intent",
   "catalog_tokens",
+  "tools_list_bytes",
   "prompt_tokens",
   "cold_start_ms",
   "query_latency_ms",

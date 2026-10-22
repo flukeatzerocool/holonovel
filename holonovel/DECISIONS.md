@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 1ea4087550a373e6f0cb0cc492c8952223d419a07d74bb2dcaadd271cf90059b
+**Spec hash:** f984bab95b31d5a8ab9578b356039cf2e9ef3034b55b5453f73c6d82c1c60d8b
 
 **Recorded tool budget:** 36 listed (214 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 45 tombstone declarations) (REQ-429, REQ-581)
 

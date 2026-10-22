@@ -10,11 +10,12 @@ proofreading pass in `scripts/validate.ts`).
 
 `npm run validate:sdd` → **0 errors, 52 warnings**.
 
-The proofreading pass scores two surfaces only: REQ bodies (per-REQ
-heuristics) and narrative prose from the reading guide through §4
-(`extractNarrativeProse`, `scripts/lib/parse-spec.ts:98`). Appendices and the
-§5 preamble, §6, §7, §8, §9, §10, and §11 prose are not scored — the coverage
-gap this program closes.
+The proofreading pass scores two surfaces: REQ bodies (per-REQ heuristics) and
+reference prose from the appendices, the §5 preamble, and §6–§11
+(`extractReferenceProse`, `scripts/lib/parse-spec.ts`), at grade 18 for
+sentence-length and condition-stacking (passive voice is not flagged there).
+Narrative prose from the reading guide through §4 is scored separately at grade
+12 (`extractNarrativeProse`).
 
 ## Warning inventory (52)
 
@@ -32,8 +33,8 @@ several REQs trip multiple families (REQ-452 trips four).
 
 ## Accepted exceptions
 
-Recorded acceptances under the spec's own policy (§5.13 readability standard;
-Appendix M authoring conventions): vocabulary, canonical terms, and SHALL/MAY
+Recorded acceptances under the spec's own policy (Appendix M readability standard,
+`spec/appendices-reference.md:2636-2666`; Appendix M authoring conventions): vocabulary, canonical terms, and SHALL/MAY
 strength outrank prose heuristics. After Batch 3 the tree carries **133
 warnings, all accepted** (0 errors). Line numbers below are against the
 assembled spec at the batch-3 commit.
@@ -213,8 +214,8 @@ items were sampled for clearability — REQ-130a (18.3), REQ-470 (18.1), REQ-490
 (18.2), REQ-540 (18.3) — along with reference prose §6.6/line 6060 (grade 18.0).
 Each is dense normative or procedural text: a meaning-preserving rewrite would
 not reliably drop the Flesch-Kincaid score below the ceiling and would risk
-dropping a load-bearing term or an identifier cited elsewhere. Per the §5.13
-readability standard and Appendix M, vocabulary, canonical terms, and SHALL/MAY
+dropping a load-bearing term or an identifier cited elsewhere. Per the Appendix M
+readability standard (`spec/appendices-reference.md:2636-2666`), vocabulary, canonical terms, and SHALL/MAY
 strength outrank the prose heuristics.
 
 **Disposition: all 133 warnings `Accepted` by policy.** The register is closed;
@@ -234,5 +235,37 @@ from a digit-adjacent phrase) was **Fixed** by rewording.
 
 **Disposition: all 158 warnings `Accepted` by policy** — lexical heuristics below
 the contract-bearing threshold; open items are split opportunistically on future
-edits to their sections. No contract-bearing rewrite was made.
+edits to their sections. No contract-bearing rewrite was made. Two of the
+195 come from this increment's own Appendix U and §11.4 edits (sentence
+length and readability); both are accepted under the same policy.
 
+## Batch 5 — post-Batch-4 drift (2026-10-21)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 195 warnings**.
+The 37-warning net increase over Batch 4 is not a regression: the
+reference-prose pass now scores the appendices, the §5 preamble, and §6–§11,
+and the surface-contract REQs added since 2026-09-26 carry the usual heuristic
+families.
+
+| Family | Count | Surface |
+| --- | --- | --- |
+| REQ-body passive voice | 8 | REQ bodies |
+| REQ-body modal drift | 4 | REQ-162b, 208a, 244b, 383a (DP-3 `MUST` names) |
+| REQ-body sentence length | 8 | REQ bodies |
+| REQ-body condition stacking | 15 | REQ bodies |
+| REQ-body ambiguous pronoun | 7 | REQ bodies |
+| REQ-body readability | 37 | REQ bodies |
+| Narrative-prose readability | 2 | §0–§4 |
+| Reference-prose readability | 59 | Appendices, §5 preamble, §6–§11 |
+| Reference-prose sentence length | 55 | Appendices, §5 preamble, §6–§11 |
+
+79 REQ-body lines span 62 distinct REQs; 116 non-REQ lines comprise the
+narrative/reference surfaces. No warning is in a `PACKAGE_SECTIONS` or
+`DATA_SECTIONS` section is rewritten by this increment.
+
+**Disposition: all 195 warnings `Accepted` by policy.** The four DP-3 `MUST`
+names and the readability families are lexical heuristics below the
+contract-bearing threshold; open items are split opportunistically on future
+edits to their sections. No contract-bearing rewrite was made. Two of the
+195 come from this increment's own Appendix U and §11.4 edits (sentence
+length and readability); both are accepted under the same policy.

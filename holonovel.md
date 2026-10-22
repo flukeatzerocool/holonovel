@@ -7811,7 +7811,7 @@ specifies. You do not consult the builder, prior build artifacts, or any cached 
 Phase 1 — blind re-execution, in order:
 1. Set up from a cold start, following only `README.md` and `AGENTS.md`; log every gap or
    ambiguity — each gap is a finding.
-2. Execute verification workflows G0b through G4; record one evidence entry per workflow in the
+2. Execute verification workflows G0a, G0b, and G2 through G8 (G1 is reserved); record one evidence entry per workflow in the
     §8 format, with your own environment pins. Execute the simulated combat session
     as defined in §6.6 (S4 — Simulated combat session); record the transcript in the
     §8 evidence format with your own
@@ -8257,7 +8257,7 @@ per REQ-225, always present in the Novel, and not subject to synthesis reversion
 Items carry `[vendor]` tag with source anchor pointing to the vendor file within
 the repository.
 
-**Sources.** Ten source bundles, all open-source licensed:
+**Sources.** Eight source bundles, all open-source licensed:
 
 | Source | License | What it contributes |
 |---|---|---|
@@ -8268,9 +8268,11 @@ the repository.
 | Ironsworn: Starforged SRD (Shawn Tomkin) | CC-BY 4.0 | Vow and progress track design, oracle move mechanics, solo narrative structure, quest framing |
 | Sly Flourish Lazy GM Resource Document (Mike Shea) | CC-BY 4.0 | Session prep shortcuts, NPC design heuristics, scene pacing, encounter templates |
 | The Alexandrian (Justin Alexander) | CC-BY 4.0 | Node-based adventure design, Three Clue Rule, faction intrigue structure, revelation pacing |
-| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM Agenda (3 items), GM Principles (12), GM Moves (12) retained as normative rules; player-facing moves triggered from fiction; front/danger system |
-| Fate SRD (Evil Hat Productions) | CC-BY 3.0 | Player role definition and collaboration ethos ("make everyone at the table look awesome"); GM scene pacing, drama vs. realism, aspect-driven narrative structure; scenario building |
-| Ironsworn SRD (Shawn Tomkin) | CC-BY 4.0 | Player principles, solo play chapter, guided/co-op play modes, oracle moves; dark fantasy solo conventions distinct from Starforged |
+| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM agenda, principles, and moves as vendor guidance extracted at build time; fronts/dangers structure |
+
+**Borrowed mechanics.** Fate SRD and Ironsworn SRD are base capabilities
+rather than vendored bundles: their mechanics are implemented in the host
+(§5.21/§5.22, REQ-434–443) and attributed in Appendix S and Appendix U.
 
 **When vendor content runs.** Vendor processing SHALL run at build time for
 all non-ruleset-free builds. For TTRPG builds, vendor content provides
@@ -10167,7 +10169,7 @@ diet.
 | T129  | Automated | NPC narrative fields: create NPC. Call `manage_character (action: personality, npc_id, description, voice, background, goals)` — assert fields set and surfaced in `badge_briefing` and at `npc://<id>/personality`. Call `manage_character (action: voice, npc_id, [...])` — assert examples set. Verify NPC narrative fields are Novel-scoped — `manage_novel (action: end)` removes them, no roster backing. Assert Player badge attempt on `manage_character (action: personality)` for NPC returns `[FORBIDDEN]`.                                                                                                                                                                                                                                                                                                                            | REQ-122, REQ-075, REQ-032                   |
 | T191  | Automated | NPC description field: call `manage_npc (action: create, "Guard", description="Tall")` then `manage_character (action: personality, npc_id, {description: "Suspicious"})` — assert the NPC's description reads "Suspicious" at `npc://<id>`, `manage_character (action: sheet)`, and `npc://<id>/personality`. Call `manage_npc (action: create, "Merchant")` (no description) then `manage_character (action: personality, npc_id, {description: "Cheerful"})` — assert description is "Cheerful" at all three surfaces.                                                                                                                                                                                                                                                                                                                 | REQ-156                                     |
 | T192  | Automated | Combat determinism: start a fresh server with `TTRPG_SEED=7`. Call `manage_combat (action: init)` with one danger and `seed="42"` — assert danger initiative d20 face matches Appendix B.4 seed-42 column at position 1 (value 6). Call `roll_save("dexterity")` without a seed — assert the d20 face matches the session sequence (seed-7 B.4 column). Call `manage_combat (action: init)` with two dangers and `seed="42"` — assert d20 faces match positions 1 and 2 of the B.4 seed-42 column. Call `manage_combat (action: init)` with one danger and no seed — assert the d20 face matches the next position in the seed-7 session sequence (after the roll_save draw). | REQ-157                                     |
-| T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0b–G4, smoke session, waiver audit, T29, H1–H18, artifact diet, adversarial Pattern Buffer) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
+| T193  | Manual   | Independent verification: execute the verifier prompt (§10) against a completed build. Assert the verifier can complete Phase 1 (cold start, G0a, G0b, G2–G8, smoke session, waiver audit, T29, H1–H18, artifact diet, adversarial Pattern Buffer) without builder assistance. Assert the report produces a VERIFIED or VERIFIED WITH FINDINGS verdict.                                                                                                                                                                                                                                                                                                                                                                                                                  | REQ-158                                     |
 | T194  | Automated | Synthesis briefing integration: after synthesizing a Novel, invoke `badge_briefing` as GM — assert supplementary guidance items appear tagged `[supplementary]` with source URLs. Assert synthesis-sourced voice examples appear under entity personality with `[supplementary]` tag. Switch to Player badge — assert game_master-scoped synthesis items are absent. Call `manage_synthesis (action: revert)` — assert all synthesis content absent from all badge briefing views.                                                                                                                       | REQ-159, REQ-080                            |
 | T195  | Automated | Synthesis health reporting: after synthesizing a Novel, invoke `manage_diagnostics (action: health)` — assert `synthesis_active: true`, per-module counts matching the manifest, non-empty fingerprint. Call `manage_synthesis (action: revert)` — assert `synthesis_active: false` and `module_counts` contains all seven module names (`voice_examples`, `briefing_order`, `lore_templates`, `action_patterns`, `supplementary_guidance`, `adventure_advice`, `narrative_voices`) each with value zero. Populate stale items past `TTRPG_SYNTHESIS_STALE_DAYS` — assert `stale_count` increments and `[stale]` flag. Activate a lore template via `manage_lore (action: set)` — assert `activated_count` increments.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | REQ-160, REQ-025                            |
 | T196  | Automated | Intake workflow contract: attempt a build without recording intake answers in DECISIONS.md (1) — assert the process-compliance convergence metric fails. Run a non-interactive build with network detected — assert Q0 defaults to `build + synthesis` and the probe result is recorded in DECISIONS.md (1). Run a non-interactive build offline — assert Q0 defaults to `build` only. Re-run a build selecting an additional workflow — assert only new workflow questions are re-asked.                                                                                                                                                                                                                                                                                                                                                                                                                                                    | REQ-161                                     |
@@ -12331,7 +12333,7 @@ _Check:_ T660, T661, T662.
 
 This appendix is the single source of truth for third-party content licenses
 incorporated into Holonovel builds. The Build workflow SHALL render this table
-into the README.md license footer during handoff (§6.2 H11).
+into the README.md license footer during handoff (§6.4).
 
 | Source | Kind | License | Copyright |
 |--------|------|---------|-----------|
@@ -12345,12 +12347,15 @@ into the README.md license footer during handoff (§6.2 H11).
 | Sly Flourish Lazy GM Resource Document | Narrative frameworks | CC BY 4.0 | Mike Shea |
 | The Alexandrian | Narrative frameworks | CC BY 4.0 | Justin Alexander |
 | Dungeon World SRD | Narrative frameworks | CC BY 3.0 | Sage LaTorra, Adam Koebel |
-| Fate SRD | Narrative frameworks | CC BY 3.0 | Evil Hat Productions |
-| Ironsworn SRD | Narrative frameworks | CC BY 4.0 | Shawn Tomkin |
+| Fate SRD | Borrowed mechanics | CC BY 3.0 | Evil Hat Productions |
+| Ironsworn SRD | Borrowed mechanics | CC BY 4.0 | Shawn Tomkin |
 
-Adding a content source requires: (a) a row in this table, (b) a LICENSE file
-in the content's subdirectory, and (c) a `source_url` field in the synthesis
-manifest (§6.3). Removing a source removes the row.
+Adding a content source requires: (a) a row in this table; (b) a LICENSE file
+in the content's subdirectory for vendored **Narrative frameworks** rows; and
+(c) a `source_url` field in the synthesis manifest for those vendored rows.
+**Borrowed mechanics** are implemented in the server rather than vendored, so
+they replace (b) and (c) with the code citation and the license row. Removing a
+source removes the row.
 
 ---
 

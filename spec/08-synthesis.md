@@ -352,7 +352,7 @@ per REQ-225, always present in the Novel, and not subject to synthesis reversion
 Items carry `[vendor]` tag with source anchor pointing to the vendor file within
 the repository.
 
-**Sources.** Ten source bundles, all open-source licensed:
+**Sources.** Eight source bundles, all open-source licensed:
 
 | Source | License | What it contributes |
 |---|---|---|
@@ -363,9 +363,11 @@ the repository.
 | Ironsworn: Starforged SRD (Shawn Tomkin) | CC-BY 4.0 | Vow and progress track design, oracle move mechanics, solo narrative structure, quest framing |
 | Sly Flourish Lazy GM Resource Document (Mike Shea) | CC-BY 4.0 | Session prep shortcuts, NPC design heuristics, scene pacing, encounter templates |
 | The Alexandrian (Justin Alexander) | CC-BY 4.0 | Node-based adventure design, Three Clue Rule, faction intrigue structure, revelation pacing |
-| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM Agenda (3 items), GM Principles (12), GM Moves (12) retained as normative rules; player-facing moves triggered from fiction; front/danger system |
-| Fate SRD (Evil Hat Productions) | CC-BY 3.0 | Player role definition and collaboration ethos ("make everyone at the table look awesome"); GM scene pacing, drama vs. realism, aspect-driven narrative structure; scenario building |
-| Ironsworn SRD (Shawn Tomkin) | CC-BY 4.0 | Player principles, solo play chapter, guided/co-op play modes, oracle moves; dark fantasy solo conventions distinct from Starforged |
+| Dungeon World SRD (Sage LaTorra, Adam Koebel) | CC-BY 3.0 | GM agenda, principles, and moves as vendor guidance extracted at build time; fronts/dangers structure |
+
+**Borrowed mechanics.** Fate SRD and Ironsworn SRD are base capabilities
+rather than vendored bundles: their mechanics are implemented in the host
+(§5.21/§5.22, REQ-434–443) and attributed in Appendix S and Appendix U.
 
 **When vendor content runs.** Vendor processing SHALL run at build time for
 all non-ruleset-free builds. For TTRPG builds, vendor content provides

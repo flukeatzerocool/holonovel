@@ -13,8 +13,6 @@ opencode-raw-*.log
 plans/*
 !plans/README.md
 
-# Build queue
-.opencode/build-queue.txt
 
 # AI agent orientation
 AGENTS.md
