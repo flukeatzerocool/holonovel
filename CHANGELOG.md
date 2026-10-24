@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-10-24 — Compression ladder and recall probes
+
+- Added a four-tier compression ladder over the existing raw history: a recent
+  event window, per-session summaries in `audit_archive`, persisted arc
+  summaries, and a persisted campaign bible. Derivation is deterministic (no
+  LLM, network, or wall-clock input) and bounded by
+  `TTRPG_MEMORY_RECENT_EVENTS`, `TTRPG_MEMORY_ARC_SESSIONS`, and
+  `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` (REQ-590; T697).
+- Added `source_ordinals` and `source_sessions` to `audit_archive` summaries,
+  populated at compaction from the session's event-log window before the raw
+  slice is deleted. `manage_diagnostics (action: history, ordinals)` now
+  resolves exact source pointers and reports `[evicted]` for entries removed by
+  the event-log cap (REQ-591; T698).
+- `manage_session (action: recap)` accepts optional `tier` and `budget_tokens`
+  parameters and returns a `tiered_memory` block. Budgeted assembly packs
+  campaign → recent → session → arc and drops tiers in reverse priority with a
+  `[truncated]` marker; omitting both parameters leaves the existing output
+  unchanged (REQ-072i, REQ-592; T699).
+- Added the `compression_ladder` Novel property group (Narrative-memory,
+  Knowledge-carrying), two §7.7.1a coupling rows, the §7.6 config rows, and
+  player-export omission. The persisted campaign tier renders through the
+  existing `## Campaign Memory` section for the GM badge.
+- Added the `test:memory-recall` gate harness and committed probe fixture:
+  a three-session campaign forced through compaction, pointer traversal,
+  degradation checks, and `recall@budget` (100% on the fixture) (REQ-593; T700).
+- Updated §5 section map (new §5.34), Appendix E/F entries, the §7.7 property
+  count, and regenerated the coverage register, tool definitions, contract
+  fingerprints, and starter Novel.
+
 ## 2026-10-24 — Citation verification and ruling ledger
 
 - Added `manage_synthesis (action: verify)` — a GM-only, read-only, local check

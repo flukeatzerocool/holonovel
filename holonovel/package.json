@@ -44,6 +44,7 @@
     "test:persistence-guardrails": "tsx scripts/test-persistence-guardrails.ts",
     "test:limits": "tsx scripts/test-limits.ts",
     "test:narrative": "tsx scripts/test-narrative.ts",
+    "test:memory-recall": "tsx scripts/test-memory-recall.ts",
     "test:adventure": "tsx scripts/test-adventure.ts",
     "test:g7": "tsx scripts/test-g7.ts",
     "test:tool-definitions": "tsx scripts/test-tool-definitions.ts",

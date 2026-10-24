@@ -1328,6 +1328,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-587 | Stable catalog prefix | 2026-10-21 |
 | REQ-588 | Search result budget | 2026-10-21 |
 | REQ-589 | Ruling ledger | 2026-10-24 |
+| REQ-072i | Session recap (Part i) | 2026-10-24 |
+| REQ-590 | Compression ladder tiers | 2026-10-24 |
+| REQ-591 | Source pointers and traversal | 2026-10-24 |
+| REQ-592 | Budgeted tier assembly | 2026-10-24 |
+| REQ-593 | Recall probes | 2026-10-24 |
 
 ---
 
@@ -2022,6 +2027,10 @@ diet.
 | T694 | Automated | Round-trip state hash: export full scope, replace-import, and re-export; assert `state_hash` is equal while `payload_hash` changes only by the documented audit/metadata drift; a signed export verifies with the configured key. | REQ-096j, REQ-096l |
 | T695 | Automated | Citation verification: run `manage_synthesis (action: verify)` after synthesis and assert every vendor item is `pass`/`supported`; import an item whose `quoted_excerpt` is disjoint from its content and assert `unsupported`/`no-overlap`; import an item with no excerpt and assert `unsupported`/`excerpt-absent`; assert the Player badge returns `[FORBIDDEN]`. | REQ-080h |
 | T696 | Automated | Ruling ledger: `record_ruling` appends `ruling_1` with verified citations, an audit entry, and `spec_health` counts; `revert_ruling` sets `reverted` without deleting it; `manage_synthesis (action: revert)` leaves the ledger intact; undo reverses and redo reapplies the write; the ledger survives restart, export, and clone; the Player badge returns `[FORBIDDEN]` and the `player` export scope omits it. | REQ-589 |
+| T697 | Automated | Compression ladder: derive recent, session, arc, and campaign tiers on a fixture Novel; assert each summary carries `source_ordinals` and the campaign bible carries `source_refs`; repeat derivation and assert byte-identical output; assert the group survives restart, checkpoint, clone, and export, and that `player` scope omits it. | REQ-590 |
+| T698 | Automated | Source-pointer traversal: after compaction, read a session summary and call `manage_session (action: history, ordinals=<source_ordinals>)`; assert the named events return in ordinal order; evict an event under the event-log cap and assert its ordinal reports `[evicted]`; assert the Player badge never receives `game_master`-sourced text. | REQ-591 |
+| T699 | Automated | Budgeted assembly: call `manage_session (action: recap, tier="campaign", budget_tokens=N)` above, below, and at the exact tier cost; assert tiers drop in the declared order with a `[truncated]` marker; assert a no-parameter recap is byte-identical to the pre-change output; assert an invalid tier or non-positive budget returns `[INVALID_INPUT]`. | REQ-592, REQ-072 |
+| T700 | Automated | Recall probes: run the fixture campaign through the compaction path and evaluate the committed probe set; assert every must-recall probe hits at every declared budget and aggregate `recall@budget` is at least 0.90; lower a probe's budget until a tier is dropped and assert the reported per-tier recall reflects the drop. | REQ-593 |
 
 ---
 

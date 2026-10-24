@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 108756,
+  "tools_list_bytes": 109498,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 108756,
-        "tokens": 27189
+        "bytes": 109498,
+        "tokens": 27375
       },
       "standard": {
         "tools": 36,
-        "bytes": 94752,
-        "tokens": 23688
+        "bytes": 95494,
+        "tokens": 23874
       },
       "small": {
         "tools": 6,
-        "bytes": 4622,
-        "tokens": 1156,
+        "bytes": 4754,
+        "tokens": 1189,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4619,
-            "tokens": 1155
+            "bytes": 4751,
+            "tokens": 1188
           },
           "explore": {
             "tools": 6,
-            "bytes": 3567,
-            "tokens": 892
+            "bytes": 3699,
+            "tokens": 925
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4594,
-            "tokens": 1149
+            "bytes": 4726,
+            "tokens": 1182
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4622,
-            "tokens": 1156
+            "bytes": 4754,
+            "tokens": 1189
           },
           "lookup": {
             "tools": 6,
-            "bytes": 3937,
-            "tokens": 985
+            "bytes": 4069,
+            "tokens": 1018
           },
           "referee": {
             "tools": 6,
-            "bytes": 3689,
-            "tokens": 923
+            "bytes": 3821,
+            "tokens": 956
           },
           "author": {
             "tools": 6,
-            "bytes": 3913,
-            "tokens": 979
+            "bytes": 4045,
+            "tokens": 1012
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4078,
-            "tokens": 1020
+            "bytes": 4342,
+            "tokens": 1086
           }
         }
       }
@@ -841,16 +841,18 @@
         "event",
         "history"
       ],
-      "param_count": 15,
+      "param_count": 18,
       "required": [
         "action"
       ],
       "params": {
+        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592).",
         "category": "New category label, or null/empty to restore the default (category).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
         "include_superseded": "Include superseded events (history; default true).",
         "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
         "mode": "normal or terse (verbosity).",
+        "ordinals": "Exact event ordinals to return in order (history; REQ-591).",
         "query": "Optional search term matched against tool name, description, and title (discover).",
         "sections": "Ordered list of briefing sections (briefing_order).",
         "session_id": "Archived session id to include in recap (recap).",
@@ -859,6 +861,7 @@
         "supersede": "Ordinal of an event this observation replaces (event).",
         "text": "Observation text (event).",
         "through_ordinal": "Return events up to and including this ordinal (history).",
+        "tier": "Compression tier to assemble (recap; REQ-592).",
         "tool_name": "Registered tool name to reassign (category).",
         "topics": "Notification topics to subscribe to (subscribe)."
       },
@@ -873,10 +876,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 16,
+        "paramCount": 19,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 16,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 19,
+        "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -886,7 +889,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3233,
+        "definitionBytes": 3604,
         "descriptionBytes": 579
       },
       "category": "",
@@ -1568,16 +1571,18 @@
         "briefing_order",
         "discover"
       ],
-      "param_count": 15,
+      "param_count": 18,
       "required": [
         "action"
       ],
       "params": {
+        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592).",
         "category": "New category label, or null/empty to restore the default (category).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
         "include_superseded": "Include superseded events (history; default true).",
         "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
         "mode": "normal or terse (verbosity).",
+        "ordinals": "Exact event ordinals to return in order (history; REQ-591).",
         "query": "Optional search term matched against tool name, description, and title (discover).",
         "sections": "Ordered list of briefing sections (briefing_order).",
         "session_id": "Archived session id to include in recap (recap).",
@@ -1586,6 +1591,7 @@
         "supersede": "Ordinal of an event this observation replaces (event).",
         "text": "Observation text (event).",
         "through_ordinal": "Return events up to and including this ordinal (history).",
+        "tier": "Compression tier to assemble (recap; REQ-592).",
         "tool_name": "Registered tool name to reassign (category).",
         "topics": "Notification topics to subscribe to (subscribe)."
       },
@@ -1600,10 +1606,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 16,
+        "paramCount": 19,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 16,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 19,
+        "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1613,7 +1619,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3696,
+        "definitionBytes": 4067,
         "descriptionBytes": 852
       },
       "category": "",

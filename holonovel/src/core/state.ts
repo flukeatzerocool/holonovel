@@ -18,6 +18,7 @@ import { createRng } from "./rng.js";
 import { snapshotDepth } from "./limits.js";
 import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
+import { deriveArcTier, deriveCampaignTier } from "./memory.js";
 
 const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
@@ -205,6 +206,31 @@ export interface AuditArchiveSummary {
   condition_changes: number;
   roster_changes: number;
   scene_transitions: number;
+  // REQ-591 — source pointers into the append-only event log and the session
+  // ids covered by the archived slice.
+  source_ordinals: number[];
+  source_sessions: string[];
+}
+
+// REQ-590 — a derived compression tier. Recent and session tiers are derived on
+// read; arc and campaign tiers persist in the Novel.
+export interface TierSummary {
+  level: "arc" | "campaign";
+  text: string;
+  source_ordinals: number[];
+  source_sessions: string[];
+  source_refs: string[];
+  derived_at: string;
+}
+
+export interface CompressionLadder {
+  version: 1;
+  arc: TierSummary[];
+  campaign: TierSummary | null;
+}
+
+export function emptyCompressionLadder(): CompressionLadder {
+  return { version: 1, arc: [], campaign: null };
 }
 
 export interface StoryEntry {
@@ -538,6 +564,8 @@ export interface NovelState {
   // REQ-310 — campaign memory: engine-recorded per-NPC/thread/location facts
   // derived from state-changing tool calls, surviving restart and rebuild.
   campaign_memory: Array<{ category: "npcs" | "threads" | "locations"; text: string; at: string; badge_scope: "game_master" | "shared" | "discovered"; scene: string }>;
+  // REQ-590 — persisted arc/campaign compression tiers.
+  compression_ladder: CompressionLadder;
   notes: NoteEntry[];
   vows: VowState[];
   checkpoints: Checkpoint[];
@@ -957,6 +985,7 @@ export class StateManager {
       player_synthesis: {},
       ruling_ledger: [],
       campaign_memory: [],
+      compression_ladder: emptyCompressionLadder(),
       notes: [],
       vows: [],
       checkpoints: [],
@@ -1352,6 +1381,7 @@ export class StateManager {
       player_synthesis: data.player_synthesis ?? {},
       ruling_ledger: data.ruling_ledger ?? [],
       campaign_memory: data.campaign_memory ?? [],
+      compression_ladder: data.compression_ladder ?? emptyCompressionLadder(),
       notes: data.notes ?? [],
       vows: data.vows ?? [],
       checkpoints: data.checkpoints ?? [],
@@ -1829,19 +1859,50 @@ export class StateManager {
       const body = slice.filter((e) => e.tool !== "[session-boundary]");
       let sid = `session-${b + 1}`;
       try { sid = JSON.parse(slice[0]?.args ?? "{}").session_id ?? sid; } catch { /* malformed marker args → fallback id */ }
+      // REQ-591 — capture source pointers before the raw slice is deleted.
+      // Event ordinals inside the archived session's timestamp span are the
+      // traversal targets; an empty span yields no pointers.
+      const spanStart = slice[0]?.timestamp ?? "";
+      const spanEnd = slice[slice.length - 1]?.timestamp ?? "";
+      // The session window runs from its boundary to the next boundary (or,
+      // for the last archived session, the first live entry). Event `at`
+      // timestamps can land just after the session's final audit entry, so the
+      // next-boundary bound is the authoritative upper edge.
+      const nextBoundary = log[end]?.timestamp ?? "";
+      const sourceOrdinals = spanStart
+        ? (novel.event_log ?? [])
+          .filter((e) => e.at >= spanStart && (nextBoundary ? e.at < nextBoundary : e.at <= spanEnd))
+          .map((e) => e.ordinal)
+        : [];
       novel.audit_archive.push({
         session_id: sid,
-        timespan_start: slice[0]?.timestamp ?? "",
-        timespan_end: slice[slice.length - 1]?.timestamp ?? "",
+        timespan_start: spanStart,
+        timespan_end: spanEnd,
         entry_count: body.length,
         confrontations: body.filter((e) => e.tool === "end_combat").length,
         significant_rolls: body.filter((e) => significantRoll(e.tool)).length,
         condition_changes: body.filter((e) => e.tool.includes("condition")).length,
         roster_changes: body.filter((e) => e.tool.includes("roster") || e.tool === "import_character" || e.tool === "create_character").length,
         scene_transitions: body.filter((e) => e.tool === "set_scene_state").length,
+        source_ordinals: sourceOrdinals,
+        source_sessions: [sid],
       });
       totalEntries += slice.length;
     }
+    // REQ-590 — refresh the persisted arc and campaign tiers from the archive.
+    const derivedAt = new Date().toISOString();
+    novel.compression_ladder = novel.compression_ladder ?? emptyCompressionLadder();
+    novel.compression_ladder.arc = deriveArcTier(
+      novel.audit_archive,
+      novel.event_log ?? [],
+      parseInt(process.env.TTRPG_MEMORY_ARC_SESSIONS ?? "5", 10),
+      derivedAt,
+    );
+    novel.compression_ladder.campaign = deriveCampaignTier(
+      novel,
+      parseInt(process.env.TTRPG_MEMORY_CAMPAIGN_MAX_FACTS ?? "40", 10),
+      derivedAt,
+    );
     novel.audit_log = log.slice(cutIndex);
     let prevHash = "00000000";
     for (const e of novel.audit_log) {
@@ -2427,6 +2488,7 @@ function novelToJSON(novel: NovelState): any {
     player_synthesis: novel.player_synthesis,
     ruling_ledger: novel.ruling_ledger,
     campaign_memory: novel.campaign_memory,
+    compression_ladder: novel.compression_ladder,
     notes: novel.notes,
     vows: novel.vows,
     checkpoints: novel.checkpoints,
@@ -2553,6 +2615,7 @@ function novelFromJSON(data: any): NovelState {
     synthesis_deactivated: normalizeActivationMap(data.synthesis_deactivated),
     synthesis_module_enabled: data.synthesis_module_enabled ?? {},
     campaign_memory: data.campaign_memory ?? {},
+    compression_ladder: data.compression_ladder ?? emptyCompressionLadder(),
     player_synthesis: data.player_synthesis ?? {},
     ruling_ledger: data.ruling_ledger ?? [],
     notes: data.notes ?? [],

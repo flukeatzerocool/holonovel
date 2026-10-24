@@ -509,6 +509,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
 | 5.32   | Perception Ledger                                       | 540–545 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
+| 5.34   | Compression Ladder and Recall                           | 590–593 |
 
 ### 5.1 Output and Error Contracts
 
@@ -2018,6 +2019,9 @@ Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]` with t
 `manage_session (action: recap)` SHALL accept an optional `gm_notes` free-text field, populated by the caller and returned only to the Game Master badge. The field SHALL be structurally excluded from Player-badge output and SHALL never be merged with player-visible fields. `narrative_orientation` SHALL derive from `shared`-scope and revealed content only; when all source data is GM-only, the Player-badge field SHALL render the empty-state marker.
 *Acceptance criterion:* a recap carrying `gm_notes` returns them under the GM badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. _Check:_ T518.
 
+**REQ-072i — Session recap (Part i).**
+`manage_session (action: recap)` SHALL accept optional `tier` (`recent`, `session`, `arc`, or `campaign`) and `budget_tokens` (positive integer) parameters. The chosen tier's text and source pointers SHALL be returned in a `tiered_memory` field; when `tier` is omitted the field is null and the output is unchanged. Assembly and degradation follow REQ-592. _Check:_ T699.
+
 **REQ-279a — Narrative orientation (Part a).**
 `manage_session (action: recap)` SHALL include a `narrative_orientation` field — a prose paragraph (2–4 sentences) that synthesizes the active Novel state; §6.4.1 defines the inputs. The field SHALL appear when any source data is non-empty.
 
@@ -2594,7 +2598,7 @@ Markers SHALL be badge-filtered: the Player badge sees only session boundary tim
 **REQ-073a2 — Clock types (Part a2).**
 The existing `type` parameter (`round`/`narrative`) controls tick timing — `clock_type` controls the clock's interaction model. Both parameters coexist: a clock may be `clock_type: "racing"` with `type: "round"`. *Acceptance criterion:* A `racing` clock pair with `opposes` resolves correctly; a `linked` clock chain triggers the child on parent completion; a `tug_of_war` clock retreated to zero does not trigger. _Check:_ T271.
 **REQ-239a — Audit log compaction (Part a).**
-`manage_diagnostics (action: compact, sessions?)` tool (Game Master only) that archives audit entries older than a configurable session window into per-session metadata summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS` — sessions are identified by `[session-boundary]` markers (REQ-237). For each archived session, the compaction produces a summary containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`, `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174), `condition_changes`, `roster_changes`, and `scene_transitions`.
+`manage_diagnostics (action: compact, sessions?)` tool (Game Master only) that archives audit entries older than a configurable session window into per-session metadata summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS` — sessions are identified by `[session-boundary]` markers (REQ-237). For each archived session, the compaction produces a summary containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`, `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174), `condition_changes`, `roster_changes`, and `scene_transitions`. Each summary SHALL also carry `source_ordinals` (event-log ordinals covered by the archived slice) and `source_sessions` (the session ids covered).
 
 **REQ-239b — Audit log compaction (Part b).**
 Summaries live in the Novel JSON under an `audit_archive` key. The server removes raw audit entries for archived sessions from the `audit_log` array in the Novel JSON (REQ-040). The hash chain stays intact — the server re-anchors it at the first live entry after compaction, and entries after the compaction boundary form a new segment. The `manage_session (action: recap)` tool (REQ-072) SHALL derive from live entries plus archive summaries when a `session_id` targets an archived session. Summarized sessions are retrievable via `audit://novel/archive` as structured objects.
@@ -4486,7 +4490,7 @@ Appendix S.
 
 **REQ-455 — Event log append.** THE server SHALL maintain a Novel-scoped event log recording every observation that enters play — player utterances, GM narration, tool outcomes, and machine-originated state reports — as an append-only entry carrying a deterministic ordinal, a source classification, and a timestamp. Later processing SHALL NOT rewrite an entry; a correction appends a new entry. The log SHALL be bounded by a configured cap, evicting the oldest entries when the cap is reached. *Acceptance criterion:* a session of N inputs produces N ordered entries, and replaying the same inputs reproduces the same ordinals. _Check:_ T545.
 
-**REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
+**REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. `manage_diagnostics (action: history)` SHALL accept an optional `ordinals` array and return the named entries in ordinal order, marking any ordinal removed by the event-log cap as evicted. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
 
 **REQ-457 — Alternative events.** WHEN an observation replaces an earlier one, THE server SHALL append the replacement as an alternative entry and mark the prior entry superseded without deleting it. Superseded entries SHALL remain readable and SHALL be excluded only on explicit request. *Acceptance criterion:* superseding an entry appends a replacement, marks the original superseded, and leaves the original retrievable. _Check:_ T547.
 
@@ -4681,6 +4685,20 @@ The report SHALL state, for each advisory surface it derives, whether that surfa
 **REQ-520 — Consistency visibility.** The consistency report SHALL be available to every badge. *Acceptance criterion:* Player and Observer both receive an available report. _Check:_ T625.
 
 **REQ-521 — Staleness advisory.** A stale derived surface SHALL be reported as an advisory and SHALL NOT block briefing rendering. *Acceptance criterion:* a stale surface produces an advisory and the briefing still renders its consistency line. _Check:_ T626.
+
+### 5.34 Compression Ladder and Recall
+
+**REQ-590 — Compression ladder tiers.**
+The server SHALL store a `compression_ladder` Novel property group holding `arc` summaries and one `campaign` summary. Tiers are the raw event log, a recent window of `TTRPG_MEMORY_RECENT_EVENTS` entries (default 10), per-session summaries in `audit_archive`, arc summaries grouping `TTRPG_MEMORY_ARC_SESSIONS` sessions (default 5), and a campaign bible of at most `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` stable facts (default 40). Derivation SHALL be deterministic — no LLM call, network, or wall-clock input — and the group SHALL copy through clone, checkpoint, archive, and export while the `player` scope omits it. _Check:_ T697.
+
+**REQ-591 — Source pointers and traversal.**
+Every derived summary SHALL carry `source_ordinals` (event-log ordinals) and, for the campaign bible, `source_refs` (property keys such as `lore:<key>`). Session summaries in `audit_archive` SHALL carry `source_ordinals` and `source_sessions`, populated before compaction deletes the raw slice. `manage_diagnostics (action: history, ordinals)` SHALL return the named entries in ordinal order and SHALL report `[evicted]` for an ordinal removed by the event-log cap rather than omitting or fabricating it. Traversal SHALL be badge-filtered and read-only. _Check:_ T698.
+
+**REQ-592 — Budgeted tier assembly.**
+When `budget_tokens` is supplied, the server SHALL pack tiers in priority order campaign, recent, session, arc, and SHALL drop tiers in reverse priority order (arc first, campaign last) until the estimated cost fits, where estimate is one token per four characters. A dropped tier SHALL be named in a `[truncated]` marker. Values outside the declared domain SHALL return `[ERROR] [INVALID_INPUT]` with valid values enumerated. _Check:_ T699.
+
+**REQ-593 — Recall probes.**
+The server distribution SHALL include a recall-probe harness that builds a deterministic fixture campaign, forces session summarization through the compaction path, and evaluates probe questions drawn from a committed fixture. Each probe declares expected substrings, a tier, a token budget, and whether it is a required-recall probe. The harness SHALL assemble the requested tier at the requested budget and report `recall@budget` per tier. It SHALL fail when any required-recall probe misses at any declared budget or aggregate recall falls below 0.90. _Check:_ T700.
 
 #### End of requirements
 
@@ -5325,7 +5343,7 @@ before any server code is written.
 | Synthesis population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Synthesis term anchoring | Synthesis items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 39 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 40 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 Synthesis population, Synthesis term anchoring, and the Wisdom mechanical
 coupling rate (REQ-375) are artifact-scope metrics — they verify the extracted
@@ -6961,6 +6979,9 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
 | `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
 | `TTRPG_MAX_RULING_ENTRIES` | No | Maximum ruling-ledger entries per Novel before oldest non-reverted eviction (default 500; 0 = unlimited; REQ-589) |
+| `TTRPG_MEMORY_RECENT_EVENTS` | No | Recent-window tier size in event-log entries (default 10; 0 = unlimited). Behavioral (mechanical) — couples per P16 (REQ-590). |
+| `TTRPG_MEMORY_ARC_SESSIONS` | No | Sessions grouped per arc summary (default 5; REQ-590). Behavioral (mechanical) — couples per P16. |
+| `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` | No | Campaign-bible fact cap (default 40; 0 = unlimited; REQ-590). Behavioral (mechanical) — couples per P16. |
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded (0 = unlimited; REQ-241b) |
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
@@ -7063,6 +7084,7 @@ discarded by `manage_novel (action: end)`):
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
+| Compression Ladder | Narrative-memory, Knowledge-carrying | read/write (REQ-590) | read-only (GM-filtered) |
 | Mechanics | Mechanical | read (engine-populated during Discovery; GM-filtered) | read-only (GM-filtered) |
 | World | Spatial | read/write/create/delete (rooms, things, exits, vehicles per §5.10; parser command navigation) | read-only (room descriptions, thing descriptions, exit availability) |
 | Story Beats | Scene-anchored | read/write (REQ-335) | read-only (shared-scope beats) |
@@ -7307,6 +7329,8 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Scene-tagged notes surface when their room appears — the operator's annotations follow the scene | Player-visible, badge-scoped | Navigational | REQ-242 |
 | NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | What characters experience becomes what they know — interactions create NPC memory | — | Mechanical | REQ-311 |
 | Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Scene-pertinent facts surface in the briefing — campaign memory follows location | — | Navigational | REQ-310 |
+| Compression Ladder → Story Journal | P16 | Tier derivation reads story-journal and event-log entries into arc and campaign summaries; `TTRPG_MEMORY_RECENT_EVENTS`, `TTRPG_MEMORY_ARC_SESSIONS`, and `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` bound the tiers | Remembered events compress into durable memory — summaries preserve their sources | GM-only | Navigational | REQ-590, REQ-246 |
+| Campaign Memory → Compression Ladder | P54 | Campaign-memory facts promote into the campaign-bible tier with `source_refs` | Known facts become the story bible — campaign memory feeds the campaign tier | GM-only | Navigational | REQ-310, REQ-590 |
 | World in Motion → Campaign Memory | P16 | World in Motion accepted changes produce campaign memory facts | The living world becomes recorded history — accepted World in Motion entries persist | — | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | P54 | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Significant NPC events persist as campaign facts — memory survives the scene | — | Navigational | REQ-311, REQ-310 |
 | Vow → Countdown | P12 | `manage_vow (action: set)` offers a coupled countdown per difficulty tier; `manage_vow (action: milestone)` advances both; countdown fill enables `manage_vow (action: resolve)` | Purpose drives the clock — every vow carries a coupled countdown per difficulty | — | Mechanical | REQ-322 |
@@ -10014,6 +10038,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-587 | Stable catalog prefix | 2026-10-21 |
 | REQ-588 | Search result budget | 2026-10-21 |
 | REQ-589 | Ruling ledger | 2026-10-24 |
+| REQ-072i | Session recap (Part i) | 2026-10-24 |
+| REQ-590 | Compression ladder tiers | 2026-10-24 |
+| REQ-591 | Source pointers and traversal | 2026-10-24 |
+| REQ-592 | Budgeted tier assembly | 2026-10-24 |
+| REQ-593 | Recall probes | 2026-10-24 |
 
 ---
 
@@ -10708,6 +10737,10 @@ diet.
 | T694 | Automated | Round-trip state hash: export full scope, replace-import, and re-export; assert `state_hash` is equal while `payload_hash` changes only by the documented audit/metadata drift; a signed export verifies with the configured key. | REQ-096j, REQ-096l |
 | T695 | Automated | Citation verification: run `manage_synthesis (action: verify)` after synthesis and assert every vendor item is `pass`/`supported`; import an item whose `quoted_excerpt` is disjoint from its content and assert `unsupported`/`no-overlap`; import an item with no excerpt and assert `unsupported`/`excerpt-absent`; assert the Player badge returns `[FORBIDDEN]`. | REQ-080h |
 | T696 | Automated | Ruling ledger: `record_ruling` appends `ruling_1` with verified citations, an audit entry, and `spec_health` counts; `revert_ruling` sets `reverted` without deleting it; `manage_synthesis (action: revert)` leaves the ledger intact; undo reverses and redo reapplies the write; the ledger survives restart, export, and clone; the Player badge returns `[FORBIDDEN]` and the `player` export scope omits it. | REQ-589 |
+| T697 | Automated | Compression ladder: derive recent, session, arc, and campaign tiers on a fixture Novel; assert each summary carries `source_ordinals` and the campaign bible carries `source_refs`; repeat derivation and assert byte-identical output; assert the group survives restart, checkpoint, clone, and export, and that `player` scope omits it. | REQ-590 |
+| T698 | Automated | Source-pointer traversal: after compaction, read a session summary and call `manage_session (action: history, ordinals=<source_ordinals>)`; assert the named events return in ordinal order; evict an event under the event-log cap and assert its ordinal reports `[evicted]`; assert the Player badge never receives `game_master`-sourced text. | REQ-591 |
+| T699 | Automated | Budgeted assembly: call `manage_session (action: recap, tier="campaign", budget_tokens=N)` above, below, and at the exact tier cost; assert tiers drop in the declared order with a `[truncated]` marker; assert a no-parameter recap is byte-identical to the pre-change output; assert an invalid tier or non-positive budget returns `[INVALID_INPUT]`. | REQ-592, REQ-072 |
+| T700 | Automated | Recall probes: run the fixture campaign through the compaction path and evaluate the committed probe set; assert every must-recall probe hits at every declared budget and aggregate `recall@budget` is at least 0.90; lower a probe's budget until a tier is dropped and assert the reported per-tier recall reflects the drop. | REQ-593 |
 
 ---
 

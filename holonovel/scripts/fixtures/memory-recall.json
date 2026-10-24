@@ -1,0 +1,45 @@
+{
+  "description": "Recall probes for the compression ladder (REQ-593). Each probe asks a question whose answer must survive the named tier at the declared token budget.",
+  "probes": [
+    {
+      "id": "campaign-npc",
+      "question": "Which NPC guards the chapel?",
+      "expected_contains": ["Kael"],
+      "tier": "campaign",
+      "budget_tokens": 4000,
+      "required": true
+    },
+    {
+      "id": "campaign-faction",
+      "question": "Which faction wants the docks?",
+      "expected_contains": ["Merchant Guild"],
+      "tier": "campaign",
+      "budget_tokens": 4000,
+      "required": true
+    },
+    {
+      "id": "session-vault",
+      "question": "What happened at the vault?",
+      "expected_contains": ["The vault door was opened"],
+      "tier": "session",
+      "budget_tokens": 4000,
+      "required": true
+    },
+    {
+      "id": "arc-oath",
+      "question": "What did Kael swear?",
+      "expected_contains": ["Kael swore to protect the chapel"],
+      "tier": "arc",
+      "budget_tokens": 4000,
+      "required": true
+    },
+    {
+      "id": "recent-bell",
+      "question": "What did the bell do?",
+      "expected_contains": ["The bell rang at dusk"],
+      "tier": "recent",
+      "budget_tokens": 4000,
+      "required": true
+    }
+  ]
+}

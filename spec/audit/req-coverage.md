@@ -52,7 +52,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
-| REQ-072 | Session recap (Part a1) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T518 | — |
+| REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T518, T699 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, T218, T220, S17 | — |
 | REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513 | — |
@@ -545,4 +545,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-587 | Stable catalog prefix | 5.3 Tools, Resources, and Lookups | C | T687 | — |
 | REQ-588 | Search result budget | 5.3 Tools, Resources, and Lookups | C | T688 | — |
 | REQ-589 | Ruling ledger | 5.8 Synthesis, Lore, and Macros | C | T696 | — |
+| REQ-590 | Compression ladder tiers | 5.34 Compression Ladder and Recall | C | T697 | — |
+| REQ-591 | Source pointers and traversal | 5.34 Compression Ladder and Recall | C | T698 | — |
+| REQ-592 | Budgeted tier assembly | 5.34 Compression Ladder and Recall | C | T699 | — |
+| REQ-593 | Recall probes | 5.34 Compression Ladder and Recall | E | T700 | — |
 

@@ -6,13 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Compression ladder and recall probes
-
-- Recap, campaign memory, and audit archives exist; add short/medium/long/
-  campaign tiers with source pointers and recall-at-budget probes.
-- Do not replace the event log or audit archive.
-- Plan: `plans/2026-10-23-compression-ladder/`
-
 ## Line-of-sight and sound propagation
 
 - Containment, transparency, and light exist; add visibility and one-hop sound
