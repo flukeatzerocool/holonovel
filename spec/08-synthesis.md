@@ -259,7 +259,8 @@ are refreshed per-source. Synthesis items are stored in the Novel JSON under a
 **Reversion.** Calling `manage_synthesis (action: revert)` (REQ-103) removes all external synthesis items
 at runtime without requiring a rebuild. Internal synthesis items are removed by the same
 call. Ruleset Wisdom persists. Synthesis manifest and verification results remain in
-DECISIONS.md for audit.
+DECISIONS.md for audit. Citation verification and the ruling ledger are specified in
+REQ-080h and REQ-589.
 
 **Synthesis resource rendering.** Every synthesis resource URI
 (`synthesis://voice_examples`, `synthesis://briefing_order`,

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-24 — Citation verification and ruling ledger
+
+- Added `manage_synthesis (action: verify)` — a GM-only, read-only, local check
+  that compares each synthesis item's stored `quoted_excerpt` against its claim
+  and returns `pass`/`weak`/`unsupported` with a reason, coverage, confidence,
+  and `conflicts_with`. No network, no mutation, no audit entry (REQ-080h; T695).
+- Made the REQ-080f `quoted_excerpt` requirement real: manifest construction
+  records an excerpt and source snapshot per item, and supplementary imports
+  accept `source_url`, `quoted_excerpt`, and `source_snapshot`.
+- Added a GM-only `ruling_ledger` Novel property group (Narrative-memory) with
+  `manage_synthesis (action: record_ruling)` and `(action: revert_ruling)`.
+  Entries use deterministic `ruling_<n>` ids, carry verified citations at the
+  minimum cited confidence, snapshot for undo, audit every write, and survive
+  whole-synthesis revert, restart, export, clone, checkpoint, and archive; the
+  `player` export scope omits them. `TTRPG_MAX_RULING_ENTRIES` defaults to 500
+  (0 = unlimited) and evicts the oldest non-reverted entry first (REQ-589; T696).
+- Extended `spec_health` with `ruling_ledger_count` and
+  `ruling_ledger_reverted_count`, added the config row to §7.6 and the property
+  row to §7.7, and added REQ-080h/REQ-589 to the §5.8 map, §6.6 Pattern Buffer
+  coverage map, Appendix A/F, and Appendix Q.
+
 ## 2026-10-24 — Portable bundle integrity and player-safe export
 
 - JSON exports now carry an `integrity` envelope: SHA-256 `payload_hash`,

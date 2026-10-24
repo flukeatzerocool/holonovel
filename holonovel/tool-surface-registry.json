@@ -3531,6 +3531,23 @@
       "successors": [],
       "edges": []
     },
+    "manage_synthesis.record_ruling": {
+      "group": "author",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "mutation_class": "write"
+    },
     "manage_synthesis.revert": {
       "group": "author",
       "phases": [
@@ -3547,6 +3564,23 @@
       "preconditions": [],
       "successors": [],
       "edges": []
+    },
+    "manage_synthesis.revert_ruling": {
+      "group": "author",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "mutation_class": "write"
     },
     "manage_synthesis.run": {
       "group": "author",
@@ -3603,6 +3637,23 @@
       "preconditions": [],
       "successors": [],
       "edges": []
+    },
+    "manage_synthesis.verify": {
+      "group": "author",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "mutation_class": "read"
     },
     "manage_vow.forsake": {
       "group": "resolve",

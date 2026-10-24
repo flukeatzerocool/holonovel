@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 107828,
+  "tools_list_bytes": 108756,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 107828,
-        "tokens": 26957
+        "bytes": 108756,
+        "tokens": 27189
       },
       "standard": {
         "tools": 36,
-        "bytes": 93824,
-        "tokens": 23456
+        "bytes": 94752,
+        "tokens": 23688
       },
       "small": {
         "tools": 6,
@@ -1482,7 +1482,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2910,
+        "definitionBytes": 3012,
         "descriptionBytes": 871
       },
       "category": "",
@@ -1745,8 +1745,8 @@
     {
       "name": "manage_synthesis",
       "title": "Synthesis Management",
-      "description": "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
-      "description_bytes": 510,
+      "description": "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying citations, recording or reverting a ruling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
+      "description_bytes": 967,
       "action_enum": [
         "run",
         "revert",
@@ -1757,9 +1757,12 @@
         "toggle_action",
         "player_add",
         "player_remove",
-        "player_list"
+        "player_list",
+        "verify",
+        "record_ruling",
+        "revert_ruling"
       ],
-      "param_count": 8,
+      "param_count": 11,
       "required": [
         "action"
       ],
@@ -1769,8 +1772,11 @@
         "detail": "Return full entries (list).",
         "enabled": "Enable or disable (toggle).",
         "force": "Re-run even if unchanged (run).",
-        "key": "Item key (activate: number; player_add/player_remove: string).",
-        "module": "Synthesis module (activate/deactivate/toggle/player_*/list).",
+        "key": "Item key (activate: number; player_add/player_remove/verify/record_ruling: string).",
+        "module": "Synthesis module (activate/deactivate/toggle/player_*/list/verify/record_ruling).",
+        "query": "Question the ruling answers (record_ruling).",
+        "ruling": "Ruling text to record (record_ruling).",
+        "ruling_id": "Ledger entry id (revert_ruling).",
         "triggers": "Recall triggers (player_add)."
       },
       "output_fields": {
@@ -1784,9 +1790,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 9,
+        "paramCount": 12,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 9,
+        "paramsWithDescriptions": 12,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1797,8 +1803,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2240,
-        "descriptionBytes": 510
+        "definitionBytes": 3066,
+        "descriptionBytes": 967
       },
       "category": "",
       "gate": ""

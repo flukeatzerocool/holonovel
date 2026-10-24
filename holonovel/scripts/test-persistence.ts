@@ -137,6 +137,19 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "renamed" });
     });
 
+    await test("T696/REQ-589: ruling ledger survives export and clone", async () => {
+      await call(proc, "manage_synthesis", { action: "run" });
+      const rec = JSON.parse(await call(proc, "manage_synthesis", { action: "record_ruling", query: "Is the gate locked?", ruling: "Yes, the gate is locked.", module: "voice_examples" }));
+      if (rec.id !== "ruling_1") throw new Error(`expected ruling_1, got ${rec.id}`);
+      const exported = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if ((exported.novel?.ruling_ledger ?? []).length !== 1) throw new Error("export dropped the ruling ledger");
+      await call(proc, "manage_archive", { action: "clone", source_slug: "renamed", new_name: "ledger-fork" });
+      await call(proc, "manage_novel", { action: "switch", slug: "ledger-fork" });
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      if (health.ruling_ledger_count !== 1) throw new Error(`clone dropped the ruling ledger: ${health.ruling_ledger_count}`);
+      await call(proc, "manage_novel", { action: "switch", slug: "renamed" });
+    });
+
     await test("T315/T278: rename and clone onto an existing slug return [STATE_CONFLICT]", async () => {
       // rename active "renamed" onto existing "fork" must refuse (REQ-256).
       const renameConflict = await call(proc, "manage_novel", { action: "rename",  new_slug: "fork" });

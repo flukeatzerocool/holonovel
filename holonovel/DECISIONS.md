@@ -335,6 +335,8 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_codex` | un-gated | Player, Game Master |
 | `manage_synthesis` | un-gated | Player, Game Master |
 
+`manage_synthesis` is un-gated because its `player_*` actions are Player-accessible; `run`, `revert`, `verify`, `record_ruling`, and `revert_ruling` enforce Game Master-only inside the handler (REQ-080h, REQ-103a, REQ-261, REQ-589).
+
 ### Compatibility aliases
 
 `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` are retired tombstones for `resolve_mechanic`; `manage_ruleset (action: roll)` is a retired action tombstone for `resolve_mechanic (action: roll)`. Each returns `[NOT_FOUND]` naming its replacement, is omitted from `tools/list`, and is advertised in `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).

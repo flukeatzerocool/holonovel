@@ -686,6 +686,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-080f | Synthesis boundaries (Part f) | 2026-08-11 |
 | REQ-080g1 | Synthesis boundaries (Part g1) | 2026-08-11 |
 | REQ-080g2 | Synthesis boundaries (Part g2) | 2026-08-11 |
+| REQ-080h | Citation verification | 2026-10-24 |
 | REQ-081a | Narrative directive (Part a) | 2026-08-11 |
 | REQ-081b | Narrative directive (Part b) | 2026-08-11 |
 | REQ-081c | Narrative directive (Part c) | 2026-08-11 |
@@ -1326,6 +1327,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-586 | Pipeline performance record | 2026-10-21 |
 | REQ-587 | Stable catalog prefix | 2026-10-21 |
 | REQ-588 | Search result budget | 2026-10-21 |
+| REQ-589 | Ruling ledger | 2026-10-24 |
 
 ---
 
@@ -2018,6 +2020,8 @@ diet.
 | T692 | Automated | Tamper refusal: sign an export with a key, tamper the payload, and assert a strict dry-run reports `isError: false` with the failing hash; a strict replace returns `[ERROR] [STATE_CONFLICT]` with state unchanged; non-strict import warns `[integrity-mismatch]`; a wrong key is a mismatch. | REQ-096l |
 | T693 | Automated | Player-safe export: export `scope: player` and assert GM-only tiers (audit log, gm_context, secrets, narrative directive), `game_master` lore/notes, and NPC minds are absent while shared lore survives; `merge` imports it; `replace` warns `[player-scope-import]`, and strict blocks it. | REQ-096b, REQ-096k |
 | T694 | Automated | Round-trip state hash: export full scope, replace-import, and re-export; assert `state_hash` is equal while `payload_hash` changes only by the documented audit/metadata drift; a signed export verifies with the configured key. | REQ-096j, REQ-096l |
+| T695 | Automated | Citation verification: run `manage_synthesis (action: verify)` after synthesis and assert every vendor item is `pass`/`supported`; import an item whose `quoted_excerpt` is disjoint from its content and assert `unsupported`/`no-overlap`; import an item with no excerpt and assert `unsupported`/`excerpt-absent`; assert the Player badge returns `[FORBIDDEN]`. | REQ-080h |
+| T696 | Automated | Ruling ledger: `record_ruling` appends `ruling_1` with verified citations, an audit entry, and `spec_health` counts; `revert_ruling` sets `reverted` without deleting it; `manage_synthesis (action: revert)` leaves the ledger intact; undo reverses and redo reapplies the write; the ledger survives restart, export, and clone; the Player badge returns `[FORBIDDEN]` and the `player` export scope omits it. | REQ-589 |
 
 ---
 
@@ -3023,6 +3027,7 @@ formats._
 | `countdowns`       | Array of active countdowns with name, ticks, type, clock_type     |
 | `lore`             | Array of lore entries (Appendix L schema per entry)               |
 | `synthesis`       | Array of synthesis items across all seven output modules          |
+| `ruling_ledger`   | Array of GM-only ruling entries `{id, query, ruling, citations, confidence, created_at, reverted}` (REQ-589); omitted from the `player` scope |
 | `adventure`        | Active adventure slug and generated adventure content            |
 | `audit_log`        | Array of audit entries (timestamp, badge, tool, args, output)       |
 | `checkpoints`      | Array of checkpoint objects `{label, timestamp, state}` (REQ-241) |

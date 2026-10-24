@@ -455,6 +455,27 @@ export const DIFFICULTY_TRACKS: Record<string, number> = {
   troublesome: 12, dangerous: 8, formidable: 4, extreme: 2, epic: 1,
 };
 
+// REQ-589 — one recorded ruling: the question, the ruling, its cited evidence,
+// and whether the GM reverted it. GM-only Novel-tier state.
+export interface RulingLedgerCitation {
+  module: string;
+  key: string | number;
+  source_url: string;
+  quoted_excerpt: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  verdict: "pass" | "weak" | "unsupported";
+}
+
+export interface RulingLedgerEntry {
+  id: string;
+  query: string;
+  ruling: string;
+  citations: RulingLedgerCitation[];
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  created_at: string;
+  reverted: boolean;
+}
+
 export interface NovelState {
   slug: string;
   name: string;
@@ -512,6 +533,8 @@ export interface NovelState {
   synthesis_module_enabled: Record<string, boolean>;
   // REQ-261 — player-authored synthesis items, per module, tagged [player].
   player_synthesis: Record<string, Array<{ key: string; content: string; triggers?: string[]; badge_scope: string; created_at: string; active?: boolean }>>;
+  // REQ-589 — GM-only ruling ledger. Survives whole-synthesis revert.
+  ruling_ledger: RulingLedgerEntry[];
   // REQ-310 — campaign memory: engine-recorded per-NPC/thread/location facts
   // derived from state-changing tool calls, surviving restart and rebuild.
   campaign_memory: Array<{ category: "npcs" | "threads" | "locations"; text: string; at: string; badge_scope: "game_master" | "shared" | "discovered"; scene: string }>;
@@ -593,7 +616,7 @@ export interface NovelState {
     slug: string;
     source: string;
     hash: string;
-    wisdom: Array<{ module: string; key: string; content: string }>;
+    wisdom: Array<{ module: string; key: string; content: string; source_url?: string; quoted_excerpt?: string; source_snapshot?: string }>;
     imported_at: string;
   }>;
   // REQ-522 — durable NPC/agent task and action lifecycle.
@@ -932,6 +955,7 @@ export class StateManager {
       synthesis_deactivated: {},
       synthesis_module_enabled: {},
       player_synthesis: {},
+      ruling_ledger: [],
       campaign_memory: [],
       notes: [],
       vows: [],
@@ -1326,6 +1350,7 @@ export class StateManager {
       synthesis_deactivated: normalizeActivationMap(data.synthesis_deactivated),
       synthesis_module_enabled: data.synthesis_module_enabled ?? {},
       player_synthesis: data.player_synthesis ?? {},
+      ruling_ledger: data.ruling_ledger ?? [],
       campaign_memory: data.campaign_memory ?? [],
       notes: data.notes ?? [],
       vows: data.vows ?? [],
@@ -2400,6 +2425,7 @@ function novelToJSON(novel: NovelState): any {
     synthesis_deactivated: novel.synthesis_deactivated,
     synthesis_module_enabled: novel.synthesis_module_enabled,
     player_synthesis: novel.player_synthesis,
+    ruling_ledger: novel.ruling_ledger,
     campaign_memory: novel.campaign_memory,
     notes: novel.notes,
     vows: novel.vows,
@@ -2528,6 +2554,7 @@ function novelFromJSON(data: any): NovelState {
     synthesis_module_enabled: data.synthesis_module_enabled ?? {},
     campaign_memory: data.campaign_memory ?? {},
     player_synthesis: data.player_synthesis ?? {},
+    ruling_ledger: data.ruling_ledger ?? [],
     notes: data.notes ?? [],
     vows: data.vows ?? [],
     checkpoints: data.checkpoints ?? [],
@@ -2632,6 +2659,7 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.synthesis_activated = source.synthesis_activated;
   target.synthesis_deactivated = source.synthesis_deactivated;
   target.synthesis_module_enabled = source.synthesis_module_enabled;
+  target.ruling_ledger = source.ruling_ledger;
   target.notes = source.notes;
   target.vows = source.vows;
   target.checkpoints = source.checkpoints;

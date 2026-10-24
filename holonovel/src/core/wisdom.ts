@@ -17,6 +17,10 @@ export interface WisdomItem {
   tag?: string;
   badge_scope: "player" | "game_master" | "shared";
   category?: string;
+  // REQ-080h — the cited span and the stored source text it was drawn from.
+  // Verification reads these; it never fetches and never backfills at verify time.
+  quoted_excerpt?: string;
+  source_snapshot?: string;
 }
 
 export interface ActionPattern {
@@ -26,6 +30,8 @@ export interface ActionPattern {
   ruleset_section: string;
   source_url?: string;
   suggested_actions?: string[];
+  quoted_excerpt?: string;
+  source_snapshot?: string;
 }
 
 export interface NarrativeVoice {
@@ -38,13 +44,15 @@ export interface NarrativeVoice {
   confidence: "HIGH" | "MEDIUM" | "LOW";
   tag?: string;
   badge_scope: "player" | "game_master" | "shared";
+  quoted_excerpt?: string;
+  source_snapshot?: string;
 }
 
 export interface WisdomManifest {
   collected_at: string;
   spec_version: string;
   voice_examples: WisdomItem[];
-  briefing_order: { sections: string[]; reason: string; source_url: string; confidence: string };
+  briefing_order: { sections: string[]; reason: string; source_url: string; confidence: string; quoted_excerpt?: string; source_snapshot?: string };
   lore_templates: WisdomItem[];
   action_patterns: ActionPattern[];
   supplementary_guidance: WisdomItem[];
@@ -338,6 +346,74 @@ function wisdomSlug(s: string): string {
     .slice(0, 48) || "item";
 }
 
+// ── REQ-080h — citation verification ───────────────────────────────
+
+// Deterministic lexical evidence. Verification proves overlap between a claim
+// and its cited excerpt, never entailment; callers report the coverage value.
+export type CitationVerdict = "pass" | "weak" | "unsupported";
+export interface CitationCheck {
+  verdict: CitationVerdict;
+  reason: string;
+  coverage: number;
+}
+
+export function citationTokens(text: string): Set<string> {
+  return new Set(
+    String(text ?? "")
+      .toLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.filter((t) => t.length >= 3) ?? [],
+  );
+}
+
+function normalizedText(text: string): string {
+  return (String(text ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? []).join(" ");
+}
+
+export function verifyCitation(claim: string, item: any): CitationCheck {
+  const excerpt = String(item?.quoted_excerpt ?? "").trim();
+  if (!excerpt) return { verdict: "unsupported", reason: "excerpt-absent", coverage: 0 };
+  if (String(item?.source_url ?? "").startsWith("novel://")) {
+    return { verdict: "pass", reason: "internal-source", coverage: 1 };
+  }
+  const snapshot = String(item?.source_snapshot ?? "").trim();
+  if (snapshot && !normalizedText(snapshot).includes(normalizedText(excerpt))) {
+    return { verdict: "unsupported", reason: "excerpt-not-in-source", coverage: 0 };
+  }
+  const claimTokens = citationTokens(claim);
+  if (claimTokens.size === 0) return { verdict: "weak", reason: "no-claim-tokens", coverage: 0 };
+  const excerptTokens = citationTokens(excerpt);
+  if (excerptTokens.size === 0) return { verdict: "weak", reason: "no-excerpt-tokens", coverage: 0 };
+  let shared = 0;
+  for (const token of excerptTokens) if (claimTokens.has(token)) shared++;
+  // Coverage is the share of the cited excerpt's content tokens that appear in
+  // the claim: a short supporting span over a long claim still passes, while a
+  // disjoint excerpt fails.
+  const coverage = shared / excerptTokens.size;
+  if (coverage === 0) return { verdict: "unsupported", reason: "no-overlap", coverage };
+  if (coverage < 0.5) return { verdict: "weak", reason: "low-overlap", coverage };
+  return { verdict: "pass", reason: "supported", coverage };
+}
+
+// Manifest construction: vendor items carry their own recorded text, so the
+// build records a first-sentence excerpt and that same text as the snapshot.
+// Imported items may supply their own excerpt and snapshot; verification never
+// derives them.
+function firstSentence(text: string): string {
+  const s = String(text ?? "").trim();
+  const end = s.search(/[.!?](\s|$)/);
+  return (end > 0 ? s.slice(0, end + 1) : s).slice(0, 240);
+}
+
+function withExcerpts(arr: any[] | undefined, claimOf: (i: any) => string): void {
+  (arr ?? []).forEach((item: any) => {
+    const claim = claimOf(item);
+    if (!claim) return;
+    if (!item.quoted_excerpt) item.quoted_excerpt = firstSentence(claim);
+    if (!item.source_snapshot) item.source_snapshot = claim;
+  });
+}
+
 export function withWisdomKeys(manifest: WisdomManifest): WisdomManifest {
   const out: WisdomManifest = JSON.parse(JSON.stringify(manifest));
   const assign = (arr: any[] | undefined, prefix: string, pick: (i: any) => string): void => {
@@ -354,6 +430,22 @@ export function withWisdomKeys(manifest: WisdomManifest): WisdomManifest {
     assign(out.adventure_advice.templates, "adv", (i) => i.content ?? "");
     assign(out.adventure_advice.scenario_starters, "seed", (i) => i.content ?? "");
     assign(out.adventure_advice.table_expansions, "table", (i) => i.content ?? "");
+  }
+  // REQ-080h — every manifest item carries an excerpt and its source text.
+  withExcerpts(out.voice_examples, (i) => i.content ?? "");
+  withExcerpts(out.lore_templates, (i) => i.content ?? "");
+  withExcerpts(out.supplementary_guidance, (i) => i.content ?? "");
+  withExcerpts(out.action_patterns, (i) => i.intent ?? "");
+  withExcerpts(out.narrative_voices, (i) => i.description ?? "");
+  if (out.adventure_advice) {
+    withExcerpts(out.adventure_advice.templates, (i) => i.content ?? "");
+    withExcerpts(out.adventure_advice.scenario_starters, (i) => i.content ?? "");
+    withExcerpts(out.adventure_advice.table_expansions, (i) => i.content ?? "");
+  }
+  if (out.briefing_order) {
+    const reason = out.briefing_order.reason ?? "";
+    if (!out.briefing_order.quoted_excerpt) out.briefing_order.quoted_excerpt = firstSentence(reason);
+    if (!out.briefing_order.source_snapshot) out.briefing_order.source_snapshot = reason;
   }
   return out;
 }

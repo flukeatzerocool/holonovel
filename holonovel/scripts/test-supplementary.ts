@@ -71,6 +71,65 @@ async function main() {
     await kill(p);
   });
 
+  // ── T695: citation verification (REQ-080h) ──────────────────────────
+  await test("T695/REQ-080h: verify reports pass, unsupported, and excerpt-absent", async () => {
+    const p = await boot(); await newNovel(p, "cite1");
+    await call(p, "manage_synthesis", { action: "run" });
+    const all = JSON.parse(await call(p, "manage_synthesis", { action: "verify" }));
+    assert(all.checked > 0, "verify checked no items after synthesis");
+    assert(all.verdicts.unsupported === 0 && all.verdicts.weak === 0, "vendor manifest items did not verify: " + JSON.stringify(all.verdicts));
+    // Fabricated citation: excerpt is disjoint from the claim.
+    await call(p, "manage_ruleset", { action: "import_supplementary", slug: "fake", wisdom: [{
+      module: "supplementary_guidance", key: "fabricated", content: "Dragons are immune to fire.",
+      source_url: "https://example.test/x", quoted_excerpt: "The moon is made of cheese.",
+      source_snapshot: "The moon is made of cheese.",
+    }] });
+    const v = JSON.parse(await call(p, "manage_synthesis", { action: "verify", module: "supplementary_guidance", key: "fabricated" }));
+    assert(v.items[0].verdict === "unsupported" && v.items[0].reason === "no-overlap", "fabricated citation not flagged: " + JSON.stringify(v.items[0]));
+    // Missing excerpt.
+    await call(p, "manage_ruleset", { action: "import_supplementary", slug: "noex", wisdom: [{
+      module: "supplementary_guidance", key: "noex", content: "Fire burns.",
+    }] });
+    const v2 = JSON.parse(await call(p, "manage_synthesis", { action: "verify", module: "supplementary_guidance", key: "noex" }));
+    assert(v2.items[0].verdict === "unsupported" && v2.items[0].reason === "excerpt-absent", "missing excerpt not flagged: " + JSON.stringify(v2.items[0]));
+    // Player badge must be refused.
+    await call(p, "set_badge", { badge: "player" });
+    const forbidden = await call(p, "manage_synthesis", { action: "verify" });
+    assert(forbidden.includes("FORBIDDEN"), "Player badge was allowed to verify: " + forbidden.slice(0, 120));
+    await kill(p);
+  });
+
+  // ── T696: ruling ledger (REQ-589) ───────────────────────────────────
+  await test("T696/REQ-589: record, cap, revert, whole-synthesis revert, restart", async () => {
+    const p = await boot(); await newNovel(p, "ledger1");
+    await call(p, "manage_synthesis", { action: "run" });
+    const first = JSON.parse(await call(p, "manage_synthesis", { action: "record_ruling", query: "Can dragons fly?", ruling: "Yes, dragons fly.", module: "voice_examples" }));
+    assert(first.id === "ruling_1", "first ruling id was not ruling_1: " + first.id);
+    assert(first.citations.length > 0 && first.citations.every((c: any) => c.verdict === "pass"), "ruling citations did not verify: " + JSON.stringify(first.citations));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(health.ruling_ledger_count === 1 && health.ruling_ledger_reverted_count === 0, "ledger counts wrong after record");
+    const rev = await call(p, "manage_synthesis", { action: "revert_ruling", ruling_id: "ruling_1" });
+    assert(rev.includes("marked reverted"), "revert_ruling failed: " + rev.slice(0, 120));
+    const health2 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(health2.ruling_ledger_count === 1 && health2.ruling_ledger_reverted_count === 1, "ledger counts wrong after revert");
+    // Whole-synthesis revert leaves the ledger intact (REQ-589).
+    await call(p, "manage_synthesis", { action: "revert" });
+    const health3 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(health3.ruling_ledger_count === 1, "whole-synthesis revert cleared the ruling ledger");
+    // Player badge refused for mutations.
+    await call(p, "set_badge", { badge: "player" });
+    const forbidden = await call(p, "manage_synthesis", { action: "record_ruling", query: "q", ruling: "r" });
+    assert(forbidden.includes("FORBIDDEN"), "Player badge was allowed to record a ruling");
+    await kill(p);
+    // Restart: ledger survives save/reload.
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "ledger1" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    const health4 = JSON.parse(await call(p2, "manage_diagnostics", { action: "health" }));
+    assert(health4.ruling_ledger_count === 1 && health4.ruling_ledger_reverted_count === 1, "ledger did not survive restart");
+    await kill(p2);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
