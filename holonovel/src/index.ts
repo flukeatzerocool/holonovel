@@ -17,6 +17,7 @@ import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
 import { buildSurfaceReport } from "./surface-report.js";
+import { composeBadgeOrientation, composeIntro, composeNarrativeTone, composeNovelSetup, composeRunWorkflow, composeSessionZero, type PromptInputs, type ToolCategory } from "./core/prompt-composition.js";
 import { buildContextLedger, allocateContextBudget } from "./core/context-ledger.js";
 import { hiddenActionAliases, hiddenAliasNames, retiredAliasRefusal, surfaceAliasList } from "./core/surface-aliases.js";
 import {
@@ -11465,6 +11466,42 @@ server.registerTool("manage_synthesis", {
 
 // ── Prompts ────────────────────────────────────────────────────────
 
+// REQ-078a/§6.4.1 — build-time prompt inputs travel in the package model.
+// A ruleset-free Novel or a package without the field yields null, and the
+// composer returns the ruleset-free body.
+function promptInputsFor(novel: NovelState | null | undefined): PromptInputs | null {
+  if (!novel?.ruleset) return null;
+  try {
+    const model = rulesets.hydrate(novel.ruleset).model as any;
+    const inputs = model?.prompt_inputs;
+    return inputs && typeof inputs === "object" ? inputs as PromptInputs : null;
+  } catch {
+    // A failed hydration is surfaced elsewhere; prompts fall back generically.
+    return null;
+  }
+}
+
+// REQ-023a — intent categories come from the live surface registry's action
+// classifications, not a maintained keyword list.
+function runWorkflowCategories(toolNames: string[]): ToolCategory[] {
+  const registry = surfaceRegistry();
+  if (!registry) return [];
+  const hidden = hiddenAliasNames(registry);
+  const byGroup = new Map<string, string[]>();
+  for (const [key, decl] of Object.entries(registry.actions)) {
+    if (decl.compatibility) continue;
+    const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
+    if (!toolNames.includes(tool) || hidden.has(tool)) continue;
+    const tools = byGroup.get(decl.group) ?? [];
+    if (!tools.includes(tool)) tools.push(tool);
+    byGroup.set(decl.group, tools);
+  }
+  return [...byGroup.entries()]
+    .map(([category, tools]) => ({ category, tools: tools.sort() }))
+    .sort((a, b) => a.category.localeCompare(b.category));
+}
+
+
 server.prompt("intro", "Introduction and Getting Started", async () => {
   // REQ-063b — preview truncation at TTRPG_NOVEL_PREVIEW_CHARS (default 120),
   // session count, last-played date, and synthesis status per Novel.
@@ -11494,22 +11531,11 @@ server.prompt("intro", "Introduction and Getting Started", async () => {
       role: "user",
       content: {
         type: "text" as const,
-        text: applyPromptBudget(`# Welcome to Holonovel
-
-This server runs tabletop roleplay with a real, persistent world. Every scene,
-character, and object lives on the server — not in a chat window — so your
-campaign survives restarts, breaks, and even rebuilds. Your campaign is the
-program you step into; the rules are whatever you bring to the table.
-${library}
-
-## Getting started
-1. Create a world for your campaign, or resume one from the list above.
-2. Run the setup guide to add characters, choose a story source, and agree on
-   tone before play.
-3. Choose your role — player, game master, or observer.
-4. Enter the story and begin your first scene.
-
-For the latest specification, see ${specRepoUrl()}.`),
+        text: applyPromptBudget(composeIntro({
+          inputs: promptInputsFor(state.activeNovel),
+          library,
+          specRepoUrl: specRepoUrl(),
+        })),
       },
     }],
   };
@@ -11532,11 +11558,7 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   // (REQ-135) alongside the badge foundations.
   const loopRole = (novel as any).ai_role ?? (badge === "game_master" ? "player" : "game_master");
   const profile = guidanceProfile();
-  const orientation = profile === "lean"
-    ? "**Play loop:** State, then tools, then narration."
-    : loopRole === "player"
-      ? "**Play loop:** Read the current state, resolve mechanics through tools, then act in character once the engine validates the result."
-      : "**Play loop:** Read the current state, resolve mechanics through tools, then narrate the validated result to the table.";
+  const orientation = composeBadgeOrientation(profile, loopRole);
 
   // REQ-336/351 — advancing the pacing counter on each briefing render; the
   // pacing signal fires (and pacing autonomy triggers) when it exceeds the window.
@@ -11619,7 +11641,7 @@ You are in the story. Confine tool use and responses to the current Novel. To st
 
   // REQ-071 — narrative tone samples: ruleset-extracted prose demonstrating the
   // narrative voice. Ruleset-free builds provide a ruleset-agnostic sample.
-  briefing += `\n\n### Narrative tone\n[narrative-tone] Describe the world through grounded, sensory detail. Let consequences follow from the fiction — every mechanical outcome lands in the scene you narrate.`;
+  briefing += `\n\n### Narrative tone\n${composeNarrativeTone(promptInputsFor(novel))}`;
 
   // REQ-159/265 — active synthesis and Ruleset Wisdom content, gated by module
   // toggle, per-item activation, and badge scope. Rendered with provenance tag,
@@ -11955,87 +11977,25 @@ server.prompt("session_zero", "Session Zero Setup", async () => {
   // adventure confirmation, narrative capabilities, quick start, between
   // stories), plain-English throughout with no tool names, listed in
   // prompts/list after intro.
+  const novel = state.activeNovel;
+  const index = novel?.adventure_index;
   return {
     messages: [{
       role: "user",
       content: {
         type: "text" as const,
-        text: applyPromptBudget(`# Session Zero
-
-Before the story begins, this guide helps you and the game master agree on the
-shape of the adventure. It is a creative check and a safety check — the choices
-you make here shape the narration for the whole story. Nothing needs to be final.
-
-## 1. Welcome and safety
-This is where you set expectations. You can change any of this later. If a topic
-is off-limits, say so now — the server remembers and keeps it out of the story.
-
-## 2. Tone, difficulty, pace, focus, and boundaries
-Each of these is a dial you can set. Here is what each one does.
-
-Tone — the mood of the story.
-- Bright heroics: clear victories, warm allies, hope at the end of every scene.
-- Gritty realism: hard choices, scarce resources, consequences that stick.
-- Dark and ominous: creeping dread, fragile safety, victory at a cost.
-- Whimsical: playful logic, absurd coincidences, charm over threat.
-- Melancholic: quiet loss, bittersweet resolutions, emotional weight.
-
-Difficulty — how much the world pushes back.
-- Gentle: the world gives you room to succeed; stakes are low.
-- Balanced: fair odds, real risk, meaningful choices.
-- Relentless: the world is hostile; every step costs something.
-- Brutal: survival itself is an achievement; loss is common.
-
-Pace — how fast the story moves.
-- Slow: rich description, long scenes, time to linger.
-- Balanced: scenes move when they should.
-- Fast: cut to the action, little downtime, quick scene changes.
-
-Focus — what the story centers on.
-- Exploration: discovery, maps, unknown places.
-- Combat: tactics, battles, escalating threats.
-- Social: dialogue, intrigue, relationships.
-- Mystery: clues, hidden truths, revelation.
-- Mixed: all of the above, in balance.
-
-Boundaries — what stays out of the story.
-Name any topics that should never be narrated, implied, or introduced. They are
-kept out of every scene, every scene description, and every choice.
-
-## 3. Character introductions
-Three ways to introduce a character, from quickest to most detailed.
-- Quick: "A grizzled ranger who trusts no one." A single line is enough to play.
-- Full: three paragraphs — first appearance and mannerisms, then personality and
-  voice, then backstory and motivation.
-- Media short-hand: "Like Samwise, but hardened by a decade in the arena — loyal,
-  kind, and quietly ruthless when pushed." Name a known character, then say what
-  to change or emphasize.
-
-## 4. Character creation
-Your world's rules define how characters are built. Every mechanical choice —
-ancestry, class, background, ability scores, equipment — is described in plain
-English, and each option's meaning for your character's abilities is explained.
-If the world has a roster, those characters are available to import directly.
-
-## 5. Adventure confirmation
-If an adventure is loaded, here is its premise, its factions and their tensions,
-its key characters, and its opening scene. You can accept it as-is or describe
-what to change. If you are building from scratch, describe the setting and the
-game master will shape it around you.
-
-## 6. What the game master can do
-During play the game master can set scenes, introduce characters, run world
-events, offer you choices, and pace tension. Each is described in plain English
-with examples of what you would say — no commands, no jargon.
-
-## 7. Quick start
-Everything is ready. The first scene begins when the game master sets it, and
-you describe what your character does. You can refine anything here at any time.
-
-## 8. Between stories
-Characters can grow between sessions — refine personality, voice, dialogue, and
-advancement when your rules provide it. The world you build is kept for the next
-session.`),
+        text: applyPromptBudget(composeSessionZero({
+          inputs: promptInputsFor(novel),
+          rosterCount: state.roster.size,
+          adventure: index
+            ? {
+                premise: index.premise,
+                factions: (index.factions ?? []).map((f) => `${f.name}${f.goals ? ` (${f.goals})` : ""}`),
+                npcs: (index.npcs ?? []).map((n) => n.name),
+                opening: index.locations?.[0]?.description,
+              }
+            : null,
+        })),
       },
     }],
   };
@@ -12059,40 +12019,11 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
       role: "user",
       content: {
         type: "text" as const,
-        text: applyPromptBudget(`# Novel Setup
-
-A guided setup for your world. Complete each step in order; the markers show
-where you are.
-
-## Step 1 — Story source   ${steps.adventure}
-Choose where the story begins: load a written adventure, generate one from a
-premise, generate a random encounter, or build from scratch. Each option is
-explained in terms of what you get narratively.
-
-Community-sourced play advice tailored to your adventure's themes is available
-for this world — voice examples, lore ideas, and scene advice. You can run
-synthesis now or proceed without it.
-
-## Step 2 — Author the world   ${authoring}
-The story source is only a starting point. Look at what the world already has,
-then list what is still empty and fill it in from the ground up — places and
-creatures before fine detail, lore before relationships, relationships before
-clocks. Work down the list with the author, confirming each surface as it is
-populated. A world is ready to play once it has enough structure to begin; the
-rest is optional and can be added at any time. Because characters come next,
-leave anything that depends on them for later.
-
-## Step 3 — Characters   ${steps.characters}
-You have ${steps.rosterCount} ${steps.rosterCount === 1 ? "character" : "characters"} in your roster.
-Would you like to import one, create a new one, or move on? Character creation
-choices are described in plain English.
-
-## Step 4 — Session zero   ${steps.sessionZero}
-Run the session zero guide to agree on tone, difficulty, pace, focus, and
-boundaries, and to confirm the opening scene.
-
-When the tracked steps show [✓], the world is ready. A summary follows
-describing what is ready and how to begin your first scene.`),
+        text: applyPromptBudget(composeNovelSetup({
+          inputs: promptInputsFor(novel),
+          steps,
+          authoring,
+        })),
       },
     }],
   };
@@ -12104,23 +12035,12 @@ server.prompt("run_workflow", "Map Intent to Tools", async () => {
   const novel = state.activeNovel;
   const rulesetBound = !!novel?.ruleset;
 
-  const catalog = (cat: string, names: string[]) => names.filter(n => toolNames.includes(n)).join(", ");
-
-  const text = `# Run Workflow
-
-Map natural-language intent to the registered tool catalog. Derive associations
-from the live registry, not hardcoded strings.
-
-## Intent to Tool Mapping
-
-- **Spatial / movement / inspection**: ${rulesetBound ? "run_command (action: resolve), run_command (GM)" : "run_command (parser)"}
-- **Character creation / advancement**: character (create/import/sheet/set_active)
-- **Combat**: combat (init/advance/end)
-- **World building**: world (create_room/create_thing/create_exit/convert)
-- **Narrative / scene**: manage_scene (set/directive), manage_story (record)
-- **Lookup**: ruleset (search), session (health), command (suggest)
-
-Select the tool whose registered action classification matches the intent.`;
+  const text = composeRunWorkflow({
+    inputs: promptInputsFor(novel),
+    rulesetBound,
+    toolNames,
+    categories: runWorkflowCategories(toolNames),
+  });
   return { messages: [{ role: "user", content: { type: "text" as const, text: applyPromptBudget(text) } }] };
 });
 

@@ -27,6 +27,79 @@ export function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf-8"));
 }
 
+// REQ-078a/§6.3 — derive the prompt inputs the host composes prompts from.
+// `authored` carries ruleset-native facts the extraction model does not
+// represent structurally (tagline, native personality construct names,
+// narrative-tone samples); derived keys win for structural data, authored keys
+// fill the open-ended fields. Absent inputs are omitted so the host falls back.
+export function derivePromptInputs(model, index, { name, authored = {} } = {}) {
+  const cc = model?.character_creation ?? {};
+  const prompts = {};
+  if (name || model?.name) prompts.display_name = name ?? model.name;
+  if (authored.tagline) prompts.tagline = authored.tagline;
+
+  const mechanic = model?.resolution?.core_mechanic;
+  if (mechanic?.name) {
+    prompts.core_mechanic = mechanic.description
+      ? `${mechanic.name} (${mechanic.description})`
+      : mechanic.name;
+  }
+
+  const sourcebooks = [...new Set((index ?? []).map((e) => e?.source_file).filter(Boolean))]
+    .map((f) => f.replace(/^.*\//, "").replace(/\.md$/i, ""))
+    .sort();
+  if (sourcebooks.length > 0) prompts.sourcebooks = sourcebooks;
+
+  const categories = [];
+  const optionsFor = (step) => {
+    const species = Object.keys(cc.species ?? {});
+    const classes = Object.keys(cc.classes ?? {});
+    switch (step) {
+      case "name": return null;
+      case "species": case "ancestry": case "race":
+        return { label: "Species", options: species };
+      case "class": case "classes":
+        return { label: "Class", options: classes };
+      case "ability_scores":
+        return {
+          label: "Ability scores",
+          options: [...(cc.ability_names ?? []), ...Object.keys(cc.stat_methods ?? {})],
+          meaning: "each method shows how to generate and assign the numbers.",
+        };
+      case "background":
+        return { label: "Background", options: Object.keys(model?.backgrounds ?? {}) };
+      case "skills":
+        return { label: "Skills", options: Object.keys(cc.skills ?? model?.skills ?? {}) };
+      case "equipment":
+        return { label: "Starting equipment", options: Object.keys(cc.starting_equipment ?? classes) };
+      default:
+        return { label: step.replace(/[_-]/g, " "), options: Object.keys(cc[step] ?? {}) };
+    }
+  };
+  for (const step of Array.isArray(cc.steps) ? cc.steps : []) {
+    const entry = optionsFor(step);
+    if (entry && entry.options.length > 0) categories.push(entry);
+  }
+  if (categories.length > 0) prompts.creation_categories = categories;
+
+  if (Array.isArray(authored.personality_constructs) && authored.personality_constructs.length > 0) {
+    prompts.personality_constructs = authored.personality_constructs;
+  }
+  if (authored.example_of_play) prompts.example_of_play = authored.example_of_play;
+  if (Array.isArray(authored.narrative_tone) && authored.narrative_tone.length > 0) {
+    prompts.narrative_tone = authored.narrative_tone;
+  }
+
+  // Optional deterministic fallback: the first indexed example-of-play passage
+  // supplies a tone excerpt when the build input does not author one.
+  if (!prompts.example_of_play) {
+    const entry = (index ?? []).find((e) => typeof e?.content === "string" && /example of play/i.test(e.content));
+    if (entry) prompts.example_of_play = entry.content.trim().slice(0, 400);
+  }
+
+  return prompts;
+}
+
 export function readHostVersion(repoRoot) {
   return readJson(path.join(repoRoot, "package.json")).version;
 }

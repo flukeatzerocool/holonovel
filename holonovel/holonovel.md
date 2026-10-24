@@ -478,7 +478,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 |---------|-------------------------------------|-----------------------------------------------------|
 | 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
 | 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562, 582, 585 |
-| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588 |
+| 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588, 606–610 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306, 598–600 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
@@ -1395,7 +1395,7 @@ When the operator leaves `TTRPG_NOVEL` unset at startup and one or more Novels e
 **REQ-063c — Connection introduction (Part c).**
 Which would you like to resume, or create a new one?" When no Novels exist, the prompt directs the user to create a Novel, in plain English and without naming the tool, with a plain-English description of what a Novel is. *Acceptance criterion:* `intro` prompt is ≤300 words, opens with the publisher tagline (or a generic server-name identification when the server is ruleset-free), includes a dynamic sourcebook listing from the live index (or a message indicating the server is world-model-only when the server is ruleset-free), and ends with four concrete next actions. _Check:_ T49, T50, T259.
 **REQ-078a — Session zero prompt (Part a).**
-The server provides a `session_zero` prompt. The prompt takes no arguments, is visible to all badges (unfiltered), and serves as a structured guide surfaced at the start of a new story. The builder SHALL generate the prompt text at build time, drawing on the ruleset model for ruleset terminology, character-creation rules, example-of-play excerpts, and native personality constructs, and drawing on Synthesis `adventure_advice` content when available for genre conventions, narrative-voice profiles, and anti-slop examples.
+The server provides a `session_zero` prompt. The prompt takes no arguments, is visible to all badges (unfiltered), and serves as a structured guide surfaced at the start of a new story. The builder SHALL generate the prompt text at build time, drawing on the ruleset model for ruleset terminology, character-creation rules, example-of-play excerpts, and native personality constructs, and drawing on Synthesis `adventure_advice` content when available for genre conventions, narrative-voice profiles, and anti-slop examples. The builder SHALL record those inputs in the machine-readable model so the host composes the prompt from them at invocation time.
 
 **REQ-078b — Session zero prompt (Part b).**
 The builder MAY generate narrative prose — tuning option descriptions, example character introductions, plaintext capability examples — using its own language capabilities when the ruleset model provides sufficient context. Missing ruleset content SHALL produce the corresponding section with a plain-English fallback description — this is not a defect. The prompt SHALL be verbose throughout — every section SHALL describe narrative possibilities in plain English without tool names or technical syntax, per Standing Rule 10.
@@ -5100,6 +5100,16 @@ When the ruleset defines no character creation, the builder records the absence 
 model carries no character-creation data. Extraction follows the cross-format
 consistency rule (REQ-209) and category order above.
 
+**Prompt input extraction.** The builder SHALL record the inputs the host composes
+prompts from under `prompt_inputs` in `ruleset_model.json`: the display name, an
+optional tagline, the core mechanic, the sourcebook list, character-creation
+categories with a plain-English meaning, native personality constructs mapped per
+REQ-127a, example-of-play excerpts, and narrative-tone samples. An input the ruleset
+does not provide is absent, and the host substitutes a plain-English fallback for
+that input rather than inventing ruleset content (REQ-078b). The input set travels
+inside the package model, so adding it does not add a package file or change the
+content-hash algorithm (REQ-389).
+
 **Ruleset Wisdom extraction.** After the seven extraction categories are complete,
 the builder SHALL classify extracted guidance into seven Ruleset Wisdom output modules per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
@@ -5242,12 +5252,15 @@ terminated by the RSS link and last-updated date.
 ### 6.4.1 Prompt composition
 
 Each server prompt is a user-role message composed at invocation time from
-live state. The builder constructs prompts from these sources, in this order:
+live state and from the build-time prompt inputs the builder recorded in the
+loaded package model under `prompt_inputs` (§6.3). The host assembles prompts
+from these sources, in this order:
 
 1. **Live index.** Counts and listings (available classes, races, spells,
    adventures, roster characters) are drawn from the running index — never
    hardcoded. A prompt whose source data changes regenerates on the next
-   invocation.
+   invocation. Package sourcebooks and creation categories are read from the
+   build-time `prompt_inputs`.
 
 2. **State snapshot.** Entity stats, NPC lists, countdown status, scene
    description, and Novel metadata are drawn from the current Novel state at
@@ -5255,7 +5268,8 @@ live state. The builder constructs prompts from these sources, in this order:
 
 3. **Registration surfaces.** Tool names, parameter hints, and category
    groupings are drawn from the live tool registry and the ruleset extraction
-   model's action classifications (REQ-015).
+   model's action classifications (REQ-015). Ruleset-native terminology is
+   read from the build-time `prompt_inputs`.
 
 4. **Badge-scoped guidance.** Foundations (REQ-062), anti-slop guidance
    (REQ-070), and supplementary synthesis (REQ-080) are included per the
@@ -5265,8 +5279,9 @@ live state. The builder constructs prompts from these sources, in this order:
     contract (intro pointer in `badge_briefing` per REQ-063, plain-English
     guidance sections and examples in `session_zero` per REQ-078, conversational
     wizard steps in `novel_setup` per REQ-089) includes
-    those elements before any truncation. Standing Rule 10 applies — prompt
-    bodies SHALL contain no tool names or technical syntax.
+    those elements before any truncation, drawing ruleset prose from
+    `prompt_inputs` and falling back per missing input. Standing Rule 10
+    applies — prompt bodies SHALL contain no tool names or technical syntax.
 
 6. **Narrative orientation.** The `narrative_orientation` paragraph (REQ-279)
    synthesizes the last three `decision`/`bond` story-journal entries (REQ-246),
@@ -5275,8 +5290,10 @@ live state. The builder constructs prompts from these sources, in this order:
    and active vow names with milestone counts (REQ-289).
 
 Prompts use the ruleset's own terminology for mechanics, tool names, and
-categories — the builder does not invent terms. The prompt length budget
-(REQ-118) applies to every prompt.
+categories — the builder does not invent terms. Ruleset prose embedded as a
+host string literal is a build defect; live-state assembly remains an
+invocation-time responsibility. The prompt length budget (REQ-118) applies to
+every prompt.
 
 ### 6.4.2 Package step
 
@@ -9020,7 +9037,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-063a | Connection introduction (Part a) | 2026-08-11 |
 | REQ-063b | Connection introduction (Part b) | 2026-08-11 |
 | REQ-063c | Connection introduction (Part c) | 2026-08-11 |
-| REQ-078a | Session zero prompt (Part a) | 2026-08-11 |
+| REQ-078a | Session zero prompt (Part a) | 2026-10-24 |
 | REQ-078b | Session zero prompt (Part b) | 2026-08-11 |
 | REQ-078c1 | Session zero prompt (Part c1) | 2026-08-11 |
 | REQ-078c2 | Session zero prompt (Part c2) | 2026-08-11 |

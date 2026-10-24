@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-24 — Prompt generation from the ruleset model
+
+- The five host prompt bodies (`intro`, `badge_briefing`, `session_zero`,
+  `novel_setup`, `run_workflow`) are no longer hardcoded ruleset prose. A pure
+  composer (`src/core/prompt-composition.ts`) assembles them at invocation time
+  from the loaded package model's build-time `prompt_inputs` plus live state,
+  and returns the ruleset-free body when no inputs exist. (REQ-078a, §6.4.1)
+- `derivePromptInputs` records sourcebooks, character-creation categories, the
+  core mechanic, native personality constructs, and tone excerpts into
+  `model.prompt_inputs` at Package time; both package emitters call it. The
+  dnd2024 build input now authors the Traits/Ideals/Bonds/Flaws mapping.
+  (REQ-127a, §6.3)
+- `run_workflow` derives its intent categories from the live surface registry's
+  action classifications instead of hardcoded keyword strings, and `intro`
+  names the package, tagline, and sourcebooks. (REQ-023a, REQ-063)
+- Harness coverage: T124 exercises model-derived character creation, T141 runs
+  with and without native constructs, T49/T50/T259 check the sourced intro and
+  its 300-word cap, T155 checks registry-derived routing, and T123 keeps every
+  composed prompt within budget.
+- Removed the roadmap item; recorded the four decisions in `DECISIONS.md`.
+
 ## 2026-10-24 — Context ledger and cache-aware surface
 
 - `manage_diagnostics (action: context_report)` reports a per-section token

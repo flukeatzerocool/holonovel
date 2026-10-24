@@ -8,6 +8,28 @@
 
 **Recorded surface budgets:** full 27,777 tokens; standard 24,276; small 1,216; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
+### Prompt generation from the ruleset model — 2026-10-24
+
+- **D1 — build-time data, invocation-time prose.** Ruleset-native prompt facts
+  travel in `model.prompt_inputs` derived by `derivePromptInputs` at Package
+  time (sourcebooks, creation categories, core mechanic, native personality
+  constructs, tone excerpts). The host assembles the five prompt bodies at
+  invocation time from those inputs plus live state; no literal prompt body
+  remains in `src/index.ts`. (REQ-078a, §6.3, §6.4.1)
+- **D2 — `prompt_inputs` lives in the package model.** Keeping it inside
+  `model.json` avoids a seventh package file and a REQ-389/REQ-420
+  package-format revision; the existing content hash covers it because the
+  model is hashed. (REQ-389, REQ-420)
+- **D3 — tagline is authored or neutral.** `prompt_inputs.tagline` is supplied
+  by the build input when available; otherwise the host emits
+  `"<Name> — a tabletop roleplay ruleset."` No source-index marketing text is
+  scraped. (REQ-063)
+- **D4 — REQ-127's tool-description half stays builder-side.** The host serves
+  one shared `manage_character` tool across rulesets, and `tools/list` is
+  statically cached (REQ-411); per-Novel description rewriting would violate
+  that cache contract. T141's prompt assertion is exercised; its tool
+  description assertion remains manual builder-side verification. (REQ-127a)
+
 ### Context ledger and cache-aware surface — 2026-10-24
 
 - **D1 — one pinned estimator.** `context_report` and the replay probe use `estimateTokens` (`ceil(UTF-8 bytes / 4)`); the report labels the value an estimate. No second tokenizer. (REQ-606, REQ-608)
