@@ -7708,6 +7708,82 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
   } catch { return null; /* module not present on disk — nothing to embed */ }
 }
 
+// REQ-096g/j — portable bundle integrity. Hashes are computed over a freshly
+// constructed payload so key order is deterministic per build; the import
+// side recomputes from the parsed bundle, not the raw argument string.
+const INTEGRITY_EXCLUDED_STATE_KEYS = ["audit_log", "audit_archive", "undo_stacks", "redo_stacks", "checkpoints", "metadata"];
+
+function sha256Json(value: unknown): string {
+  return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function bundleHashes(bundle: any, novel: any): { payload_hash: string; state_hash: string; event_log_hash: string } {
+  const { integrity: _ignored, ...payload } = bundle ?? {};
+  const state: any = { ...(novel ?? {}) };
+  for (const key of INTEGRITY_EXCLUDED_STATE_KEYS) delete state[key];
+  const audit = Array.isArray(novel?.audit_log) ? novel.audit_log : [];
+  return {
+    payload_hash: sha256Json(payload),
+    state_hash: sha256Json(state),
+    event_log_hash: crypto.createHash("sha256").update(audit.map((e: any) => `${e.timestamp ?? ""}${e.tool ?? ""}${e.args ?? ""}${e.hash ?? ""}`).join("\n")).digest("hex"),
+  };
+}
+
+function computeBundleIntegrity(bundle: any, novel: any): any {
+  const hashes = bundleHashes(bundle, novel);
+  const integrity: any = { algorithm: "sha256", ...hashes, format_version: bundle?.format_version ?? 2 };
+  const signingKey = process.env.TTRPG_EXPORT_SIGNING_KEY;
+  if (signingKey) {
+    integrity.signature = {
+      algorithm: "hmac-sha256",
+      value: crypto.createHmac("sha256", signingKey).update(hashes.payload_hash + hashes.state_hash + hashes.event_log_hash).digest("hex"),
+    };
+  }
+  return integrity;
+}
+
+// REQ-096b — player scope. Omit GM-only tiers, then redact GM-only fields from
+// the tiers a player may see. The live Novel is never mutated (deep copy).
+const PLAYER_OMITTED_KEYS = [
+  "audit_log", "audit_archive", "undo_stacks", "redo_stacks", "checkpoints",
+  "gm_context", "secrets", "pending_workflow", "constraint_overrides",
+  "synthesis_activated", "synthesis_deactivated", "narrative_directive",
+  "generated_adventure",
+];
+
+function redactNovelForPlayer(novel: any): any {
+  const out: any = JSON.parse(JSON.stringify(novel ?? {}));
+  for (const key of PLAYER_OMITTED_KEYS) delete out[key];
+  if (out.lore && typeof out.lore === "object") {
+    for (const key of Object.keys(out.lore)) {
+      if (out.lore[key]?.badge_scope === "game_master") delete out.lore[key];
+    }
+  }
+  if (Array.isArray(out.notes)) out.notes = out.notes.filter((n: any) => n?.badge_scope !== "game_master");
+  if (Array.isArray(out.campaign_memory)) out.campaign_memory = out.campaign_memory.filter((m: any) => m?.badge_scope !== "game_master");
+  if (out.npcs && typeof out.npcs === "object") {
+    for (const npc of Object.values(out.npcs) as any[]) {
+      if (!npc || typeof npc !== "object") continue;
+      delete npc.mind;
+      delete npc.memory;
+    }
+  }
+  if (out.player_synthesis && typeof out.player_synthesis === "object") {
+    for (const module of Object.keys(out.player_synthesis)) {
+      out.player_synthesis[module] = (out.player_synthesis[module] ?? []).filter((i: any) => i?.badge_scope !== "game_master");
+    }
+  }
+  const playerEntityIds = new Set<string>(Object.keys(out.entities ?? {}));
+  if (Array.isArray(out.belief_state)) out.belief_state = out.belief_state.filter((b: any) => !b?.entity_id || playerEntityIds.has(b.entity_id));
+  if (Array.isArray(out.perception_ledger)) out.perception_ledger = out.perception_ledger.filter((p: any) => !p?.entity_id || playerEntityIds.has(p.entity_id));
+  if (out.adventure_index && typeof out.adventure_index === "object") {
+    delete out.adventure_index.premise;
+    out.adventure_index.hooks = [];
+  }
+  delete out.adventure_scene_waypoint;
+  return out;
+}
+
 const MANAGE_NOVEL_SCHEMA = {
     action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "complete_session_zero", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, complete_session_zero, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
     name: z.string().optional().describe("Novel name (create)."),
@@ -7819,8 +7895,9 @@ Options: yes, cancel`);
         return err("INVALID_INPUT", `Unsupported format '${args.format}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
       }
       const novel = requireNovel();
+      const exportScope = args.scope ?? "full";
       // REQ-448 — security-event audit: Novel exports are recorded and tagged.
-      audit("export_novel", { slug: novel.slug, format: args.format ?? "json" });
+      audit("export_novel", { slug: novel.slug, format: args.format ?? "json", scope: exportScope });
       if (args.format === "markdown") {
         let md = `# ${novel.name}\n\n## World\n`;
         for (const [, room] of novel.world.rooms) {
@@ -7850,25 +7927,31 @@ Options: yes, cancel`);
           adventures_embedded: !!embedded,
           property_groups_present: ["slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows"],
           waiver_dependent_mechanics: [],
+          scope: exportScope,
         },
         novel: full,
       };
       if (embedded) data.adventure = embedded;
       // REQ-241b — checkpoints are excluded from export unless requested.
       if (!args.include_checkpoints) delete data.novel.checkpoints;
-      if (args.scope && args.scope !== "full") {
+      if (exportScope === "player") {
+        // REQ-096b — player-safe bundle: omit GM-only tiers, redact the rest.
+        data.novel = redactNovelForPlayer(data.novel);
+      } else if (exportScope !== "full") {
         const keep: Record<string, string[]> = {
           lore: ["lore"], world_model: ["world"], npcs: ["npcs"], factions: ["factions"], secrets: ["secrets"],
           relationships: ["relationships"], gm_context: ["gm_context"], notes: ["notes"],
           story_journal: ["story_journal"], scene_history: ["scene_history"],
         };
-        const keys = keep[args.scope] ?? [];
+        const keys = keep[exportScope] ?? [];
         for (const k of Object.keys(data.novel)) {
           if (!["slug", "name", "ruleset", "genre", "description", "metadata"].includes(k) && !keys.includes(k)) {
             delete data.novel[k];
           }
         }
       }
+      // REQ-096g — the integrity envelope covers the final scoped payload.
+      data.integrity = computeBundleIntegrity(data, data.novel);
       return raw(JSON.stringify(data, null, 2));
     }
     case "import": {
@@ -7879,6 +7962,36 @@ Options: yes, cancel`);
       try { parsed = JSON.parse(args.data); } catch { return err("INVALID_INPUT", "Could not parse novel data."); }
       const flat = parsed && parsed.novel && typeof parsed.novel === "object" ? parsed.novel : parsed;
       const manifest = parsed && parsed.manifest && typeof parsed.manifest === "object" ? parsed.manifest : null;
+      // REQ-096j — verify the integrity envelope before reference validation or
+      // any mutation. Legacy bundles (no envelope) are warn-only, even strict.
+      const integrityWarnings: string[] = [];
+      const integrityFailures: string[] = [];
+      const providedIntegrity = parsed?.integrity;
+      if (!providedIntegrity) {
+        integrityWarnings.push("[integrity-absent] bundle carries no integrity envelope");
+      } else if (typeof providedIntegrity !== "object" || providedIntegrity.algorithm !== "sha256") {
+        integrityFailures.push(`integrity.algorithm: unsupported '${typeof providedIntegrity === "object" ? providedIntegrity.algorithm ?? "missing" : typeof providedIntegrity}'`);
+      } else {
+        const expected = computeBundleIntegrity(parsed, flat);
+        for (const field of ["payload_hash", "state_hash", "event_log_hash"] as const) {
+          if (providedIntegrity[field] !== expected[field]) integrityFailures.push(`integrity.${field}: expected ${expected[field]}, got ${providedIntegrity[field] ?? "missing"}`);
+        }
+        if ((providedIntegrity.format_version ?? 2) !== (parsed.format_version ?? 2)) {
+          integrityFailures.push(`integrity.format_version: expected ${parsed.format_version ?? 2}, got ${providedIntegrity.format_version ?? "missing"}`);
+        }
+        if (providedIntegrity.signature) {
+          const signingKey = process.env.TTRPG_EXPORT_SIGNING_KEY;
+          if (!signingKey) {
+            integrityWarnings.push("[signature-unverified] bundle is signed but no signing key is configured");
+          } else {
+            const want = crypto.createHmac("sha256", signingKey).update(expected.payload_hash + expected.state_hash + expected.event_log_hash).digest("hex");
+            if (providedIntegrity.signature.algorithm !== "hmac-sha256" || providedIntegrity.signature.value !== want) {
+              integrityFailures.push("integrity.signature: HMAC does not verify");
+            }
+          }
+        }
+      }
+      const playerReplace = manifest?.scope === "player" && m === "replace";
       const failures: string[] = [];
       const validateRefs = (src: any) => {
         const entityIds = new Set<string>(Object.keys(src.entities ?? {}));
@@ -7913,14 +8026,21 @@ Options: yes, cancel`);
       const name = flat.name ?? manifest?.name ?? "unknown";
       const slug = flat.slug ?? manifest?.slug ?? "—";
       if (m === "dry-run") {
-        if (failures.length > 0) {
-          const report = `Dry-run: novel '${name}' (${slug}) — ${failures.length} reference failure(s):\n${failures.map(f => `  - ${f}`).join("\n")}`;
+        const reportFailures = [...integrityFailures, ...failures];
+        if (playerReplace && strictMode) reportFailures.push("[player-scope-import] replace would clear GM-only tiers");
+        if (reportFailures.length > 0) {
+          const report = `Dry-run: novel '${name}' (${slug}) — ${reportFailures.length} failure(s):\n${reportFailures.map(f => `  - ${f}`).join("\n")}${integrityWarnings.length ? `\nWarnings:\n${integrityWarnings.map(w => `  - ${w}`).join("\n")}` : ""}`;
           if (strictMode) return raw(`{"isError": false, "report": ${JSON.stringify(report)}}`);
           return raw(report);
         }
-        return ok(`Dry-run: novel '${name}' (${slug}) would be imported (valid manifest, no reference failures).`);
+        const warningText = integrityWarnings.length ? ` Warnings: ${integrityWarnings.join("; ")}.` : "";
+        return ok(`Dry-run: novel '${name}' (${slug}) would be imported (valid manifest, no reference failures).${warningText}`);
       }
       const novel = requireNovel();
+      if (strictMode && (integrityFailures.length > 0 || playerReplace)) {
+        const blockList = [...integrityFailures, ...(playerReplace ? ["[player-scope-import] replace would clear GM-only tiers"] : [])];
+        return err("STATE_CONFLICT", `Import blocked by validation failures:\n${blockList.map(f => `  - ${f}`).join("\n")}`);
+      }
       if (failures.length > 0) {
         if (strictMode) return err("STATE_CONFLICT", `Import blocked by validation failures:\n${failures.map(f => `  - ${f}`).join("\n")}`);
       }
@@ -7945,7 +8065,12 @@ Options: yes, cancel`);
         const finding = `[import-finding] Novel import carried an embedded directive; stored verbatim as inert data (REQ-444).`;
         process.stderr.write(`[holonovel] ${finding}\n`);
       }
-      if (failures.length > 0) return raw(`[WARNING] Novel '${name}' imported (${m} mode) with ${failures.length} unresolved reference(s):\n${failures.map(f => `  - ${f}`).join("\n")}`);
+      const warnings = [...integrityWarnings];
+      if (integrityFailures.length > 0) warnings.push(`[integrity-mismatch] ${integrityFailures.join("; ")}`);
+      if (playerReplace) warnings.push("[player-scope-import] replace cleared GM-only tiers omitted from the player bundle");
+      const warningSuffix = warnings.length ? `\n${warnings.map(w => `  - ${w}`).join("\n")}` : "";
+      if (failures.length > 0) return raw(`[WARNING] Novel '${name}' imported (${m} mode) with ${failures.length} unresolved reference(s):\n${failures.map(f => `  - ${f}`).join("\n")}${warningSuffix}`);
+      if (warnings.length > 0) return raw(`[WARNING] Novel '${name}' imported (${m} mode).${warningSuffix}`);
       return ok(`Novel '${name}' imported (${m} mode).${directiveHit ? " Embedded directives logged as inert findings (REQ-444)." : ""}`);
     }
     case "rename": {

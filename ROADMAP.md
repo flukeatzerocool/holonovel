@@ -6,14 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Portable bundle integrity and player-safe export
-
-- Export/import, manifest, migration, clone, and checkpoints exist; add an
-  integrity envelope and a player-safe export.
-- Verify on import (warn by default, refuse under `strict`); redact GM-only
-  surfaces in the player scope.
-- Plan: `plans/2026-10-23-portable-bundle-integrity/`
-
 ## Citation verification and ruling ledger
 
 - Synthesis carries source URLs, confidence, and revert; add claim-level

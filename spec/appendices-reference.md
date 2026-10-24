@@ -853,6 +853,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-096h | Novel interchange (Part h) | 2026-08-11 |
 | REQ-096i1 | Novel interchange (Part i1) | 2026-08-11 |
 | REQ-096i2 | Novel interchange (Part i2) | 2026-08-11 |
+| REQ-096j | Novel interchange (Part j) | 2026-10-24 |
+| REQ-096k | Novel interchange (Part k) | 2026-10-24 |
+| REQ-096l | Novel interchange (Part l) | 2026-10-24 |
 | REQ-097a1 | Novel health (Part a1) | 2026-08-11 |
 | REQ-097a2 | Novel health (Part a2) | 2026-08-11 |
 | REQ-097b | Novel health (Part b) | 2026-08-11 |
@@ -2011,6 +2014,10 @@ diet.
 | T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
 | T689 | Automated | Unified Update entry point: dry-run a stale package with a recorded emitter and assert it is planned and nothing is written; apply and assert the emitter runs, the registry advances, and a slug with no recorded emitter is deferred by name; assert the data tier runs in the same invocation. | REQ-395c |
 | T690 | Automated | Per-entity attribution of discovered consequences: create two player entities, leave the active entity absent and the second present when an on-scene-transition countdown fires; assert the absent entity's `knowledge_state` includes the `[discovered]` entry, the present entity's does not, and the absent entity retains it after the active entity is switched and across a process restart. | REQ-349, REQ-340, REQ-308 |
+| T691 | Automated | Bundle integrity envelope: export JSON and assert `integrity` carries `algorithm`, `payload_hash`, `state_hash`, `event_log_hash`, and `format_version`; a clean bundle verifies by dry-run; a bundle with the envelope removed imports with `[WARNING] [integrity-absent]`. | REQ-096j, REQ-096l |
+| T692 | Automated | Tamper refusal: sign an export with a key, tamper the payload, and assert a strict dry-run reports `isError: false` with the failing hash; a strict replace returns `[ERROR] [STATE_CONFLICT]` with state unchanged; non-strict import warns `[integrity-mismatch]`; a wrong key is a mismatch. | REQ-096l |
+| T693 | Automated | Player-safe export: export `scope: player` and assert GM-only tiers (audit log, gm_context, secrets, narrative directive), `game_master` lore/notes, and NPC minds are absent while shared lore survives; `merge` imports it; `replace` warns `[player-scope-import]`, and strict blocks it. | REQ-096b, REQ-096k |
+| T694 | Automated | Round-trip state hash: export full scope, replace-import, and re-export; assert `state_hash` is equal while `payload_hash` changes only by the documented audit/metadata drift; a signed export verifies with the configured key. | REQ-096j, REQ-096l |
 
 ---
 
@@ -3003,6 +3010,7 @@ formats._
 | ------------------ | --------------------------------------------------------------- |
 | `format_version`   | Integer — the Novel format version at time of export (REQ-092). The on-disk Novel field and the `manifest` field name this same value `novel_format_version`.   |
 | `manifest`         | Portability metadata object (see below)                           |
+| `integrity`        | Bundle integrity object (REQ-096j)                                |
 | `novel_metadata`   | slug, name, created_at, last_modified_at, spec_version            |
 | `entities`         | Array of entity objects with all mechanical and narrative fields  |
 | `npcs`             | Array of NPC objects with all fields                             |
@@ -3025,8 +3033,13 @@ The `manifest` object SHALL contain: `novel_format_version` (integer),
 `server_spec_version` (spec CalVer string), `ruleset_hash` (SHA-256 hex string),
 `builder_implementation` (object with `name` and `version` strings),
 `adventure_module_slugs` (array of strings), `adventures_embedded` (boolean),
-`property_groups_present` (array of populated tier name strings), and
-`waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md).
+`property_groups_present` (array of populated tier name strings),
+`waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md),
+and `scope` (the export scope string).
+
+The `integrity` object SHALL contain `algorithm`, `payload_hash`, `state_hash`,
+`event_log_hash`, and `format_version`; when `TTRPG_EXPORT_SIGNING_KEY` is set it
+also carries an `hmac-sha256` `signature` object. Markdown exports omit it.
 
 **Markdown format.** HTML-comment-annotated sections following the same key structure
 as the JSON format. Each section begins with `<!-- @section <key> -->` and contains
@@ -3034,11 +3047,11 @@ the section's data in a human-readable Markdown representation. Sections with em
 arrays or null values are omitted.
 
 **Round-trip fidelity.** `manage_archive (action: export, format)` → `manage_archive (action: import, data, mode)` →
-`manage_archive (action: export, format)` produces identical output for the same format. The builder
+`manage_archive (action: export, format)` preserves `integrity.state_hash` for the same format. The builder
 determines the exact schema and serialization; the convergence loop enforces
 round-trip fidelity as a verification check.
 
-_Verify with:_ T100.
+_Verify with:_ T100, T694.
 
 ---
 

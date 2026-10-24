@@ -163,6 +163,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_archive (action: export)` output (default `false`; REQ-096h) |
+| `TTRPG_EXPORT_SIGNING_KEY` | No | Local HMAC-SHA256 key used to sign the export `integrity` envelope; absent means hash-only bundles (REQ-096j). Storage. |
 | `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
 | `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
 | `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
