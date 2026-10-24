@@ -23,6 +23,7 @@ import { computeContentHash } from "../../lib/ruleset-package.mjs";
 import {
   parseBuildArgs, readJson, readPackageFormat, readHostVersion,
   sanitizeReadOnlyDescription, surfaceFor, buildTimestamp, writePackageFiles, runPackageGates,
+  derivePromptInputs,
 } from "../../lib/ruleset-build-kit.mjs";
 
 const HERE = import.meta.dirname;
@@ -79,6 +80,14 @@ function main() {
 
   const resources = base["resources.json"];
   const prompts = base["prompts.json"];
+  // REQ-078a/§6.3 — derivations and authored ruleset-native facts travel in the
+  // package model; the host composes prompt text from them at invocation time.
+  const authoredPromptInputsPath = path.join(HERE, "authored", "prompt-inputs.json");
+  const authoredPromptInputs = fs.existsSync(authoredPromptInputsPath) ? readJson(authoredPromptInputsPath) : {};
+  model.prompt_inputs = derivePromptInputs(model, mergedIndex, {
+    name: base["manifest.json"].name,
+    authored: authoredPromptInputs,
+  });
   const contentHash = computeContentHash(mergedIndex, model, mergedTools, resources, prompts);
 
   const counts = { ...(base["manifest.json"].counts ?? {}) };

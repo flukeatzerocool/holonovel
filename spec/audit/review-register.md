@@ -11,6 +11,20 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Prompt generation from the ruleset model — resolved 2026-10-24:** the five
+  host prompt bodies (`intro`, `badge_briefing`, `session_zero`,
+  `novel_setup`, `run_workflow`) are no longer ruleset prose literals.
+  `holonovel/src/core/prompt-composition.ts` assembles them from the package
+  model's build-time `prompt_inputs` (§6.3) plus live state; the ruleset-free
+  fallbacks are preserved. `derivePromptInputs` in
+  `scripts/lib/ruleset-build-kit.mjs` records the inputs at Package time, and
+  both package emitters call it. REQ-127's prompt half is exercised by T141
+  with and without native constructs; the `manage_character` tool-description
+  half remains the manual builder-side check T141 describes, because the host
+  serves one statically cached `tools/list` across rulesets (REQ-411).
+  Evidence: `test:output-contracts` → 293 passed, 0 failed; `check:fast` and
+  `check:conformance` green; ROADMAP item removed.
+
 - **Appendix M guard acknowledgment — resolved 2026-10-21:** the staged diff
   touches `spec/appendices-reference.md` (Appendix E manifest rows and the
   T685/T686 test-catalogue rows) and `scripts/validate.ts` (the intended-gap
@@ -638,15 +652,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
   the canonical `manage_staging (action: autonomy)` token.
 
 ## Scheduled-roadmap
-
-- **Prompt generation from the ruleset model (P1, scheduled 2026-10-12):**
-  REQ-078a and §6.4.1 require build-time prompt generation from the ruleset
-  model, and REQ-023a/REQ-127 require ruleset-native terminology. The bounded
-  first step landed on 2026-10-21: installed package `prompts.json` entries are
-  registered, served, and deregistered at runtime (T453/T155), with collisions
-  and ruleset mismatches reported. The five host prompt bodies remain
-  hardcoded literals, so full build-time generation remains open and stays on
-  ROADMAP.md ("Prompt generation from the ruleset model").
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 

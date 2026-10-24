@@ -29,6 +29,7 @@ import { computeContentHash } from "../../lib/ruleset-package.mjs";
 import {
   PACKAGE_FILES, parseBuildArgs, readJson, readPackageFormat, readHostVersion,
   sanitizeReadOnlyDescription, surfaceFor, buildTimestamp, writePackageFiles, backupInstallDir, runPackageGates,
+  derivePromptInputs,
 } from "../../lib/ruleset-build-kit.mjs";
 
 const SCRIPT_DIR = import.meta.dirname;
@@ -74,6 +75,13 @@ try {
   const baselineManifest = fs.existsSync(baselineManifestPath) ? readJson(baselineManifestPath) : {};
 
   const model = { ...baseline["model.json"], character_creation: authored };
+  // REQ-078a/§6.3 — prompt inputs are derived at Package time.
+  const authoredPromptInputsPath = path.join(SCRIPT_DIR, "authored", "prompt-inputs.json");
+  const authoredPromptInputs = fs.existsSync(authoredPromptInputsPath) ? readJson(authoredPromptInputsPath) : {};
+  model.prompt_inputs = derivePromptInputs(model, baseline["index.json"], {
+    name: NAME,
+    authored: authoredPromptInputs,
+  });
   const tools = baseline["tools.json"].map((t) => ({
     ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description),
   }));

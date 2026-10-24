@@ -249,7 +249,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-063a | Connection introduction (Part a) | 2026-08-11 |
 | REQ-063b | Connection introduction (Part b) | 2026-08-11 |
 | REQ-063c | Connection introduction (Part c) | 2026-08-11 |
-| REQ-078a | Session zero prompt (Part a) | 2026-08-11 |
+| REQ-078a | Session zero prompt (Part a) | 2026-10-24 |
 | REQ-078b | Session zero prompt (Part b) | 2026-08-11 |
 | REQ-078c1 | Session zero prompt (Part c1) | 2026-08-11 |
 | REQ-078c2 | Session zero prompt (Part c2) | 2026-08-11 |

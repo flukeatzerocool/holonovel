@@ -342,6 +342,16 @@ When the ruleset defines no character creation, the builder records the absence 
 model carries no character-creation data. Extraction follows the cross-format
 consistency rule (REQ-209) and category order above.
 
+**Prompt input extraction.** The builder SHALL record the inputs the host composes
+prompts from under `prompt_inputs` in `ruleset_model.json`: the display name, an
+optional tagline, the core mechanic, the sourcebook list, character-creation
+categories with a plain-English meaning, native personality constructs mapped per
+REQ-127a, example-of-play excerpts, and narrative-tone samples. An input the ruleset
+does not provide is absent, and the host substitutes a plain-English fallback for
+that input rather than inventing ruleset content (REQ-078b). The input set travels
+inside the package model, so adding it does not add a package file or change the
+content-hash algorithm (REQ-389).
+
 **Ruleset Wisdom extraction.** After the seven extraction categories are complete,
 the builder SHALL classify extracted guidance into seven Ruleset Wisdom output modules per
 REQ-225: example-of-play dialogue → voice_examples, GM advice chapter structure →
@@ -484,12 +494,15 @@ terminated by the RSS link and last-updated date.
 ### 6.4.1 Prompt composition
 
 Each server prompt is a user-role message composed at invocation time from
-live state. The builder constructs prompts from these sources, in this order:
+live state and from the build-time prompt inputs the builder recorded in the
+loaded package model under `prompt_inputs` (§6.3). The host assembles prompts
+from these sources, in this order:
 
 1. **Live index.** Counts and listings (available classes, races, spells,
    adventures, roster characters) are drawn from the running index — never
    hardcoded. A prompt whose source data changes regenerates on the next
-   invocation.
+   invocation. Package sourcebooks and creation categories are read from the
+   build-time `prompt_inputs`.
 
 2. **State snapshot.** Entity stats, NPC lists, countdown status, scene
    description, and Novel metadata are drawn from the current Novel state at
@@ -497,7 +510,8 @@ live state. The builder constructs prompts from these sources, in this order:
 
 3. **Registration surfaces.** Tool names, parameter hints, and category
    groupings are drawn from the live tool registry and the ruleset extraction
-   model's action classifications (REQ-015).
+   model's action classifications (REQ-015). Ruleset-native terminology is
+   read from the build-time `prompt_inputs`.
 
 4. **Badge-scoped guidance.** Foundations (REQ-062), anti-slop guidance
    (REQ-070), and supplementary synthesis (REQ-080) are included per the
@@ -507,8 +521,9 @@ live state. The builder constructs prompts from these sources, in this order:
     contract (intro pointer in `badge_briefing` per REQ-063, plain-English
     guidance sections and examples in `session_zero` per REQ-078, conversational
     wizard steps in `novel_setup` per REQ-089) includes
-    those elements before any truncation. Standing Rule 10 applies — prompt
-    bodies SHALL contain no tool names or technical syntax.
+    those elements before any truncation, drawing ruleset prose from
+    `prompt_inputs` and falling back per missing input. Standing Rule 10
+    applies — prompt bodies SHALL contain no tool names or technical syntax.
 
 6. **Narrative orientation.** The `narrative_orientation` paragraph (REQ-279)
    synthesizes the last three `decision`/`bond` story-journal entries (REQ-246),
@@ -517,8 +532,10 @@ live state. The builder constructs prompts from these sources, in this order:
    and active vow names with milestone counts (REQ-289).
 
 Prompts use the ruleset's own terminology for mechanics, tool names, and
-categories — the builder does not invent terms. The prompt length budget
-(REQ-118) applies to every prompt.
+categories — the builder does not invent terms. Ruleset prose embedded as a
+host string literal is a build defect; live-state assembly remains an
+invocation-time responsibility. The prompt length budget (REQ-118) applies to
+every prompt.
 
 ### 6.4.2 Package step
 

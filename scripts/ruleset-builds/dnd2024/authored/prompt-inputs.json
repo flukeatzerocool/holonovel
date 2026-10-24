@@ -1,0 +1,29 @@
+{
+  "tagline": "Dungeons & Dragons 2024 — a fantasy roleplaying game of heroic adventure and shared storytelling.",
+  "personality_constructs": [
+    {
+      "name": "Traits",
+      "field": "description",
+      "description": "the small, repeatable behaviors and mannerisms that make the character recognizable."
+    },
+    {
+      "name": "Ideals",
+      "field": "goals",
+      "description": "the principles or ambitions that drive the character's choices."
+    },
+    {
+      "name": "Bonds",
+      "field": "background",
+      "description": "the people, places, or promises the character is tied to."
+    },
+    {
+      "name": "Flaws",
+      "field": "voice",
+      "description": "the weakness or contradiction that colors how the character speaks and acts under pressure."
+    }
+  ],
+  "narrative_tone": [
+    "Describe the world through grounded, sensory detail — the weight of a door, the smell of rain on stone, the sound of a blade leaving its sheath.",
+    "Let consequences follow from the fiction: every roll lands in the scene, and every victory or failure changes what the characters can do next."
+  ]
+}

@@ -76,6 +76,25 @@ const RULESET_PKG = {
       "omen": { name: "omen", badge_scope: "shared", dice_expression: "1d6", ranges: [{ min: 1, max: 6, result: "A cold wind" }] },
       "secret_table": { name: "secret_table", badge_scope: "game_master", dice_expression: "1d6", ranges: [{ min: 1, max: 6, result: "hidden" }] },
     },
+    prompt_inputs: {
+      display_name: "Wave1 Test Ruleset",
+      tagline: "Wave1 Test Ruleset — a fixture for prompt composition.",
+      core_mechanic: "Stat Check (roll d100 under the stat)",
+      sourcebooks: ["wave1test"],
+      creation_categories: [
+        { label: "Species", options: ["Human", "Elf"] },
+        { label: "Class", options: ["Warrior", "Scholar"] },
+        { label: "Ability scores", options: ["Might", "Grace", "Wits", "standard", "planned"] },
+        { label: "Starting equipment", options: ["Warrior", "Scholar"] },
+      ],
+      personality_constructs: [
+        { name: "Traits", field: "description" },
+        { name: "Ideals", field: "goals" },
+        { name: "Bonds", field: "background" },
+        { name: "Flaws", field: "voice" },
+      ],
+      narrative_tone: ["Wave1 tone: grounded, sensory detail."],
+    },
   },
   tools: [
     { name: "lookup_spell", title: "Lookup Spell", description: "Look up a spell's full rules text by name. Use when: you need a spell's casting details. Do NOT use when: you need to roll a check — use roll_check.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The spell name to look up." } } } },
@@ -112,7 +131,10 @@ const SECOND_PKG: any = {
   index: [
     { id: "shield", anchor: "Items > Shield", source_file: "wave2test.md", content: "Shield: +2 AC.", category: "Items", confidence: "high", line_range: "1-3" },
   ],
-  model: { concepts: { shield: { name: "Shield", ac_bonus: 2 } }, tables: {}, generation_tables: {} },
+  model: {
+    concepts: { shield: { name: "Shield", ac_bonus: 2 } }, tables: {}, generation_tables: {},
+    prompt_inputs: { display_name: "Wave2 Test Ruleset", sourcebooks: ["wave2test"] },
+  },
   tools: [
     { name: "lookup_item", title: "Lookup Item", description: "Look up an item's full rules text. Use when: you need an item's details. Do NOT use when: you need a spell — use lookup_spell.", kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts", inputSchema: { type: "object", properties: { key: { type: "string", description: "The item name to look up." } } } },
   ],
@@ -284,15 +306,77 @@ async function main() {
   });
 
   // ── REQ-078 session zero + REQ-138 prompt health + REQ-139/169/269 ──
-  await test("T124/REQ-078: session zero has all 8 sections", async () => {
+  await test("T124/REQ-078: session zero has all 8 sections and model-derived creation", async () => {
+    seedRuleset();
     const p = await boot();
-    await call(p, "manage_novel", { action: "create",  name: "w1j" });
+    await call(p, "manage_novel", { action: "create",  name: "w1j", ruleset: "wave1test" });
     const sz = await proto(p, "prompts/get", { name: "session_zero" });
     for (const s of ["## 1.", "## 2.", "## 3.", "## 4.", "## 5.", "## 6.", "## 7.", "## 8."]) {
       if (!sz.includes(s)) throw new Error(`session_zero missing ${s}`);
     }
+    for (const term of ["Human", "Elf", "Warrior", "Scholar", "Might", "Grace", "Wits", "standard", "planned", "Starting equipment"]) {
+      if (!sz.includes(term)) throw new Error(`session_zero §4 missing model term "${term}"`);
+    }
     passed++;
     await kill(p);
+  });
+
+  // ── T141/REQ-127 — ruleset-native personality constructs ──
+  await test("T141/REQ-127: session_zero uses native personality constructs when present", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "w1native", ruleset: "wave1test" });
+    const sz = await proto(p, "prompts/get", { name: "session_zero" });
+    for (const term of ["Traits", "Ideals", "Bonds", "Flaws"]) {
+      if (!sz.includes(term)) throw new Error(`session_zero missing native construct "${term}"`);
+    }
+    await kill(p);
+    passed++;
+  });
+
+  await test("T141/REQ-127: ruleset without native constructs uses Holonovel field names only", async () => {
+    seedSecondRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "w1plain", ruleset: "wave2test" });
+    const sz = await proto(p, "prompts/get", { name: "session_zero" });
+    if (sz.includes("Traits") || sz.includes("Ideals") || sz.includes("Bonds") || sz.includes("Flaws")) {
+      throw new Error("session_zero invented native constructs for a ruleset without them");
+    }
+    passed++;
+    await kill(p);
+    rmSync(join(DATA_DIR, "rulesets", "wave2test"), { recursive: true, force: true });
+  });
+
+  // ── T49/T50/T259/REQ-063 — intro names the package and its sourcebooks ──
+  await test("T49/T50/T259/REQ-063: intro is model-derived, sourced, and within 300 words", async () => {
+    const iso = mkdtempSync(join(tmpdir(), "wave1-intro-"));
+    const p = await boot({ TTRPG_DATA_DIR: iso });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_ruleset", { action: "install", slug: "wave1test", manifest: RULESET_PKG.manifest, index: RULESET_PKG.index, model: RULESET_PKG.model, tools: RULESET_PKG.tools, resources: [], prompts: RULESET_PKG.prompts });
+    await call(p, "manage_novel", { action: "create", name: "w1intro", ruleset: "wave1test" });
+    const intro = await proto(p, "prompts/get", { name: "intro" });
+    for (const term of ["Wave1 Test Ruleset", "Wave1 Test Ruleset — a fixture for prompt composition.", "wave1test"]) {
+      if (!intro.includes(term)) throw new Error(`intro missing "${term}"`);
+    }
+    const words = intro.trim().split(/\s+/).length;
+    if (words > 300) throw new Error(`intro is ${words} words (REQ-063 cap 300)`);
+    for (const action of ["Create a world", "Run the setup guide", "Choose your role", "Enter the story"]) {
+      if (!intro.includes(action)) throw new Error(`intro missing next action "${action}"`);
+    }
+    await kill(p);
+    rmSync(iso, { recursive: true, force: true });
+    passed++;
+  });
+
+  // ── T155/REQ-023 — run_workflow derives from live action classifications ──
+  await test("T155/REQ-023: run_workflow maps intents from live action classifications", async () => {
+    const p = await boot();
+    const wf = await proto(p, "prompts/get", { name: "run_workflow" });
+    if (!wf.includes("- **")) throw new Error("run_workflow has no derived category lines");
+    if (!wf.includes("manage_session")) throw new Error("run_workflow does not name a live registered tool");
+    if (wf.includes("combat (init/advance/end)")) throw new Error("run_workflow still uses the hardcoded category fallback");
+    await kill(p);
+    passed++;
   });
 
   // ── T74a/REQ-089e/f — novel setup authoring phase + completion writer ──

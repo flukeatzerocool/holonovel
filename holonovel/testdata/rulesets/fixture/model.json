@@ -1,29 +1,119 @@
 {
   "character_creation": {
-    "steps": ["name", "species", "classes", "ability_scores", "equipment"],
-    "ability_names": ["Might", "Grace", "Wits"],
+    "steps": [
+      "name",
+      "species",
+      "classes",
+      "ability_scores",
+      "equipment"
+    ],
+    "ability_names": [
+      "Might",
+      "Grace",
+      "Wits"
+    ],
     "ability_modifier_formula": "floor((score - 10) / 2)",
     "stat_methods": {
-      "standard": { "array": [10, 10, 10] },
-      "planned": { "point_buy": {} }
+      "standard": {
+        "array": [
+          10,
+          10,
+          10
+        ]
+      },
+      "planned": {
+        "point_buy": {}
+      }
     },
-    "default_ability_scores": [10, 10, 10],
+    "default_ability_scores": [
+      10,
+      10,
+      10
+    ],
     "species": {
-      "human": { "name": "Human", "size": "Medium", "speed": 6, "abilityAdjustments": {}, "traits": ["Versatile"] },
-      "elf": { "name": "Elf", "size": "Medium", "speed": 7, "abilityAdjustments": { "grace": 2, "might": -1 }, "traits": ["Keen Senses"] }
+      "human": {
+        "name": "Human",
+        "size": "Medium",
+        "speed": 6,
+        "abilityAdjustments": {},
+        "traits": [
+          "Versatile"
+        ]
+      },
+      "elf": {
+        "name": "Elf",
+        "size": "Medium",
+        "speed": 7,
+        "abilityAdjustments": {
+          "grace": 2,
+          "might": -1
+        },
+        "traits": [
+          "Keen Senses"
+        ]
+      }
     },
     "classes": {
-      "warrior": { "name": "Warrior", "hitDie": 10, "startingHp": 10, "babType": "good", "bab": 1, "defenseBonuses": { "reflex": 1, "fortitude": 2 }, "classSkills": ["Athletics"] },
-      "scholar": { "name": "Scholar", "hitDie": 6, "startingHp": 6, "babType": "poor", "bab": 0, "defenseBonuses": { "will": 2 }, "classSkills": ["Knowledge"] }
+      "warrior": {
+        "name": "Warrior",
+        "hitDie": 10,
+        "startingHp": 10,
+        "babType": "good",
+        "bab": 1,
+        "defenseBonuses": {
+          "reflex": 1,
+          "fortitude": 2
+        },
+        "classSkills": [
+          "Athletics"
+        ]
+      },
+      "scholar": {
+        "name": "Scholar",
+        "hitDie": 6,
+        "startingHp": 6,
+        "babType": "poor",
+        "bab": 0,
+        "defenseBonuses": {
+          "will": 2
+        },
+        "classSkills": [
+          "Knowledge"
+        ]
+      }
     },
     "starting_equipment": {
-      "warrior": [{ "name": "Sword", "quantity": 1, "source": "Fixture" }],
-      "scholar": [{ "name": "Tome", "quantity": 1, "source": "Fixture" }]
+      "warrior": [
+        {
+          "name": "Sword",
+          "quantity": 1,
+          "source": "Fixture"
+        }
+      ],
+      "scholar": [
+        {
+          "name": "Tome",
+          "quantity": 1,
+          "source": "Fixture"
+        }
+      ]
     },
     "derived_stats": [
-      { "key": "hit_points", "label": "Hit Points", "formula": "5 + level * 5 + ability_mod.might" },
-      { "key": "reflex", "label": "Reflex", "formula": "10 + level + ability_mod.grace + class_bonus.reflex" },
-      { "key": "power", "label": "Power", "formula": "max(ability_mod.might, ability_mod.grace) + bab" }
+      {
+        "key": "hit_points",
+        "label": "Hit Points",
+        "formula": "5 + level * 5 + ability_mod.might"
+      },
+      {
+        "key": "reflex",
+        "label": "Reflex",
+        "formula": "10 + level + ability_mod.grace + class_bonus.reflex"
+      },
+      {
+        "key": "power",
+        "label": "Power",
+        "formula": "max(ability_mod.might, ability_mod.grace) + bab"
+      }
     ]
   },
   "concepts": {},
@@ -32,5 +122,72 @@
   "tables": {},
   "resolution": {},
   "roles": {},
-  "guidance": {}
+  "guidance": {},
+  "prompt_inputs": {
+    "display_name": "Fixture Ruleset",
+    "tagline": "Fixture Ruleset \u2014 a compact test ruleset for verification.",
+    "core_mechanic": "Stat Check (roll d100 under the stat)",
+    "sourcebooks": [
+      "fixture"
+    ],
+    "creation_categories": [
+      {
+        "label": "Species",
+        "options": [
+          "human",
+          "elf"
+        ]
+      },
+      {
+        "label": "Class",
+        "options": [
+          "warrior",
+          "scholar"
+        ]
+      },
+      {
+        "label": "Ability scores",
+        "options": [
+          "Might",
+          "Grace",
+          "Wits",
+          "standard",
+          "planned"
+        ],
+        "meaning": "each method shows how to generate and assign the numbers."
+      },
+      {
+        "label": "Starting equipment",
+        "options": [
+          "warrior",
+          "scholar"
+        ]
+      }
+    ],
+    "personality_constructs": [
+      {
+        "name": "Traits",
+        "field": "description",
+        "description": "the repeatable habits that make the character recognizable."
+      },
+      {
+        "name": "Ideals",
+        "field": "goals",
+        "description": "the principles that drive the character's choices."
+      },
+      {
+        "name": "Bonds",
+        "field": "background",
+        "description": "the ties that hold the character to the world."
+      },
+      {
+        "name": "Flaws",
+        "field": "voice",
+        "description": "the contradiction that colors how the character speaks under pressure."
+      }
+    ],
+    "narrative_tone": [
+      "Describe the world through grounded, sensory detail."
+    ]
+  }
 }
