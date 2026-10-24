@@ -6,13 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Replay verification and state hashes
-
-- The event log, audit hash chain, checkpoints, and branching already exist;
-  add a runtime replay/verify surface and per-event state hashes.
-- Do not rebuild the existing log, audit, export, or checkpoint systems.
-- Plan: `plans/2026-10-23-replay-verification/`
-
 ## Context ledger and cache-aware surface
 
 - Surface profiles already cut the catalog from 25,856 to ~1,156 tokens; add

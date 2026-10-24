@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-24 — Replay verification and state hashes
+
+- Every event-log entry and checkpoint now records a canonical digest of the
+  Novel state it committed, so a stored campaign can be checked against its
+  recorded history. Export manifests are unchanged.
+- `manage_diagnostics (action: verify)` compares the live state with the last
+  saved digest and each checkpoint snapshot with its own, naming the first
+  divergence and its event ordinal. A checkpoint whose digest drifted can no
+  longer be restored. (REQ-603)
+- `manage_diagnostics (action: replay, to_event?)` returns the retained events
+  through an ordinal, the digest recorded there, and the nearest checkpoint,
+  and reports an evicted horizon rather than inventing history. (REQ-604)
+- Both operations are Game Master only and read-only: no state mutation, event
+  append, audit entry, or cursor advance. (REQ-605)
+- Removed the roadmap item.
+
 ## 2026-10-24 — Narrator visibility gate
 
 - Added a `narrate` prompt whose facts come from the AI's narrative role

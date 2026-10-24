@@ -556,4 +556,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-598 | Narrator clearance | 5.5 Badges and Access | C | T707, T708 | — |
 | REQ-599 | Draft visibility scan (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T709, T710 | — |
 | REQ-600 | Visibility audit | 5.5 Badges and Access | C | T711 | — |
+| REQ-601 | Canonical state hash | 5.24 Temporal Event Log and Branching | C | T712 | — |
+| REQ-602 | Per-event state hash | 5.24 Temporal Event Log and Branching | C | T713 | — |
+| REQ-603 | Divergence verification | 5.24 Temporal Event Log and Branching | C | T714 | — |
+| REQ-604 | Replay inspection | 5.24 Temporal Event Log and Branching | C | T715 | — |
+| REQ-605 | Verification read-only and gated | 5.24 Temporal Event Log and Branching | C | T716 | — |
 

@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 110502,
+  "tools_list_bytes": 111030,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 110502,
-        "tokens": 27626
+        "bytes": 111030,
+        "tokens": 27758
       },
       "standard": {
         "tools": 36,
-        "bytes": 96498,
-        "tokens": 24125
+        "bytes": 97026,
+        "tokens": 24257
       },
       "small": {
         "tools": 6,
-        "bytes": 4833,
-        "tokens": 1209,
+        "bytes": 4862,
+        "tokens": 1216,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4830,
-            "tokens": 1208
+            "bytes": 4859,
+            "tokens": 1215
           },
           "explore": {
             "tools": 6,
-            "bytes": 3858,
-            "tokens": 965
+            "bytes": 3887,
+            "tokens": 972
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4805,
-            "tokens": 1202
+            "bytes": 4834,
+            "tokens": 1209
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4833,
-            "tokens": 1209
+            "bytes": 4862,
+            "tokens": 1216
           },
           "lookup": {
             "tools": 6,
-            "bytes": 4148,
-            "tokens": 1037
+            "bytes": 4177,
+            "tokens": 1045
           },
           "referee": {
             "tools": 6,
-            "bytes": 3900,
-            "tokens": 975
+            "bytes": 3929,
+            "tokens": 983
           },
           "author": {
             "tools": 6,
-            "bytes": 4124,
-            "tokens": 1031
+            "bytes": 4153,
+            "tokens": 1039
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4538,
-            "tokens": 1135
+            "bytes": 4614,
+            "tokens": 1154
           }
         }
       }
@@ -832,8 +832,8 @@
     {
       "name": "manage_diagnostics",
       "title": "Session Diagnostics",
-      "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
-      "description_bytes": 762,
+      "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), verifying that stored state matches its recorded hashes (verify), inspecting the retained log through an ordinal (replay), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, verify, replay, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
+      "description_bytes": 901,
       "action_enum": [
         "health",
         "compress",
@@ -842,10 +842,12 @@
         "category",
         "event",
         "history",
+        "verify",
+        "replay",
         "visibility_check",
         "visibility_audit"
       ],
-      "param_count": 19,
+      "param_count": 20,
       "required": [
         "action"
       ],
@@ -867,6 +869,7 @@
         "text": "Observation text (event).",
         "through_ordinal": "Return events up to and including this ordinal (history).",
         "tier": "Compression tier to assemble (recap; REQ-592).",
+        "to_event": "Target event ordinal for replay inspection (replay; default the newest retained entry).",
         "tool_name": "Registered tool name to reassign (category).",
         "topics": "Notification topics to subscribe to (subscribe)."
       },
@@ -881,9 +884,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 20,
+        "paramCount": 21,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 20,
+        "paramsWithDescriptions": 21,
         "paramsWithEnums": 5,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -894,8 +897,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4040,
-        "descriptionBytes": 762
+        "definitionBytes": 4346,
+        "descriptionBytes": 901
       },
       "category": "",
       "gate": ""
@@ -1576,7 +1579,7 @@
         "briefing_order",
         "discover"
       ],
-      "param_count": 19,
+      "param_count": 20,
       "required": [
         "action"
       ],
@@ -1598,6 +1601,7 @@
         "text": "Observation text (event).",
         "through_ordinal": "Return events up to and including this ordinal (history).",
         "tier": "Compression tier to assemble (recap; REQ-592).",
+        "to_event": "Target event ordinal for replay inspection (replay; default the newest retained entry).",
         "tool_name": "Registered tool name to reassign (category).",
         "topics": "Notification topics to subscribe to (subscribe)."
       },
@@ -1612,9 +1616,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 20,
+        "paramCount": 21,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 20,
+        "paramsWithDescriptions": 21,
         "paramsWithEnums": 5,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1625,7 +1629,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4350,
+        "definitionBytes": 4572,
         "descriptionBytes": 852
       },
       "category": "",
@@ -2445,9 +2449,21 @@
       "retired": true
     },
     {
+      "name": "manage_session.replay",
+      "kind": "action",
+      "replacement": "manage_diagnostics.replay",
+      "retired": true
+    },
+    {
       "name": "manage_session.subscribe",
       "kind": "action",
       "replacement": "manage_diagnostics.subscribe",
+      "retired": true
+    },
+    {
+      "name": "manage_session.verify",
+      "kind": "action",
+      "replacement": "manage_diagnostics.verify",
       "retired": true
     },
     {

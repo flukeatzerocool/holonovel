@@ -4,10 +4,12 @@
 // isolation), REQ-460 (event provenance).
 
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { stateHash } from "../src/core/state-hash.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
@@ -117,6 +119,102 @@ async function main() {
     const through = await call(p, "manage_diagnostics", { action: "history", through_ordinal: 1 });
     assert(through.includes("the butler did it"), "T550 provenance lookup missing contributing entry");
     assert(!through.includes("the maid saw it"), "T550 provenance lookup returned an out-of-range entry");
+    await kill(p);
+  });
+
+
+  // ── T712: canonical state hash (REQ-601) ─────────────────────────────
+  await test("T712/REQ-601: canonical state hash is order-independent", async () => {
+    const a = stateHash({ scene: "hall", count: 2, event_log: [{ ordinal: 1 }] } as any);
+    const b = stateHash({ count: 2, scene: "hall" } as any);
+    assert(a === b, "T712 event log or key order changed the digest");
+    assert(a !== stateHash({ scene: "crypt", count: 2 } as any), "T712 changed field kept the digest");
+  });
+
+  // ── T713: per-event digest (REQ-602) ─────────────────────────────────
+  await test("T713/REQ-602: event carries the committed-state digest", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "replayhash" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_diagnostics", { action: "event", text: "the gate opens" });
+    const v = await call(p, "manage_diagnostics", { action: "verify" });
+    const live = /live state hash: ([0-9a-f]+)/.exec(v)?.[1];
+    const rp = await call(p, "manage_diagnostics", { action: "replay", to_event: 1 });
+    const recorded = /recorded state hash at #1: ([0-9a-f]+)/.exec(rp)?.[1];
+    assert(!!live && live === recorded, "T713 event digest does not match live state: " + v.slice(0, 200));
+    await kill(p);
+  });
+
+  // ── T714: divergence via checkpoint tamper (REQ-603) ─────────────────
+  await test("T714/REQ-603: tampered checkpoint reports divergence", async () => {
+    const slug = "replaytamper";
+    let p = await boot();
+    await call(p, "manage_novel", { action: "create", name: slug });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    await call(p, "manage_diagnostics", { action: "event", text: "two" });
+    await call(p, "manage_archive", { action: "checkpoint_set", label: "cp1" });
+    await kill(p);
+    const dir = join(DATA_DIR, "novels");
+    const file = join(dir, readdirSync(dir).find((f) => f.startsWith(slug))!);
+    const payload = JSON.parse(readFileSync(file, "utf-8"));
+    const cp = payload.checkpoints.find((c: any) => c.label === "cp1");
+    assert(!!cp && typeof cp.state_hash === "string", "T714 checkpoint did not record a digest");
+    cp.state.scene_description = "tampered outside a save";
+    delete payload._checksum;
+    payload._checksum = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    writeFileSync(file, JSON.stringify(payload, null, 2));
+    p = await boot();
+    await call(p, "manage_novel", { action: "switch", slug });
+    const v = await call(p, "manage_diagnostics", { action: "verify" });
+    assert(v.includes("DIVERGENCE at #2"), "T714 divergence not localized to the checkpoint ordinal: " + v.slice(0, 240));
+    const restore = await call(p, "manage_archive", { action: "checkpoint_restore", label: "cp1" });
+    assert(restore.includes("STATE_CONFLICT"), "T714 restore accepted a tampered snapshot: " + restore.slice(0, 200));
+    await kill(p);
+  });
+
+  // ── T715: replay inspection (REQ-604) ────────────────────────────────
+  await test("T715/REQ-604: replay inspection targets an ordinal", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "replayinspect" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    await call(p, "manage_diagnostics", { action: "event", text: "two" });
+    await call(p, "manage_diagnostics", { action: "event", text: "three" });
+    const first = await call(p, "manage_diagnostics", { action: "replay", to_event: 2 });
+    const second = await call(p, "manage_diagnostics", { action: "replay", to_event: 2 });
+    assert(first === second, "T715 repeated replay differs");
+    assert(first.includes("#1") && first.includes("#2") && !first.includes("three"), "T715 replay returned the wrong range");
+    const info = await call(p, "manage_novel", { action: "info", slug: "replayinspect" });
+    assert(info.includes('"event_count": 3'), "T715 replay mutated the event log: " + info.slice(0, 200));
+    const p2 = await boot({ TTRPG_EVENT_LOG_MAX_ENTRIES: "2" });
+    await call(p2, "manage_novel", { action: "create", name: "replayevict" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    await call(p2, "manage_diagnostics", { action: "event", text: "a" });
+    await call(p2, "manage_diagnostics", { action: "event", text: "b" });
+    await call(p2, "manage_diagnostics", { action: "event", text: "c" });
+    const evicted = await call(p2, "manage_diagnostics", { action: "replay", to_event: 1 });
+    assert(evicted.includes("[evicted]"), "T715 evicted target not reported: " + evicted.slice(0, 200));
+    await kill(p2);
+    await kill(p);
+  });
+
+  // ── T716: gating and read-only (REQ-605) ─────────────────────────────
+  await test("T716/REQ-605: verify and replay are GM-only and read-only", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "replaygate" });
+    await call(p, "set_badge", { badge: "player" });
+    const pv = await call(p, "manage_diagnostics", { action: "verify" });
+    const pr = await call(p, "manage_diagnostics", { action: "replay" });
+    assert(pv.includes("FORBIDDEN") && pr.includes("FORBIDDEN"), "T716 Player was not refused");
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    const a = await call(p, "manage_diagnostics", { action: "verify" });
+    const b = await call(p, "manage_diagnostics", { action: "verify" });
+    assert(a === b, "T716 repeated verify differs");
+    assert(a.includes("State verification: clean"), "T716 clean Novel did not verify: " + a.slice(0, 200));
+    const info = await call(p, "manage_novel", { action: "info", slug: "replaygate" });
+    assert(info.includes('"event_count": 1'), "T716 verify/replay advanced the event log");
     await kill(p);
   });
 
