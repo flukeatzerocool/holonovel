@@ -3771,6 +3771,9 @@ The server SHALL provide `manage_world (action: generate, seed?, options?)` — 
 The tool SHALL bound output by a configurable room cap (`TTRPG_WORLD_GEN_MAX_ROOMS`, default 20). Generated worlds SHALL respect world-model validation — exits reference generated rooms only; containment follows kind contracts.
 *Acceptance criterion:* `manage_world (action: generate, seed="42")` on a table-bearing ruleset produces a batch under the cap offered as a decision; applying creates the rooms; the same seed reproduces them; a table-less ruleset returns the content-absent message. _Check:_ T515.
 
+**REQ-431d — Procedural world generation (Part d).**
+A generated world SHALL be connected: every generated room is reachable, and every exit has a reverse exit. Object-role tables SHALL place containers, supporters, doors, and vehicles per the kind contracts (REQ-200), with contents in or on them. When a secret-role table exists, its draw SHALL be placed in a reachable container with a readable discovery path and registered as a Novel secret whose `world_target` names the containing room. When a secret is placed and a person-role table exists, at least one generated person SHALL be placed where it can see or hear the secret's room (REQ-596, REQ-597). The workflow decision SHALL carry a validation report, and a batch that fails connectivity, containment, or secret reachability SHALL NOT be offered for apply. _Check:_ T706.
+
 **REQ-202a — World-model resources (Part a).**
 URIs for the world-model tier follow. The `room://<id>` URI holds the room name, description, visible things, and exits. The `thing://<id>` URI holds the thing name, description, location, and properties. The `world://map` URI holds all rooms with exit connections — a navigable graph. The `world://kinds` URI holds the kind hierarchy, property contracts, and the parser command catalog from the `holonovel` package (B10).
 
@@ -6342,6 +6345,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-328 | S16, S32 | Lore-world coupling |
 | REQ-222 | I17 | Parser vocabulary extension |
 | REQ-431 | I5 | Procedural world generation |
+| REQ-431d | I5 | World-generation layout and placement |
 | REQ-335 | S16, S35 | Scene beat taxonomy |
 | REQ-336 | S35 | Dramatic pacing signal |
 | REQ-337 | S16 | Narrative arc visibility |
@@ -9869,6 +9873,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-431a | Procedural world generation (Part a) | 2026-09-04 |
 | REQ-431b | Procedural world generation (Part b) | 2026-09-04 |
 | REQ-431c | Procedural world generation (Part c) | 2026-09-04 |
+| REQ-431d | Procedural world generation (Part d) | 2026-10-24 |
 | REQ-432a | Vendor ruleset package certification (Part a) | 2026-09-04 |
 | REQ-432b | Vendor ruleset package certification (Part b) | 2026-09-04 |
 | REQ-433a | Event notification surface (Part a) | 2026-09-04 |
@@ -10766,6 +10771,7 @@ diet.
 | T703 | Automated | Audibility: with a closed door between two rooms, assert `run_command (action: audibility)` reports no sound; unlock and open the door and assert the target is audible. | REQ-597 |
 | T704 | Automated | Witness attribution and knowledge query: with two entities in a lit room, append an event and assert the non-actor's `knowledge_query` contains a `saw`/`sight` perception citing the event ordinal; assert the actor receives no derived record; assert a Player may query its own entity and not another. | REQ-595, REQ-542, REQ-545 |
 | T705 | Automated | Legacy perception load: write a Novel whose perception entries lack witness fields, resume it, and assert the entries load with `inferred`, null sense, and zero confidence. | REQ-594 |
+| T706 | Automated | Containment-aware generation: `manage_world (action: generate, seed="42")` on a fixture package with room, object, person, and secret tables returns a batch whose report says validation passed, containing kind-declared containers with contents, a readable secret clue inside a reachable container, and a person in the secret's room; applying yields a `world://map` where every room is reachable and every exit is reciprocal, and `manage_lore (action: secret_list)` lists the generated secret with its `world_target`; the same seed reproduces the batch. | REQ-431d |
 
 ---
 

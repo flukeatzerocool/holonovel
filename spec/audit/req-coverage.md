@@ -397,7 +397,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-428 | Registry-published distribution | 5.18 Workflow Entry Points | E | T510 | — |
 | REQ-429 | Server-wide action-discriminator surface | 5.18 Workflow Entry Points | C | T511 | — |
 | REQ-430 | Ruleset tool-quality conformance | 5.17 Ruleset Packages | C | T512, T648 | — |
-| REQ-431 | Procedural world generation (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T515 | — |
+| REQ-431 | Procedural world generation (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T515, T706 | — |
 | REQ-432 | Vendor ruleset package certification (Part a) (2 sub-parts) | 5.17 Ruleset Packages | C | T517 | — |
 | REQ-433 | Event notification surface (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T519 | — |
 | REQ-434 | Fudge dice | 5.21 Fate Base Capabilities | C | T520 | — |

@@ -298,14 +298,112 @@ function worldGenMaxRooms(): number { return configInt("TTRPG_WORLD_GEN_MAX_ROOM
 // options.roles override, else from documented name/title tokens. Unmatched
 // tables are ignored rather than repurposed, so generation never fabricates a
 // mechanic the ruleset did not define (REQ-431b).
-type WorldGenRole = "room" | "objects" | "persons" | "hazards";
-const WORLD_GEN_ROLES: WorldGenRole[] = ["room", "objects", "persons", "hazards"];
+type WorldGenRole = "room" | "objects" | "persons" | "hazards" | "secrets";
+const WORLD_GEN_ROLES: WorldGenRole[] = ["room", "objects", "persons", "hazards", "secrets"];
 const WORLD_GEN_ROLE_TOKENS: Record<WorldGenRole, string[]> = {
   room: ["dungeon", "room", "chamber", "site", "location", "crypt", "hall"],
-  objects: ["treasure", "trinket", "loot", "item", "equipment"],
+  objects: ["treasure", "trinket", "loot", "item", "equipment", "container", "supporter", "vehicle"],
   persons: ["encounter", "npc", "monster", "inhabitant", "creature", "person"],
   hazards: ["trap", "hazard", "quirk"],
+  secrets: ["secret", "rumor", "clue", "mystery"],
 };
+
+// REQ-431d — object draws resolve to a kind from the rolled text or table
+// title, so containment follows the kind contracts (REQ-200). Unmatched draws
+// stay plain things.
+const GENERATION_KIND_TOKENS: Array<{ kind: WorldKind; tokens: string[] }> = [
+  { kind: "vehicle", tokens: ["wagon", "cart", "boat", "ship", "carriage"] },
+  { kind: "container", tokens: ["chest", "box", "crate", "coffer", "barrel", "urn", "pouch", "bag", "case"] },
+  { kind: "supporter", tokens: ["table", "altar", "shelf", "rack", "pedestal", "bench", "desk"] },
+  { kind: "door", tokens: ["door", "gate", "portal"] },
+];
+
+function generationObjectKind(result: string, title: string): WorldKind {
+  const hay = `${result} ${title}`.toLowerCase();
+  for (const { kind, tokens } of GENERATION_KIND_TOKENS) {
+    if (tokens.some((token) => new RegExp(`\\b${token}s?\\b`).test(hay))) return kind;
+  }
+  return "thing";
+}
+
+// REQ-431d — a generated secret carries its discovery path and the room it
+// links to (REQ-363).
+interface GeneratedSecret {
+  key: string;
+  content: string;
+  triggers: string[];
+  badge_scope: "game_master" | "shared";
+  world_target: string;
+  clue: string;
+  container: string;
+}
+
+interface GeneratedWitness {
+  name: string;
+  room: string;
+}
+
+// REQ-431d — validate the batch before offering it: connectivity, reciprocal
+// exits, containment references, secret reachability/discovery, and witness
+// perceivability. A failure refuses the batch rather than offering a broken
+// world for apply.
+function validateGeneratedWorld(
+  world: WorldModel,
+  secrets: GeneratedSecret[],
+  witness: GeneratedWitness | null,
+  personTablePresent: boolean,
+): string[] {
+  const failures: string[] = [];
+  const roomKeys = [...world.rooms.keys()];
+  if (roomKeys.length === 0) return ["no rooms generated"];
+  const visited = new Set<string>();
+  const queue: string[] = [roomKeys[0]];
+  visited.add(roomKeys[0]);
+  while (queue.length > 0) {
+    const key = queue.shift()!;
+    const room = world.rooms.get(key)!;
+    for (const [, dest] of room.exits) {
+      const destKey = dest.toLowerCase();
+      if (!world.rooms.has(destKey)) { failures.push(`exit from '${room.name}' targets missing room '${dest}'`); continue; }
+      if (!visited.has(destKey)) { visited.add(destKey); queue.push(destKey); }
+    }
+  }
+  for (const key of roomKeys) {
+    if (!visited.has(key)) failures.push(`room '${world.rooms.get(key)!.name}' is unreachable`);
+  }
+  for (const key of roomKeys) {
+    const room = world.rooms.get(key)!;
+    for (const [dir, dest] of room.exits) {
+      const destRoom = world.rooms.get(dest.toLowerCase());
+      if (!destRoom) continue;
+      const reciprocal = [...destRoom.exits.values()].some((back) => back.toLowerCase() === key);
+      if (!reciprocal) failures.push(`exit ${dir} of '${room.name}' has no reverse exit`);
+    }
+  }
+  for (const thing of world.things.values()) {
+    if (!thing.location) continue;
+    const loc = thing.location.toLowerCase();
+    if (world.rooms.has(loc) || world.things.has(loc)) continue;
+    failures.push(`thing '${thing.name}' is placed in missing location '${thing.location}'`);
+  }
+  for (const secret of secrets) {
+    const targetKey = secret.world_target.toLowerCase();
+    if (!world.rooms.has(targetKey)) { failures.push(`secret '${secret.key}' targets missing room '${secret.world_target}'`); continue; }
+    if (!visited.has(targetKey)) failures.push(`secret '${secret.key}' targets unreachable room '${secret.world_target}'`);
+    const clue = world.things.get(secret.clue.toLowerCase());
+    if (!clue) { failures.push(`secret '${secret.key}' clue '${secret.clue}' was not placed`); continue; }
+    if ((thingRoom(world, clue) ?? "").toLowerCase() !== targetKey) failures.push(`secret '${secret.key}' clue is not in '${secret.world_target}'`);
+    if (!clue.readable) failures.push(`secret '${secret.key}' clue has no readable discovery path`);
+    const container = world.things.get(secret.container.toLowerCase());
+    if (!container) { failures.push(`secret '${secret.key}' container '${secret.container}' was not placed`); continue; }
+    if (container.locked) failures.push(`secret '${secret.key}' container is locked`);
+  }
+  if (secrets.length > 0 && personTablePresent) {
+    if (!witness) failures.push("secret placed but no witness was generated");
+    else if (!isAudibleFrom(world, secrets[0].world_target, witness.room)) failures.push(`witness '${witness.name}' cannot perceive the secret room`);
+  }
+  return failures;
+}
 
 interface WorldGenTable {
   key: string;
@@ -2474,6 +2572,21 @@ server.registerTool("respond_decision", {
       worldSnapshot();
       const { world, result } = convertSource(payload.assertions, novel.world);
       novel.world = world;
+      // REQ-431d — register generated secrets, deduped by key.
+      if (Array.isArray(payload.secrets)) {
+        for (const secret of payload.secrets) {
+          if (!secret || typeof secret.key !== "string") continue;
+          if (novel.secrets.some((existing) => existing.key === secret.key)) continue;
+          novel.secrets.push({
+            key: secret.key,
+            content: String(secret.content ?? ""),
+            triggers: Array.isArray(secret.triggers) ? secret.triggers.map(String) : [],
+            badge_scope: secret.badge_scope === "shared" ? "shared" : "game_master",
+            known_by: [],
+            world_target: typeof secret.world_target === "string" ? secret.world_target : undefined,
+          });
+        }
+      }
       novel.pending_workflow = null;
       state.saveNovel(novel);
       audit("world_generate_apply", { rooms: result.rooms, things: result.things, exits: result.exits, seed: payload.seed ?? null });
@@ -4068,14 +4181,14 @@ server.registerTool("manage_world", {
         return ok("No generation tables in this ruleset — manage_world (action: generate) cannot fabricate rooms. Corrective action: bind a ruleset whose package defines generation tables, or build the world manually with manage_world (action: create_room).");
       }
 
-      const roles: Record<WorldGenRole, string[]> = { room: [], objects: [], persons: [], hazards: [] };
+      const roles: Record<WorldGenRole, string[]> = { room: [], objects: [], persons: [], hazards: [], secrets: [] };
       for (const entry of entries) {
         const role = worldGenRoleOf(entry.key, entry.title);
         if (role) roles[role].push(entry.key);
       }
       const explicitRoles = (args.options as any)?.roles;
       if (explicitRoles !== undefined) {
-        if (!explicitRoles || typeof explicitRoles !== "object") return err("INVALID_INPUT", "options.roles must be an object mapping room, objects, persons, or hazards to table names.");
+        if (!explicitRoles || typeof explicitRoles !== "object") return err("INVALID_INPUT", "options.roles must be an object mapping room, objects, persons, hazards, or secrets to table names.");
         for (const role of WORLD_GEN_ROLES) {
           const names = (explicitRoles as Record<string, unknown>)[role];
           if (names === undefined) continue;
@@ -4140,11 +4253,52 @@ server.registerTool("manage_world", {
             const description = roll?.result || `An object drawn from the ${table.title} table.`;
             const base = sanitizeGenerationName(roll?.result ?? "") || sanitizeGenerationName(table.title) || "Object";
             const name = uniqueName(base, `${table.title} ${i + 1}-${k + 1}`);
-            assertions.push(`${name} is in ${roomNames[i]}. "${description}"`);
+            const kind = generationObjectKind(roll?.result ?? "", table.title);
+            assertions.push(`${name} is a ${kind}. "${description}"`);
+            assertions.push(`It is in ${roomNames[i]}.`);
+            if (kind === "container" || kind === "supporter") {
+              const inner = draw(roles.objects[rng.roll(roles.objects.length) - 1]);
+              const innerDescription = inner.roll?.result || `A find drawn from the ${inner.table.title} table.`;
+              const innerBase = sanitizeGenerationName(inner.roll?.result ?? "") || sanitizeGenerationName(inner.table.title) || "Find";
+              const innerName = uniqueName(innerBase, `${inner.table.title} ${i + 1}-${k + 1} inner`);
+              assertions.push(`${innerName} is a thing. "${innerDescription}"`);
+              assertions.push(kind === "container" ? `${innerName} is in ${name}.` : `${innerName} is on ${name}.`);
+            }
           }
         }
       }
 
+      // REQ-431d — a secret-role draw becomes a readable clue inside a
+      // reachable container, and a Novel secret linked to the room.
+      let generatedSecret: GeneratedSecret | null = null;
+      let secretRoomIndex = -1;
+      if (roles.secrets.length > 0) {
+        const { table, roll } = draw(roles.secrets[rng.roll(roles.secrets.length) - 1]);
+        const content = sanitizeGenerationText(roll?.result ?? "");
+        if (content) {
+          secretRoomIndex = rng.roll(roomCount) - 1;
+          const room = roomNames[secretRoomIndex];
+          const containerName = uniqueName(`${sanitizeGenerationName(table.title) || "Hidden"} Cache`, "Hidden Cache");
+          const clueName = uniqueName(`${sanitizeGenerationName(table.title) || "Hidden"} Clue`, "Hidden Clue");
+          assertions.push(`${containerName} is a container.`);
+          assertions.push(`It is in ${room}.`);
+          assertions.push(`${clueName} is a thing.`);
+          assertions.push(`It is in ${containerName}.`);
+          assertions.push(`It is readable.`);
+          assertions.push(`The inscription on ${clueName} reads "${content}".`);
+          generatedSecret = {
+            key: `world-gen-${table.key.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${secretRoomIndex + 1}`,
+            content,
+            triggers: [],
+            badge_scope: "game_master",
+            world_target: room,
+            clue: clueName,
+            container: containerName,
+          };
+        }
+      }
+
+      let witness: GeneratedWitness | null = null;
       if (roles.persons.length > 0) {
         for (let i = 0; i < roomCount; i++) {
           if (rng.roll(2) !== 1) continue;
@@ -4154,6 +4308,18 @@ server.registerTool("manage_world", {
           const name = uniqueName(base, `${table.title} ${i + 1}`);
           assertions.push(`${name} is a person. "${description}"`);
           assertions.push(`It is in ${roomNames[i]}.`);
+          if (generatedSecret && i === secretRoomIndex && !witness) witness = { name, room: roomNames[i] };
+        }
+        // REQ-431d — guarantee a witness in the secret's room when a secret was
+        // placed; same-room sound makes it perceivable without requiring light.
+        if (generatedSecret && !witness && secretRoomIndex >= 0) {
+          const { table, roll } = draw(roles.persons[rng.roll(roles.persons.length) - 1]);
+          const description = roll?.result || `A figure drawn from the ${table.title} table.`;
+          const base = sanitizeGenerationName(roll?.result ?? "") || sanitizeGenerationName(table.title) || "Witness";
+          const name = uniqueName(base, `${table.title} witness`);
+          assertions.push(`${name} is a person. "${description}"`);
+          assertions.push(`It is in ${roomNames[secretRoomIndex]}.`);
+          witness = { name, room: roomNames[secretRoomIndex] };
         }
       }
 
@@ -4217,6 +4383,16 @@ server.registerTool("manage_world", {
         ? `\n\nRoll provenance: ${rolls.length} table roll(s) — ${[...new Set(rolls.map((r) => r.table))].join(", ")}.`
         : "";
       const droppedNote = dropped.length > 0 ? `\n\nDropped ${dropped.length} invalid assertion(s):\n${dropped.join("\n")}` : "";
+
+      // REQ-431d — refuse a batch that fails spatial validation rather than
+      // offering it for apply.
+      const generatedSecrets = generatedSecret ? [generatedSecret] : [];
+      const validation = validateGeneratedWorld(parsed.world, generatedSecrets, witness, roles.persons.length > 0);
+      if (validation.length > 0) {
+        return err("INVALID_INPUT", `World generation validation failed; the batch was not offered.\n${validation.join("\n")}`);
+      }
+      const report = "Validation: passed — all rooms reachable, exits reciprocal, containment and secret placement valid.";
+
       novel.pending_workflow = {
         decision: "world_generate",
         snapshot: state.captureWorkflowSnapshot(novel),
@@ -4226,11 +4402,13 @@ server.registerTool("manage_world", {
           roomCount,
           roles,
           rolls,
+          secrets: generatedSecrets,
+          report,
           counts: { rooms: parsed.result.rooms, things: parsed.result.things, exits: parsed.result.exits },
         },
       };
       state.saveNovel(novel);
-      return needInput(`World generation — ${parsed.result.rooms} rooms, ${parsed.result.things} things, ${parsed.result.exits} exits proposed (seed ${args.seed ?? "session"}).\n\n${batch.join("\n")}${provenance}${droppedNote}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.`);
+      return needInput(`World generation — ${parsed.result.rooms} rooms, ${parsed.result.things} things, ${parsed.result.exits} exits proposed (seed ${args.seed ?? "session"}).\n\n${batch.join("\n")}${provenance}${droppedNote}\n\n${report}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.`);
     }
     default:
       return err("INVALID_INPUT", `Unknown world action '${args.action}'.`);

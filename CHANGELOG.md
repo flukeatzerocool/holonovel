@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-24 — Containment-aware world generation
+
+- `manage_world (action: generate)` now resolves object draws to kind-contract
+  kinds: containers and supporters receive contents, doors and vehicles are
+  placed as their kinds. Unmatched draws remain plain things, so generation
+  still instantiates only what the tables define (REQ-431d; T706).
+- Added a `secrets` role (inferred from secret/rumor/clue/mystery table names).
+  A secret draw becomes a readable clue inside a reachable container and is
+  registered as a Novel secret whose `world_target` names the containing room;
+  the decision payload carries the secret through apply (REQ-431d, REQ-363).
+- Generated persons now include a witness in the secret's room when a secret is
+  placed, so the new perception queries can attribute it (REQ-431d,
+  REQ-596/REQ-597).
+- Added pre-offer spatial validation: room reachability, reciprocal exits,
+  containment references, secret reachability/discovery, and witness
+  perceivability. A failing batch is refused with the report instead of being
+  offered for apply; the same seed still reproduces the batch (REQ-431d; T706).
+- Added REQ-431d and T706, the Appendix E/F catalog rows, the §6 phase-table
+  entry, and regenerated the coverage register.
+
 ## 2026-10-24 — Witness-aware perception, POV, and spatial queries
 
 - Extended the perception ledger with witness provenance: every entry carries a

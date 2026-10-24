@@ -1624,6 +1624,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-328 | S16, S32 | Lore-world coupling |
 | REQ-222 | I17 | Parser vocabulary extension |
 | REQ-431 | I5 | Procedural world generation |
+| REQ-431d | I5 | World-generation layout and placement |
 | REQ-335 | S16, S35 | Scene beat taxonomy |
 | REQ-336 | S35 | Dramatic pacing signal |
 | REQ-337 | S16 | Narrative arc visibility |
