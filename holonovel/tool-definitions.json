@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 107396,
+  "tools_list_bytes": 107828,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 107396,
-        "tokens": 26849
+        "bytes": 107828,
+        "tokens": 26957
       },
       "standard": {
         "tools": 36,
-        "bytes": 93392,
-        "tokens": 23348
+        "bytes": 93824,
+        "tokens": 23456
       },
       "small": {
         "tools": 6,
@@ -374,7 +374,7 @@
         "causal_state",
         "causal_ingress"
       ],
-      "param_count": 40,
+      "param_count": 42,
       "required": [
         "action"
       ],
@@ -405,6 +405,7 @@
         "lockable": "When true the thing can be locked (create_thing/update_thing).",
         "locked": "When true the thing starts locked (create_thing/update_thing).",
         "name": "Room/thing name (create/update/remove).",
+        "noise": "Auditory cue text reported by listen (create_thing/update_thing).",
         "openable": "When true the thing can be opened (create_thing/update_thing).",
         "options": "Generation options (generate): roles maps installed table names to room, objects, persons, or hazards pools; rooms requests a count bounded by TTRPG_WORLD_GEN_MAX_ROOMS.",
         "read_text": "Text revealed when the thing is read (create_thing/update_thing).",
@@ -412,6 +413,7 @@
         "room": "Source room (create_exit/remove_exit).",
         "room_a": "Source room (create_exit).",
         "room_b": "Destination room (create_exit).",
+        "scent": "Olfactory cue text reported by smell (create_thing/update_thing).",
         "seed": "Deterministic seed (generate).",
         "source": "Hybrid world-model source text (convert).",
         "switchable": "When true the thing can be switched (create_thing/update_thing).",
@@ -431,9 +433,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 41,
+        "paramCount": 43,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 41,
+        "paramsWithDescriptions": 43,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -444,7 +446,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6189,
+        "definitionBytes": 6405,
         "descriptionBytes": 528
       },
       "category": "",
@@ -1875,7 +1877,7 @@
         "convert",
         "generate"
       ],
-      "param_count": 40,
+      "param_count": 42,
       "required": [
         "action"
       ],
@@ -1906,6 +1908,7 @@
         "lockable": "When true the thing can be locked (create_thing/update_thing).",
         "locked": "When true the thing starts locked (create_thing/update_thing).",
         "name": "Room/thing name (create/update/remove).",
+        "noise": "Auditory cue text reported by listen (create_thing/update_thing).",
         "openable": "When true the thing can be opened (create_thing/update_thing).",
         "options": "Generation options (generate): roles maps installed table names to room, objects, persons, or hazards pools; rooms requests a count bounded by TTRPG_WORLD_GEN_MAX_ROOMS.",
         "read_text": "Text revealed when the thing is read (create_thing/update_thing).",
@@ -1913,6 +1916,7 @@
         "room": "Source room (create_exit/remove_exit).",
         "room_a": "Source room (create_exit).",
         "room_b": "Destination room (create_exit).",
+        "scent": "Olfactory cue text reported by smell (create_thing/update_thing).",
         "seed": "Deterministic seed (generate).",
         "source": "Hybrid world-model source text (convert).",
         "switchable": "When true the thing can be switched (create_thing/update_thing).",
@@ -1932,9 +1936,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 41,
+        "paramCount": 43,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 41,
+        "paramsWithDescriptions": 43,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -1945,7 +1949,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6648,
+        "definitionBytes": 6864,
         "descriptionBytes": 800
       },
       "category": "",

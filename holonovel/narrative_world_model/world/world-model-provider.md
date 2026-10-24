@@ -92,6 +92,8 @@ remain the behavioral source.
 | drinkable | true / false | all things | IF true THEN the thing can be drunk and is consumed on use. |
 | climbable | true / false | all things | IF true THEN the thing can be climbed. |
 | transparent | true / false | all things | IF true THEN contents are visible without opening. |
+| noise | text | all things | Auditory cue text the thing emits; `listen` reports it. Null when no cue is modeled. |
+| scent | text | all things | Olfactory cue text the thing emits; `smell` reports it. Null when no cue is modeled. |
 
 ## Parser Command Catalog
 
@@ -134,7 +136,7 @@ these commands.
 ### Verb Coverage Tiers
 
 - core (7): look, go, examine, take, drop, inventory, wait
-- standard (29): open, close, lock, unlock, push, pull, search, read, sit, stand, wear, remove, eat, drink, light, extinguish, climb, jump, enter, exit, put, insert, switch on, switch off, ask, tell, give, show, throw
+- standard (31): open, close, lock, unlock, push, pull, search, read, listen, smell, sit, stand, wear, remove, eat, drink, light, extinguish, climb, jump, enter, exit, put, insert, switch on, switch off, ask, tell, give, show, throw
 - extended (0): none
 
 A standard-tier verb becomes available when a thing in scope carries the
@@ -200,6 +202,8 @@ unrecognized form produces a not-implemented warning and does not change state.
 - **drinkable** — `<thing> is drinkable.` · `It is drinkable.`
 - **climbable** — `<thing> is climbable.` · `It is climbable.`
 - **transparent** — `<thing> is transparent.` · `It is transparent.`
+- **noise** — `<thing> has a noise of "...".`
+- **scent** — `<thing> has a scent of "...".`
 
 ### TTRPG Annotation Syntax (Interleaved)
 

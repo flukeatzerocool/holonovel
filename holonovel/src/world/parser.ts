@@ -724,11 +724,68 @@ function handleLightExtinguish(verb: "light" | "extinguish", target: string, ctx
 }
 
 function handleListen(ctx: ParserContext): ParserResult {
-  return { prefix: "OK", text: "You listen." };
+  if (!ctx.currentRoom) {
+    return { prefix: "ERROR", code: "STATE_CONFLICT", text: "You are nowhere. The world model has not been populated.", correctiveAction: "Use an adventure module or CRUD tools to populate the world model." };
+  }
+  const room = getRoom(ctx.currentRoom, ctx);
+  if (!room) return { prefix: "ERROR", code: "NOT_FOUND", text: `Room '${ctx.currentRoom}' not found.` };
+
+  const cues = new Set<string>();
+  for (const t of localCueThings(ctx)) {
+    if (t.noise) cues.add(`${t.noise} (from the ${bareName(t.name)})`);
+  }
+
+  // REQ-319b — sound crosses one open exit; a closed door suppresses it.
+  for (const [dir, targetName] of room.exits) {
+    const doorName = room.doorRefs.get(dir);
+    if (doorName) {
+      const door = getThing(doorName, ctx);
+      if (door && !door.open) continue;
+    }
+    if (!getRoom(targetName, ctx)) continue;
+    for (const t of getRoomThings(targetName, ctx)) {
+      if (t.noise) cues.add(`${t.noise} (from the ${dir})`);
+    }
+  }
+
+  if (cues.size === 0) return { prefix: "OK", text: "You hear nothing unusual." };
+  return { prefix: "OK", text: `You hear:\n${[...cues].join("\n")}` };
 }
 
 function handleSmell(ctx: ParserContext): ParserResult {
-  return { prefix: "OK", text: "You smell the air." };
+  if (!ctx.currentRoom) {
+    return { prefix: "ERROR", code: "STATE_CONFLICT", text: "You are nowhere. The world model has not been populated.", correctiveAction: "Use an adventure module or CRUD tools to populate the world model." };
+  }
+  if (!getRoom(ctx.currentRoom, ctx)) {
+    return { prefix: "ERROR", code: "NOT_FOUND", text: `Room '${ctx.currentRoom}' not found.` };
+  }
+
+  const cues = new Set<string>();
+  for (const t of localCueThings(ctx)) {
+    if (t.scent) cues.add(`${t.scent} (from the ${bareName(t.name)})`);
+  }
+  for (const name of ctx.inventory) {
+    const t = ctx.world.things.get(name);
+    if (t?.scent) cues.add(`${t.scent} (carried)`);
+  }
+
+  if (cues.size === 0) return { prefix: "OK", text: "You smell nothing in particular." };
+  return { prefix: "OK", text: `You smell:\n${[...cues].join("\n")}` };
+}
+
+// REQ-319b — things whose sensory cues are perceptible from the current room:
+// room things, supporter contents, and contents of open containers.
+function localCueThings(ctx: ParserContext): WorldThing[] {
+  if (!ctx.currentRoom) return [];
+  const out: WorldThing[] = getRoomThings(ctx.currentRoom, ctx);
+  for (const [, thing] of ctx.world.things) {
+    if (!thing.location) continue;
+    const parent = ctx.world.things.get(thing.location.toLowerCase());
+    if (!parent || parent.location?.toLowerCase() !== ctx.currentRoom.toLowerCase()) continue;
+    if (thing.locationType === "supporter") out.push(thing);
+    else if (thing.locationType === "container" && parent.openable && parent.open) out.push(thing);
+  }
+  return out;
 }
 
 function handleTouch(target: string, ctx: ParserContext): ParserResult {
