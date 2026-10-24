@@ -187,6 +187,33 @@ async function main() {
     await kill(p);
   });
 
+  // ── T692: bundle integrity verification (REQ-096j) ──────────────────
+  await test("T692/REQ-096j: tampered and missigned bundles refuse under strict", async () => {
+    const p1 = await boot({ TTRPG_EXPORT_SIGNING_KEY: "secret-key" });
+    await call(p1, "manage_novel", { action: "create", name: "integrity" });
+    await call(p1, "set_badge", { badge: "game_master" });
+    const bundle = await call(p1, "manage_archive", { action: "export", format: "json" });
+    const parsed = JSON.parse(bundle);
+    assert(parsed.integrity?.signature?.value, "T692 signed export missing signature");
+    const tampered = JSON.parse(bundle);
+    tampered.novel.name = "tampered";
+    const dryStrict = await call(p1, "manage_archive", { action: "import", data: JSON.stringify(tampered), mode: "dry-run", strict: true });
+    assert(dryStrict.includes("\"isError\": false"), "T692 strict dry-run did not report isError:false");
+    assert(dryStrict.includes("integrity.payload_hash"), "T692 strict dry-run did not name payload_hash");
+    const strictRes = await call(p1, "manage_archive", { action: "import", data: JSON.stringify(tampered), mode: "replace", strict: true });
+    assert(strictRes.includes("[STATE_CONFLICT]"), "T692 strict import did not refuse");
+    const info = await call(p1, "manage_novel", { action: "info" });
+    assert(!info.includes("tampered"), "T692 state changed after a refused import");
+    const relaxed = await call(p1, "manage_archive", { action: "import", data: JSON.stringify(tampered), mode: "replace" });
+    assert(relaxed.includes("[integrity-mismatch]"), "T692 non-strict import did not warn");
+    await kill(p1);
+    const p2 = await boot({ TTRPG_EXPORT_SIGNING_KEY: "wrong-key" });
+    await call(p2, "manage_novel", { action: "create", name: "accept-target" });
+    const wrongKey = await call(p2, "manage_archive", { action: "import", data: bundle, mode: "replace" });
+    assert(wrongKey.includes("[integrity-mismatch]"), "T692 wrong signing key was not a mismatch: " + wrongKey.slice(0, 300));
+    await kill(p2);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

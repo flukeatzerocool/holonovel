@@ -163,6 +163,22 @@ async function main() {
       assertContains(dryrun, "valid manifest");
     });
 
+    await test("T691/REQ-096g/j: integrity envelope present and legacy bundle warns", async () => {
+      const exported = await call(proc, "manage_archive", { action: "export",  format: "json" });
+      const bundle = JSON.parse(exported);
+      assertContains(exported, "\"integrity\"");
+      for (const field of ["payload_hash", "state_hash", "event_log_hash"]) {
+        if (typeof bundle.integrity?.[field] !== "string") throw new Error(`T691 integrity missing ${field}`);
+      }
+      if (bundle.integrity.algorithm !== "sha256") throw new Error("T691 integrity algorithm is not sha256");
+      const clean = await call(proc, "manage_archive", { action: "import",  data: exported, mode: "dry-run" });
+      assertNotContains(clean, "[integrity-mismatch]");
+      const legacy = JSON.parse(exported);
+      delete legacy.integrity;
+      const legacyRes = await call(proc, "manage_archive", { action: "import",  data: JSON.stringify(legacy), mode: "dry-run" });
+      assertContains(legacyRes, "[integrity-absent]");
+    });
+
     await test("T100: replace-import round-trip restores world and entities", async () => {
       // Populate a novel with world model + NPC + countdown + lore.
       await call(proc, "manage_world", { action: "create_room",  name: "throne room", description: "A grand hall." });
@@ -208,6 +224,45 @@ async function main() {
       if (JSON.stringify(Object.keys(after.novel.countdowns).sort()) !== JSON.stringify(countdownsBefore)) {
         throw new Error("round-trip countdowns mismatch");
       }
+    });
+
+    await test("T694/REQ-096j: full-scope round-trip preserves state_hash", async () => {
+      const before = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
+      await call(proc, "manage_archive", { action: "import",  data: JSON.stringify(before), mode: "replace" });
+      const after = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json" }));
+      if (before.integrity.state_hash !== after.integrity.state_hash) {
+        throw new Error(`T694 state_hash drifted across round-trip: ${before.integrity.state_hash} -> ${after.integrity.state_hash}`);
+      }
+      if (before.integrity.payload_hash === after.integrity.payload_hash) {
+        throw new Error("T694 payload_hash did not change even though import appends audit entries");
+      }
+    });
+
+    await test("T693/REQ-096b: player scope omits GM-only tiers and imports safely", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_novel", { action: "create",  name: "player bundle" });
+      await call(proc, "manage_lore", { action: "set",  key: "gm-secret", content: "the butler did it", badge_scope: "game_master" });
+      await call(proc, "manage_lore", { action: "set",  key: "shared-fact", content: "the town is walled", badge_scope: "shared" });
+      await call(proc, "manage_note", { action: "set",  key: "gm-note", content: "hidden plan" });
+      await call(proc, "manage_npc", { action: "create",  name: "Spymaster", mind: { private_journal: ["secret thought"] } });
+      const playerBundle = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json", scope: "player" }));
+      const pn = playerBundle.novel;
+      for (const key of ["audit_log", "audit_archive", "gm_context", "secrets", "narrative_directive", "generated_adventure"]) {
+        if (key in pn) throw new Error(`T693 player scope leaked tier '${key}'`);
+      }
+      if (pn.lore?.["gm-secret"]) throw new Error("T693 player scope leaked GM-only lore");
+      if (!pn.lore?.["shared-fact"]) throw new Error("T693 player scope dropped shared lore");
+      if ((pn.notes ?? []).some((n: any) => n.badge_scope === "game_master")) throw new Error("T693 player scope leaked a GM-only note");
+      for (const npc of Object.values(pn.npcs ?? {}) as any[]) {
+        if (npc?.mind) throw new Error("T693 player scope leaked an NPC mind");
+      }
+      const merged = await call(proc, "manage_archive", { action: "import",  data: JSON.stringify(playerBundle), mode: "merge" });
+      assertContains(merged, "imported");
+      const replaced = await call(proc, "manage_archive", { action: "import",  data: JSON.stringify(playerBundle), mode: "replace" });
+      assertContains(replaced, "[player-scope-import]");
+      const strictReplace = await call(proc, "manage_archive", { action: "import",  data: JSON.stringify(playerBundle), mode: "replace", strict: true });
+      assertContains(strictReplace, "[STATE_CONFLICT]");
+      await call(proc, "manage_novel", { action: "switch",  slug: "renamed" });
     });
 
     await test("T78/T99/T093: metadata in spec_health lists Novels", async () => {

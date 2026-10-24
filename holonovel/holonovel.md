@@ -3439,10 +3439,10 @@ For a complete story package that includes lore alongside entities, NPCs, scene 
 **REQ-094c — Lorebook interchange (Part c).**
 Duplicate keys — entries whose key matches an existing lore entry — are skipped with a count reported in the operation result. Replace mode clears the lore tier before importing, producing a lore set consisting solely of the import data. Dry-run mode reports which entries would be added, which would be skipped as duplicates, and which would be overwritten (replace only), without modifying state.
 **REQ-096a — Novel interchange (Part a).**
-`manage_archive (action: export, format, scope?)` (Game Master only, format `json` or `markdown`, scope defaults to `full`) exports the active Novel's state in a self-contained interchange format per Appendix Q.
+`manage_archive (action: export, format, scope?)` (Game Master only, format `json` or `markdown`, scope defaults to `full`) exports the active Novel's state in a self-contained interchange format per Appendix Q. The `player` scope produces a player-safe bundle per REQ-096k.
 
 **REQ-096b — Novel interchange (Part b).**
-The `scope` parameter selects the payload. The `full` scope covers all state tiers, the audit log, snapshots, and checkpoints (if `include_checkpoints=true`). The `state_only` scope covers all tiers except the audit log and checkpoints. The `lore` scope covers the lore tier only. The `world_model` scope covers rooms, things, exits, and properties. The `npcs` scope covers NPCs with personality fields, and the `factions` scope covers factions with clock state. The `secrets` scope covers secrets with known-by status, and the `relationships` scope covers relationship objects. The `gm_context` scope covers pause/resume context, the `notes` scope covers key-value notes, and the `story_journal` scope covers story journal entries. The `scene_history` scope covers the scene-state ledger.
+The `scope` parameter selects the payload. `full` covers all state tiers, the audit log, snapshots, and checkpoints (if `include_checkpoints=true`); `state_only` covers all tiers except the audit log and checkpoints. `lore` covers the lore tier; `world_model` rooms, things, exits, and properties; `npcs` NPCs with personality; `factions` factions with clock state; `secrets` secrets with known-by status; `relationships` relationship objects; `gm_context` pause/resume context; `notes` key-value notes; `story_journal` journal entries; `scene_history` the scene-state ledger. `player` produces a player-safe bundle: GM-only tiers are omitted and GM-only fields are redacted from shared tiers (REQ-096k).
 
 **REQ-096c — Novel interchange (Part c).**
 No dedicated `synthesis` scope — Ruleset Wisdom activation keys export as part of `full` scope in the manifest's `synthesis_activation` field; synthesis items export as the `synthesis` key in `full` scope (per Appendix Q). Each scope outputs Appendix Q schema with omitted keys for excluded tiers. Single scope per call. `manage_archive (action: import, data, mode, strict?)` (Game Master only, mode `dry-run`, `replace`, or `merge`, strict defaults to `false`) imports a previously exported Novel. `dry-run` reports what would change without side effects. `replace` replaces the active Novel's state with the import data.
@@ -3457,10 +3457,10 @@ On import, the server SHALL additionally validate two conditions. Condition (i):
 Tier 2 stale items and Tier 1 orphan items are imported inert (inactive). Module toggle state that references absent synthesis modules produces a warning. When `strict` is `true`, any staleness or orphan synthesis items also block the import. `dry-run` reports all validation failures with each item's path. In `replace` and `merge` modes, failures surface as `[WARNING]` with enumerated items but import proceeds. For one interchange-format version, the legacy `"dm_context"` scope string is accepted and aliased to `gm_context` on import.
 
 **REQ-096f — Novel interchange (Part f).**
-When `strict` is `true`, any validation failure blocks the import. The import returns `[ERROR] [STATE_CONFLICT]` for `replace` or `merge` modes, with the failure list in the error body. The `dry-run` mode produces a failure report with `isError: false`. The `merge` mode adds entities and NPCs from the import to the active Novel, skipping duplicates by entity or NPC ID. Player badge attempts return `[ERROR] [FORBIDDEN]`. A round-trip of export, import, and export produces identical output (full scope, same format).
+When `strict` is `true`, any validation failure blocks the import. The import returns `[ERROR] [STATE_CONFLICT]` for `replace` or `merge` modes, with the failure list in the error body. The `dry-run` mode produces a failure report with `isError: false`. The `merge` mode adds entities and NPCs from the import to the active Novel, skipping duplicates by entity or NPC ID. Player badge attempts return `[ERROR] [FORBIDDEN]`. A round-trip of export, import, and export preserves `state_hash` (full scope, same format), with audit and metadata bookkeeping excluded.
 
 **REQ-096g — Novel interchange (Part g).**
-The export SHALL include a `manifest` object containing these fields. The `novel_format_version` field (defined in REQ-092) and `server_spec_version` field (CalVer from DECISIONS.md) describe the format and server. The `ruleset_hash` field stores the SHA-256 of the source ruleset. The `builder_implementation` field names the builder and version. The `adventure_module_slugs` field lists module slugs active at export time. The `adventures_embedded` field is true when adventures are embedded. The `property_groups_present` field lists populated tier names. The `waiver_dependent_mechanics` field lists mechanic names that depend on REQ-013 waivers recorded in DECISIONS.md.
+The export SHALL include a `manifest` object containing these fields. The `novel_format_version` field (defined in REQ-092) and `server_spec_version` field (CalVer from DECISIONS.md) describe the format and server. The `ruleset_hash` field stores the SHA-256 of the source ruleset. The `builder_implementation` field names the builder and version. The `adventure_module_slugs` field lists module slugs active at export time. The `adventures_embedded` field is true when adventures are embedded. The `property_groups_present` field lists populated tier names, and the `scope` field records the export scope. The `waiver_dependent_mechanics` field lists mechanic names that depend on REQ-013 waivers recorded in DECISIONS.md.
 
 **REQ-096h — Novel interchange (Part h).**
 The manifest is advisory — `manage_archive (action: import)` surfaces mismatches as warnings but does not block import. The `manage_archive (action: export)` tool SHALL embed loaded adventure module content inline in the `adventure` key when `TTRPG_EXPORT_EMBED_ADVENTURES` is `true` (default `false`). When `false`, the export's `manifest.adventure_module_slugs` field records which adventure modules were active at export time, but their content is not embedded. The import target SHALL hold those modules indexed to restore adventure content.
@@ -3469,7 +3469,13 @@ The manifest is advisory — `manage_archive (action: import)` surfaces mismatch
 Adventure modules embedded inline SHALL include their prose content (all narrative sections per REQ-079) and world-model assertions (`## World` section). Embedded content carries the module's build-time content hash for integrity verification on import. The server SHALL record `TTRPG_EXPORT_EMBED_ADVENTURES` in the Novel's build fingerprint as part of the Build workflow's Advanced questions (B9 area).
 
 **REQ-096i2 — Novel interchange (Part i2).**
-*Acceptance criterion:* `manage_archive (action: export, "json")` → `manage_archive (action: import, data, "dry-run")` reports changes without side effects; `manage_archive (action: import, data, "replace")` restores the exported state; round-trip is byte-identical; `manage_archive (action: export, "json", "lore")` produces a payload with only the lore tier present; `manage_archive (action: import) (data, "dry-run", strict=true)` with broken references reports all failures and blocks import; `manage_archive (action: export, "json")` includes a `manifest` object with all declared fields present. _Check:_ T100, T281.
+*Acceptance criterion:* `manage_archive (action: export, "json")` → `manage_archive (action: import, data, "dry-run")` reports changes without side effects; `manage_archive (action: import, data, "replace")` restores the exported state; round-trip preserves `state_hash`; `manage_archive (action: export, "json", "lore")` produces a payload with only the lore tier present; `manage_archive (action: import) (data, "dry-run", strict=true)` with broken references reports all failures and blocks import; `manage_archive (action: export, "json")` includes a `manifest` object with all declared fields present. _Check:_ T100, T281.
+**REQ-096j — Novel interchange (Part j).**
+The `manage_archive (action: export)` JSON payload SHALL include an `integrity` object with `algorithm`, `payload_hash`, `state_hash`, `event_log_hash`, and `format_version`. The hashes are SHA-256 over the canonical serialized payload excluding `integrity`, over the Novel state excluding `audit_log`, `audit_archive`, `undo_stacks`, `redo_stacks`, `checkpoints`, and `metadata`, and over the ordered audit entries' timestamp, tool, args, and hash. When `TTRPG_EXPORT_SIGNING_KEY` is set, the object also carries an `hmac-sha256` signature over the three hashes. Markdown export carries no integrity object. *Acceptance criterion:* every JSON export carries the object; the same payload hashes identically across two exports; a changed payload changes `payload_hash`. _Check:_ T691, T694.
+**REQ-096k — Novel interchange (Part k).**
+The `player` scope produces a player-safe JSON bundle without mutating the Novel. It omits the GM-only property groups classified in §7.7.1, plus audit, snapshot, and checkpoint bookkeeping, and redacts GM-only fields from shared tiers (REQ-075f, REQ-234, REQ-242, REQ-265). It filters belief and perception records to player entities and clears adventure-index premise, hooks, and generated adventures. `replace` imports of a player bundle surface `[WARNING] [player-scope-import]`; under `strict` they return `[ERROR] [STATE_CONFLICT]`. *Acceptance criterion:* the bundle carries no GM-only tier or lore, note, or NPC mind; `merge` imports it; `replace` warns. _Check:_ T693.
+**REQ-096l — Novel interchange (Part l).**
+On import, the server SHALL verify `integrity` before reference validation or mutation. A missing envelope is accepted with `[WARNING] [integrity-absent]` in both modes. A hash or signature mismatch surfaces `[WARNING] [integrity-mismatch]` by default and returns `[ERROR] [STATE_CONFLICT]` when `strict` is true, with no mutation; a signed bundle imported without a configured key warns `[signature-unverified]`. `dry-run` reports integrity failures with `isError: false`. Hashes are recomputed from the parsed payload, not the raw input string. *Acceptance criterion:* a clean bundle verifies, a legacy bundle warns, and a tampered bundle refuses under `strict` without changing state. _Check:_ T691, T692.
 **REQ-097a1 — Novel health (Part a1).**
 `spec_health` SHALL report many fields for the active Novel. The report lists the NPC count, lore entry count, audit log entry count, story journal entry count, story journal total characters (on-disk byte count), snapshot stack depth, on-disk file size in bytes, the `synthesis_gap_count`, and a `healthy` flag. A configured `TTRPG_MAX_NPCS` reached by the NPC count triggers a warning; likewise `TTRPG_MAX_LORE_ENTRIES`, `TTRPG_MAX_SNAPSHOT_DEPTH`, and a 4 MB file-size ceiling. The `synthesis_gap_count` counts activated Tier 1 keys that no longer resolve against the current build's extraction, surfaced as `[synthesis-gap]` entries per REQ-080. The `healthy` flag is false if any warning is active.
 
@@ -6958,6 +6964,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NOVEL_COMPRESS` | No | `true` to gzip the serialized Novel JSON on disk (REQ-092) |
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_archive (action: export)` output (default `false`; REQ-096h) |
+| `TTRPG_EXPORT_SIGNING_KEY` | No | Local HMAC-SHA256 key used to sign the export `integrity` envelope; absent means hash-only bundles (REQ-096j). Storage. |
 | `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
 | `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
 | `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
@@ -9522,6 +9529,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-096h | Novel interchange (Part h) | 2026-08-11 |
 | REQ-096i1 | Novel interchange (Part i1) | 2026-08-11 |
 | REQ-096i2 | Novel interchange (Part i2) | 2026-08-11 |
+| REQ-096j | Novel interchange (Part j) | 2026-10-24 |
+| REQ-096k | Novel interchange (Part k) | 2026-10-24 |
+| REQ-096l | Novel interchange (Part l) | 2026-10-24 |
 | REQ-097a1 | Novel health (Part a1) | 2026-08-11 |
 | REQ-097a2 | Novel health (Part a2) | 2026-08-11 |
 | REQ-097b | Novel health (Part b) | 2026-08-11 |
@@ -10680,6 +10690,10 @@ diet.
 | T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
 | T689 | Automated | Unified Update entry point: dry-run a stale package with a recorded emitter and assert it is planned and nothing is written; apply and assert the emitter runs, the registry advances, and a slug with no recorded emitter is deferred by name; assert the data tier runs in the same invocation. | REQ-395c |
 | T690 | Automated | Per-entity attribution of discovered consequences: create two player entities, leave the active entity absent and the second present when an on-scene-transition countdown fires; assert the absent entity's `knowledge_state` includes the `[discovered]` entry, the present entity's does not, and the absent entity retains it after the active entity is switched and across a process restart. | REQ-349, REQ-340, REQ-308 |
+| T691 | Automated | Bundle integrity envelope: export JSON and assert `integrity` carries `algorithm`, `payload_hash`, `state_hash`, `event_log_hash`, and `format_version`; a clean bundle verifies by dry-run; a bundle with the envelope removed imports with `[WARNING] [integrity-absent]`. | REQ-096j, REQ-096l |
+| T692 | Automated | Tamper refusal: sign an export with a key, tamper the payload, and assert a strict dry-run reports `isError: false` with the failing hash; a strict replace returns `[ERROR] [STATE_CONFLICT]` with state unchanged; non-strict import warns `[integrity-mismatch]`; a wrong key is a mismatch. | REQ-096l |
+| T693 | Automated | Player-safe export: export `scope: player` and assert GM-only tiers (audit log, gm_context, secrets, narrative directive), `game_master` lore/notes, and NPC minds are absent while shared lore survives; `merge` imports it; `replace` warns `[player-scope-import]`, and strict blocks it. | REQ-096b, REQ-096k |
+| T694 | Automated | Round-trip state hash: export full scope, replace-import, and re-export; assert `state_hash` is equal while `payload_hash` changes only by the documented audit/metadata drift; a signed export verifies with the configured key. | REQ-096j, REQ-096l |
 
 ---
 
@@ -11997,6 +12011,7 @@ formats._
 | ------------------ | --------------------------------------------------------------- |
 | `format_version`   | Integer — the Novel format version at time of export (REQ-092). The on-disk Novel field and the `manifest` field name this same value `novel_format_version`.   |
 | `manifest`         | Portability metadata object (see below)                           |
+| `integrity`        | Bundle integrity object (REQ-096j)                                |
 | `novel_metadata`   | slug, name, created_at, last_modified_at, spec_version            |
 | `entities`         | Array of entity objects with all mechanical and narrative fields  |
 | `npcs`             | Array of NPC objects with all fields                             |
@@ -12019,8 +12034,13 @@ The `manifest` object SHALL contain: `novel_format_version` (integer),
 `server_spec_version` (spec CalVer string), `ruleset_hash` (SHA-256 hex string),
 `builder_implementation` (object with `name` and `version` strings),
 `adventure_module_slugs` (array of strings), `adventures_embedded` (boolean),
-`property_groups_present` (array of populated tier name strings), and
-`waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md).
+`property_groups_present` (array of populated tier name strings),
+`waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md),
+and `scope` (the export scope string).
+
+The `integrity` object SHALL contain `algorithm`, `payload_hash`, `state_hash`,
+`event_log_hash`, and `format_version`; when `TTRPG_EXPORT_SIGNING_KEY` is set it
+also carries an `hmac-sha256` `signature` object. Markdown exports omit it.
 
 **Markdown format.** HTML-comment-annotated sections following the same key structure
 as the JSON format. Each section begins with `<!-- @section <key> -->` and contains
@@ -12028,11 +12048,11 @@ the section's data in a human-readable Markdown representation. Sections with em
 arrays or null values are omitted.
 
 **Round-trip fidelity.** `manage_archive (action: export, format)` → `manage_archive (action: import, data, mode)` →
-`manage_archive (action: export, format)` produces identical output for the same format. The builder
+`manage_archive (action: export, format)` preserves `integrity.state_hash` for the same format. The builder
 determines the exact schema and serialization; the convergence loop enforces
 round-trip fidelity as a verification check.
 
-_Verify with:_ T100.
+_Verify with:_ T100, T694.
 
 ---
 

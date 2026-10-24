@@ -698,6 +698,8 @@ function worldFromJSON(data: any): WorldModel {
         climbable: t.climbable ?? false,
         transparent: t.transparent ?? false,
         key: t.key,
+        noise: t.noise ?? null,
+        scent: t.scent ?? null,
         annotations: t.annotations || {},
       });
     }

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-24 — Portable bundle integrity and player-safe export
+
+- JSON exports now carry an `integrity` envelope: SHA-256 `payload_hash`,
+  `state_hash` over portable Novel state (excluding audit, snapshot, checkpoint,
+  and metadata bookkeeping), and `event_log_hash` over the ordered audit chain.
+  With `TTRPG_EXPORT_SIGNING_KEY` set, an HMAC-SHA256 signature covers the three
+  hashes (REQ-096g/j; T691, T694).
+- Import verifies the envelope before reference validation or mutation. A clean
+  bundle passes, a legacy bundle imports with `[integrity-absent]`, and a hash or
+  signature mismatch warns by default or refuses with `[STATE_CONFLICT]` under
+  `strict`; strict dry-run reports with `isError: false` (REQ-096l; T692).
+- Added `manage_archive (action: export, scope: player)`: omits GM-only tiers
+  and bookkeeping, drops `game_master` lore/notes, strips NPC minds, filters
+  belief/perception records to player entities, and clears adventure-index
+  premise/hooks. `replace` warns and strict blocks a player-bundle replace
+  (REQ-096b/k; T693).
+- Amended REQ-096a/b/f/g and added REQ-096j/k/l; recorded `scope` in the manifest,
+  added `TTRPG_EXPORT_SIGNING_KEY` to §7.6, and extended Appendix Q, Appendix A/F,
+  and the coverage register.
+- Fixed world-model deserialization to carry the `noise` and `scent` properties,
+  which the sensory-parser change added to `WorldThing` but not to the loader.
+
 ## 2026-10-24 — Sensory parser cues
 
 - `listen` and `smell` now report modeled sensory cues instead of fixed
