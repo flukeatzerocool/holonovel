@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-24 — Discovered consequences attributed per entity
+
+- `fireCountdown` now records the player entities absent at fire in the story
+  journal entry's `entity_ids`, and `composeKnowledgeState` surfaces a
+  `[discovered]` consequence only to those entities, so a character no longer
+  "knows" an event it never witnessed (REQ-349b, REQ-308). Legacy unattributed
+  entries fail closed for `knowledge_state`; the GM story journal still shows
+  them.
+- Added T690 (two-entity attribution) to `holonovel/scripts/test-narrative.ts`
+  and Appendix F, and refreshed the coverage register.
+
 ## 2026-10-22 — TDQS description pass: parameter semantics, mutation disclosure, and undo fixes
 
 - Rewrote 21 host tool descriptions against the published Glama TDQS feedback:

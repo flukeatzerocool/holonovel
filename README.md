@@ -389,4 +389,4 @@ Ironsworn: Starforged SRD (CC BY 4.0, Shawn Tomkin), Sly Flourish Lazy GM Resour
 Document (CC BY 4.0, Mike Shea), The Alexandrian (CC BY 4.0, Justin Alexander),
 Dungeon World SRD (CC BY 3.0, Sage LaTorra and Adam Koebel), Fate SRD (CC BY 3.0,
 Evil Hat Productions), Ironsworn SRD (CC BY 4.0, Shawn Tomkin).
-[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-22.
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-24.

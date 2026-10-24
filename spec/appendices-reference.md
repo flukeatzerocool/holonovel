@@ -2010,6 +2010,7 @@ diet.
 | T687 | Automated | Stable catalog prefix: assert two invocations with unchanged registration, badge, and scope return byte-identical catalogs and the same reported prefix length; assert a registration change alters the prefix and updates the report. | REQ-587 |
 | T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
 | T689 | Automated | Unified Update entry point: dry-run a stale package with a recorded emitter and assert it is planned and nothing is written; apply and assert the emitter runs, the registry advances, and a slug with no recorded emitter is deferred by name; assert the data tier runs in the same invocation. | REQ-395c |
+| T690 | Automated | Per-entity attribution of discovered consequences: create two player entities, leave the active entity absent and the second present when an on-scene-transition countdown fires; assert the absent entity's `knowledge_state` includes the `[discovered]` entry, the present entity's does not, and the absent entity retains it after the active entity is switched and across a process restart. | REQ-349, REQ-340, REQ-308 |
 
 ---
 

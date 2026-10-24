@@ -110,7 +110,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.22",
+  version: "2026.10.24",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -537,8 +537,11 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
     if (triggered && present) lines.push(`Lore: [${entry.key}] ${entry.content}`);
   }
 
-  // Discovered consequences (REQ-340/349): [discovered] entries populate knowledge.
-  const discovered = novel.story_journal.filter((s) => s.type === "consequence" && s.discovered);
+  // Discovered consequences (REQ-340/349): [discovered] entries populate knowledge
+  // only for the entities recorded as discoverers. Legacy entries with no
+  // attribution fail closed; the GM story-journal surface still shows them.
+  const discovered = novel.story_journal.filter((s) =>
+    s.type === "consequence" && s.discovered && Array.isArray(s.entity_ids) && s.entity_ids.includes(activeId));
   for (const s of discovered) lines.push(`[discovered] ${s.entry}`);
 
   // REQ-345 — background knowledge directive when entity has a background.
@@ -4111,6 +4114,14 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
   const presentIds = new Set(novel.characters_present_ids ?? []);
   const activeId = novel.active_entity_id;
   const absent = activeId && !presentIds.has(activeId);
+  // REQ-349b — attribute discovery to every player entity absent at fire so
+  // knowledge surfaces only for entities that were not there to witness it.
+  // An unconfigured presence list keeps the pre-attribution behavior.
+  const discoverers = absent
+    ? (presentIds.size > 0
+        ? [...novel.entities.keys()].filter((id) => !presentIds.has(id))
+        : (activeId ? [activeId] : []))
+    : [];
   novel.countdowns.delete(name);
   // REQ-368 — countdown-world effect coupling: apply the effect immediately
   // after removal; a missing target records a [WARNING] but the countdown
@@ -4125,12 +4136,12 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
     type: "consequence",
     entry: `Countdown "${name}" fired: ${cd.direction ?? "consequence reached"}.`,
     scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
-    entity_ids: [],
+    entity_ids: discoverers,
     timestamp: new Date().toISOString(),
   };
-  if (absent) entry.discovered = true;
+  if (discoverers.length > 0) entry.discovered = true;
   novel.story_journal.push(entry);
-  audit("countdown_expired", { name, discovered: absent });
+  audit("countdown_expired", { name, discovered: discoverers.length > 0 });
 }
 
 // REQ-368 — apply a countdown world_effect (describe/property/exit) with undo

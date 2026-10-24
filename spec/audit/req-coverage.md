@@ -274,7 +274,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-305 | Observer mode (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T349, T417, S6 | — |
 | REQ-306 | Adjustable autonomy (Part a) (7 sub-parts) | 5.5 Badges and Access | C | T483, T484, T485, S22 | — |
 | REQ-307 | Entity presence (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T351, T356, S17 | — |
-| REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356 | — |
+| REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356, T690 | — |
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353, T643 | — |
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T355 | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
@@ -306,7 +306,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-337 | Narrative arc visibility (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T387, T402 | implemented |
 | REQ-338 | Faction autonomous advancement (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T388, T401 | implemented |
 | REQ-339 | NPC goal pursuit (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T389, T401, T514 | implemented |
-| REQ-340 | Discovered consequences (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T390, T399 | implemented |
+| REQ-340 | Discovered consequences (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T390, T399, T690 | implemented |
 | REQ-341 | Player-facing spatial surface (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T391 | implemented |
 | REQ-342 | Scene description from world-model state (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T392 | implemented |
 | REQ-343 | Unified intent resolution (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T393 | implemented |
@@ -315,7 +315,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-346 | Narrative coherence attestation (Part a1) (3 sub-parts) | 5.12 Narrative Architecture | C | T396, T403 | implemented |
 | REQ-347 | Voice feedback codex capture (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T397 | implemented |
 | REQ-348 | Faction-NPC goal coordination (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T398 | implemented |
-| REQ-349 | Consequence-to-knowledge coupling (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T399 | implemented |
+| REQ-349 | Consequence-to-knowledge coupling (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T399, T690 | implemented |
 | REQ-350 | Background lore triggering (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T400 | implemented |
 | REQ-351 | Pacing-triggered autonomy (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T401 | implemented |
 | REQ-352 | Codex adventure beat sequences (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T402 | implemented |
