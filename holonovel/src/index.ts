@@ -762,6 +762,172 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
   return section;
 }
 
+// REQ-598 — narrator clearance follows the AI's narrative role (REQ-304), not
+// the human's badge. Under the counterpart setting the two diverge: the human
+// may wear the Game Master badge while the AI inhabits a Player character, and
+// the reverse. Clearance keyed to the badge would leak GM-only facts into the
+// Player-role narrator's context.
+type NarrativeRole = "game_master" | "player";
+
+function narrativeRole(novel: NovelState): NarrativeRole | null {
+  const setting = (process.env.TTRPG_AI_ROLE ?? "counterpart").toLowerCase();
+  if (setting === "game_master" || setting === "player") return setting;
+  if (novel.badge === "none") return null;
+  return novel.badge === "game_master" ? "player" : "game_master";
+}
+
+// REQ-599 — visibility mode. An unknown value falls back to advisory once.
+let visibilityModeWarned = false;
+function narratorVisibilityMode(): "strict" | "advisory" {
+  const raw = (process.env.TTRPG_NARRATOR_VISIBILITY ?? "advisory").toLowerCase();
+  if (raw === "strict" || raw === "advisory") return raw;
+  if (!visibilityModeWarned) {
+    visibilityModeWarned = true;
+    process.stderr.write(`[holonovel] unknown TTRPG_NARRATOR_VISIBILITY '${raw}'; using advisory\n`);
+  }
+  return "advisory";
+}
+
+interface ClearedFacts {
+  role: NarrativeRole;
+  audience: Badge;
+  pov: { entity_id: string | null; entity_name: string | null; mode: "character" | "omniscient" };
+  scene: string;
+  knowledge: string;
+  npcs: Array<Record<string, any>>;
+  gm_only: string[];
+}
+
+// REQ-598 — derive narration facts from the existing knowledge-state composer
+// (REQ-286) and NPC mind stripper (REQ-075f). Only the role gate is new; no
+// parallel knowledge system is introduced.
+function composeClearedFacts(novel: NovelState, role: NarrativeRole): ClearedFacts {
+  const entity = state.getActiveEntity();
+  const isGM = role === "game_master";
+  const knowledge = composeKnowledgeState(novel, entity, isGM ? "game_master" : "player");
+  const npcs = [...novel.npcs.values()].map((npc) => sanitizeNpcForBadge(npc, isGM));
+  const gm_only: string[] = [];
+  if (isGM) {
+    for (const s of novel.secrets) gm_only.push(`Secret: ${s.key} — ${s.content}`);
+    for (const [, entry] of novel.lore) {
+      if (entry.enabled && entry.badge_scope === "game_master") gm_only.push(`Lore: [${entry.key}] ${entry.content}`);
+    }
+    for (const note of novel.notes) {
+      if (note.badge_scope === "game_master") gm_only.push(`Note: [${note.key}] ${note.content}`);
+    }
+    for (const [, npc] of novel.npcs) {
+      if (npc.mind) gm_only.push(`NPC mind (${npc.name}): ${JSON.stringify(npc.mind)}`);
+    }
+  }
+  return {
+    role,
+    audience: novel.badge,
+    pov: { entity_id: entity?.id ?? null, entity_name: entity?.name ?? null, mode: novel.pov_mode },
+    scene: novel.scene_description ?? "",
+    knowledge,
+    npcs,
+    gm_only,
+  };
+}
+
+// REQ-598 — the narrator prompt. `badge_briefing` stays the human-badge
+// briefing (REQ-220/286); this surface is role-scoped.
+function composeNarrationClearance(novel: NovelState, role: NarrativeRole): string {
+  const facts = composeClearedFacts(novel, role);
+  const lines: string[] = [
+    `## Narration clearance`,
+    `**Narrative role:** ${role === "game_master" ? "Game Master" : "Player"}`,
+    `**Audience:** ${badgeLabel(facts.audience)}`,
+    `**Scene:** ${facts.scene || "[no scene set]"}`,
+    `### Point of view`,
+    facts.pov.mode === "character" && facts.pov.entity_name
+      ? `Describe the scene through ${facts.pov.entity_name}'s eyes — what they see, hear, and feel.`
+      : "POV: none — narration is omniscient.",
+    `### Cleared knowledge`,
+    facts.knowledge.trim() || "[No known information.]",
+  ];
+  if (facts.npcs.length > 0) {
+    lines.push(`### Present characters`);
+    for (const npc of facts.npcs) {
+      const desc = npc.description ? ` — ${npc.description}` : "";
+      lines.push(`- ${npc.name}${npc.disposition ? ` (${npc.disposition})` : ""}${desc}`);
+    }
+  }
+  if (role === "game_master" && facts.gm_only.length > 0) {
+    lines.push(`### GM-only facts`);
+    lines.push(...facts.gm_only);
+  }
+  lines.push(`### Narration instruction`);
+  lines.push(`Narrate only from the cleared facts above. Do not state, hint at, or imply anything absent from them. Before emitting prose for a Player or Observer audience, call manage_diagnostics (action: visibility_check, text: "<draft>") and use the returned text.`);
+  return applyPromptBudget(lines.join("\n"));
+}
+
+// REQ-599 — verbatim visibility scan. Only exact key or content disclosure is
+// matched; paraphrase and implication are out of scope. Common-noun keys are
+// suppressed so a generic key such as "trap" does not redact ordinary prose.
+const VISIBILITY_KEY_ALLOWLIST = new Set([
+  "trap", "door", "key", "secret", "treasure", "gold", "map", "clue",
+  "tower", "dragon", "murder", "room", "chest", "guard", "king", "queen",
+]);
+
+function escapeRegExpLiteral(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function visibilityAudienceScans(audience: Badge): boolean {
+  return audience === "player" || audience === "observer";
+}
+
+interface VisibilityTarget { kind: string; phrase: string; key: boolean }
+
+function collectVisibilityTargets(novel: NovelState): VisibilityTarget[] {
+  const targets: VisibilityTarget[] = [];
+  const activeId = state.getActiveEntity()?.id;
+  for (const s of novel.secrets) {
+    if (s.badge_scope !== "game_master") continue;
+    // A secret already revealed to the active entity is legitimately visible
+    // through the knowledge-state section (REQ-286), so it is not a leak.
+    if (activeId && s.known_by.includes(activeId)) continue;
+    targets.push({ kind: "secret key", phrase: s.key, key: true });
+    targets.push({ kind: "secret content", phrase: s.content, key: false });
+  }
+  for (const [, entry] of novel.lore) {
+    if (!entry.enabled || entry.badge_scope !== "game_master") continue;
+    targets.push({ kind: "GM-only lore key", phrase: entry.key, key: true });
+    targets.push({ kind: "GM-only lore content", phrase: entry.content, key: false });
+  }
+  for (const note of novel.notes) {
+    if (note.badge_scope !== "game_master") continue;
+    targets.push({ kind: "GM-only note key", phrase: note.key, key: true });
+    targets.push({ kind: "GM-only note content", phrase: note.content, key: false });
+  }
+  for (const [, npc] of novel.npcs) {
+    const directive = (npc as any)?.mind?.directive;
+    if (typeof directive === "string" && directive.length > 0) targets.push({ kind: "NPC mind directive", phrase: directive, key: false });
+  }
+  return targets;
+}
+
+function scanDraft(draft: string, targets: VisibilityTarget[]): { text: string; kinds: string[] } {
+  let text = draft;
+  const kinds: string[] = [];
+  for (const target of targets) {
+    const phrase = (target.phrase ?? "").trim();
+    if (phrase.length < 4) continue;
+    if (target.key && VISIBILITY_KEY_ALLOWLIST.has(phrase.toLowerCase())) continue;
+    if (!target.key && phrase.length < 12) continue;
+    const escaped = escapeRegExpLiteral(phrase);
+    const pattern = target.key
+      ? new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "giu")
+      : new RegExp(escaped, "gi");
+    if (!pattern.test(text)) continue;
+    pattern.lastIndex = 0;
+    kinds.push(target.kind);
+    text = text.replace(pattern, "[redacted]");
+  }
+  return { text, kinds };
+}
+
 // ── Helpers ────────────────────────────────────────────────────────
 // Badge gating and snapshot helpers provided by core/server.ts
 
@@ -7563,7 +7729,7 @@ const handlePerceptionActions = async (args: any) => {
 };
 
 const MANAGE_SESSION_SCHEMA = {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), or history (read the event log)."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history", "visibility_check", "visibility_audit"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), history (read the event log), visibility_check (scan a draft for GM-only disclosure), or visibility_audit (recent visibility decisions)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress)."),
@@ -7582,6 +7748,7 @@ const MANAGE_SESSION_SCHEMA = {
     ordinals: z.array(z.number()).optional().describe("Exact event ordinals to return in order (history; REQ-591)."),
     through_ordinal: z.number().optional().describe("Return events up to and including this ordinal (history)."),
     include_superseded: z.boolean().optional().describe("Include superseded events (history; default true)."),
+    audience: z.enum(["player", "game_master", "observer", "none"]).optional().describe("Audience badge for a visibility check (visibility_check; default the active badge)."),
   };
 
 server.registerTool("manage_session", {
@@ -7838,21 +8005,57 @@ Options: yes, cancel`);
       for (const t of topics) subscribedTopics.add(t);
       return ok(`Subscribed to notification topics: ${topics.join(", ") || "(none)"}. Subscriptions are session-scoped and drop on disconnect.`);
     }
+    // REQ-599 — draft visibility scan, audience-keyed. The server never
+    // receives generated prose, so this is a callable check the narrator runs
+    // on a draft rather than an automatic post-generation filter.
+    case "visibility_check": {
+      const novel = requireNovel();
+      const audience: Badge = (args.audience as Badge | undefined) ?? novel.badge;
+      const draft = args.text;
+      if (typeof draft !== "string" || draft.length === 0) return err("INVALID_INPUT", "text is required for visibility_check.");
+      const mode = narratorVisibilityMode();
+      if (!visibilityAudienceScans(audience)) {
+        audit("visibility-check", { audience, mode, flagged: 0 });
+        state.saveNovel(novel);
+        return ok(`No scan needed for a ${badgeLabel(audience)} audience; draft unchanged.\n\n${draft}`);
+      }
+      const { text, kinds } = scanDraft(draft, collectVisibilityTargets(novel));
+      const flagged = kinds.length;
+      const refused = mode === "strict" && flagged > 0;
+      audit(refused ? "visibility-refused" : "visibility-check", { audience, mode, flagged, kinds: [...new Set(kinds)] });
+      state.saveNovel(novel);
+      if (refused) {
+        return err("RULE_VIOLATION", `Draft discloses ${flagged} GM-only item(s) to a ${badgeLabel(audience)} audience.`, "Remove or paraphrase the flagged content, or change the audience.");
+      }
+      if (flagged === 0) return ok(`No GM-only disclosure detected for a ${badgeLabel(audience)} audience.\n\n${text}`);
+      return ok(`[visibility] Redacted ${flagged} GM-only disclosure(s) for a ${badgeLabel(audience)} audience.\n\n${text}`);
+    }
+    // REQ-600 — visibility decisions are already recorded in the existing audit
+    // log; this surface reads them without introducing a new property group.
+    case "visibility_audit": {
+      const novel = requireNovel();
+      const limit = args.max_entries ?? 20;
+      if (!Number.isInteger(limit) || limit <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+      const entries = novel.audit_log.filter((e) => e.tool === "visibility-check" || e.tool === "visibility-refused").slice(-limit);
+      if (entries.length === 0) return ok("No visibility decisions recorded.");
+      const lines = entries.map((e) => `${e.timestamp} [${e.badge}] ${e.tool} ${e.args}`);
+      return ok(`Visibility decisions (${entries.length}):\n${lines.join("\n")}`);
+    }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history.`);
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history, visibility_check, visibility_audit.`);
   }
 });
 
 // REQ-413 / REQ-581 — split the maintenance actions out of `manage_session`.
 // The original name stays callable for one minor version (REQ-581); the split
 // tool exposes only the diagnostics subset and delegates to the same handler.
-const DIAGNOSTICS_ACTIONS = ["health", "compress", "compact", "subscribe", "category", "event", "history"] as const;
+const DIAGNOSTICS_ACTIONS = ["health", "compress", "compact", "subscribe", "category", "event", "history", "visibility_check", "visibility_audit"] as const;
 server.registerTool("manage_diagnostics", {
   title: "Session Diagnostics",
-  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), or appending and reading the Novel event log (event, history). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, and history are read-only.",
+  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
   inputSchema: {
     ...MANAGE_SESSION_SCHEMA,
-    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, compress, compact, subscribe, category, event, or history."),
+    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, compress, compact, subscribe, category, event, history, visibility_check, or visibility_audit."),
   },
 }, async (args: any, extra: any) => {
   const target = (server as any)._registeredTools?.["manage_session"];
@@ -11483,6 +11686,21 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
   briefing += `\n\n**Briefing consistency:** events through #${bc.through_ordinal}; index ${bc.index}; graph ${bc.graph}.${bc.advisory ? ` ${bc.advisory}` : ""}`;
 
   return { messages: [{ role: "user", content: { type: "text" as const, text: briefing } }] };
+});
+
+server.prompt("narrate", "Narration Clearance", async () => {
+  // REQ-598 — role-scoped narrator surface. Clearance follows the AI narrative
+  // role (REQ-304), not the human badge; badge_briefing remains the human's
+  // operational briefing.
+  const novel = state.activeNovel;
+  if (!novel) {
+    return { messages: [{ role: "user", content: { type: "text" as const, text: "## Narration clearance\nNo active Novel — create or resume one before narrating." } }] };
+  }
+  const role = narrativeRole(novel);
+  if (!role) {
+    return { messages: [{ role: "user", content: { type: "text" as const, text: "## Narration clearance\nUnder the Editor badge there is no narrative role. Switch to the Player, Game Master, or Observer badge to narrate." } }] };
+  }
+  return { messages: [{ role: "user", content: { type: "text" as const, text: composeNarrationClearance(novel, role) } }] };
 });
 
 server.prompt("session_zero", "Session Zero Setup", async () => {

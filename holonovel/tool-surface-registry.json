@@ -4505,6 +4505,82 @@
       "preconditions": [],
       "successors": [],
       "edges": []
+    },
+    "manage_diagnostics.visibility_check": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_diagnostics.visibility_audit": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_session.visibility_check": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_diagnostics.visibility_check",
+        "retired": true
+      }
+    },
+    "manage_session.visibility_audit": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_diagnostics.visibility_audit",
+        "retired": true
+      }
     }
   }
 }

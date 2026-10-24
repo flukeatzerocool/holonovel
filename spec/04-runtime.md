@@ -110,7 +110,7 @@ DECISIONS.md.
 | Naming | `snake_case`, ruleset terminology, one verb per category — every tool in a related operation set shares the same verb prefix (e.g., all dice-resolution tools use `roll_`, all state-setting tools use `set_`). When the ruleset uses an abbreviated term (e.g., "save" for "saving throw"), the tool name SHALL use the ruleset's most common form of that term. Display titles are human-readable expansions. | REQ-020, REQ-024 |
 | Verbs | One verb per operation class: `create_` for entity creation, `set_` for state upsert, `update_` for partial mutation, `add_`/`remove_` for collection membership, `list_`/`get_` for reads. Deletion uses `remove_` exclusively — never `delete_`. | REQ-020 |
 | Parameterization | Named sets share one parameterized tool | REQ-021, REQ-110 |
-| Prompt naming | Prompt names are immutable contracts; style (bare-noun vs verb) is not enforced. Narrative prompts (`intro`, `session_zero`, `novel_setup`) are plain-English per Standing Rule 10; operational prompts (`badge_briefing`, `run_workflow`) follow their own REQ contracts. | REQ-020, Standing Rule 10 |
+| Prompt naming | Prompt names are immutable contracts; style (bare-noun vs verb) is not enforced. Narrative prompts (`intro`, `session_zero`, `novel_setup`) are plain-English per Standing Rule 10; operational prompts (`badge_briefing`, `narrate`, `run_workflow`) follow their own REQ contracts. | REQ-020, Standing Rule 10 |
 | Annotations | read-only/state-reading→`idempotentHint`, command→`destructiveHint`, generation/hybrid→both | REQ-015 |
 
 **Inference boundary.** Agent and NPC cognition is resolved in-process; the server performs no outbound model inference at runtime (Standing Rule 3). Donated or external inference is out of scope: where a task or suggestion needs model reasoning, the connected client LLM supplies it and the server records only the durable outcome. (REQ-522)
@@ -160,6 +160,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
+| `TTRPG_NARRATOR_VISIBILITY` | No | Draft visibility scan mode — `advisory` (default, redact matched GM-only disclosure) or `strict` (refuse with `[RULE_VIOLATION]`); an unknown value falls back to `advisory` with a startup warning (REQ-599b). Presentation — non-behavioral; it gates narration output admission, not story state. |
 | `TTRPG_SEARCH_MAX_TOKENS` | No | Maximum context returned by one `manage_ruleset (action: search)` call; excess results are suppressed and counted (REQ-588). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_DESCRIPTION_BUDGET` | No | Byte budget applied to a ruleset-derived tool description at load (default 1000, matching the REQ-024c recorded budget); a description over budget is flagged in `spec_health` (REQ-430). |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_diagnostics (action: compact)` archives older entries |
