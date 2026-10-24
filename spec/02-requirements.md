@@ -39,6 +39,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
 | 5.32   | Perception Ledger                                       | 540–545 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
+| 5.34   | Compression Ladder and Recall                           | 590–593 |
 
 ### 5.1 Output and Error Contracts
 
@@ -1548,6 +1549,9 @@ Values outside the declared range SHALL produce `[ERROR] [INVALID_INPUT]` with t
 `manage_session (action: recap)` SHALL accept an optional `gm_notes` free-text field, populated by the caller and returned only to the Game Master badge. The field SHALL be structurally excluded from Player-badge output and SHALL never be merged with player-visible fields. `narrative_orientation` SHALL derive from `shared`-scope and revealed content only; when all source data is GM-only, the Player-badge field SHALL render the empty-state marker.
 *Acceptance criterion:* a recap carrying `gm_notes` returns them under the GM badge and no `gm_notes` under the Player badge; orientation sourced only from GM-only lore returns the empty-state marker to the Player badge. _Check:_ T518.
 
+**REQ-072i — Session recap (Part i).**
+`manage_session (action: recap)` SHALL accept optional `tier` (`recent`, `session`, `arc`, or `campaign`) and `budget_tokens` (positive integer) parameters. The chosen tier's text and source pointers SHALL be returned in a `tiered_memory` field; when `tier` is omitted the field is null and the output is unchanged. Assembly and degradation follow REQ-592. _Check:_ T699.
+
 **REQ-279a — Narrative orientation (Part a).**
 `manage_session (action: recap)` SHALL include a `narrative_orientation` field — a prose paragraph (2–4 sentences) that synthesizes the active Novel state; §6.4.1 defines the inputs. The field SHALL appear when any source data is non-empty.
 
@@ -2124,7 +2128,7 @@ Markers SHALL be badge-filtered: the Player badge sees only session boundary tim
 **REQ-073a2 — Clock types (Part a2).**
 The existing `type` parameter (`round`/`narrative`) controls tick timing — `clock_type` controls the clock's interaction model. Both parameters coexist: a clock may be `clock_type: "racing"` with `type: "round"`. *Acceptance criterion:* A `racing` clock pair with `opposes` resolves correctly; a `linked` clock chain triggers the child on parent completion; a `tug_of_war` clock retreated to zero does not trigger. _Check:_ T271.
 **REQ-239a — Audit log compaction (Part a).**
-`manage_diagnostics (action: compact, sessions?)` tool (Game Master only) that archives audit entries older than a configurable session window into per-session metadata summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS` — sessions are identified by `[session-boundary]` markers (REQ-237). For each archived session, the compaction produces a summary containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`, `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174), `condition_changes`, `roster_changes`, and `scene_transitions`.
+`manage_diagnostics (action: compact, sessions?)` tool (Game Master only) that archives audit entries older than a configurable session window into per-session metadata summaries. The session window is configured via `TTRPG_AUDIT_RETENTION_SESSIONS` — sessions are identified by `[session-boundary]` markers (REQ-237). For each archived session, the compaction produces a summary containing: `session_id`, `timespan_start`, `timespan_end`, `entry_count`, `confrontations` (derived per REQ-175), `significant_rolls` (per REQ-174), `condition_changes`, `roster_changes`, and `scene_transitions`. Each summary SHALL also carry `source_ordinals` (event-log ordinals covered by the archived slice) and `source_sessions` (the session ids covered).
 
 **REQ-239b — Audit log compaction (Part b).**
 Summaries live in the Novel JSON under an `audit_archive` key. The server removes raw audit entries for archived sessions from the `audit_log` array in the Novel JSON (REQ-040). The hash chain stays intact — the server re-anchors it at the first live entry after compaction, and entries after the compaction boundary form a new segment. The `manage_session (action: recap)` tool (REQ-072) SHALL derive from live entries plus archive summaries when a `session_id` targets an archived session. Summarized sessions are retrievable via `audit://novel/archive` as structured objects.
@@ -4016,7 +4020,7 @@ Appendix S.
 
 **REQ-455 — Event log append.** THE server SHALL maintain a Novel-scoped event log recording every observation that enters play — player utterances, GM narration, tool outcomes, and machine-originated state reports — as an append-only entry carrying a deterministic ordinal, a source classification, and a timestamp. Later processing SHALL NOT rewrite an entry; a correction appends a new entry. The log SHALL be bounded by a configured cap, evicting the oldest entries when the cap is reached. *Acceptance criterion:* a session of N inputs produces N ordered entries, and replaying the same inputs reproduces the same ordinals. _Check:_ T545.
 
-**REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
+**REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. `manage_diagnostics (action: history)` SHALL accept an optional `ordinals` array and return the named entries in ordinal order, marking any ordinal removed by the event-log cap as evicted. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
 
 **REQ-457 — Alternative events.** WHEN an observation replaces an earlier one, THE server SHALL append the replacement as an alternative entry and mark the prior entry superseded without deleting it. Superseded entries SHALL remain readable and SHALL be excluded only on explicit request. *Acceptance criterion:* superseding an entry appends a replacement, marks the original superseded, and leaves the original retrievable. _Check:_ T547.
 
@@ -4211,5 +4215,19 @@ The report SHALL state, for each advisory surface it derives, whether that surfa
 **REQ-520 — Consistency visibility.** The consistency report SHALL be available to every badge. *Acceptance criterion:* Player and Observer both receive an available report. _Check:_ T625.
 
 **REQ-521 — Staleness advisory.** A stale derived surface SHALL be reported as an advisory and SHALL NOT block briefing rendering. *Acceptance criterion:* a stale surface produces an advisory and the briefing still renders its consistency line. _Check:_ T626.
+
+### 5.34 Compression Ladder and Recall
+
+**REQ-590 — Compression ladder tiers.**
+The server SHALL store a `compression_ladder` Novel property group holding `arc` summaries and one `campaign` summary. Tiers are the raw event log, a recent window of `TTRPG_MEMORY_RECENT_EVENTS` entries (default 10), per-session summaries in `audit_archive`, arc summaries grouping `TTRPG_MEMORY_ARC_SESSIONS` sessions (default 5), and a campaign bible of at most `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` stable facts (default 40). Derivation SHALL be deterministic — no LLM call, network, or wall-clock input — and the group SHALL copy through clone, checkpoint, archive, and export while the `player` scope omits it. _Check:_ T697.
+
+**REQ-591 — Source pointers and traversal.**
+Every derived summary SHALL carry `source_ordinals` (event-log ordinals) and, for the campaign bible, `source_refs` (property keys such as `lore:<key>`). Session summaries in `audit_archive` SHALL carry `source_ordinals` and `source_sessions`, populated before compaction deletes the raw slice. `manage_diagnostics (action: history, ordinals)` SHALL return the named entries in ordinal order and SHALL report `[evicted]` for an ordinal removed by the event-log cap rather than omitting or fabricating it. Traversal SHALL be badge-filtered and read-only. _Check:_ T698.
+
+**REQ-592 — Budgeted tier assembly.**
+When `budget_tokens` is supplied, the server SHALL pack tiers in priority order campaign, recent, session, arc, and SHALL drop tiers in reverse priority order (arc first, campaign last) until the estimated cost fits, where estimate is one token per four characters. A dropped tier SHALL be named in a `[truncated]` marker. Values outside the declared domain SHALL return `[ERROR] [INVALID_INPUT]` with valid values enumerated. _Check:_ T699.
+
+**REQ-593 — Recall probes.**
+The server distribution SHALL include a recall-probe harness that builds a deterministic fixture campaign, forces session summarization through the compaction path, and evaluates probe questions drawn from a committed fixture. Each probe declares expected substrings, a tier, a token budget, and whether it is a required-recall probe. The harness SHALL assemble the requested tier at the requested budget and report `recall@budget` per tier. It SHALL fail when any required-recall probe misses at any declared budget or aggregate recall falls below 0.90. _Check:_ T700.
 
 #### End of requirements

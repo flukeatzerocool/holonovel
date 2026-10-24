@@ -37,6 +37,7 @@ const TESTS = [
   "test:starter-novel",
   "test:limits",
   "test:narrative",
+  "test:memory-recall",
   "test:adventure",
   "test:g7",
   "test:tool-definitions",

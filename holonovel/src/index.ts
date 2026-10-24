@@ -26,6 +26,7 @@ import {
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
+import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
@@ -1596,16 +1597,22 @@ function availableActionsSection(novel: NovelState): string[] {
 
 function composeCampaignMemorySection(novel: NovelState, badge: string): string {
   const facts = novel.campaign_memory ?? [];
-  if (facts.length === 0) return "";
   const isGM = badge === "game_master" || badge === "none";
+  // REQ-590 — the persisted campaign-bible tier renders through the existing
+  // Campaign Memory section (GM-only; it contains secrets).
+  const bible = isGM && (novel.compression_ladder?.campaign?.source_refs?.length ?? 0) > 0
+    ? novel.compression_ladder!.campaign!.text
+    : "";
+  if (facts.length === 0 && !bible) return "";
   const maxFacts = configInt("TTRPG_CAMPAIGN_MEMORY_MAX_FACTS", 10);
   const visible = isGM ? facts : facts.filter((f) => (f.badge_scope === "shared" || f.badge_scope === "discovered"));
-  if (visible.length === 0) return "";
   const lines = visible.slice(-maxFacts).map((f) => {
     const tag = f.badge_scope === "discovered" ? " [discovered]" : "";
     return `- [${f.category}] ${f.text}${tag}`;
   });
-  return `\n\n## Campaign Memory\n${lines.join("\n")}`;
+  const blocks = [lines.join("\n"), bible].filter(Boolean);
+  if (blocks.length === 0) return "";
+  return `\n\n## Campaign Memory\n${blocks.join("\n")}`;
 }
 
 // REQ-255b — boundary signal propagation: when free-text input contains a
@@ -6222,6 +6229,7 @@ function loadNovelFromStateData(data: any): NovelState {
     player_synthesis: data.player_synthesis ?? {},
     ruling_ledger: data.ruling_ledger ?? [],
     campaign_memory: data.campaign_memory ?? [],
+    compression_ladder: data.compression_ladder ?? { version: 1, arc: [], campaign: null },
     fate: { aspects: data.fate?.aspects ?? [], fate_points: data.fate?.fate_points ?? {}, stress: data.fate?.stress ?? {} },
     ironsworn: { momentum: data.ironsworn?.momentum ?? {}, progress_tracks: data.ironsworn?.progress_tracks ?? [] },
     forged: { characters: data.forged?.characters ?? {} },
@@ -7181,6 +7189,9 @@ const MANAGE_SESSION_SCHEMA = {
     text: z.string().optional().describe("Observation text (event)."),
     source: z.enum(["player", "game_master", "system", "machine"]).optional().describe("Event source classification (event)."),
     supersede: z.number().optional().describe("Ordinal of an event this observation replaces (event)."),
+    tier: z.enum(["recent", "session", "arc", "campaign"]).optional().describe("Compression tier to assemble (recap; REQ-592)."),
+    budget_tokens: z.number().optional().describe("Positive token budget for tier assembly (recap; REQ-592)."),
+    ordinals: z.array(z.number()).optional().describe("Exact event ordinals to return in order (history; REQ-591)."),
     through_ordinal: z.number().optional().describe("Return events up to and including this ordinal (history)."),
     include_superseded: z.boolean().optional().describe("Include superseded events (history; default true)."),
   };
@@ -7218,6 +7229,15 @@ server.registerTool("manage_session", {
     case "history": {
       const novel = requireNovel();
       const badge = getBadge();
+      // REQ-591 — exact-ordinal traversal for summary source pointers. Evicted
+      // ordinals are reported, never silently dropped.
+      if (Array.isArray(args.ordinals)) {
+        if (args.ordinals.some((o: any) => !Number.isInteger(o))) return err("INVALID_INPUT", "ordinals must be integers.");
+        const results = traverse(args.ordinals, novel.event_log);
+        const visible = results.filter((r) => !(r.entry && (badge === "player" || badge === "observer") && r.entry.source === "game_master"));
+        if (visible.length === 0) return ok("No matching events.");
+        return ok(visible.map((r) => r.entry ? describeEntry(r.entry) : `[evicted] #${r.ordinal}`).join("\n"));
+      }
       // REQ-032/REQ-456 — badge filtering: Player and Observer never see
       // GM-sourced observations; the entry text itself stays verbatim.
       let entries = sliceThrough(novel.event_log, args.through_ordinal ?? null);
@@ -7358,6 +7378,50 @@ Options: yes, cancel`);
       // REQ-072h — GM-only notes are structurally excluded from Player output.
       if (args.gm_notes && (getBadge() === "game_master" || getBadge() === "none")) {
         recap += `\ngm_notes: ${args.gm_notes}`;
+      }
+      // REQ-072i / REQ-590–592 — tiered memory assembly.
+      if (args.tier !== undefined || args.budget_tokens !== undefined) {
+        const TIERS = ["recent", "session", "arc", "campaign"] as const;
+        if (args.tier !== undefined && !TIERS.includes(args.tier)) {
+          return err("INVALID_INPUT", `Unknown tier '${args.tier}'. Valid tiers: ${TIERS.join(", ")}.`);
+        }
+        if (args.budget_tokens !== undefined && (!Number.isInteger(args.budget_tokens) || args.budget_tokens <= 0)) {
+          return err("INVALID_INPUT", "budget_tokens must be a positive integer.");
+        }
+        const derivedAt = new Date().toISOString();
+        const recentCand = deriveRecentTier(novel.event_log, configInt("TTRPG_MEMORY_RECENT_EVENTS", 10));
+        let sessionCand = deriveSessionTier(novel.audit_log, novel.event_log);
+        if ((novel.audit_archive ?? []).length > 0) {
+          sessionCand = {
+            level: "session",
+            text: novel.audit_archive.map((s) => {
+              const ords = new Set(s.source_ordinals ?? []);
+              const highlights = novel.event_log.filter((e) => ords.has(e.ordinal)).slice(-3).map((e) => `- ${e.text}`);
+              return [`- ${s.session_id}: ${s.entry_count} entries, ${s.confrontations} confrontations, ${s.significant_rolls} significant rolls`, ...highlights].join("\n");
+            }).join("\n"),
+            source_ordinals: [...new Set(novel.audit_archive.flatMap((s) => s.source_ordinals ?? []))].sort((a, b) => a - b),
+          };
+        }
+        const arcs = (novel.compression_ladder?.arc?.length ?? 0) > 0
+          ? novel.compression_ladder.arc
+          : deriveArcTier(novel.audit_archive ?? [], novel.event_log, configInt("TTRPG_MEMORY_ARC_SESSIONS", 5), derivedAt);
+        const arcCand: TierCandidate = {
+          level: "arc",
+          text: arcs.length > 0 ? arcs.map((a) => a.text).join("\n\n") : "[no arc summary]",
+          source_ordinals: [...new Set(arcs.flatMap((a) => a.source_ordinals ?? []))].sort((a, b) => a - b),
+        };
+        const campaignSummary = novel.compression_ladder?.campaign ?? deriveCampaignTier(novel, configInt("TTRPG_MEMORY_CAMPAIGN_MAX_FACTS", 40), derivedAt);
+        const campaignCand: TierCandidate = {
+          level: "campaign",
+          text: campaignSummary.text,
+          source_ordinals: campaignSummary.source_ordinals ?? [],
+        };
+        const all: TierCandidate[] = [campaignCand, recentCand, sessionCand, arcCand];
+        const candidates = args.tier ? all.filter((c) => c.level === args.tier) : all;
+        const assembled = assembleByBudget(candidates, args.budget_tokens ?? 0);
+        recap += `\ntiered_memory: ${args.tier ?? "all"}`;
+        recap += `\n${assembled.text}`;
+        recap += `\nsource_ordinals: ${assembled.source_ordinals.length > 0 ? assembled.source_ordinals.join(",") : "(none)"}`;
       }
       // REQ-239b — a recap targeting an archived session derives from its summary.
       if (args.session_id) {
@@ -7749,7 +7813,7 @@ const PLAYER_OMITTED_KEYS = [
   "audit_log", "audit_archive", "undo_stacks", "redo_stacks", "checkpoints",
   "gm_context", "secrets", "pending_workflow", "constraint_overrides",
   "synthesis_activated", "synthesis_deactivated", "narrative_directive",
-  "generated_adventure", "ruling_ledger",
+  "generated_adventure", "ruling_ledger", "compression_ladder",
 ];
 
 function redactNovelForPlayer(novel: any): any {
@@ -8643,6 +8707,9 @@ const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
   { variable: "causal_validation", tunable: false },
   { variable: "causal_latent_transitions", tunable: false },
   { variable: "agent_autonomy", tunable: false },
+  { variable: "memory_recent_events", tunable: false },
+  { variable: "memory_arc_sessions", tunable: false },
+  { variable: "memory_campaign_max_facts", tunable: false },
 ];
 
 // REQ-388a–d — behavioral-configuration coverage. Every catalog entry has a

@@ -153,6 +153,9 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
 | `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
 | `TTRPG_MAX_RULING_ENTRIES` | No | Maximum ruling-ledger entries per Novel before oldest non-reverted eviction (default 500; 0 = unlimited; REQ-589) |
+| `TTRPG_MEMORY_RECENT_EVENTS` | No | Recent-window tier size in event-log entries (default 10; 0 = unlimited). Behavioral (mechanical) — couples per P16 (REQ-590). |
+| `TTRPG_MEMORY_ARC_SESSIONS` | No | Sessions grouped per arc summary (default 5; REQ-590). Behavioral (mechanical) — couples per P16. |
+| `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` | No | Campaign-bible fact cap (default 40; 0 = unlimited; REQ-590). Behavioral (mechanical) — couples per P16. |
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded (0 = unlimited; REQ-241b) |
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
@@ -255,6 +258,7 @@ discarded by `manage_novel (action: end)`):
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
+| Compression Ladder | Narrative-memory, Knowledge-carrying | read/write (REQ-590) | read-only (GM-filtered) |
 | Mechanics | Mechanical | read (engine-populated during Discovery; GM-filtered) | read-only (GM-filtered) |
 | World | Spatial | read/write/create/delete (rooms, things, exits, vehicles per §5.10; parser command navigation) | read-only (room descriptions, thing descriptions, exit availability) |
 | Story Beats | Scene-anchored | read/write (REQ-335) | read-only (shared-scope beats) |
@@ -499,6 +503,8 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Scene-tagged notes surface when their room appears — the operator's annotations follow the scene | Player-visible, badge-scoped | Navigational | REQ-242 |
 | NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | What characters experience becomes what they know — interactions create NPC memory | — | Mechanical | REQ-311 |
 | Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Scene-pertinent facts surface in the briefing — campaign memory follows location | — | Navigational | REQ-310 |
+| Compression Ladder → Story Journal | P16 | Tier derivation reads story-journal and event-log entries into arc and campaign summaries; `TTRPG_MEMORY_RECENT_EVENTS`, `TTRPG_MEMORY_ARC_SESSIONS`, and `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` bound the tiers | Remembered events compress into durable memory — summaries preserve their sources | GM-only | Navigational | REQ-590, REQ-246 |
+| Campaign Memory → Compression Ladder | P54 | Campaign-memory facts promote into the campaign-bible tier with `source_refs` | Known facts become the story bible — campaign memory feeds the campaign tier | GM-only | Navigational | REQ-310, REQ-590 |
 | World in Motion → Campaign Memory | P16 | World in Motion accepted changes produce campaign memory facts | The living world becomes recorded history — accepted World in Motion entries persist | — | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | P54 | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Significant NPC events persist as campaign facts — memory survives the scene | — | Navigational | REQ-311, REQ-310 |
 | Vow → Countdown | P12 | `manage_vow (action: set)` offers a coupled countdown per difficulty tier; `manage_vow (action: milestone)` advances both; countdown fill enables `manage_vow (action: resolve)` | Purpose drives the clock — every vow carries a coupled countdown per difficulty | — | Mechanical | REQ-322 |

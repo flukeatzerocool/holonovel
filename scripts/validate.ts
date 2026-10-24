@@ -1898,6 +1898,9 @@ const INTENDED_GAP_REQS = new Set([
   // and the end-to-end performance record are builder-side contracts owed by
   // the Build/Convert workflows and scripts/, not runtime `holonovel/src`.
   "REQ-582", "REQ-584", "REQ-585",
+  // REQ-593 (recall probes) is a verifier-harness contract owed by
+  // holonovel/scripts/test-memory-recall.ts, not runtime server behavior.
+  "REQ-593",
   // §5.18 emitter mandate + automation (2026-10-10): the committed package
   // emitter (REQ-563) and Update-workflow tool-quality remediation (REQ-564) are
   // builder-side contracts owed by the ruleset-build assets and the update
