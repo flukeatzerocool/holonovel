@@ -3,11 +3,11 @@
   "estimator": "utf8-bytes-div-4-ceil",
   "baseline": {
     "tools": 36,
-    "actions": 273,
+    "actions": 275,
     "canonical_tools": 36,
-    "canonical_actions": 224,
+    "canonical_actions": 225,
     "compatibility_tools": 3,
-    "compatibility_actions": 49,
+    "compatibility_actions": 50,
     "aliases": [
       {
         "name": "manage_lore.corpus_access",
@@ -160,6 +160,12 @@
         "retired": true
       },
       {
+        "name": "manage_session.context_report",
+        "kind": "action",
+        "replacement": "manage_diagnostics.context_report",
+        "retired": true
+      },
+      {
         "name": "manage_session.event",
         "kind": "action",
         "replacement": "manage_diagnostics.event",
@@ -262,140 +268,140 @@
         "retired": true
       }
     ],
-    "full_tokens": 27758,
-    "tools_list_bytes": 111030
+    "full_tokens": 27910,
+    "tools_list_bytes": 111637
   },
   "measurements": {
     "full": {
       "tools": 36,
-      "bytes": 111030,
-      "tokens": 27758
+      "bytes": 111637,
+      "tokens": 27910
     },
     "standard": {
       "tools": 36,
-      "bytes": 97026,
-      "tokens": 24257
+      "bytes": 97633,
+      "tokens": 24409
     },
     "small": {
       "tools": 6,
-      "bytes": 4862,
-      "tokens": 1216,
+      "bytes": 4917,
+      "tokens": 1230,
       "groups": {
         "table": {
           "tools": 6,
-          "bytes": 4859,
-          "tokens": 1215
+          "bytes": 4914,
+          "tokens": 1229
         },
         "explore": {
           "tools": 6,
-          "bytes": 3887,
-          "tokens": 972
+          "bytes": 3942,
+          "tokens": 986
         },
         "resolve": {
           "tools": 6,
-          "bytes": 4834,
-          "tokens": 1209
+          "bytes": 4889,
+          "tokens": 1223
         },
         "narrate": {
           "tools": 6,
-          "bytes": 4862,
-          "tokens": 1216
+          "bytes": 4917,
+          "tokens": 1230
         },
         "lookup": {
           "tools": 6,
-          "bytes": 4177,
-          "tokens": 1045
+          "bytes": 4232,
+          "tokens": 1058
         },
         "referee": {
           "tools": 6,
-          "bytes": 3929,
-          "tokens": 983
+          "bytes": 3984,
+          "tokens": 996
         },
         "author": {
           "tools": 6,
-          "bytes": 4153,
-          "tokens": 1039
+          "bytes": 4208,
+          "tokens": 1052
         },
         "maintain": {
           "tools": 6,
-          "bytes": 4614,
-          "tokens": 1154
+          "bytes": 4741,
+          "tokens": 1186
         }
       }
     }
   },
   "budgets": {
-    "standard": 24983,
-    "small": 2776
+    "standard": 25119,
+    "small": 2791
   },
   "worst_case": {
-    "standard_tokens": 24257,
-    "small_tokens": 1216
+    "standard_tokens": 24409,
+    "small_tokens": 1230
   },
   "groups": [
     {
       "group": "table",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 1215
+      "small_tokens": 1229
     },
     {
       "group": "explore",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 972
+      "small_tokens": 986
     },
     {
       "group": "resolve",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 1209
+      "small_tokens": 1223
     },
     {
       "group": "narrate",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 1216
+      "small_tokens": 1230
     },
     {
       "group": "lookup",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 1045
+      "small_tokens": 1058
     },
     {
       "group": "referee",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 983
+      "small_tokens": 996
     },
     {
       "group": "author",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 1039
+      "small_tokens": 1052
     },
     {
       "group": "maintain",
       "tools": 6,
       "standard_tools": 36,
-      "standard_tokens": 24257,
+      "standard_tokens": 24409,
       "small_tools": 6,
-      "small_tokens": 1154
+      "small_tokens": 1186
     }
   ],
   "defects": []

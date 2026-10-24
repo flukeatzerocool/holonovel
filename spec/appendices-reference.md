@@ -1347,6 +1347,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-603 | Divergence verification | 2026-10-24 |
 | REQ-604 | Replay inspection | 2026-10-24 |
 | REQ-605 | Verification read-only and gated | 2026-10-24 |
+| REQ-606 | Context ledger sections | 2026-10-24 |
+| REQ-607 | Cacheable-prefix hash and ratio | 2026-10-24 |
+| REQ-608 | Recall-at-budget probe | 2026-10-24 |
+| REQ-609 | On-demand schema disclosure | 2026-10-24 |
+| REQ-610 | Per-turn budget allocator | 2026-10-24 |
 
 ---
 
@@ -2061,6 +2066,11 @@ diet.
 | T714 | Automated | Divergence verification: an untampered Novel reports clean; a checkpoint whose snapshot changed outside a save reports divergence at its ordinal, and restore refuses it. | REQ-603 |
 | T715 | Automated | Replay inspection: replay through K returns exactly the entries through K, its recorded hash, and the nearest checkpoint; a target below the retained horizon reports evicted, and repeated calls are identical. | REQ-604 |
 | T716 | Automated | Verification gating: a Player badge is refused verify and replay; two consecutive Game Master calls leave the event count and state hash unchanged and return equal reports. | REQ-605 |
+| T717 | Automated | Context ledger: `manage_diagnostics (action: context_report)` lists every REQ-606 section once, the total equals the section sum, a second call returns an identical ledger, and no audit entry is appended. | REQ-606 |
+| T718 | Automated | Prefix hash and ratio: consecutive calls with unchanged scope return the same stable-prefix hash and ratio; a registration change alters the hash; no cache-hit rate field appears. | REQ-607 |
+| T719 | Automated | Recall at budget: the replay baseline records a recall value and budget per profile using the REQ-569 intent set, and a run below the recorded recall fails. | REQ-608 |
+| T720 | Automated | Schema disclosure: `discover (detail: schema, query)` returns a matched tool's input schema, the default response is the summary text, and an unknown detail or schema without a query refuses `[INVALID_INPUT]`. | REQ-609 |
+| T721 | Automated | Budget allocator: a tight `context_report` budget drops `last_tool_output` first while keeping `tool_catalog` and `registered_prompts`, and a non-positive budget refuses `[INVALID_INPUT]`. | REQ-610 |
 
 ---
 

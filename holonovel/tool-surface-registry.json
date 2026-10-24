@@ -1457,6 +1457,23 @@
       "successors": [],
       "edges": []
     },
+    "manage_diagnostics.context_report": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_diagnostics.history": {
       "group": "maintain",
       "phases": [
@@ -4558,6 +4575,27 @@
       "edges": [],
       "compatibility": {
         "replacement": "manage_diagnostics.visibility_check",
+        "retired": true
+      }
+    },
+    "manage_session.context_report": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_diagnostics.context_report",
         "retired": true
       }
     },

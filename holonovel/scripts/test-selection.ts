@@ -161,6 +161,70 @@ async function main(): Promise<void> {
       assert(h.selection_telemetry.undeclared_cross_group_calls >= 1, "cross-group refusal not counted");
     });
 
+    await test("T717/REQ-606: context ledger lists every section and does not mutate", async () => {
+      const before = await health(proc);
+      const parseLedger = (body: string) => JSON.parse(body.slice(body.indexOf("{")));
+      const first = parseLedger(await text(proc, "manage_diagnostics", { action: "context_report" }));
+      const second = parseLedger(await text(proc, "manage_diagnostics", { action: "context_report" }));
+      const names = first.sections.map((section: any) => section.name);
+      const expected = ["tool_catalog", "registered_prompts", "resource_directory", "scene_state", "memory_tiers", "last_tool_output"];
+      for (const name of expected) assert(names.filter((n: string) => n === name).length === 1, `section '${name}' missing or duplicated`);
+      assert(first.sections.every((section: any) => typeof section.class === "string" && typeof section.tokens === "number"), "section class/tokens missing");
+      const sum = first.sections.reduce((total: number, section: any) => total + section.tokens, 0);
+      assert(first.total_tokens === sum, "total does not equal the section sum");
+      assert(JSON.stringify(first) === JSON.stringify(second), "two calls on unchanged state returned different ledgers");
+      const after = await health(proc);
+      assert(before.audit_log_entries === after.audit_log_entries, "context_report appended an audit entry");
+    });
+
+    await test("T718/REQ-607: stable-prefix hash and ratio are stable and hit-rate-free", async () => {
+      const a = await health(proc);
+      const b = await health(proc);
+      const sa = a.tool_surface ?? {};
+      const sb = b.tool_surface ?? {};
+      assert(typeof sa.cacheable_prefix_sha256 === "string" && sa.cacheable_prefix_sha256.length === 64, "prefix hash missing");
+      assert(sa.cacheable_prefix_sha256 === sb.cacheable_prefix_sha256, "prefix hash changed between identical calls");
+      assert(typeof sa.prefix_ratio === "number" && sa.prefix_ratio > 0 && sa.prefix_ratio <= 1, "prefix ratio out of range");
+      assert(sa.cache_hit_rate === undefined, "spec_health claimed a provider cache-hit rate");
+    });
+
+    await test("T719/REQ-608: replay baseline records recall at budget per profile", async () => {
+      const replay = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "spec", "audit", "tool-surface-replay.json"), "utf-8"));
+      const profiles = replay.profiles ?? [];
+      assert(profiles.length === 3, "expected three profile rows");
+      for (const row of profiles) {
+        assert(typeof row.recall_at_budget?.budget_tokens === "number", `${row.profile}: budget missing`);
+        assert(typeof row.recall_at_budget?.recall === "number", `${row.profile}: recall missing`);
+        assert(row.recall_at_budget.recall >= 0 && row.recall_at_budget.recall <= 1, `${row.profile}: recall out of range`);
+      }
+    });
+
+    await test("T720/REQ-609: discover discloses schemas on demand and keeps the summary default", async () => {
+      const summary = await text(proc, "manage_session", { action: "discover", query: "npc" });
+      assert(!summary.trim().startsWith("{"), "default discover returned a schema payload");
+      const body = await text(proc, "manage_session", { action: "discover", query: "npc", detail: "schema" });
+      const parsed = JSON.parse(body.slice(body.indexOf("{")));
+      assert(parsed.detail === "schema", "schema detail not echoed");
+      assert(parsed.matches.length > 0, "schema detail returned no matches");
+      assert(parsed.matches[0].input_schema?.properties, "matched tool carries no input schema");
+      const unknown = await text(proc, "manage_session", { action: "discover", query: "npc", detail: "bogus" });
+      assert(unknown.includes("INVALID_INPUT"), "unknown detail did not refuse");
+      const noQuery = await text(proc, "manage_session", { action: "discover", detail: "schema" });
+      assert(noQuery.includes("INVALID_INPUT"), "schema detail without a query did not refuse");
+    });
+
+    await test("T721/REQ-610: budget allocator drops volatile first and refuses an invalid budget", async () => {
+      const parseLedger = (body: string) => JSON.parse(body.slice(body.indexOf("{")));
+      const tight = parseLedger(await text(proc, "manage_diagnostics", { action: "context_report", budget_tokens: 1 }));
+      const allocation = tight.allocation ?? {};
+      assert(allocation.dropped.includes("last_tool_output"), "volatile section was not dropped first");
+      assert(allocation.kept.includes("tool_catalog"), "required tool_catalog was dropped");
+      assert(allocation.kept.includes("registered_prompts"), "required registered_prompts was dropped");
+      assert(allocation.within_budget === false, "required-over-budget case claimed to fit");
+      const invalid = await text(proc, "manage_diagnostics", { action: "context_report", budget_tokens: 0 });
+      assert(invalid.includes("INVALID_INPUT"), "invalid budget did not refuse");
+    });
+
     await test("T688/REQ-588: search budget suppresses and truncates with a resource pointer", async () => {
       const body = await text(proc, "manage_ruleset", { action: "search", query: "goblin", slug: "fixture" });
       assert(body.includes("ruleset://fixture/"), "oversized passage did not carry a ruleset:// pointer");

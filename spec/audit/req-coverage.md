@@ -561,4 +561,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-603 | Divergence verification | 5.24 Temporal Event Log and Branching | C | T714 | — |
 | REQ-604 | Replay inspection | 5.24 Temporal Event Log and Branching | C | T715 | — |
 | REQ-605 | Verification read-only and gated | 5.24 Temporal Event Log and Branching | C | T716 | — |
+| REQ-606 | Context ledger sections | 5.3 Tools, Resources, and Lookups | C | T717 | — |
+| REQ-607 | Cacheable-prefix hash and ratio | 5.3 Tools, Resources, and Lookups | C | T718 | — |
+| REQ-608 | Recall-at-budget probe | 5.3 Tools, Resources, and Lookups | C | T719 | — |
+| REQ-609 | On-demand schema disclosure | 5.3 Tools, Resources, and Lookups | C | T720 | — |
+| REQ-610 | Per-turn budget allocator | 5.3 Tools, Resources, and Lookups | C | T721 | — |
 

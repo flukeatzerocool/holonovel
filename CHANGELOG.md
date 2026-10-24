@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-24 — Context ledger and cache-aware surface
+
+- `manage_diagnostics (action: context_report)` reports a per-section token
+  ledger for the stable, semi-stable, and volatile context the server composes,
+  including the stable-prefix ratio and hash. The action is read-only and does
+  not render `badge_briefing`, whose render advances the pacing counter. (REQ-606)
+- `spec_health.tool_surface` now reports the stable-prefix SHA-256 and
+  `prefix_ratio` beside the existing cacheable-prefix byte length; no provider
+  cache-hit rate is claimed. (REQ-607)
+- The `surface-replay` baseline records `recall_at_budget` per profile from the
+  existing REQ-569 intent set and the recorded REQ-571 budgets, and fails a run
+  below the recorded recall. (REQ-608)
+- `manage_session (action: discover)` gains `detail: schema`, returning the
+  live input schemas for the matched tools on demand. The default summary
+  response is unchanged, and no tool or gate classification is added. (REQ-609)
+- `manage_diagnostics (action: context_report, budget_tokens?)` packs the
+  ledger: required sections (`tool_catalog`, `registered_prompts`) are never
+  dropped, and optional sections degrade in the declared order. The allocator
+  changes no existing bound. (REQ-610)
+- Catalog artifacts regenerated (final: full 27,910 / standard 24,409 / small
+  1,230 tokens, including the new action and the discover parameter).
+- Removed the roadmap item.
+
 ## 2026-10-24 — Replay verification and state hashes
 
 - Every event-log entry and checkpoint now records a canonical digest of the
