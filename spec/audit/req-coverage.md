@@ -553,4 +553,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-595 | Derived witness attribution | 5.32 Perception Ledger | C | T704 | — |
 | REQ-596 | Visibility query | 5.10 World-Model Layer | C | T701, T702 | — |
 | REQ-597 | Audibility query | 5.10 World-Model Layer | C | T703 | — |
+| REQ-598 | Narrator clearance | 5.5 Badges and Access | C | T707, T708 | — |
+| REQ-599 | Draft visibility scan (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T709, T710 | — |
+| REQ-600 | Visibility audit | 5.5 Badges and Access | C | T711 | — |
 

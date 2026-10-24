@@ -455,7 +455,7 @@ finding. The server is built in six steps, each with an acceptance check:
 | 3     | Extraction pipeline: content-type detection, entity/model extraction | B.2 expected model excerpt verified            |
 | 4     | Domain tools: resolution, commands, generation, lookup       | Full G2 golden transcript replay (per §8 G2)                 |
 | 5     | State layer: adds ruleset-specific types (entity stats, combat, spell slots) on top of the world-model infrastructure layer. World-model state is provided by the holonovel scaffold. | T9 pass (badge test)                                       |
-| 6     | Prompts: `run_workflow`, `badge_briefing`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
+| 6     | Prompts: `run_workflow`, `badge_briefing`, `narrate`, `intro`, `session_zero`, `novel_setup` | T22 pass (prompt registry test)            |
 | 7     | Package: emit a declarative ruleset package (model, index, tool schemas, resources, prompts, hash, version manifest) per ruleset (REQ-389) | G8 pass, per-ruleset G2 replay after package load in the host |
 
 The server renders user-requestable artifacts through the output format catalog
@@ -1439,6 +1439,9 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-220 | S26 | Narrative point of view |
 | REQ-223 | S26 | POV mode control |
 | REQ-304 | S19 | Counterpart AI role |
+| REQ-598 | S19 | Narrator clearance |
+| REQ-599 | S19 | Draft visibility scan |
+| REQ-600 | S19 | Visibility audit |
 | REQ-305 | S6, S19 | Observer mode |
 | REQ-306 | S19, S22 | Adjustable autonomy |
 | REQ-307 | S16, S17 | Entity presence |

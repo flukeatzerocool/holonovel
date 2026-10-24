@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 109783,
+  "tools_list_bytes": 110502,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 109783,
-        "tokens": 27446
+        "bytes": 110502,
+        "tokens": 27626
       },
       "standard": {
         "tools": 36,
-        "bytes": 95779,
-        "tokens": 23945
+        "bytes": 96498,
+        "tokens": 24125
       },
       "small": {
         "tools": 6,
-        "bytes": 4754,
-        "tokens": 1189,
+        "bytes": 4833,
+        "tokens": 1209,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4751,
-            "tokens": 1188
+            "bytes": 4830,
+            "tokens": 1208
           },
           "explore": {
             "tools": 6,
-            "bytes": 3779,
-            "tokens": 945
+            "bytes": 3858,
+            "tokens": 965
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4726,
-            "tokens": 1182
+            "bytes": 4805,
+            "tokens": 1202
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4754,
-            "tokens": 1189
+            "bytes": 4833,
+            "tokens": 1209
           },
           "lookup": {
             "tools": 6,
-            "bytes": 4069,
-            "tokens": 1018
+            "bytes": 4148,
+            "tokens": 1037
           },
           "referee": {
             "tools": 6,
-            "bytes": 3821,
-            "tokens": 956
+            "bytes": 3900,
+            "tokens": 975
           },
           "author": {
             "tools": 6,
-            "bytes": 4045,
-            "tokens": 1012
+            "bytes": 4124,
+            "tokens": 1031
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4342,
-            "tokens": 1086
+            "bytes": 4538,
+            "tokens": 1135
           }
         }
       }
@@ -832,8 +832,8 @@
     {
       "name": "manage_diagnostics",
       "title": "Session Diagnostics",
-      "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), or appending and reading the Novel event log (event, history). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, and history are read-only.",
-      "description_bytes": 579,
+      "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
+      "description_bytes": 762,
       "action_enum": [
         "health",
         "compress",
@@ -841,13 +841,16 @@
         "subscribe",
         "category",
         "event",
-        "history"
+        "history",
+        "visibility_check",
+        "visibility_audit"
       ],
-      "param_count": 18,
+      "param_count": 19,
       "required": [
         "action"
       ],
       "params": {
+        "audience": "Audience badge for a visibility check (visibility_check; default the active badge).",
         "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592).",
         "category": "New category label, or null/empty to restore the default (category).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
@@ -878,10 +881,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 19,
+        "paramCount": 20,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 19,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 20,
+        "paramsWithEnums": 5,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -891,8 +894,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3604,
-        "descriptionBytes": 579
+        "definitionBytes": 4040,
+        "descriptionBytes": 762
       },
       "category": "",
       "gate": ""
@@ -1573,11 +1576,12 @@
         "briefing_order",
         "discover"
       ],
-      "param_count": 18,
+      "param_count": 19,
       "required": [
         "action"
       ],
       "params": {
+        "audience": "Audience badge for a visibility check (visibility_check; default the active badge).",
         "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592).",
         "category": "New category label, or null/empty to restore the default (category).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
@@ -1608,10 +1612,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 19,
+        "paramCount": 20,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 19,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 20,
+        "paramsWithEnums": 5,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1621,7 +1625,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4067,
+        "definitionBytes": 4350,
         "descriptionBytes": 852
       },
       "category": "",
@@ -2444,6 +2448,18 @@
       "name": "manage_session.subscribe",
       "kind": "action",
       "replacement": "manage_diagnostics.subscribe",
+      "retired": true
+    },
+    {
+      "name": "manage_session.visibility_audit",
+      "kind": "action",
+      "replacement": "manage_diagnostics.visibility_audit",
+      "retired": true
+    },
+    {
+      "name": "manage_session.visibility_check",
+      "kind": "action",
+      "replacement": "manage_diagnostics.visibility_check",
       "retired": true
     },
     {

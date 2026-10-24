@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-24 — Narrator visibility gate
+
+- Added a `narrate` prompt whose facts come from the AI's narrative role
+  (REQ-304), not the active badge: a Game Master-role narrator receives full
+  state, while a Player-role narrator receives only the active entity's
+  knowledge-state view with NPC minds stripped (REQ-598). The existing
+  `badge_briefing` stays the human-badge briefing.
+- Added `manage_diagnostics (action: visibility_check)` — an audience-keyed
+  draft scan that redacts verbatim GM-only secrets, lore, notes, and NPC mind
+  directives in `advisory` mode and refuses with `[RULE_VIOLATION]` in `strict`
+  mode; `TTRPG_NARRATOR_VISIBILITY` selects the mode (REQ-599a, REQ-599b).
+  Paraphrase detection is explicitly out of scope.
+- Added `manage_diagnostics (action: visibility_audit)` over the existing audit
+  log, introducing no new persisted state (REQ-600).
+- Kept badge filtering and narrative-role clearance separate: `badge_briefing`
+  continues to follow the human badge, and the new behavior is documented
+  beside the existing POV and knowledge-state requirements (REQ-286b,
+  REQ-304b).
+- Removed the roadmap item.
+
 ## 2026-10-24 — Location-gated discovery for countdown consequences
 
 - Countdown consequences linked to a location now stay pending when they fire

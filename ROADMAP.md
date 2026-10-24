@@ -6,14 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Narrator visibility gate
-
-- Badge filtering protects briefings, but GM-only facts can enter narrator
-  context and leak into player-facing prose.
-- Add a logic-pass → clearance-filter → narrator-pass pipeline with a
-  post-generation leak scan.
-- Plan: `plans/2026-10-23-narrator-visibility-gate/`
-
 ## Replay verification and state hashes
 
 - The event log, audit hash chain, checkpoints, and branching already exist;

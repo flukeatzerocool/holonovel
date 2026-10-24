@@ -86,7 +86,7 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)
 - **resolve_mechanic** (action: roll/fate_roll/fate_aspect/fate_point/fate_stress/ironsworn_momentum/ironsworn_move/ironsworn_progress/forged_action_roll/forged_stress/forged_downtime) — ruleset table rolls plus Fate, Ironsworn, and Forged in the Dark base capabilities; the retired `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` tombstones return `[NOT_FOUND]` naming this tool (REQ-413/REQ-581)
 
-**Prompts (REQ-023a, REQ-138, REQ-389c).** The five host prompts are registered
+**Prompts (REQ-023a, REQ-138, REQ-389c, REQ-598).** The six host prompts are registered
 as literals; installed package `prompts.json` entries are registered at startup
 and after `manage_ruleset (action: install)`, and deregistered after
 `manage_ruleset (action: remove)`. `spec_health.prompt_count` and
