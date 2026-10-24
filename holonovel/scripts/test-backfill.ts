@@ -567,12 +567,67 @@ async function main() {
       assertContains(await call(proc, "run_command", { command: "extinguish t364-torch" }), "[OK]");
       assertContains(await call(proc, "run_command", { command: "light t364-torch" }), "[OK]");
       assertContains(await call(proc, "run_command", { command: "listen" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "smell" }), "[OK]");
       assertContains(await call(proc, "run_command", { command: "touch t364-torch" }), "[OK]");
       const help = await call(proc, "run_command", { command: "help" });
       assertContains(help, "core");
       assertContains(help, "standard");
       assertContains(help, "extended");
       await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T364/T319: sensory cues — modeled listen/smell through open exits and closed containers", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "bf4-sensory" });
+      await call(proc, "manage_novel", { action: "switch", slug: "bf4-sensory" });
+      await call(proc, "manage_character", { action: "create", name: "SensoryChar", description: "s" });
+      await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
+      const src = [
+        "# World",
+        "",
+        "## Room: nearroom",
+        "A near room.",
+        "North of nearroom is farroom.",
+        "Creaky door is north of nearroom and south of farroom.",
+        "It is closed.",
+        "The music box is in farroom.",
+        'The music box has a noise of "a tinny waltz".',
+        "The copper kettle is in nearroom.",
+        'The copper kettle has a scent of "warm copper".',
+        "The plain stone is in nearroom.",
+        "",
+      ].join("\n");
+      const conv = await call(proc, "manage_world", { action: "convert", source: src });
+      assertContains(conv, "[OK] World model populated");
+      await call(proc, "manage_world", { action: "update_thing", name: "creaky door", locked: false });
+
+      await call(proc, "set_badge", { badge: "player" });
+      const closedListen = await call(proc, "run_command", { command: "listen" });
+      if (closedListen.includes("tinny waltz")) throw new Error("closed door leaked the adjacent cue");
+      const nearSmell = await call(proc, "run_command", { command: "smell" });
+      assertContains(nearSmell, "warm copper");
+      if (nearSmell.includes("plain stone")) throw new Error("scentless thing invented a cue");
+
+      await call(proc, "set_badge", { badge: "game_master" });
+      assertContains(await call(proc, "run_command", { command: "open creaky door" }), "[OK]");
+      await call(proc, "set_badge", { badge: "player" });
+      const openListen = await call(proc, "run_command", { command: "listen" });
+      assertContains(openListen, "tinny waltz");
+      assertContains(openListen, "from the north");
+
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_world", { action: "create_thing", name: "sealed jar", kind: "container", location: "nearroom" });
+      await call(proc, "manage_world", { action: "create_thing", name: "dried rose", kind: "thing", location: "sealed jar", scent: "crushed petals" });
+      await call(proc, "set_badge", { badge: "player" });
+      const closedSmell = await call(proc, "run_command", { command: "smell" });
+      if (closedSmell.includes("crushed petals")) throw new Error("closed container leaked its contents' scent");
+
+      await call(proc, "set_badge", { badge: "game_master" });
+      assertContains(await call(proc, "run_command", { command: "open sealed jar" }), "[OK]");
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "run_command", { command: "smell" }), "crushed petals");
+
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_novel", { action: "switch", slug: "bf4" });
     });
 
     await test("T365/T320: narrative-intent parser verbs — ask/give/shows", async () => {

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-24 — Sensory parser cues
+
+- `listen` and `smell` now report modeled sensory cues instead of fixed
+  strings. `listen` reads `noise` from the current room, its supporters, its
+  open containers, and one adjacent room through an open exit; a closed door
+  suppresses the adjacent cue. `smell` reads `scent` from the current room,
+  supporters, open containers, and inventory; a closed container suppresses its
+  contents. With no modeled cue both return a neutral `[OK]` line and invent
+  nothing (REQ-319b).
+- Added `noise` and `scent` text properties to the world model, settable via
+  the convert assertion `<Name> has a noise of "...".` / `has a scent of
+  "...".` and via `manage_world` `create_thing`/`update_thing` (REQ-318a/b).
+- Registered `listen` and `smell` in the standard verb tier so `command("help")`
+  and `command("verbs")` enumerate them (REQ-283a).
+- Extended T364 and Appendix K; regenerated the world-provider document, tool
+  definitions, and surface baseline.
+
 ## 2026-10-24 — Table-driven procedural world generation
 
 - `manage_world (action: generate)` now rolls room descriptions, things,

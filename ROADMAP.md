@@ -6,14 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Fix sensory parser stubs
-
-- `listen` returns "You listen." and `smell` returns "You smell the air.";
-  containment, transparency, and closed containers already work.
-- Report modeled auditory/scent cues, fail neutrally when none exist, and add
-  tests.
-- Plan: `plans/2026-10-23-sensory-parser-fix/`
-
 ## Portable bundle integrity and player-safe export
 
 - Export/import, manifest, migration, clone, and checkpoints exist; add an

@@ -120,6 +120,16 @@ export const WORLD_MODEL_PROPERTIES: readonly WorldPropertyContract[] = [
     contract: "IF true THEN contents are visible without opening.",
     settersNamed: ["is transparent"], settersCurrent: ["It is transparent"],
   },
+  {
+    name: "noise", values: "text", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "Auditory cue text the thing emits; `listen` reports it. Null when no cue is modeled.",
+    settersNamed: ['has a noise of "..."'], settersCurrent: [],
+  },
+  {
+    name: "scent", values: "text", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "Olfactory cue text the thing emits; `smell` reports it. Null when no cue is modeled.",
+    settersNamed: ['has a scent of "..."'], settersCurrent: [],
+  },
 ];
 
 export const ROOM_DIRECTIONS = [
@@ -171,6 +181,9 @@ export interface WorldThing {
   drinkable: boolean;
   climbable: boolean;
   transparent: boolean;
+  // REQ-318 — sensory text properties (null when no cue is modeled).
+  noise: string | null;
+  scent: string | null;
   key?: string;
   // Annotations
   annotations: { encounter?: string; trap?: string; npc?: string; lore?: string };
@@ -394,6 +407,8 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
           drinkable: false,
           climbable: false,
           transparent: false,
+          noise: null,
+          scent: null,
           annotations: {},
           doorConnects: { roomA, roomB },
         };
@@ -489,6 +504,8 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         drinkable: false,
         climbable: false,
         transparent: false,
+        noise: null,
+        scent: null,
         annotations: {},
       };
       world.things.set(thingName.toLowerCase(), thing);
@@ -527,6 +544,8 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         drinkable: false,
         climbable: false,
         transparent: false,
+        noise: null,
+        scent: null,
         annotations: {},
       };
       world.things.set(thingName.toLowerCase(), thing);
@@ -577,6 +596,8 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
           drinkable: false,
           climbable: false,
           transparent: false,
+          noise: null,
+          scent: null,
           annotations: {},
         };
         if (kind === "door") {
@@ -610,6 +631,23 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
         thing.read_text = readTextMatch[2];
       } else {
         warnings.push({ line: lnum, pattern: text, message: `Thing '${readTextMatch[1].trim()}' not found for inscription.` });
+      }
+      continue;
+    }
+
+    // Sensory cue extraction: "<Name> has a noise of \"...\"." (REQ-318b)
+    const senseMatch = text.match(/^(.+?) has (?:a )?(noise|scent) of ["'](.+)["']\.?\s*$/i);
+    if (senseMatch) {
+      const target = senseMatch[1].trim().toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+      const norm = (n: string) => n.toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+      const things = [...world.things.values()];
+      const thing = things.find((t) => norm(t.name) === target)
+        ?? things.find((t) => norm(t.name).includes(target) || target.includes(norm(t.name)));
+      if (thing) {
+        const field = senseMatch[2].toLowerCase() as "noise" | "scent";
+        thing[field] = senseMatch[3];
+      } else {
+        warnings.push({ line: lnum, pattern: text, message: `Thing '${senseMatch[1].trim()}' not found for sensory cue.` });
       }
       continue;
     }
@@ -769,7 +807,7 @@ export interface VerbCatalog {
 }
 
 const CORE_VERBS = ["look", "go", "examine", "take", "drop", "inventory", "wait"];
-const STANDARD_VERBS = ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert", "switch on", "switch off", "ask", "tell", "give", "show", "throw"];
+const STANDARD_VERBS = ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "listen", "smell", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert", "switch on", "switch off", "ask", "tell", "give", "show", "throw"];
 
 // Maps a standard verb to the world-model property whose presence makes it
 // available; verbs without an entry are always available.

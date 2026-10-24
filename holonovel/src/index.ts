@@ -3714,6 +3714,8 @@ const MANAGE_WORLD_SCHEMA = {
     drinkable: z.boolean().optional().describe("When true the thing can be drunk (create_thing/update_thing)."),
     enterable: z.boolean().optional().describe("When true the thing can be entered (create_thing/update_thing)."),
     climbable: z.boolean().optional().describe("When true the thing can be climbed (create_thing/update_thing)."),
+    noise: z.string().optional().describe("Auditory cue text reported by listen (create_thing/update_thing)."),
+    scent: z.string().optional().describe("Olfactory cue text reported by smell (create_thing/update_thing)."),
     direction: z.string().optional().describe("Direction (create_exit/remove_exit)."),
     room: z.string().optional().describe("Source room (create_exit/remove_exit)."),
     room_a: z.string().optional().describe("Source room (create_exit)."),
@@ -3828,6 +3830,7 @@ server.registerTool("manage_world", {
         drinkable: args.drinkable === true,
         enterable: args.enterable === true,
         climbable: args.climbable === true,
+        noise: args.noise ?? null, scent: args.scent ?? null,
         vehiclePassengers: [], worn_by: null, annotations: {},
         key: args.key ? String(args.key).toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "") : undefined,
       };
@@ -3845,6 +3848,8 @@ server.registerTool("manage_world", {
       const boolFields = ["fixed", "openable", "lockable", "locked", "lit", "switchable", "switched_on", "transparent", "readable", "wearable", "edible", "drinkable", "enterable", "climbable"];
       for (const f of boolFields) if (args[f] !== undefined) (thing as any)[f] = args[f];
       if (args.description !== undefined) thing.description = args.description;
+      if (args.noise !== undefined) thing.noise = args.noise;
+      if (args.scent !== undefined) thing.scent = args.scent;
       if (args.location !== undefined) thing.location = args.location;
       if (args.key !== undefined) thing.key = args.key ? String(args.key).toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "") : undefined;
       state.saveNovel(novel);
@@ -6163,7 +6168,7 @@ function loadNovelFromStateData(data: any): NovelState {
     world.rooms.set(k, { name: (r as any).name, description: (r as any).description ?? "", exits: new Map(Object.entries((r as any).exits || {})), doorRefs: new Map(Object.entries((r as any).doorRefs || {})), annotations: (r as any).annotations ?? {} });
   }
   if (data.world?.things) for (const [k, t] of Object.entries(data.world.things)) {
-    world.things.set(k, { name: (t as any).name, description: (t as any).description ?? "", kind: (t as any).kind ?? "thing", location: (t as any).location ?? null, locationType: (t as any).locationType ?? null, portable: (t as any).portable ?? true, openable: (t as any).openable ?? false, open: (t as any).open ?? false, lockable: (t as any).lockable ?? false, locked: (t as any).locked ?? false, lit: (t as any).lit ?? false, switchable: (t as any).switchable ?? false, switched_on: (t as any).switched_on ?? false, enterable: (t as any).enterable ?? false, vehiclePassengers: (t as any).vehiclePassengers ?? [], wearable: (t as any).wearable ?? false, worn_by: (t as any).worn_by ?? null, readable: (t as any).readable ?? false, read_text: (t as any).read_text ?? null, edible: (t as any).edible ?? false, drinkable: (t as any).drinkable ?? false, climbable: (t as any).climbable ?? false, transparent: (t as any).transparent ?? false, annotations: (t as any).annotations ?? {} });
+    world.things.set(k, { name: (t as any).name, description: (t as any).description ?? "", kind: (t as any).kind ?? "thing", location: (t as any).location ?? null, locationType: (t as any).locationType ?? null, portable: (t as any).portable ?? true, openable: (t as any).openable ?? false, open: (t as any).open ?? false, lockable: (t as any).lockable ?? false, locked: (t as any).locked ?? false, lit: (t as any).lit ?? false, switchable: (t as any).switchable ?? false, switched_on: (t as any).switched_on ?? false, enterable: (t as any).enterable ?? false, vehiclePassengers: (t as any).vehiclePassengers ?? [], wearable: (t as any).wearable ?? false, worn_by: (t as any).worn_by ?? null, readable: (t as any).readable ?? false, read_text: (t as any).read_text ?? null, edible: (t as any).edible ?? false, drinkable: (t as any).drinkable ?? false, climbable: (t as any).climbable ?? false, transparent: (t as any).transparent ?? false, noise: (t as any).noise ?? null, scent: (t as any).scent ?? null, annotations: (t as any).annotations ?? {} });
   }
   return {
     slug: data.slug, name: data.name, ruleset: data.ruleset ?? null, badge: data.badge,
