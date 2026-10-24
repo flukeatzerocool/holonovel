@@ -39,3 +39,13 @@ When an increment retires, renames, or re-disposes an item tracked in
 Scheduled-roadmap row (and any other cross-referencing register) in the same
 increment — `npm run check-registers` gates this invariant, and the update
 belongs in the task list, not discovered at build time.
+
+## Grounding discipline for research reports
+
+A competitive or research report is an input, not a roadmap. Before a report
+recommendation enters this directory or `ROADMAP.md`, verify it against
+`spec/` and `holonovel/src` and cite the REQ IDs, code paths, and existing
+harness result. A recommendation that cannot cite current state is a research
+gap, not a build item. Each report-derived plan carries a **Grounding** line
+naming what was checked; the 2026-10-23 verification pass retired two
+recommendations and narrowed a third for exactly this reason.
