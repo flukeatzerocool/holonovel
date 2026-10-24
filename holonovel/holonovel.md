@@ -485,7 +485,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
-| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
+| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
 | 5.13   | Holodeck Coupling Model                                | 369–371, 374–376 |
@@ -507,7 +507,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.29   | Build-time Semantic Index                               | 504–509 |
 | 5.30   | Knowledge-Graph Projection                              | 510–514 |
 | 5.31   | Durable Agent Tasks                                     | 522–530 |
-| 5.32   | Perception Ledger                                       | 540–545 |
+| 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
 
@@ -3860,6 +3860,12 @@ An `manage_history (action: undo)` that restores the deleted target before the c
 **REQ-368e — Countdown-world effect coupling (Part e).**
 Create countdown with `world_effect.target="nonexistent"` and fire — assert `[WARNING] target missing — effect not applied` in audit log. _Check:_ T419. Out of scope: multiplayer synchronization, real-time collaborative editing, save-Novel versioning beyond the checksum model, and Novel migration between different rulesets.
 
+**REQ-596 — Visibility query.**
+The server SHALL provide a read-only visibility query over `run_command (action: visibility)` accepting a source actor and an optional target. With a target it SHALL report whether the source can see that actor or thing; without a target it SHALL report the things visible from the source's room. Sight SHALL require a lit room, where a room is lit when it contains a `lit` and `switched_on` thing, and the target SHALL NOT lie behind an opaque boundary per REQ-367a–c. The query SHALL NOT mutate state or take an undo snapshot. *Acceptance criterion:* an opaque outer container hides a transparent inner container's lit contents until the outer container is opened. _Check:_ T701, T702.
+
+**REQ-597 — Audibility query.**
+The server SHALL provide a read-only audibility query over `run_command (action: audibility)` accepting a source actor and a target, reporting whether sound from the target's room reaches the source's room. Sound SHALL cross the same room and one open exit, and a closed door SHALL suppress it, reusing the REQ-319b adjacency rule. The query SHALL NOT mutate state or take an undo snapshot, and the Player badge SHALL query only the active entity's point of view. *Acceptance criterion:* a target one open exit away is audible and becomes inaudible when the door closes. _Check:_ T703.
+
 ### 5.11 Ruleset-Free Build Mode
 
 **REQ-218a — Ruleset-free build (Part a).**
@@ -4657,17 +4663,23 @@ Knowledge-graph reads SHALL remain read-only, SHALL NOT mutate Novel state, and 
 
 ### 5.32 Perception Ledger
 
-**REQ-540 — Perception record.** THE server SHALL provide `manage_belief (action: perception_record)` to record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, and the contributing event-log ordinal. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, and summary. _Check:_ T614.
+**REQ-540 — Perception record.** THE server SHALL provide `manage_belief (action: perception_record)` to record, for an entity, a perception of a message, scene change, or observation as an append-only entry carrying the entity, the kind, a summary, the contributing event-log ordinal, the witness kind, the sense, the source entity, the room identifier, and a 0..1 confidence. *Acceptance criterion:* recording a perception appends an entry with its entity, kind, summary, and witness provenance. _Check:_ T614.
 
 **REQ-541 — Observed, not believed.** Perception entries SHALL be separate from belief: recording a perception SHALL NOT create or alter a belief stance. *Acceptance criterion:* recording a perception leaves the entity's beliefs unchanged. _Check:_ T615.
 
-**REQ-542 — Per-entity query.** The server SHALL list perceptions filtered by entity. *Acceptance criterion:* an entity query returns only that entity's perceptions. _Check:_ T616.
+**REQ-542 — Per-entity query.** The server SHALL list perceptions filtered by entity, and SHALL answer `manage_belief (action: knowledge_query)` with that entity's perceptions, reconciled beliefs, and known secrets, optionally filtered by topic, each carrying its event provenance. *Acceptance criterion:* an entity query returns only that entity's perceptions, and a knowledge query returns only that entity's records with event ordinals. _Check:_ T616, T704.
 
 **REQ-543 — Event provenance.** A perception SHALL cite the event-log ordinal it derives from, defaulting to the latest event, and the server SHALL list perceptions by event. *Acceptance criterion:* a perception recorded after an event carries that event's ordinal, and an event query returns it. _Check:_ T617.
 
 **REQ-544 — Persistence.** Perception entries SHALL persist with the Novel and survive a restart, bounded by a configured cap. *Acceptance criterion:* a perception survives an end-and-resume cycle. _Check:_ T618.
 
-**REQ-545 — Perception badge gating.** A Player SHALL read only the active entity's perceptions, and perception mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player read of another entity's perceptions is refused and an Observer mutation is refused. _Check:_ T619.
+**REQ-545 — Perception badge gating.** A Player SHALL read only the active entity's perceptions and knowledge, and perception mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player read of another entity's perceptions or knowledge is refused and an Observer mutation is refused. _Check:_ T619, T704.
+
+**REQ-594 — Witness provenance.**
+Each perception entry SHALL carry a witness kind (`saw`, `heard`, `inferred`, or `told`), the sense that produced it (`sight`, `sound`, `telling`, or null), the source entity, the room identifier, and a 0..1 confidence. A perception recorded without witness data SHALL be stored as `inferred` with a null sense and zero confidence, and a legacy Novel whose entries lack these fields SHALL load them with those inert defaults rather than dropping the entry. *Acceptance criterion:* a legacy Novel loads its perception entries with `inferred`, null sense, and zero confidence. _Check:_ T705.
+
+**REQ-595 — Derived witness attribution.**
+When an event is appended to a Novel with a populated world model, the server SHALL derive a perception for each entity or NPC that shares the acting entity's room and lit room state (`saw`, sense `sight`, confidence 1) or stands one open exit away (`heard`, sense `sound`, confidence 0.6), citing the acting entity as source and the event ordinal. A reveal SHALL record a `told` perception for the recipient. The acting entity SHALL NOT receive a derived record for its own event, and a duplicate attribution for the same event and entity SHALL NOT be appended. *Acceptance criterion:* an event in a lit room produces a `saw` perception for a co-located entity and none for the actor. _Check:_ T704.
 
 ### 5.33 Briefing Consistency
 
@@ -6265,6 +6277,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-326 | I10, I13 | Scene-world coupling |
 | REQ-327 | I11 | NPC-world coupling |
 | REQ-367 | I6, I16 | World-model property contracts |
+| REQ-596 | I17, I6 | Visibility query |
+| REQ-597 | I17 | Audibility query |
 | REQ-368 | S32 | Countdown-world effect coupling |
 | REQ-369 | S32, S33 | Holodeck archetype taxonomy |
 | REQ-370 | — (validated by `npm run validate`) | Coupling derivation |
@@ -6638,6 +6652,8 @@ only; it does not require every sub-workflow to appear as a row.
 | REQ-326 | I10, I13 | Scene-world coupling |
 | REQ-327 | I11 | NPC-world coupling |
 | REQ-367 | I6, I16 | World-model property contracts |
+| REQ-596 | I17, I6 | Visibility query |
+| REQ-597 | I17 | Audibility query |
 | REQ-368 | S32 | Countdown-world effect coupling |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Pattern Buffer sub-workflow fails, THE
@@ -10043,6 +10059,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-591 | Source pointers and traversal | 2026-10-24 |
 | REQ-592 | Budgeted tier assembly | 2026-10-24 |
 | REQ-593 | Recall probes | 2026-10-24 |
+| REQ-594 | Witness provenance | 2026-10-24 |
+| REQ-595 | Derived witness attribution | 2026-10-24 |
+| REQ-596 | Visibility query | 2026-10-24 |
+| REQ-597 | Audibility query | 2026-10-24 |
 
 ---
 
@@ -10741,6 +10761,11 @@ diet.
 | T698 | Automated | Source-pointer traversal: after compaction, read a session summary and call `manage_session (action: history, ordinals=<source_ordinals>)`; assert the named events return in ordinal order; evict an event under the event-log cap and assert its ordinal reports `[evicted]`; assert the Player badge never receives `game_master`-sourced text. | REQ-591 |
 | T699 | Automated | Budgeted assembly: call `manage_session (action: recap, tier="campaign", budget_tokens=N)` above, below, and at the exact tier cost; assert tiers drop in the declared order with a `[truncated]` marker; assert a no-parameter recap is byte-identical to the pre-change output; assert an invalid tier or non-positive budget returns `[INVALID_INPUT]`. | REQ-592, REQ-072 |
 | T700 | Automated | Recall probes: run the fixture campaign through the compaction path and evaluate the committed probe set; assert every must-recall probe hits at every declared budget and aggregate `recall@budget` is at least 0.90; lower a probe's budget until a tier is dropped and assert the reported per-tier recall reflects the drop. | REQ-593 |
+| T701 | Automated | Visibility room light: in a world with a lit room and an adjacent room with no light source, assert `run_command (action: visibility)` reports a thing in the dark room as not visible; add a `lit` and `switched_on` thing and assert it becomes visible. | REQ-596 |
+| T702 | Automated | Visibility containment: an opaque chest holding a transparent jar holding a lit lantern reports the lantern not visible; open the chest and assert the lantern becomes visible; a same-room lit thing is visible. | REQ-596 |
+| T703 | Automated | Audibility: with a closed door between two rooms, assert `run_command (action: audibility)` reports no sound; unlock and open the door and assert the target is audible. | REQ-597 |
+| T704 | Automated | Witness attribution and knowledge query: with two entities in a lit room, append an event and assert the non-actor's `knowledge_query` contains a `saw`/`sight` perception citing the event ordinal; assert the actor receives no derived record; assert a Player may query its own entity and not another. | REQ-595, REQ-542, REQ-545 |
+| T705 | Automated | Legacy perception load: write a Novel whose perception entries lack witness fields, resume it, and assert the entries load with `inferred`, null sense, and zero confidence. | REQ-594 |
 
 ---
 

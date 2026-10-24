@@ -542,6 +542,23 @@
       "successors": [],
       "edges": []
     },
+    "manage_belief.knowledge_query": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_belief.perception_list": {
       "group": "referee",
       "phases": [
@@ -4405,6 +4422,40 @@
       "phases": [
         "scene",
         "combat"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "run_command.visibility": {
+      "group": "explore",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "run_command.audibility": {
+      "group": "explore",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
       ],
       "entry": false,
       "mutation_class": "read",

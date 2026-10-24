@@ -795,6 +795,90 @@ function handleTouch(target: string, ctx: ParserContext): ParserResult {
   return { prefix: "OK", text: `You touch the ${bareName(thing.name)}.` };
 }
 
+// ── Spatial perception queries (REQ-596, REQ-597) ────────────────────
+// Read-only derivations over the existing containment and sound primitives;
+// they do not mutate the world and do not replace `look` or `listen`.
+
+// REQ-596 — a room is lit when it contains a lit, switched-on light source.
+export function roomIsLit(world: WorldModel, roomName: string | null): boolean {
+  if (!roomName) return false;
+  const rl = roomName.toLowerCase();
+  for (const thing of world.things.values()) {
+    if (thing.locationType !== "room") continue;
+    if (thing.location?.toLowerCase() !== rl) continue;
+    if (thing.lit && thing.switched_on) return true;
+  }
+  return false;
+}
+
+// REQ-596 — resolve a containment parent by location name, tolerating the
+// article the converter keeps on some thing names ("An iron chest").
+function parentThing(world: WorldModel, location: string | null | undefined): WorldThing | undefined {
+  if (!location) return undefined;
+  const direct = world.things.get(location.toLowerCase());
+  if (direct) return direct;
+  const norm = (s: string) => s.toLowerCase().trim().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+  const want = norm(location);
+  return [...world.things.values()].find((t) => norm(t.name) === want);
+}
+
+// REQ-596 — the room a thing ultimately sits in, walking containment upward.
+export function thingRoom(world: WorldModel, thing: WorldThing): string | null {
+  let node: WorldThing | undefined = thing;
+  for (let depth = 0; node && depth < 32; depth++) {
+    const parent = parentThing(world, node.location);
+    if (!parent) return node.location ?? null;
+    node = parent;
+  }
+  return null;
+}
+
+// REQ-596 — can an observer in `roomName` see `target`? The containment chain
+// is read from location names (the converter records containment in `location`
+// even when `locationType` is the legacy `room` value).
+export function isVisibleFrom(world: WorldModel, roomName: string | null, target: WorldThing): boolean {
+  if (!roomName || !roomIsLit(world, roomName)) return false;
+  const room = roomName.toLowerCase();
+  let node: WorldThing | undefined = target;
+  for (let depth = 0; node && depth < 32; depth++) {
+    const parent = parentThing(world, node.location);
+    if (!parent) return (node.location ?? "").toLowerCase() === room;
+    // REQ-367a–c — an openable container that is neither open nor transparent
+    // blocks sight of its contents. A transparent or open one passes through.
+    if (parent.kind === "container" && parent.openable && !parent.open && !parent.transparent) return false;
+    node = parent;
+  }
+  return false;
+}
+
+// REQ-596 — everything an observer in `roomName` can see.
+export function visibleHere(world: WorldModel, roomName: string | null): WorldThing[] {
+  if (!roomName || !roomIsLit(world, roomName)) return [];
+  const out: WorldThing[] = [];
+  for (const thing of world.things.values()) {
+    if (isVisibleFrom(world, roomName, thing)) out.push(thing);
+  }
+  return out;
+}
+
+// REQ-597 — sound crosses one open exit; a closed door suppresses it.
+export function isAudibleFrom(world: WorldModel, sourceRoom: string | null, targetRoom: string | null): boolean {
+  if (!sourceRoom || !targetRoom) return false;
+  const src = world.rooms.get(sourceRoom.toLowerCase());
+  if (!src) return false;
+  if (sourceRoom.toLowerCase() === targetRoom.toLowerCase()) return true;
+  for (const [dir, dest] of src.exits) {
+    if (dest.toLowerCase() !== targetRoom.toLowerCase()) continue;
+    const doorName = src.doorRefs.get(dir);
+    if (doorName) {
+      const door = world.things.get(doorName.toLowerCase());
+      if (door && !door.open) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
 function handleInsert(target: string, ctx: ParserContext): ParserResult {
   const words = target.split(/\s+/);
   const inIdx = words.findIndex(a => a === "in" || a === "into");

@@ -8,6 +8,13 @@
 
 **Recorded surface budgets:** full 26,572 tokens; standard 23,071; small 1,156; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
+### Witness-aware perception and spatial queries — 2026-10-24
+
+- **D2 — room light is derived, not stored.** A room is lit when it contains a `lit` and `switched_on` thing. `WorldRoom` gains no light field in this increment. A room with no lamp is therefore dark to the new visibility query; fixtures place a light source explicitly. (REQ-596)
+- **D3 — read-only `run_command` actions, not new tools.** `run_command (action: visibility)` answers `can_see`/`visible_here`; `run_command (action: audibility)` answers `can_hear`. Both are read-only, take no snapshot, and do not alter the REQ-323 resolve/execute contracts. No tool count or REQ-137a gate-classification change. (REQ-596, REQ-597)
+- **D4 — derived attribution with an explicit override.** Event appends derive `saw`/`heard` perceptions for co-located and one-open-exit entities; an explicit reveal records `told`. Explicit `perception_record` remains available and defaults to `inferred`. (REQ-594, REQ-595)
+- **D5 — POV is a derived view.** `badge_briefing` `knowledge_state` renders the active entity's perception records directly; no duplicated per-NPC narrative is stored. (REQ-542, REQ-545)
+
 ### World-Model Provider Document — 2026-10-22
 
 - **Generated artifact.** `holonovel/narrative_world_model/world/world-model-provider.md` is emitted from `world-model-provider.template.md` plus the schema constants in `src/world/model.ts` (`WORLD_MODEL_KINDS`, `WORLD_MODEL_PROPERTIES`, `BASE_PARSER_COMMANDS`, `WORLD_MODEL_DECLARABLE_KINDS`, `ROOM_DIRECTIONS`, `verbCatalog`). `npm run generate-world-provider` writes it, `check-world-provider` gates freshness, and `test:world-provider` gates the `world://kinds` payload.

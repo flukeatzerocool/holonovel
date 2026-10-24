@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 109498,
+  "tools_list_bytes": 109783,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 109498,
-        "tokens": 27375
+        "bytes": 109783,
+        "tokens": 27446
       },
       "standard": {
         "tools": 36,
-        "bytes": 95494,
-        "tokens": 23874
+        "bytes": 95779,
+        "tokens": 23945
       },
       "small": {
         "tools": 6,
@@ -27,8 +27,8 @@
           },
           "explore": {
             "tools": 6,
-            "bytes": 3699,
-            "tokens": 925
+            "bytes": 3779,
+            "tokens": 945
           },
           "resolve": {
             "tools": 6,
@@ -295,8 +295,8 @@
     {
       "name": "manage_belief",
       "title": "Belief Management",
-      "description": "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. admit takes a subject/predicate/object proposition with a 0..1 weight and derives its question; source defaults to the active badge; retract suppresses evidence without deleting the ledger; reconcile recomputes stances after evidence changes. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; list/get/evidence/conflicts and the perception reads are read-only. The perception ledger is append-only and not reversible via manage_history, so correct a mistaken admit with retract. Use when: recording or inspecting what an entity learned or believes, finding contradictions, or logging perceptions. Do NOT use when: recording objective world truth — use manage_causality (action: causal_propose); recording shared lore — use manage_lore.",
-      "description_bytes": 960,
+      "description": "Manage per-entity evidence, reconciled belief stances, the perception ledger, and a one-entity knowledge query. admit takes a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances after evidence changes; knowledge_query returns the entity's perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; reads are read-only. The perception ledger is append-only, so correct a mistaken admit with retract. Use when: inspecting or recording what an entity learned or believes. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore.",
+      "description_bytes": 734,
       "action_enum": [
         "list",
         "get",
@@ -305,12 +305,13 @@
         "retract",
         "conflicts",
         "reconcile",
+        "knowledge_query",
         "perception_record",
         "perception_list",
         "perception_for_entity",
         "perception_for_event"
       ],
-      "param_count": 15,
+      "param_count": 16,
       "required": [
         "action"
       ],
@@ -329,6 +330,7 @@
         "source_ordinal": "Contributing event-log ordinal (admit; default the latest event ordinal).",
         "status": "active, unresolved, or suppressed (admit; default active).",
         "subject": "Proposition subject (admit).",
+        "topic": "Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets.",
         "weight": "Evidence support weight 0..1 (admit; default 1)."
       },
       "output_fields": {
@@ -342,9 +344,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 16,
+        "paramCount": 17,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 16,
+        "paramsWithDescriptions": 17,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -355,8 +357,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3695,
-        "descriptionBytes": 960
+        "definitionBytes": 3641,
+        "descriptionBytes": 734
       },
       "category": "",
       "gate": ""
@@ -2138,14 +2140,18 @@
       "action_enum": [
         "execute",
         "resolve",
-        "suggest"
+        "suggest",
+        "visibility",
+        "audibility"
       ],
-      "param_count": 3,
+      "param_count": 5,
       "required": [],
       "params": {
         "command": "The natural-language command (execute).",
         "entity_id": "Optional entity context (suggest).",
-        "intent": "The intent to resolve or map (resolve/suggest)."
+        "intent": "The intent to resolve or map (resolve/suggest).",
+        "source": "Observing actor for visibility/audibility (defaults to the active entity).",
+        "target": "Actor or thing being seen or heard (visibility/audibility)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -2158,9 +2164,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 4,
+        "paramCount": 6,
         "requiredParamCount": 0,
-        "paramsWithDescriptions": 4,
+        "paramsWithDescriptions": 6,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -2171,7 +2177,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1989,
+        "definitionBytes": 2328,
         "descriptionBytes": 855
       },
       "category": "",

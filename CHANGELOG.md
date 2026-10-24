@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-24 — Witness-aware perception, POV, and spatial queries
+
+- Extended the perception ledger with witness provenance: every entry carries a
+  witness kind (`saw`/`heard`/`inferred`/`told`), sense, source entity, room,
+  and confidence. Legacy Novels load missing fields as `inferred` with a null
+  sense and zero confidence (REQ-594; T705).
+- Event appends now derive witnesses for entities co-located in a lit room
+  (`saw`, confidence 1) and one open exit away (`heard`, confidence 0.6),
+  citing the acting entity and event ordinal; an explicit reveal records a
+  `told` perception. The actor receives no record for its own event
+  (REQ-595; T704).
+- Added read-only spatial queries over the existing primitives:
+  `run_command (action: visibility)` answers `can_see`/`visible_here` (room
+  light plus the REQ-367a–c opaque-boundary chain), and
+  `run_command (action: audibility)` answers `can_hear` using the REQ-319b
+  one-open-exit rule. Neither mutates state or takes a snapshot
+  (REQ-596, REQ-597; T701/T702/T703).
+- Added `manage_belief (action: knowledge_query)` returning one entity's
+  perceptions, reconciled beliefs, and known secrets with event provenance,
+  optionally filtered by topic. The Player badge reads only the active
+  entity's knowledge; `knowledge_state` renders that entity's perception
+  records as its POV overlay (REQ-542, REQ-545).
+- Registered the new actions in the tool-surface registry, rebaselined the
+  surface budget, and regenerated tool definitions and the data-format
+  fingerprint. Updated §5.10/§5.32, the §5 section map, the Pattern Buffer
+  coverage map, Appendix E/F (T701–T705), the coverage register, and the
+  starter Novel.
+
 ## 2026-10-24 — Compression ladder and recall probes
 
 - Added a four-tier compression ladder over the existing raw history: a recent
