@@ -196,25 +196,128 @@ async function main() {
     await kill(proc);
   }
 
-  // ── T390 / T399: discovered consequences + knowledge ──────────────
+  // ── T390: location-gated discovery + orientation + witnessed fire ──
   {
     const proc = await boot();
-    await call(proc, "manage_novel", { action: "create",  name: "narrative-consequences" });
+    await call(proc, "manage_novel", { action: "create",  name: "narrative-t390" });
     await call(proc, "set_badge", { badge: "game_master" });
     await call(proc, "manage_character", { action: "create",  name: "Rogue" });
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: [] });
+    await call(proc, "manage_countdown", { action: "set",  name: "guard-trap", ticks: 1, on_scene_transition: true, scope: "Guard Room" });
+    await call(proc, "manage_scene", { action: "set",  description: "A cold courtyard", location: "Courtyard" });
+    await call(proc, "manage_scene", { action: "set",  description: "Bells ring over the courtyard", location: "Courtyard" });
+    await call(proc, "set_badge", { badge: "player" });
 
-    await test("T390: discovered consequence produced when entity absent", async () => {
-      await call(proc, "manage_countdown", { action: "set",  name: "guard-trap", ticks: 1, on_scene_transition: true, scope: "guard-room" });
-      await call(proc, "manage_scene", { action: "set",  description: "Outside" });
-      await call(proc, "manage_scene", { action: "set",  description: "Elsewhere" });
+    await test("T390: absent entity does not discover at fire time", async () => {
       const b = await briefing(proc);
-      // The countdown fired (removed) and a [discovered] consequence surfaced.
-      assertContains(b, "Story journal");
+      assertNotContains(b, '[discovered] Countdown "guard-trap"');
+      const recap = await call(proc, "manage_session", { action: "recap" });
+      assertNotContains(recap, "Meanwhile,");
     });
 
-    await test("T399: discovered consequence populates knowledge state", async () => {
+    await test("T390: a different location produces no discovery", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_01"] });
+      await call(proc, "manage_scene", { action: "set",  description: "The gatehouse is quiet", location: "Gatehouse" });
+      await call(proc, "set_badge", { badge: "player" });
       const b = await briefing(proc);
-      assertContains(b, "Knowledge state");
+      assertNotContains(b, '[discovered] Countdown "guard-trap"');
+      const recap = await call(proc, "manage_session", { action: "recap" });
+      assertNotContains(recap, "Meanwhile,");
+    });
+
+    await test("T390: reaching the linked location discovers the consequence", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_scene", { action: "set",  description: "The guard room is wrecked", location: "Guard Room" });
+      await call(proc, "set_badge", { badge: "player" });
+      const b = await briefing(proc);
+      assertContains(b, '[discovered] Countdown "guard-trap"');
+      const recap = await call(proc, "manage_session", { action: "recap" });
+      assertContains(recap, "Meanwhile,");
+      await call(proc, "set_badge", { badge: "game_master" });
+      const gm = await call(proc, "manage_story", { action: "list" });
+      assertContains(gm, "guard-trap");
+      await call(proc, "set_badge", { badge: "player" });
+    });
+
+    await test("T390: a witnessed fire is a standard consequence", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_countdown", { action: "set",  name: "witnessed", ticks: 1, on_scene_transition: true, scope: "Guard Room" });
+      await call(proc, "manage_scene", { action: "set",  description: "The room shakes", location: "Guard Room" });
+      await call(proc, "set_badge", { badge: "player" });
+      const b = await briefing(proc);
+      assertNotContains(b, '[discovered] Countdown "witnessed"');
+      await call(proc, "set_badge", { badge: "game_master" });
+      const gm = await briefing(proc);
+      assertContains(gm, 'Countdown "witnessed" fired');
+      assertNotContains(gm, '[discovered] [consequence] Countdown "witnessed"');
+    });
+
+    await kill(proc);
+  }
+
+  // ── T399: structured knowledge, plural discovery, restart persistence ──
+  {
+    let proc = await boot();
+    await call(proc, "manage_novel", { action: "create",  name: "narrative-t399" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create",  name: "Rogue" });
+    await call(proc, "manage_character", { action: "create",  name: "Wizard" });
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: [] });
+    await call(proc, "manage_countdown", { action: "set",  name: "guard-trap", ticks: 2, on_scene_transition: true, scope: "Guard Room" });
+    await call(proc, "manage_scene", { action: "set",  description: "Outside", location: "Courtyard" });
+    await call(proc, "manage_scene", { action: "set",  description: "Dusk", location: "Courtyard" });
+    await call(proc, "manage_scene", { action: "set",  description: "Night", location: "Courtyard" });
+    // Only Rogue reaches the linked location.
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_01"] });
+    await call(proc, "manage_scene", { action: "set",  description: "The guard room", location: "Guard Room" });
+    await call(proc, "set_badge", { badge: "player" });
+
+    await test("T399: discovered knowledge carries the structured source", async () => {
+      const b = await briefing(proc);
+      assertContains(b, '[discovered] Countdown "guard-trap"');
+      assertContains(b, "source: discovered_consequence");
+      assertContains(b, "countdown: guard-trap");
+    });
+
+    await test("T399: an entity absent from the location does not learn it", async () => {
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_02" });
+      const b = await briefing(proc);
+      assertNotContains(b, '[discovered] Countdown "guard-trap"');
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+    });
+
+    await test("T399: both entities discover a shared consequence independently", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_staging", { action: "presence",  entity_ids: [] });
+      await call(proc, "manage_countdown", { action: "set",  name: "forge-trap", ticks: 1, on_scene_transition: true, scope: "Forge" });
+      await call(proc, "manage_scene", { action: "set",  description: "The road east", location: "Road" });
+      await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_01", "character_02"] });
+      await call(proc, "manage_scene", { action: "set",  description: "The forge roars", location: "Forge" });
+      await call(proc, "set_badge", { badge: "player" });
+      const rogue = await briefing(proc);
+      assertContains(rogue, '[discovered] Countdown "forge-trap"');
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_02" });
+      const wizard = await briefing(proc);
+      assertContains(wizard, '[discovered] Countdown "forge-trap"');
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+    });
+
+    await test("T399: consequence knowledge persists across scenes and restart", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_scene", { action: "set",  description: "The long road home", location: "Road" });
+      await call(proc, "set_badge", { badge: "player" });
+      const b = await briefing(proc);
+      assertContains(b, '[discovered] Countdown "guard-trap"');
+      assertContains(b, '[discovered] Countdown "forge-trap"');
+      await kill(proc);
+      proc = await boot();
+      await call(proc, "manage_novel", { action: "resume",  slug: "narrative-t399" });
+      await call(proc, "set_badge", { badge: "player" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+      const resumed = await briefing(proc);
+      assertContains(resumed, '[discovered] Countdown "guard-trap"');
+      assertContains(resumed, '[discovered] Countdown "forge-trap"');
     });
 
     await kill(proc);

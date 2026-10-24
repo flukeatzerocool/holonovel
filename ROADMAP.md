@@ -6,16 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Location-gated discovery for countdown consequences
-
-- Attribution now records discoverers at fire, but discovery is not gated on
-  the entity reaching the countdown's location and the timestamp is fire time,
-  not the scene transition (REQ-340a). `narrative_orientation` also lacks the
-  "Meanwhile, ..." fragment (REQ-340b).
-- Add location linkage, defer discovery until the entity is present there, and
-  fill the orientation fragment; strengthen T390/T399 to their Appendix F
-  descriptions.
-
 ## Narrator visibility gate
 
 - Badge filtering protects briefings, but GM-only facts can enter narrator

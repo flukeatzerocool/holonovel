@@ -711,7 +711,13 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
   // attribution fail closed; the GM story-journal surface still shows them.
   const discovered = novel.story_journal.filter((s) =>
     s.type === "consequence" && s.discovered && Array.isArray(s.entity_ids) && s.entity_ids.includes(activeId));
-  for (const s of discovered) lines.push(`[discovered] ${s.entry}`);
+  for (const s of discovered) {
+    // REQ-349a — the knowledge entry carries its source and countdown name.
+    const source = s.countdown_name
+      ? ` (source: discovered_consequence, countdown: ${s.countdown_name})`
+      : ` (source: discovered_consequence)`;
+    lines.push(`[discovered] ${s.entry}${source}`);
+  }
 
   // REQ-345 — background knowledge directive when entity has a background.
   const background = entity.personality?.background;
@@ -3623,6 +3629,8 @@ server.registerTool("run_command", {
       advanceWorldTriggeredCountdowns(novel, `room_enter:${goResult.newRoom.toLowerCase()}`);
       // REQ-125/REQ-353 — a parser move is a scene transition: tick on_scene_transition clocks.
       advanceSceneTransitionCountdowns(novel);
+      // REQ-340a — reaching a countdown's linked location resolves discovery.
+      resolvePendingDiscoveries(novel);
       for (const [, m] of movers) recordExplorationKnowledge(novel, m, "room", goResult.newRoom.toLowerCase());
     }
   }
@@ -4655,9 +4663,15 @@ function factionAutonomousAdvance(novel: NovelState): void {
   }
 }
 
+// REQ-340a — compare a countdown scope to a scene location by normalizing case,
+// a leading article, and punctuation ("guard-room" matches "Guard Room").
+function normalizePlace(value: string): string {
+  return value.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
 // REQ-340 — when an on_scene_transition countdown fires while the active entity
 // is absent from all scenes since its creation, produce a [discovered] entry.
-function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any }): void {
+function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any; scope?: string }): void {
   const presentIds = new Set(novel.characters_present_ids ?? []);
   const activeId = novel.active_entity_id;
   const absent = activeId && !presentIds.has(activeId);
@@ -4685,10 +4699,51 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
     scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
     entity_ids: discoverers,
     timestamp: new Date().toISOString(),
+    countdown_name: name,
   };
-  if (discoverers.length > 0) entry.discovered = true;
+  if (discoverers.length > 0) {
+    if (cd.scope) {
+      // REQ-340a — defer discovery until the party reaches the linked location;
+      // the discovery timestamp is that scene transition, not the fire. Every
+      // entity absent at fire is eligible, including when presence is unset.
+      entry.discovered = false;
+      entry.pending_discovery = true;
+      entry.discovery_scope = cd.scope;
+      entry.eligible_entity_ids = [...novel.entities.keys()].filter((id) => !presentIds.has(id));
+      entry.fired_at = entry.timestamp;
+    } else {
+      // No location link: retain the immediate-discovery fallback (REQ-349b).
+      entry.discovered = true;
+    }
+  }
   novel.story_journal.push(entry);
-  audit("countdown_expired", { name, discovered: discoverers.length > 0 });
+  audit("countdown_expired", { name, discovered: entry.discovered === true, pending_discovery: entry.pending_discovery === true });
+}
+
+// REQ-340a/349b — resolve pending discoveries when the party enters the
+// countdown's linked location. Only entities present at that transition learn
+// the consequence; later arrivals do not.
+function resolvePendingDiscoveries(novel: NovelState): void {
+  const pending = novel.story_journal.filter((s) => s.type === "consequence" && s.pending_discovery);
+  if (pending.length === 0) return;
+  const activeId = novel.active_entity_id;
+  const activeRoom = activeId ? novel.entities.get(activeId)?.current_room : null;
+  const places = new Set([novel.scene_location, activeRoom].filter((p): p is string => !!p).map(normalizePlace));
+  if (places.size === 0) return;
+  const present = new Set(novel.characters_present_ids ?? []);
+  if (present.size === 0 && activeId) present.add(activeId);
+  for (const entry of pending) {
+    if (!entry.discovery_scope || !places.has(normalizePlace(entry.discovery_scope))) continue;
+    const eligible = entry.eligible_entity_ids ?? [...novel.entities.keys()];
+    const discoverers = eligible.filter((id) => present.has(id));
+    if (discoverers.length === 0) continue;
+    entry.discovered = true;
+    entry.pending_discovery = false;
+    entry.entity_ids = discoverers;
+    entry.timestamp = new Date().toISOString();
+    entry.scene_anchor = novel.scene_description?.substring(0, 80) ?? "";
+    audit("discovery_resolved", { countdown: entry.countdown_name, entities: discoverers, location: novel.scene_location });
+  }
 }
 
 // REQ-368 — apply a countdown world_effect (describe/property/exit) with undo
@@ -4871,6 +4926,7 @@ server.registerTool("manage_scene", {
         state.resetAiMutationTurn();
         audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
         advanceSceneTransitionCountdowns(novel);
+        resolvePendingDiscoveries(novel);
         factionAutonomousAdvance(novel);
         resetPacing(novel);
         if (novel.auto_record) recordStoryMoment(novel, effectiveDescription, location ?? null);
@@ -7656,6 +7712,9 @@ Options: yes, cancel`);
       for (const v of novel.vows) {
         if (v.state === "active") parts.push(`the vow to ${v.name} has ${v.milestones} milestones done`);
       }
+      // REQ-340b — discovered consequences orient the recap as "Meanwhile, ...".
+      const discoveredRecap = novel.story_journal.filter((s) => s.type === "consequence" && s.discovered).slice(-3);
+      for (const s of discoveredRecap) parts.push(`Meanwhile, ${s.entry.replace(/\.$/, "")}`);
       const narrative_orientation = parts.length > 0
         ? parts.join("; ") + "."
         : "[No narrative history yet — your story begins here.]";
