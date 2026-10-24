@@ -172,22 +172,55 @@ async function main() {
 
   // ── T515 (REQ-431) — procedural world generation ───────────────────
   {
-    seedPackage("gentest", { generation_tables: { trinkets: { dice_expression: "1d100", ranges: [{ min: 1, max: 100, result: "a dusty trinket" }] } } });
+    seedPackage("gentest", {
+      generation_tables: {
+        "dungeon rooms": {
+          title: "Dungeon Rooms",
+          dice_expression: "1d6",
+          ranges: [{ min: 1, max: 6, result: "A damp stone chamber" }],
+        },
+        trinkets: {
+          title: "Trinkets",
+          dice_expression: "1d100",
+          ranges: [{ min: 1, max: 100, result: "a dusty trinket" }],
+        },
+        encounters: {
+          title: "Encounters",
+          dice_expression: "1d6",
+          ranges: [{ min: 1, max: 6, result: "a prowling ghoul" }],
+        },
+        traps: {
+          title: "Traps",
+          dice_expression: "1d6",
+          ranges: [{ min: 1, max: 6, result: "a dart trap" }],
+        },
+        "cursed relics": {
+          title: "Cursed Relics",
+          dice_expression: "1d6",
+          ranges: [{ min: 1, max: 6, result: 'He said "beware".\nA second line.' }],
+        },
+      },
+    });
     const proc = await boot();
     await newNovel(proc, "gen-test");
     await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
 
-    await test("T515/REQ-431: world generate produces a deterministic batch offered as a decision", async () => {
+    await test("T515/REQ-431: world generate produces a table-driven batch offered as a decision", async () => {
       const g1 = await call(proc, "manage_world", { action: "generate", seed: "42" });
       assertContains(g1, "NEED_INPUT");
-      assertContains(g1, "Generated Chamber 1");
+      assertContains(g1, "is a room.");
+      assertContains(g1, "is in ");
+      assertContains(g1, "Roll provenance:");
       assertContains(g1, "apply");
       const resp = await call(proc, "respond_decision", { decision: "world_generate", option: "apply" });
       assertContains(resp, "World generated");
+      const counts = resp.match(/(\d+) rooms, (\d+) things, (\d+) exits/);
+      assert(counts !== null && Number(counts[1]) > 0 && Number(counts[2]) > 0 && Number(counts[3]) > 0,
+        `applying must produce rooms, things, and exits: ${resp}`);
     });
 
     await test("T515/REQ-431: same seed reproduces the same world", async () => {
-      const count = (s: string) => (s.match(/Generated Chamber (\d+) is a room/g) ?? []).length;
+      const count = (s: string) => (s.match(/is a room\./g) ?? []).length;
       await call(proc, "manage_novel", { action: "create", name: "gen-repro" });
       await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
       const g1 = await call(proc, "manage_world", { action: "generate", seed: "7" });
@@ -195,6 +228,27 @@ async function main() {
       const g2 = await call(proc, "manage_world", { action: "generate", seed: "7" });
       await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
       assert(count(g1) === count(g2) && count(g1) > 0, `same seed must produce the same room count (got ${count(g1)} vs ${count(g2)})`);
+      assert(g1 === g2, "same seed must reproduce the same batch");
+    });
+
+    await test("T515/REQ-431: different seeds produce different worlds", async () => {
+      const g1 = await call(proc, "manage_world", { action: "generate", seed: "7" });
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
+      const g2 = await call(proc, "manage_world", { action: "generate", seed: "99" });
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
+      assert(g1 !== g2, "different seeds must diverge");
+    });
+
+    await test("T515/REQ-431: options.roles overrides inference and output is sanitized", async () => {
+      const g = await call(proc, "manage_world", {
+        action: "generate", seed: "1",
+        options: { rooms: 1, roles: { room: ["dungeon rooms"], objects: ["cursed relics"] } },
+      });
+      assertContains(g, "Dungeon Rooms 1 is a room.");
+      assertNotContains(g, "Dungeon Rooms 2 is a room.");
+      assertContains(g, "He said beware");
+      assertNotContains(g, 'He said "beware"');
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
     });
 
     await test("T515/REQ-431: Player badge is forbidden from world generate", async () => {
@@ -313,8 +367,8 @@ async function main() {
 
     await test("T515/REQ-431c: TTRPG_WORLD_GEN_MAX_ROOMS=1 bounds a generation batch", async () => {
       const g = await call(proc, "manage_world", { action: "generate", seed: "42" });
-      assertContains(g, "Generated Chamber 1");
-      assertNotContains(g, "Generated Chamber 2");
+      assertContains(g, "trinkets 1 is a room.");
+      assertNotContains(g, "trinkets 2 is a room.");
     });
     proc.kill("SIGKILL");
   }

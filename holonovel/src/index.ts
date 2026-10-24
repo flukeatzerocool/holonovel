@@ -58,7 +58,7 @@ import {
   computeDerived, startingEquipmentFor, creationSteps, CreationWorkflowState,
   creationStepPrompt, applySpeciesAdjustments,
 } from "./core/character-creation.js";
-import { createRng, sessionRoll } from "./core/rng.js";
+import { createRng, sessionRoll, rollNotationWithRng, type Rng } from "./core/rng.js";
 import { deriveAnchor } from "./core/anchors.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
 
@@ -292,6 +292,76 @@ function worldReactivityOn(): boolean {
   return (process.env.TTRPG_WORLD_REACTIVITY ?? "true") !== "false";
 }
 function worldGenMaxRooms(): number { return configInt("TTRPG_WORLD_GEN_MAX_ROOMS", 20); }
+
+// REQ-431 — generation tables carry no role marker. Roles come from an explicit
+// options.roles override, else from documented name/title tokens. Unmatched
+// tables are ignored rather than repurposed, so generation never fabricates a
+// mechanic the ruleset did not define (REQ-431b).
+type WorldGenRole = "room" | "objects" | "persons" | "hazards";
+const WORLD_GEN_ROLES: WorldGenRole[] = ["room", "objects", "persons", "hazards"];
+const WORLD_GEN_ROLE_TOKENS: Record<WorldGenRole, string[]> = {
+  room: ["dungeon", "room", "chamber", "site", "location", "crypt", "hall"],
+  objects: ["treasure", "trinket", "loot", "item", "equipment"],
+  persons: ["encounter", "npc", "monster", "inhabitant", "creature", "person"],
+  hazards: ["trap", "hazard", "quirk"],
+};
+
+interface WorldGenTable {
+  key: string;
+  title: string;
+  dice_expression: string;
+  ranges: { min: number; max: number; result: unknown }[];
+}
+
+interface WorldGenRoll {
+  table: string;
+  die: string;
+  range: string;
+  result: string;
+}
+
+function worldGenRoleOf(key: string, title: string): WorldGenRole | null {
+  const hay = `${key} ${title}`.toLowerCase();
+  for (const role of WORLD_GEN_ROLES) {
+    if (WORLD_GEN_ROLE_TOKENS[role].some((token) => new RegExp(`\\b${token}s?\\b`).test(hay))) return role;
+  }
+  return null;
+}
+
+function sanitizeGenerationText(value: unknown): string {
+  return String(value ?? "")
+    .replace(/["\u201c\u201d]/g, "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240)
+    .trim();
+}
+
+function sanitizeGenerationName(value: unknown): string {
+  const text = sanitizeGenerationText(value).split(/\.\s+/)[0].replace(/\.+$/, "").trim();
+  return text.replace(/\s+is\s+(?:in|on)\s+/gi, " near ").slice(0, 60).trim();
+}
+
+// Rolls the table's dice expression and returns the matched row. A roll outside
+// every defined range yields null so the caller can fall back to the table's
+// title, never to an invented result.
+function rollGenerationTable(rng: Rng, table: WorldGenTable): WorldGenRoll | null {
+  const expr = table.dice_expression;
+  let die: number;
+  if (/^\d+d\d+([+-]\d+)?$/i.test(expr)) {
+    die = rollNotationWithRng(rng, expr).total;
+  } else if (/^d\d+$/i.test(expr)) {
+    die = rng.roll(parseInt(expr.slice(1), 10));
+  } else {
+    die = rng.roll(100);
+  }
+  const range = table.ranges.find((r) => die >= r.min && die <= r.max);
+  if (!range) return null;
+  const result = sanitizeGenerationText(range.result);
+  if (!result) return null;
+  return { table: table.title, die: String(die), range: `${range.min}-${range.max}`, result };
+}
 function maxVoiceCorrections(): number { return configInt("TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION", 3); }
 function vowSuggestionMinChars(): number { return configInt("TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS", 20); }
 
@@ -3652,6 +3722,15 @@ const MANAGE_WORLD_SCHEMA = {
     to: z.string().optional().describe("Destination room alias for room_b (create_exit)."),
     source: z.string().optional().describe("Hybrid world-model source text (convert)."),
     seed: z.string().optional().describe("Deterministic seed (generate)."),
+    options: z.object({
+      roles: z.object({
+        room: z.array(z.string()).optional(),
+        objects: z.array(z.string()).optional(),
+        persons: z.array(z.string()).optional(),
+        hazards: z.array(z.string()).optional(),
+      }).optional(),
+      rooms: z.number().int().positive().optional(),
+    }).optional().describe("Generation options (generate): roles maps installed table names to room, objects, persons, or hazards pools; rooms requests a count bounded by TTRPG_WORLD_GEN_MAX_ROOMS."),
     causal_scope: z.string().optional().describe("Scope coordinate (causal_propose; default the active Novel slug)."),
     causal_domain: z.enum(["location", "scalar"]).optional().describe("location or scalar (causal_propose; default location)."),
     causal_entity: z.string().optional().describe("Entity whose objective state is proposed (causal_propose)."),
@@ -3848,20 +3927,184 @@ server.registerTool("manage_world", {
         const model = rulesets.hydrate(slug).model as any;
         tables = model.generation_tables ?? {};
       }
-      if (Object.keys(tables).length === 0) {
+      const entries: WorldGenTable[] = Object.entries(tables)
+        .filter(([, t]) => t && typeof t === "object" && Array.isArray((t as any).ranges))
+        .map(([key, t]: [string, any]) => ({
+          key,
+          title: String(t.title ?? t.name ?? key),
+          dice_expression: String(t.dice_expression ?? "1d100"),
+          ranges: (t.ranges as any[])
+            .map((r) => ({ min: Number(r.min), max: Number(r.max), result: r.result }))
+            .filter((r) => Number.isFinite(r.min) && Number.isFinite(r.max)),
+        }))
+        .filter((t) => t.ranges.length > 0);
+      if (entries.length === 0) {
         return ok("No generation tables in this ruleset — manage_world (action: generate) cannot fabricate rooms. Corrective action: bind a ruleset whose package defines generation tables, or build the world manually with manage_world (action: create_room).");
       }
+
+      const roles: Record<WorldGenRole, string[]> = { room: [], objects: [], persons: [], hazards: [] };
+      for (const entry of entries) {
+        const role = worldGenRoleOf(entry.key, entry.title);
+        if (role) roles[role].push(entry.key);
+      }
+      const explicitRoles = (args.options as any)?.roles;
+      if (explicitRoles !== undefined) {
+        if (!explicitRoles || typeof explicitRoles !== "object") return err("INVALID_INPUT", "options.roles must be an object mapping room, objects, persons, or hazards to table names.");
+        for (const role of WORLD_GEN_ROLES) {
+          const names = (explicitRoles as Record<string, unknown>)[role];
+          if (names === undefined) continue;
+          if (!Array.isArray(names)) return err("INVALID_INPUT", `options.roles.${role} must be an array of table names.`);
+          const resolved: string[] = [];
+          for (const raw of names) {
+            const want = String(raw);
+            const match = entries.find((e) => e.key === want || e.title === want)
+              ?? entries.find((e) => e.key.toLowerCase() === want.toLowerCase() || e.title.toLowerCase() === want.toLowerCase());
+            if (!match) return err("INVALID_INPUT", `options.roles.${role} names unknown table '${want}'.`);
+            resolved.push(match.key);
+          }
+          roles[role] = [...new Set(resolved)];
+        }
+      } else if (roles.room.length === 0) {
+        // D2 — no room-role table: theme rooms from the first table (sorted).
+        roles.room = [entries.slice().sort((a, b) => a.key.localeCompare(b.key))[0].key];
+      }
+
+      const byKey = new Map(entries.map((e) => [e.key, e]));
       const cap = Math.max(1, worldGenMaxRooms());
       const rng = args.seed ? createRng(String(args.seed)) : createRng(String(sessionRoll(1000000000)));
-      const roomCount = Math.max(1, Math.min(cap, 2 + (rng.roll(100) % cap)));
-      const rooms: string[] = [];
-      for (let i = 1; i <= roomCount; i++) rooms.push(`Generated Chamber ${i} is a room. "A chamber shaped by the ruleset's generation tables."`);
-      const exits: string[] = [];
-      for (let i = 1; i < roomCount; i++) exits.push(`East of Generated Chamber ${i} is Generated Chamber ${i + 1}.`);
-      const assertions = [...rooms, ...exits].join("\n");
-      novel.pending_workflow = { decision: "world_generate", snapshot: state.captureWorkflowSnapshot(novel), payload: { assertions, seed: args.seed ?? null, roomCount } };
+      const requestedRooms = Number((args.options as any)?.rooms);
+      const roomCount = Number.isFinite(requestedRooms) && requestedRooms >= 1
+        ? Math.min(cap, Math.floor(requestedRooms))
+        : Math.min(cap, rng.roll(cap));
+
+      const assertions: string[] = [];
+      const rolls: WorldGenRoll[] = [];
+      const usedNames = new Set<string>();
+      const uniqueName = (base: string, fallback: string): string => {
+        const seedName = base || fallback;
+        let candidate = seedName;
+        let n = 2;
+        while (usedNames.has(candidate.toLowerCase())) { candidate = `${seedName} ${n}`; n++; }
+        usedNames.add(candidate.toLowerCase());
+        return candidate;
+      };
+      const draw = (key: string) => {
+        const table = byKey.get(key)!;
+        const roll = rollGenerationTable(rng, table);
+        if (roll) rolls.push(roll);
+        return { table, roll };
+      };
+
+      const roomNames: string[] = [];
+      for (let i = 0; i < roomCount; i++) {
+        const roomKey = roles.room[rng.roll(roles.room.length) - 1];
+        const { table, roll } = draw(roomKey);
+        const title = sanitizeGenerationName(table.title) || `Generation Table ${i + 1}`;
+        const name = uniqueName(`${title} ${i + 1}`, `Chamber ${i + 1}`);
+        const description = roll?.result || `A chamber shaped by the ${title} table.`;
+        roomNames.push(name);
+        assertions.push(`${name} is a room. "${description}"`);
+      }
+
+      if (roles.objects.length > 0) {
+        for (let i = 0; i < roomCount; i++) {
+          const count = rng.roll(3) - 1;
+          for (let k = 0; k < count; k++) {
+            const { table, roll } = draw(roles.objects[rng.roll(roles.objects.length) - 1]);
+            const description = roll?.result || `An object drawn from the ${table.title} table.`;
+            const base = sanitizeGenerationName(roll?.result ?? "") || sanitizeGenerationName(table.title) || "Object";
+            const name = uniqueName(base, `${table.title} ${i + 1}-${k + 1}`);
+            assertions.push(`${name} is in ${roomNames[i]}. "${description}"`);
+          }
+        }
+      }
+
+      if (roles.persons.length > 0) {
+        for (let i = 0; i < roomCount; i++) {
+          if (rng.roll(2) !== 1) continue;
+          const { table, roll } = draw(roles.persons[rng.roll(roles.persons.length) - 1]);
+          const description = roll?.result || `A figure drawn from the ${table.title} table.`;
+          const base = sanitizeGenerationName(roll?.result ?? "") || sanitizeGenerationName(table.title) || "Figure";
+          const name = uniqueName(base, `${table.title} ${i + 1}`);
+          assertions.push(`${name} is a person. "${description}"`);
+          assertions.push(`It is in ${roomNames[i]}.`);
+        }
+      }
+
+      if (roles.hazards.length > 0) {
+        for (let i = 0; i < roomCount; i++) {
+          if (rng.roll(4) !== 1) continue;
+          const { table, roll } = draw(roles.hazards[rng.roll(roles.hazards.length) - 1]);
+          const description = roll?.result || `A hazard drawn from the ${table.title} table.`;
+          const base = sanitizeGenerationName(roll?.result ?? "") || sanitizeGenerationName(table.title) || "Hazard";
+          const name = uniqueName(base, `${table.title} ${i + 1}`);
+          assertions.push(`${name} is a thing. "${description}"`);
+          assertions.push(`It is fixed.`);
+          assertions.push(`It is in ${roomNames[i]}.`);
+        }
+      }
+
+      // Deterministic reciprocal exit graph: ring plus floor(roomCount / 4)
+      // chords. convertSource adds the reverse exit, so one line per edge.
+      const edges: [number, number][] = [];
+      const edgeKeys = new Set<string>();
+      const addEdge = (a: number, b: number) => {
+        if (a === b) return;
+        const key = [a, b].sort((x, y) => x - y).join("-");
+        if (edgeKeys.has(key)) return;
+        edgeKeys.add(key);
+        edges.push([a, b]);
+      };
+      for (let i = 0; i < roomCount; i++) addEdge(i, (i + 1) % roomCount);
+      const chordTarget = edges.length + Math.floor(roomCount / 4);
+      let attempts = 0;
+      while (edges.length < chordTarget && attempts < roomCount * 10 + 20) {
+        attempts++;
+        addEdge(rng.roll(roomCount) - 1, rng.roll(roomCount) - 1);
+      }
+      const usedDirections = new Map<number, Set<string>>();
+      for (const [a, b] of edges) {
+        const aDirs = usedDirections.get(a) ?? new Set<string>();
+        const bDirs = usedDirections.get(b) ?? new Set<string>();
+        const direction = ROOM_DIRECTIONS.find((d) => !aDirs.has(d) && !bDirs.has(oppositeDirection(d)));
+        if (!direction) continue;
+        aDirs.add(direction);
+        bDirs.add(oppositeDirection(direction));
+        usedDirections.set(a, aDirs);
+        usedDirections.set(b, bDirs);
+        assertions.push(`${direction} of ${roomNames[a]} is ${roomNames[b]}.`);
+      }
+
+      // Parse before offering so a malformed row is reported and dropped rather
+      // than silently half-applied when the caller answers.
+      let batch = assertions;
+      let parsed = convertSource(batch.join("\n"), createEmptyWorldModel());
+      let dropped: string[] = [];
+      if (parsed.result.warnings.length > 0) {
+        const warned = new Set(parsed.result.warnings.map((w) => w.line));
+        dropped = parsed.result.warnings.map((w) => `line ${w.line}: ${w.message}`);
+        batch = assertions.filter((_, idx) => !warned.has(idx + 1));
+        parsed = convertSource(batch.join("\n"), createEmptyWorldModel());
+      }
+
+      const provenance = rolls.length > 0
+        ? `\n\nRoll provenance: ${rolls.length} table roll(s) — ${[...new Set(rolls.map((r) => r.table))].join(", ")}.`
+        : "";
+      const droppedNote = dropped.length > 0 ? `\n\nDropped ${dropped.length} invalid assertion(s):\n${dropped.join("\n")}` : "";
+      novel.pending_workflow = {
+        decision: "world_generate",
+        snapshot: state.captureWorkflowSnapshot(novel),
+        payload: {
+          assertions: batch.join("\n"),
+          seed: args.seed ?? null,
+          roomCount,
+          roles,
+          rolls,
+          counts: { rooms: parsed.result.rooms, things: parsed.result.things, exits: parsed.result.exits },
+        },
+      };
       state.saveNovel(novel);
-      return needInput(`World generation — ${roomCount} rooms proposed (seed ${args.seed ?? "session"}).\n\n${assertions}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.`);
+      return needInput(`World generation — ${parsed.result.rooms} rooms, ${parsed.result.things} things, ${parsed.result.exits} exits proposed (seed ${args.seed ?? "session"}).\n\n${batch.join("\n")}${provenance}${droppedNote}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.`);
     }
     default:
       return err("INVALID_INPUT", `Unknown world action '${args.action}'.`);

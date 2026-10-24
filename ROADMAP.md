@@ -6,14 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Complete table-driven world generation (REQ-431)
-
-- `manage_world (action: generate)` reads `generation_tables` but emits placeholder
-  `Generated Chamber 1..N` rooms and a linear east-west chain.
-- Roll rooms, contents, and exits from the tables; keep seed reproducibility,
-  the cap, and the apply/discard workflow. T515 does not check content.
-- Plan: `plans/2026-10-23-world-generation-conformance/`
-
 ## Fix sensory parser stubs
 
 - `listen` returns "You listen." and `smell` returns "You smell the air.";
