@@ -214,6 +214,29 @@ async function main() {
     await kill(p2);
   });
 
+  // ── T696: ruling writes are audited and reversible (REQ-589) ────────
+  await test("T696/REQ-589: record_ruling audits, undo reverts, redo reapplies", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "sec-ledger" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_synthesis", { action: "run" });
+    const rec = JSON.parse(await call(p, "manage_synthesis", { action: "record_ruling", query: "Is the gate locked?", ruling: "Yes.", module: "voice_examples" }));
+    const audit = await readResource(p, "audit://novel");
+    assert(audit.includes("synthesis_record_ruling"), "record_ruling did not write an audit entry: " + audit.slice(0, 200));
+    const h1 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(h1.ruling_ledger_count === 1, "ledger count after record was not 1");
+    await call(p, "manage_history", { action: "undo" });
+    const h2 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(h2.ruling_ledger_count === 0, "undo did not reverse the ruling write");
+    await call(p, "manage_history", { action: "redo" });
+    const h3 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(h3.ruling_ledger_count === 1, "redo did not reapply the ruling write");
+    await call(p, "set_badge", { badge: "player" });
+    const forbidden = await call(p, "manage_synthesis", { action: "revert_ruling", ruling_id: rec.id });
+    assert(forbidden.includes("FORBIDDEN"), "Player badge was allowed to revert a ruling");
+    await kill(p);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

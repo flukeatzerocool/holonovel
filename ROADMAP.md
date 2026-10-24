@@ -6,13 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Citation verification and ruling ledger
-
-- Synthesis carries source URLs, confidence, and revert; add claim-level
-  verification, source tiers, conflict detection, and a ruling ledger.
-- Keep verification local; do not fetch at verify time.
-- Plan: `plans/2026-10-23-citation-verification/`
-
 ## Compression ladder and recall probes
 
 - Recap, campaign memory, and audit archives exist; add short/medium/long/

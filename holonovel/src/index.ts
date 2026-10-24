@@ -38,7 +38,7 @@ import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
 } from "./core/server.js";
-import { DEFAULT_WISDOM, withWisdomKeys } from "./core/wisdom.js";
+import { DEFAULT_WISDOM, verifyCitation, withWisdomKeys } from "./core/wisdom.js";
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   WORLD_MODEL_KINDS,
@@ -6122,7 +6122,7 @@ function novelToJSONState(novel: NovelState): any {
     briefing_order: novel.briefing_order, action_patterns_enabled: novel.action_patterns_enabled,
     story_journal: novel.story_journal, factions: novel.factions, secrets: novel.secrets,
     relationships: novel.relationships, gm_context: novel.gm_context, notes: novel.notes,
-    constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_deactivated: novel.synthesis_deactivated, synthesis_module_enabled: novel.synthesis_module_enabled,
+    constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_deactivated: novel.synthesis_deactivated, synthesis_module_enabled: novel.synthesis_module_enabled, ruling_ledger: novel.ruling_ledger,
     characters_present_ids: novel.characters_present_ids,
     session_zero_completed: novel.session_zero_completed,
     characters_present: novel.characters_present,
@@ -6220,6 +6220,7 @@ function loadNovelFromStateData(data: any): NovelState {
     pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
     codex_sources: data.codex_sources ?? [],
     player_synthesis: data.player_synthesis ?? {},
+    ruling_ledger: data.ruling_ledger ?? [],
     campaign_memory: data.campaign_memory ?? [],
     fate: { aspects: data.fate?.aspects ?? [], fate_points: data.fate?.fate_points ?? {}, stress: data.fate?.stress ?? {} },
     ironsworn: { momentum: data.ironsworn?.momentum ?? {}, progress_tracks: data.ironsworn?.progress_tracks ?? [] },
@@ -7748,7 +7749,7 @@ const PLAYER_OMITTED_KEYS = [
   "audit_log", "audit_archive", "undo_stacks", "redo_stacks", "checkpoints",
   "gm_context", "secrets", "pending_workflow", "constraint_overrides",
   "synthesis_activated", "synthesis_deactivated", "narrative_directive",
-  "generated_adventure",
+  "generated_adventure", "ruling_ledger",
 ];
 
 function redactNovelForPlayer(novel: any): any {
@@ -8345,7 +8346,7 @@ server.registerTool("manage_ruleset", {
     table: z.string().optional().describe("Generation table to roll on (roll)."),
     seed: z.string().optional().describe("Deterministic seed (roll)."),
     source: z.string().optional().describe("Supplementary Markdown source path (import_supplementary)."),
-    wisdom: z.array(z.object({ module: z.string().optional(), key: z.union([z.string(), z.number()]).optional(), content: z.string() })).optional().describe("Inline supplementary Wisdom items (import_supplementary)."),
+    wisdom: z.array(z.object({ module: z.string().optional(), key: z.union([z.string(), z.number()]).optional(), content: z.string(), source_url: z.string().optional(), quoted_excerpt: z.string().optional(), source_snapshot: z.string().optional() })).optional().describe("Inline supplementary Wisdom items (import_supplementary)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -8487,7 +8488,15 @@ server.registerTool("manage_ruleset", {
       let hash = "";
       const source = args.source ?? "(inline)";
       if (Array.isArray(args.wisdom)) {
-        wisdom = args.wisdom.map((w: any, i: number) => ({ module: w.module ?? "supplementary_guidance", key: String(w.key ?? i + 1), content: String(w.content ?? "") }));
+        wisdom = args.wisdom.map((w: any, i: number) => ({
+          module: w.module ?? "supplementary_guidance",
+          key: String(w.key ?? i + 1),
+          content: String(w.content ?? ""),
+          // REQ-080h — imported items may carry their own citation evidence.
+          ...(w.source_url ? { source_url: String(w.source_url) } : {}),
+          ...(w.quoted_excerpt ? { quoted_excerpt: String(w.quoted_excerpt) } : {}),
+          ...(w.source_snapshot ? { source_snapshot: String(w.source_snapshot) } : {}),
+        }));
         hash = crypto.createHash("sha256").update(JSON.stringify(wisdom)).digest("hex");
       } else if (typeof args.source === "string" && fs.existsSync(args.source)) {
         const raw = fs.readFileSync(args.source, "utf-8");
@@ -8909,6 +8918,9 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-241c — checkpoint count and storage size.
     checkpoint_count: novel ? novel.checkpoints.length : 0,
     checkpoint_bytes: novel ? JSON.stringify(novel.checkpoints).length : 0,
+    // REQ-589 — GM-only ruling-ledger counts.
+    ruling_ledger_count: isGM && novel ? (novel.ruling_ledger ?? []).length : undefined,
+    ruling_ledger_reverted_count: isGM && novel ? (novel.ruling_ledger ?? []).filter((e) => e.reverted).length : undefined,
     // REQ-311f — NPC memory count across all NPCs in the active Novel.
     npc_memory_count: novel ? [...novel.npcs.values()].reduce((n, npc) => n + (npc.memory ? Object.keys(npc.memory.contacts ?? {}).length + (npc.memory.witnessed_events?.length ?? 0) : 0), 0) : 0,
     // REQ-224b / REQ-193a — pending workflow staleness surfaced to operators.
@@ -9600,6 +9612,63 @@ function moduleItemKeys(module: string): string[] {
   return keys;
 }
 
+// REQ-080h — every stored synthesis item carrying a claim, with the text its
+// citation is verified against. Player-authored items are excluded: they cite
+// nothing. Supplementary imports cite their ruleset slug.
+function synthesisCitationItems(): Array<{ module: string; key: string | number; claim: string; item: any }> {
+  const manifest: any = state.wisdomManifest;
+  const out: Array<{ module: string; key: string | number; claim: string; item: any }> = [];
+  const push = (module: string, key: string | number, claim: string, item: any): void => {
+    out.push({ module, key: key ?? "", claim, item });
+  };
+  if (manifest) {
+    (manifest.voice_examples ?? []).forEach((i: any) => push("voice_examples", i.key, i.content ?? "", i));
+    (manifest.lore_templates ?? []).forEach((i: any) => push("lore_templates", i.key, i.content ?? "", i));
+    (manifest.action_patterns ?? []).forEach((i: any) => push("action_patterns", i.key, i.intent ?? "", i));
+    (manifest.supplementary_guidance ?? []).forEach((i: any) => push("supplementary_guidance", i.key, i.content ?? "", i));
+    (manifest.narrative_voices ?? []).forEach((i: any) => push("narrative_voices", i.key, i.description ?? "", i));
+    if (manifest.briefing_order) {
+      push("briefing_order", "briefing-order", manifest.briefing_order.reason ?? "", manifest.briefing_order);
+    }
+    const adv = manifest.adventure_advice ?? {};
+    [...(adv.templates ?? []), ...(adv.scenario_starters ?? []), ...(adv.table_expansions ?? [])]
+      .forEach((i: any) => push("adventure_advice", i.key, i.content ?? "", i));
+  }
+  for (const s of state.activeNovel?.supplementary_rulesets ?? []) {
+    for (const w of (s as any).wisdom ?? []) {
+      push((w as any).module ?? "supplementary_guidance", (w as any).key, (w as any).content ?? "", { ...(w as any), source_url: (w as any).source_url ?? `supplementary://${(s as any).slug}` });
+    }
+  }
+  return out;
+}
+
+function rulingConfidence(values: Array<string | undefined>): "HIGH" | "MEDIUM" | "LOW" {
+  const rank: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  let lowest = "HIGH";
+  for (const v of values) {
+    const key = String(v ?? "LOW").toUpperCase();
+    const normalized = rank[key] ? key : "LOW";
+    if ((rank[normalized] ?? 0) < (rank[lowest] ?? 0)) lowest = normalized;
+  }
+  return lowest as "HIGH" | "MEDIUM" | "LOW";
+}
+
+// REQ-589 — deterministic id: the smallest unused positive integer suffix.
+function nextRulingId(entries: Array<{ id: string }>): string {
+  const used = new Set<number>();
+  for (const e of entries) {
+    const m = /^ruling_(\d+)$/.exec(e.id);
+    if (m) used.add(parseInt(m[1], 10));
+  }
+  let n = 1;
+  while (used.has(n)) n++;
+  return `ruling_${n}`;
+}
+
+function rulingCap(): number {
+  return Math.max(0, parseInt(process.env.TTRPG_MAX_RULING_ENTRIES ?? "500", 10));
+}
+
 // REQ-265a — GM sees every item; Player/observer badges see non-GM-scoped items.
 function badgeCanSeeWisdom(item: any): boolean {
   const badge = getBadge();
@@ -10169,21 +10238,26 @@ server.registerTool("manage_codex", {
 // player-facing module subset; active immediately; per-module cap of 15;
 // private scope supported; GM cannot modify them.
 const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementary_guidance", "narrative_voices", "lore_templates"];
-// Synthesis (REQ-103, REQ-115, REQ-231, REQ-260, REQ-261, REQ-262, REQ-263, REQ-264) — consolidated run/revert/list/activate/
-// deactivate/toggle/player_add/player_remove/player_list surface.
+// Synthesis (REQ-080h, REQ-103, REQ-115, REQ-231, REQ-260, REQ-261, REQ-262,
+// REQ-263, REQ-264, REQ-589) — consolidated run/revert/list/activate/deactivate/
+// toggle/player_add/player_remove/player_list/verify/record_ruling/revert_ruling
+// surface.
 server.registerTool("manage_synthesis", {
   title: "Synthesis Management",
-  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
+  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying citations, recording or reverting a ruling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
   inputSchema: {
-    action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, or player_list."),
-    module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list)."),
-    key: z.union([z.string(), z.number()]).optional().describe("Item key (activate: number; player_add/player_remove: string)."),
+    action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list", "verify", "record_ruling", "revert_ruling"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, player_list, verify, record_ruling, or revert_ruling."),
+    module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list/verify/record_ruling)."),
+    key: z.union([z.string(), z.number()]).optional().describe("Item key (activate: number; player_add/player_remove/verify/record_ruling: string)."),
     content: z.string().optional().describe("Item content (player_add)."),
     triggers: z.array(z.string()).optional().describe("Recall triggers (player_add)."),
     badge_scope: z.enum(["shared", "player"]).optional().describe("shared or player (player_add)."),
     enabled: z.boolean().optional().describe("Enable or disable (toggle)."),
     force: z.boolean().optional().describe("Re-run even if unchanged (run)."),
     detail: z.boolean().optional().describe("Return full entries (list)."),
+    query: z.string().optional().describe("Question the ruling answers (record_ruling)."),
+    ruling: z.string().optional().describe("Ruling text to record (record_ruling)."),
+    ruling_id: z.string().optional().describe("Ledger entry id (revert_ruling)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -10244,6 +10318,105 @@ server.registerTool("manage_synthesis", {
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
       const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
       return raw(JSON.stringify(summary, null, 2));
+    }
+    case "verify": {
+      // REQ-080h — local, deterministic citation check. Read-only: no snapshot,
+      // no save, no audit entry.
+      requireGM();
+      requireNovel();
+      const moduleFilter = args.module ? String(args.module) : null;
+      if (moduleFilter && !SYNTHESIS_MODULES.includes(moduleFilter)) {
+        return err("INVALID_INPUT", `Unknown synthesis module '${moduleFilter}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      }
+      const keyFilter = args.key !== undefined ? String(args.key) : null;
+      const candidates = synthesisCitationItems()
+        .filter((c) => (!moduleFilter || c.module === moduleFilter) && (!keyFilter || String(c.key) === keyFilter));
+      if (candidates.length === 0) {
+        return raw(JSON.stringify({ checked: 0, verdicts: { pass: 0, weak: 0, unsupported: 0 }, items: [] }, null, 2));
+      }
+      const items = candidates.map((c) => {
+        const check = verifyCitation(c.claim, c.item);
+        return {
+          module: c.module,
+          key: c.key,
+          source_url: c.item?.source_url ?? "",
+          confidence: c.item?.confidence ?? "LOW",
+          verdict: check.verdict,
+          reason: check.reason,
+          coverage: Number(check.coverage.toFixed(3)),
+          conflicts_with: c.item?.conflicts_with,
+        };
+      });
+      const verdicts = { pass: 0, weak: 0, unsupported: 0 } as Record<string, number>;
+      for (const i of items) verdicts[i.verdict]++;
+      return raw(JSON.stringify({ checked: items.length, verdicts, items }, null, 2));
+    }
+    case "record_ruling": {
+      // REQ-589 — verify the selected citations and append one ledger entry.
+      // Mutating: snapshot, save, audit.
+      requireGM();
+      const novel = requireNovel();
+      const query = String(args.query ?? "").trim();
+      const ruling = String(args.ruling ?? "").trim();
+      if (!query || !ruling) return err("INVALID_INPUT", "record_ruling requires non-empty query and ruling.");
+      const moduleFilter = args.module ? String(args.module) : null;
+      if (moduleFilter && !SYNTHESIS_MODULES.includes(moduleFilter)) {
+        return err("INVALID_INPUT", `Unknown synthesis module '${moduleFilter}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      }
+      const keyFilter = args.key !== undefined ? String(args.key) : null;
+      const candidates = synthesisCitationItems()
+        .filter((c) => (!moduleFilter || c.module === moduleFilter) && (!keyFilter || String(c.key) === keyFilter));
+      if (candidates.length === 0) {
+        return err("STATE_CONFLICT", "No synthesis items match the requested module/key. Run manage_synthesis (action: run) or import supplementary Wisdom first.");
+      }
+      novelSnapshot();
+      const citations = candidates.map((c) => {
+        const check = verifyCitation(c.claim, c.item);
+        return {
+          module: c.module,
+          key: c.key,
+          source_url: String(c.item?.source_url ?? ""),
+          quoted_excerpt: String(c.item?.quoted_excerpt ?? ""),
+          confidence: String(c.item?.confidence ?? "LOW").toUpperCase() as "HIGH" | "MEDIUM" | "LOW",
+          verdict: check.verdict,
+        };
+      });
+      const entry = {
+        id: nextRulingId(novel.ruling_ledger ?? []),
+        query,
+        ruling,
+        citations,
+        confidence: rulingConfidence(citations.map((c) => c.confidence)),
+        created_at: new Date().toISOString(),
+        reverted: false,
+      };
+      const ledger = novel.ruling_ledger ?? [];
+      ledger.push(entry);
+      const cap = rulingCap();
+      if (cap > 0 && ledger.length > cap) {
+        const evictable = ledger.findIndex((e) => !e.reverted);
+        ledger.splice(evictable >= 0 ? evictable : 0, 1);
+      }
+      novel.ruling_ledger = ledger;
+      state.saveNovel(novel);
+      audit("synthesis_record_ruling", { ruling_id: entry.id, citations: citations.length, verdicts: citations.map((c) => c.verdict) });
+      return raw(JSON.stringify(entry, null, 2));
+    }
+    case "revert_ruling": {
+      // REQ-589 — mark a ledger entry reverted. Never deletes; never touches
+      // synthesis items (REQ-103a remains the whole-synthesis revert).
+      requireGM();
+      const novel = requireNovel();
+      const id = String(args.ruling_id ?? "").trim();
+      if (!id) return err("INVALID_INPUT", "revert_ruling requires ruling_id.");
+      const entry = (novel.ruling_ledger ?? []).find((e) => e.id === id);
+      if (!entry) return err("NOT_FOUND", `Ruling '${id}' not found.`);
+      if (entry.reverted) return ok(`Ruling '${id}' is already reverted.`);
+      novelSnapshot();
+      entry.reverted = true;
+      state.saveNovel(novel);
+      audit("synthesis_revert_ruling", { ruling_id: id });
+      return ok(`Ruling '${id}' marked reverted.`);
     }
     case "activate": {
       const novel = requireNovel();

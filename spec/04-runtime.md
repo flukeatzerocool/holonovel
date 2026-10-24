@@ -152,6 +152,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_COUNTDOWNS` | No      | Maximum countdowns per Novel (default 100) |
 | `TTRPG_MAX_SYNTHESIS_ITEMS` | No | Maximum synthesis items per module (default 15) |
 | `TTRPG_MAX_STORY_ENTRIES` | No | Maximum story journal entries per Novel (default 1000) |
+| `TTRPG_MAX_RULING_ENTRIES` | No | Maximum ruling-ledger entries per Novel before oldest non-reverted eviction (default 500; 0 = unlimited; REQ-589) |
 | `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded (0 = unlimited; REQ-241b) |
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
@@ -241,6 +242,7 @@ discarded by `manage_novel (action: end)`):
 | Countdown | Temporal | read/write/create/delete | read-only |
 | Lore | Knowledge-carrying | read/write/create/delete/enable/disable/group/export/import | read-only (badge-filtered per REQ-083) |
 | Synthesis | Ruleset Wisdom | read/write/revert (synthesized per REQ-262; `[supplementary]` items removed by `manage_synthesis (action: revert)` per REQ-103 — `[ruleset]`/`[vendor]` Ruleset Wisdom survives; auto-triggered per REQ-263) | read-only (badge-filtered per REQ-265; deactivatable via REQ-260) |
+| Ruling Ledger | Narrative-memory | read/write (REQ-589) | Game Master only |
 | Adventure | [content source] | read (indexed at build time; one generated adventure per Novel via `manage_adventure (action: generate)` per REQ-132) | content badge-filtered; indexed and generated adventures coexist in the active Novel |
 | Adventure Scene Waypoint | [content source] | read/write (REQ-250) | read-only (pass-through in `badge_briefing`) |
 | Faction | Entity-bearing, Temporal | read/write/create/delete (REQ-233) | read-only (GM-filtered) |

@@ -60,7 +60,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124 | — |
 | REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207, T146, T285 | — |
-| REQ-080 | Synthesis boundaries (Part a) (8 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T125, T194 | — |
+| REQ-080 | Synthesis boundaries (Part a) (9 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T125, T194, T695 | — |
 | REQ-081 | Narrative directive (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T64, T134, T450 | — |
 | REQ-082 | Prompt section ordering (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T66, T225 | — |
 | REQ-083 | Dynamic lore (Part a) (6 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T400, T407, T411 | — |
@@ -544,4 +544,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-586 | Pipeline performance record | 5.7 Determinism, Safety, and Performance | C | T686 | — |
 | REQ-587 | Stable catalog prefix | 5.3 Tools, Resources, and Lookups | C | T687 | — |
 | REQ-588 | Search result budget | 5.3 Tools, Resources, and Lookups | C | T688 | — |
+| REQ-589 | Ruling ledger | 5.8 Synthesis, Lore, and Macros | C | T696 | — |
 

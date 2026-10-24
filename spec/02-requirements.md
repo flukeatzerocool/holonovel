@@ -13,7 +13,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586 |
-| 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333 |
+| 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
@@ -2516,6 +2516,9 @@ Reverting synthesis (REQ-103) removes all synthesis items; Ruleset Wisdom and pl
 
 **REQ-080g2 — Synthesis boundaries (Part g2).**
 *Acceptance criterion:* Synthesis-sourced voice_examples carry `[supplementary]` tag and source URL; Ruleset Wisdom items carry `[ruleset]` or `[vendor]` tag and source anchor; player-authored items carry `[player]` tag and appear in both Player and GM `badge_briefing` by default; a stale synthesis item (past `TTRPG_SYNTHESIS_STALE_DAYS`) is flagged `[stale]` in `spec_health` and excluded from surfaces; `manage_synthesis (action: revert)` removes synthesis items but preserves Ruleset Wisdom and player items; a Ruleset Wisdom activation key that no longer resolves against the build's current extraction appears as a `[wisdom-gap]` entry in `spec_health`; new Wisdom items in the current extraction with no matching activation key start inactive. _Check:_ T63, T95, T97, T102, T125, T288.
+**REQ-080h — Citation verification.**
+`manage_synthesis (action: verify)` (Game Master only, read-only) SHALL check each stored synthesis item's `quoted_excerpt` against its claim text. Missing excerpt → `unsupported` (`excerpt-absent`); excerpt absent from a stored `source_snapshot` → `unsupported` (`excerpt-not-in-source`); no shared content tokens → `unsupported` (`no-overlap`); fewer than half the excerpt's tokens present in the claim → `weak` (`low-overlap`); otherwise `pass` (`supported`). Items citing `novel://` are `pass` (`internal-source`). Optional `module` and `key` narrow the check. Verification SHALL be local, SHALL NOT fetch or mutate state, and SHALL return verdict, reason, coverage, confidence, and `conflicts_with` per item. _Check:_ T695.
+
 **REQ-081a — Narrative directive (Part a).**
 The Game Master may set narrative directives via the `narrative_directive` parameter on `manage_scene (action: set)`. Each directive has a `label` (non-empty, unique within a Novel) and an `instruction` (free-text). Setting a duplicate label replaces the prior entry. An empty array clears all directives. For backward compatibility, `manage_scene (action: directive)` also accepts a single `directive` string — treated as `[{"label": "primary", "instruction": <string>}]`. Directives appear in `badge_briefing` for the Game Master badge only and at `novel://current`, grouped under "Narrative Directives" with their labels.
 
@@ -2800,6 +2803,9 @@ The recommendation SHALL be surfaced in `badge_briefing` for the Game Master bad
 
 **REQ-234d — Secrets and knowledge (Part d).**
 WHEN the caller reveals a secret to a faction and the secret names another faction in its content, a `rival` relationship (REQ-236) SHALL be recommended between the knowledge-holding faction and the named faction. *Acceptance criterion:* `manage_lore (action: set_secret, "murder_confession", "The butler killed Lord Ashworth")` creates a GM-only lore entry; `manage_lore (action: reveal, "murder_confession", "pc_detective")` adds "Known Information" to the detective's character sheet; `manage_lore (action: knowledge, "pc_detective")` returns the secret. _Check:_ T274.
+
+**REQ-589 — Ruling ledger.**
+The server SHALL store a GM-only `ruling_ledger` property group of `{id, query, ruling, citations, confidence, created_at, reverted}` entries with `ruling_<n>` ids. `manage_synthesis (action: record_ruling, query, ruling, module?, key?)` SHALL verify the selected citations and append an entry at the minimum cited confidence; `manage_synthesis (action: revert_ruling, ruling_id)` SHALL set `reverted` without deleting entries or synthesis items. Both are GM-only and SHALL snapshot, audit, and persist. The ledger SHALL survive `action: revert` and copy through clone, checkpoint, archive, and export; `player` omits it. `TTRPG_MAX_RULING_ENTRIES` (default 500, `0` unlimited) SHALL evict the oldest non-reverted entry first; `spec_health` SHALL report total and reverted counts. _Check:_ T696.
 
 ### 5.9 Novel Persistence and Transport
 
