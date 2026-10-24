@@ -3301,6 +3301,9 @@ The server SHALL provide `manage_world (action: generate, seed?, options?)` — 
 The tool SHALL bound output by a configurable room cap (`TTRPG_WORLD_GEN_MAX_ROOMS`, default 20). Generated worlds SHALL respect world-model validation — exits reference generated rooms only; containment follows kind contracts.
 *Acceptance criterion:* `manage_world (action: generate, seed="42")` on a table-bearing ruleset produces a batch under the cap offered as a decision; applying creates the rooms; the same seed reproduces them; a table-less ruleset returns the content-absent message. _Check:_ T515.
 
+**REQ-431d — Procedural world generation (Part d).**
+A generated world SHALL be connected: every generated room is reachable, and every exit has a reverse exit. Object-role tables SHALL place containers, supporters, doors, and vehicles per the kind contracts (REQ-200), with contents in or on them. When a secret-role table exists, its draw SHALL be placed in a reachable container with a readable discovery path and registered as a Novel secret whose `world_target` names the containing room. When a secret is placed and a person-role table exists, at least one generated person SHALL be placed where it can see or hear the secret's room (REQ-596, REQ-597). The workflow decision SHALL carry a validation report, and a batch that fails connectivity, containment, or secret reachability SHALL NOT be offered for apply. _Check:_ T706.
+
 **REQ-202a — World-model resources (Part a).**
 URIs for the world-model tier follow. The `room://<id>` URI holds the room name, description, visible things, and exits. The `thing://<id>` URI holds the thing name, description, location, and properties. The `world://map` URI holds all rooms with exit connections — a navigable graph. The `world://kinds` URI holds the kind hierarchy, property contracts, and the parser command catalog from the `holonovel` package (B10).
 

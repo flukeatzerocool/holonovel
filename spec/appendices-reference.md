@@ -1143,6 +1143,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-431a | Procedural world generation (Part a) | 2026-09-04 |
 | REQ-431b | Procedural world generation (Part b) | 2026-09-04 |
 | REQ-431c | Procedural world generation (Part c) | 2026-09-04 |
+| REQ-431d | Procedural world generation (Part d) | 2026-10-24 |
 | REQ-432a | Vendor ruleset package certification (Part a) | 2026-09-04 |
 | REQ-432b | Vendor ruleset package certification (Part b) | 2026-09-04 |
 | REQ-433a | Event notification surface (Part a) | 2026-09-04 |
@@ -2040,6 +2041,7 @@ diet.
 | T703 | Automated | Audibility: with a closed door between two rooms, assert `run_command (action: audibility)` reports no sound; unlock and open the door and assert the target is audible. | REQ-597 |
 | T704 | Automated | Witness attribution and knowledge query: with two entities in a lit room, append an event and assert the non-actor's `knowledge_query` contains a `saw`/`sight` perception citing the event ordinal; assert the actor receives no derived record; assert a Player may query its own entity and not another. | REQ-595, REQ-542, REQ-545 |
 | T705 | Automated | Legacy perception load: write a Novel whose perception entries lack witness fields, resume it, and assert the entries load with `inferred`, null sense, and zero confidence. | REQ-594 |
+| T706 | Automated | Containment-aware generation: `manage_world (action: generate, seed="42")` on a fixture package with room, object, person, and secret tables returns a batch whose report says validation passed, containing kind-declared containers with contents, a readable secret clue inside a reachable container, and a person in the secret's room; applying yields a `world://map` where every room is reachable and every exit is reciprocal, and `manage_lore (action: secret_list)` lists the generated secret with its `world_target`; the same seed reproduces the batch. | REQ-431d |
 
 ---
 

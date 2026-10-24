@@ -6,14 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Containment-aware generation
-
-- After table-driven generation lands, add branching layout, reachable secret
-  placement, witness placement, and validation.
-- Depends on table-driven generation and the shipped witness-aware perception
-  and spatial-query surfaces.
-- Plan: `plans/2026-10-23-containment-generation/`
-
 ## Location-gated discovery for countdown consequences
 
 - Attribution now records discoverers at fire, but discovery is not gated on

@@ -199,6 +199,16 @@ async function main() {
           dice_expression: "1d6",
           ranges: [{ min: 1, max: 6, result: 'He said "beware".\nA second line.' }],
         },
+        "dungeon containers": {
+          title: "Dungeon Containers",
+          dice_expression: "1d6",
+          ranges: [{ min: 1, max: 6, result: "an iron chest" }],
+        },
+        "hidden secrets": {
+          title: "Hidden Secrets",
+          dice_expression: "1d6",
+          ranges: [{ min: 1, max: 6, result: "The vault key is under the altar" }],
+        },
       },
     });
     const proc = await boot();
@@ -256,6 +266,62 @@ async function main() {
       const g = await call(proc, "manage_world", { action: "generate", seed: "42" });
       assertContains(g, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    // ── T706 (REQ-431d) — containment-aware generation ──────────────
+    await test("T706/REQ-431d: generated world is connected with reciprocal exits and valid containment", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "gen-layout" });
+      await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
+      const g = await call(proc, "manage_world", { action: "generate", seed: "42" });
+      assertContains(g, "Validation: passed");
+      assertContains(g, "is a container.");
+      assertContains(g, "is a person.");
+      const applied = await call(proc, "respond_decision", { decision: "world_generate", option: "apply" });
+      assertContains(applied, "World generated");
+      const map = await readResource(proc, "world://map");
+      const graph = new Map<string, string[]>();
+      for (const line of map.split("\n")) {
+        const idx = line.indexOf(":");
+        if (idx < 0) continue;
+        const room = line.slice(0, idx).trim();
+        const targets = line.slice(idx + 1).split(",").map((e) => e.split("→")[1]?.trim()).filter(Boolean) as string[];
+        graph.set(room, targets);
+      }
+      assert(graph.size > 0, "world map should list rooms");
+      const start = [...graph.keys()][0];
+      const seen = new Set<string>([start]);
+      const queue = [start];
+      while (queue.length > 0) {
+        for (const target of graph.get(queue.shift()!) ?? []) {
+          if (!seen.has(target)) { seen.add(target); queue.push(target); }
+        }
+      }
+      assert(seen.size === graph.size, `all rooms must be reachable (${seen.size}/${graph.size})`);
+      for (const [room, targets] of graph) {
+        for (const target of targets) assert((graph.get(target) ?? []).includes(room), `exit ${room} -> ${target} must be reciprocal`);
+      }
+    });
+
+    await test("T706/REQ-431d: secret is placed with a discovery path and registered", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "gen-secret" });
+      await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
+      const g = await call(proc, "manage_world", { action: "generate", seed: "9" });
+      assertContains(g, "Validation: passed");
+      assertContains(g, "reads \"The vault key is under the altar\"");
+      await call(proc, "respond_decision", { decision: "world_generate", option: "apply" });
+      const secrets = await call(proc, "manage_lore", { action: "secret_list" });
+      assertContains(secrets, "world-gen-hidden-secrets-");
+      assertContains(secrets, "The vault key is under the altar");
+    });
+
+    await test("T706/REQ-431d: same seed reproduces the containment batch", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "gen-containment-repro" });
+      await call(proc, "manage_ruleset", { action: "bind", slug: "gentest" });
+      const g1 = await call(proc, "manage_world", { action: "generate", seed: "7" });
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
+      const g2 = await call(proc, "manage_world", { action: "generate", seed: "7" });
+      await call(proc, "respond_decision", { decision: "world_generate", option: "discard" });
+      assert(g1 === g2, "same seed must reproduce the same containment batch");
     });
     proc.kill("SIGKILL");
 
