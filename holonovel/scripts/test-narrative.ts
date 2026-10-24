@@ -220,6 +220,41 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T690: discovered consequences are attributed per entity ───────
+  {
+    let proc = await boot();
+    await call(proc, "manage_novel", { action: "create",  name: "narrative-attribution" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create",  name: "Rogue" });
+    await call(proc, "manage_character", { action: "create",  name: "Wizard" });
+    // Active is character_01 (Rogue); only character_02 (Wizard) is present.
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_02"] });
+    await call(proc, "manage_countdown", { action: "set",  name: "guard-trap", ticks: 1, on_scene_transition: true });
+    await call(proc, "manage_scene", { action: "set",  description: "Outside" });
+    await call(proc, "manage_scene", { action: "set",  description: "The guard room falls." });
+    await call(proc, "set_badge", { badge: "player" });
+
+    await test("T690: discovered consequence knowledge is attributed per entity", async () => {
+      const rogue = await briefing(proc);
+      assertContains(rogue, '[discovered] Countdown "guard-trap"');
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_02" });
+      const wizard = await briefing(proc);
+      assertNotContains(wizard, '[discovered] Countdown "guard-trap"');
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+      const rogueAgain = await briefing(proc);
+      assertContains(rogueAgain, '[discovered] Countdown "guard-trap"');
+      // Attribution survives a process restart (story-journal persistence).
+      await kill(proc);
+      proc = await boot();
+      await call(proc, "manage_novel", { action: "resume",  slug: "narrative-attribution" });
+      await call(proc, "set_badge", { badge: "player" });
+      const resumed = await briefing(proc);
+      assertContains(resumed, '[discovered] Countdown "guard-trap"');
+    });
+
+    await kill(proc);
+  }
+
   // ── T391 / T392 / T414 / T415: world couplings + spatial surface ──
   {
     const proc = await boot();

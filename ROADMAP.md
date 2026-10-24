@@ -58,14 +58,15 @@
 - Depends on table-driven generation and visibility/sound propagation.
 - Plan: `plans/2026-10-23-containment-generation/`
 
-## Attribute discovered consequences per entity
+## Location-gated discovery for countdown consequences
 
-- `fireCountdown` writes `entity_ids: []` and `composeKnowledgeState` surfaces
-  every discovered consequence to every entity, violating per-entity knowledge
-  (REQ-340/349, REQ-308).
-- Record the discovering entity, filter by it, and add a two-entity regression
-  test.
-- Plan: `plans/2026-10-23-discovered-consequence-attribution/`
+- Attribution now records discoverers at fire, but discovery is not gated on
+  the entity reaching the countdown's location and the timestamp is fire time,
+  not the scene transition (REQ-340a). `narrative_orientation` also lacks the
+  "Meanwhile, ..." fragment (REQ-340b).
+- Add location linkage, defer discovery until the entity is present there, and
+  fill the orientation fragment; strengthen T390/T399 to their Appendix F
+  descriptions.
 
 ## Witness-aware perception and NPC POV
 
