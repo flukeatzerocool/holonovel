@@ -4581,6 +4581,82 @@
         "replacement": "manage_diagnostics.visibility_audit",
         "retired": true
       }
+    },
+    "manage_diagnostics.verify": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_session.verify": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_diagnostics.verify",
+        "retired": true
+      }
+    },
+    "manage_diagnostics.replay": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_session.replay": {
+      "group": "maintain",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_diagnostics.replay",
+        "retired": true
+      }
     }
   }
 }

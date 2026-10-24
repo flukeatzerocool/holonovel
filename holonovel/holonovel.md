@@ -499,7 +499,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
 | 5.22   | Ironsworn Base Capabilities                             | 438–440 |
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
-| 5.24   | Temporal Event Log and Branching                        | 455–460 |
+| 5.24   | Temporal Event Log and Branching                        | 455–460, 601–605 |
 | 5.25   | Belief and Evidence                                     | 461–472 |
 | 5.26   | Character Identity                                      | 473–483, 547 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
@@ -2621,10 +2621,10 @@ Compaction is irreversible — confirmation proceeds through a `[NEED_INPUT]` wo
 **REQ-239d — Audit log compaction (Part d).**
 Player badge attempts return `[ERROR] [FORBIDDEN]`. *Acceptance criterion:* With `TTRPG_AUDIT_RETENTION_SESSIONS=1`, after two sessions, `manage_diagnostics (action: compact)` archives session 1 — audit log shows only session 2 entries, `audit://novel/archive` returns session 1 summary, `manage_session (action: recap, session_id="s1")` returns the summary, session 2 entries remain live. A third call to `manage_diagnostics (action: compact, sessions=2)` retains both sessions 2 and 3. _Check:_ T277.
 **REQ-241a — Checkpoints (Part a).**
-The server SHALL provide checkpoints. `manage_archive (action: checkpoint_set, label)` saves a named Novel-state snapshot. The snapshot includes all §7.7 property groups, host base-capability state, NPC mind (REQ-075f), world-model tier, combat state, pending workflows, gm_context, metadata, and undo stacks. `manage_archive (action: checkpoint_list)` returns checkpoint labels with ISO 8601 timestamps. The `manage_archive (action: checkpoint_restore, label)` reverts the Novel to the checkpoint state — emits a `[NEED_INPUT]` workflow decision with options `yes` and `cancel` (on `yes`: restores the snapshot and records a `[checkpoint-restored]` audit entry; on `cancel`: restores pre-invocation state unchanged). The `manage_archive (action: checkpoint_remove, label)` removes one checkpoint.
+The server SHALL provide checkpoints. `manage_archive (action: checkpoint_set, label)` saves a named snapshot. The snapshot includes all §7.7 property groups, host base state, NPC mind (REQ-075f), world-model tier, combat state, pending workflows, gm_context, metadata, and undo stacks. `manage_archive (action: checkpoint_list)` returns labels, timestamps, capture ordinals, and state hashes. The `manage_archive (action: checkpoint_restore, label)` reverts the Novel to the checkpoint state — emits a `[NEED_INPUT]` decision with `yes` and `cancel` (`yes` restores the snapshot and records a `[checkpoint-restored]` audit entry; `cancel` leaves state unchanged). The `manage_archive (action: checkpoint_remove, label)` removes a checkpoint.
 
 **REQ-241b — Checkpoints (Part b).**
-Checkpoints survive server restarts, Novel switches, and undo/redo cycles — they operate independently of undo stacks (REQ-041). The maximum number of checkpoints per Novel comes from `TTRPG_MAX_CHECKPOINTS`; when at capacity, `manage_archive (action: checkpoint_set)` discards the oldest. Checkpoints SHALL be stored in the Novel JSON under a `checkpoints` key (array of `{label, timestamp, state}` objects). `manage_novel (action: end)` removes all checkpoints. The server does not include checkpoints in `manage_archive (action: export)` output by default — an optional `include_checkpoints` parameter on `manage_archive (action: export)` (configurable) controls inclusion.
+Checkpoints survive server restarts, Novel switches, and undo/redo cycles — they are independent of undo stacks (REQ-041). The maximum number of checkpoints per Novel comes from `TTRPG_MAX_CHECKPOINTS`; when at capacity, `manage_archive (action: checkpoint_set)` discards the oldest. Checkpoints SHALL be stored in the Novel JSON under a `checkpoints` key (array of `{label, timestamp, ordinal, state_hash, state}` objects). Restore SHALL refuse a snapshot whose digest differs from its recorded `state_hash` (REQ-603). `manage_novel (action: end)` removes all checkpoints. Checkpoints are excluded from `manage_archive (action: export)` by default — an optional `include_checkpoints` parameter controls inclusion.
 
 **REQ-241c — Checkpoints (Part c).**
 All checkpoint tools are Game Master only. `spec_health` SHALL report checkpoint count and storage size. The snapshot SHALL use the same compression setting as the Novel (REQ-092). *Acceptance criterion:* `manage_archive (action: checkpoint_set, "before the ritual")` creates a checkpoint; `manage_archive (action: checkpoint_list)` returns one entry with label and timestamp; after 5 mutations, `manage_archive (action: checkpoint_restore, "before the ritual")` reverts all 5; `manage_novel (action: end)` removes the checkpoint; `manage_archive (action: export, "json", include_checkpoints= true)` includes the checkpoints key. _Check:_ T279.
@@ -4509,7 +4509,7 @@ Appendix S.
 
 ### 5.24 Temporal Event Log and Branching
 
-**REQ-455 — Event log append.** THE server SHALL maintain a Novel-scoped event log recording every observation that enters play — player utterances, GM narration, tool outcomes, and machine-originated state reports — as an append-only entry carrying a deterministic ordinal, a source classification, and a timestamp. Later processing SHALL NOT rewrite an entry; a correction appends a new entry. The log SHALL be bounded by a configured cap, evicting the oldest entries when the cap is reached. *Acceptance criterion:* a session of N inputs produces N ordered entries, and replaying the same inputs reproduces the same ordinals. _Check:_ T545.
+**REQ-455 — Event log append.** THE server SHALL maintain a Novel-scoped event log recording every observation that enters play — player utterances, GM narration, tool outcomes, and machine-originated state reports — as an append-only entry carrying a deterministic ordinal, a source classification, and a timestamp. Later processing SHALL NOT rewrite an entry; a correction appends a new entry. The log SHALL be bounded by a configured cap, evicting the oldest entries when the cap is reached. Each entry SHALL carry the committed state hash (REQ-601). *Acceptance criterion:* a session of N inputs produces N ordered entries, and replaying the same inputs reproduces the same ordinals. _Check:_ T545.
 
 **REQ-456 — Non-semantic record.** Event-log entries SHALL preserve ordering, provenance, and alternatives independently of semantic interpretation. Replacing or improving extraction, classification, or reconciliation SHALL NOT alter a recorded entry. `manage_diagnostics (action: history)` SHALL accept an optional `ordinals` array and return the named entries in ordinal order, marking any ordinal removed by the event-log cap as evicted. *Acceptance criterion:* a build with revised extraction rules leaves prior event-log entries unchanged. _Check:_ T546.
 
@@ -4520,6 +4520,16 @@ Appendix S.
 **REQ-459 — Branch lineage and isolation.** Each branch SHALL record its parent Novel and branch point, and `manage_novel (action: info)` SHALL report that lineage. A branch SHALL NOT read or mutate a sibling branch's state. *Acceptance criterion:* mutating one branch leaves its siblings and parent unchanged, and `manage_novel (action: info)` reports the parent slug and branch point. _Check:_ T549.
 
 **REQ-460 — Event provenance lookup.** Any derived knowledge, belief, or identity record SHALL cite the event-log ordinals that contributed to it, and the server SHALL return the entries for a requested ordinal range. *Acceptance criterion:* a request for entries through a given ordinal returns exactly the contributing entries and no later entry. _Check:_ T550.
+
+**REQ-601 — Canonical state hash.** THE server SHALL compute a state hash as the SHA-256 digest of a canonical JSON projection of the persisted Novel state with sorted keys. The projection SHALL exclude the audit log, audit archive, undo and redo stacks, checkpoints, metadata, and the event log. *Acceptance criterion:* equal content hashes equally regardless of key order, and changing one persisted field changes the digest. _Check:_ T712.
+
+**REQ-602 — Per-event state hash.** WHEN the server appends an observation, THE entry SHALL record the state hash (REQ-601) of the state committed by that mutation, computed after derived perception records. An entry written before this hash existed SHALL be reported as unhashed and SHALL NOT be fabricated. *Acceptance criterion:* the newest entry's recorded hash equals the live state hash, and a legacy entry reports unhashed. _Check:_ T713.
+
+**REQ-603 — Divergence verification.** `manage_diagnostics (action: verify)` SHALL compare the live state hash (REQ-601) with the digest recorded at the last save and compare each checkpoint snapshot with its recorded digest. It SHALL report the first divergence with its event ordinal, name the retained horizon, and report unhashed entries rather than claiming a clean result. *Acceptance criterion:* an untampered Novel reports clean, and a tampered checkpoint reports divergence at its ordinal. _Check:_ T714.
+
+**REQ-604 — Replay inspection.** `manage_diagnostics (action: replay, to_event?)` SHALL return the retained events through the target ordinal, the state hash recorded at that ordinal, and the nearest checkpoint at or below it. The target SHALL default to the newest retained event. A target below the retained horizon SHALL be reported as evicted, not fabricated. *Acceptance criterion:* replay through K returns exactly the entries through K, its recorded hash, and the nearest checkpoint; a target below the horizon reports evicted. _Check:_ T715.
+
+**REQ-605 — Verification read-only and gated.** `manage_diagnostics (action: verify)` and `manage_diagnostics (action: replay)` SHALL be Game Master operations. They SHALL NOT mutate Novel state, append an event, record an audit entry, or advance the readiness cursor. Repeated calls on unchanged state SHALL return identical reports. *Acceptance criterion:* a Player badge is refused, and two consecutive calls leave the event count and state hash unchanged and return equal reports. _Check:_ T716.
 
 ### 5.25 Belief and Evidence
 
@@ -10088,6 +10098,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-599a | Draft visibility scan (Part a) | 2026-10-24 |
 | REQ-599b | Draft visibility scan (Part b) | 2026-10-24 |
 | REQ-600 | Visibility audit | 2026-10-24 |
+| REQ-601 | Canonical state hash | 2026-10-24 |
+| REQ-602 | Per-event state hash | 2026-10-24 |
+| REQ-603 | Divergence verification | 2026-10-24 |
+| REQ-604 | Replay inspection | 2026-10-24 |
+| REQ-605 | Verification read-only and gated | 2026-10-24 |
 
 ---
 
@@ -10797,6 +10812,11 @@ diet.
 | T709 | Automated | Draft visibility scan: a Player-audience draft carrying a GM-only secret is redacted, ordinary prose and an allowlisted common-noun key are untouched, and a Game Master audience is not scanned. | REQ-599a, REQ-599b |
 | T710 | Automated | Strict visibility: with `TTRPG_NARRATOR_VISIBILITY=strict`, a leaking draft returns `[RULE_VIOLATION]` without echoing the secret. | REQ-599a |
 | T711 | Automated | Visibility audit: after a flagged check, `manage_diagnostics (action: visibility_audit)` reports the audience and flag count without the secret text. | REQ-600 |
+| T712 | Automated | Canonical state hash: equal content with a different key order hashes equally, the event log does not affect the digest, and one changed persisted field changes it. | REQ-601 |
+| T713 | Automated | Per-event digest: after appending an observation, the newest entry's recorded hash equals the live state hash and replay reports the same digest at its ordinal. | REQ-602 |
+| T714 | Automated | Divergence verification: an untampered Novel reports clean; a checkpoint whose snapshot changed outside a save reports divergence at its ordinal, and restore refuses it. | REQ-603 |
+| T715 | Automated | Replay inspection: replay through K returns exactly the entries through K, its recorded hash, and the nearest checkpoint; a target below the retained horizon reports evicted, and repeated calls are identical. | REQ-604 |
+| T716 | Automated | Verification gating: a Player badge is refused verify and replay; two consecutive Game Master calls leave the event count and state hash unchanged and return equal reports. | REQ-605 |
 
 ---
 

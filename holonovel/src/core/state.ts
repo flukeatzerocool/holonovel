@@ -17,6 +17,7 @@ import * as zlib from "zlib";
 import { createRng } from "./rng.js";
 import { snapshotDepth } from "./limits.js";
 import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
+import { stateHash } from "./state-hash.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 import { normalizePerceptionRecord } from "./perception.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
@@ -351,6 +352,10 @@ export interface NoteEntry {
 export interface Checkpoint {
   label: string;
   timestamp: string;
+  // REQ-241b — the newest event ordinal at capture and the snapshot digest
+  // (REQ-601). Optional so pre-existing checkpoints still load.
+  ordinal?: number | null;
+  state_hash?: string;
   state: any;
 }
 
@@ -604,6 +609,9 @@ export interface NovelState {
     last_scene_anchor: string;
     // REQ-092h1 — compression state recorded for integrity verification on resume.
     compression?: boolean;
+    // REQ-603 — canonical state digest of the last committed save, compared by
+    // `manage_diagnostics (action: verify)`. Excluded from the digest itself.
+    state_hash?: string;
     // REQ-237 — session segmentation: per-session metadata derived from
     // `[session-boundary]` audit markers (entry_count, combat rounds,
     // significant rolls, scene transitions, timespan).
@@ -2210,6 +2218,12 @@ ${turnOrder}`;
     return found.sort();
   }
 
+  // REQ-601 — canonical persisted-state digest (REQ-096j exclusions plus the
+  // event log, whose per-entry hashes would otherwise be self-referential).
+  stateDigest(novel: NovelState): string {
+    return stateHash(novelToJSON(novel));
+  }
+
   saveNovel(novel: NovelState): void {
     const dir = path.join(this.stateDir, "novels");
     fs.mkdirSync(dir, { recursive: true });
@@ -2218,6 +2232,9 @@ ${turnOrder}`;
     const count = this.backupCount();
 
     novel.metadata.modified = new Date().toISOString();
+    // REQ-603 — record the committed-state digest with every save so verify can
+    // compare live state against the last write without a mutation journal.
+    novel.metadata.state_hash = this.stateDigest(novel);
 
     // Defensive guard: the undo/redo stacks are internal bookkeeping. If they
     // have grown pathologically (e.g. a snapshot regression embedded prior

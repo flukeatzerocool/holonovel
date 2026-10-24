@@ -1342,6 +1342,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-599a | Draft visibility scan (Part a) | 2026-10-24 |
 | REQ-599b | Draft visibility scan (Part b) | 2026-10-24 |
 | REQ-600 | Visibility audit | 2026-10-24 |
+| REQ-601 | Canonical state hash | 2026-10-24 |
+| REQ-602 | Per-event state hash | 2026-10-24 |
+| REQ-603 | Divergence verification | 2026-10-24 |
+| REQ-604 | Replay inspection | 2026-10-24 |
+| REQ-605 | Verification read-only and gated | 2026-10-24 |
 
 ---
 
@@ -2051,6 +2056,11 @@ diet.
 | T709 | Automated | Draft visibility scan: a Player-audience draft carrying a GM-only secret is redacted, ordinary prose and an allowlisted common-noun key are untouched, and a Game Master audience is not scanned. | REQ-599a, REQ-599b |
 | T710 | Automated | Strict visibility: with `TTRPG_NARRATOR_VISIBILITY=strict`, a leaking draft returns `[RULE_VIOLATION]` without echoing the secret. | REQ-599a |
 | T711 | Automated | Visibility audit: after a flagged check, `manage_diagnostics (action: visibility_audit)` reports the audience and flag count without the secret text. | REQ-600 |
+| T712 | Automated | Canonical state hash: equal content with a different key order hashes equally, the event log does not affect the digest, and one changed persisted field changes it. | REQ-601 |
+| T713 | Automated | Per-event digest: after appending an observation, the newest entry's recorded hash equals the live state hash and replay reports the same digest at its ordinal. | REQ-602 |
+| T714 | Automated | Divergence verification: an untampered Novel reports clean; a checkpoint whose snapshot changed outside a save reports divergence at its ordinal, and restore refuses it. | REQ-603 |
+| T715 | Automated | Replay inspection: replay through K returns exactly the entries through K, its recorded hash, and the nearest checkpoint; a target below the retained horizon reports evicted, and repeated calls are identical. | REQ-604 |
+| T716 | Automated | Verification gating: a Player badge is refused verify and replay; two consecutive Game Master calls leave the event count and state hash unchanged and return equal reports. | REQ-605 |
 
 ---
 

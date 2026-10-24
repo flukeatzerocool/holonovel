@@ -15,6 +15,9 @@ export interface EventLogEntry {
   superseded_by?: number;
   // REQ-457 — replacements recorded as alternatives to the superseded entry.
   alternatives?: number[];
+  // REQ-602 — canonical persisted-state digest after this entry's mutation
+  // committed. Entries written before the hash existed carry no value.
+  state_hash?: string;
 }
 
 export interface BranchLineage {

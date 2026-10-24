@@ -26,6 +26,7 @@ import {
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
+import { stateHash } from "./core/state-hash.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -1929,6 +1930,9 @@ function recordEvent(kind: string, text: string, source?: EventSource): void {
   const cap = parseInt(process.env.TTRPG_EVENT_LOG_MAX_ENTRIES ?? "0", 10);
   if (cap > 0 && novel.event_log.length > cap) novel.event_log = evictToCap(novel.event_log, cap);
   deriveWitnessPerceptions(novel, kind, text, entry.ordinal);
+  // REQ-602 — the digest covers post-mutation state, after the perception
+  // derivation side effect, so a clean Novel verifies.
+  entry.state_hash = state.stateDigest(novel);
 }
 
 // REQ-594 — append a perception with its witness provenance, honoring the cap.
@@ -2895,6 +2899,13 @@ Character '${build.name}' created as ${entity.id} with derived statistics.`);
     const label = kind.slice("restore_checkpoint:".length);
     if (opt === "yes") {
       const stateData = pw.payload?.state;
+      const expected = pw.payload?.state_hash;
+      // REQ-241b/REQ-603 — re-check the digest at confirmation time as well.
+      if (typeof expected === "string" && stateData && stateHash(stateData) !== expected) {
+        novel.pending_workflow = null;
+        state.saveNovel(novel);
+        return err("STATE_CONFLICT", `Checkpoint '${label}' failed its state-hash check; restore aborted.`);
+      }
       const restored = stateData ? loadNovelFromStateData(stateData) : null;
       applyNovelState(novel, restored ?? novel);
       novel.pending_workflow = null;
@@ -7728,8 +7739,105 @@ const handlePerceptionActions = async (args: any) => {
   }
 };
 
+// REQ-603 — divergence verification: compare live state to the save-time
+// digest, and each checkpoint snapshot to its recorded digest.
+interface CheckpointHashStatus {
+  label: string;
+  ordinal: number | null;
+  recorded: string | null;
+  actual: string;
+  match: boolean;
+}
+
+interface StateVerifyReport {
+  clean: boolean;
+  verified: boolean;
+  live_hash: string;
+  recorded_hash: string | null;
+  horizon: number | null;
+  newest_ordinal: number | null;
+  unhashed_events: number;
+  unhashed_checkpoints: string[];
+  checkpoints: CheckpointHashStatus[];
+  first_mismatch_ordinal: number | null;
+}
+
+function verifyStateHashes(novel: NovelState): StateVerifyReport {
+  const live = state.stateDigest(novel);
+  const recorded = typeof novel.metadata?.state_hash === "string" ? novel.metadata.state_hash : null;
+  const log = novel.event_log ?? [];
+  const newest = log.length ? log[log.length - 1].ordinal : null;
+  const horizon = log.length ? log[0].ordinal : null;
+  const unhashedEvents = log.filter((e) => typeof e.state_hash !== "string" || e.state_hash.length === 0).length;
+  const checkpoints: CheckpointHashStatus[] = (novel.checkpoints ?? []).map((cp: any) => {
+    const actual = cp.state ? stateHash(cp.state) : "";
+    const rec = typeof cp.state_hash === "string" ? cp.state_hash : null;
+    return {
+      label: cp.label,
+      ordinal: Number.isInteger(cp.ordinal) ? cp.ordinal : null,
+      recorded: rec,
+      actual,
+      match: rec !== null && actual === rec,
+    };
+  });
+  const unhashedCheckpoints = (novel.checkpoints ?? [])
+    .filter((cp: any) => typeof cp.state_hash !== "string")
+    .map((cp: any) => cp.label as string);
+  const mismatchOrdinals: number[] = [];
+  if (recorded !== null && live !== recorded) mismatchOrdinals.push(newest ?? 0);
+  for (const cp of checkpoints) {
+    if (cp.recorded !== null && !cp.match && cp.ordinal !== null) mismatchOrdinals.push(cp.ordinal);
+  }
+  return {
+    clean: recorded !== null && mismatchOrdinals.length === 0,
+    verified: recorded !== null,
+    live_hash: live,
+    recorded_hash: recorded,
+    horizon,
+    newest_ordinal: newest,
+    unhashed_events: unhashedEvents,
+    unhashed_checkpoints: unhashedCheckpoints,
+    checkpoints,
+    first_mismatch_ordinal: mismatchOrdinals.length ? Math.min(...mismatchOrdinals) : null,
+  };
+}
+
+// REQ-604 — read-only replay inspection: the retained events through a target
+// ordinal, the digest recorded there, and the nearest checkpoint at or below it.
+function replayInspection(novel: NovelState, requested?: number): string {
+  const log = novel.event_log ?? [];
+  if (log.length === 0) return "Replay inspection: the event log is empty.";
+  const horizon = log[0].ordinal;
+  const newest = log[log.length - 1].ordinal;
+  let target = requested === undefined ? newest : requested;
+  const notes: string[] = [];
+  if (target < horizon) {
+    return `Replay inspection: [evicted] target #${target} is below the retained horizon #${horizon}.`;
+  }
+  if (target > newest) {
+    notes.push(`target #${target} clamped to newest #${newest}`);
+    target = newest;
+  }
+  const entries = sliceThrough(log, target);
+  const targetEntry = log.find((e) => e.ordinal === target);
+  const recorded = typeof targetEntry?.state_hash === "string" ? targetEntry.state_hash : null;
+  const nearest = (novel.checkpoints ?? [])
+    .filter((cp: any) => Number.isInteger(cp.ordinal) && cp.ordinal <= target)
+    .sort((a: any, b: any) => b.ordinal - a.ordinal)[0];
+  const lines = [
+    `Replay inspection through #${target} (retained #${horizon}..#${newest}).`,
+    `recorded state hash at #${target}: ${recorded ?? "[unhashed]"}`,
+    nearest
+      ? `nearest checkpoint: '${nearest.label}' (ordinal #${nearest.ordinal}, ${nearest.state_hash ? "hashed" : "[unhashed]"})`
+      : "nearest checkpoint: none at or below the target",
+  ];
+  if (notes.length) lines.push(...notes);
+  lines.push(...entries.map((e) => describeEntry(e)));
+  return lines.join("\n");
+}
+
 const MANAGE_SESSION_SCHEMA = {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history", "visibility_check", "visibility_audit"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), history (read the event log), visibility_check (scan a draft for GM-only disclosure), or visibility_audit (recent visibility decisions)."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), history (read the event log), verify (compare live state to recorded hashes), replay (read-only event-log inspection), visibility_check (scan a draft for GM-only disclosure), or visibility_audit (recent visibility decisions)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress)."),
@@ -7749,6 +7857,7 @@ const MANAGE_SESSION_SCHEMA = {
     through_ordinal: z.number().optional().describe("Return events up to and including this ordinal (history)."),
     include_superseded: z.boolean().optional().describe("Include superseded events (history; default true)."),
     audience: z.enum(["player", "game_master", "observer", "none"]).optional().describe("Audience badge for a visibility check (visibility_check; default the active badge)."),
+    to_event: z.number().optional().describe("Target event ordinal for replay inspection (replay; default the newest retained entry)."),
   };
 
 server.registerTool("manage_session", {
@@ -7771,6 +7880,8 @@ server.registerTool("manage_session", {
       if (args.supersede !== undefined) {
         const replacement = supersedeEvent(novel.event_log, args.supersede, src, "event", text, new Date().toISOString());
         if (!replacement) return err("NOT_FOUND", `Event ordinal ${args.supersede} not found.`);
+        // REQ-602 — record the committed-state digest on the replacement.
+        replacement.state_hash = state.stateDigest(novel);
         state.saveNovel(novel);
         audit("record_event", { ordinal: replacement.ordinal, supersedes: args.supersede });
         return ok(`Event #${replacement.ordinal} recorded, superseding #${args.supersede}.`);
@@ -8041,21 +8152,49 @@ Options: yes, cancel`);
       const lines = entries.map((e) => `${e.timestamp} [${e.badge}] ${e.tool} ${e.args}`);
       return ok(`Visibility decisions (${entries.length}):\n${lines.join("\n")}`);
     }
+    // REQ-603, REQ-605 — compare live state to the save-time digest and
+    // checkpoint snapshots to their recorded digests; read-only and GM-only.
+    case "verify": {
+      requireGM();
+      const novel = requireNovel();
+      const report = verifyStateHashes(novel);
+      const status = report.verified
+        ? (report.clean ? "clean" : `DIVERGENCE at #${report.first_mismatch_ordinal ?? "?"}`)
+        : "unverified (no save-time digest recorded)";
+      const lines = [
+        `State verification: ${status}`,
+        `live state hash: ${report.live_hash}`,
+        `recorded save hash: ${report.recorded_hash ?? "[unhashed]"}`,
+        `horizon: ${report.horizon ?? "none"} (newest #${report.newest_ordinal ?? "none"})`,
+        `unhashed events: ${report.unhashed_events}`,
+        `checkpoints: ${report.checkpoints.length} checked, ${report.checkpoints.filter((c) => c.recorded !== null && !c.match).length} mismatched`,
+      ];
+      if (report.unhashed_checkpoints.length) lines.push(`unhashed checkpoints: ${report.unhashed_checkpoints.join(", ")}`);
+      return ok(lines.join("\n"));
+    }
+    // REQ-604, REQ-605 — read-only, GM-only replay inspection; never mutates or
+    // advances cursors.
+    case "replay": {
+      requireGM();
+      const novel = requireNovel();
+      if (args.to_event !== undefined && !Number.isInteger(args.to_event)) return err("INVALID_INPUT", "to_event must be an integer ordinal.");
+      return ok(replayInspection(novel, args.to_event));
+    }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history, visibility_check, visibility_audit.`);
+      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history, verify, replay, visibility_check, visibility_audit.`);
   }
 });
 
 // REQ-413 / REQ-581 — split the maintenance actions out of `manage_session`.
 // The original name stays callable for one minor version (REQ-581); the split
 // tool exposes only the diagnostics subset and delegates to the same handler.
-const DIAGNOSTICS_ACTIONS = ["health", "compress", "compact", "subscribe", "category", "event", "history", "visibility_check", "visibility_audit"] as const;
+const DIAGNOSTICS_ACTIONS = ["health", "compress", "compact", "subscribe", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"] as const;
 server.registerTool("manage_diagnostics", {
   title: "Session Diagnostics",
-  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
+  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), verifying that stored state matches its recorded hashes (verify), inspecting the retained log through an ordinal (replay), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, verify, replay, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
   inputSchema: {
     ...MANAGE_SESSION_SCHEMA,
-    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, compress, compact, subscribe, category, event, history, visibility_check, or visibility_audit."),
+    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, compress, compact, subscribe, category, event, history, verify, replay, visibility_check, or visibility_audit."),
   },
 }, async (args: any, extra: any) => {
   const target = (server as any)._registeredTools?.["manage_session"];
@@ -8912,7 +9051,15 @@ Options: yes, cancel`);
     case "checkpoint_set": {
       requireGM();
       const novel = requireNovel();
-      novel.checkpoints.push({ label: args.label, timestamp: new Date().toISOString(), state: JSON.parse(JSON.stringify(novelToJSONState(novel))) });
+      const snapshot = JSON.parse(JSON.stringify(novelToJSONState(novel)));
+      // REQ-241b — record the capture ordinal and snapshot digest (REQ-601).
+      novel.checkpoints.push({
+        label: args.label,
+        timestamp: new Date().toISOString(),
+        ordinal: novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null,
+        state_hash: stateHash(snapshot),
+        state: snapshot,
+      });
       // REQ-241b — when at the configured capacity, the oldest is discarded.
       const cpRaw = parseInt(process.env.TTRPG_MAX_CHECKPOINTS ?? "0", 10);
       const cpMax = Number.isNaN(cpRaw) ? 0 : cpRaw;
@@ -8925,7 +9072,7 @@ Options: yes, cancel`);
     case "checkpoint_list": {
       requireGM();
       const novel = requireNovel();
-      return raw(JSON.stringify(novel.checkpoints.map(c => ({ label: c.label, timestamp: c.timestamp })), null, 2));
+      return raw(JSON.stringify(novel.checkpoints.map(c => ({ label: c.label, timestamp: c.timestamp, ordinal: c.ordinal ?? null, state_hash: c.state_hash ?? null })), null, 2));
     }
     case "checkpoint_restore": {
       requireGM();
@@ -8933,10 +9080,14 @@ Options: yes, cancel`);
       if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
       const cp = novel.checkpoints.find(c => c.label === args.label);
       if (!cp) return err("NOT_FOUND", `Checkpoint '${args.label}' not found.`);
+      // REQ-241b/REQ-603 — refuse to restore a snapshot whose digest drifted.
+      if (typeof cp.state_hash === "string" && stateHash(cp.state) !== cp.state_hash) {
+        return err("STATE_CONFLICT", `Checkpoint '${args.label}' failed its state-hash check; refusing to restore.`);
+      }
       novel.pending_workflow = {
         decision: `restore_checkpoint:${args.label}`,
         snapshot: state.captureWorkflowSnapshot(novel),
-        payload: { label: args.label, state: cp.state },
+        payload: { label: args.label, state: cp.state, state_hash: cp.state_hash ?? null },
       };
       state.saveNovel(novel);
       return needInput(`Decision: -restore_checkpoint-
