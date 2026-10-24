@@ -6,13 +6,6 @@
   Update this file when planning a release.
 -->
 
-## Context ledger and cache-aware surface
-
-- Surface profiles already cut the catalog from 25,856 to ~1,156 tokens; add
-  per-turn cost accounting, cache-hit measurement, and progressive disclosure.
-- Measure `small`/`lean` quality before changing defaults.
-- Plan: `plans/2026-10-23-context-ledger/`
-
 ## Prompt generation from the ruleset model
 
 - The reference host still hardcodes all five MCP prompt bodies (`session_zero`,

@@ -17,6 +17,7 @@ import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
 import { buildSurfaceReport } from "./surface-report.js";
+import { buildContextLedger, allocateContextBudget } from "./core/context-ledger.js";
 import { hiddenActionAliases, hiddenAliasNames, retiredAliasRefusal, surfaceAliasList } from "./core/surface-aliases.js";
 import {
   SURFACE_GLOBALS,
@@ -1170,6 +1171,67 @@ function measuredSurface(): MeasuredSurface {
   const result = { full, standard, small, active: { full, standard, small }[surfaceProfile()] };
   surfaceMeasurementCache = { fingerprint, activeGroup, activeSlug, result };
   return result;
+}
+
+// REQ-606, REQ-607 — the serialized active catalog is the stable naming surface
+// the ledger hashes. It uses the same projection as measuredSurface so the
+// prefix and the reported catalog size cannot describe different payloads.
+function activeCatalogText(): string {
+  const registry = surfaceRegistry();
+  const definitions = scopedCatalog((liveToolCache ?? registeredToolDefinitions()) as any[]);
+  return JSON.stringify(
+    projectSurfaceTools(definitions as any, {
+      profile: surfaceProfile(),
+      group: null,
+      activeGroup: activeSurfaceGroup(),
+      registry,
+    }) as unknown[],
+  );
+}
+
+// REQ-606 — side-effect-free section text. `badge_briefing` is deliberately not
+// rendered here: it advances the pacing counter (REQ-336/351), and a read-only
+// ledger must not mutate Novel state.
+function contextSectionTexts(): Record<string, string> {
+  const novel = state.activeNovel;
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  const prompts: Record<string, any> = (server as any)._registeredPrompts ?? {};
+  const promptText = Object.entries(prompts)
+    .map(([name, prompt]) => `${name} ${prompt?.description ?? ""}`.trim())
+    .sort()
+    .join("\n");
+  const resourceText = REQ022_URI_CATALOG.map(({ template, title }) => `${template} ${title}`).join("\n");
+  const sceneText = novel
+    ? JSON.stringify({
+      location: novel.scene_location ?? null,
+      description: novel.scene_description ?? "",
+      entities: novel.entities.size,
+      npcs: novel.npcs.size,
+    })
+    : "";
+  const memoryText = novel
+    ? deriveRecentTier(
+      isGM ? novel.event_log : novel.event_log.filter((e) => e.source !== "game_master"),
+      configInt("TTRPG_MEMORY_RECENT_EVENTS", 10),
+    ).text
+    : "";
+  const lastOutputKey = [...outputStore.keys()].at(-1);
+  return {
+    tool_catalog: activeCatalogText(),
+    registered_prompts: promptText,
+    resource_directory: resourceText,
+    scene_state: sceneText,
+    memory_tiers: memoryText,
+    last_tool_output: lastOutputKey ? (outputStore.get(lastOutputKey) ?? "") : "",
+  };
+}
+
+// REQ-606, REQ-607, REQ-610 — the ledger shared by `context_report` and
+// `spec_health`; an optional budget adds the allocator's packing decision.
+function contextLedgerReport(budgetTokens?: number) {
+  const report = buildContextLedger({ profile: surfaceProfile(), sections: contextSectionTexts() });
+  if (budgetTokens === undefined) return report;
+  return { ...report, allocation: allocateContextBudget(report, budgetTokens) };
 }
 
 // REQ-554 — the coherence proxies bind the host tool surface. Ruleset-derived
@@ -2977,7 +3039,7 @@ async function reassignToolCategory(tool_name: string, category: string | null |
   return ok(`Tool '${tool_name}' assigned to category '${category.trim()}'.`);
 }
 
-async function toolDiscovery(query?: string) {
+async function toolDiscovery(query?: string, detail: "summary" | "schema" = "summary") {
   // REQ-024 — tool documentation: tools carry a human title and descriptions
   // using the ruleset's own terms; full descriptions remain at resources/read.
   // REQ-415 — summary-first catalog: `help`/catalog listings return summaries;
@@ -3010,7 +3072,7 @@ async function toolDiscovery(query?: string) {
       if (score === 0) continue;
       const firstSentence = desc.split(".")[0] + (desc.includes(".") ? "." : "");
       const example = buildExampleInvocation(name, def.inputSchema);
-      matched.push({ name, description: firstSentence, example, relevance: score });
+      matched.push({ name, description: firstSentence, example, relevance: score, schema: zodToJsonSchema(def.inputSchema) } as any);
     }
 
     if (q.includes("intro") || q.includes("start") || q.includes("begin")) {
@@ -3023,6 +3085,14 @@ async function toolDiscovery(query?: string) {
     matched.sort((a, b) => b.relevance - a.relevance);
     const top = matched.slice(0, 5);
     if (top.length === 0) return ok("No tools match. Try `run_command(\"look\")` for world description.");
+    // REQ-609 — on-demand schema disclosure: the default summary path is
+    // unchanged; `detail: schema` adds the live input schema for the matches.
+    if (detail === "schema") {
+      return raw(JSON.stringify({
+        detail: "schema",
+        matches: top.map((m: any) => ({ name: m.name, description: m.description, input_schema: m.schema })),
+      }, null, 2));
+    }
     return raw(top.map(m => `**${m.name}** — ${m.description}\nExample: ${m.example}`).join("\n\n"));
   }
 
@@ -7837,7 +7907,7 @@ function replayInspection(novel: NovelState, requested?: number): string {
 }
 
 const MANAGE_SESSION_SCHEMA = {
-    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "subscribe", "discover", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), history (read the event log), verify (compare live state to recorded hashes), replay (read-only event-log inspection), visibility_check (scan a draft for GM-only disclosure), or visibility_audit (recent visibility decisions)."),
+    action: z.enum(["recap", "verbosity", "briefing_order", "compress", "compact", "health", "context_report", "subscribe", "discover", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"]).describe("recap, verbosity, briefing_order, compress (non-mutating audit summary prompt), compact (GM-only irreversible audit-log compaction), health, context_report (per-section token ledger), subscribe, discover (list/search tools), category (reassign a tool's category), event (append an observation), history (read the event log), verify (compare live state to recorded hashes), replay (read-only event-log inspection), visibility_check (scan a draft for GM-only disclosure), or visibility_audit (recent visibility decisions)."),
     mode: z.enum(["normal", "terse"]).optional().describe("normal or terse (verbosity)."),
     sections: z.array(z.string()).optional().describe("Ordered list of briefing sections (briefing_order)."),
     max_entries: z.number().optional().describe("Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress)."),
@@ -7846,13 +7916,14 @@ const MANAGE_SESSION_SCHEMA = {
     session_id: z.string().optional().describe("Archived session id to include in recap (recap)."),
     topics: z.array(z.string()).optional().describe("Notification topics to subscribe to (subscribe)."),
     query: z.string().optional().describe("Optional search term matched against tool name, description, and title (discover)."),
+    detail: z.enum(["summary", "schema"]).optional().describe("discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609)."),
     tool_name: z.string().optional().describe("Registered tool name to reassign (category)."),
     category: z.string().nullable().optional().describe("New category label, or null/empty to restore the default (category)."),
     text: z.string().optional().describe("Observation text (event)."),
     source: z.enum(["player", "game_master", "system", "machine"]).optional().describe("Event source classification (event)."),
     supersede: z.number().optional().describe("Ordinal of an event this observation replaces (event)."),
     tier: z.enum(["recent", "session", "arc", "campaign"]).optional().describe("Compression tier to assemble (recap; REQ-592)."),
-    budget_tokens: z.number().optional().describe("Positive token budget for tier assembly (recap; REQ-592)."),
+    budget_tokens: z.number().optional().describe("Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610)."),
     ordinals: z.array(z.number()).optional().describe("Exact event ordinals to return in order (history; REQ-591)."),
     through_ordinal: z.number().optional().describe("Return events up to and including this ordinal (history)."),
     include_superseded: z.boolean().optional().describe("Include superseded events (history; default true)."),
@@ -7863,7 +7934,7 @@ const MANAGE_SESSION_SCHEMA = {
 server.registerTool("manage_session", {
   _meta: { deprecated: true, replacement: "manage_diagnostics" },
   title: "Session Management",
-  description: "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title. verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+  description: "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title and returns live input schemas on request (detail: schema). verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
   inputSchema: MANAGE_SESSION_SCHEMA,
 
 }, async (args: any) => {
@@ -7913,7 +7984,16 @@ server.registerTool("manage_session", {
       return ok(entries.map(describeEntry).join("\n"));
     }
     case "discover": {
-      return toolDiscovery(args.query);
+      // REQ-609 — summary is the default; schema discloses the live input
+      // schema on demand without a new tool or a state mutation.
+      const detail = args.detail ?? "summary";
+      if (detail !== "summary" && detail !== "schema") {
+        return err("INVALID_INPUT", "detail must be 'summary' or 'schema'.");
+      }
+      if (detail === "schema" && !args.query) {
+        return err("INVALID_INPUT", "detail 'schema' requires a query.");
+      }
+      return toolDiscovery(args.query, detail);
     }
     case "category": {
       return reassignToolCategory(args.tool_name, args.category);
@@ -8104,6 +8184,15 @@ Options: yes, cancel`);
     case "health": {
       return raw(JSON.stringify(buildSpecHealth(), null, 2));
     }
+    // REQ-606, REQ-607 — read-only context ledger: per-section token estimates,
+    // the stable-prefix hash, and the prefix ratio. Never renders badge_briefing.
+    case "context_report": {
+      if (args.budget_tokens !== undefined
+        && (!Number.isInteger(args.budget_tokens) || args.budget_tokens <= 0)) {
+        return err("INVALID_INPUT", "budget_tokens must be a positive integer.");
+      }
+      return ok(JSON.stringify(contextLedgerReport(args.budget_tokens), null, 2));
+    }
     // REQ-433 — event notification subscription: GM-only, session-scoped,
     // dropped on connection close, never persisted across restart.
     case "subscribe": {
@@ -8188,13 +8277,13 @@ Options: yes, cancel`);
 // REQ-413 / REQ-581 — split the maintenance actions out of `manage_session`.
 // The original name stays callable for one minor version (REQ-581); the split
 // tool exposes only the diagnostics subset and delegates to the same handler.
-const DIAGNOSTICS_ACTIONS = ["health", "compress", "compact", "subscribe", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"] as const;
+const DIAGNOSTICS_ACTIONS = ["health", "context_report", "compress", "compact", "subscribe", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"] as const;
 server.registerTool("manage_diagnostics", {
   title: "Session Diagnostics",
   description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), verifying that stored state matches its recorded hashes (verify), inspecting the retained log through an ordinal (replay), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, verify, replay, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
   inputSchema: {
     ...MANAGE_SESSION_SCHEMA,
-    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, compress, compact, subscribe, category, event, history, verify, replay, visibility_check, or visibility_audit."),
+    action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, context_report, compress, compact, subscribe, category, event, history, verify, replay, visibility_check, or visibility_audit."),
   },
 }, async (args: any, extra: any) => {
   const target = (server as any)._registeredTools?.["manage_session"];
@@ -9781,6 +9870,7 @@ function buildSpecHealth(): Record<string, unknown> {
     // committed registry and the live registrations at call time.
     tool_surface: (() => {
       const measured = measuredSurface();
+      const ledger = contextLedgerReport();
       return {
         ...buildSurfaceReport({
           registry: surfaceRegistry(),
@@ -9795,8 +9885,13 @@ function buildSpecHealth(): Record<string, unknown> {
           overrides: surfaceOverrideCount,
           budgets: { standard: Math.ceil(measured.full.tokens * 0.9), small: Math.ceil(measured.full.tokens * 0.1) },
         }),
-        // REQ-587 — the serialized default catalog is the cacheable prefix.
+        // REQ-587, REQ-607 — the serialized default catalog is the cacheable
+        // prefix; the ledger adds its hash and token ratio. No provider
+        // cache-hit rate is claimed.
         cacheable_prefix_bytes: measured.active.bytes,
+        cacheable_prefix_sha256: ledger.stable_prefix.sha256,
+        prefix_ratio: ledger.stable_prefix.ratio,
+        ledger_total_tokens: ledger.total_tokens,
       };
     })(),
     // REQ-583 — observed selection signals; absent when no package is loaded.

@@ -26,6 +26,7 @@ const DEFS = join(ROOT, "holonovel", "tool-definitions.json");
 const REGISTRY = join(ROOT, "holonovel", "tool-surface-registry.json");
 const ROUTING = join(ROOT, "holonovel", "tool-routing.json");
 const OUT = join(ROOT, "spec", "audit", "tool-surface-replay.json");
+const BUDGETS = join(ROOT, "spec", "audit", "tool-surface-baseline.json");
 
 interface ToolDefinition { name: string; description?: string; action_enum?: string[]; }
 interface Registry extends SurfaceRegistryLike { taxonomy: { groups: string[] } }
@@ -133,6 +134,15 @@ function readJson<T>(path: string): T {
 const defs = readJson<{ tools: ToolDefinition[] }>(DEFS);
 const registry = readJson<Registry>(REGISTRY);
 const routing = readJson<Routing>(ROUTING);
+const budgetArtifact = readJson<{
+  measurements: { full: { tokens: number } };
+  budgets: { standard: number; small: number };
+}>(BUDGETS);
+const priorReplay = existsSync(OUT) ? readJson<{ profiles?: Array<{ profile: string; visibility_rate?: number; recall_at_budget?: { recall: number } }> }>(OUT) : null;
+const budgetFor = (profile: "full" | "standard" | "small"): number =>
+  profile === "full" ? budgetArtifact.measurements.full.tokens
+  : profile === "standard" ? budgetArtifact.budgets.standard
+  : budgetArtifact.budgets.small;
 const tools = defs.tools as SurfaceTool[];
 const profiles = ["full", "standard", "small"] as const;
 const startGroup = (intent: Intent): string => {
@@ -215,6 +225,12 @@ const results = profiles.map((profile) => {
     selection_precision: Number((correctCount / rows.length).toFixed(3)),
     wrong_selection_count: rows.length - correctCount,
     mean_calls: Number((rows.reduce((sum, row) => sum + row.calls, 0) / rows.length).toFixed(3)),
+    // REQ-608 — recall at the profile's recorded catalog budget.
+    recall_at_budget: {
+      budget_tokens: budgetFor(profile),
+      expected_action_recalled: visibleCount,
+      recall: Number((visibleCount / rows.length).toFixed(3)),
+    },
     rows,
   };
 });
@@ -246,6 +262,13 @@ for (const result of results) {
   }
 }
 if (!fixtureWrong) defects.push("expected-action fixture did not record a wrong sibling selection");
+for (const result of results) {
+  const prior = priorReplay?.profiles?.find((p) => p.profile === result.profile);
+  const priorRecall = prior?.recall_at_budget?.recall ?? prior?.visibility_rate;
+  if (typeof priorRecall === "number" && result.recall_at_budget.recall < priorRecall) {
+    defects.push(`${result.profile} recall ${result.recall_at_budget.recall} is below the recorded ${priorRecall}`);
+  }
+}
 for (const key of Object.keys(routing.actions)) {
   const [name, action] = key.split(".");
   const tool = (tools as ToolDefinition[]).find((t) => t.name === name);
@@ -254,8 +277,8 @@ for (const key of Object.keys(routing.actions)) {
 }
 
 const payload = {
-  schema_version: 4,
-  proxy: "expected-action selection precision, wrong-selection count, visibility, and group-switch call cost; live-model selection is advisory",
+  schema_version: 5,
+  proxy: "expected-action selection precision, wrong-selection count, visibility, recall at budget, and group-switch call cost; live-model selection is advisory",
   intents: INTENTS.length,
   precision_floor: 0.9,
   routing_source: "holonovel/tool-routing.json",

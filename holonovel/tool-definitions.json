@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 111030,
+  "tools_list_bytes": 111637,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 111030,
-        "tokens": 27758
+        "bytes": 111637,
+        "tokens": 27910
       },
       "standard": {
         "tools": 36,
-        "bytes": 97026,
-        "tokens": 24257
+        "bytes": 97633,
+        "tokens": 24409
       },
       "small": {
         "tools": 6,
-        "bytes": 4862,
-        "tokens": 1216,
+        "bytes": 4917,
+        "tokens": 1230,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4859,
-            "tokens": 1215
+            "bytes": 4914,
+            "tokens": 1229
           },
           "explore": {
             "tools": 6,
-            "bytes": 3887,
-            "tokens": 972
+            "bytes": 3942,
+            "tokens": 986
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4834,
-            "tokens": 1209
+            "bytes": 4889,
+            "tokens": 1223
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4862,
-            "tokens": 1216
+            "bytes": 4917,
+            "tokens": 1230
           },
           "lookup": {
             "tools": 6,
-            "bytes": 4177,
-            "tokens": 1045
+            "bytes": 4232,
+            "tokens": 1058
           },
           "referee": {
             "tools": 6,
-            "bytes": 3929,
-            "tokens": 983
+            "bytes": 3984,
+            "tokens": 996
           },
           "author": {
             "tools": 6,
-            "bytes": 4153,
-            "tokens": 1039
+            "bytes": 4208,
+            "tokens": 1052
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4614,
-            "tokens": 1154
+            "bytes": 4741,
+            "tokens": 1186
           }
         }
       }
@@ -836,6 +836,7 @@
       "description_bytes": 901,
       "action_enum": [
         "health",
+        "context_report",
         "compress",
         "compact",
         "subscribe",
@@ -847,14 +848,15 @@
         "visibility_check",
         "visibility_audit"
       ],
-      "param_count": 20,
+      "param_count": 21,
       "required": [
         "action"
       ],
       "params": {
         "audience": "Audience badge for a visibility check (visibility_check; default the active badge).",
-        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592).",
+        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
         "category": "New category label, or null/empty to restore the default (category).",
+        "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
         "include_superseded": "Include superseded events (history; default true).",
         "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
@@ -884,10 +886,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 21,
+        "paramCount": 22,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 21,
-        "paramsWithEnums": 5,
+        "paramsWithDescriptions": 22,
+        "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -897,7 +899,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4346,
+        "definitionBytes": 4615,
         "descriptionBytes": 901
       },
       "category": "",
@@ -1571,22 +1573,23 @@
     {
       "name": "manage_session",
       "title": "Session Management",
-      "description": "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title. verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
-      "description_bytes": 852,
+      "description": "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title and returns live input schemas on request (detail: schema). verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+      "description_bytes": 911,
       "action_enum": [
         "recap",
         "verbosity",
         "briefing_order",
         "discover"
       ],
-      "param_count": 20,
+      "param_count": 21,
       "required": [
         "action"
       ],
       "params": {
         "audience": "Audience badge for a visibility check (visibility_check; default the active badge).",
-        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592).",
+        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
         "category": "New category label, or null/empty to restore the default (category).",
+        "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
         "include_superseded": "Include superseded events (history; default true).",
         "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
@@ -1616,10 +1619,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 21,
+        "paramCount": 22,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 21,
-        "paramsWithEnums": 5,
+        "paramsWithDescriptions": 22,
+        "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1629,8 +1632,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4572,
-        "descriptionBytes": 852
+        "definitionBytes": 4910,
+        "descriptionBytes": 911
       },
       "category": "",
       "gate": ""
@@ -2428,6 +2431,12 @@
       "name": "manage_session.compress",
       "kind": "action",
       "replacement": "manage_diagnostics.compress",
+      "retired": true
+    },
+    {
+      "name": "manage_session.context_report",
+      "kind": "action",
+      "replacement": "manage_diagnostics.context_report",
       "retired": true
     },
     {

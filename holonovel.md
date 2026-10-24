@@ -1240,6 +1240,21 @@ Given unchanged registration, badge, and ruleset scope, the serialized default t
 
 **REQ-588 — Search result budget.**
 `manage_ruleset (action: search)` SHALL bound the total context it returns per call and SHALL report the count of results suppressed by that bound. A returned passage exceeding the per-result bound SHALL be truncated with a pointer to its `ruleset://` resource. The bound SHALL be configurable as a non-behavioral presentation setting and reported by `spec_health` with the most recent call's returned and suppressed counts. *Acceptance criterion:* a query exceeding the bound reports the suppressed count; an oversized passage truncates with a resolving resource pointer; the configured bound appears in `spec_health`. _Check:_ T688.
+
+**REQ-606 — Context ledger sections.**
+`manage_diagnostics (action: context_report)` SHALL report a per-section token ledger listing exactly once: `tool_catalog`, `registered_prompts`, and `resource_directory` (stable); `scene_state` and `memory_tiers` (semi-stable); `last_tool_output` (volatile). Each section reports its class and a token estimate under the pinned estimator (REQ-592); the report carries the active profile, the total, and the stable-prefix hash and ratio (REQ-607). Values derive at call time; an empty section reports zero. Novel-derived sections SHALL be badge-filtered, and the action SHALL NOT mutate state, append an audit entry, or render `badge_briefing`. *Acceptance criterion:* every section appears once, the total equals the sum, and two calls on unchanged state return identical ledgers. _Check:_ T717.
+
+**REQ-607 — Cacheable-prefix hash and ratio.**
+`spec_health.tool_surface` SHALL report, in addition to the REQ-587 byte length, a SHA-256 hash of the serialized stable context prefix and `prefix_ratio`, the prefix token estimate divided by the ledger total. Given unchanged registration, badge, and ruleset scope, two calls SHALL return the same hash, and a registration change SHALL alter it. The report SHALL NOT claim a provider cache-hit rate; only the prefix ratio is reported. *Acceptance criterion:* consecutive calls with unchanged scope return the same hash and ratio; a registration change alters the hash; no cache-hit rate field is present. _Check:_ T718.
+
+**REQ-608 — Recall-at-budget probe.**
+The REQ-569 surface baseline SHALL also record recall for each profile under that profile's recorded catalog budget (REQ-571), counting an intent as recalled when its expected action is present in the projected listing. The probe SHALL use the same fixed intent set and pinned estimator as the selection baseline, and its results SHALL be recorded with that baseline in DECISIONS.md. A later run SHALL NOT report recall below the recorded value for the same profile. *Acceptance criterion:* each profile reports a recall value and budget; the probe adds no second intent set or estimator; a run below the recorded recall fails. _Check:_ T719.
+
+**REQ-609 — On-demand schema disclosure.**
+`manage_session (action: discover, query, detail)` SHALL accept `detail` values `summary` (default) and `schema`. With `detail: schema` and a query it SHALL return each matched tool's live input schema alongside its name and description; the default summary response SHALL be unchanged. The response SHALL be badge-filtered like the summary listing and SHALL require no prior state mutation. An unknown `detail` value, or `schema` without a query, SHALL return `[ERROR] [INVALID_INPUT]`. *Acceptance criterion:* a schema request returns a JSON schema for a matched tool; a default request returns the summary text; both invalid forms refuse. _Check:_ T720.
+
+**REQ-610 — Per-turn budget allocator.**
+The context-budget allocator is deterministic. `manage_diagnostics (action: context_report, budget_tokens?)` SHALL report the kept and dropped sections, the packed total, and whether it fits. Required sections (`tool_catalog`, `registered_prompts`) SHALL never drop; optional sections drop lowest-priority first in the order `last_tool_output`, `resource_directory`, `scene_state`, `memory_tiers`. The allocator SHALL NOT alter any existing bound (REQ-004, REQ-083, REQ-118/135, REQ-239, REQ-588). A non-positive or non-integer budget SHALL return `[ERROR] [INVALID_INPUT]`. *Acceptance criterion:* a tight budget drops `last_tool_output` first and keeps both required sections; the packed total never exceeds the budget unless required sections alone do; an invalid budget refuses. _Check:_ T721.
 **REQ-160a — Synthesis health reporting (Part a).**
 `spec_health` SHALL report synthesis status with these minimum fields. Field (a), `synthesis_active`, is a boolean indicating whether synthesis state exists. Field (b), `module_counts`, reports the per-module item count for each of the seven output modules (§11.1). Field (c), `stale_count`, counts inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`. Field (d), `activated_count`, counts synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159). Field (e), `fingerprint`, holds the synthesis fingerprint used for idempotence detection (ruleset content hash plus intake answers).
 
@@ -1474,7 +1489,7 @@ The build SHALL provide a reproducible baseline over a fixed intent set that rep
 `tools/list` SHALL accept a group selection. Under the `small` profile the default listing SHALL be the active phase's entry tools plus the five always-visible globals; under `full` and `standard` it SHALL be the complete surface. Group selection SHALL preserve stable ordering, SHALL NOT require a prior state mutation, and SHALL return `[ERROR] [INVALID_INPUT]` for an unknown group. *Acceptance criterion:* a small default listing returns the active group's entry tools plus the globals; a standard listing returns every canonical tool; a group selection returns that group plus the globals; an unknown group returns `[INVALID_INPUT]`. _Check:_ T663, T676, T677.
 
 **REQ-571 — Catalog budgets.**
-The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL NOT exceed ninety percent of the full-surface baseline recorded by REQ-569; the small budget SHALL NOT exceed ten percent. `spec_health` SHALL report each profile's measured value, its budget, and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the recorded standard and small baselines satisfy their ratios. _Check:_ T664, T678.
+The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL NOT exceed ninety percent of the full-surface baseline recorded by REQ-569; the small budget SHALL NOT exceed ten percent. `spec_health` SHALL report each profile's measured value, its budget, the context-ledger total, the stable-prefix hash, the prefix ratio (REQ-606, REQ-607), and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the recorded standard and small baselines satisfy their ratios. _Check:_ T664, T678.
 
 **REQ-572 — Group directory.**
 The server SHALL expose a group directory as a resource and through `manage_session (action: discover)`, listing each group's purpose, entry action, members, prerequisites, and successor group. The directory SHALL be derived from the live registry and badge-filtered. *Acceptance criterion:* every declared group appears once with a resolvable entry action; a badge change filters the directory. _Check:_ T665.
@@ -10103,6 +10118,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-603 | Divergence verification | 2026-10-24 |
 | REQ-604 | Replay inspection | 2026-10-24 |
 | REQ-605 | Verification read-only and gated | 2026-10-24 |
+| REQ-606 | Context ledger sections | 2026-10-24 |
+| REQ-607 | Cacheable-prefix hash and ratio | 2026-10-24 |
+| REQ-608 | Recall-at-budget probe | 2026-10-24 |
+| REQ-609 | On-demand schema disclosure | 2026-10-24 |
+| REQ-610 | Per-turn budget allocator | 2026-10-24 |
 
 ---
 
@@ -10817,6 +10837,11 @@ diet.
 | T714 | Automated | Divergence verification: an untampered Novel reports clean; a checkpoint whose snapshot changed outside a save reports divergence at its ordinal, and restore refuses it. | REQ-603 |
 | T715 | Automated | Replay inspection: replay through K returns exactly the entries through K, its recorded hash, and the nearest checkpoint; a target below the retained horizon reports evicted, and repeated calls are identical. | REQ-604 |
 | T716 | Automated | Verification gating: a Player badge is refused verify and replay; two consecutive Game Master calls leave the event count and state hash unchanged and return equal reports. | REQ-605 |
+| T717 | Automated | Context ledger: `manage_diagnostics (action: context_report)` lists every REQ-606 section once, the total equals the section sum, a second call returns an identical ledger, and no audit entry is appended. | REQ-606 |
+| T718 | Automated | Prefix hash and ratio: consecutive calls with unchanged scope return the same stable-prefix hash and ratio; a registration change alters the hash; no cache-hit rate field appears. | REQ-607 |
+| T719 | Automated | Recall at budget: the replay baseline records a recall value and budget per profile using the REQ-569 intent set, and a run below the recorded recall fails. | REQ-608 |
+| T720 | Automated | Schema disclosure: `discover (detail: schema, query)` returns a matched tool's input schema, the default response is the summary text, and an unknown detail or schema without a query refuses `[INVALID_INPUT]`. | REQ-609 |
+| T721 | Automated | Budget allocator: a tight `context_report` budget drops `last_tool_output` first while keeping `tool_catalog` and `registered_prompts`, and a non-positive budget refuses `[INVALID_INPUT]`. | REQ-610 |
 
 ---
 

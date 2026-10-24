@@ -6,7 +6,16 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 26,572 tokens; standard 23,071; small 1,156; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,777 tokens; standard 24,276; small 1,216; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+
+### Context ledger and cache-aware surface — 2026-10-24
+
+- **D1 — one pinned estimator.** `context_report` and the replay probe use `estimateTokens` (`ceil(UTF-8 bytes / 4)`); the report labels the value an estimate. No second tokenizer. (REQ-606, REQ-608)
+- **D2 — prefix ratio, not a hit rate.** `spec_health.tool_surface` reports a SHA-256 of the serialized stable prefix and `prefix_ratio`. The server cannot observe provider cache behaviour, so no `cache_hit_rate` field is emitted. (REQ-607)
+- **D3 — a read-only diagnostics action, not a tool.** `manage_diagnostics (action: context_report)` adds no tool and no REQ-137a gate-classification row. It enumerates `tool_catalog`, `registered_prompts`, `resource_directory`, `scene_state`, `memory_tiers`, and `last_tool_output`. It does not render `badge_briefing`, whose render advances the pacing counter (REQ-336/351), and Novel-derived sections are badge-filtered. (REQ-606)
+- **D4 — recall extends the existing baseline.** `surface-replay` records `recall_at_budget` per profile from the REQ-569 intent set and the recorded REQ-571 budgets; no second intent set or estimator is introduced, and a run below the recorded recall fails. Baseline: full 1.0, standard 1.0, small 0.35 (14/40 intents) at the recorded budgets. (REQ-608)
+- **D5 — progressive disclosure extends `discover` (resolves plan D3).** `manage_session (action: discover)` gains `detail: summary|schema`. Schema detail returns live input schemas for the matched tools; it adds no tool, no catalog entry, and no REQ-137a gate-classification row. Badge filtering is the existing listing filter. (REQ-609)
+- **D6 — the allocator packs the ledger, it does not replace bounds.** `context_report (budget_tokens?)` drops optional sections in the order `last_tool_output`, `resource_directory`, `scene_state`, `memory_tiers`; `tool_catalog` and `registered_prompts` are never dropped. The allocator changes no existing bound (REQ-004/083/118/135/239/588), so their regression tests remain authoritative. (REQ-610)
 
 ### Witness-aware perception and spatial queries — 2026-10-24
 
