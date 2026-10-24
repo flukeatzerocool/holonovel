@@ -243,6 +243,11 @@ export interface StoryEntry {
   timestamp: string;
   discovered?: boolean; // REQ-340 — consequence fired while absent
   room_id?: string; // REQ-331 — story journal-world coupling
+  pending_discovery?: boolean; // REQ-340a — discovery awaits the linked location
+  discovery_scope?: string; // REQ-340a — countdown location link
+  eligible_entity_ids?: string[]; // REQ-349b — entities existing at fire
+  countdown_name?: string; // REQ-340a/349a — source countdown
+  fired_at?: string; // REQ-340a — fire time, distinct from discovery time
 }
 
 export interface FactionState {

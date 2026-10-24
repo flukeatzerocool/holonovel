@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-24 — Location-gated discovery for countdown consequences
+
+- Countdown consequences linked to a location now stay pending when they fire
+  while the party is absent, and are discovered only when the party next
+  reaches that location. The discovery timestamp is the resolving scene
+  transition, not the fire time (REQ-340a; T390).
+- Discovery attribution is computed at the transition: every eligible entity
+  present when the linked location is reached learns the consequence, and
+  entities that arrive later do not (REQ-349b; T399).
+- `knowledge_state` now labels a discovered consequence with its
+  `discovered_consequence` source and countdown name, and
+  `manage_session (action: recap)` renders discovered consequences as
+  "Meanwhile, ..." fragments in `narrative_orientation` (REQ-349a, REQ-340b).
+- Strengthened T390 and T399 to their Appendix F scripts: the Gatehouse
+  negative, the witnessed-fire case, the structured source, plural discovery,
+  and restart persistence are all exercised (T390, T399).
+- Removed the roadmap item. No REQ delta; this is conformance catch-up.
+
 ## 2026-10-24 — Containment-aware world generation
 
 - `manage_world (action: generate)` now resolves object draws to kind-contract
