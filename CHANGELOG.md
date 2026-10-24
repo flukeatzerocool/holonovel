@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-24 — Table-driven procedural world generation
+
+- `manage_world (action: generate)` now rolls room descriptions, things,
+  persons, and hazards from the ruleset's `generation_tables` instead of
+  emitting placeholder `Generated Chamber` rooms. Table roles are inferred from
+  documented name/title tokens and may be overridden with
+  `options.roles`; `options.rooms` requests a count bounded by
+  `TTRPG_WORLD_GEN_MAX_ROOMS` (REQ-431a–c).
+- Builds a deterministic ring-plus-chords reciprocal exit graph from the same
+  seeded PRNG, sanitizes rolled text before embedding it in Appendix K
+  assertions, parses the candidate batch before offering it (dropping and
+  reporting any invalid assertion), and records roll provenance in the
+  decision payload.
+- Updated T515 in `holonovel/scripts/test-competitive-gaps.ts` and Appendix F
+  to cover table content, provenance, `options.roles`, seed divergence, and
+  sanitization; applying now reports the same counts the decision offered.
+
 ## 2026-10-24 — Discovered consequences attributed per entity
 
 - `fireCountdown` now records the player entities absent at fire in the story

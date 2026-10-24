@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 106288,
+  "tools_list_bytes": 107396,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 106288,
-        "tokens": 26572
+        "bytes": 107396,
+        "tokens": 26849
       },
       "standard": {
         "tools": 36,
-        "bytes": 92284,
-        "tokens": 23071
+        "bytes": 93392,
+        "tokens": 23348
       },
       "small": {
         "tools": 6,
@@ -374,7 +374,7 @@
         "causal_state",
         "causal_ingress"
       ],
-      "param_count": 39,
+      "param_count": 40,
       "required": [
         "action"
       ],
@@ -406,6 +406,7 @@
         "locked": "When true the thing starts locked (create_thing/update_thing).",
         "name": "Room/thing name (create/update/remove).",
         "openable": "When true the thing can be opened (create_thing/update_thing).",
+        "options": "Generation options (generate): roles maps installed table names to room, objects, persons, or hazards pools; rooms requests a count bounded by TTRPG_WORLD_GEN_MAX_ROOMS.",
         "read_text": "Text revealed when the thing is read (create_thing/update_thing).",
         "readable": "When true the thing can be read (create_thing/update_thing).",
         "room": "Source room (create_exit/remove_exit).",
@@ -430,12 +431,12 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 40,
+        "paramCount": 41,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 40,
+        "paramsWithDescriptions": 41,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": false,
+        "hasNestedObjects": true,
         "requiredFieldCount": 1,
         "schemaDepth": 1,
         "unionChoiceCount": 0,
@@ -443,7 +444,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5635,
+        "definitionBytes": 6189,
         "descriptionBytes": 528
       },
       "category": "",
@@ -1874,7 +1875,7 @@
         "convert",
         "generate"
       ],
-      "param_count": 39,
+      "param_count": 40,
       "required": [
         "action"
       ],
@@ -1906,6 +1907,7 @@
         "locked": "When true the thing starts locked (create_thing/update_thing).",
         "name": "Room/thing name (create/update/remove).",
         "openable": "When true the thing can be opened (create_thing/update_thing).",
+        "options": "Generation options (generate): roles maps installed table names to room, objects, persons, or hazards pools; rooms requests a count bounded by TTRPG_WORLD_GEN_MAX_ROOMS.",
         "read_text": "Text revealed when the thing is read (create_thing/update_thing).",
         "readable": "When true the thing can be read (create_thing/update_thing).",
         "room": "Source room (create_exit/remove_exit).",
@@ -1930,12 +1932,12 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 40,
+        "paramCount": 41,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 40,
+        "paramsWithDescriptions": 41,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": false,
+        "hasNestedObjects": true,
         "requiredFieldCount": 1,
         "schemaDepth": 1,
         "unionChoiceCount": 0,
@@ -1943,7 +1945,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6094,
+        "definitionBytes": 6648,
         "descriptionBytes": 800
       },
       "category": "",
