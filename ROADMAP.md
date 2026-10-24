@@ -6,18 +6,12 @@
   Update this file when planning a release.
 -->
 
-## Line-of-sight and sound propagation
-
-- Containment, transparency, and light exist; add visibility and one-hop sound
-  propagation, then record witness/sense on derived perceptions.
-- Depends on the sensory parser fix and witness-aware perception.
-- Plan: `plans/2026-10-23-containment-propagation/`
-
 ## Containment-aware generation
 
 - After table-driven generation lands, add branching layout, reachable secret
   placement, witness placement, and validation.
-- Depends on table-driven generation and visibility/sound propagation.
+- Depends on table-driven generation and the shipped witness-aware perception
+  and spatial-query surfaces.
 - Plan: `plans/2026-10-23-containment-generation/`
 
 ## Location-gated discovery for countdown consequences
@@ -29,14 +23,6 @@
 - Add location linkage, defer discovery until the entity is present there, and
   fill the orientation fragment; strengthen T390/T399 to their Appendix F
   descriptions.
-
-## Witness-aware perception and NPC POV
-
-- The Perception Ledger (REQ-540–545) exists but is manually recorded and has
-  no witness attribution by presence or sense.
-- Add witness kinds, containment/sense derivation, a per-NPC POV overlay, and a
-  knowledge query.
-- Plan: `plans/2026-10-23-witness-aware-perception/`
 
 ## Narrator visibility gate
 

@@ -34,7 +34,7 @@ import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONS
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
-import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind } from "./core/perception.js";
+import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -46,7 +46,7 @@ import {
   createEmptyWorldModel, convertSource, worldMap, worldKinds, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection,
 } from "./world/model.js";
-import { dispatchCommand, resolveGoMovement, ParserResult } from "./world/parser.js";
+import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom } from "./world/parser.js";
 import {
   RulesetManager, rollDice, computeContentHash,
   RulesetToolSchema, RulesetPrompt, rulesetAnnotations,
@@ -637,6 +637,15 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
     const exploredLines = [`Explored: ${rooms.join(", ") || "(none)"}`];
     if (things.length > 0) exploredLines.push(`Seen things: ${things.join(", ")}`);
     lines.push(exploredLines.join(" | "));
+  }
+
+  // REQ-594/REQ-595 — POV overlay: the active entity's derived perceptions,
+  // each carrying how it was witnessed and its event provenance. Only the
+  // active entity's own records are read here (REQ-545).
+  const perceptions = novel.perception_ledger.filter((p) => p.entity_id === activeId).slice(-10);
+  for (const p of perceptions) {
+    const ordinal = p.event_ordinal !== null ? ` [#${p.event_ordinal}]` : "";
+    lines.push(`Perceived (${p.witness}${p.sense ? `/${p.sense}` : ""}): ${p.summary}${ordinal}`);
   }
 
   section += `\n\n### Knowledge state`;
@@ -1646,9 +1655,61 @@ function recordEvent(kind: string, text: string, source?: EventSource): void {
   if (!novel) return;
   const badge = getBadge();
   const resolved: EventSource = source ?? (badge === "player" ? "player" : badge === "game_master" ? "game_master" : "system");
-  appendEvent(novel.event_log, resolved, kind, text, new Date().toISOString());
+  const entry = appendEvent(novel.event_log, resolved, kind, text, new Date().toISOString());
   const cap = parseInt(process.env.TTRPG_EVENT_LOG_MAX_ENTRIES ?? "0", 10);
   if (cap > 0 && novel.event_log.length > cap) novel.event_log = evictToCap(novel.event_log, cap);
+  deriveWitnessPerceptions(novel, kind, text, entry.ordinal);
+}
+
+// REQ-594 — append a perception with its witness provenance, honoring the cap.
+function appendPerceptionRecord(novel: NovelState, fields: Omit<PerceptionRecord, "id" | "at">): PerceptionRecord {
+  const record: PerceptionRecord = { id: nextPerceptionId(novel.perception_ledger), at: new Date().toISOString(), ...fields };
+  novel.perception_ledger.push(record);
+  const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "0", 10);
+  if (cap > 0 && novel.perception_ledger.length > cap) novel.perception_ledger = novel.perception_ledger.slice(novel.perception_ledger.length - cap);
+  return record;
+}
+
+// REQ-595 — derive witnesses for an appended event: entities sharing the
+// event's lit room see it, entities one open exit away hear it. The acting
+// entity is the source and is not given a record for its own event.
+function deriveWitnessPerceptions(novel: NovelState, kind: string, text: string, ordinal: number): void {
+  if (!novel.world || novel.world.rooms.size === 0) return;
+  const active = state.getActiveEntity();
+  const sourceRoom = active?.current_room ?? novel.scene_location ?? null;
+  if (!sourceRoom) return;
+  const perceptionKind: PerceptionKind = kind === "scene" ? "scene" : "observation";
+  const lit = roomIsLit(novel.world, sourceRoom);
+  const candidates: Array<{ id: string; room: string | null }> = [];
+  for (const entity of novel.entities.values()) candidates.push({ id: entity.id, room: entity.current_room });
+  for (const npc of novel.npcs.values()) candidates.push({ id: npc.id, room: npc.room_id ?? npc.location ?? null });
+  for (const candidate of candidates) {
+    if (!candidate.room) continue;
+    if (active && candidate.id === active.id) continue;
+    let witness: WitnessKind | null = null;
+    let sense: PerceptionSense = null;
+    let confidence = 0;
+    if (candidate.room.toLowerCase() === sourceRoom.toLowerCase() && lit) {
+      witness = "saw"; sense = "sight"; confidence = 1;
+    } else if (isAudibleFrom(novel.world, sourceRoom, candidate.room)) {
+      witness = "heard"; sense = "sound"; confidence = 0.6;
+    }
+    if (!witness) continue;
+    const duplicate = novel.perception_ledger.some((p) =>
+      p.event_ordinal === ordinal && p.entity_id === candidate.id && p.source_entity === (active?.id ?? null));
+    if (duplicate) continue;
+    appendPerceptionRecord(novel, {
+      entity_id: candidate.id,
+      event_ordinal: ordinal,
+      kind: perceptionKind,
+      summary: text,
+      witness,
+      sense,
+      source_entity: active?.id ?? null,
+      room_id: sourceRoom,
+      confidence,
+    });
+  }
 }
 
 // REQ-292 — count adventure modules on disk (empty → 0).
@@ -3188,16 +3249,69 @@ function recordExplorationKnowledge(novel: NovelState, entity: any, type: "room"
   }
 }
 
+// REQ-596/REQ-597 — resolve a spatial actor (entity or NPC) or a thing for the
+// read-only visibility/audibility queries.
+interface SpatialActor { id: string; room: string | null; thing?: WorldThing }
+
+function resolveSpatialActor(novel: NovelState, ref: string): SpatialActor | undefined {
+  const want = ref.toLowerCase();
+  const entity = novel.entities.get(ref) ?? [...novel.entities.values()].find((e) => e.id.toLowerCase() === want || e.name.toLowerCase() === want);
+  if (entity) return { id: entity.id, room: entity.current_room };
+  const npc = novel.npcs.get(ref) ?? [...novel.npcs.values()].find((n) => n.id.toLowerCase() === want || n.name.toLowerCase() === want);
+  if (npc) return { id: npc.id, room: npc.room_id ?? npc.location ?? null };
+  return undefined;
+}
+
+function resolveSpatialThing(world: WorldModel, ref: string): SpatialActor | undefined {
+  const norm = (s: string) => s.toLowerCase().trim().replace(/^the\s+/, "").replace(/^an?\s+/, "");
+  const want = norm(ref);
+  const thing = [...world.things.values()].find((t) => norm(t.name) === want)
+    ?? [...world.things.values()].find((t) => norm(t.name).includes(want) || want.includes(norm(t.name)));
+  if (!thing) return undefined;
+  return { id: thing.name, room: thingRoom(world, thing), thing };
+}
+
 server.registerTool("run_command", {
   title: "Parser Command",
   description: "Execute a parser command, resolve a spatial intent, or map intent to tool calls. execute runs a parsed verb-and-noun command (for example 'take lamp' or 'go north') against the world model, mutates world/entity state, persists to the Novel, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes a movement outcome without mutating, and suggest returns recommended tool calls for an intent. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action (execute), needs a movement outcome without mutating state (resolve), or wants intent mapped to tools (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
   inputSchema: {
-    action: z.enum(["execute", "resolve", "suggest"]).optional().describe("execute (parser), resolve (non-mutating intent), or suggest (intent → tool calls). Defaults to execute."),
+    action: z.enum(["execute", "resolve", "suggest", "visibility", "audibility"]).optional().describe("execute (parser), resolve (non-mutating intent), suggest (intent → tool calls), visibility (can one actor see another or a thing), or audibility (can one actor hear another). Defaults to execute."),
     command: z.string().optional().describe("The natural-language command (execute)."),
     intent: z.string().optional().describe("The intent to resolve or map (resolve/suggest)."),
     entity_id: z.string().optional().describe("Optional entity context (suggest)."),
+    source: z.string().optional().describe("Observing actor for visibility/audibility (defaults to the active entity)."),
+    target: z.string().optional().describe("Actor or thing being seen or heard (visibility/audibility)."),
   },
 }, async (args: any) => {
+  // REQ-596/REQ-597 — read-only spatial queries; never mutate or snapshot.
+  if (args.action === "visibility" || args.action === "audibility") {
+    requireNotObserver();
+    const novel = requireNovel();
+    const activeId = novel.active_entity_id ?? state.getActiveEntity()?.id ?? null;
+    const sourceRef = args.source ?? activeId;
+    if (!sourceRef) return err("INVALID_INPUT", "source is required (or set an active entity).");
+    if (getBadge() === "player" && sourceRef !== activeId) {
+      return err("FORBIDDEN", "Player badge queries only the active entity's point of view.");
+    }
+    const source = resolveSpatialActor(novel, sourceRef);
+    if (!source || !source.room) return err("NOT_FOUND", `Source '${sourceRef}' has no resolvable location.`);
+    const targetRef = args.target;
+    if (args.action === "audibility" && !targetRef) return err("INVALID_INPUT", "target is required for audibility.");
+    if (args.action === "visibility" && !targetRef) {
+      const visible = visibleHere(novel.world, source.room).map((t) => t.name);
+      return raw(JSON.stringify({ source: source.id, room: source.room, visible }, null, 2));
+    }
+    const target = resolveSpatialActor(novel, targetRef) ?? resolveSpatialThing(novel.world, targetRef);
+    if (!target) return err("NOT_FOUND", `Target '${targetRef}' not found.`);
+    if (args.action === "visibility") {
+      const canSee = target.thing
+        ? isVisibleFrom(novel.world, source.room, target.thing)
+        : !!target.room && target.room.toLowerCase() === source.room.toLowerCase() && roomIsLit(novel.world, source.room);
+      return raw(JSON.stringify({ source: source.id, target: target.id, can_see: canSee }, null, 2));
+    }
+    const canHear = isAudibleFrom(novel.world, source.room, target.room);
+    return raw(JSON.stringify({ source: source.id, target: target.id, can_hear: canHear }, null, 2));
+  }
   if (args.action === "resolve") {
     const badge = getBadge();
     if (badge === "player") {
@@ -5114,6 +5228,22 @@ server.registerTool("manage_lore", {
       if (!secret) return err("NOT_FOUND", `Secret '${args.key}' not found.`);
       if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
       if (!secret.known_by.includes(args.entity_id)) secret.known_by.push(args.entity_id);
+      // REQ-595 — an explicit reveal is a `told` perception for the recipient.
+      const recipient = novel.entities.get(args.entity_id);
+      const summary = `Secret '${secret.key}' revealed`;
+      if (!novel.perception_ledger.some((p) => p.entity_id === args.entity_id && p.witness === "told" && p.summary === summary)) {
+        appendPerceptionRecord(novel, {
+          entity_id: args.entity_id,
+          event_ordinal: novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null,
+          kind: "message",
+          summary,
+          witness: "told",
+          sense: "telling",
+          source_entity: "game_master",
+          room_id: recipient?.current_room ?? null,
+          confidence: 0.8,
+        });
+      }
       state.saveNovel(novel);
       return ok(`Secret '${args.key}' revealed to '${args.entity_id}'.`);
     }
@@ -6319,9 +6449,9 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management",
-  description: "Manage per-entity evidence, reconciled belief stances, and the append-only perception ledger — one entity's subjective epistemic state, distinct from objective truth and shared lore. admit takes a subject/predicate/object proposition with a 0..1 weight and derives its question; source defaults to the active badge; retract suppresses evidence without deleting the ledger; reconcile recomputes stances after evidence changes. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; list/get/evidence/conflicts and the perception reads are read-only. The perception ledger is append-only and not reversible via manage_history, so correct a mistaken admit with retract. Use when: recording or inspecting what an entity learned or believes, finding contradictions, or logging perceptions. Do NOT use when: recording objective world truth — use manage_causality (action: causal_propose); recording shared lore — use manage_lore.",
+  description: "Manage per-entity evidence, reconciled belief stances, the perception ledger, and a one-entity knowledge query. admit takes a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances after evidence changes; knowledge_query returns the entity's perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; reads are read-only. The perception ledger is append-only, so correct a mistaken admit with retract. Use when: inspecting or recording what an entity learned or believes. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore.",
   inputSchema: {
-    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "perception_record", "perception_list", "perception_for_entity", "perception_for_event"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event."),
+    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Knowledge: knowledge_query."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
     subject: z.string().optional().describe("Proposition subject (admit)."),
     predicate: z.string().optional().describe("Proposition predicate (admit)."),
@@ -6337,8 +6467,27 @@ server.registerTool("manage_belief", {
     perception_kind: z.enum(["message", "scene", "observation"]).optional().describe("message, scene, or observation (perception_record; default observation)."),
     perception_summary: z.string().optional().describe("What was perceived (perception_record)."),
     perception_event_ordinal: z.number().optional().describe("Contributing event-log ordinal (perception_record/perception_for_event; defaults to the latest event)."),
+    topic: z.string().optional().describe("Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets."),
   },
 }, async (args: any) => {
+  // REQ-542 amendment — knowledge_query returns one entity's perceptions,
+  // beliefs, and known secrets, each with its event provenance (REQ-545 gating).
+  if (args.action === "knowledge_query") {
+    requireNotObserver();
+    const novel = requireNovel();
+    const entityId = args.entity_id ?? novel.active_entity_id;
+    if (!entityId) return err("INVALID_INPUT", "entity_id is required (or set an active entity).");
+    if (getBadge() === "player" && entityId !== novel.active_entity_id) {
+      return err("FORBIDDEN", "Player badge reads only the active entity's knowledge.");
+    }
+    const topic = typeof args.topic === "string" && args.topic.trim() ? args.topic.toLowerCase() : null;
+    const matches = (text: string) => !topic || text.toLowerCase().includes(topic);
+    const perceptions = novel.perception_ledger.filter((p) => p.entity_id === entityId && matches(p.summary));
+    const beliefs = novel.belief_state.filter((b) => b.entity_id === entityId
+      && matches(`${b.question} ${b.subject} ${b.predicate} ${b.object}`));
+    const secrets = novel.secrets.filter((s) => s.known_by.includes(entityId) && matches(`${s.key} ${s.content}`));
+    return raw(JSON.stringify({ entity_id: entityId, perceptions, beliefs, secrets }, null, 2));
+  }
   if (typeof args.action === "string" && args.action.startsWith("perception_")) return handlePerceptionActions(mergeScopedArgs(args, "perception"));
   switch (args.action) {
     case "list": {
@@ -7133,6 +7282,11 @@ const handlePerceptionActions = async (args: any) => {
         kind,
         summary: args.summary,
         at: new Date().toISOString(),
+        witness: "inferred",
+        sense: null,
+        source_entity: null,
+        room_id: novel.entities.get(args.entity_id)?.current_room ?? null,
+        confidence: 1,
       };
       novel.perception_ledger.push(record);
       const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "0", 10);

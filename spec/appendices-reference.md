@@ -1333,6 +1333,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-591 | Source pointers and traversal | 2026-10-24 |
 | REQ-592 | Budgeted tier assembly | 2026-10-24 |
 | REQ-593 | Recall probes | 2026-10-24 |
+| REQ-594 | Witness provenance | 2026-10-24 |
+| REQ-595 | Derived witness attribution | 2026-10-24 |
+| REQ-596 | Visibility query | 2026-10-24 |
+| REQ-597 | Audibility query | 2026-10-24 |
 
 ---
 
@@ -2031,6 +2035,11 @@ diet.
 | T698 | Automated | Source-pointer traversal: after compaction, read a session summary and call `manage_session (action: history, ordinals=<source_ordinals>)`; assert the named events return in ordinal order; evict an event under the event-log cap and assert its ordinal reports `[evicted]`; assert the Player badge never receives `game_master`-sourced text. | REQ-591 |
 | T699 | Automated | Budgeted assembly: call `manage_session (action: recap, tier="campaign", budget_tokens=N)` above, below, and at the exact tier cost; assert tiers drop in the declared order with a `[truncated]` marker; assert a no-parameter recap is byte-identical to the pre-change output; assert an invalid tier or non-positive budget returns `[INVALID_INPUT]`. | REQ-592, REQ-072 |
 | T700 | Automated | Recall probes: run the fixture campaign through the compaction path and evaluate the committed probe set; assert every must-recall probe hits at every declared budget and aggregate `recall@budget` is at least 0.90; lower a probe's budget until a tier is dropped and assert the reported per-tier recall reflects the drop. | REQ-593 |
+| T701 | Automated | Visibility room light: in a world with a lit room and an adjacent room with no light source, assert `run_command (action: visibility)` reports a thing in the dark room as not visible; add a `lit` and `switched_on` thing and assert it becomes visible. | REQ-596 |
+| T702 | Automated | Visibility containment: an opaque chest holding a transparent jar holding a lit lantern reports the lantern not visible; open the chest and assert the lantern becomes visible; a same-room lit thing is visible. | REQ-596 |
+| T703 | Automated | Audibility: with a closed door between two rooms, assert `run_command (action: audibility)` reports no sound; unlock and open the door and assert the target is audible. | REQ-597 |
+| T704 | Automated | Witness attribution and knowledge query: with two entities in a lit room, append an event and assert the non-actor's `knowledge_query` contains a `saw`/`sight` perception citing the event ordinal; assert the actor receives no derived record; assert a Player may query its own entity and not another. | REQ-595, REQ-542, REQ-545 |
+| T705 | Automated | Legacy perception load: write a Novel whose perception entries lack witness fields, resume it, and assert the entries load with `inferred`, null sense, and zero confidence. | REQ-594 |
 
 ---
 

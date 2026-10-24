@@ -499,10 +499,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-530 | Agent badge gating | 5.31 Durable Agent Tasks | C | T613 | — |
 | REQ-540 | Perception record | 5.32 Perception Ledger | C | T614 | — |
 | REQ-541 | Observed, not believed | 5.32 Perception Ledger | C | T615 | — |
-| REQ-542 | Per-entity query | 5.32 Perception Ledger | C | T616 | — |
+| REQ-542 | Per-entity query | 5.32 Perception Ledger | C | T616, T704 | — |
 | REQ-543 | Event provenance | 5.32 Perception Ledger | C | T617 | — |
 | REQ-544 | Persistence | 5.32 Perception Ledger | C | T618 | — |
-| REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619 | — |
+| REQ-545 | Perception badge gating | 5.32 Perception Ledger | C | T619, T704 | — |
 | REQ-546 | Corpus retention bound | 5.28 Knowledge Corpus | C | T628 | — |
 | REQ-547 | Identity candidate retention bound | 5.26 Character Identity | C | T630 | — |
 | REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T642, T677, T634, T635 | — |
@@ -549,4 +549,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-591 | Source pointers and traversal | 5.34 Compression Ladder and Recall | C | T698 | — |
 | REQ-592 | Budgeted tier assembly | 5.34 Compression Ladder and Recall | C | T699 | — |
 | REQ-593 | Recall probes | 5.34 Compression Ladder and Recall | E | T700 | — |
+| REQ-594 | Witness provenance | 5.32 Perception Ledger | C | T705 | — |
+| REQ-595 | Derived witness attribution | 5.32 Perception Ledger | C | T704 | — |
+| REQ-596 | Visibility query | 5.10 World-Model Layer | C | T701, T702 | — |
+| REQ-597 | Audibility query | 5.10 World-Model Layer | C | T703 | — |
 

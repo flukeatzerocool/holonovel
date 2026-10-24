@@ -1559,6 +1559,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-326 | I10, I13 | Scene-world coupling |
 | REQ-327 | I11 | NPC-world coupling |
 | REQ-367 | I6, I16 | World-model property contracts |
+| REQ-596 | I17, I6 | Visibility query |
+| REQ-597 | I17 | Audibility query |
 | REQ-368 | S32 | Countdown-world effect coupling |
 | REQ-369 | S32, S33 | Holodeck archetype taxonomy |
 | REQ-370 | — (validated by `npm run validate`) | Coupling derivation |
@@ -1932,6 +1934,8 @@ only; it does not require every sub-workflow to appear as a row.
 | REQ-326 | I10, I13 | Scene-world coupling |
 | REQ-327 | I11 | NPC-world coupling |
 | REQ-367 | I6, I16 | World-model property contracts |
+| REQ-596 | I17, I6 | Visibility query |
+| REQ-597 | I17 | Audibility query |
 | REQ-368 | S32 | Countdown-world effect coupling |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Pattern Buffer sub-workflow fails, THE

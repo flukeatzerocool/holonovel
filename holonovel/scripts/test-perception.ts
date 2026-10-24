@@ -4,7 +4,8 @@
 // REQ-545 (badge gating).
 
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -84,6 +85,141 @@ async function main() {
     const obs = await perception(p, { action: "record", entity_id: "hero", summary: "z" });
     assert(obs.includes("[FORBIDDEN]") || obs.includes("[ERROR]"), "Observer record should fail: " + obs.slice(0, 100));
     await kill(p);
+  });
+
+
+  await test("T701/REQ-596: room light gates visibility across rooms", async () => {
+    const p = await boot(); await newNovel(p, "pc7");
+    const src = [
+      "# World", "",
+      "## Room: litroom", "A lit room.",
+      "The torch is in litroom.", "It is lit.", "It is switched on.", "It is switchable.",
+      "North of litroom is darkroom.",
+      "## Room: darkroom", "A dark room.",
+      "The boulder is in darkroom.", "",
+    ].join("\n");
+    await call(p, "manage_world", { action: "convert", source: src });
+    await call(p, "manage_character", { action: "create", name: "Watcher" });
+    await call(p, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(p, "run_command", { command: "look" });
+    await call(p, "run_command", { command: "go north" });
+    const dark = JSON.parse(await call(p, "run_command", { action: "visibility", source: "character_01", target: "boulder" }));
+    assert(dark.can_see === false, "dark room leaked visibility: " + JSON.stringify(dark));
+    await call(p, "manage_world", { action: "create_thing", name: "dark torch", kind: "thing", location: "darkroom", lit: true, switched_on: true, switchable: true });
+    const lit = JSON.parse(await call(p, "run_command", { action: "visibility", source: "character_01", target: "boulder" }));
+    assert(lit.can_see === true, "lit room hid a visible thing: " + JSON.stringify(lit));
+    await kill(p);
+  });
+
+  await test("T702/REQ-596: opaque boundary hides, transparent boundary reveals", async () => {
+    const p = await boot(); await newNovel(p, "pc8");
+    const src = [
+      "# World", "",
+      "Vault is a room.", "",
+      "## Room: vault", "A vault.",
+      "The sunstone is in vault.", "It is lit.", "It is switched on.",
+      "An iron chest is a container. It is in vault.",
+      "A glass jar is a container. It is transparent. It is in the iron chest.",
+      "A glowing lantern is in the glass jar.", "It is lit.", "It is switched on.", "",
+    ].join("\n");
+    await call(p, "manage_world", { action: "convert", source: src });
+    await call(p, "manage_character", { action: "create", name: "Watcher" });
+    await call(p, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(p, "run_command", { command: "look" });
+    const hidden = JSON.parse(await call(p, "run_command", { action: "visibility", source: "character_01", target: "glowing lantern" }));
+    assert(hidden.can_see === false, "opaque outer chest leaked its contents: " + JSON.stringify(hidden));
+    await call(p, "run_command", { command: "open iron chest" });
+    const revealed = JSON.parse(await call(p, "run_command", { action: "visibility", source: "character_01", target: "glowing lantern" }));
+    assert(revealed.can_see === true, "transparent jar hid a lit thing: " + JSON.stringify(revealed));
+    const stone = JSON.parse(await call(p, "run_command", { action: "visibility", source: "character_01", target: "sunstone" }));
+    assert(stone.can_see === true, "same-room lit thing not visible");
+    await kill(p);
+  });
+
+  await test("T703/REQ-597: sound crosses one open exit but not a closed door", async () => {
+    const p = await boot(); await newNovel(p, "pc9");
+    const src = [
+      "# World", "",
+      "## Room: near", "Near.", "## Room: far", "Far.",
+      "North of near is far.",
+      "Oak door is north of near and south of far.",
+      "It is closed.",
+      "A bell is in far.", "",
+    ].join("\n");
+    await call(p, "manage_world", { action: "convert", source: src });
+    await call(p, "manage_character", { action: "create", name: "Watcher" });
+    await call(p, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(p, "run_command", { command: "look" });
+    await call(p, "manage_npc", { action: "create", name: "Far Guard", location: "far" });
+    const closed = JSON.parse(await call(p, "run_command", { action: "audibility", source: "character_01", target: "Far Guard" }));
+    assert(closed.can_hear === false, "closed door leaked sound: " + JSON.stringify(closed));
+    await call(p, "run_command", { command: "unlock oak door" });
+    await call(p, "run_command", { command: "open oak door" });
+    const open = JSON.parse(await call(p, "run_command", { action: "audibility", source: "character_01", target: "Far Guard" }));
+    assert(open.can_hear === true, "open exit did not carry sound: " + JSON.stringify(open));
+    await kill(p);
+  });
+
+  await test("T704/REQ-595: derived witnesses and knowledge query", async () => {
+    const p = await boot(); await newNovel(p, "pc10");
+    const src = [
+      "# World", "",
+      "## Room: hall", "A hall.",
+      "The torch is in hall.", "It is lit.", "It is switched on.",
+      "North of hall is porch.",
+      "## Room: porch", "A porch.", "",
+    ].join("\n");
+    await call(p, "manage_world", { action: "convert", source: src });
+    await call(p, "manage_character", { action: "create", name: "Watcher" });
+    await call(p, "manage_character", { action: "create", name: "Listener" });
+    await call(p, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(p, "run_command", { command: "look" });
+    await call(p, "manage_staging", { action: "presence", entity_ids: ["character_01", "character_02"] });
+    await call(p, "run_command", { command: "go north" });
+    await call(p, "run_command", { command: "go south" });
+    await call(p, "manage_world", { action: "create_thing", name: "hall torch", kind: "thing", location: "hall", lit: true, switched_on: true });
+    await call(p, "manage_world", { action: "create_room", name: "cellar", description: "Disconnected." });
+    await call(p, "manage_npc", { action: "create", name: "Distant Guard", location: "cellar" });
+    await call(p, "manage_diagnostics", { action: "event", text: "a bell rings" });
+    const all = JSON.parse(await call(p, "manage_belief", { action: "perception_list" }));
+    const forEvent = (all ?? []).filter((r: any) => r.summary === "a bell rings");
+    assert(forEvent.length === 1 && forEvent[0].entity_id === "character_02",
+      "room isolation failed: " + JSON.stringify(forEvent));
+    const knowledge = JSON.parse(await call(p, "manage_belief", { action: "knowledge_query", entity_id: "character_02" }));
+    const saw = (knowledge.perceptions ?? []).find((r: any) => r.summary === "a bell rings");
+    assert(!!saw, "derived perception missing: " + JSON.stringify(knowledge));
+    assert(saw.witness === "saw" && saw.sense === "sight", "wrong witness provenance: " + JSON.stringify(saw));
+    assert(saw.event_ordinal !== null, "derived perception lacks event provenance");
+    await call(p, "set_badge", { badge: "player" });
+    const own = await call(p, "manage_belief", { action: "knowledge_query", entity_id: "character_01" });
+    assert(!own.includes("[FORBIDDEN]"), "Player could not read own knowledge");
+    const other = await call(p, "manage_belief", { action: "knowledge_query", entity_id: "character_02" });
+    assert(other.includes("[FORBIDDEN]"), "Player read another entity's knowledge");
+    await kill(p);
+  });
+
+  await test("T705/REQ-594: legacy perception records load inert", async () => {
+    const p = await boot(); await newNovel(p, "pc11");
+    await rec(p, { entity_id: "hero", summary: "an older sight" });
+    await kill(p);
+    const file = join(DATA_DIR, "novels", "pc11.json");
+    const data = JSON.parse(readFileSync(file, "utf-8"));
+    for (const entry of data.perception_ledger ?? []) {
+      delete entry.witness;
+      delete entry.sense;
+      delete entry.source_entity;
+      delete entry.room_id;
+      delete entry.confidence;
+    }
+    delete data._checksum;
+    data._checksum = createHash("sha256").update(JSON.stringify(data)).digest("hex");
+    writeFileSync(file, JSON.stringify(data, null, 2));
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "pc11" });
+    const recs = await forEntity(p2, "hero");
+    assert(recs.length === 1 && recs[0].witness === "inferred" && recs[0].sense === null && recs[0].confidence === 0,
+      "legacy record not normalized: " + JSON.stringify(recs));
+    await kill(p2);
   });
 
   harnessComplete();

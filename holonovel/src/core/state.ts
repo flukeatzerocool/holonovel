@@ -18,6 +18,7 @@ import { createRng } from "./rng.js";
 import { snapshotDepth } from "./limits.js";
 import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
+import { normalizePerceptionRecord } from "./perception.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
 
 const SPEC_VERSION: string = JSON.parse(
@@ -1418,7 +1419,7 @@ export class StateManager {
       transition_ledger: data.transition_ledger ?? [],
       supplementary_rulesets: data.supplementary_rulesets ?? [],
       agent_tasks: data.agent_tasks ?? [],
-      perception_ledger: data.perception_ledger ?? [],
+      perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2654,7 +2655,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     transition_ledger: data.transition_ledger ?? [],
     supplementary_rulesets: data.supplementary_rulesets ?? [],
     agent_tasks: data.agent_tasks ?? [],
-    perception_ledger: data.perception_ledger ?? [],
+    perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
