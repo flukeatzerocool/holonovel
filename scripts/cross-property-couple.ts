@@ -35,15 +35,16 @@ interface SpecProperties {
 }
 
 // Parse the T511-gated tool-surface line from holonovel/AGENTS.md
-// ("McpServer: 28 action-discriminator tools, ~22 resources, 5 prompts").
-// Returns zeros when the line is absent or unparseable, so the wiki renders
-// nothing rather than a stale hand-written number.
+// ("McpServer: 36 action-discriminator tools, 40 resources and 21 resource
+// templates, 6 host prompts ..."). Returns zeros when the line is absent or
+// unparseable, so the wiki renders nothing rather than a stale hand-written
+// number.
 function extractServerSurface(): { tool_count: number; resource_count: number; prompt_count: number } {
   const zero = { tool_count: 0, resource_count: 0, prompt_count: 0 };
   if (!existsSync(SERVER_AGENTS_PATH)) return zero;
   const text = readFileSync(SERVER_AGENTS_PATH, "utf-8");
   const m = text.match(
-    /(\d+)\s+action-discriminator tools,\s*~?(\d+)\s+resources(?:\s+and\s+\d+\s+resource templates)?,\s*(\d+)\s+prompts/
+    /(\d+)\s+action-discriminator tools,\s*~?(\d+)\s+resources(?:\s+and\s+\d+\s+resource templates)?,\s*(\d+)\s+(?:host\s+)?prompts/
   );
   if (!m) return zero;
   return { tool_count: Number(m[1]), resource_count: Number(m[2]), prompt_count: Number(m[3]) };
