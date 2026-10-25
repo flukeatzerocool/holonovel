@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-25 — Rebuild verification: Holosuite predicate anchors
+
+- Re-pointed the stale Holosuite assertion anchors in
+  `holonovel/scripts/lib/holosuite-invariants.ts` and
+  `holonovel/scripts/lib/holosuite-novel.ts` at their current handlers
+  (`manage_history`, `context_report`, `visibility_check`, `replay`,
+  `knowledge_query`, `computeBundleIntegrity`) after the TDQS coherence
+  remediation shifted line numbers in `holonovel/src/index.ts`. The
+  `invariants` and `novel` tiers had failed with `predicate_unresolved`.
+- Verified the TDQS rebuild with `npm run test:all` (49/49) and recorded the
+  REQ-394a update evidence for revision range `d9d3b3b..20ed904` in
+  `holonovel/DECISIONS.md`.
+
 ## 2026-10-25 — TDQS coherence remediation
 
 - Recorded the 2026-10-25 external TDQS capture in
