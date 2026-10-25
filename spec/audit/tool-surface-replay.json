@@ -15,7 +15,7 @@
       "wrong_selection_count": 1,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 26024,
+        "budget_tokens": 25959,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -727,7 +727,7 @@
       "wrong_selection_count": 1,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 23422,
+        "budget_tokens": 23364,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -1439,7 +1439,7 @@
       "wrong_selection_count": 29,
       "mean_calls": 1.826,
       "recall_at_budget": {
-        "budget_tokens": 2603,
+        "budget_tokens": 2596,
         "expected_action_recalled": 17,
         "recall": 0.37
       },
