@@ -89,8 +89,8 @@ else
         exit 1
     }
 
-    echo "  holosuite deterministic tiers (conformance + invariants + adversarial + differential)..."
-    (cd holonovel && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-adversarial && npm run test:holosuite-differential) || {
+    echo "  holosuite deterministic tiers (conformance + invariants + novel + adversarial + differential)..."
+    (cd holonovel && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential) || {
         echo ""
         echo "BLOCKED: holosuite deterministic tiers failed."
         echo "Fix the registry/annotations or the invariant/adversarial/differential breach, then re-run."

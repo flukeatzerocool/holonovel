@@ -87,17 +87,24 @@ server condition it rests on: `hallucinated_tool`, `wrong_tool`,
 ## Holosuite tiers
 
 The playtest harness is the stochastic tier of the **Holosuite** evaluation
-environment (`plans/2026-10-02-holosuite`). Four deterministic tiers run
+environment (`plans/2026-10-02-holosuite`). Five deterministic tiers run
 alongside it and gate CI/pre-push:
 
 - **T0 `conformance`** (`scripts/holosuite.ts --tier=conformance`) — the live
   registry does what `tool-definitions.json` says: identical tool-name set,
-  titles and non-empty descriptions, all four REQ-450 annotation booleans, and a
-  recognized envelope for a negative probe.
+  titles and non-empty descriptions, all four REQ-450 annotation booleans,
+  action-enum parity, the `narrate` prompt and `adventures://` resource, a
+  non-empty/proper-subset scoped surface under `TTRPG_SURFACE_PROFILE=small`,
+  and a recognized envelope for a negative probe.
 - **T1 `invariants`** (`scripts/holosuite.ts --tier=invariants`) — a bounded,
   seeded world-mutation sequence asserting read-only non-mutation, gating
-  refusals, undo round-trip, envelope recognition, and fingerprint continuity
-  across a server restart.
+  refusals, undo round-trip, envelope recognition, `verify`/`replay`/`context_report`
+  repeat-stability, and fingerprint continuity across a server restart.
+- **T2 `novel`** (`scripts/holosuite.ts --tier=novel`) — seeds and resumes the
+  bundled Torre Nosferatu Novel, asserts its structural integrity, walks the
+  locked-door escape route while collecting all seven keys, and checks
+  diagnostics determinism, Player-badge redaction, bundle-integrity state
+  hashes, and restart continuity.
 - **T3 `adversarial`** (`scripts/holosuite.ts --tier=adversarial`) — a bounded
   battery of malformed, unknown, oversized, and hostile inputs: a known tool
   with bad arguments still returns a recognized envelope, an unknown tool
@@ -106,10 +113,11 @@ alongside it and gate CI/pre-push:
   STRIDE harness (`test-security`) does not own.
 - **T4 `differential`** (`scripts/holosuite.ts --tier=differential`) — two
   independently built Novels receiving the same operations in different orders,
-  plus a same-sequence replay in a third process and a restart, asserting an
-  order-independent world projection is identical.
+  plus a same-sequence replay in a third process and a restart, asserting the
+  canonical REQ-601 state hash is identical (the name/location projection is
+  reported as diagnostic detail).
 
-All four tiers are deterministic (fixed seed, small step count) and wired into
+All five tiers are deterministic (fixed seed, small step count) and wired into
 `holonovel/package.json`, `scripts/run-test-suite.ts`, `.github/workflows/ci.yml`,
 and `.githooks/pre-push`.
 

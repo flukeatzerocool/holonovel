@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-24 — Holosuite refresh: Torre Nosferatu tier and current surface
+
+- Added deterministic tier T2 `novel` (`scripts/lib/holosuite-novel.ts`): it
+  seeds and resumes the bundled Torre Nosferatu Novel, asserts room/thing/NPC/
+  lore/secret/countdown counts, exit reachability and symmetry, and key/door
+  bindings, then walks the locked-door escape route collecting all seven keys.
+  It also checks `verify`/`replay`/`context_report` determinism, Player-badge
+  knowledge and visibility redaction, bundle-integrity state hashes, and
+  restart continuity. (REQ-565, REQ-096j, REQ-601, REQ-603, REQ-604, REQ-606,
+  REQ-599, REQ-542)
+- Persisted-Novel reads are hermetic: `scripts/lib/eval-state.ts` selects a
+  Novel by name or slug instead of reading `novels/*.json[0]`, which could pick
+  the seeded starter Novel in the invariants, adversarial, and differential
+  tiers.
+- T0 conformance now checks action-enum parity with `tool-definitions.json`,
+  the `narrate` prompt and `adventures://` resource, and a bounded scoped
+  surface (`TTRPG_SURFACE_PROFILE=small`) as a non-empty proper subset with GM
+  tools absent; stale predicate anchors are refreshed. (REQ-450, REQ-570,
+  REQ-581, REQ-598, REQ-170)
+- T1 invariants add `verify`/`replay`/`context_report` repeat-stability and
+  read-only non-mutation. (REQ-603, REQ-604, REQ-606)
+- T3 adversarial adds out-of-range replay, malformed archive import, corpus
+  path traversal, missing `take_turn` intent, and Player-badge `verify`
+  denial probes; event args are truncated so a 100k payload no longer floods
+  the JSON report. (REQ-002, REQ-603)
+- T4 differential now compares the canonical REQ-601 state hash across order,
+  replay, and restart, keeping the name/location projection as diagnostic
+  detail. (REQ-050, REQ-601)
+- Wired `test:holosuite-novel` into the server suite, CI, and pre-push; all
+  five deterministic tiers gate. Updated the playtest README and server
+  `AGENTS.md`.
+
 ## 2026-10-24 — Wiki pipeline reorganization and tool-surface count fix
 
 - The wiki is reorganized around the major things a user does with the server —

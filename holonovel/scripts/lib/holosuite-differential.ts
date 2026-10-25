@@ -11,10 +11,12 @@
 // REQ citations: none — informational evaluation-harness support (exercises the
 // REQ-050 determinism and REQ-089 persistence contracts).
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer, type McpClient } from "./mcp-client.js";
+import { readPersistedNovel } from "./eval-state.js";
+import { stateHash } from "../../src/core/state-hash.js";
 import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class.
@@ -36,19 +38,31 @@ function record(ctx: Ctx, name: string, ok: boolean, detail: string, step: numbe
   }
 }
 
-function readNovel(dataDir: string): Record<string, unknown> {
-  const dir = join(dataDir, "novels");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
-  if (files.length === 0) throw new Error("no novel file persisted");
-  return JSON.parse(readFileSync(join(dir, files[0]!), "utf-8")) as Record<string, unknown>;
-}
-
-/** Order- and id-independent projection of the world model. */
+/** Order- and id-independent projection of the world model (diagnostic). */
 function worldProjection(novel: Record<string, unknown>): string {
   const world = (novel.world ?? {}) as { rooms?: Record<string, { name?: string }>; things?: Record<string, { name?: string; location?: string | null }> };
   const rooms = Object.values(world.rooms ?? {}).map((r) => String(r.name ?? "")).sort();
   const things = Object.values(world.things ?? {}).map((t) => `${t.name}@${t.location ?? ""}`).sort();
   return JSON.stringify({ rooms, things });
+}
+
+/** Canonical, id-independent world state hashed through the REQ-601 helper. */
+function canonicalWorldHash(novel: Record<string, unknown>): string {
+  const world = (novel.world ?? {}) as {
+    rooms?: Record<string, { name?: string; exits?: Record<string, string>; doorRefs?: Record<string, string> }>;
+    things?: Record<string, { name?: string; location?: string | null }>;
+  };
+  const rooms = Object.values(world.rooms ?? {})
+    .map((r) => ({
+      name: String(r.name ?? ""),
+      exits: Object.fromEntries(Object.entries(r.exits ?? {}).sort()),
+      doorRefs: Object.fromEntries(Object.entries(r.doorRefs ?? {}).sort()),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const things = Object.values(world.things ?? {})
+    .map((t) => `${t.name}@${t.location ?? ""}`)
+    .sort();
+  return stateHash({ world: { rooms, things } });
 }
 
 async function buildNovel(client: McpClient, name: string, rooms: string[], thingLocation: string): Promise<void> {
@@ -73,31 +87,35 @@ export async function runDifferential(opts: { serverDir: string; dataDir?: strin
     // --- Two independent processes, same ops in different orders ------------
     a = await bootServer({ serverDir: opts.serverDir, dataDir: dataDirA, seed });
     await buildNovel(a, "Holosuite Diff A", ["P", "Q", "R"], "P");
-    const projectionA = worldProjection(readNovel(dataDirA));
+    const novelA = readPersistedNovel(dataDirA, "Holosuite Diff A");
+    const projectionA = worldProjection(novelA);
+    const hashA = canonicalWorldHash(novelA);
 
     b = await bootServer({ serverDir: opts.serverDir, dataDir: dataDirB, seed });
     await buildNovel(b, "Holosuite Diff B", ["R", "Q", "P"], "P");
-    const projectionB = worldProjection(readNovel(dataDirB));
+    const novelB = readPersistedNovel(dataDirB, "Holosuite Diff B");
+    const projectionB = worldProjection(novelB);
+    const hashB = canonicalWorldHash(novelB);
 
-    record(ctx, "order_independence", projectionA === projectionB, projectionA === projectionB ? "projections equal" : `${projectionA} != ${projectionB}`, 1, ["REQ-050"], P_WORLD);
+    record(ctx, "order_independence", hashA === hashB, hashA === hashB ? `canonical state hash equal (${hashA.slice(0, 8)}; projection ${projectionA === projectionB ? "equal" : "differs"})` : `hashes ${hashA.slice(0, 8)} != ${hashB.slice(0, 8)}`, 1, ["REQ-050", "REQ-601"], P_WORLD);
 
     // --- Replay the same sequence in a third process ------------------------
     const dataDirC = mkdtempSync(join(tmpdir(), "holosuite-diff-c-"));
     const c = await bootServer({ serverDir: opts.serverDir, dataDir: dataDirC, seed });
     try {
       await buildNovel(c, "Holosuite Diff C", ["P", "Q", "R"], "P");
-      const projectionC = worldProjection(readNovel(dataDirC));
-      record(ctx, "cross_process_replay", projectionA === projectionC, projectionA === projectionC ? "replay projection equal" : `${projectionA} != ${projectionC}`, 2, ["REQ-050"], P_REPLAY);
+      const hashC = canonicalWorldHash(readPersistedNovel(dataDirC, "Holosuite Diff C"));
+      record(ctx, "cross_process_replay", hashA === hashC, hashA === hashC ? `canonical state hash equal (${hashA.slice(0, 8)})` : `hashes ${hashA.slice(0, 8)} != ${hashC.slice(0, 8)}`, 2, ["REQ-050", "REQ-601"], P_REPLAY);
     } finally {
       await c.close();
       rmSync(dataDirC, { recursive: true, force: true });
     }
 
-    // --- Restart preserves the projection -----------------------------------
+    // --- Restart preserves the canonical state -------------------------------
     await a.close();
     a = await bootServer({ serverDir: opts.serverDir, dataDir: dataDirA, seed });
-    const projectionA2 = worldProjection(readNovel(dataDirA));
-    record(ctx, "restart_projection_stable", projectionA === projectionA2, projectionA === projectionA2 ? "projection stable across restart" : `${projectionA} != ${projectionA2}`, 3, ["REQ-089"], P_REPLAY);
+    const hashA2 = canonicalWorldHash(readPersistedNovel(dataDirA, "Holosuite Diff A"));
+    record(ctx, "restart_state_stable", hashA === hashA2, hashA === hashA2 ? `canonical state hash stable (${hashA.slice(0, 8)})` : `hashes ${hashA.slice(0, 8)} != ${hashA2.slice(0, 8)}`, 3, ["REQ-089", "REQ-601"], P_REPLAY);
 
     ctx.events.push({
       tier: "differential", step: 4, role: "prober", badge: "game_master", tool: "holosuite",

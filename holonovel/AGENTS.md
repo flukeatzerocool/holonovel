@@ -130,9 +130,10 @@ sub-workflow verdicts are summarized in the emitted
 
 The Holosuite deterministic tiers (`scripts/holosuite.ts`) add protocol
 conformance (`test:holosuite-conformance`), bounded model-based invariants
-(`test:holosuite-invariants`), adversarial input fuzzing
+(`test:holosuite-invariants`), the bundled Torre Nosferatu Novel walkthrough
+(`test:holosuite-novel`), adversarial input fuzzing
 (`test:holosuite-adversarial`), and differential/replay determinism
-(`test:holosuite-differential`); all four gate CI and pre-push. The playtest
+(`test:holosuite-differential`); all five gate CI and pre-push. The playtest
 harness is the Holosuite's stochastic tier (Understudies,
 `plans/2026-10-02-holosuite`).
 

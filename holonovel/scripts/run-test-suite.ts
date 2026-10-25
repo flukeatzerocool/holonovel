@@ -64,6 +64,7 @@ const TESTS = [
   "test:playtest-lib",
   "test:holosuite-conformance",
   "test:holosuite-invariants",
+  "test:holosuite-novel",
   "test:holosuite-adversarial",
   "test:holosuite-differential",
   "test:help",

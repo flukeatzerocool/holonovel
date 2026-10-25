@@ -23,14 +23,15 @@ interface ArtifactTool {
   title?: string;
   description?: string;
   annotations?: Record<string, boolean> | null;
+  action_enum?: string[];
 }
 
 const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const PREDICATE_TOOLS = "holonovel/src/index.ts:118"; // TOOL_ANNOTATIONS map
-const PREDICATE_RESOURCES = "holonovel/src/index.ts:6660"; // first registerResource
-const PREDICATE_PROMPTS = "holonovel/src/index.ts:9124"; // first server.prompt
+const PREDICATE_TOOLS = "holonovel/src/index.ts:144"; // TOOL_ANNOTATIONS map
+const PREDICATE_RESOURCES = "holonovel/src/index.ts:8522"; // first registerResource
+const PREDICATE_PROMPTS = "holonovel/src/index.ts:11501"; // first server.prompt
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");
@@ -85,6 +86,18 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       passed++;
     }
 
+    // --- Action-enum parity with the committed artifact --------------------
+    step++;
+    const enumDrift = serverTools.flatMap((tool) => {
+      const live = ((tool.inputSchema as { properties?: { action?: { enum?: string[] } } })?.properties?.action?.enum ?? []).slice().sort();
+      const artifactEnum = (artifactByName.get(tool.name)?.action_enum ?? []).slice().sort();
+      return JSON.stringify(live) === JSON.stringify(artifactEnum)
+        ? []
+        : [`${tool.name}: live [${live.join(", ")}] != artifact [${artifactEnum.join(", ")}]`];
+    });
+    if (enumDrift.length > 0) fail("action_enum_drift", step, enumDrift.slice(0, 3).join("; "), PREDICATE_TOOLS, "REQ-581");
+    else passed++;
+
     // --- Resource registry --------------------------------------------------
     step++;
     const resources = await client.listResources();
@@ -95,6 +108,10 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
     if (resources.length === 0) fail("empty_resource_registry", step, "resources/list returned no entries", PREDICATE_RESOURCES, "REQ-024");
     else if (badResources.length > 0) fail("malformed_resource", step, `${badResources.length} resource(s) missing uri/name`, PREDICATE_RESOURCES, "REQ-024");
     else passed++;
+    step++;
+    const hasAdventures = resources.some((r) => (r as { uri?: string }).uri === "adventures://");
+    if (hasAdventures) passed++;
+    else fail("missing_adventures_resource", step, "resources/list omitted adventures://", PREDICATE_RESOURCES, "REQ-170");
 
     // --- Prompt registry ----------------------------------------------------
     step++;
@@ -106,6 +123,23 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
     if (prompts.length === 0) fail("empty_prompt_registry", step, "prompts/list returned no entries", PREDICATE_PROMPTS, "REQ-024");
     else if (badPrompts.length > 0) fail("malformed_prompt", step, `${badPrompts.length} prompt(s) missing name`, PREDICATE_PROMPTS, "REQ-024");
     else passed++;
+    step++;
+    const hasNarrate = prompts.some((p) => (p as { name?: string }).name === "narrate");
+    if (hasNarrate) passed++;
+    else fail("missing_narrate_prompt", step, "prompts/list omitted narrate", PREDICATE_PROMPTS, "REQ-598");
+
+    // --- Scoped surface projection ------------------------------------------
+    step++;
+    const scoped = await bootServer({ serverDir: opts.serverDir, env: { TTRPG_SURFACE_PROFILE: "small" } });
+    try {
+      const scopedNames = (await scoped.listTools()).map((t) => t.name);
+      const outside = scopedNames.filter((n) => !serverNames.includes(n));
+      const okScoped = scopedNames.length > 0 && scopedNames.length < serverNames.length && outside.length === 0 && !scopedNames.includes("manage_npc");
+      if (okScoped) passed++;
+      else fail("scoped_surface_projection", step, `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`, "holonovel/src/index.ts:1373", "REQ-570");
+    } finally {
+      await scoped.close();
+    }
 
     // --- Negative probe: recognized envelope, not a crash -------------------
     step++;
