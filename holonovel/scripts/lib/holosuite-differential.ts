@@ -17,26 +17,12 @@ import { tmpdir } from "node:os";
 import { bootServer, type McpClient } from "./mcp-client.js";
 import { readPersistedNovel } from "./eval-state.js";
 import { stateHash } from "../../src/core/state-hash.js";
-import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
+import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class.
 const P_REPLAY = "holonovel/src/core/state.ts:796"; // atomic persist
-const P_WORLD = "holonovel/src/world/model.js:82"; // WorldModel.rooms/things maps
-
-interface Ctx {
-  findings: EvalFinding[];
-  events: EvalEvent[];
-  passed: number;
-  failed: number;
-}
-
-function record(ctx: Ctx, name: string, ok: boolean, detail: string, step: number, req: string[], predicate: string): void {
-  if (ok) ctx.passed++;
-  else {
-    ctx.failed++;
-    ctx.findings.push({ class: name, predicate, tier: "differential", step, severity: "P1", target: req.join(","), detail });
-  }
-}
+const P_WORLD = "holonovel/src/world/model.ts:201"; // WorldModel.rooms/things maps
 
 /** Order- and id-independent projection of the world model (diagnostic). */
 function worldProjection(novel: Record<string, unknown>): string {
@@ -75,7 +61,8 @@ async function buildNovel(client: McpClient, name: string, rooms: string[], thin
 }
 
 export async function runDifferential(opts: { serverDir: string; dataDir?: string; seed?: number }): Promise<TierResult> {
-  const ctx: Ctx = { findings: [], events: [], passed: 0, failed: 0 };
+  const ctx: AssertionContext = { findings: [], events: [], passed: 0, failed: 0 };
+  const record = assertionRecorder(ctx, "differential");
   const ownsDataDir = opts.dataDir === undefined;
   const dataDirA = opts.dataDir ?? mkdtempSync(join(tmpdir(), "holosuite-diff-a-"));
   const dataDirB = mkdtempSync(join(tmpdir(), "holosuite-diff-b-"));
@@ -97,7 +84,7 @@ export async function runDifferential(opts: { serverDir: string; dataDir?: strin
     const projectionB = worldProjection(novelB);
     const hashB = canonicalWorldHash(novelB);
 
-    record(ctx, "order_independence", hashA === hashB, hashA === hashB ? `canonical state hash equal (${hashA.slice(0, 8)}; projection ${projectionA === projectionB ? "equal" : "differs"})` : `hashes ${hashA.slice(0, 8)} != ${hashB.slice(0, 8)}`, 1, ["REQ-050", "REQ-601"], P_WORLD);
+    record("order_independence", hashA === hashB, hashA === hashB ? `canonical state hash equal (${hashA.slice(0, 8)}; projection ${projectionA === projectionB ? "equal" : "differs"})` : `hashes ${hashA.slice(0, 8)} != ${hashB.slice(0, 8)}`, 1, ["REQ-050", "REQ-601"], P_WORLD);
 
     // --- Replay the same sequence in a third process ------------------------
     const dataDirC = mkdtempSync(join(tmpdir(), "holosuite-diff-c-"));
@@ -105,7 +92,7 @@ export async function runDifferential(opts: { serverDir: string; dataDir?: strin
     try {
       await buildNovel(c, "Holosuite Diff C", ["P", "Q", "R"], "P");
       const hashC = canonicalWorldHash(readPersistedNovel(dataDirC, "Holosuite Diff C"));
-      record(ctx, "cross_process_replay", hashA === hashC, hashA === hashC ? `canonical state hash equal (${hashA.slice(0, 8)})` : `hashes ${hashA.slice(0, 8)} != ${hashC.slice(0, 8)}`, 2, ["REQ-050", "REQ-601"], P_REPLAY);
+      record("cross_process_replay", hashA === hashC, hashA === hashC ? `canonical state hash equal (${hashA.slice(0, 8)})` : `hashes ${hashA.slice(0, 8)} != ${hashC.slice(0, 8)}`, 2, ["REQ-050", "REQ-601"], P_REPLAY);
     } finally {
       await c.close();
       rmSync(dataDirC, { recursive: true, force: true });
@@ -115,7 +102,7 @@ export async function runDifferential(opts: { serverDir: string; dataDir?: strin
     await a.close();
     a = await bootServer({ serverDir: opts.serverDir, dataDir: dataDirA, seed });
     const hashA2 = canonicalWorldHash(readPersistedNovel(dataDirA, "Holosuite Diff A"));
-    record(ctx, "restart_state_stable", hashA === hashA2, hashA === hashA2 ? `canonical state hash stable (${hashA.slice(0, 8)})` : `hashes ${hashA.slice(0, 8)} != ${hashA2.slice(0, 8)}`, 3, ["REQ-089", "REQ-601"], P_REPLAY);
+    record("restart_state_stable", hashA === hashA2, hashA === hashA2 ? `canonical state hash stable (${hashA.slice(0, 8)})` : `hashes ${hashA.slice(0, 8)} != ${hashA2.slice(0, 8)}`, 3, ["REQ-055", "REQ-089", "REQ-601"], P_REPLAY);
 
     ctx.events.push({
       tier: "differential", step: 4, role: "prober", badge: "game_master", tool: "holosuite",

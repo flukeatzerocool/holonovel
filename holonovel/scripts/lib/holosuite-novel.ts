@@ -17,14 +17,15 @@ import { tmpdir } from "node:os";
 import { bootServer, type McpClient } from "./mcp-client.js";
 import { readPersistedNovel } from "./eval-state.js";
 import { stateHash, projectState, canonicalJson } from "../../src/core/state-hash.js";
-import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
+import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import type { TierResult } from "./eval-schema.js";
 
-const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:1";
+const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarterArtifact
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
 const P_CONTEXT = "holonovel/src/index.ts:8190";
 const P_VISIBILITY = "holonovel/src/index.ts:8212";
-const P_KNOWLEDGE = "holonovel/src/index.ts:6955";
+const P_KNOWLEDGE = "holonovel/src/index.ts:6957"; // knowledge_query handler
 const P_INTEGRITY = "holonovel/src/index.ts:8606";
 const P_RESTART = "holonovel/src/core/state.ts:796";
 
@@ -59,22 +60,6 @@ interface NovelShape {
   secrets?: Array<{ key: string; content?: string; badge_scope?: string }>;
   countdowns?: Record<string, unknown>;
   entities?: Record<string, { inventory?: Array<{ name?: string } | string> }>;
-}
-
-interface Ctx {
-  findings: EvalFinding[];
-  events: EvalEvent[];
-  passed: number;
-  failed: number;
-}
-
-function record(ctx: Ctx, name: string, ok: boolean, detail: string, step: number, req: string[], predicate: string): boolean {
-  if (ok) ctx.passed++;
-  else {
-    ctx.failed++;
-    ctx.findings.push({ class: name, predicate, tier: "novel", step, severity: "P1", target: req.join(","), detail });
-  }
-  return ok;
 }
 
 function asNovel(raw: Record<string, unknown>): NovelShape {
@@ -147,7 +132,8 @@ async function take(client: McpClient, thing: string): Promise<string> {
 }
 
 export async function runNovel(opts: { serverDir: string; dataDir?: string; seed?: number }): Promise<TierResult> {
-  const ctx: Ctx = { findings: [], events: [], passed: 0, failed: 0 };
+  const ctx: AssertionContext = { findings: [], events: [], passed: 0, failed: 0 };
+  const record = assertionRecorder(ctx, "novel");
   const ownsDataDir = opts.dataDir === undefined;
   const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), "holosuite-novel-"));
   let step = 0;
@@ -157,15 +143,15 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     // --- Seed and resume ----------------------------------------------------
     step++;
     const seeded = await client.call("manage_novel", { action: "list" });
-    record(ctx, "starter_seeded", seeded.text.includes(SLUG), seeded.text.includes(SLUG) ? `${SLUG} listed` : `starter not listed: ${seeded.text.slice(0, 120)}`, step, ["REQ-565"], P_STRUCTURE);
+    record("starter_seeded", seeded.text.includes(SLUG), seeded.text.includes(SLUG) ? `${SLUG} listed` : `starter not listed: ${seeded.text.slice(0, 120)}`, step, ["REQ-565"], P_STRUCTURE);
     step++;
     const resumed = await client.call("manage_novel", { action: "resume", slug: SLUG });
-    record(ctx, "starter_resumes", resumed.text.startsWith("[OK]"), resumed.text.split("\n")[0] ?? "", step, ["REQ-565"], P_STRUCTURE);
+    record("starter_resumes", resumed.text.startsWith("[OK]"), resumed.text.split("\n")[0] ?? "", step, ["REQ-565"], P_STRUCTURE);
 
     // Drain the opening decision so badge switching and state writes are legal.
     step++;
     const drained = await client.call("respond_decision", { decision: "present_choices", option: "take_stair" });
-    record(ctx, "opening_decision_drains", drained.text.startsWith("[OK]"), drained.text.split("\n")[0] ?? "", step, ["REQ-565"], P_STRUCTURE);
+    record("opening_decision_drains", drained.text.startsWith("[OK]"), drained.text.split("\n")[0] ?? "", step, ["REQ-565"], P_STRUCTURE);
     await client.call("set_badge", { badge: "game_master" });
 
     let novel = asNovel(readPersistedNovel(dataDir, NOVEL_NAME));
@@ -184,14 +170,14 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     ];
     for (const [label, actual, expected, req] of counts) {
       step++;
-      record(ctx, `structure_${label}`, actual === expected, `${label}: ${actual} (expected ${expected})`, step, [req], P_STRUCTURE);
+      record(`structure_${label}`, actual === expected, `${label}: ${actual} (expected ${expected})`, step, [req], P_STRUCTURE);
     }
 
     step++;
     const dangling = Object.entries(novel.world?.rooms ?? {}).flatMap(([id, room]) =>
       Object.entries(room.exits ?? {}).filter(([, target]) => !rooms.has(target)).map(([dir, target]) => `${id}.${dir}->${target}`),
     );
-    record(ctx, "exits_resolve", dangling.length === 0, dangling.length === 0 ? "every exit target resolves" : dangling.slice(0, 3).join(", "), step, ["REQ-565"], P_STRUCTURE);
+    record("exits_resolve", dangling.length === 0, dangling.length === 0 ? "every exit target resolves" : dangling.slice(0, 3).join(", "), step, ["REQ-565"], P_STRUCTURE);
 
     step++;
     const reachable = new Set<string>();
@@ -202,7 +188,7 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       reachable.add(at);
       for (const target of Object.values(rooms.get(at)?.exits ?? {})) if (rooms.has(target) && !reachable.has(target)) queue.push(target);
     }
-    record(ctx, "all_rooms_reachable", reachable.size === rooms.size, `${reachable.size}/${rooms.size} rooms reachable from the Spire`, step, ["REQ-565"], P_STRUCTURE);
+    record("all_rooms_reachable", reachable.size === rooms.size, `${reachable.size}/${rooms.size} rooms reachable from the Spire`, step, ["REQ-565"], P_STRUCTURE);
 
     step++;
     const asymmetric = Object.entries(novel.world?.rooms ?? {}).flatMap(([id, room]) =>
@@ -214,7 +200,7 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
         return other.exits[back] === String(room.name) ? [] : [`${id}.${dir}->${target}, ${target}.${back}->${other.exits[back]}`];
       }),
     );
-    record(ctx, "exit_symmetry", asymmetric.length === 0, asymmetric.length === 0 ? "bidirectional exits agree" : asymmetric.slice(0, 3).join("; "), step, ["REQ-565"], P_STRUCTURE);
+    record("exit_symmetry", asymmetric.length === 0, asymmetric.length === 0 ? "bidirectional exits agree" : asymmetric.slice(0, 3).join("; "), step, ["REQ-565"], P_STRUCTURE);
 
     step++;
     const doorRefCount = Object.values(novel.world?.rooms ?? {}).reduce((n, room) => n + Object.keys(room.doorRefs ?? {}).length, 0);
@@ -230,7 +216,7 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
         return problems;
       }),
     );
-    record(ctx, "door_bindings", bindings.length === 0 && doorRefCount === 7, bindings.length === 0 ? `${doorRefCount}/7 doorRefs bind an existing door and key` : bindings.slice(0, 3).join("; "), step, ["REQ-565"], P_STRUCTURE);
+    record("door_bindings", bindings.length === 0 && doorRefCount === 7, bindings.length === 0 ? `${doorRefCount}/7 doorRefs bind an existing door and key` : bindings.slice(0, 3).join("; "), step, ["REQ-565"], P_STRUCTURE);
 
     // --- Escape walkthrough -------------------------------------------------
     const floors = ["Seventh", "Sixth", "Fifth", "Fourth", "Third", "Second", "First"] as const;
@@ -246,80 +232,80 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       if (floor !== "Seventh") {
         step++;
         const walked = await walk(client, rooms, at, keyRoom);
-        record(ctx, `walk_${floor.toLowerCase()}_key_room`, walked.ok, walked.detail, step, ["REQ-565"], P_LOCK);
+        record(`walk_${floor.toLowerCase()}_key_room`, walked.ok, walked.detail, step, ["REQ-565"], P_LOCK);
         at = walked.at;
       }
 
       step++;
       const took = await take(client, keyName);
-      record(ctx, `take_${floor.toLowerCase()}_key`, took.startsWith("[OK]"), took.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
+      record(`take_${floor.toLowerCase()}_key`, took.startsWith("[OK]"), took.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
       if (took.startsWith("[OK]")) carried.push(keyName);
 
       if (floor !== "First") {
         step++;
         const walked = await walk(client, rooms, at, stairName);
-        record(ctx, `walk_${floor.toLowerCase()}_stair`, walked.ok, walked.detail, step, ["REQ-565"], P_LOCK);
+        record(`walk_${floor.toLowerCase()}_stair`, walked.ok, walked.detail, step, ["REQ-565"], P_LOCK);
         at = walked.at;
 
         step++;
         const blocked = await go(client, "down");
-        record(ctx, `locked_${floor.toLowerCase()}_stair_blocks`, blocked.startsWith("[WARNING]") && blocked.includes("locked"), blocked.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
+        record(`locked_${floor.toLowerCase()}_stair_blocks`, blocked.startsWith("[WARNING]") && blocked.includes("locked"), blocked.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
 
         step++;
         const unlocked = await client.call("run_command", { action: "execute", command: `unlock ${doorName} with ${keyName}` });
-        record(ctx, `unlock_${floor.toLowerCase()}_stair`, unlocked.text.startsWith("[OK]"), unlocked.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
+        record(`unlock_${floor.toLowerCase()}_stair`, unlocked.text.startsWith("[OK]"), unlocked.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
         step++;
         const opened = await client.call("run_command", { action: "execute", command: `open ${doorName}` });
-        record(ctx, `open_${floor.toLowerCase()}_stair`, opened.text.startsWith("[OK]"), opened.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
+        record(`open_${floor.toLowerCase()}_stair`, opened.text.startsWith("[OK]"), opened.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
         step++;
         const descended = await go(client, "down");
         at = movedTo(descended);
-        record(ctx, `descend_${floor.toLowerCase()}`, descended.startsWith("[OK]"), descended.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
+        record(`descend_${floor.toLowerCase()}`, descended.startsWith("[OK]"), descended.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
       }
     }
 
     step++;
     const toExit = await walk(client, rooms, at, "First Floor — Antechamber");
-    record(ctx, "walk_antechamber", toExit.ok, toExit.detail, step, ["REQ-565"], P_LOCK);
+    record("walk_antechamber", toExit.ok, toExit.detail, step, ["REQ-565"], P_LOCK);
     at = toExit.at;
     step++;
     const exitBlocked = await go(client, "out");
-    record(ctx, "locked_exit_blocks", exitBlocked.startsWith("[WARNING]") && exitBlocked.includes("locked"), exitBlocked.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
+    record("locked_exit_blocks", exitBlocked.startsWith("[WARNING]") && exitBlocked.includes("locked"), exitBlocked.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
     step++;
     const exitUnlocked = await client.call("run_command", { action: "execute", command: `unlock The Exit Door with First Floor Key` });
-    record(ctx, "unlock_exit", exitUnlocked.text.startsWith("[OK]"), exitUnlocked.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
+    record("unlock_exit", exitUnlocked.text.startsWith("[OK]"), exitUnlocked.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
     step++;
     const exitOpened = await client.call("run_command", { action: "execute", command: "open The Exit Door" });
-    record(ctx, "open_exit", exitOpened.text.startsWith("[OK]"), exitOpened.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
+    record("open_exit", exitOpened.text.startsWith("[OK]"), exitOpened.text.split("\n")[0] ?? "", step, ["REQ-565", "REQ-284"], P_LOCK);
     step++;
     const escaped = await go(client, "out");
-    record(ctx, "escape_reaches_threshold", movedTo(escaped) === "Beyond the Threshold", escaped.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
+    record("escape_reaches_threshold", movedTo(escaped) === "Beyond the Threshold", escaped.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
 
     step++;
     novel = asNovel(readPersistedNovel(dataDir, NOVEL_NAME));
     const inventory = (novel.entities?.[novel.active_entity_id ?? ""]?.inventory ?? []).map((i) => typeof i === "string" ? i : String(i.name ?? ""));
     const missingKeys = carried.filter((key) => !inventory.some((item) => item.toLowerCase() === key.toLowerCase()));
-    record(ctx, "all_keys_carried", carried.length === 7 && missingKeys.length === 0, `${inventory.length} carried; missing ${missingKeys.join(", ") || "none"}`, step, ["REQ-565"], P_LOCK);
+    record("all_keys_carried", carried.length === 7 && missingKeys.length === 0, `${inventory.length} carried; missing ${missingKeys.join(", ") || "none"}`, step, ["REQ-565"], P_LOCK);
 
     // --- Diagnostics --------------------------------------------------------
     step++;
     const verify1 = await client.call("manage_diagnostics", { action: "verify" });
-    record(ctx, "verify_clean", !verify1.isError && verify1.text.includes("clean"), verify1.text.split("\n")[0] ?? "", step, ["REQ-603"], P_HASH);
+    record("verify_clean", !verify1.isError && verify1.text.includes("clean"), verify1.text.split("\n")[0] ?? "", step, ["REQ-603"], P_HASH);
     step++;
     const verify2 = await client.call("manage_diagnostics", { action: "verify" });
-    record(ctx, "verify_repeat_stable", verify1.text === verify2.text, verify1.text === verify2.text ? "repeat verify identical" : "repeat verify changed", step, ["REQ-603"], P_HASH);
+    record("verify_repeat_stable", verify1.text === verify2.text, verify1.text === verify2.text ? "repeat verify identical" : "repeat verify changed", step, ["REQ-603"], P_HASH);
 
     step++;
     const ledger1 = await client.call("manage_diagnostics", { action: "context_report" });
     const ledger2 = await client.call("manage_diagnostics", { action: "context_report" });
-    record(ctx, "context_report_stable", !ledger1.isError && ledger1.text === ledger2.text, ledger1.isError ? "context_report errored" : `${ledger1.text.length} chars, repeat stable`, step, ["REQ-606"], P_CONTEXT);
+    record("context_report_stable", !ledger1.isError && ledger1.text === ledger2.text, ledger1.isError ? "context_report errored" : `${ledger1.text.length} chars, repeat stable`, step, ["REQ-606"], P_CONTEXT);
 
     step++;
     const observed = await client.call("manage_diagnostics", { action: "event", text: "holosuite novel tier probe observation" });
-    record(ctx, "event_appended", !observed.isError, observed.text.split("\n")[0] ?? "", step, ["REQ-602"], P_HASH);
+    record("event_appended", !observed.isError, observed.text.split("\n")[0] ?? "", step, ["REQ-602"], P_HASH);
     step++;
     const replay = await client.call("manage_diagnostics", { action: "replay" });
-    record(ctx, "replay_reads_event", !replay.isError && replay.text.includes("holosuite novel tier probe"), replay.text.split("\n")[0] ?? "", step, ["REQ-604"], P_HASH);
+    record("replay_reads_event", !replay.isError && replay.text.includes("holosuite novel tier probe"), replay.text.split("\n")[0] ?? "", step, ["REQ-604"], P_HASH);
 
     // --- Player-badge redaction --------------------------------------------
     await client.call("set_badge", { badge: "player" });
@@ -327,15 +313,15 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     step++;
     const knowledge = await client.call("manage_belief", { action: "knowledge_query" });
     const leaksSecret = gmSecret?.content ? knowledge.text.includes(gmSecret.content) : false;
-    record(ctx, "knowledge_query_hides_gm_secrets", !leaksSecret, leaksSecret ? "knowledge query leaked a GM secret" : "no GM secret content returned", step, ["REQ-542"], P_KNOWLEDGE);
+    record("knowledge_query_hides_gm_secrets", !leaksSecret, leaksSecret ? "knowledge query leaked a GM secret" : "no GM secret content returned", step, ["REQ-542"], P_KNOWLEDGE);
     step++;
     const visibility = gmSecret?.content
       ? await client.call("manage_diagnostics", { action: "visibility_check", text: `The truth: ${gmSecret.content}` })
       : await client.call("manage_diagnostics", { action: "visibility_check", text: "probe" });
-    record(ctx, "visibility_redacts_gm_secret", visibility.text.includes("[visibility]") && (!gmSecret?.content || !visibility.text.includes(gmSecret.content)), visibility.text.split("\n")[0] ?? visibility.text.slice(0, 80), step, ["REQ-599"], P_VISIBILITY);
+    record("visibility_redacts_gm_secret", visibility.text.includes("[visibility]") && (!gmSecret?.content || !visibility.text.includes(gmSecret.content)), visibility.text.split("\n")[0] ?? visibility.text.slice(0, 80), step, ["REQ-599"], P_VISIBILITY);
     step++;
     const playerVerify = await client.call("manage_diagnostics", { action: "verify" });
-    record(ctx, "player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_HASH);
+    record("player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_HASH);
     await client.call("set_badge", { badge: "game_master" });
 
     // --- Bundle integrity ---------------------------------------------------
@@ -353,7 +339,7 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     }
     const integrityHash = bundle1?.integrity?.state_hash;
     const recomputed = bundle1?.novel ? stateHash(bundle1.novel) : "";
-    record(ctx, "bundle_integrity_state_hash", Boolean(integrityHash) && integrityHash === recomputed && integrityHash === bundle2?.integrity?.state_hash, integrityHash ? `${integrityHash.slice(0, 8)} matches payload${integrityHash === bundle2?.integrity?.state_hash ? " and repeat" : ""}` : "export did not carry an integrity state hash", step, ["REQ-096j", "REQ-601"], P_INTEGRITY);
+    record("bundle_integrity_state_hash", Boolean(integrityHash) && integrityHash === recomputed && integrityHash === bundle2?.integrity?.state_hash, integrityHash ? `state hash matches payload${integrityHash === bundle2?.integrity?.state_hash ? " and repeat" : ""}` : "export did not carry an integrity state hash", step, ["REQ-096j", "REQ-601"], P_INTEGRITY);
 
     // --- Restart continuity -------------------------------------------------
     step++;
@@ -366,12 +352,12 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       await rebooted.call("set_badge", { badge: "game_master" });
       const verifyAgain = await rebooted.call("manage_diagnostics", { action: "verify" });
       const afterRestart = contentHash(readPersistedNovel(dataDir, NOVEL_NAME));
-      record(ctx, "restart_resumes_and_verifies", resumedAgain.text.startsWith("[OK]") && !verifyAgain.isError && verifyAgain.text.includes("clean"), verifyAgain.text.split("\n")[0] ?? "", step, ["REQ-089", "REQ-603"], P_RESTART);
+      record("restart_resumes_and_verifies", resumedAgain.text.startsWith("[OK]") && !verifyAgain.isError && verifyAgain.text.includes("clean"), verifyAgain.text.split("\n")[0] ?? "", step, ["REQ-089", "REQ-603"], P_RESTART);
       const afterNovel = readPersistedNovel(dataDir, NOVEL_NAME);
       const changed = beforeRestart === afterRestart
         ? []
         : Object.keys(projectState(beforeNovel)).filter((k) => canonicalJson(projectState(beforeNovel)[k]) !== canonicalJson(projectState(afterNovel)[k]));
-      record(ctx, "restart_state_stable", beforeRestart === afterRestart, `${beforeRestart.slice(0, 8)} ${beforeRestart === afterRestart ? "=" : "!="} ${afterRestart.slice(0, 8)}${changed.length ? ` changed: ${changed.join(",")}` : ""}`, step + 1, ["REQ-601"], P_HASH);
+      record("restart_state_stable", beforeRestart === afterRestart, beforeRestart === afterRestart ? "content hash stable across restart" : `content hash changed across restart${changed.length ? `; changed: ${changed.join(",")}` : ""}`, step + 1, ["REQ-601"], P_HASH);
     } finally {
       await rebooted.close();
     }

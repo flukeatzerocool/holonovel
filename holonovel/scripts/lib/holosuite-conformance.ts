@@ -6,6 +6,7 @@
 // annotation booleans present and matching the artifact; a non-empty,
 // well-formed resource and prompt registry; and a recognized error envelope
 // (never `[?]`) for a negative input. Tool-observable; no raw state file reads.
+// Every assertion emits an event so per-REQ coverage is derived from what ran.
 // Exit codes: n/a (library; the runner owns the exit code).
 //
 // REQ citations: REQ-450 (mutation-class annotations), REQ-001/REQ-002
@@ -16,7 +17,8 @@ import { join } from "node:path";
 import { bootServer } from "./mcp-client.js";
 import { classifyResult } from "./eval-oracle.js";
 import { canonicalJson } from "./eval-schema.js";
-import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
+import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import type { TierResult } from "./eval-schema.js";
 
 interface ArtifactTool {
   name: string;
@@ -35,19 +37,12 @@ const PREDICATE_PROMPTS = "holonovel/src/index.ts:11501"; // first server.prompt
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");
-  const findings: EvalFinding[] = [];
-  const events: EvalEvent[] = [];
-  let passed = 0;
-  let failed = 0;
-
-  const fail = (cls: string, step: number, detail: string, predicate: string, target = "REQ-450"): void => {
-    failed++;
-    findings.push({ class: cls, predicate, tier: "conformance", step, severity: "P1", target, detail });
-  };
+  const ctx: AssertionContext = { findings: [], events: [], passed: 0, failed: 0 };
+  const assert = assertionRecorder(ctx, "conformance");
 
   if (!existsSync(artifactPath)) {
-    fail("artifact_missing", 0, `committed tool-definitions.json not found at ${artifactPath}`, "holonovel/scripts/generate-tool-definitions.ts:1", "REQ-450");
-    return { tier: "conformance", passed, failed, findings, events };
+    assert("artifact_missing", false, `committed tool-definitions.json not found at ${artifactPath}`, 0, ["REQ-450"], "holonovel/scripts/generate-tool-definitions.ts:1");
+    return { tier: "conformance", passed: ctx.passed, failed: ctx.failed, findings: ctx.findings, events: ctx.events };
   }
   const artifact = JSON.parse(readFileSync(artifactPath, "utf-8")) as { tools?: ArtifactTool[] };
   const artifactTools = artifact.tools ?? [];
@@ -59,31 +54,35 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
     const serverTools = await client.listTools();
     const serverNames = serverTools.map((t) => t.name).sort();
     const artifactNames = artifactTools.map((t) => t.name).sort();
-    if (JSON.stringify(serverNames) !== JSON.stringify(artifactNames)) {
-      fail("registry_drift", 1, `live names [${serverNames.join(", ")}] != artifact [${artifactNames.join(", ")}]`, PREDICATE_TOOLS);
-    } else {
-      passed++;
-    }
+    const registryMatches = JSON.stringify(serverNames) === JSON.stringify(artifactNames);
+    assert(
+      registryMatches ? "registry_conforms" : "registry_drift",
+      registryMatches,
+      registryMatches ? `${serverNames.length} tools match the artifact` : `live names [${serverNames.join(", ")}] != artifact [${artifactNames.join(", ")}]`,
+      1,
+      ["REQ-020", "REQ-450"],
+      PREDICATE_TOOLS,
+    );
 
     let step = 2;
     for (const tool of serverTools) {
       step++;
       if (!tool.title || !tool.description) {
-        fail("missing_tool_metadata", step, `${tool.name}: title/description empty`, PREDICATE_TOOLS);
+        assert("missing_tool_metadata", false, `${tool.name}: title/description empty`, step, ["REQ-024", "REQ-450"], PREDICATE_TOOLS);
         continue;
       }
       const ann = tool.annotations;
       const missing = ANNOTATION_KEYS.filter((k) => typeof ann?.[k] !== "boolean");
       if (missing.length > 0) {
-        fail("missing_annotation", step, `${tool.name}: missing boolean annotations ${missing.join(", ")}`, PREDICATE_TOOLS);
+        assert("missing_annotation", false, `${tool.name}: missing boolean annotations ${missing.join(", ")}`, step, ["REQ-450"], PREDICATE_TOOLS);
         continue;
       }
       const art = artifactByName.get(tool.name);
       if (art?.annotations && canonicalJson(art.annotations) !== canonicalJson(ann)) {
-        fail("annotation_mismatch", step, `${tool.name}: live annotations != artifact`, PREDICATE_TOOLS);
+        assert("annotation_mismatch", false, `${tool.name}: live annotations != artifact`, step, ["REQ-450"], PREDICATE_TOOLS);
         continue;
       }
-      passed++;
+      assert("tool_metadata_conforms", true, `${tool.name}: title, description, and annotations present`, step, ["REQ-024", "REQ-450"], PREDICATE_TOOLS);
     }
 
     // --- Action-enum parity with the committed artifact --------------------
@@ -95,8 +94,14 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
         ? []
         : [`${tool.name}: live [${live.join(", ")}] != artifact [${artifactEnum.join(", ")}]`];
     });
-    if (enumDrift.length > 0) fail("action_enum_drift", step, enumDrift.slice(0, 3).join("; "), PREDICATE_TOOLS, "REQ-581");
-    else passed++;
+    assert(
+      enumDrift.length > 0 ? "action_enum_drift" : "action_enum_conforms",
+      enumDrift.length === 0,
+      enumDrift.length > 0 ? enumDrift.slice(0, 3).join("; ") : "action enums match the artifact",
+      step,
+      ["REQ-450", "REQ-581"],
+      PREDICATE_TOOLS,
+    );
 
     // --- Resource registry --------------------------------------------------
     step++;
@@ -105,13 +110,23 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       const o = r as { uri?: string; name?: string };
       return !o.uri || !o.name;
     });
-    if (resources.length === 0) fail("empty_resource_registry", step, "resources/list returned no entries", PREDICATE_RESOURCES, "REQ-024");
-    else if (badResources.length > 0) fail("malformed_resource", step, `${badResources.length} resource(s) missing uri/name`, PREDICATE_RESOURCES, "REQ-024");
-    else passed++;
+    if (resources.length === 0) {
+      assert("empty_resource_registry", false, "resources/list returned no entries", step, ["REQ-022", "REQ-024"], PREDICATE_RESOURCES);
+    } else if (badResources.length > 0) {
+      assert("malformed_resource", false, `${badResources.length} resource(s) missing uri/name`, step, ["REQ-022", "REQ-024"], PREDICATE_RESOURCES);
+    } else {
+      assert("resource_registry_conforms", true, `${resources.length} resources present`, step, ["REQ-022", "REQ-024"], PREDICATE_RESOURCES);
+    }
     step++;
     const hasAdventures = resources.some((r) => (r as { uri?: string }).uri === "adventures://");
-    if (hasAdventures) passed++;
-    else fail("missing_adventures_resource", step, "resources/list omitted adventures://", PREDICATE_RESOURCES, "REQ-170");
+    assert(
+      hasAdventures ? "adventures_resource_present" : "missing_adventures_resource",
+      hasAdventures,
+      hasAdventures ? "resources/list includes adventures://" : "resources/list omitted adventures://",
+      step,
+      ["REQ-170"],
+      PREDICATE_RESOURCES,
+    );
 
     // --- Prompt registry ----------------------------------------------------
     step++;
@@ -120,13 +135,23 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       const o = p as { name?: string };
       return !o.name;
     });
-    if (prompts.length === 0) fail("empty_prompt_registry", step, "prompts/list returned no entries", PREDICATE_PROMPTS, "REQ-024");
-    else if (badPrompts.length > 0) fail("malformed_prompt", step, `${badPrompts.length} prompt(s) missing name`, PREDICATE_PROMPTS, "REQ-024");
-    else passed++;
+    if (prompts.length === 0) {
+      assert("empty_prompt_registry", false, "prompts/list returned no entries", step, ["REQ-023", "REQ-024"], PREDICATE_PROMPTS);
+    } else if (badPrompts.length > 0) {
+      assert("malformed_prompt", false, `${badPrompts.length} prompt(s) missing name`, step, ["REQ-023", "REQ-024"], PREDICATE_PROMPTS);
+    } else {
+      assert("prompt_registry_conforms", true, `${prompts.length} prompts present`, step, ["REQ-023", "REQ-024"], PREDICATE_PROMPTS);
+    }
     step++;
     const hasNarrate = prompts.some((p) => (p as { name?: string }).name === "narrate");
-    if (hasNarrate) passed++;
-    else fail("missing_narrate_prompt", step, "prompts/list omitted narrate", PREDICATE_PROMPTS, "REQ-598");
+    assert(
+      hasNarrate ? "narrate_prompt_present" : "missing_narrate_prompt",
+      hasNarrate,
+      hasNarrate ? "prompts/list includes narrate" : "prompts/list omitted narrate",
+      step,
+      ["REQ-598"],
+      PREDICATE_PROMPTS,
+    );
 
     // --- Scoped surface projection ------------------------------------------
     step++;
@@ -135,8 +160,14 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       const scopedNames = (await scoped.listTools()).map((t) => t.name);
       const outside = scopedNames.filter((n) => !serverNames.includes(n));
       const okScoped = scopedNames.length > 0 && scopedNames.length < serverNames.length && outside.length === 0 && !scopedNames.includes("manage_npc");
-      if (okScoped) passed++;
-      else fail("scoped_surface_projection", step, `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`, "holonovel/src/index.ts:1373", "REQ-570");
+      assert(
+        "scoped_surface_projection",
+        okScoped,
+        `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`,
+        step,
+        ["REQ-570"],
+        "holonovel/src/index.ts:1373",
+      );
     } finally {
       await scoped.close();
     }
@@ -145,20 +176,23 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
     step++;
     const probe = await client.call("manage_novel", { action: "__holosuite_probe__" });
     const classified = classifyResult(probe.text, probe.isError);
-    events.push({
+    ctx.events.push({
       tier: "conformance", step, role: "prober", badge: null, tool: "manage_novel",
       args: { action: "__holosuite_probe__" }, prefix: classified.prefix,
       error_class: classified.error_class, is_error: probe.isError, mcp_error: classified.mcp_error,
       latency_ms: 0, req_ids: ["REQ-001", "REQ-002"],
     });
-    if (classified.prefix === "[?]") {
-      fail("unrecognized_envelope", step, `negative probe returned unclassified output: ${probe.text.slice(0, 80)}`, "holonovel/src/index.ts:1", "REQ-002");
-    } else {
-      passed++;
-    }
+    assert(
+      classified.prefix === "[?]" ? "unrecognized_envelope" : "envelope_recognized",
+      classified.prefix !== "[?]",
+      classified.prefix === "[?]" ? `negative probe returned unclassified output: ${probe.text.slice(0, 80)}` : `negative probe returned ${classified.prefix}`,
+      step,
+      ["REQ-001", "REQ-002"],
+      "holonovel/src/index.ts:1",
+    );
   } finally {
     await client.close();
   }
 
-  return { tier: "conformance", passed, failed, findings, events };
+  return { tier: "conformance", passed: ctx.passed, failed: ctx.failed, findings: ctx.findings, events: ctx.events };
 }

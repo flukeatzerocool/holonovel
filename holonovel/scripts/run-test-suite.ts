@@ -67,6 +67,7 @@ const TESTS = [
   "test:holosuite-novel",
   "test:holosuite-adversarial",
   "test:holosuite-differential",
+  "test:holosuite-evidence",
   "test:help",
   "test:update-workflow",
   "check:vendor",

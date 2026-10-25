@@ -17,7 +17,8 @@ import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { fingerprintStable, fingerprintChanged, envelopeRecognized, isDenial, fingerprintOf } from "./eval-oracle.js";
 import { readPersistedNovel } from "./eval-state.js";
-import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
+import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per invariant class, so a finding cites the predicate it
 // rests on rather than a gate message.
@@ -40,25 +41,11 @@ function rng(seed: number): () => number {
   };
 }
 
-interface Ctx {
-  findings: EvalFinding[];
-  events: EvalEvent[];
-  passed: number;
-  failed: number;
-}
-
-function record(ctx: Ctx, name: string, ok: boolean, detail: string, step: number, req: string[], predicate: string): void {
-  if (ok) ctx.passed++;
-  else {
-    ctx.failed++;
-    ctx.findings.push({ class: name, predicate, tier: "invariants", step, severity: "P1", target: req.join(","), detail });
-  }
-}
-
 export async function runInvariants(opts: { serverDir: string; dataDir?: string; seed?: number; steps?: number }): Promise<TierResult> {
   const seed = opts.seed ?? 1;
   const steps = Math.min(opts.steps ?? 12, 200);
-  const ctx: Ctx = { findings: [], events: [], passed: 0, failed: 0 };
+  const ctx: AssertionContext = { findings: [], events: [], passed: 0, failed: 0 };
+  const record = assertionRecorder(ctx, "invariants");
 
   // Own the state dir: a client-owned temp dir is deleted on close, which would
   // break the restart reboot; a caller-supplied --data-dir must be preserved.
@@ -75,35 +62,35 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     await client.call("manage_diagnostics", { action: "health" });
     await client.call("run_command", { action: "execute", command: "look" });
     let after = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
-    record(ctx, "read_only_no_mutation", fingerprintStable(before, after).ok, fingerprintStable(before, after).detail, 1, ["REQ-041"], P_READONLY);
+    record("read_only_no_mutation", fingerprintStable(before, after).ok, fingerprintStable(before, after).detail, 1, ["REQ-041"], P_READONLY);
 
     // --- Invariant: badge gating refuses a GM-only mutation under Player -----
     await client.call("set_badge", { badge: "player" });
     const refused = await client.call("manage_npc", { action: "create", name: "Probe" });
-    record(ctx, "gating_refusal_is_denial", isDenial(refused.text, refused.isError).ok, isDenial(refused.text, refused.isError).detail, 2, ["REQ-032"], P_GATING);
+    record("gating_refusal_is_denial", isDenial(refused.text, refused.isError).ok, isDenial(refused.text, refused.isError).detail, 2, ["REQ-032"], P_GATING);
     await client.call("set_badge", { badge: "game_master" });
 
     // --- Invariant: diagnostics reads are non-mutating and repeat-stable ----
     const preDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     const verifyOne = await client.call("manage_diagnostics", { action: "verify" });
     const verifyTwo = await client.call("manage_diagnostics", { action: "verify" });
-    record(ctx, "verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], "holonovel/src/core/state-hash.ts:50");
+    record("verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], "holonovel/src/core/state-hash.ts:50");
     const replayOne = await client.call("manage_diagnostics", { action: "replay" });
-    record(ctx, "replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8267");
+    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8267");
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
-    record(ctx, "context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8190");
+    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8190");
     const postDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
-    record(ctx, "diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], "holonovel/src/core/state-hash.ts:50");
+    record("diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], "holonovel/src/core/state-hash.ts:50");
 
     // --- Invariant: undo restores the pre-mutation fingerprint ---------------
     const preUndo = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     await client.call("manage_world", { action: "create_room", name: "Undo Room", description: "Temporary." });
     const postCreate = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
-    record(ctx, "mutation_observed", fingerprintChanged(preUndo, postCreate).ok, fingerprintChanged(preUndo, postCreate).detail, 3, ["REQ-041"], P_UNDO);
+    record("mutation_observed", fingerprintChanged(preUndo, postCreate).ok, fingerprintChanged(preUndo, postCreate).detail, 3, ["REQ-041"], P_UNDO);
     await client.call("manage_history", { action: "undo" });
     const postUndo = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
-    record(ctx, "undo_round_trip", fingerprintStable(preUndo, postUndo).ok, `${fingerprintStable(preUndo, postUndo).detail}`, 4, ["REQ-041"], P_UNDO);
+    record("undo_round_trip", fingerprintStable(preUndo, postUndo).ok, `${fingerprintStable(preUndo, postUndo).detail}`, 4, ["REQ-041"], P_UNDO);
 
     // --- Bounded seeded sequence: every result carries a recognized envelope
     const rand = rng(seed);
@@ -115,7 +102,7 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
       if (choice === 0) res = await client.call("manage_world", { action: "create_room", name: `Gen Room ${i}`, description: "generated." });
       else if (choice === 1) res = await client.call("manage_world", { action: "create_thing", name: `gen-thing-${i}`, location: "Hall" });
       else res = await client.call("run_command", { action: "execute", command: "look" });
-      record(ctx, "envelope_recognized", envelopeRecognized(res.text, res.isError).ok, envelopeRecognized(res.text, res.isError).detail, step, ["REQ-001", "REQ-002"], P_ENVELOPE);
+      record("envelope_recognized", envelopeRecognized(res.text, res.isError).ok, envelopeRecognized(res.text, res.isError).detail, step, ["REQ-001", "REQ-002"], P_ENVELOPE);
     }
 
     // --- Invariant: fingerprint survives a server restart --------------------
@@ -124,9 +111,9 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     const rebooted = await bootServer({ serverDir: opts.serverDir, dataDir, seed });
     try {
       const listed = await rebooted.call("manage_novel", { action: "list" });
-      record(ctx, "restart_reloads_novel", envelopeRecognized(listed.text, listed.isError).ok, envelopeRecognized(listed.text, listed.isError).detail, step + 1, ["REQ-050"], P_RESTART);
+      record("restart_reloads_novel", envelopeRecognized(listed.text, listed.isError).ok, envelopeRecognized(listed.text, listed.isError).detail, step + 1, ["REQ-050"], P_RESTART);
       const postRestart = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
-      record(ctx, "fingerprint_continuity_restart", fingerprintStable(preRestart, postRestart).ok, fingerprintStable(preRestart, postRestart).detail, step + 2, ["REQ-050"], P_RESTART);
+      record("fingerprint_continuity_restart", fingerprintStable(preRestart, postRestart).ok, fingerprintStable(preRestart, postRestart).detail, step + 2, ["REQ-050"], P_RESTART);
       ctx.events.push({
         tier: "invariants", step, role: "generator", badge: "game_master", tool: "holosuite",
         args: { seed, steps }, prefix: "[OK]", error_class: "ok", is_error: false, mcp_error: false,

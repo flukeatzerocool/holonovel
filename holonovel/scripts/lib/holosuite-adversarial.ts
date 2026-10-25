@@ -19,12 +19,13 @@ import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { classifyResult, fingerprintOf } from "./eval-oracle.js";
 import { readPersistedNovel } from "./eval-state.js";
-import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
+import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
-const P_VALIDATION = "holonovel/src/index.ts:3140"; // manage_world schema
+const P_VALIDATION = "holonovel/src/index.ts:4185"; // manage_world action enum
 const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
 const P_DIAGNOSTICS = "holonovel/src/index.ts:8247"; // verify/replay handler
 const P_READONLY = "holonovel/src/core/state.ts:1515"; // snapshot
@@ -73,23 +74,9 @@ function redactArgs(value: unknown): Record<string, unknown> {
   return walk(value) as Record<string, unknown>;
 }
 
-interface Ctx {
-  findings: EvalFinding[];
-  events: EvalEvent[];
-  passed: number;
-  failed: number;
-}
-
-function record(ctx: Ctx, name: string, ok: boolean, detail: string, step: number, req: string[], predicate: string): void {
-  if (ok) ctx.passed++;
-  else {
-    ctx.failed++;
-    ctx.findings.push({ class: name, predicate, tier: "adversarial", step, severity: "P1", target: req.join(","), detail });
-  }
-}
-
 export async function runAdversarial(opts: { serverDir: string; dataDir?: string; seed?: number }): Promise<TierResult> {
-  const ctx: Ctx = { findings: [], events: [], passed: 0, failed: 0 };
+  const ctx: AssertionContext = { findings: [], events: [], passed: 0, failed: 0 };
+  const record = assertionRecorder(ctx, "adversarial");
   const ownsDataDir = opts.dataDir === undefined;
   const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), "holosuite-adv-"));
   const client = await bootServer({ serverDir: opts.serverDir, dataDir, seed: opts.seed ?? 1 });
@@ -104,7 +91,7 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
       const res = await client.call(probe.tool, probe.args);
       const c = classifyResult(res.text, res.isError);
       const ok = probe.expect === "wellformed" ? res.text.trim().length > 0 : c.prefix !== "[?]";
-      record(ctx, probe.expect === "wellformed" ? "wellformed_protocol_error" : "envelope_recognized", ok, `${probe.label}: ${c.prefix}`, step, ["REQ-001", "REQ-002"], probe.predicate);
+      record(probe.expect === "wellformed" ? "wellformed_protocol_error" : "envelope_recognized", ok, `${probe.label}: ${c.prefix}`, step, ["REQ-001", "REQ-002", "REQ-054"], probe.predicate);
       ctx.events.push({
         tier: "adversarial", step, role: "prober", badge: "game_master", tool: probe.tool, args: redactArgs(probe.args),
         prefix: c.prefix, error_class: c.error_class, is_error: res.isError, mcp_error: c.mcp_error,
@@ -119,19 +106,19 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
     }
     const after = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     step++;
-    record(ctx, "read_only_no_mutation", before === after, before === after ? "fingerprint unchanged" : `${before.slice(0, 8)} -> ${after.slice(0, 8)}`, step, ["REQ-041"], P_READONLY);
+    record("read_only_no_mutation", before === after, before === after ? "fingerprint unchanged" : `${before.slice(0, 8)} -> ${after.slice(0, 8)}`, step, ["REQ-041"], P_READONLY);
 
     // --- Player-badge denial: verify stays GM-only -------------------------
     await client.call("set_badge", { badge: "player" });
     step++;
     const playerVerify = await client.call("manage_diagnostics", { action: "verify" });
-    record(ctx, "player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_DIAGNOSTICS);
+    record("player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_DIAGNOSTICS);
     await client.call("set_badge", { badge: "game_master" });
 
     // --- Liveness: a well-formed call still succeeds after the battery ------
     step++;
     const health = await client.call("manage_diagnostics", { action: "health" });
-    record(ctx, "server_live_after_battery", health.text.trim().length > 0 && !health.isError, health.isError ? "health call errored" : "server responsive", step, ["REQ-002"], P_PROTOCOL);
+    record("server_live_after_battery", health.text.trim().length > 0 && !health.isError, health.isError ? "health call errored" : "server responsive", step, ["REQ-002"], P_PROTOCOL);
   } catch (e) {
     ctx.failed++;
     ctx.findings.push({ class: "adversarial_error", predicate: P_PROTOCOL, tier: "adversarial", step: 0, severity: "P1", target: "T3", detail: e instanceof Error ? e.message : String(e) });
