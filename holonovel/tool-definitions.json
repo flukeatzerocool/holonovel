@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 113099,
+  "tools_list_bytes": 104095,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 113099,
-        "tokens": 28275
+        "bytes": 104095,
+        "tokens": 26024
       },
       "standard": {
         "tools": 36,
-        "bytes": 99095,
-        "tokens": 24774
+        "bytes": 90091,
+        "tokens": 22523
       },
       "small": {
         "tools": 6,
-        "bytes": 5127,
-        "tokens": 1282,
+        "bytes": 4636,
+        "tokens": 1159,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4914,
-            "tokens": 1229
+            "bytes": 4423,
+            "tokens": 1106
           },
           "explore": {
             "tools": 6,
-            "bytes": 3942,
-            "tokens": 986
+            "bytes": 3451,
+            "tokens": 863
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4889,
-            "tokens": 1223
+            "bytes": 4398,
+            "tokens": 1100
           },
           "narrate": {
             "tools": 6,
-            "bytes": 5127,
-            "tokens": 1282
+            "bytes": 4636,
+            "tokens": 1159
           },
           "lookup": {
             "tools": 6,
-            "bytes": 4232,
-            "tokens": 1058
+            "bytes": 3741,
+            "tokens": 936
           },
           "referee": {
             "tools": 6,
-            "bytes": 4216,
-            "tokens": 1054
+            "bytes": 3725,
+            "tokens": 932
           },
           "author": {
             "tools": 6,
-            "bytes": 4208,
-            "tokens": 1052
+            "bytes": 3717,
+            "tokens": 930
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4741,
-            "tokens": 1186
+            "bytes": 4250,
+            "tokens": 1063
           }
         }
       }
@@ -231,33 +231,19 @@
         "checkpoint_restore",
         "checkpoint_remove"
       ],
-      "param_count": 26,
+      "param_count": 12,
       "required": [
         "action"
       ],
       "params": {
-        "codex_adventure": "Codex adventure to seed from (create).",
-        "current_scene": "Current-scene summary (save_context).",
         "data": "Exported Novel JSON (import).",
-        "description": "Description (create/description).",
-        "detail": "Return full metadata (list).",
-        "filter": "active, archived, or all (list).",
         "format": "Output format (export).",
         "from_event": "Event-log ordinal to branch from (branch; default latest).",
-        "genre": "Genre tag (create/genre).",
-        "immediate_situation": "Immediate situation (save_context).",
         "include_checkpoints": "Include checkpoints in export (default false; export).",
         "label": "Checkpoint label (checkpoint_set/list/restore/remove).",
-        "long_term_plans": "Long-term plans (save_context).",
         "mode": "dry-run, merge, or replace (import).",
-        "name": "Novel name (create).",
         "new_name": "Name for the copy or branch (clone/branch).",
-        "new_slug": "New slug (rename).",
-        "pending_player_action": "Pending player action (save_context).",
-        "player_goals": "Player goals (save_context).",
-        "ruleset": "Ruleset slug (create).",
         "scope": "Export scope (export).",
-        "short_term_plans": "Short-term plans (save_context).",
         "slug": "Novel slug (resume/switch/archive/unarchive/info).",
         "source_slug": "Novel to copy or branch from (clone/branch).",
         "strict": "Fail on any cross-reference mismatch (import).",
@@ -274,10 +260,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 27,
+        "paramCount": 13,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 27,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 13,
+        "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -287,7 +273,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3924,
+        "definitionBytes": 2782,
         "descriptionBytes": 602
       },
       "category": "",
@@ -312,7 +298,7 @@
         "perception_for_entity",
         "perception_for_event"
       ],
-      "param_count": 17,
+      "param_count": 22,
       "required": [
         "action"
       ],
@@ -321,10 +307,15 @@
         "entity_id": "Entity whose beliefs are queried or mutated.",
         "evidence_id": "Evidence record id (retract).",
         "object": "Proposition object (admit).",
+        "perception_confidence": "0..1 confidence (perception_record; default 0; REQ-594).",
         "perception_entity_id": "Entity that perceived (perception_record/perception_for_entity).",
         "perception_event_ordinal": "Contributing event-log ordinal (perception_record/perception_for_event; defaults to the latest event).",
         "perception_kind": "message, scene, or observation (perception_record; default observation).",
+        "perception_room_id": "Room identifier for the perception (perception_record; defaults to the entity's room).",
+        "perception_sense": "Sense that produced the perception (perception_record; default null; REQ-594).",
+        "perception_source_entity": "Entity the perception came from (perception_record; default null).",
         "perception_summary": "What was perceived (perception_record).",
+        "perception_witness": "Witness kind (perception_record; default inferred; REQ-594).",
         "polarity": "positive or negative (admit).",
         "predicate": "Proposition predicate (admit).",
         "question": "Belief question key, or subject|predicate|object (get/evidence).",
@@ -346,10 +337,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 18,
+        "paramCount": 23,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 18,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 23,
+        "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -359,7 +350,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3747,
+        "definitionBytes": 4480,
         "descriptionBytes": 734
       },
       "category": "",
@@ -378,7 +369,7 @@
         "causal_state",
         "causal_ingress"
       ],
-      "param_count": 42,
+      "param_count": 10,
       "required": [
         "action"
       ],
@@ -392,39 +383,7 @@
         "causal_proposal_id": "Recorded proposal id (causal_admit/causal_reject).",
         "causal_scope": "Scope coordinate (causal_propose; default the active Novel slug).",
         "causal_source_ordinal": "Contributing event-log ordinal (causal_propose; default the latest event).",
-        "causal_value": "Proposed value (causal_propose/causal_ingress).",
-        "climbable": "When true the thing can be climbed (create_thing/update_thing).",
-        "description": "Optional description (create/update).",
-        "direction": "Direction (create_exit/remove_exit).",
-        "drinkable": "When true the thing can be drunk (create_thing/update_thing).",
-        "edible": "When true the thing can be eaten (create_thing/update_thing).",
-        "enterable": "When true the thing can be entered (create_thing/update_thing).",
-        "fixed": "When true the thing cannot be taken (create_thing/update_thing).",
-        "from": "Source room alias for room_a (create_exit).",
-        "key": "Bound key thing name required to unlock or lock this thing when lockable (create_thing/update_thing).",
-        "kind": "Optional thing kind (create_thing).",
-        "lit": "When true the thing is lit (create_thing/update_thing).",
-        "location": "Optional containing room or thing (create_thing/update_thing).",
-        "location_type": "Where the thing is placed (create_thing).",
-        "lockable": "When true the thing can be locked (create_thing/update_thing).",
-        "locked": "When true the thing starts locked (create_thing/update_thing).",
-        "name": "Room/thing name (create/update/remove).",
-        "noise": "Auditory cue text reported by listen (create_thing/update_thing).",
-        "openable": "When true the thing can be opened (create_thing/update_thing).",
-        "options": "Generation options (generate): roles maps installed table names to room, objects, persons, or hazards pools; rooms requests a count bounded by TTRPG_WORLD_GEN_MAX_ROOMS.",
-        "read_text": "Text revealed when the thing is read (create_thing/update_thing).",
-        "readable": "When true the thing can be read (create_thing/update_thing).",
-        "room": "Source room (create_exit/remove_exit).",
-        "room_a": "Source room (create_exit).",
-        "room_b": "Destination room (create_exit).",
-        "scent": "Olfactory cue text reported by smell (create_thing/update_thing).",
-        "seed": "Deterministic seed (generate).",
-        "source": "Hybrid world-model source text (convert).",
-        "switchable": "When true the thing can be switched (create_thing/update_thing).",
-        "switched_on": "When true the thing is switched on (create_thing/update_thing).",
-        "to": "Destination room alias for room_b (create_exit).",
-        "transparent": "When true the thing is transparent (create_thing/update_thing).",
-        "wearable": "When true the thing can be worn (create_thing/update_thing)."
+        "causal_value": "Proposed value (causal_propose/causal_ingress)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -437,12 +396,12 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 43,
+        "paramCount": 11,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 43,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 11,
+        "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": true,
+        "hasNestedObjects": false,
         "requiredFieldCount": 1,
         "schemaDepth": 1,
         "unionChoiceCount": 0,
@@ -450,7 +409,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6405,
+        "definitionBytes": 2739,
         "descriptionBytes": 528
       },
       "category": "",
@@ -716,13 +675,11 @@
         "corpus_consume",
         "corpus_acquisitions"
       ],
-      "param_count": 25,
+      "param_count": 12,
       "required": [
         "action"
       ],
       "params": {
-        "badge_scope": "game_master or shared (set/update).",
-        "content": "Lore content (set/update).",
         "corpus_access_domains": "Knowledge domains granted access (corpus_register).",
         "corpus_access_public": "Whether every entity may consume it (corpus_register; default false).",
         "corpus_body": "Document reference text (corpus_register).",
@@ -734,18 +691,7 @@
         "corpus_grants": "Entity ids explicitly granted access (corpus_register).",
         "corpus_mode": "read, research, taught, or import (corpus_consume; default read).",
         "corpus_source_profile": "Trusted source profile the domain is routed from (corpus_register; default manual).",
-        "corpus_title": "Document title (corpus_register).",
-        "data": "JSON or Markdown lorebook data (import).",
-        "detail": "Return full lore entries instead of summary entries (list).",
-        "entity_id": "Entity to reveal to / whose knowledge to read (reveal/knowledge).",
-        "format": "Optional output format (export).",
-        "group": "Group name, or null to clear (set/update/group).",
-        "key": "Lore key (set/update/remove/toggle/group/get).",
-        "mode": "dry-run, merge, or replace (import).",
-        "priority": "Optional priority (set/update).",
-        "sticky": "Optional sticky weight (set/update).",
-        "triggers": "Optional recall triggers (set/update).",
-        "world_target": "Optional world-model target reference (set/set_secret)."
+        "corpus_title": "Document title (corpus_register)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -758,10 +704,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 26,
+        "paramCount": 13,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 26,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 13,
+        "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -771,7 +717,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4473,
+        "definitionBytes": 3220,
         "descriptionBytes": 629
       },
       "category": "",
@@ -1591,32 +1537,19 @@
         "briefing_order",
         "discover"
       ],
-      "param_count": 21,
+      "param_count": 8,
       "required": [
         "action"
       ],
       "params": {
-        "audience": "Audience badge for a visibility check (visibility_check; default the active badge).",
         "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
-        "category": "New category label, or null/empty to restore the default (category).",
         "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
-        "include_superseded": "Include superseded events (history; default true).",
-        "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
         "mode": "normal or terse (verbosity).",
-        "ordinals": "Exact event ordinals to return in order (history; REQ-591).",
         "query": "Optional search term matched against tool name, description, and title (discover).",
         "sections": "Ordered list of briefing sections (briefing_order).",
         "session_id": "Archived session id to include in recap (recap).",
-        "sessions": "Number of recent sessions to retain live; triggers irreversible compaction (compact; default TTRPG_AUDIT_RETENTION_SESSIONS).",
-        "source": "Event source classification (event).",
-        "supersede": "Ordinal of an event this observation replaces (event).",
-        "text": "Observation text (event).",
-        "through_ordinal": "Return events up to and including this ordinal (history).",
-        "tier": "Compression tier to assemble (recap; REQ-592).",
-        "to_event": "Target event ordinal for replay inspection (replay; default the newest retained entry).",
-        "tool_name": "Registered tool name to reassign (category).",
-        "topics": "Notification topics to subscribe to (subscribe)."
+        "tier": "Compression tier to assemble (recap; REQ-592)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -1629,10 +1562,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 22,
+        "paramCount": 9,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 22,
-        "paramsWithEnums": 6,
+        "paramsWithDescriptions": 9,
+        "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1642,7 +1575,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4910,
+        "definitionBytes": 3284,
         "descriptionBytes": 911
       },
       "category": "",
@@ -1659,38 +1592,21 @@
         "cast",
         "next_speaker"
       ],
-      "param_count": 28,
+      "param_count": 11,
       "required": [
         "action"
       ],
       "params": {
-        "adventure_scene": "Adventure-scene waypoint anchor; empty or null clears (set).",
         "after_user": "Reset the pooled spoken-set for a new user turn (next_speaker).",
-        "allow_freeform": "Allow free-form response (choices).",
-        "atmosphere": "Atmosphere (set).",
-        "beat": "Story-beat tag (set): setup, escalation, turning_point, climax, resolution, denouement.",
-        "choices": "List of choices (choices).",
         "confirmation": "Confirmation mode (autonomy).",
-        "context": "Context for the choice (choices).",
         "creativity": "Creativity (autonomy).",
-        "description": "Scene description (set).",
-        "directive": "Narrative directive (directive).",
         "entity_ids": "Entities present (presence).",
-        "fast_forward": "Narrative fast-forward (set).",
         "force": "NPC forced as the next speaker (cast/next_speaker).",
         "level": "Autonomy level (autonomy).",
-        "likelihood": "Likelihood tier (oracle).",
-        "location": "Scene location (set).",
         "mute": "NPC muted from speaker selection (cast).",
-        "prompt": "Choice prompt (choices).",
-        "question": "Question to resolve (oracle).",
         "safety": "Safety tier (autonomy).",
-        "scene_type": "Scene-type tag or array (set).",
-        "seed": "Deterministic seed (oracle).",
         "select": "NPC selected as the manual speaker (cast/next_speaker).",
-        "skip_transition_hook": "Skip the scene-transition hook (set).",
         "strategy": "Speaker-selection strategy (cast).",
-        "time_of_day": "Time of day (set).",
         "unmute": "NPC restored to speaker selection (cast)."
       },
       "output_fields": {
@@ -1704,12 +1620,12 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 29,
+        "paramCount": 12,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 29,
-        "paramsWithEnums": 8,
+        "paramsWithDescriptions": 12,
+        "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": true,
+        "hasNestedObjects": false,
         "requiredFieldCount": 1,
         "schemaDepth": 1,
         "unionChoiceCount": 0,
@@ -1717,7 +1633,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4858,
+        "definitionBytes": 2510,
         "descriptionBytes": 502
       },
       "category": "",
@@ -1782,8 +1698,8 @@
     {
       "name": "manage_synthesis",
       "title": "Synthesis Management",
-      "description": "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying citations, recording or reverting a ruling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
-      "description_bytes": 967,
+      "description": "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted; ruling_list reads the ledger newest-first. Undo the latest mutation with manage_history. activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying, recording or reading rulings, or player-authoring items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
+      "description_bytes": 965,
       "action_enum": [
         "run",
         "revert",
@@ -1797,9 +1713,10 @@
         "player_list",
         "verify",
         "record_ruling",
-        "revert_ruling"
+        "revert_ruling",
+        "ruling_list"
       ],
-      "param_count": 11,
+      "param_count": 13,
       "required": [
         "action"
       ],
@@ -1809,7 +1726,9 @@
         "detail": "Return full entries (list).",
         "enabled": "Enable or disable (toggle).",
         "force": "Re-run even if unchanged (run).",
+        "include_reverted": "Include reverted rulings (ruling_list; default false).",
         "key": "Item key (activate: number; player_add/player_remove/verify/record_ruling: string).",
+        "max_entries": "Maximum rulings to return, newest first (ruling_list; default 20).",
         "module": "Synthesis module (activate/deactivate/toggle/player_*/list/verify/record_ruling).",
         "query": "Question the ruling answers (record_ruling).",
         "ruling": "Ruling text to record (record_ruling).",
@@ -1827,9 +1746,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 12,
+        "paramCount": 14,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 12,
+        "paramsWithDescriptions": 14,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1840,8 +1759,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3066,
-        "descriptionBytes": 967
+        "definitionBytes": 3364,
+        "descriptionBytes": 965
       },
       "category": "",
       "gate": ""

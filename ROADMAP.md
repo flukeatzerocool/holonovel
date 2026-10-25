@@ -6,6 +6,13 @@
   Update this file when planning a release.
 -->
 
+## Recap notation and configurable bounds
+
+- REQ-072f/g declare `format` (markdown/lonelog), `max_transitions`, and
+  `max_rolls` on `manage_session (action: recap)`, but the current schema and
+  handler do not expose or honor them. Implement the Lonelog formatter and
+  bounded arrays; T272 is the target. (REQ-072)
+
 ## Since-creation absence for location-gated discovery
 
 - Discovery currently checks presence at countdown fire time. A full

@@ -313,6 +313,13 @@ export class RulesetManager {
     return [...this.installed.keys()];
   }
 
+  // Content hash of one installed package (for export manifests). Returns
+  // null when the slug is absent or no package is bound.
+  contentHashFor(slug: string | null | undefined): string | null {
+    if (!slug) return null;
+    return this.installed.get(slug)?.content_hash ?? null;
+  }
+
   // REQ-065b — a stable digest over installed package slugs and content hashes,
   // for build-fingerprint drift comparison at startup (REQ-065f).
   contentHashDigest(): string {

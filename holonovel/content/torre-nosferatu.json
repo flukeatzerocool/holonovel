@@ -72,7 +72,7 @@
       }
     }
   },
-  "data_format": "3eea25ee843ac1f137a2f106054820500cfa39676a4237cc072fa7c014db47a6",
+  "data_format": "3b14d74b193885b83d1e9a251497cccbfbc755eda69ae11057ac7cb1189373ee",
   "description": "Torre Nosferatu — a gothic-horror descent. You wake at the top of a seven-floor tower with one candle and no memory of climbing. Every floor hides a key to the stair down; the wax burns with every step, the survivors are strangers, and Dread is the weather. Count Orlok rides the edge of your light — he does not pursue, he collects. You name yourself at the opening; the rest you earn on your own light.",
   "entities": {
     "character_01": {
@@ -537,15 +537,23 @@
       "mind": {
         "auto_play": true,
         "directive": "Stay near the wax cache. Trade light only for a gain — never a fair swap he does not win. Trail the player if they carry wax; withdraw toward his stash if they come near it. He never attacks: he refuses and counts.",
+        "identity_core": [
+          "Keeps the tower's floors in order",
+          "Distrusts idle guests"
+        ],
         "private_journal": [
           "The new one woke on the top floor tonight. One candle. Easy to outlast.",
           "Spent a match to keep my own stub alive rather than share it. Correct."
+        ],
+        "shared_notes": [
+          "Knows which wax caches are still full"
         ]
       },
       "name": "Vlask",
       "personality": {
         "goals": "Keep his wax cache intact and reach the exit without spending more of himself than he must."
-      }
+      },
+      "talkativeness": 80
     },
     "npc_mv4m163y": {
       "condition_rounds": {},
@@ -557,15 +565,23 @@
       "mind": {
         "auto_play": true,
         "directive": "Trade knowledge, never light. Ask for pages and give floor-layout or key-whereabouts hints in return; offer safe-passage information for a page. Roam the fourth floor and below; never the Spire. She will not spend wax to help, but she will point.",
+        "identity_core": [
+          "Shelters the lost",
+          "Speaks plainly"
+        ],
         "private_journal": [
           "The new arrival reads like a solicitor — wants information before light. I have the former to spare.",
           "The tower's regions contradict each other. I collect the disagreement; it is the only map that holds."
+        ],
+        "shared_notes": [
+          "Knows the teaching nest's lesson"
         ]
       },
       "name": "Sister Marta",
       "personality": {
         "goals": "Preserve what the tower remembers; know the way even if she never walks it."
-      }
+      },
+      "talkativeness": 55
     },
     "npc_mv4m16y8": {
       "condition_rounds": {},
@@ -585,7 +601,8 @@
       "name": "Ilona",
       "personality": {
         "goals": "Reach the door ahead of everyone else, by whatever bargain buys the next landing."
-      }
+      },
+      "talkativeness": 65
     },
     "npc_mv4m17mi": {
       "condition_rounds": {},
@@ -605,7 +622,8 @@
       "name": "Petr",
       "personality": {
         "goals": "Not leave anyone alone in the dark; reach the ground floor alive, and in company."
-      }
+      },
+      "talkativeness": 40
     },
     "npc_mv4m18a8": {
       "condition_rounds": {},
@@ -625,7 +643,8 @@
       "name": "Nadja",
       "personality": {
         "goals": "Reach the exit first and sell the knowledge of how she did it."
-      }
+      },
+      "talkativeness": 45
     },
     "npc_mv4m19ls": {
       "condition_rounds": {},
@@ -646,7 +665,8 @@
       "name": "Count Orlok",
       "personality": {
         "goals": "Wait out the flame. Take the light when it fails."
-      }
+      },
+      "talkativeness": 90
     }
   },
   "pending_workflow": {
@@ -1211,15 +1231,23 @@
             "mind": {
               "auto_play": true,
               "directive": "Stay near the wax cache. Trade light only for a gain — never a fair swap he does not win. Trail the player if they carry wax; withdraw toward his stash if they come near it. He never attacks: he refuses and counts.",
+              "identity_core": [
+                "Keeps the tower's floors in order",
+                "Distrusts idle guests"
+              ],
               "private_journal": [
                 "The new one woke on the top floor tonight. One candle. Easy to outlast.",
                 "Spent a match to keep my own stub alive rather than share it. Correct."
+              ],
+              "shared_notes": [
+                "Knows which wax caches are still full"
               ]
             },
             "name": "Vlask",
             "personality": {
               "goals": "Keep his wax cache intact and reach the exit without spending more of himself than he must."
-            }
+            },
+            "talkativeness": 80
           },
           "npc_mv4m163y": {
             "condition_rounds": {},
@@ -1231,15 +1259,23 @@
             "mind": {
               "auto_play": true,
               "directive": "Trade knowledge, never light. Ask for pages and give floor-layout or key-whereabouts hints in return; offer safe-passage information for a page. Roam the fourth floor and below; never the Spire. She will not spend wax to help, but she will point.",
+              "identity_core": [
+                "Shelters the lost",
+                "Speaks plainly"
+              ],
               "private_journal": [
                 "The new arrival reads like a solicitor — wants information before light. I have the former to spare.",
                 "The tower's regions contradict each other. I collect the disagreement; it is the only map that holds."
+              ],
+              "shared_notes": [
+                "Knows the teaching nest's lesson"
               ]
             },
             "name": "Sister Marta",
             "personality": {
               "goals": "Preserve what the tower remembers; know the way even if she never walks it."
-            }
+            },
+            "talkativeness": 55
           },
           "npc_mv4m16y8": {
             "condition_rounds": {},
@@ -1259,7 +1295,8 @@
             "name": "Ilona",
             "personality": {
               "goals": "Reach the door ahead of everyone else, by whatever bargain buys the next landing."
-            }
+            },
+            "talkativeness": 65
           },
           "npc_mv4m17mi": {
             "condition_rounds": {},
@@ -1279,7 +1316,8 @@
             "name": "Petr",
             "personality": {
               "goals": "Not leave anyone alone in the dark; reach the ground floor alive, and in company."
-            }
+            },
+            "talkativeness": 40
           },
           "npc_mv4m18a8": {
             "condition_rounds": {},
@@ -1299,7 +1337,8 @@
             "name": "Nadja",
             "personality": {
               "goals": "Reach the exit first and sell the knowledge of how she did it."
-            }
+            },
+            "talkativeness": 45
           },
           "npc_mv4m19ls": {
             "condition_rounds": {},
@@ -1320,7 +1359,8 @@
             "name": "Count Orlok",
             "personality": {
               "goals": "Wait out the flame. Take the light when it fails."
-            }
+            },
+            "talkativeness": 90
           }
         },
         "pending_workflow": null,
@@ -3054,11 +3094,13 @@
               "lockable": false,
               "locked": false,
               "name": "Seventh Floor Key",
+              "noise": "A faint metallic chime.",
               "open": false,
               "openable": false,
               "portable": true,
               "read_text": null,
               "readable": false,
+              "scent": "Cold iron.",
               "switchable": false,
               "switched_on": false,
               "transparent": false,
@@ -3081,11 +3123,13 @@
               "lockable": true,
               "locked": true,
               "name": "Seventh Floor Stair Door",
+              "noise": "A low groan of old hinges.",
               "open": false,
               "openable": true,
               "portable": false,
               "read_text": null,
               "readable": false,
+              "scent": "Dust and stone.",
               "switchable": false,
               "switched_on": false,
               "transparent": false,
@@ -3318,11 +3362,13 @@
               "lockable": false,
               "locked": false,
               "name": "Your Candle",
+              "noise": "A soft wax crackle.",
               "open": false,
               "openable": false,
               "portable": true,
               "read_text": null,
               "readable": false,
+              "scent": "Wax and smoke.",
               "switchable": true,
               "switched_on": true,
               "transparent": false,
@@ -3494,7 +3540,7 @@
   ],
   "session_zero_completed": false,
   "slug": "torre-nosferatu",
-  "spec_version": "2026.10.24",
+  "spec_version": "2026.10.25",
   "story_beats": [
     {
       "beat": "setup",
@@ -5067,11 +5113,13 @@
         "lockable": false,
         "locked": false,
         "name": "Seventh Floor Key",
+        "noise": "A faint metallic chime.",
         "open": false,
         "openable": false,
         "portable": true,
         "read_text": null,
         "readable": false,
+        "scent": "Cold iron.",
         "switchable": false,
         "switched_on": false,
         "transparent": false,
@@ -5094,11 +5142,13 @@
         "lockable": true,
         "locked": true,
         "name": "Seventh Floor Stair Door",
+        "noise": "A low groan of old hinges.",
         "open": false,
         "openable": true,
         "portable": false,
         "read_text": null,
         "readable": false,
+        "scent": "Dust and stone.",
         "switchable": false,
         "switched_on": false,
         "transparent": false,
@@ -5331,11 +5381,13 @@
         "lockable": false,
         "locked": false,
         "name": "Your Candle",
+        "noise": "A soft wax crackle.",
         "open": false,
         "openable": false,
         "portable": true,
         "read_text": null,
         "readable": false,
+        "scent": "Wax and smoke.",
         "switchable": true,
         "switched_on": true,
         "transparent": false,

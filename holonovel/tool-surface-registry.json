@@ -4534,7 +4534,7 @@
         "closed"
       ],
       "entry": false,
-      "mutation_class": "read",
+      "mutation_class": "write",
       "ruleset": null,
       "preconditions": [],
       "successors": [],
@@ -4757,6 +4757,23 @@
       "preconditions": [],
       "successors": [],
       "edges": []
+    },
+    "manage_synthesis.ruling_list": {
+      "group": "author",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "mutation_class": "read"
     }
   }
 }

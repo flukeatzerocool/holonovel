@@ -703,6 +703,12 @@ pass and completion-oracle green. Fix evidence: regression tests in
   remains open if exact REQ-340 timing is required. Tracked in ROADMAP.md.
   (REQ-340a)
 
+- **Recap notation and configurable bounds (scheduled 2026-10-25):** REQ-072f/g
+  declare `format` (`markdown`/`lonelog`), `max_transitions`, and `max_rolls`
+  on `manage_session (action: recap)`, but `MANAGE_SESSION_SCHEMA` and the
+  handler do not expose or honor them; T272 has no exercised evidence. Tracked
+  in ROADMAP.md. (REQ-072)
+
 ## Closed-P3 (recorded, no action)
 
 - **Multi-step replay call cost (REQ-586) — closed 2026-10-24:** the replay
@@ -951,7 +957,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 - **Audit remediation publication (AU-3) — deferred 2026-10-24:** the operator
   authorized execution with "execute plan, don't publish". The code and spec
-  changes are complete and gated locally; the Spec Update entry, commit, push,
-  and deploy verification remain pending operator authorization. Evidence:
-  `spec-update-record --check` still reports the unpublished delta, and the
-  working tree is uncommitted by design.
+  changes were committed; push and deploy verification remain pending operator
+  authorization. Evidence: `spec-update-record --check` still reports the
+  unpublished delta.

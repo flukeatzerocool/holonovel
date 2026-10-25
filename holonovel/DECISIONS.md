@@ -1,12 +1,39 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 6b361b0af476768917b567f8e827f81707502e8565439192455d7bc649fdd7be
+**Spec hash:** a7db4190a0bab8785092c63f7434ce535c119f22c9def10bee07349376c1319f
 
-**Recorded tool budget:** 36 listed (229 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 36 listed (230 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,275 tokens; standard 24,774; small 1,282; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,024 tokens; standard 22,523; small 1,159; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+
+### Two-week review remediation — 2026-10-25
+
+- **D1 — one state-copy policy.** `applyNovelState` takes `undo` or `replace`
+  mode. `undo` restores mutable story state and preserves the append-only
+  logs and bookkeeping; `replace` restores a full interchange payload.
+  Clone/branch/checkpoint use the one `exportNovelJSON` serializer; snapshots
+  never embed checkpoints or append-only logs. (REQ-240a, REQ-241a, REQ-456,
+  REQ-540, REQ-601)
+- **D2 — badge-scoped memory.** Tier derivation takes the active badge.
+  Player/Observer recaps omit secrets, GM-scoped lore, and GM-sourced events;
+  persisted GM tiers are not served to a non-GM caller. (REQ-072i, REQ-590,
+  REQ-591)
+- **D3 — the ruling ledger is readable.** `manage_synthesis (action:
+  ruling_list)` returns the GM-only ledger newest-first, with optional reverted
+  entries. (REQ-589)
+- **D4 — memory refreshes at session close.** `StateManager
+  .refreshCompressionLadder` persists the campaign tier on `close_session`
+  (the arc tier still needs `audit_archive` from compaction). (REQ-590)
+- **D5 — export manifest is computed.** `ruleset_hash` carries the bound
+  package content hash; `property_groups_present` is derived from the populated
+  payload. (REQ-096)
+- **D6 — bounded storage defaults.** Checkpoints 25, event log 50,000,
+  perceptions 20,000; `0` still means unlimited. (REQ-241b, REQ-455, REQ-540)
+- **D7 — split tools carry minimal schemas.** Parent schemas are filtered with
+  `pickParams`; `manage_session` exposes its four canonical actions while
+  `manage_diagnostics` keeps the full diagnostics schema. (REQ-570, REQ-581)
 
 ### Two-week audit remediation — 2026-10-24
 
@@ -123,6 +150,13 @@
 - The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-25 (Two-week review remediation: state integrity, badge safety, and surface defaults)
+
+- **Delta class:** minor. Changed surfaces: Two-week review remediation: state integrity, badge safety, and surface defaults; Torre Nosferatu wax economy (start at 30, refill by finding wax); Holosuite anchor refresh and Torre Nosferatu difficulty clock; Response-lean enumeration, retired-alias schema cleanup, call-cost baseline; Character-roleplay learnings: social cast, NPC identity, cards.
+- **Verification:** `npm run build-order` complete (assemble → full `check` → propagate → version sync), 0 errors / 226 proofreading warnings; `npm run check:fast` PASS (28/28); targeted harnesses pass — persistence 36/36, memory-recall 6/6, perception 12/12, supplementary 4/4, security 9/9, competitive-gaps 27/27, starter-novel 8/8, tool-definitions 16/16; contract and data-format fingerprints advanced with the spec hash.
+
+<!-- @spec-update:a7db4190a0bab8785092c63f7434ce535c119f22c9def10bee07349376c1319f -->
 
 ### Holonovel Spec Update — 2026-10-22 (TDQS description pass: parameter semantics, mutation disclosure, and undo fixes)
 
