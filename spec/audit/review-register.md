@@ -11,6 +11,25 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Fingerprint-delta record and publication update evidence — resolved
+  2026-10-25:** reopens and supersedes the 2026-09-26 Closed-P3 "Pipeline step-4
+  flag" row with two confirmed predicates, not a message. (1) The advisory
+  branch was unenforceable: `scripts/update-server.ts` reconciled the stored
+  baseline at the former lines 284-286 *before* the printed `opencode run`
+  command could execute (289-291), so a skipped or failed invocation was
+  recorded as applied, and a `changedCount > 2` run exited 0. (2) REQ-313a and
+  REQ-314b require the five component hashes and the fingerprint delta summary
+  in DECISIONS.md at every build; the 2026-10-25 publication recorded neither
+  (`holonovel/DECISIONS.md` Spec Update entry for `f4bc3d04…`), and no check
+  implemented T497. Fixed by emitting `fingerprint-deltas.json` from
+  `update-server.ts`, rendering it as the gated `**Fingerprint delta:**` bullet
+  in `spec-update-record.ts`, reconciling only after a successful invocation,
+  and blocking a Minor/Major delta with advanced fingerprints and no evidence
+  (REQ-394a, T84e). Evidence: `test-update-workflow` 16 passed, `test-spec-tooling`
+  31 passed, `check:fast` / `check` green. Reopen only if a Minor/Major delta
+  with advanced fingerprints publishes without either a recorded deferral or an
+  executed invocation.
+
 - **Character-roleplay market learnings — resolved 2026-10-24:** the five
   findings from the adjacent-market research shipped. Social cast strategy and
   speaker selection (REQ-611/612, T727/T728), NPC `talkativeness` (REQ-075g,
@@ -823,7 +842,11 @@ pass and completion-oracle green. Fix evidence: regression tests in
   machine-recorded baseline, never a hand-edited value, so the divergence is
   expected; a real pipeline run rewrites the baseline and self-heals. No
   demonstrated gate failure; reopen only if a Minor/Major delta with unchanged
-  fingerprints is observed to publish.
+  fingerprints is observed to publish. **Superseded 2026-10-25** — the
+  baseline-lag reading was right for that occurrence, but two adjacent
+  predicates were confirmed on a later recurrence (the advisory branch exited 0
+  after reconciling before invocation, and the REQ-313a/REQ-314b DECISIONS
+  record was never written). See the Resolved entry for REQ-394a/T84e.
 - **Config drift + comment-only-citation false-C** (superseded 2026-09-26): the
   prior Closed-P3 dispositions for "pre-existing config drift" and "SC-7
   comment-only source citations" are withdrawn. The config items are fixed or

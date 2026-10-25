@@ -6,6 +6,14 @@
  * determines rebuild scope (full, partial, scoped, or skip). Records
  * fingerprint baselines for future delta comparisons.
  *
+ * REQ-394a: a Minor/Major delta whose fingerprints advanced requires evidence
+ * that the rebuild ran — an executed invocation or a dated operator deferral in
+ * DECISIONS.md. Without either, publication is blocked and the stored baseline
+ * is left untouched. The baseline is reconciled only after a successful
+ * invocation, so a failed update can never be recorded as applied. Every
+ * scoped run also writes a machine-readable fingerprint delta
+ * (fingerprint-deltas.json) for the Spec Update record (REQ-313a/REQ-314b).
+ *
  * LIMITATION: By default this script prints `opencode run` commands but does
  * NOT invoke them — opencode cannot recursively invoke itself from within an
  * opencode session (that would deadlock). Set `HOLONOVEL_INVOKE_UPDATE=1`
@@ -19,6 +27,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
+import type { FingerprintDelta } from "./lib/spec-update.js";
 
 const root = join(import.meta.dirname, "..");
 // State-dir override (REQ-314): the update-workflow harness points
@@ -77,6 +86,19 @@ function hasRecordedOverride(dir: string, server: string): boolean {
   return pattern.test(readFileSync(path, "utf-8"));
 }
 
+// REQ-394a permits a required rebuild to be deferred only by a dated operator
+// record naming this server and the verification performed. The date must be
+// today, so a stale acknowledgement cannot silently cover a new delta.
+function hasRecordedDeferral(dir: string, server: string): boolean {
+  const path = join(dir, "DECISIONS.md");
+  if (!existsSync(path)) return false;
+  const pattern = new RegExp(
+    `^-\\s+\\*\\*Update-deferred:\\*\\*\\s+${server}\\s+${localDate()}\\b`,
+    "m"
+  );
+  return pattern.test(readFileSync(path, "utf-8"));
+}
+
 function loadStored(): Record<string, StoredRecord> {
   const path = FINGERPRINT_FILE;
   if (!existsSync(path)) return {};
@@ -106,6 +128,32 @@ function compareFingerprints(current: Fingerprints, stored: Fingerprints | undef
     else unchanged.push(key);
   }
   return { changed, unchanged, changedCount: changed.length };
+}
+
+// REQ-313a / REQ-314b — the five component hashes and the scoping decision,
+// emitted for the dated DECISIONS.md Spec Update entry. Deterministic: no
+// timestamp, so a re-run over the same tree writes identical bytes.
+type DeltaRecord = FingerprintDelta;
+
+const DELTA_RECORD_FILE = join(STATE_DIR, "fingerprint-deltas.json");
+
+function scopingFor(changedCount: number, hasPrior: boolean): DeltaRecord["scoping"] {
+  if (!hasPrior) return "seed";
+  if (changedCount > 2) return "full";
+  if (changedCount === 2) return "partial";
+  if (changedCount === 1) return "scoped";
+  return "none";
+}
+
+function writeDeltaRecord(record: DeltaRecord): void {
+  let records: Record<string, DeltaRecord> = {};
+  if (existsSync(DELTA_RECORD_FILE)) {
+    try { records = JSON.parse(readFileSync(DELTA_RECORD_FILE, "utf-8")); }
+    catch { /* corrupt state file: this run's record is authoritative */ records = {}; }
+  }
+  records[serverName] = record;
+  mkdirSync(STATE_DIR, { recursive: true });
+  writeFileSync(DELTA_RECORD_FILE, JSON.stringify(records, null, 2) + "\n");
 }
 
 if (!server) {
@@ -225,12 +273,30 @@ if ((scopeByFingerprint || checkOnly) && previous) {
   const pendingUpdate =
     delta.changedCount === 0 && deltaClass !== "patch" && deltaClass !== "editorial";
 
+  // A zero-change publication still records the delta ("none"), so the Spec
+  // Update entry can state that no component changed (REQ-394a).
+  const writeNoneDelta = (invoked: boolean, deferred: boolean): void =>
+    writeDeltaRecord({
+      spec_hash: currentHash,
+      prior_spec_hash: previous.spec_hash ?? null,
+      changed: [],
+      unchanged: delta.unchanged,
+      changed_count: 0,
+      scoping: "none",
+      invoked,
+      deferred,
+      reused: delta.unchanged,
+      current: currentFingerprints,
+      prior: previous.fingerprints,
+    });
+
   if (pendingUpdate) {
     console.log(`\nPENDING UPDATE: spec ${deltaClass} delta but no implementation fingerprints changed.`);
     updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)} (${deltaClass} delta)."`;
     console.log(`Invoking: ${updateCommand}`);
     if (invokeEnabled && !checkOnly) {
       invokeUpdate(updateCommand);
+      writeNoneDelta(true, false);
       reconcile(currentHash, currentFingerprints);
       process.exit(0);
     }
@@ -246,6 +312,7 @@ if ((scopeByFingerprint || checkOnly) && previous) {
       process.exit(1);
     }
     console.log(`  (overridden with --allow-pending — recording reconciled hash without performing the update.)`);
+    writeNoneDelta(false, true);
     reconcile(currentHash, currentFingerprints);
     process.exit(0);
   }
@@ -253,16 +320,52 @@ if ((scopeByFingerprint || checkOnly) && previous) {
   if (delta.changedCount === 0) {
     console.log("Spec hash changed (patch-class) with no implementation fingerprints changed — nothing to rebuild.");
     if (checkOnly) { console.log("  (check mode — no write)"); process.exit(0); }
+    writeNoneDelta(false, false);
     reconcile(currentHash, currentFingerprints);
     process.exit(0);
   }
 
   if (checkOnly) { process.exit(0); }
 
-  if (delta.changedCount > 2) {
+  // REQ-394a — a Minor/Major delta whose implementation fingerprints advanced
+  // needs evidence that the rebuild ran: an executed invocation or a dated
+  // operator deferral. Reconcile only after a successful invocation, so a
+  // failed update is never recorded as applied.
+  const scoping = scopingFor(delta.changedCount, true);
+  const requiresEvidence = deltaClass === "minor" || deltaClass === "major";
+  let deferred = false;
+  if (requiresEvidence && !invokeEnabled) {
+    // HOLONOVEL_DECISIONS_DIR isolates the record lookup for the harness (the
+    // same way HOLONOVEL_STATE_DIR isolates the fingerprint baseline).
+    const decisionsDir = process.env.HOLONOVEL_DECISIONS_DIR ?? serverDir;
+    if (!hasRecordedDeferral(decisionsDir, server)) {
+      writeDeltaRecord({
+        spec_hash: currentHash,
+        prior_spec_hash: previous.spec_hash ?? null,
+        changed: delta.changed,
+        unchanged: delta.unchanged,
+        changed_count: delta.changedCount,
+        scoping,
+        invoked: false,
+        deferred: false,
+        reused: delta.unchanged,
+        current: currentFingerprints,
+        prior: previous.fingerprints,
+      });
+      console.error(`\nUPDATE REQUIRED: spec ${deltaClass} delta advanced ${delta.changedCount} fingerprint component(s) (${delta.changed.join(", ")}); scoping: ${scoping}.`);
+      console.error(`Publication is blocked until the rebuild is evidenced (REQ-394a).`);
+      console.error(`  Run the update outside a session: HOLONOVEL_INVOKE_UPDATE=1 npx tsx scripts/update-server.ts --server ${server} --scope-by-fingerprint`);
+      console.error(`  Or record a dated deferral in ${join(decisionsDir, "DECISIONS.md")}:`);
+      console.error(`- **Update-deferred:** ${server} ${localDate()} — <revision range and verification performed>`);
+      process.exit(1);
+    }
+    deferred = true;
+  }
+
+  if (scoping === "full") {
     console.log(`>2 components changed — full Build workflow required.`);
     updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)}. Full rebuild needed."`;
-  } else if (delta.changedCount === 1) {
+  } else if (scoping === "scoped") {
     console.log(`Only ${delta.changed[0]} changed — scoped rebuild (typecheck + affected Pattern Buffer sub-workflows).`);
     updateCommand = `opencode run --agent build "Perform scoped Update on ${server}. Only ${delta.changed[0]} changed. Typecheck and re-run affected Pattern Buffer sub-workflows."`;
   } else {
@@ -270,6 +373,29 @@ if ((scopeByFingerprint || checkOnly) && previous) {
     updateCommand = `opencode run --agent build "Perform partial Update on ${server}. Changed: ${delta.changed.join(", ")}. Implement only changed surfaces and their dependents."`;
   }
   console.log(`Invoking: ${updateCommand}`);
+  if (invokeEnabled) invokeUpdate(updateCommand);
+  writeDeltaRecord({
+    spec_hash: currentHash,
+    prior_spec_hash: previous.spec_hash ?? null,
+    changed: delta.changed,
+    unchanged: delta.unchanged,
+    changed_count: delta.changedCount,
+    scoping,
+    invoked: invokeEnabled,
+    deferred,
+    reused: delta.unchanged,
+    current: currentFingerprints,
+    prior: previous.fingerprints,
+  });
+  reconcile(currentHash, currentFingerprints);
+  if (invokeEnabled) {
+    console.log("\nFingerprints saved. Update workflow invoked.");
+  } else if (deferred) {
+    console.log("\nFingerprints saved. Rebuild deferred with a dated DECISIONS.md acknowledgement (REQ-394a).");
+  } else {
+    console.log("\nFingerprints saved. Next: run the printed `opencode run` command to perform the actual update.");
+  }
+  process.exit(0);
 } else {
   if (checkOnly) {
     console.log(`\nNo stored fingerprints — cannot determine pending-update status.`);

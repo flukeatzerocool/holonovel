@@ -9,6 +9,10 @@
  * `--verification` prefills the line with completed gate evidence; without it
  * the operator fills the scaffolded placeholder.
  *
+ * The fingerprint delta emitted by update-server.ts (`fingerprint-deltas.json`,
+ * REQ-313a/REQ-314b) is rendered as a `**Fingerprint delta:**` bullet. `--check`
+ * fails a Minor/Major entry that lacks it.
+ *
  * `--check` exits non-zero when the stored spec hash differs from the assembled
  * spec but no dated entry exists for today — the backstop for a hand-edited
  * hash line. Idempotent: a re-run with an unchanged spec hash is a no-op.
@@ -22,18 +26,30 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { handleHelp, parseFlag, parseValueFlag } from "./lib/args.js";
 import { SERVERS } from "./lib/servers.js";
-import { hasUnfilledVerification } from "./lib/spec-update.js";
+import {
+  entryFor,
+  hasFingerprintDelta,
+  hasUnfilledVerification,
+  isLegacyDeltaExempt,
+  renderFingerprintDelta,
+  type FingerprintDelta,
+} from "./lib/spec-update.js";
 
 const root = join(import.meta.dirname, "..");
 const SPEC_PATH = join(root, "holonovel.md");
+const STATE_DIR = process.env.HOLONOVEL_STATE_DIR ?? join(root, ".holonovel-state");
+const DEFAULT_DELTA_RECORD = join(STATE_DIR, "fingerprint-deltas.json");
 
-const USAGE = `Usage: npx tsx scripts/spec-update-record.ts [--check] [--dry-run] [--verification <text>]
+const USAGE = `Usage: npx tsx scripts/spec-update-record.ts [--check] [--dry-run] [--verification <text>] [--delta-record <path>]
 
   --check      Exit 1 when an unpublished spec delta has no dated Spec Update
-               entry for today, or when its Verification line is still the
-               scaffolded placeholder; no files are written.
+               entry for today, when its Verification line is still the
+               scaffolded placeholder, or when a Minor/Major entry lacks the
+               fingerprint delta line (REQ-313a/REQ-314b); no files are written.
   --dry-run    Print the entry that would be inserted; write nothing.
   --verification <text>  Prefill the Verification line with completed gate evidence.
+  --delta-record <path>  Fingerprint delta record written by update-server.ts.
+               Default: <root>/.holonovel-state/fingerprint-deltas.json.
   --help, -h   Show this message.
 
 Exit codes: 0 = present / written / already recorded, 1 = missing under --check
@@ -92,7 +108,19 @@ function priorBaselineDate(decisions: string): string | null {
   return dates.length > 0 ? dates.sort().pop()! : null;
 }
 
-function renderEntry(decisions: string, specHash: string, classification: string, verification: string | null): string {
+function loadDeltaRecord(path: string, server: string): FingerprintDelta | null {
+  if (!existsSync(path)) return null;
+  try {
+    const records = JSON.parse(readFileSync(path, "utf-8")) as Record<string, FingerprintDelta>;
+    return records[server] ?? null;
+  } catch {
+    // A corrupt record must not crash the publish; the entry is written
+    // without the bullet and --check reports the omission instead.
+    return null;
+  }
+}
+
+function renderEntry(decisions: string, specHash: string, classification: string, verification: string | null, delta: FingerprintDelta | null): string {
   const today = localDate();
   const baseline = priorBaselineDate(decisions);
   // CHANGELOG is newest-first, so the most recent entries are at the head.
@@ -104,11 +132,13 @@ function renderEntry(decisions: string, specHash: string, classification: string
   const changed = recent.length > 0
     ? recent.map((e) => e.title).join("; ")
     : "spec changed (see CHANGELOG)";
+  const body = [`- **Delta class:** ${classification}. Changed surfaces: ${changed}.`];
+  if (delta && delta.spec_hash === specHash) body.push(renderFingerprintDelta(delta));
+  body.push(`- **Verification:** ${verification && verification.trim() ? verification.trim() : "_fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._"}`);
   return [
     `### Holonovel Spec Update — ${today} (${summary})`,
     "",
-    `- **Delta class:** ${classification}. Changed surfaces: ${changed}.`,
-    `- **Verification:** ${verification && verification.trim() ? verification.trim() : "_fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._"}`,
+    ...body,
     "",
     `<!-- @spec-update:${specHash} -->`,
     "",
@@ -131,6 +161,7 @@ function insertEntry(decisions: string, entry: string): string {
 const checkMode = parseFlag(process.argv, "--check");
 const dryRun = parseFlag(process.argv, "--dry-run");
 const verification = parseValueFlag(process.argv, "--verification");
+const deltaRecordPath = parseValueFlag(process.argv, "--delta-record") ?? DEFAULT_DELTA_RECORD;
 handleHelp(process.argv, USAGE);
 
 if (!existsSync(SPEC_PATH)) {
@@ -148,13 +179,22 @@ for (const server of SERVERS) {
   const decisions = readFileSync(decisionsPath, "utf-8");
   const report = deltaReport(server);
   const hasTodayEntry = new RegExp(`^### Holonovel Spec Update — ${today}\\b`, "m").test(decisions);
+  const delta = loadDeltaRecord(deltaRecordPath, server);
 
   if (checkMode) {
+    const entry = entryFor(decisions, specHash, today);
+    const requiresDeltaLine =
+      (report.classification === "minor" || report.classification === "major") &&
+      !isLegacyDeltaExempt(specHash);
     if (!report.inSync && !hasTodayEntry) {
       console.error(`ERROR: ${server}: unpublished spec delta with no '### Holonovel Spec Update — ${today}' entry.`);
       failed = true;
     } else if (hasUnfilledVerification(decisions, specHash, today)) {
       console.error(`ERROR: ${server}: Spec Update entry still carries the scaffolded Verification placeholder (Appendix V.4).`);
+      failed = true;
+    } else if (requiresDeltaLine && entry !== null && !hasFingerprintDelta(entry)) {
+      console.error(`ERROR: ${server}: Spec Update entry for ${specHash.slice(0, 8)}… lacks the fingerprint delta line (REQ-313a/REQ-314b).`);
+      console.error(`       The delta record is written by update-server.ts; expected at ${deltaRecordPath}.`);
       failed = true;
     } else {
       console.log(`  OK   ${server}: Spec Update record ${hasTodayEntry ? "present" : "not required (no unpublished delta)"}`);
@@ -167,7 +207,7 @@ for (const server of SERVERS) {
     continue;
   }
 
-  const entry = renderEntry(decisions, specHash, report.classification, verification);
+  const entry = renderEntry(decisions, specHash, report.classification, verification, delta);
   if (dryRun) {
     console.log(`  --- ${server}/DECISIONS.md (dry run) ---`);
     process.stdout.write(entry + "\n");

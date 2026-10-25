@@ -23,7 +23,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–561, 563, 564 |
+| 5.18   | Workflow Entry Points                                   | 394a, 395–398, 418, 420–424, 428, 429, 556–561, 563, 564 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412, 412a, 611, 612 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -3896,6 +3896,9 @@ A Minor or Major spec delta (§6.7) SHALL NOT propagate to a repository or deplo
 Publication tooling SHALL detect REQ-body modifications and SHALL NOT classify a delta as patch when any REQ body changed. Such a delta SHALL classify as Editorial only when a disposition recording the repaired REQ set is recorded in DECISIONS.md; otherwise it SHALL classify as Minor (§6.7). A delta recorded Editorial whose REQ scope actually changed is a classification error that blocks publication (REQ-394). *Acceptance criterion:* A body-modified delta without an Editorial record classifies Minor; with one, Editorial and no fingerprint advance. _Check:_ T492.
 
 ### 5.18 Workflow Entry Points
+
+**REQ-394a — Publication update evidence.**
+When a Minor or Major spec delta advances implementation fingerprints, publication tooling SHALL require evidence that the rebuild ran: an executed update invocation, or a dated operator deferral in DECISIONS.md naming the server and the verification performed. Absent either, the tooling SHALL block publication with an update-required notice naming the scoping decision and changed components. A failed or absent invocation SHALL NOT advance the stored fingerprint baseline. The Spec Update entry SHALL record the fingerprint delta — changed, unchanged, and reused components plus the scoping decision. *Acceptance criterion:* advanced fingerprints with no invocation and no deferral block; a recorded deferral publishes; a failed invocation leaves the baseline unchanged. _Check:_ T84e.
 
 **REQ-395a — Ruleset-build entry point (Part a).**
 The distribution SHALL expose a documented entry point — `build-ruleset` — that accepts one or more build targets, each a new-package pair (`slug=path`) or a supplement pair (`slug+=path`), records the intake, and invokes the package emitter (REQ-563) to emit a declarative ruleset package (REQ-389) into the install directory without modifying the host. A supplement target SHALL overlay its source onto the installed package per REQ-557. No-argument invocation SHALL print usage and the install directory. *Acceptance criterion:* `build-ruleset example=<path>` records the intake and invokes the emitter to produce a loadable package; `build-ruleset dnd2024+=<path>` overlays a supplement; no-argument invocation prints usage. _Check:_ T463, T650.

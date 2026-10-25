@@ -8,6 +8,14 @@
 
 **Recorded surface budgets:** full 26,024 tokens; standard 22,523; small 1,159; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
+### Publication update evidence — 2026-10-25
+
+- **Pending-update override:** holonovel 2026-10-25 — REQ-394a is builder-side
+  publication tooling implemented in `scripts/`; no server implementation
+  surface changed (source, config, lockfile, extraction, and surfaces are all
+  unchanged), so the delta advances the spec hash only. The record-writing and
+  evidence-gate paths are exercised by `test:update-workflow` (T84e).
+
 ### Two-week review remediation — 2026-10-25
 
 - **D1 — one state-copy policy.** `applyNovelState` takes `undo` or `replace`
