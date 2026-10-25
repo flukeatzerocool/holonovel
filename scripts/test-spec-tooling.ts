@@ -10,11 +10,13 @@
  * Exit codes: 0 = pass, 1 = assertion failure, 2 = fatal.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from "./lib/parse-spec.js";
 import { parseRecordedBudgets } from "./lib/surface-record.js";
+import { hasUnfilledVerification, isPlaceholderVerification } from "./lib/spec-update.js";
+import { hashFile } from "./lib/hash.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -123,6 +125,53 @@ function main(): void {
   const unreasonedRun = runCode(["scripts/check-performance-record.ts", write("unreasoned.json", unreasoned)]);
   check(unreasonedRun.code === 1 && unreasonedRun.out.includes("waiver without a reason"), "performance-record gate rejects an unreasoned waiver");
   rmSync(perfDir, { recursive: true, force: true });
+
+  // CR-4 — the Spec Update Verification line is gated, not scaffold-only.
+  const marker = "c".repeat(64);
+  const specUpdateRecord = [
+    "### Holonovel Spec Update — 2026-01-01 (test)",
+    "",
+    "- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._",
+    "",
+    `<!-- @spec-update:${marker} -->`,
+    "",
+  ].join("\n");
+  check(isPlaceholderVerification("_fill after running the gates per V.4_"), "placeholder verification is detected");
+  check(!isPlaceholderVerification("`npm run check` 0 errors"), "a real verification line is accepted");
+  check(hasUnfilledVerification(specUpdateRecord, marker, "2026-01-01"), "unfilled entry fails the record check");
+  check(!hasUnfilledVerification(specUpdateRecord.replace(/_fill after running the gates[^_]*_/, "done"), marker, "2026-01-01"), "filled entry passes the record check");
+
+  // CR-8 — one spec-hash implementation shared with the pipeline and hooks.
+  const specHash = run(["scripts/spec-hash.ts"]).trim();
+  check(specHash === hashFile(join(root, "holonovel.md")), "spec-hash matches the shared hashFile implementation");
+  const embeddedHash = run(["scripts/spec-hash.ts", "--file", "holonovel/holonovel.md"]).trim();
+  check(embeddedHash === hashFile(join(root, "holonovel", "holonovel.md")), "spec-hash --file hashes the embedded copy");
+
+  // CR-1 — staging covers root-level tracked files and leaves the separately
+  // owned wiki mirror pages unstaged.
+  const stageDir = mkdtempSync(join(tmpdir(), "pipeline-stage-"));
+  const git = (args: string[]) => execFileSync("git", args, { cwd: stageDir, encoding: "utf-8" });
+  try {
+    git(["init", "-q"]);
+    git(["config", "user.email", "test@example.invalid"]);
+    git(["config", "user.name", "test"]);
+    writeFileSync(join(stageDir, "AGENTS.md"), "v1\n");
+    mkdirSync(join(stageDir, ".githooks"), { recursive: true });
+    writeFileSync(join(stageDir, ".githooks", "pre-commit"), "v1\n");
+    git(["add", "-A"]);
+    git(["commit", "-qm", "init"]);
+    writeFileSync(join(stageDir, "AGENTS.md"), "v2\n");
+    writeFileSync(join(stageDir, ".githooks", "pre-commit"), "v2\n");
+    mkdirSync(join(stageDir, ".holonovel-state", "wiki"), { recursive: true });
+    writeFileSync(join(stageDir, ".holonovel-state", "wiki", "Home.md"), "mirror\n");
+    git(["add", "-A", "--", "."]);
+    git(["reset", "-q", "--", ".holonovel-state/wiki"]);
+    const staged = git(["diff", "--cached", "--name-only"]).split("\n").filter(Boolean);
+    check(staged.includes("AGENTS.md") && staged.includes(".githooks/pre-commit"), "staging includes root-level tracked files");
+    check(!staged.includes(".holonovel-state/wiki/Home.md"), "staging excludes the wiki mirror pages");
+  } finally {
+    rmSync(stageDir, { recursive: true, force: true });
+  }
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-10-25 — Push-pipeline hardening: staging integrity and publication evidence
+
+- `push-pipeline.sh` now stages the whole tracked surface (`git add -A`) so
+  root-level edits (`AGENTS.md`, `.githooks/`, `ROADMAP.md`, configs) cannot be
+  silently left out; the untracked preflight covers every non-ignored path and
+  the wiki mirror pages are reset out of the index.
+- Hook suppression is evidence-based: build-order records whether its full
+  `check` pass ran, and the pipeline supplies `check:fast` for a docs-only
+  delta. `HOLONOVEL_PIPELINE_GATES` replaces the optimistic marker in both
+  hooks, so an absent gate record runs their full set.
+- `--allow-pending` now requires a dated `**Pending-update override:**` line in
+  the server's DECISIONS.md (REQ-394); the update-workflow harness covers the
+  refused and accepted cases (T462).
+- `spec-update-record.ts --check` rejects a scaffolded Verification placeholder
+  (Appendix V.4); the historical 2026-10-22 entry records that its line was not
+  captured at publication.
+- Pushes are atomic (`--atomic` for main+tag, mirror, and wiki), the wiki mirror
+  uses `--force-with-lease`, and wiki staging/commit failures are non-fatal.
+- Test triggers include server `content/`, `bin/`, `tsconfig*`, and
+  `narrative_world_model/`; a content-only change runs the harness suite.
+- The strict coverage audit and the false-C report run inside the single check
+  pass (`HOLONOVEL_IMPL_STRICT`, `HOLONOVEL_CONFORMANCE_REPORT`), removing
+  duplicate steps 4c/4d; `scripts/spec-hash.ts` is the one spec-hash
+  implementation used by the pipeline and hooks.
+- Operational hardening: advisory `flock`, fail-closed origin fetch
+  (`--allow-stale-base`), dirty-tree recovery guidance, deploy branch/head
+  verification against published `origin/main` (REQ-418), a 900s registry wait,
+  and a CI `shellcheck -S warning` step over the three shell entry points.
+
 ## 2026-10-25 — README license section and wiki-link relocation
 
 - Moved the project-wiki link into the orientation, above the Glama badge.

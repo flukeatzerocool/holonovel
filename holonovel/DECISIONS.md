@@ -161,7 +161,7 @@
 ### Holonovel Spec Update — 2026-10-22 (TDQS description pass: parameter semantics, mutation disclosure, and undo fixes)
 
 - **Delta class:** minor. Changed surfaces: TDQS description pass: parameter semantics, mutation disclosure, and undo fixes; Scoped tool listing, host-scoped TDQS coherence, and health caching; Ruleset emitters are deterministic; one `update` command reconciles packages and user data; README aligned with the journey-first wiki; M8ven badge removed; World-model provider document is generated from the host schema.
-- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._
+- **Verification:** _Historical entry: the verification line was not recorded at publication._
 
 <!-- @spec-update:6b361b0af476768917b567f8e827f81707502e8565439192455d7bc649fdd7be -->
 

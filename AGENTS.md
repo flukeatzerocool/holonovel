@@ -216,7 +216,9 @@ harness is a gate role; it must be wired into a `package.json` script
   color only on TTY. CI workflow steps rely on script exit codes and never
   swallow them. (Shebang, header, `set -euo pipefail`, exit codes, and the
   color-on-TTY guard are mechanically enforced; the flag parser and `--help`
-  remain conventions.)
+  remain conventions.) CI additionally runs `shellcheck -S warning` over
+  `scripts/push-pipeline.sh` and the two git hooks; it is not a local
+  prerequisite.
 
 ## Gates
 
@@ -272,11 +274,11 @@ The implementation-coverage audit runs unconditionally inside every `validate`
 invocation. Two optional flags extend it:
 
 - `npm run validate -- --write-register` — regenerate `spec/audit/req-coverage.md`.
-- `npm run validate -- --impl-audit=strict` — promote bucket-A (gap) REQs
-  to errors. `push-pipeline.sh` step 4d runs `validate:fast` with that flag once
-  and exports `HOLONOVEL_PIPELINE_STRICT`; `.githooks/pre-push` runs the full
-  form for a direct push and skips it when that marker is set. Passes when every
-  server-runtime REQ is evidenced and builder-side REQs are whitelisted.
+- `HOLONOVEL_IMPL_STRICT=1` — promote bucket-A (gap) REQs to errors. The push
+  pipeline exports it before build-order, so the single `check` pass is strict;
+  `.githooks/pre-push` runs the same strict check for a direct push and skips it
+  when `HOLONOVEL_PIPELINE_STRICT=1` is set. Passes when every server-runtime
+  REQ is evidenced and builder-side REQs are whitelisted.
 
 All must pass with 0 errors. Warnings (proofreading quality, stale appendix
 ranges, hardcoded cross-section counts) are informational.
@@ -289,14 +291,21 @@ informational near-duplicate scan, and prints the check summary
 Its fingerprints include untracked non-ignored files, so a new source file
 triggers the gate before it is committed.
 
-`push-pipeline.sh` refuses to run off `main`, aborts when pre-existing untracked
-files sit in the commit surface (they would otherwise be swept in by staging;
-`--allow-untracked` opts in when the change authors new files), runs the server
-harness suite when any server path changed (not only when the spec delta is
-minor/major), and fails closed when the deploy clone is absent
-(`--allow-missing-deploy` opts out for non-publish environments). Its commit
-message is the top dated CHANGELOG entry, falling back to the mechanical
-summary only when no entry parses.
+`push-pipeline.sh` refuses to run off `main`, holds an advisory `flock` on
+`.holonovel-state/push-pipeline.lock`, aborts when any untracked non-ignored
+file exists (staging uses `git add -A`, so leftovers would be swept in;
+`--allow-untracked` opts in when the change authors new files), and fails closed
+when `git fetch origin main` fails (`--allow-stale-base` or `--no-push` opts
+out). It runs the server harness suite when any server path changed (src,
+scripts, content, bin, package files, tsconfig, world-model vendor) — not only
+when the spec delta is minor/major. A failed real run reports the dirty paths
+and the recovery command instead of silently leaving the next run blocked. Its
+commit message is the top dated CHANGELOG entry, falling back to the mechanical
+summary only when no entry parses. `--allow-pending` requires a dated
+`- **Pending-update override:** <server> <YYYY-MM-DD> — <reason>` line in the
+server's DECISIONS.md (REQ-394). `main` and the release tag push atomically; the
+deploy clone must be on `main` and must land exactly on published `origin/main`
+(REQ-418).
 
 `.githooks/pre-commit` runs `npm run check-guarded-rule-change`: a change that
 edits Appendix M's authoring rules and, in the same staged diff, the validator
@@ -307,11 +316,13 @@ rule. `--base <ref>` scans `<ref>..HEAD` for an opt-in CI/PR run.
 `scripts/push-pipeline.sh` syncs the `**Spec hash:**` line in
 `holonovel/DECISIONS.md` and, before it, runs `scripts/spec-update-record.ts`
 to insert the dated `### Holonovel Spec Update — <date>` narrative entry
-(delta class and changed-surface summary prefilled from the CHANGELOG;
-operator fills the verification line — Appendix V.4). The entry is keyed by a
+(delta class and changed-surface summary prefilled from the CHANGELOG; the
+Verification line is prefilled with the completed gate evidence, and an
+operator-authored line is preserved — Appendix V.4). The entry is keyed by a
 `@spec-update:<hash>` marker, so an unchanged spec re-run is a no-op. Step 5b
 runs `spec-update-record.ts --check` and blocks publication when an unpublished
-delta has no dated entry; REQ-394's pending-update gate stays the hard block.
+delta has no dated entry **or its Verification line is still the scaffolded
+placeholder**; REQ-394's pending-update gate stays the hard block.
 
 ## Review-loop governance
 

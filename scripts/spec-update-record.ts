@@ -6,7 +6,8 @@
  * server's DECISIONS.md for an unpublished spec delta, prefilling the delta
  * class (REQ-314) and the changed-surface summary from the CHANGELOG, so the
  * narrative record Appendix V.4 requires is present before publication. The
- * operator fills the verification line.
+ * `--verification` prefills the line with completed gate evidence; without it
+ * the operator fills the scaffolded placeholder.
  *
  * `--check` exits non-zero when the stored spec hash differs from the assembled
  * spec but no dated entry exists for today — the backstop for a hand-edited
@@ -19,17 +20,20 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { handleHelp, parseFlag } from "./lib/args.js";
+import { handleHelp, parseFlag, parseValueFlag } from "./lib/args.js";
 import { SERVERS } from "./lib/servers.js";
+import { hasUnfilledVerification } from "./lib/spec-update.js";
 
 const root = join(import.meta.dirname, "..");
 const SPEC_PATH = join(root, "holonovel.md");
 
-const USAGE = `Usage: npx tsx scripts/spec-update-record.ts [--check] [--dry-run]
+const USAGE = `Usage: npx tsx scripts/spec-update-record.ts [--check] [--dry-run] [--verification <text>]
 
   --check      Exit 1 when an unpublished spec delta has no dated Spec Update
-               entry for today; no files are written.
+               entry for today, or when its Verification line is still the
+               scaffolded placeholder; no files are written.
   --dry-run    Print the entry that would be inserted; write nothing.
+  --verification <text>  Prefill the Verification line with completed gate evidence.
   --help, -h   Show this message.
 
 Exit codes: 0 = present / written / already recorded, 1 = missing under --check
@@ -88,7 +92,7 @@ function priorBaselineDate(decisions: string): string | null {
   return dates.length > 0 ? dates.sort().pop()! : null;
 }
 
-function renderEntry(decisions: string, specHash: string, classification: string): string {
+function renderEntry(decisions: string, specHash: string, classification: string, verification: string | null): string {
   const today = localDate();
   const baseline = priorBaselineDate(decisions);
   // CHANGELOG is newest-first, so the most recent entries are at the head.
@@ -104,7 +108,7 @@ function renderEntry(decisions: string, specHash: string, classification: string
     `### Holonovel Spec Update — ${today} (${summary})`,
     "",
     `- **Delta class:** ${classification}. Changed surfaces: ${changed}.`,
-    `- **Verification:** _fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._`,
+    `- **Verification:** ${verification && verification.trim() ? verification.trim() : "_fill after running the gates (assemble, check, test:all, fingerprint advance) per Appendix V.4._"}`,
     "",
     `<!-- @spec-update:${specHash} -->`,
     "",
@@ -126,6 +130,7 @@ function insertEntry(decisions: string, entry: string): string {
 
 const checkMode = parseFlag(process.argv, "--check");
 const dryRun = parseFlag(process.argv, "--dry-run");
+const verification = parseValueFlag(process.argv, "--verification");
 handleHelp(process.argv, USAGE);
 
 if (!existsSync(SPEC_PATH)) {
@@ -148,6 +153,9 @@ for (const server of SERVERS) {
     if (!report.inSync && !hasTodayEntry) {
       console.error(`ERROR: ${server}: unpublished spec delta with no '### Holonovel Spec Update — ${today}' entry.`);
       failed = true;
+    } else if (hasUnfilledVerification(decisions, specHash, today)) {
+      console.error(`ERROR: ${server}: Spec Update entry still carries the scaffolded Verification placeholder (Appendix V.4).`);
+      failed = true;
     } else {
       console.log(`  OK   ${server}: Spec Update record ${hasTodayEntry ? "present" : "not required (no unpublished delta)"}`);
     }
@@ -159,7 +167,7 @@ for (const server of SERVERS) {
     continue;
   }
 
-  const entry = renderEntry(decisions, specHash, report.classification);
+  const entry = renderEntry(decisions, specHash, report.classification, verification);
   if (dryRun) {
     console.log(`  --- ${server}/DECISIONS.md (dry run) ---`);
     process.stdout.write(entry + "\n");

@@ -616,6 +616,12 @@ function main(): void {
     process.stdout.write(report);
     const m = report.match(/Bundle-dependent REQs \((\d+)\)/);
     const n = m ? parseInt(m[1], 10) : 0;
+    // The push pipeline asks for the false-C risk pool in the same pass instead
+    // of spawning a second `--dedicated` process (report-only, never affects the
+    // exit code).
+    if (process.env.HOLONOVEL_CONFORMANCE_REPORT === "1") {
+      process.stdout.write("\n" + renderDedicatedReport(buildDossiers()));
+    }
     process.stdout.write(n > 0 ? `FAIL: ${n} bundle-dependent REQ(s)\n` : "PASS: no bundle-dependent REQs\n");
     process.exit(n > 0 ? 1 : 0);
   }

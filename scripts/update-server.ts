@@ -58,6 +58,25 @@ const verifyDeployed = process.argv.includes("--verify-deployed");
 const invokeEnabled = process.env.HOLONOVEL_INVOKE_UPDATE === "1";
 let updateCommand: string | null = null;
 
+function localDate(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+// REQ-394 permits the pending-update block to be lifted only by an operator
+// override recorded in DECISIONS.md. Require a dated line naming this server.
+function hasRecordedOverride(dir: string, server: string): boolean {
+  const path = join(dir, "DECISIONS.md");
+  if (!existsSync(path)) return false;
+  const pattern = new RegExp(
+    `^-\\s+\\*\\*Pending-update override:\\*\\*\\s+${server}\\s+${localDate()}\\b`,
+    "m"
+  );
+  return pattern.test(readFileSync(path, "utf-8"));
+}
+
 function loadStored(): Record<string, StoredRecord> {
   const path = FINGERPRINT_FILE;
   if (!existsSync(path)) return {};
@@ -216,6 +235,14 @@ if ((scopeByFingerprint || checkOnly) && previous) {
       process.exit(0);
     }
     if (checkOnly || !allowPending) {
+      process.exit(1);
+    }
+    // HOLONOVEL_DECISIONS_DIR isolates the record lookup for the harness (the
+    // same way HOLONOVEL_STATE_DIR isolates the fingerprint baseline).
+    const decisionsDir = process.env.HOLONOVEL_DECISIONS_DIR ?? serverDir;
+    if (!hasRecordedOverride(decisionsDir, server)) {
+      console.error(`\n--allow-pending requires a recorded operator override in ${join(decisionsDir, "DECISIONS.md")}:`);
+      console.error(`- **Pending-update override:** ${server} ${localDate()} — <reason / scheduled update>`);
       process.exit(1);
     }
     console.log(`  (overridden with --allow-pending — recording reconciled hash without performing the update.)`);

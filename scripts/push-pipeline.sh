@@ -12,15 +12,26 @@
 # NOTE: step 5 syncs only the "**Spec hash:**" line in DECISIONS.md. The
 # human-readable "### Holonovel Spec Update — <date>" narrative entry (delta
 # class, changed surfaces, verification) must be added manually before a
-# spec-changing push — see Appendix V.4. Step 5b warns when it is missing.
+# spec-changing push — see Appendix V.4. Step 5b blocks when the entry is
+# missing or still carries the scaffolded verification placeholder.
 #
 # NOTE: step 2b fetches origin before the delta classification (step 3) so the
-# comparison base is current; step 4b runs the server harness suite unless the
-# delta is patch/editorial with an unchanged contract fingerprint and no server
-# path changed (§6.7 Patch/Editorial = G0 only; --full-tests forces it); step 4c prints the
-# conformance-evidence report (report-only) to surface the false-C risk pool;
-# step 4d runs the implementation-coverage strict gate once and exports
-# HOLONOVEL_PIPELINE_STRICT so .githooks/pre-push does not repeat it per push.
+# comparison base is current; a failed fetch fails closed (use --no-push or
+# --allow-stale-base when the network is genuinely unavailable). Step 4b runs
+# the server harness suite unless the delta is patch/editorial with an
+# unchanged contract fingerprint and no server path changed (§6.7
+# Patch/Editorial = G0 only; --full-tests forces it).
+#
+# NOTE: the implementation-coverage strict audit runs inside the single check
+# pass (HOLONOVEL_IMPL_STRICT=1), so there is no separate strict step. When
+# build-order skipped its check pass (docs-only delta), the pipeline runs
+# check:fast before publishing and exports HOLONOVEL_PIPELINE_GATES so the git
+# hooks skip only the work that actually ran.
+#
+# NOTE: staging uses `git add -A` (the whole tracked surface) so root-level
+# tracked files (AGENTS.md, .githooks/, ROADMAP.md, configs) cannot be silently
+# left out. The parent repo un-ignores three wiki mirror pages owned by the
+# separate wiki repo; they are reset out of the index after staging.
 #
 # NOTE: the origin push (step 7) runs whenever local main has unpushed commits,
 # not only when this run created one. A clean working tree can still be ahead
@@ -42,10 +53,12 @@
 # the mirror push can succeed.
 #
 # Usage:
-#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests] [--allow-missing-deploy] [--allow-untracked]
+#   ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests] [--allow-missing-deploy] [--allow-untracked] [--allow-stale-base]
 #   --dry-run    Full pipeline including file writes — skip git commit, push, deploy.
 #   --yes (-y)   Skip confirmation prompt before push/deploy.
-#   --allow-pending  Override the pending-update block (REQ-394) — operator escape hatch.
+#   --allow-pending  Override the pending-update block (REQ-394). Requires a
+#                 recorded "**Pending-update override:**" entry in the server's
+#                 DECISIONS.md naming the server, date, and reason.
 #   --no-push    Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
 #   --auto-update  Run outside a session: execute the §6.7 update command
 #                  (HOLONOVEL_INVOKE_UPDATE=1) instead of only printing it.
@@ -57,6 +70,8 @@
 #   --allow-untracked  Permit untracked files in the commit surface (for a change
 #                 that authors new files). Default: abort so leftovers are not
 #                 swept into the commit by the staging step.
+#   --allow-stale-base  Continue when `git fetch origin main` fails. Default:
+#                 fail closed, because a stale base can misclassify the delta.
 #   --help (-h)  Show this message.
 
 set -euo pipefail
@@ -65,16 +80,18 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests] [--allow-missing-deploy] [--allow-untracked]
+Usage: ./scripts/push-pipeline.sh [--dry-run] [--yes] [--allow-pending] [--no-push] [--auto-update] [--full-tests] [--allow-missing-deploy] [--allow-untracked] [--allow-stale-base]
 
   --dry-run        Full pipeline including file writes — skip git commit, push, deploy.
   --yes (-y)       Skip confirmation prompt before push/deploy.
-  --allow-pending  Override the pending-update block (REQ-394).
+  --allow-pending  Override the pending-update block (REQ-394); requires a
+                   recorded Pending-update override entry in DECISIONS.md.
   --no-push        Commit locally, then stop — skip tag, push, mirror, wiki, deploy.
   --auto-update    Execute the §6.7 update command (HOLONOVEL_INVOKE_UPDATE=1).
   --full-tests     Always run the server harness suite (skip the patch/editorial exemption).
   --allow-missing-deploy  Skip deploy verification when the deploy clone is absent.
   --allow-untracked  Permit untracked files in the commit surface.
+  --allow-stale-base  Continue when `git fetch origin main` fails.
   --help (-h)      Show this message.
 EOF
 }
@@ -89,6 +106,7 @@ AUTO_UPDATE=false
 FULL_TESTS=false
 ALLOW_MISSING_DEPLOY=false
 ALLOW_UNTRACKED=false
+ALLOW_STALE_BASE=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -100,6 +118,7 @@ for arg in "$@"; do
     --full-tests) FULL_TESTS=true ;;
     --allow-missing-deploy) ALLOW_MISSING_DEPLOY=true ;;
     --allow-untracked) ALLOW_UNTRACKED=true ;;
+    --allow-stale-base) ALLOW_STALE_BASE=true ;;
     --help|-h)
       usage
       exit 0
@@ -139,13 +158,29 @@ fi
 # present under node_modules; `node --import tsx` uses it without the npx wrapper.
 TSX=(node --import tsx)
 
-# Marker honored by .githooks/pre-commit and .githooks/pre-push: this pipeline
-# already runs the full gate (build-order → npm run check), so the hooks skip
-# only the steps it covered. Direct `git commit`/`git push` outside the pipeline
-# still runs every hook. HOLONOVEL_PIPELINE_STRICT is set at step 4d, after the
-# pipeline runs the implementation-coverage strict gate once, so the hook skips
-# repeating it on each push (origin + mirror).
-export HOLONOVEL_PIPELINE=1
+# The check suite is always strict: the implementation-coverage audit reads
+# HOLONOVEL_IMPL_STRICT, so the single build-order check pass (or the
+# check:fast fallback below) already covers the strict gate. The conformance
+# report is emitted inside the same check pass.
+# HOLONOVEL_PIPELINE_GATES is exported only after a gate pass actually runs
+# (step 1); the git hooks require it, so an absent marker runs their full set.
+# HOLONOVEL_PIPELINE_STRICT suppresses the per-push repeat in pre-push.
+export HOLONOVEL_IMPL_STRICT=1
+export HOLONOVEL_CONFORMANCE_REPORT=1
+
+# Serialize runs: two pipelines racing on the same worktree/state can interleave
+# generated files and push the wrong snapshot. The lock lives in gitignored
+# state. On a host without flock, warn and continue rather than block.
+mkdir -p .holonovel-state
+if command -v flock >/dev/null 2>&1; then
+  exec 9>.holonovel-state/push-pipeline.lock
+  if ! flock -n 9; then
+    echo -e "${RED}Another push-pipeline run holds .holonovel-state/push-pipeline.lock — aborting.${NC}" >&2
+    exit 1
+  fi
+else
+  echo -e "${YELLOW}  flock not found — concurrent pipeline runs are not prevented.${NC}"
+fi
 
 # Snapshot the gitignored state files the pipeline may mutate, so --dry-run
 # can restore them (tracked files are reverted via `git checkout -- .`).
@@ -191,12 +226,14 @@ restore_worktree() {
     done < <(comm -13 <(sort "$BEFORE_IGNORED") <(sort "$after_ignored"))
   fi
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
-    local b="$(basename "$f")"
+    local b
+    b="$(basename "$f")"
     if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
   done
   if [[ -d ".holonovel-state/wiki" ]]; then
     for f in .holonovel-state/wiki/*.md; do
-      local b="wiki-$(basename "$f")"
+      local b
+      b="wiki-$(basename "$f")"
       if [[ -f "$STATE_SNAPSHOT/$b" ]]; then cp "$STATE_SNAPSHOT/$b" "$f"; fi
     done
   fi
@@ -204,11 +241,24 @@ restore_worktree() {
 # EXIT trap: always remove the temp dir; on --dry-run also restore the tree,
 # so a mid-run failure cannot leave a dirty working tree blocking the next run.
 cleanup() {
+  local rc=$?
   if $DRY_RUN && [[ -n "$STATE_SNAPSHOT" ]]; then restore_worktree; fi
   if [[ -n "$STATE_SNAPSHOT" ]]; then rm -rf "$STATE_SNAPSHOT"; fi
   if [[ -n "${REG_PID:-}" ]]; then kill "$REG_PID" 2>/dev/null || true; fi
   if [[ -n "${REG_LOG:-}" ]]; then rm -f "$REG_LOG"; fi
   if [[ -n "${DELTA_ERR:-}" ]]; then rm -f "$DELTA_ERR"; fi
+  # A failed real run can leave build-order output in the worktree, which the
+  # next run's clean-tree preflight would reject. Point at the recovery, but do
+  # not auto-revert outside --dry-run (the operator may want the generated work).
+  if [[ "$rc" -ne 0 ]] && ! $DRY_RUN; then
+    local dirty
+    dirty="$(git status --porcelain 2>/dev/null || true)"
+    if [[ -n "$dirty" ]]; then
+      echo -e "${YELLOW}Working tree is dirty after the failed run (generated edits).${NC}" >&2
+      echo "$dirty" >&2
+      echo -e "${YELLOW}Review and discard with: git checkout -- .${NC}" >&2
+    fi
+  fi
 }
 trap cleanup EXIT
 trap 'exit 1' INT TERM
@@ -229,9 +279,11 @@ fi
 
 snapshot_state
 
-# Preflight: untracked files in the commit surface would be swept in by the
-# staging step below. Abort and let the operator decide (add, ignore, or remove).
-COMMIT_SURFACE_UNTRACKED="$(grep -E '^(spec/|scripts/|holonovel/|\.github/)|^(CHANGELOG|README)\.md$' "$BEFORE_UNTRACKED" || true)"
+# Preflight: `git add -A` stages every untracked non-ignored path, so any such
+# file is part of the commit surface. Abort and let the operator decide (add,
+# ignore, or remove). The three un-ignored wiki mirror pages belong to the
+# separate wiki repo and are reset out of the index after staging.
+COMMIT_SURFACE_UNTRACKED="$(grep -v '^\.holonovel-state/wiki/' "$BEFORE_UNTRACKED" || true)"
 if [[ -n "$COMMIT_SURFACE_UNTRACKED" ]]; then
   if ! $ALLOW_UNTRACKED; then
     echo -e "${RED}Untracked files exist in the commit surface — add, ignore, or remove them before running.${NC}"
@@ -269,14 +321,42 @@ fi
 # and wiki markers from the assembled spec. A second refresh here was duplicate
 # work.
 
+# Gate evidence: build-order runs the full `npm run check` only when the
+# fingerprinted surfaces changed. Read its run record (missing/unreadable means
+# "not run") and supply the fast gate set for a docs-only delta, so the hooks
+# never suppress a pass that did not happen.
+CHECK_RAN=false
+if [[ -f .holonovel-state/build-order-run.json ]]; then
+  CHECK_RAN=$(node -e "try{const j=require('./.holonovel-state/build-order-run.json');process.stdout.write(j.check_ran===true?'true':'false')}catch{process.stdout.write('false')}")
+fi
+if [[ "$CHECK_RAN" == "true" ]]; then
+  export HOLONOVEL_PIPELINE_GATES=full
+  echo "  gate evidence: the full check suite ran in build-order"
+else
+  echo -e "${GREEN}  Running fast gates: build-order skipped its check pass${NC}"
+  npm run check:fast || { echo -e "${RED}Fast gate suite FAILED${NC}"; exit 1; }
+  # The fast runner buffers gate output, so replay the false-C report that
+  # check:conformance produced inside that pass (report-only).
+  "${TSX[@]}" scripts/compare-spec-code.ts --dedicated || true
+  export HOLONOVEL_PIPELINE_GATES=fast
+fi
+export HOLONOVEL_PIPELINE_STRICT=1
+
 # ── 2b. Fetch origin so the delta base is current (REQ-418) ──
 # The delta classification and the pending-push count both compare against
 # origin/main; fetch before either so a stale remote-tracking ref cannot
-# misclassify the delta (or hide commits).
+# misclassify the delta (or hide commits). Fail closed: a stale base can
+# under-scope the update. --no-push (local-only) and --allow-stale-base opt out.
 
 echo -e "${GREEN}=== 2b. Fetch origin (delta base) ===${NC}"
 if ! git fetch origin main --quiet 2>/dev/null; then
-  echo -e "${YELLOW}  origin fetch failed — delta base may be stale (network/remote issue).${NC}"
+  if $NO_PUSH || $ALLOW_STALE_BASE; then
+    echo -e "${YELLOW}  origin fetch failed — continuing with a possibly stale delta base.${NC}"
+  else
+    echo -e "${RED}origin fetch failed — refusing to classify against a stale base.${NC}" >&2
+    echo -e "${YELLOW}Re-run with --allow-stale-base (or --no-push) if the remote is unavailable.${NC}" >&2
+    exit 1
+  fi
 fi
 DELTA_BASE="origin/main"
 if git rev-parse --verify --quiet "$DELTA_BASE" >/dev/null 2>&1; then
@@ -307,7 +387,7 @@ classify_delta() {
 }
 
 echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
-SPEC_HASH=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+SPEC_HASH=$("${TSX[@]}" scripts/spec-hash.ts)
 DELTA_ERR="$(mktemp)"
 declare -A DELTA_CLASS_OF
 for server in "${SERVERS[@]}"; do
@@ -347,11 +427,17 @@ done
 # edits are not visible in the spec delta, so probe the tree directly.
 # --full-tests forces the suite.
 
+# Keep this list bound to build-order's fingerprint components
+# (holonovel/src, holonovel/scripts, package files) plus the shipped content and
+# launch surfaces a harness covers (starter Novel content, bin, tsconfig).
 SERVER_PATHS=()
 for server in "${SERVERS[@]}"; do
   SERVER_PATHS+=(
-    "$server/src" "$server/scripts" "$server/package.json"
-    "$server/package-lock.json" "$server/tool-definitions.json" "$server/server.json"
+    "$server/src" "$server/scripts" "$server/content" "$server/bin"
+    "$server/package.json" "$server/package-lock.json"
+    "$server/tool-definitions.json" "$server/server.json"
+    "$server/tsconfig.json" "$server/tsconfig.build.json"
+    "$server/narrative_world_model"
   )
 done
 SERVER_CHANGED=false
@@ -378,35 +464,23 @@ else
   echo -e "${YELLOW}  Skipped: patch/editorial delta, no contract fingerprint change, no server path change (§6.7 G0-only). Use --full-tests to force.${NC}"
 fi
 
-# ── 4c. Conformance evidence report (informational) ──
-# Surfaces bucket-C REQs whose exercised evidence is entirely shared with other
-# REQs — the false-C risk pool (REQ-321d class). Report-only: the detector has a
-# high false-positive rate on the current corpus, so it does not block.
-
-echo -e "${GREEN}=== 4c. Conformance evidence report (informational) ===${NC}"
-if ! "${TSX[@]}" scripts/compare-spec-code.ts --dedicated; then
-  echo -e "${YELLOW}  Conformance report exited non-zero — treat the pool as incomplete, not clean.${NC}"
-fi
-
-# ── 4d. Implementation-coverage strict gate (REQ-321d class) ──
-# Run once here, then mark the environment so .githooks/pre-push does not repeat
-# it on each push (origin + mirror). The hook still runs it for a direct push
-# outside the pipeline. A red gate blocks publication.
-
-echo -e "${GREEN}=== 4d. Implementation-coverage strict gate ===${NC}"
-if ! npm run validate:fast -- --impl-audit=strict; then
-  echo -e "${RED}  Implementation-coverage strict gate FAILED — bucket-A (gap) REQs present.${NC}"
-  echo -e "${YELLOW}  Every server-runtime REQ must be evidenced (C) or builder-side (E) before push.${NC}"
-  exit 1
-fi
-export HOLONOVEL_PIPELINE_STRICT=1
+# Steps 4c/4d are folded into the single check pass: HOLONOVEL_IMPL_STRICT makes
+# the coverage audit strict, and HOLONOVEL_CONFORMANCE_REPORT appends the
+# dedicated bucket-C report to `check:conformance` (REQ-321d class). A red check
+# gate has already exited in step 1.
 
 # ── 5. Update stored spec hashes in DECISIONS.md ──
 
 echo -e "${GREEN}=== 5. Update stored spec hashes in DECISIONS.md ===${NC}"
 # Generate the dated Spec Update record before syncing the hash, so the
 # narrative entry (delta class, changed surfaces) is present per Appendix V.4.
-"${TSX[@]}" scripts/spec-update-record.ts || { echo -e "${RED}Spec Update record generation FAILED${NC}"; exit 1; }
+# Prefill the Verification line with the evidence this run already produced;
+# an operator who pre-wrote the entry keeps their own line (the marker-driven
+# generator is a no-op for an existing entry).
+HARNESS_STATUS="skipped (§6.7 G0)"
+if $NEED_TESTS; then HARNESS_STATUS="ran"; fi
+VERIFICATION="Gates: ${HOLONOVEL_PIPELINE_GATES} check suite passed; server harness suite ${HARNESS_STATUS}; spec SHA ${SPEC_HASH}; deploy verification is step 9b (REQ-418)."
+"${TSX[@]}" scripts/spec-update-record.ts --verification "$VERIFICATION" || { echo -e "${RED}Spec Update record generation FAILED${NC}"; exit 1; }
 for server in "${SERVERS[@]}"; do
   if grep -q '\*\*Spec hash:\*\*' "$server/DECISIONS.md" 2>/dev/null; then
     perl -i -pe 'BEGIN{$done=0} if(!$done && s/\*\*Spec hash:\*\*\s*[a-f0-9]+/\*\*Spec hash:\*\* '"$SPEC_HASH"'/){$done=1}' "$server/DECISIONS.md"
@@ -419,8 +493,8 @@ done
 #         Spec Update entry. The generator above writes one; this is the
 #         backstop for a hand-edited hash line. (REQ-394 is the hard block.)
 if ! "${TSX[@]}" scripts/spec-update-record.ts --check; then
-  echo -e "${RED}  Spec Update narrative missing for an unpublished delta — publication blocked.${NC}"
-  echo -e "${YELLOW}  Add the entry per Appendix V.4, or run the generator: npm run spec-update-record${NC}"
+  echo -e "${RED}  Spec Update narrative missing or unverified for an unpublished delta — publication blocked.${NC}"
+  echo -e "${YELLOW}  Add the entry and fill its Verification line per Appendix V.4, or run: npm run spec-update-record${NC}"
   exit 1
 fi
 
@@ -460,14 +534,12 @@ DID_DEPLOY=false
 # ── 6. Stage and commit ──
 
 echo -e "${GREEN}=== 6. Stage and commit ===${NC}"
-git add holonovel.md spec/ scripts/cross-property-couple.ts package.json
-for f in CHANGELOG.md README.md; do
-  [[ -f "$f" ]] && git add "$f"
-done
-# Stage server/script dirs and CI config (gitignore already excludes node_modules/
-# and .holonovel-state/). "holonovel/" is the server directory, not holonovel.md
-# (already staged above).
-git add scripts/ holonovel/ .github/
+# Stage the whole tracked surface. Preflight guarantees no pre-existing edits or
+# staged work, and every untracked non-ignored path was either rejected or
+# explicitly permitted, so -A cannot sweep in an unrelated leftover. The wiki
+# mirror pages are un-ignored in this repo but owned by the separate wiki clone.
+git add -A -- .
+git reset -q -- .holonovel-state/wiki 2>/dev/null || true
 
 echo -e "${GREEN}  Staged changes:${NC}"
 git diff --cached --stat
@@ -542,11 +614,11 @@ if [[ "$PENDING_PUSH" -gt 0 ]]; then
   fi
 
   # ── 7. Push main (+ tag) ──
-  # main and the tag go in one push so .githooks/pre-push runs once for origin,
-  # not once per ref.
+  # main and the tag go in one atomic push so the pre-push hook runs once and a
+  # rejected tag cannot leave main advanced without its release tag.
 
   echo -e "${GREEN}=== 7. Push main ===${NC}"
-  git push origin "${PUSH_REFS[@]}" || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
+  git push --atomic origin "${PUSH_REFS[@]}" || { echo -e "${RED}Push FAILED — aborting deploy.${NC}"; exit 1; }
   DID_PUSH=true
 else
   echo -e "${YELLOW}Nothing to push — origin is up to date.${NC}"
@@ -559,7 +631,7 @@ if git config --get remote.github.url >/dev/null 2>&1; then
   # main and the tag in one push so the pre-push hook runs once for the mirror.
   MIRROR_REFS=(main)
   if [[ -n "$TAG_TO_PUSH" ]]; then MIRROR_REFS+=("$TAG_TO_PUSH"); fi
-  if git push github "${MIRROR_REFS[@]}"; then DID_MIRROR=true; else echo -e "${YELLOW}  Mirror push FAILED — GitHub mirror is behind origin.${NC}"; fi
+  if git push --atomic github "${MIRROR_REFS[@]}"; then DID_MIRROR=true; else echo -e "${YELLOW}  Mirror push FAILED — GitHub mirror is behind origin.${NC}"; fi
   echo -e "${GREEN}  Mirror sync: DONE${NC}"
 else
   echo -e "${YELLOW}  No 'github' remote configured — skipping mirror sync.${NC}"
@@ -580,7 +652,9 @@ REG_PID=""
 REG_LOG=""
 if $DID_MIRROR; then
   REG_LOG="$(mktemp)"
-  "${TSX[@]}" scripts/check-registry-publish.ts --wait 120 >"$REG_LOG" 2>&1 &
+  # 900s matches publish.yml's 10-minute npm-exposure wait; the registry is
+  # still eventually consistent after that (REQ-428 stays advisory here).
+  "${TSX[@]}" scripts/check-registry-publish.ts --wait 900 >"$REG_LOG" 2>&1 &
   REG_PID=$!
 fi
 
@@ -589,16 +663,18 @@ fi
 echo -e "${GREEN}=== 8. Push wiki ===${NC}"
 WIKI_DIR=".holonovel-state/wiki"
 if [[ -d "$WIKI_DIR/.git" ]]; then
-  git -C "$WIKI_DIR" add -A
-  if git -C "$WIKI_DIR" diff --staged --quiet; then
+  if ! git -C "$WIKI_DIR" add -A; then
+    echo -e "${YELLOW}  Wiki staging FAILED — non-fatal; continuing to deploy.${NC}"
+  elif git -C "$WIKI_DIR" diff --staged --quiet; then
     echo -e "${YELLOW}  No wiki changes.${NC}"
-  else
-    git -C "$WIKI_DIR" commit -m "Wiki refresh $(date +%Y-%m-%d)"
-    if git -C "$WIKI_DIR" push origin main; then
+  elif git -C "$WIKI_DIR" commit -m "Wiki refresh $(date +%Y-%m-%d)"; then
+    if git -C "$WIKI_DIR" push --atomic origin main; then
       DID_WIKI=true
     else
       echo -e "${YELLOW}  Wiki push FAILED — non-fatal; continuing to deploy.${NC}"
     fi
+  else
+    echo -e "${YELLOW}  Wiki commit FAILED — non-fatal; continuing to deploy.${NC}"
   fi
 
   # ── 8b. Mirror wiki to GitHub ──
@@ -609,7 +685,10 @@ if [[ -d "$WIKI_DIR/.git" ]]; then
 
   echo -e "${GREEN}=== 8b. Mirror wiki (github) ===${NC}"
   if git -C "$WIKI_DIR" remote get-url github >/dev/null 2>&1; then
-    if git -C "$WIKI_DIR" push --force github main:master; then
+    # Force-with-lease, never a blind force: if the GitHub-side ref moved since
+    # we last read it, fail and let a human reconcile rather than discard it.
+    MIRROR_MASTER=$(git -C "$WIKI_DIR" ls-remote github refs/heads/master 2>/dev/null | awk '{print $1}' | head -1)
+    if git -C "$WIKI_DIR" push --atomic "--force-with-lease=master:${MIRROR_MASTER}" github main:master; then
       DID_WIKI_MIRROR=true
     else
       echo -e "${YELLOW}  Wiki mirror push (github) FAILED — non-fatal; GitHub wiki is behind.${NC}"
@@ -625,7 +704,16 @@ fi
 
 echo -e "${GREEN}=== 9. Deploy to MCP target ===${NC}"
 DEPLOY_DIR="${HOLONOVEL_DEPLOY_DIR:-$HOME/Holonovel-deployed}"
+PUBLISHED_HEAD=$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD)
 if [[ -d "$DEPLOY_DIR/.git" ]]; then
+  # The deploy clone must be the main-branch pull mirror. A wrong branch or a
+  # clone tracking another remote would let the pull "succeed" against a tree
+  # that is not what was just published (REQ-418).
+  DEPLOY_BRANCH=$(git -C "$DEPLOY_DIR" symbolic-ref --short -q HEAD || true)
+  if [[ "$DEPLOY_BRANCH" != "main" ]]; then
+    echo -e "${RED}Deploy FAILED — deploy clone is on '${DEPLOY_BRANCH:-detached HEAD}', not main (REQ-418).${NC}"
+    exit 1
+  fi
   # Deploy clone is a git-pull-only mirror: discard any uncommitted working-tree
   # edits before the pull, matching the AGENTS.md Two-Repo Workflow contract
   # ("discards any uncommitted working tree edits"). Recurrence 2026-08-30: a
@@ -644,6 +732,10 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
     exit 1
   fi
   DEPLOY_NEW=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)
+  if [[ "$DEPLOY_NEW" != "$PUBLISHED_HEAD" ]]; then
+    echo -e "${RED}Deploy FAILED — deployed HEAD ($DEPLOY_NEW) does not match published origin/main ($PUBLISHED_HEAD) (REQ-418).${NC}"
+    exit 1
+  fi
   if [[ "$DEPLOY_PREV" != "$DEPLOY_NEW" ]]; then
     echo "  Deployed copy updated ($DEPLOY_PREV → $DEPLOY_NEW)"
     for server in "${SERVERS[@]}"; do
