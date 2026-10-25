@@ -14,10 +14,11 @@
  * REQ-565, REQ-566.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { StateManager } from "../src/core/state.js";
+import { roomIsLit } from "../src/world/parser.js";
 import { bootServer } from "./lib/mcp-client.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -114,6 +115,57 @@ async function main(): Promise<void> {
       const look = await c.call("run_command", { action: "execute", command: "look" });
       assert(!look.isError, `look failed: ${look.text}`);
       assert(look.text.length > 20, "look returned room content ruleset-free");
+      const visibility = await c.call("run_command", { action: "visibility", target: "Your Candle" });
+      assert(!visibility.isError, `visibility failed: ${visibility.text}`);
+      assert(visibility.text.includes('"can_see": true'), "the lit Spire is visible to the active entity");
+    } finally {
+      await c.close();
+    }
+  });
+
+  await test("T658/REQ-565: starter content keeps locks, light, and presence wired", () => {
+    const dir = freshDir();
+    const s = new StateManager(dir);
+    s.seedStarterNovel();
+    s.hydrateNovelsFromDisk();
+    const novel = s.novels.get(SLUG);
+    try {
+      assert(novel, "starter hydrated");
+      assert(novel!.characters_present_ids.includes("character_01"), "active entity marked present");
+
+      const snapshot = novel!.pending_workflow?.snapshot?.state;
+      assert(snapshot, "opening workflow snapshot exists");
+      assert(Object.keys(snapshot.world?.rooms ?? {}).length === 85, "opening snapshot carries the world");
+      assert(snapshot.entities?.character_01, "opening snapshot carries the active entity");
+      assert(snapshot.pending_workflow === null, "opening snapshot is not recursive");
+
+      const world = novel!.world;
+      for (const floor of ["Seventh", "Sixth", "Fifth", "Fourth", "Third", "Second"]) {
+        const room = world.rooms.get(`${floor.toLowerCase()} floor — grand stair`);
+        assert(room?.doorRefs.get("down") === `${floor} Floor Stair Door`, `${floor} stair door bound to its exit`);
+      }
+      const antechamber = world.rooms.get("first floor — antechamber");
+      assert(antechamber?.doorRefs.get("out") === "The Exit Door", "exit door bound to the out exit");
+
+      const candle = [...world.things.values()].find((t) => t.name === "Your Candle");
+      assert(candle?.lit && candle?.switched_on, "the starting candle is lit and switched on");
+      assert(roomIsLit(world, "Seventh Floor — Spire"), "the Spire is lit");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await test("T658/REQ-565: cancelling the opening choice preserves the world", async () => {
+    const c = await bootServer({ serverDir: SERVER_DIR, env: { TTRPG_BADGE: "game_master" } });
+    try {
+      const resume = await c.call("manage_novel", { action: "resume", slug: SLUG });
+      assert(!resume.isError, `resume failed: ${resume.text}`);
+      const cancel = await c.call("respond_decision", { decision: "present_choices", option: "cancel" });
+      assert(!cancel.isError, `cancel failed: ${cancel.text}`);
+      const state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
+      assert(Object.keys(state.world?.rooms ?? {}).length === 85, "world survives cancel");
+      assert(state.entities?.character_01, "active entity survives cancel");
+      assert(state.pending_workflow === null, "pending workflow cleared");
     } finally {
       await c.close();
     }
