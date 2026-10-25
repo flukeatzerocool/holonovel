@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** a7db4190a0bab8785092c63f7434ce535c119f22c9def10bee07349376c1319f
+**Spec hash:** f4bc3d04d34a9629b7d13d5e56194a044e5eb51ccb8c6ec66a3cb612f0697e69
 
 **Recorded tool budget:** 36 listed (230 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
@@ -150,6 +150,13 @@
 - The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-25 (Push-pipeline hardening: staging integrity and publication evidence)
+
+- **Delta class:** minor. Changed surfaces: Push-pipeline hardening: staging integrity and publication evidence; README license section and wiki-link relocation; Two-week review remediation: state integrity, badge safety, and surface defaults; Torre Nosferatu wax economy (start at 30, refill by finding wax).
+- **Verification:** Gates: fast check suite passed; server harness suite ran; spec SHA f4bc3d04d34a9629b7d13d5e56194a044e5eb51ccb8c6ec66a3cb612f0697e69; deploy verification is step 9b (REQ-418).
+
+<!-- @spec-update:f4bc3d04d34a9629b7d13d5e56194a044e5eb51ccb8c6ec66a3cb612f0697e69 -->
 
 ### Holonovel Spec Update — 2026-10-25 (Two-week review remediation: state integrity, badge safety, and surface defaults)
 
