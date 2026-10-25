@@ -21,7 +21,7 @@ import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class.
-const P_REPLAY = "holonovel/src/core/state.ts:2236"; // atomic persist
+const P_REPLAY = "holonovel/src/core/state.ts:2241"; // atomic persist
 const P_WORLD = "holonovel/src/world/model.ts:201"; // WorldModel.rooms/things maps
 
 /** Order- and id-independent projection of the world model (diagnostic). */

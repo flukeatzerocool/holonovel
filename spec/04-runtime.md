@@ -143,7 +143,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (default 500)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
-| `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale |
+| `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale (default 90) |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |
 | `TTRPG_RULESETS`    | No       | Comma-separated list of ruleset slugs the host hydrates eagerly at startup (opting out of lazy hydration per REQ-390). When set, the server SHALL validate that every slug in this list matches an installed package. When absent, all packages hydrate lazily on first activation of a Novel bound to their slug. |
 | `TTRPG_RULESET_DIRS` | No      | Path to the ruleset install directory when it differs from `<TTRPG_DATA_DIR>/rulesets/`. The host scans this directory at startup and validates installed packages there (REQ-389, REQ-390). |
@@ -155,13 +155,13 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_MAX_RULING_ENTRIES` | No | Maximum ruling-ledger entries per Novel before oldest non-reverted eviction (default 500; 0 = unlimited; REQ-589) |
 | `TTRPG_MEMORY_RECENT_EVENTS` | No | Recent-window tier size in event-log entries (default 10; 0 = unlimited). Behavioral (mechanical) — couples per P16 (REQ-590). |
 | `TTRPG_MEMORY_ARC_SESSIONS` | No | Sessions grouped per arc summary (default 5; REQ-590). Behavioral (mechanical) — couples per P16. |
-| `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` | No | Campaign-bible fact cap (default 40; 0 = unlimited; REQ-590). Behavioral (mechanical) — couples per P16. |
-| `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded (0 = unlimited; REQ-241b) |
+| `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` | No | Campaign-bible fact cap (default 40; 0 = unlimited; REQ-590). Distinct from `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS`, which bounds briefing injection. Behavioral (mechanical) — couples per P16. |
+| `TTRPG_MAX_CHECKPOINTS` | No | Maximum checkpoints per Novel before oldest is discarded (default 25; 0 = unlimited; REQ-241b) |
 | `TTRPG_WORLD_GEN_MAX_ROOMS` | No | Maximum rooms produced by `manage_world (action: generate)` in one call (default 20; REQ-431c) |
 | `TTRPG_MAX_VOICE_CORRECTIONS_PER_SESSION` | No | Maximum `manage_character (action: signal)` voice corrections accepted per session |
 | `TTRPG_MAX_BRIEFING_TOKENS` | No | Maximum token budget for `badge_briefing` output. The legacy `TTRPG_PROMPT_BUDGET` is honored as a fallback. Presentation. |
 | `TTRPG_NARRATOR_VISIBILITY` | No | Draft visibility scan mode — `advisory` (default, redact matched GM-only disclosure) or `strict` (refuse with `[RULE_VIOLATION]`); an unknown value falls back to `advisory` with a startup warning (REQ-599b). Presentation — non-behavioral; it gates narration output admission, not story state. |
-| `TTRPG_SEARCH_MAX_TOKENS` | No | Maximum context returned by one `manage_ruleset (action: search)` call; excess results are suppressed and counted (REQ-588). Presentation — non-behavioral; it bounds output volume, not story state. |
+| `TTRPG_SEARCH_MAX_TOKENS` | No | Maximum context returned by one `manage_ruleset (action: search)` call (default 20000); excess results are suppressed and counted (REQ-588). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_DESCRIPTION_BUDGET` | No | Byte budget applied to a ruleset-derived tool description at load (default 1000, matching the REQ-024c recorded budget); a description over budget is flagged in `spec_health` (REQ-430). |
 | `TTRPG_AUDIT_RETENTION_SESSIONS` | No | Number of recent sessions before `manage_diagnostics (action: compact)` archives older entries |
 | `TTRPG_NOVEL_RETENTION_DAYS` | No | Days before an inactive Novel is flagged for archive |
@@ -179,17 +179,17 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_STORY_JOURNAL_DISPLAY` | No | Story journal surface detail level (e.g., `summary`, `full`). Presentation. |
 | `TTRPG_CONFIDENCE_FLOOR` | No | Minimum per-item extraction confidence that does not block import (supplementary rulesets; default 70%). Distinct from the aggregate Standard-tier gate (≥80% per REQ-100/H10): the floor governs item admission, the gate governs overall build confidence. |
 | `TTRPG_WORLD_PROMINENCE` | No | World-model prominence tier — `secondary`, `visible`, or `prominent` (REQ-309). Build-time. |
-| `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (REQ-336). Behavioral — couples per P43/P44. |
+| `TTRPG_PACING_WINDOW` | No | Scene-transition count before a pacing signal fires (default 21; REQ-336). Behavioral — couples per P43/P44. |
 | `TTRPG_CLIMAX_ACCELERATION` | No | Extra countdown ticks applied on `climax` beats (default 2). Behavioral (mechanical) — couples per P1. |
-| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral (mechanical) — couples per P4. |
+| `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (default 0 = disabled; REQ-338). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
 | `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
-| `TTRPG_NPC_PROACTIVE_BOUNDARY` | No | `true` enables session-boundary NPC goal-pursuit suggestions (REQ-339e). Behavioral (mechanical) — couples per P30. |
+| `TTRPG_NPC_PROACTIVE_BOUNDARY` | No | `true` enables session-boundary NPC goal-pursuit suggestions only when `TTRPG_NPC_AUTONOMY=on` (REQ-339e). Behavioral (mechanical) — couples per P30. |
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral (mechanical) — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral — couples per P58. |
 | `TTRPG_STORY_BEAT_WINDOW` | No | Number of most-recent completed story beats retained in the `story_beats` sequence (default 10; REQ-337b). Behavioral — couples per P55. |
-| `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Behavioral — couples per P56. |
+| `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` | No | Maximum campaign-memory facts injected into `badge_briefing` (default 10; REQ-310b). Distinct from `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS`, which bounds the campaign tier. Behavioral — couples per P56. |
 | `TTRPG_NOVEL_PREVIEW_CHARS` | No | Character budget for the Novel-library name/preview in the `intro` prompt (default 120; REQ-063b). Presentation. |
 | `TTRPG_WORLD_REACTIVITY` | No | `true` enables World in Motion reactivity (REQ-233a). Behavioral — couples per P46. |
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral — couples per P59. |
@@ -197,7 +197,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral — couples per P57. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
-| `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (default 50000; 0 = unlimited). Storage. |
 | `TTRPG_BELIEF_RECONCILIATION` | No | `true` (default) enables per-entity belief reconciliation from admitted evidence (REQ-465). Behavioral (mechanical) — couples per P54. |
 | `TTRPG_BELIEF_ACCEPT_THRESHOLD` | No | Minimum support weight before a belief stance is accepted (default 0.60; REQ-465). Behavioral (mechanical) — couples per P54. |
 | `TTRPG_BELIEF_DECISION_MARGIN` | No | Minimum support lead over the opposing side before a stance is accepted (default 0.15; REQ-465). Behavioral (mechanical) — couples per P54. |
@@ -209,7 +209,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_CAUSAL_MAX_LEDGER_ENTRIES` | No | Maximum transition-ledger entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral (mechanical) — couples per P29. |
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
-| `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
+| `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
@@ -513,8 +513,8 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Notes → Scene | P17 | Notes tagged with scene anchors surface when that scene is active — badge-filtered per REQ-242 scope | Scene-tagged notes surface when their room appears — the operator's annotations follow the scene | Player-visible, badge-scoped | Navigational | REQ-242 |
 | NPC → NPC Memory | P27 | Interaction events (combat, social, mechanical) automatically update NPC disposition and memory facts | What characters experience becomes what they know — interactions create NPC memory | — | Mechanical | REQ-311 |
 | Campaign Memory → Scene | P2 | Campaign memory facts are prioritized by scene relevance in `badge_briefing` | Scene-pertinent facts surface in the briefing — campaign memory follows location | — | Navigational | REQ-310 |
-| Compression Ladder → Story Journal | P16 | Tier derivation reads story-journal and event-log entries into arc and campaign summaries; `TTRPG_MEMORY_RECENT_EVENTS`, `TTRPG_MEMORY_ARC_SESSIONS`, and `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` bound the tiers | Remembered events compress into durable memory — summaries preserve their sources | GM-only | Navigational | REQ-590, REQ-246 |
-| Campaign Memory → Compression Ladder | P54 | Campaign-memory facts promote into the campaign-bible tier with `source_refs` | Known facts become the story bible — campaign memory feeds the campaign tier | GM-only | Navigational | REQ-310, REQ-590 |
+| Compression Ladder → Event Log | P16 | Tier derivation reads event-log entries (recent window, session/arc highlights) plus audit-archive summaries and property facts (lore, factions, secrets, vows, NPCs, campaign memory) into arc and campaign summaries; `TTRPG_MEMORY_RECENT_EVENTS`, `TTRPG_MEMORY_ARC_SESSIONS`, and `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` bound the tiers | Remembered events compress into durable memory — summaries preserve their sources | GM-only | Navigational | REQ-590, REQ-246 |
+| Campaign Memory → Compression Ladder | P54 | Campaign-memory facts promote into the campaign-bible tier with `campaign:<category>:<timestamp>` `source_refs`, deduped against lore/faction/vow/NPC facts | Known facts become the story bible — campaign memory feeds the campaign tier | GM-only | Navigational | REQ-310, REQ-590 |
 | World in Motion → Campaign Memory | P16 | World in Motion accepted changes produce campaign memory facts | The living world becomes recorded history — accepted World in Motion entries persist | — | Mechanical | REQ-233a, REQ-310 |
 | NPC Memory → Campaign Memory | P54 | Significant NPC memory events (disposition flips, goal milestones) populate campaign memory per-NPC facts | Significant NPC events persist as campaign facts — memory survives the scene | — | Navigational | REQ-311, REQ-310 |
 | Vow → Countdown | P12 | `manage_vow (action: set)` offers a coupled countdown per difficulty tier; `manage_vow (action: milestone)` advances both; countdown fill enables `manage_vow (action: resolve)` | Purpose drives the clock — every vow carries a coupled countdown per difficulty | — | Mechanical | REQ-322 |

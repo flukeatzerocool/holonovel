@@ -985,7 +985,7 @@ export class StateManager {
       session_zero_completed: false,
       characters_present: false,
       characters_present_ids: [],
-      social_cast: { strategy: "manual", order: [], muted: [], spoken: [], selected: null },
+      social_cast: { strategy: "natural", order: [], muted: [], spoken: [], selected: null },
       adventure_set: false,
       pending_workflow: null,
       connection_counter: 0,
@@ -1382,7 +1382,7 @@ export class StateManager {
       session_zero_completed: data.session_zero_completed ?? false,
       characters_present: data.characters_present ?? false,
       characters_present_ids: data.characters_present_ids ?? [],
-      social_cast: data.social_cast ?? { strategy: "manual", order: [], muted: [], spoken: [], selected: null },
+      social_cast: data.social_cast ?? { strategy: "natural", order: [], muted: [], spoken: [], selected: null },
       adventure_set: data.adventure_set ?? false,
       pending_workflow: data.pending_workflow ?? null,
       connection_counter: data.connection_counter ?? 0,
@@ -1606,7 +1606,7 @@ export class StateManager {
       const redoStacks = novel.redo_stacks;
       const auditLog = novel.audit_log;
       const connectionCounter = novel.connection_counter;
-      applyNovelState(novel, restored);
+      applyNovelState(novel, restored, "undo");
       novel.undo_stacks = undoStacks;
       novel.redo_stacks = redoStacks;
       novel.audit_log = auditLog;
@@ -1675,7 +1675,7 @@ export class StateManager {
 
     const restore = stack.pop()!;
     const restored = novelFromJSON(restore);
-    applyNovelState(novel, restored);
+    applyNovelState(novel, restored, "undo");
     this.saveNovel(novel);
     return { data: restore };
   }
@@ -1690,7 +1690,7 @@ export class StateManager {
 
     const restore = stack.pop()!;
     const restored = novelFromJSON(restore);
-    applyNovelState(novel, restored);
+    applyNovelState(novel, restored, "undo");
     this.saveNovel(novel);
     return { data: restore };
   }
@@ -1861,6 +1861,25 @@ export class StateManager {
   // REQ-239 — compact audit entries for sessions older than the retained
   // window into per-session summaries, remove the raw entries from `audit_log`,
   // and re-anchor the live segment's hash chain so verifyAuditChain stays valid.
+  // REQ-590 — derive and persist the arc/campaign tiers. Called after
+  // compaction and at session close so memory is usable without manual
+  // compaction (the arc tier is empty until audit_archive exists).
+  refreshCompressionLadder(novel: NovelState): void {
+    const derivedAt = new Date().toISOString();
+    novel.compression_ladder = novel.compression_ladder ?? emptyCompressionLadder();
+    novel.compression_ladder.arc = deriveArcTier(
+      novel.audit_archive ?? [],
+      novel.event_log ?? [],
+      parseInt(process.env.TTRPG_MEMORY_ARC_SESSIONS ?? "5", 10),
+      derivedAt,
+    );
+    novel.compression_ladder.campaign = deriveCampaignTier(
+      novel,
+      parseInt(process.env.TTRPG_MEMORY_CAMPAIGN_MAX_FACTS ?? "40", 10),
+      derivedAt,
+    );
+  }
+
   compactAuditLog(novel: NovelState, keepSessions: number): { sessions: number; entries: number } {
     novel.audit_archive = novel.audit_archive ?? [];
     const log = novel.audit_log;
@@ -1911,19 +1930,7 @@ export class StateManager {
       totalEntries += slice.length;
     }
     // REQ-590 — refresh the persisted arc and campaign tiers from the archive.
-    const derivedAt = new Date().toISOString();
-    novel.compression_ladder = novel.compression_ladder ?? emptyCompressionLadder();
-    novel.compression_ladder.arc = deriveArcTier(
-      novel.audit_archive,
-      novel.event_log ?? [],
-      parseInt(process.env.TTRPG_MEMORY_ARC_SESSIONS ?? "5", 10),
-      derivedAt,
-    );
-    novel.compression_ladder.campaign = deriveCampaignTier(
-      novel,
-      parseInt(process.env.TTRPG_MEMORY_CAMPAIGN_MAX_FACTS ?? "40", 10),
-      derivedAt,
-    );
+    this.refreshCompressionLadder(novel);
     novel.audit_log = log.slice(cutIndex);
     let prevHash = "00000000";
     for (const e of novel.audit_log) {
@@ -2566,13 +2573,19 @@ function novelToJSON(novel: NovelState): any {
 }
 
 // Snapshot-clone serialization: identical to novelToJSON but omits the
-// undo/redo stacks. Stacks are internal bookkeeping; embedding them in a
-// snapshot would recursively capture every prior snapshot, causing
-// exponential growth (see snapshot/undo/redo).
+// undo/redo stacks, checkpoints, and append-only logs. Stacks and checkpoints
+// are internal bookkeeping; embedding them in a snapshot would recursively
+// capture every prior snapshot, causing exponential growth. The append-only
+// logs are preserved by undo/restore rather than rolled back (REQ-456/REQ-540).
 function novelToSnapshotJSON(novel: NovelState): any {
   const base = novelToJSON(novel);
   delete base.undo_stacks;
   delete base.redo_stacks;
+  delete base.checkpoints;
+  delete base.audit_log;
+  delete base.audit_archive;
+  delete base.event_log;
+  delete base.perception_ledger;
   return base;
 }
 
@@ -2629,7 +2642,7 @@ function novelFromJSON(data: any): NovelState {
     session_zero_completed: data.session_zero_completed ?? false,
     characters_present: data.characters_present ?? false,
     characters_present_ids: data.characters_present_ids ?? [],
-    social_cast: data.social_cast ?? { strategy: "manual", order: [], muted: [], spoken: [], selected: null },
+    social_cast: data.social_cast ?? { strategy: "natural", order: [], muted: [], spoken: [], selected: null },
     adventure_set: data.adventure_set ?? false,
     pending_workflow: data.pending_workflow ?? null,
     connection_counter: data.connection_counter ?? 0,
@@ -2707,78 +2720,44 @@ export function importNovelJSON(data: any): NovelState {
   return novelFromJSON(data);
 }
 
-// Overwrite every Novel-tier field of `target` with the values from `source`.
-// Used by undo/redo (existing) and workflow-snapshot restore (REQ-042b), which
-// must cover all Novel property groups, not a subset. Undo/redo stacks are
-// deliberately NOT touched here — they are internal bookkeeping, preserved
-// across a workflow-cancel restore (REQ-041: workflows are independent of undo).
-export function applyNovelState(target: NovelState, source: NovelState): void {
-  target.slug = source.slug;
-  target.name = source.name;
-  target.ruleset = source.ruleset;
-  target.badge = source.badge;
-  target.entities = source.entities;
-  target.active_entity_id = source.active_entity_id;
-  target.npcs = source.npcs;
-  target.scene_description = source.scene_description;
-  target.scene_location = source.scene_location;
-  target.scene_time_of_day = source.scene_time_of_day;
-  target.scene_atmosphere = source.scene_atmosphere;
-  target.scene_history = source.scene_history;
-  target.scene_beat = source.scene_beat;
-  target.scene_type = source.scene_type;
-  target.narrative_directive = source.narrative_directive;
-  target.combat = source.combat;
-  target.countdowns = source.countdowns;
-  target.lore = source.lore;
-  target.briefing_assembly_count = source.briefing_assembly_count;
-  target.player_signals = source.player_signals;
-  target.adventure_slug = source.adventure_slug;
-  target.generated_adventure = source.generated_adventure;
-  target.briefing_order = source.briefing_order;
-  target.action_patterns_enabled = source.action_patterns_enabled;
-  target.session_zero_completed = source.session_zero_completed;
-  target.characters_present = source.characters_present;
-  target.characters_present_ids = source.characters_present_ids;
-  target.social_cast = source.social_cast;
-  target.adventure_set = source.adventure_set;
-  target.pending_workflow = source.pending_workflow;
-  target.pov_mode = source.pov_mode;
-  target.autonomy = source.autonomy;
-  target.help_category_overrides = source.help_category_overrides;
-  target.story_journal = source.story_journal;
-  target.factions = source.factions;
-  target.secrets = source.secrets;
-  target.relationships = source.relationships;
-  target.gm_context = source.gm_context;
-  target.constraint_overrides = source.constraint_overrides;
-  target.synthesis_activated = source.synthesis_activated;
-  target.synthesis_deactivated = source.synthesis_deactivated;
-  target.synthesis_module_enabled = source.synthesis_module_enabled;
-  target.ruling_ledger = source.ruling_ledger;
-  target.notes = source.notes;
-  target.vows = source.vows;
-  target.checkpoints = source.checkpoints;
-  target.description = source.description;
-  target.genre = source.genre;
-  target.adventure_index = source.adventure_index;
-  target.adventure_scene_waypoint = source.adventure_scene_waypoint;
-  target.world = source.world;
-  target.story_beats = source.story_beats;
-  target.pacing_counter = source.pacing_counter;
-  target.pacing_autonomy_fired = source.pacing_autonomy_fired;
-  target.scene_transition_count = source.scene_transition_count;
-  target.faction_autonomous_ticks = source.faction_autonomous_ticks;
-  target.npc_goal_suggestions = source.npc_goal_suggestions;
-  target.voice_corrections_this_session = source.voice_corrections_this_session;
-  target.auto_record = source.auto_record;
-  target.session_no_mutation_windows = source.session_no_mutation_windows;
-  target.state_regression = source.state_regression;
-  target.last_mutation_at = source.last_mutation_at;
-  target.mutation_counts_by_group = source.mutation_counts_by_group;
-  target.uncommitted_rolls = source.uncommitted_rolls;
-  target.metadata = source.metadata;
-  target.fate = source.fate;
-  target.ironsworn = source.ironsworn;
-  target.forged = source.forged;
+// State-copy policy. `undo` restores mutable story state while preserving the
+// append-only logs and internal bookkeeping; `replace` restores a full
+// interchange payload (import) including the append-only logs and checkpoints.
+// Undo/redo stacks are never overwritten in either mode.
+export const APPEND_ONLY_STATE_FIELDS = [
+  "audit_log",
+  "audit_archive",
+  "event_log",
+  "perception_ledger",
+] as const;
+
+export const BOOKKEEPING_STATE_FIELDS = [
+  "undo_stacks",
+  "redo_stacks",
+  "checkpoints",
+  "connection_counter",
+  "pending_staleness_counter",
+] as const;
+
+export type ApplyNovelMode = "undo" | "replace";
+
+// Overwrite every Novel-tier field of `target` from `source`. The field list is
+// the serialized state's own key set, so a newly added §7.7 group cannot be
+// silently omitted (the drift that lost campaign_memory/compression_ladder).
+export function applyNovelState(
+  target: NovelState,
+  source: NovelState,
+  mode: ApplyNovelMode = "undo",
+): void {
+  const preserve = new Set<string>(["undo_stacks", "redo_stacks"]);
+  if (mode === "undo") {
+    for (const key of APPEND_ONLY_STATE_FIELDS) preserve.add(key);
+    for (const key of BOOKKEEPING_STATE_FIELDS) preserve.add(key);
+  }
+  const src = source as unknown as Record<string, unknown>;
+  const dst = target as unknown as Record<string, unknown>;
+  for (const key of Object.keys(src)) {
+    if (preserve.has(key)) continue;
+    dst[key] = src[key];
+  }
 }

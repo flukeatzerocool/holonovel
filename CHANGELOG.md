@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-10-25 — Two-week review remediation: state integrity, badge safety, and surface defaults
+
+- Fixed a Player-badge leak in tiered recaps: `manage_session (action: recap)`
+  now filters GM-sourced events and omits secrets/GM-scoped lore from the
+  campaign tier (REQ-072i, REQ-590, REQ-591; T699).
+- Made state application exhaustive. `applyNovelState` now has `undo` and
+  `replace` modes; replace-import restores every populated §7.7 group, while
+  undo/checkpoint restore preserve append-only logs. Clone/branch/checkpoint
+  reuse the single `exportNovelJSON` serializer and no longer drop
+  `campaign_memory`, `compression_ladder`, or other groups (REQ-240a,
+  REQ-241a; T100, T240, T694).
+- Added `manage_synthesis (action: ruling_list)` for the GM-only ruling ledger
+  and refreshed the compression campaign tier on `close_session` (REQ-589,
+  REQ-590; T696, T697).
+- Corrected the export manifest: `ruleset_hash` is the bound package's
+  SHA-256 content hash and `property_groups_present` is derived from the
+  payload (REQ-096; T281).
+- Bounded storage defaults: 25 checkpoints, 50,000 event entries, 20,000
+  perceptions (`0` still unlimited), with `spec_health` utilization warnings
+  (REQ-241b, REQ-455, REQ-540).
+- Minimized split-tool schemas with `pickParams`; `manage_session` exposes its
+  four canonical actions and `manage_diagnostics` keeps the diagnostics set
+  (REQ-570, REQ-581).
+- Social cast now defaults to `natural`, resets on a scene change, and the
+  narrator prompt names the next speaker; perception records accept explicit
+  witness fields (REQ-611, REQ-612, REQ-594).
+- Starter Novel gains sensory cues, NPC talkativeness, and identity cores;
+  AGENTS/§7.6/register documentation updated.
+
+# Changelog
+
 ## 2026-10-25 — Torre Nosferatu wax economy (start at 30, refill by finding wax)
 
 - The Candle now starts at 30 of 100 wax; each of the seven floor wax caches

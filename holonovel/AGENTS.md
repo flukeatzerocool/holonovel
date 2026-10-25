@@ -54,7 +54,7 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **manage_npc** (action: create/update/remove/list/get/import_card/export_card) — GM NPC management, Character Card V3 import/export
 - **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate) — world-model rooms, things, and exits (REQ-484–REQ-495)
 - **manage_causality** (action: causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — objective causal state and transition ledger; split from `manage_world` (REQ-413/REQ-581)
-- **run_command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
+- **run_command** (action: execute/resolve/suggest/visibility/audibility) — parser dispatch, spatial intent resolution, action suggestions, and read-only visibility/audibility queries
 - **manage_combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle
 - **manage_condition** (action: apply/remove/list) — mechanical/narrative conditions
 - **manage_countdown** (action: set/advance/remove/list) — GM countdown timers
@@ -69,7 +69,7 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **manage_novel** (action: create/resume/switch/end/rename/description/list/info/genre/complete_session_zero/save_context/get_context) — save-file lifecycle (REQ-458/REQ-459)
 - **manage_archive** (action: export/import/archive/unarchive/clone/branch/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — archival and checkpoint surfaces; split from `manage_novel` (REQ-413/REQ-581)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
-- **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
+- **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list/verify/record_ruling/revert_ruling/ruling_list) — Ruleset Wisdom, local citation verification, and the GM-only ruling ledger
 - **manage_ruleset** (action: search/install/remove/list/bind/import_supplementary/remove_supplementary) — ruleset lookup and package management; the table roll moved to `resolve_mechanic (action: roll)`
 - **manage_scene** (action: set/directive/choices/oracle) — scene state and narrative framing
 - **manage_staging** (action: presence/autonomy/cast/next_speaker) — scene presence, autonomy, and social-cast staging; split from `manage_scene` (REQ-413/REQ-581)
@@ -80,7 +80,7 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **open_session** (novel?/badge?) — composite: resume, badge, recap (REQ-577)
 - **close_session** (no params) — composite: recap and save context (REQ-577)
 - **take_turn** (intent/entity_id?) — composite: parser resolution, suggestions, and a turn handle (REQ-574/REQ-577)
-- **manage_belief** (action: list/get/evidence/admit/retract/conflicts/reconcile/perception_record/perception_list/perception_for_entity/perception_for_event) — per-entity evidence, reconciled belief stances, and the perception ledger (REQ-461–REQ-472, REQ-540–REQ-545)
+- **manage_belief** (action: list/get/evidence/admit/retract/conflicts/reconcile/knowledge_query/perception_record/perception_list/perception_for_entity/perception_for_event) — per-entity evidence, reconciled belief stances, one-entity knowledge queries, and the perception ledger (REQ-461–REQ-472, REQ-540–REQ-545)
 - **manage_identity** (action: stage/accept/reject/list/snapshot/bootstrap) — Roster-tier character identity: staged candidates, accepted facets, versioned kernel (REQ-473–REQ-483)
 - **manage_knowledge** (action: index_build/index_status/index_list/index_search/index_relations/graph_build/graph_status/graph_get/graph_nodes/graph_edges/graph_neighbors) — derived semantic index (REQ-504–REQ-509) and knowledge-graph projection (REQ-510–REQ-514); in-memory, advisory, read-only reads
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)

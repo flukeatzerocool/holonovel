@@ -154,6 +154,12 @@ async function main(): Promise<void> {
       assert(candleClock?.ticks === 30, "the Candle starts at 30 wax");
       assert(candleClock?.total === 100, "the Candle capacity is 100");
       assert((candleClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+10$/.test(t)).length === 7, "seven wax refill triggers are wired");
+      const sensory = [...world.things.values()].filter((t) => t.noise || t.scent);
+      assert(sensory.length >= 3, "starter content exercises sensory cues");
+      const talkative = [...novel!.npcs.values()].filter((n) => typeof (n as any).talkativeness === "number");
+      assert(talkative.length >= 3, "starter NPCs carry talkativeness");
+      const identity = [...novel!.npcs.values()].filter((n) => ((n as any).mind?.identity_core?.length ?? 0) > 0);
+      assert(identity.length >= 2, "starter NPCs carry identity cores");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

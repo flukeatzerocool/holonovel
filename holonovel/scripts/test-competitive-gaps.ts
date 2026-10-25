@@ -557,8 +557,29 @@ async function main() {
       const prompt = await readPrompt(proc, "narrate");
       assertContains(prompt, "Cast direction");
       assertContains(prompt, "Never speak for the player");
+      assertContains(prompt, "Speaker this turn");
     });
     proc.kill("SIGKILL");
+  }
+
+  {
+    const p = await boot();
+    await newNovel(p, "cast-default");
+    await call(p, "manage_npc", { action: "create", name: "Ann" });
+    await call(p, "manage_npc", { action: "create", name: "Ben" });
+    await test("T727/REQ-611: default cast strategy is natural and a scene reset clears spoken", async () => {
+      const cast = await call(p, "manage_staging", { action: "cast" });
+      assertContains(cast, "natural");
+      await call(p, "manage_staging", { action: "cast", strategy: "pooled" });
+      await call(p, "manage_staging", { action: "next_speaker" });
+      await call(p, "manage_staging", { action: "next_speaker" });
+      const before = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+      assert(before.social_cast?.spoken === 2, `expected two spoken NPCs, got ${JSON.stringify(before.social_cast)}`);
+      await call(p, "manage_scene", { action: "set", description: "A new scene." });
+      const after = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+      assert(after.social_cast?.spoken === 0, "scene transition did not reset the spoken set");
+    });
+    p.kill("SIGKILL");
   }
 
   harnessComplete();

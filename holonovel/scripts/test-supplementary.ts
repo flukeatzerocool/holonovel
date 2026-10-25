@@ -108,10 +108,16 @@ async function main() {
     assert(first.citations.length > 0 && first.citations.every((c: any) => c.verdict === "pass"), "ruling citations did not verify: " + JSON.stringify(first.citations));
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     assert(health.ruling_ledger_count === 1 && health.ruling_ledger_reverted_count === 0, "ledger counts wrong after record");
+    const listed = JSON.parse(await call(p, "manage_synthesis", { action: "ruling_list" }));
+    assert(Array.isArray(listed) && listed.length === 1 && listed[0].id === "ruling_1", "ruling_list did not return the ruling: " + JSON.stringify(listed));
     const rev = await call(p, "manage_synthesis", { action: "revert_ruling", ruling_id: "ruling_1" });
     assert(rev.includes("marked reverted"), "revert_ruling failed: " + rev.slice(0, 120));
     const health2 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     assert(health2.ruling_ledger_count === 1 && health2.ruling_ledger_reverted_count === 1, "ledger counts wrong after revert");
+    const listedDefault = JSON.parse(await call(p, "manage_synthesis", { action: "ruling_list" }));
+    assert(listedDefault.length === 0, "ruling_list returned a reverted entry by default");
+    const listedAll = JSON.parse(await call(p, "manage_synthesis", { action: "ruling_list", include_reverted: true }));
+    assert(listedAll.length === 1 && listedAll[0].reverted === true, "ruling_list include_reverted did not return the reverted entry");
     // Whole-synthesis revert leaves the ledger intact (REQ-589).
     await call(p, "manage_synthesis", { action: "revert" });
     const health3 = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));

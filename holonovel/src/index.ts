@@ -277,6 +277,16 @@ function configInt(name: string, dflt: number): number {
   return isNaN(n) ? dflt : n;
 }
 
+// Schema-object subset helper. The parent schemas are plain validator maps, so
+// split tools select only the parameters their actions use.
+function pickParams<T extends Record<string, unknown>>(schema: T, keys: readonly string[]): Partial<T> {
+  const picked: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key in schema) picked[key] = schema[key];
+  }
+  return picked as Partial<T>;
+}
+
 // REQ-106 — spec repository URL: recorded at intake, surfaced in spec_health
 // (`spec_repo_url`) and the intro prompt. Informational — the embedded spec
 // copy (REQ-105) is authoritative.
@@ -290,6 +300,9 @@ function npcAutonomyOn(): boolean { return (process.env.TTRPG_NPC_AUTONOMY ?? "o
 function npcMindOn(): boolean { return (process.env.TTRPG_NPC_MIND ?? "off") === "on"; }
 // REQ-339e — session-boundary proactive NPC beats (default off).
 function npcProactiveBoundaryOn(): boolean { return (process.env.TTRPG_NPC_PROACTIVE_BOUNDARY ?? "off") === "on"; }
+if (npcProactiveBoundaryOn() && !npcAutonomyOn()) {
+  process.stderr.write("[holonovel] TTRPG_NPC_PROACTIVE_BOUNDARY=on has no effect unless TTRPG_NPC_AUTONOMY=on (REQ-339e)\n");
+}
 // REQ-075g — talkativeness defaults to the neutral midpoint when unset.
 function npcTalkativeness(npc: any): number {
   const value = Number(npc?.talkativeness);
@@ -881,6 +894,19 @@ function composeNarrationClearance(novel: NovelState, role: NarrativeRole): stri
   if (role === "game_master" && facts.gm_only.length > 0) {
     lines.push(`### GM-only facts`);
     lines.push(...facts.gm_only);
+  }
+  // REQ-611/612 — name the deterministic speaker first, then ensemble direction.
+  if (facts.npcs.length > 0) {
+    const cast = novel.social_cast;
+    const selected = cast.selected ? facts.npcs.find((n: any) => n.id === cast.selected) : undefined;
+    const unspoken = facts.npcs.find((n: any) => !cast.spoken.includes(n.id));
+    const speaker = selected ?? unspoken ?? facts.npcs[0];
+    lines.push(`### Speaker this turn`);
+    lines.push(`- ${speaker.name}${selected ? " (manual selection)" : ""}.`);
+    if (role === "game_master" && facts.npcs.length >= 2) {
+      const ordered = [...facts.npcs].sort((a: any, b: any) => (Number(b.talkativeness) || 50) - (Number(a.talkativeness) || 50));
+      lines.push(`- Talkativeness order: ${ordered.map((n: any) => `${n.name} ${Number(n.talkativeness) || 50}`).join(", ")}.`);
+    }
   }
   // REQ-598 — ensemble cast direction prevents monologue and voice bleed.
   if (facts.npcs.length >= 2) {
@@ -1947,12 +1973,19 @@ function availableActionsSection(novel: NovelState): string[] {
     actions.push("resolve an attack or skill check for the active entity");
   } else if (sceneTypes.includes("social")) {
     actions.push("resolve a persuasion, deception, or intimidation check with a present NPC");
-    if (isGM) actions.push("manage_relationship (action: set — record a social outcome)");
+    if (isGM) {
+      actions.push("manage_staging (action: next_speaker — pick the next NPC speaker)");
+      actions.push("manage_relationship (action: set — record a social outcome)");
+    }
   } else if (isGM || !novel.ruleset) {
     actions.push("run_command (action: execute, \"look\")");
     actions.push("run_command (action: execute, \"go <direction>\")");
     actions.push("run_command (action: execute, \"examine <thing>\")");
     if (novel.world.things.size > 0) actions.push("run_command (action: execute, \"take <thing>\")");
+    if (isGM) {
+      actions.push("run_command (action: visibility — who can see this?)");
+      actions.push("run_command (action: audibility — who can hear this?)");
+    }
   } else {
     actions.push("run_command (action: suggest, \"<what you want to do>\")");
   }
@@ -2019,7 +2052,7 @@ function recordEvent(kind: string, text: string, source?: EventSource): void {
   const badge = getBadge();
   const resolved: EventSource = source ?? (badge === "player" ? "player" : badge === "game_master" ? "game_master" : "system");
   const entry = appendEvent(novel.event_log, resolved, kind, text, new Date().toISOString());
-  const cap = parseInt(process.env.TTRPG_EVENT_LOG_MAX_ENTRIES ?? "0", 10);
+  const cap = parseInt(process.env.TTRPG_EVENT_LOG_MAX_ENTRIES ?? "50000", 10);
   if (cap > 0 && novel.event_log.length > cap) novel.event_log = evictToCap(novel.event_log, cap);
   deriveWitnessPerceptions(novel, kind, text, entry.ordinal);
   // REQ-602 — the digest covers post-mutation state, after the perception
@@ -2031,7 +2064,7 @@ function recordEvent(kind: string, text: string, source?: EventSource): void {
 function appendPerceptionRecord(novel: NovelState, fields: Omit<PerceptionRecord, "id" | "at">): PerceptionRecord {
   const record: PerceptionRecord = { id: nextPerceptionId(novel.perception_ledger), at: new Date().toISOString(), ...fields };
   novel.perception_ledger.push(record);
-  const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "0", 10);
+  const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "20000", 10);
   if (cap > 0 && novel.perception_ledger.length > cap) novel.perception_ledger = novel.perception_ledger.slice(novel.perception_ledger.length - cap);
   return record;
 }
@@ -2998,8 +3031,8 @@ Character '${build.name}' created as ${entity.id} with derived statistics.`);
         state.saveNovel(novel);
         return err("STATE_CONFLICT", `Checkpoint '${label}' failed its state-hash check; restore aborted.`);
       }
-      const restored = stateData ? loadNovelFromStateData(stateData) : null;
-      applyNovelState(novel, restored ?? novel);
+      const restored = stateData ? importNovelJSON(stateData) : null;
+      applyNovelState(novel, restored ?? novel, "undo");
       novel.pending_workflow = null;
       state.saveNovel(novel);
       audit("checkpoint_restored", { label }, "[checkpoint-restored]");
@@ -4891,7 +4924,7 @@ server.registerTool("manage_causality", {
   title: "Causality Management",
   description: "Manage objective causal state and transition proposals. Use when: proposing a causal transition (causal_propose), admitting or rejecting a proposal (causal_admit, causal_reject), listing proposals (causal_list), inspecting causal state (causal_state), or ingressing an external event (causal_ingress). Do NOT use when: changing rooms, things, or exits — use manage_world. Proposals persist and are audited; revert with manage_history (action: undo); list and state are read-only; admit, reject, and ingress mutate Novel state.",
   inputSchema: {
-    ...MANAGE_WORLD_SCHEMA,
+    ...pickParams(MANAGE_WORLD_SCHEMA, ["action", "causal_scope", "causal_domain", "causal_entity", "causal_key", "causal_value", "causal_from", "causal_expected_version", "causal_origin_source", "causal_source_ordinal", "causal_proposal_id"]),
     action: z.enum(MANAGE_WORLD_SCHEMA_ACTIONS).describe("causal_propose, causal_admit, causal_reject, causal_list, causal_state, causal_ingress."),
   },
 }, async (args: any, extra: any) => {
@@ -5155,7 +5188,8 @@ server.registerTool("manage_scene", {
       const { description, location, time_of_day, atmosphere, scene_type, beat, skip_transition_hook, adventure_scene, fast_forward } = args;
       const derived = description === undefined && location !== undefined ? deriveSceneDescription(location, novel) : null;
       const effectiveDescription = description !== undefined ? description : (derived ?? novel.scene_description);
-      const isTransition = novel.scene_description !== "" && novel.scene_description !== effectiveDescription;
+      const hadScene = novel.scene_description !== "";
+      const isTransition = hadScene && novel.scene_description !== effectiveDescription;
       if (novel.scene_description) {
         const historyEntry: any = {
           timestamp: new Date().toISOString(),
@@ -5235,7 +5269,17 @@ server.registerTool("manage_scene", {
         resolvePendingDiscoveries(novel);
         factionAutonomousAdvance(novel);
         resetPacing(novel);
+        // REQ-611/612 — a new scene clears the social-cast spoken set and any
+        // manual selection so speaker rotation restarts.
+        novel.social_cast.spoken = [];
+        novel.social_cast.selected = null;
         if (novel.auto_record) recordStoryMoment(novel, effectiveDescription, location ?? null);
+      }
+      // REQ-611/612 — a scene set that starts or changes the scene clears the
+      // social-cast spoken set and manual selection so rotation restarts.
+      if (!hadScene || isTransition) {
+        novel.social_cast.spoken = [];
+        novel.social_cast.selected = null;
       }
       state.recordMutation(novel, "set_scene_state", "scene");
       // REQ-455 — the scene description is an observation that enters play.
@@ -5621,8 +5665,8 @@ server.registerTool("manage_staging", {
   title: "Scene Staging Management",
   description: "Manage scene presence, autonomy, and social-cast staging. Use when: setting which entities are present (presence), adjusting NPC and world autonomy for the scene (autonomy), setting a multi-NPC speaker strategy (cast), or selecting the next speaker (next_speaker). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence, autonomy, and cast state persist to the Novel and are audited; revert with manage_history (action: undo).",
   inputSchema: {
-    ...MANAGE_SCENE_SCHEMA,
-    action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy."),
+    ...pickParams(MANAGE_SCENE_SCHEMA, ["action", "entity_ids", "strategy", "select", "mute", "unmute", "force", "after_user", "level", "confirmation", "safety", "creativity"]),
+    action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy, cast, or next_speaker."),
   },
 }, async (args: any, extra: any) => {
   const target = (server as any)._registeredTools?.["manage_scene"];
@@ -6082,7 +6126,7 @@ server.registerTool("manage_corpus", {
   title: "Knowledge Corpus",
   description: "Manage the cold-reference knowledge corpus. Use when: registering, listing, reading, routing, granting, denying, accessing, consuming, or inspecting acquisitions of corpus documents (corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions). Do NOT use when: writing Novel lore entries or secrets — use manage_lore. corpus_register, corpus_route, corpus_grant, and corpus_deny persist access state; revert with manage_history (action: undo); corpus_list, corpus_get, corpus_access, and corpus_acquisitions are read-only; corpus_consume records usage.",
   inputSchema: {
-    ...MANAGE_LORE_SCHEMA,
+    ...pickParams(MANAGE_LORE_SCHEMA, ["action"]),
     ...CORPUS_PARAMS,
     action: z.enum(MANAGE_LORE_SCHEMA_ACTIONS).describe("corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions."),
   },
@@ -6983,148 +7027,6 @@ server.registerTool("manage_note", {
 
 // --- Special tools ---
 
-// ── Serialization helpers (used by checkpoint/export) ──────────────
-
-function novelToJSONState(novel: NovelState): any {
-  return {
-    slug: novel.slug, name: novel.name, ruleset: novel.ruleset, badge: novel.badge,
-    entities: Object.fromEntries(novel.entities), active_entity_id: novel.active_entity_id,
-    npcs: Object.fromEntries(novel.npcs),
-    scene_description: novel.scene_description, scene_location: novel.scene_location,
-    scene_time_of_day: novel.scene_time_of_day, scene_atmosphere: novel.scene_atmosphere,
-    scene_history: novel.scene_history, scene_beat: novel.scene_beat, scene_type: novel.scene_type,
-    narrative_directive: novel.narrative_directive, combat: novel.combat,
-    countdowns: Object.fromEntries(novel.countdowns), lore: Object.fromEntries(novel.lore),
-    briefing_order: novel.briefing_order, action_patterns_enabled: novel.action_patterns_enabled,
-    story_journal: novel.story_journal, factions: novel.factions, secrets: novel.secrets,
-    relationships: novel.relationships, gm_context: novel.gm_context, notes: novel.notes,
-    constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_deactivated: novel.synthesis_deactivated, synthesis_module_enabled: novel.synthesis_module_enabled, ruling_ledger: novel.ruling_ledger,
-    characters_present_ids: novel.characters_present_ids,
-    social_cast: novel.social_cast,
-    session_zero_completed: novel.session_zero_completed,
-    characters_present: novel.characters_present,
-    adventure_set: novel.adventure_set,
-    autonomy: novel.autonomy,
-    vows: novel.vows, checkpoints: novel.checkpoints, description: novel.description,
-    genre: novel.genre, adventure_index: novel.adventure_index,
-    adventure_scene_waypoint: novel.adventure_scene_waypoint,
-    world: worldToJSON(novel.world),
-    story_beats: novel.story_beats, pacing_counter: novel.pacing_counter,
-    pacing_autonomy_fired: novel.pacing_autonomy_fired, scene_transition_count: novel.scene_transition_count,
-    faction_autonomous_ticks: novel.faction_autonomous_ticks, npc_goal_suggestions: novel.npc_goal_suggestions,
-    voice_corrections_this_session: novel.voice_corrections_this_session,
-    auto_record: novel.auto_record,
-    session_no_mutation_windows: novel.session_no_mutation_windows,
-    state_regression: novel.state_regression,
-    last_mutation_at: novel.last_mutation_at,
-    mutation_counts_by_group: novel.mutation_counts_by_group,
-    uncommitted_rolls: novel.uncommitted_rolls,
-    metadata: novel.metadata,
-    fate: novel.fate,
-    ironsworn: novel.ironsworn,
-    forged: novel.forged,
-    event_log: novel.event_log,
-    branch_lineage: novel.branch_lineage,
-    evidence: novel.evidence,
-    belief_state: novel.belief_state,
-    causal_slots: novel.causal_slots,
-    transition_ledger: novel.transition_ledger,
-    supplementary_rulesets: novel.supplementary_rulesets,
-    agent_tasks: novel.agent_tasks,
-    perception_ledger: novel.perception_ledger,
-    corpus_documents: novel.corpus_documents,
-    corpus_access: novel.corpus_access,
-    corpus_consumption: novel.corpus_consumption,
-  };
-}
-
-function loadNovelFromStateData(data: any): NovelState {
-  data = migrateNovelData(data);
-  const world = createEmptyWorldModel();
-  if (data.world?.rooms) for (const [k, r] of Object.entries(data.world.rooms)) {
-    world.rooms.set(k, { name: (r as any).name, description: (r as any).description ?? "", exits: new Map(Object.entries((r as any).exits || {})), doorRefs: new Map(Object.entries((r as any).doorRefs || {})), annotations: (r as any).annotations ?? {} });
-  }
-  if (data.world?.things) for (const [k, t] of Object.entries(data.world.things)) {
-    world.things.set(k, { name: (t as any).name, description: (t as any).description ?? "", kind: (t as any).kind ?? "thing", location: (t as any).location ?? null, locationType: (t as any).locationType ?? null, portable: (t as any).portable ?? true, openable: (t as any).openable ?? false, open: (t as any).open ?? false, lockable: (t as any).lockable ?? false, locked: (t as any).locked ?? false, lit: (t as any).lit ?? false, switchable: (t as any).switchable ?? false, switched_on: (t as any).switched_on ?? false, enterable: (t as any).enterable ?? false, vehiclePassengers: (t as any).vehiclePassengers ?? [], wearable: (t as any).wearable ?? false, worn_by: (t as any).worn_by ?? null, readable: (t as any).readable ?? false, read_text: (t as any).read_text ?? null, edible: (t as any).edible ?? false, drinkable: (t as any).drinkable ?? false, climbable: (t as any).climbable ?? false, transparent: (t as any).transparent ?? false, noise: (t as any).noise ?? null, scent: (t as any).scent ?? null, annotations: (t as any).annotations ?? {} });
-  }
-  return {
-    slug: data.slug, name: data.name, ruleset: data.ruleset ?? null, badge: data.badge,
-    entities: new Map(Object.entries(data.entities ?? {})),
-    active_entity_id: data.active_entity_id ?? null,
-    npcs: new Map(Object.entries(data.npcs ?? {})),
-    scene_description: data.scene_description ?? "",
-    scene_location: data.scene_location, scene_time_of_day: data.scene_time_of_day,
-    scene_atmosphere: data.scene_atmosphere, scene_history: data.scene_history ?? [],
-    scene_beat: data.scene_beat ?? "",
-    scene_type: normalizeSceneTypeState(data.scene_type),
-    narrative_directive: data.narrative_directive ?? "", combat: data.combat ?? null,
-    countdowns: new Map(Object.entries(data.countdowns ?? {})),
-    lore: new Map(Object.entries(data.lore ?? {})),
-    briefing_assembly_count: data.briefing_assembly_count ?? 0,
-    player_signals: data.player_signals ?? {}, adventure_slug: data.adventure_slug ?? null,
-    generated_adventure: data.generated_adventure ?? null,
-    audit_log: data.audit_log ?? [],
-    audit_archive: data.audit_archive ?? [],
-    undo_stacks: { player: [], game_master: [], observer: [], none: [] },
-    redo_stacks: { player: [], game_master: [], observer: [], none: [] },
-    briefing_order: data.briefing_order ?? [],
-    action_patterns_enabled: data.action_patterns_enabled ?? false,
-    session_zero_completed: data.session_zero_completed ?? false, characters_present: data.characters_present ?? false, characters_present_ids: data.characters_present_ids ?? [], social_cast: data.social_cast ?? { strategy: "manual", order: [], muted: [], spoken: [], selected: null }, adventure_set: data.adventure_set ?? false,
-    pending_workflow: data.pending_workflow ?? null,
-    connection_counter: 0, pending_staleness_counter: 0, pov_mode: "character",
-    help_category_overrides: {},
-    story_journal: data.story_journal ?? [], factions: data.factions ?? [],
-    secrets: data.secrets ?? [], relationships: data.relationships ?? [],
-    gm_context: data.gm_context ?? data.dm_context ?? {}, notes: data.notes ?? [], vows: data.vows ?? [],
-    checkpoints: data.checkpoints ?? [], description: data.description ?? "",
-    constraint_overrides: data.constraint_overrides ?? [],
-    synthesis_activated: data.synthesis_activated ?? {}, synthesis_deactivated: data.synthesis_deactivated ?? {}, synthesis_module_enabled: data.synthesis_module_enabled ?? {},
-    autonomy: normalizeAutonomy(data.autonomy),
-    genre: data.genre ?? "", adventure_index: data.adventure_index ?? null,
-    adventure_scene_waypoint: data.adventure_scene_waypoint ?? null,
-    world, story_beats: data.story_beats ?? [], pacing_counter: data.pacing_counter ?? 0,
-    pacing_autonomy_fired: data.pacing_autonomy_fired ?? false, scene_transition_count: data.scene_transition_count ?? 0,
-    faction_autonomous_ticks: data.faction_autonomous_ticks ?? {}, npc_goal_suggestions: data.npc_goal_suggestions ?? [],
-    voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
-    auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
-    session_no_mutation_windows: data.session_no_mutation_windows ?? [],
-    state_regression: data.state_regression ?? null,
-    last_mutation_at: data.last_mutation_at ?? null,
-    mutation_counts_by_group: data.mutation_counts_by_group ?? {},
-    uncommitted_rolls: data.uncommitted_rolls ?? [],
-    metadata: data.metadata ?? { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, total_combat_rounds: 0, last_scene_anchor: "", sessions: [] },
-    active_session_id: data.active_session_id ?? null,
-    pending_vow_countdown_suggestion: data.pending_vow_countdown_suggestion ?? null,
-    codex_sources: data.codex_sources ?? [],
-    player_synthesis: data.player_synthesis ?? {},
-    ruling_ledger: data.ruling_ledger ?? [],
-    campaign_memory: data.campaign_memory ?? [],
-    compression_ladder: data.compression_ladder ?? { version: 1, arc: [], campaign: null },
-    fate: { aspects: data.fate?.aspects ?? [], fate_points: data.fate?.fate_points ?? {}, stress: data.fate?.stress ?? {} },
-    ironsworn: { momentum: data.ironsworn?.momentum ?? {}, progress_tracks: data.ironsworn?.progress_tracks ?? [] },
-    forged: { characters: data.forged?.characters ?? {} },
-    event_log: data.event_log ?? [],
-    branch_lineage: data.branch_lineage ?? { parent_slug: null, branch_point: null },
-    evidence: data.evidence ?? [],
-    belief_state: data.belief_state ?? [],
-    causal_slots: data.causal_slots ?? [],
-    transition_ledger: data.transition_ledger ?? [],
-    supplementary_rulesets: data.supplementary_rulesets ?? [],
-    agent_tasks: data.agent_tasks ?? [],
-    perception_ledger: data.perception_ledger ?? [],
-    corpus_documents: data.corpus_documents ?? [],
-    corpus_access: data.corpus_access ?? [],
-    corpus_consumption: data.corpus_consumption ?? [],
-  };
-}
-
-function normalizeSceneTypeState(raw: unknown): ("combat" | "social" | "exploration" | "neutral")[] {
-  if (!raw) return ["neutral"];
-  if (Array.isArray(raw)) return (raw as string[]).filter((t): t is "combat" | "social" | "exploration" | "neutral" => ["combat", "social", "exploration", "neutral"].includes(t));
-  if (typeof raw === "string" && ["combat", "social", "exploration", "neutral"].includes(raw)) return [raw as any];
-  return ["neutral"];
-}
-
 // --- Guidance (GM) ---
 
 // Session (REQ-025, REQ-072, REQ-082, REQ-086, REQ-173, REQ-174, REQ-175, REQ-186, REQ-253, REQ-279) — consolidated recap/verbosity/
@@ -7208,6 +7110,11 @@ server.registerTool("manage_belief", {
     perception_kind: z.enum(["message", "scene", "observation"]).optional().describe("message, scene, or observation (perception_record; default observation)."),
     perception_summary: z.string().optional().describe("What was perceived (perception_record)."),
     perception_event_ordinal: z.number().optional().describe("Contributing event-log ordinal (perception_record/perception_for_event; defaults to the latest event)."),
+    perception_witness: z.enum(["saw", "heard", "inferred", "told"]).optional().describe("Witness kind (perception_record; default inferred; REQ-594)."),
+    perception_sense: z.enum(["sight", "sound", "telling"]).optional().describe("Sense that produced the perception (perception_record; default null; REQ-594)."),
+    perception_source_entity: z.string().optional().describe("Entity the perception came from (perception_record; default null)."),
+    perception_room_id: z.string().optional().describe("Room identifier for the perception (perception_record; defaults to the entity's room)."),
+    perception_confidence: z.number().min(0).max(1).optional().describe("0..1 confidence (perception_record; default 0; REQ-594)."),
     topic: z.string().optional().describe("Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets."),
   },
 }, async (args: any) => {
@@ -8026,14 +7933,14 @@ const handlePerceptionActions = async (args: any) => {
         kind,
         summary: args.summary,
         at: new Date().toISOString(),
-        witness: "inferred",
-        sense: null,
-        source_entity: null,
-        room_id: novel.entities.get(args.entity_id)?.current_room ?? null,
-        confidence: 1,
+        witness: args.witness ?? "inferred",
+        sense: args.sense ?? null,
+        source_entity: args.source_entity ?? null,
+        room_id: args.room_id ?? novel.entities.get(args.entity_id)?.current_room ?? null,
+        confidence: typeof args.confidence === "number" ? Math.max(0, Math.min(1, args.confidence)) : 0,
       };
       novel.perception_ledger.push(record);
-      const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "0", 10);
+      const cap = parseInt(process.env.TTRPG_PERCEPTION_MAX_ENTRIES ?? "20000", 10);
       if (cap > 0 && novel.perception_ledger.length > cap) novel.perception_ledger = novel.perception_ledger.slice(novel.perception_ledger.length - cap);
       state.saveNovel(novel);
       audit("perception_record", { entity_id: record.entity_id, kind: record.kind, ordinal: record.event_ordinal });
@@ -8194,11 +8101,14 @@ const MANAGE_SESSION_SCHEMA = {
     to_event: z.number().optional().describe("Target event ordinal for replay inspection (replay; default the newest retained entry)."),
   };
 
+const MANAGE_SESSION_CANONICAL_SCHEMA = pickParams(MANAGE_SESSION_SCHEMA, [
+  "action", "mode", "sections", "gm_notes", "session_id", "query", "detail", "tier", "budget_tokens",
+]);
 server.registerTool("manage_session", {
   _meta: { deprecated: true, replacement: "manage_diagnostics" },
   title: "Session Management",
   description: "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title and returns live input schemas on request (detail: schema). verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
-  inputSchema: MANAGE_SESSION_SCHEMA,
+  inputSchema: MANAGE_SESSION_CANONICAL_SCHEMA,
 
 }, async (args: any) => {
   switch (args.action) {
@@ -8401,28 +8311,36 @@ Options: yes, cancel`);
           return err("INVALID_INPUT", "budget_tokens must be a positive integer.");
         }
         const derivedAt = new Date().toISOString();
-        const recentCand = deriveRecentTier(novel.event_log, configInt("TTRPG_MEMORY_RECENT_EVENTS", 10));
-        let sessionCand = deriveSessionTier(novel.audit_log, novel.event_log);
+        // REQ-072i — Player/Observer tiers never expose GM-sourced observations.
+        const memoryBadge = getBadge();
+        const memoryGM = memoryBadge === "game_master" || memoryBadge === "none";
+        const visibleLog = memoryGM ? novel.event_log : novel.event_log.filter((e) => e.source !== "game_master");
+        const recentCand = deriveRecentTier(visibleLog, configInt("TTRPG_MEMORY_RECENT_EVENTS", 10));
+        let sessionCand = deriveSessionTier(novel.audit_log, visibleLog);
         if ((novel.audit_archive ?? []).length > 0) {
           sessionCand = {
             level: "session",
             text: novel.audit_archive.map((s) => {
               const ords = new Set(s.source_ordinals ?? []);
-              const highlights = novel.event_log.filter((e) => ords.has(e.ordinal)).slice(-3).map((e) => `- ${e.text}`);
+              const highlights = visibleLog.filter((e) => ords.has(e.ordinal)).slice(-3).map((e) => `- ${e.text}`);
               return [`- ${s.session_id}: ${s.entry_count} entries, ${s.confrontations} confrontations, ${s.significant_rolls} significant rolls`, ...highlights].join("\n");
             }).join("\n"),
             source_ordinals: [...new Set(novel.audit_archive.flatMap((s) => s.source_ordinals ?? []))].sort((a, b) => a - b),
           };
         }
-        const arcs = (novel.compression_ladder?.arc?.length ?? 0) > 0
+        // Persisted tiers are GM-derived; a non-GM caller re-derives a
+        // badge-filtered view rather than reading the GM summary.
+        const arcs = (memoryGM && (novel.compression_ladder?.arc?.length ?? 0) > 0)
           ? novel.compression_ladder.arc
-          : deriveArcTier(novel.audit_archive ?? [], novel.event_log, configInt("TTRPG_MEMORY_ARC_SESSIONS", 5), derivedAt);
+          : deriveArcTier(novel.audit_archive ?? [], visibleLog, configInt("TTRPG_MEMORY_ARC_SESSIONS", 5), derivedAt);
         const arcCand: TierCandidate = {
           level: "arc",
           text: arcs.length > 0 ? arcs.map((a) => a.text).join("\n\n") : "[no arc summary]",
           source_ordinals: [...new Set(arcs.flatMap((a) => a.source_ordinals ?? []))].sort((a, b) => a - b),
         };
-        const campaignSummary = novel.compression_ladder?.campaign ?? deriveCampaignTier(novel, configInt("TTRPG_MEMORY_CAMPAIGN_MAX_FACTS", 40), derivedAt);
+        const campaignSummary = (memoryGM && novel.compression_ladder?.campaign)
+          ? novel.compression_ladder.campaign
+          : deriveCampaignTier(novel, configInt("TTRPG_MEMORY_CAMPAIGN_MAX_FACTS", 40), derivedAt, memoryBadge);
         const campaignCand: TierCandidate = {
           level: "campaign",
           text: campaignSummary.text,
@@ -8875,6 +8793,28 @@ function bundleHashes(bundle: any, novel: any): { payload_hash: string; state_ha
   };
 }
 
+// REQ-096 — report the populated payload groups rather than a hand-maintained
+// fixed list, so new §7.7 groups appear without a second edit.
+const PROPERTY_GROUP_OMIT = new Set([
+  "slug", "name", "ruleset", "badge", "description", "genre", "metadata",
+  "undo_stacks", "redo_stacks", "checkpoints", "pending_workflow",
+  "audit_log", "audit_archive", "connection_counter", "pending_staleness_counter",
+]);
+function isPopulatedGroup(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value as Record<string, unknown>).length > 0;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  return true;
+}
+function populatedPropertyGroups(novel: any): string[] {
+  return Object.keys(novel ?? {})
+    .filter((key) => !PROPERTY_GROUP_OMIT.has(key) && isPopulatedGroup(novel[key]))
+    .sort();
+}
+
 function computeBundleIntegrity(bundle: any, novel: any): any {
   const hashes = bundleHashes(bundle, novel);
   const integrity: any = { algorithm: "sha256", ...hashes, format_version: bundle?.format_version ?? 2 };
@@ -9067,16 +9007,18 @@ Options: yes, cancel`);
         manifest: {
           novel_format_version: 2,
           server_spec_version: state.buildFingerprint.specVersion,
-          ruleset_hash: novel.ruleset ?? null,
+          ruleset_hash: rulesets.contentHashFor(novel.ruleset),
           builder_implementation: { name: "holonovel", version: state.buildFingerprint.specVersion },
           adventure_module_slugs: novel.adventure_slug ? [novel.adventure_slug] : [],
           adventures_embedded: !!embedded,
-          property_groups_present: ["slug", "name", "scene", "world", "lore", "npcs", "story_journal", "factions", "secrets", "relationships", "gm_context", "notes", "vows"],
+          property_groups_present: [] as string[],
           waiver_dependent_mechanics: [],
           scope: exportScope,
         },
         novel: full,
       };
+      // REQ-096 — populate the group list from the serialized payload.
+      data.manifest.property_groups_present = populatedPropertyGroups(data.novel);
       if (embedded) data.adventure = embedded;
       // REQ-241b — checkpoints are excluded from export unless requested.
       if (!args.include_checkpoints) delete data.novel.checkpoints;
@@ -9192,7 +9134,7 @@ Options: yes, cancel`);
       }
       if (m === "replace") {
         const imported = importNovelJSON(flat);
-        applyNovelState(novel, imported);
+        applyNovelState(novel, imported, "replace");
       } else if (m === "merge") {
         const imported = importNovelJSON(flat);
         for (const [id, ent] of imported.entities) if (!novel.entities.has(id)) novel.entities.set(id, ent);
@@ -9322,7 +9264,7 @@ Options: yes, cancel`);
       if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
         return err("STATE_CONFLICT", `Novel '${slug}' already exists.`);
       }
-      const clone = JSON.parse(JSON.stringify(novelToJSONState(source)));
+      const clone = JSON.parse(JSON.stringify(exportNovelJSON(source)));
       clone.slug = slug;
       clone.name = args.new_name;
       clone.metadata.created = new Date().toISOString();
@@ -9334,7 +9276,7 @@ Options: yes, cancel`);
         args.trim_audit_sessions ?? 0,
       );
       clone.audit_archive = (source.audit_archive ?? []).map((s) => ({ ...s }));
-      const novel = loadNovelFromStateData(clone);
+      const novel = importNovelJSON(clone);
       state.novels.set(slug, novel);
       state.saveNovel(novel);
       return ok(`Cloned '${args.source_slug}' as '${slug}'.`);
@@ -9347,7 +9289,7 @@ Options: yes, cancel`);
       if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
         return err("STATE_CONFLICT", `Novel '${slug}' already exists.`);
       }
-      const branch = JSON.parse(JSON.stringify(novelToJSONState(source)));
+      const branch = JSON.parse(JSON.stringify(exportNovelJSON(source)));
       branch.slug = slug;
       branch.name = args.new_name;
       branch.metadata.created = new Date().toISOString();
@@ -9361,7 +9303,7 @@ Options: yes, cancel`);
       const branchPoint = args.from_event ?? lastOrdinal;
       branch.event_log = sliceThrough(source.event_log, branchPoint);
       branch.branch_lineage = { parent_slug: source.slug, branch_point: branchPoint };
-      const novel = loadNovelFromStateData(branch);
+      const novel = importNovelJSON(branch);
       state.novels.set(slug, novel);
       state.saveNovel(novel);
       return ok(`Branched '${args.source_slug}' as '${slug}' at event #${branchPoint ?? 0}.`);
@@ -9399,7 +9341,12 @@ Options: yes, cancel`);
     case "checkpoint_set": {
       requireGM();
       const novel = requireNovel();
-      const snapshot = JSON.parse(JSON.stringify(novelToJSONState(novel)));
+      const snapshot = JSON.parse(JSON.stringify(exportNovelJSON(novel)));
+      delete snapshot.audit_log;
+      delete snapshot.audit_archive;
+      delete snapshot.event_log;
+      delete snapshot.perception_ledger;
+      delete snapshot.checkpoints;
       // REQ-241b — record the capture ordinal and snapshot digest (REQ-601).
       novel.checkpoints.push({
         label: args.label,
@@ -9409,7 +9356,7 @@ Options: yes, cancel`);
         state: snapshot,
       });
       // REQ-241b — when at the configured capacity, the oldest is discarded.
-      const cpRaw = parseInt(process.env.TTRPG_MAX_CHECKPOINTS ?? "0", 10);
+      const cpRaw = parseInt(process.env.TTRPG_MAX_CHECKPOINTS ?? "25", 10);
       const cpMax = Number.isNaN(cpRaw) ? 0 : cpRaw;
       if (cpMax > 0 && novel.checkpoints.length > cpMax) {
         novel.checkpoints.splice(0, novel.checkpoints.length - cpMax);
@@ -9694,7 +9641,7 @@ server.registerTool("manage_archive", {
   title: "Novel Archive Management",
   description: "Manage Novel archival and checkpoint surfaces. Use when: exporting or importing a Novel (export, import), archiving or unarchiving it (archive, unarchive), cloning or branching it (clone, branch), or setting, listing, restoring, or removing a checkpoint (checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove). Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Export and import write files or Novel state; archive, unarchive, clone, branch, and checkpoint mutations persist; revert with manage_history (action: undo); checkpoint_list is read-only.",
   inputSchema: {
-    ...MANAGE_NOVEL_SCHEMA,
+    ...pickParams(MANAGE_NOVEL_SCHEMA, ["action", "slug", "source_slug", "new_name", "from_event", "format", "scope", "data", "mode", "strict", "include_checkpoints", "trim_audit_sessions", "label"]),
     action: z.enum(MANAGE_NOVEL_SCHEMA_ACTIONS).describe("export, import, archive, unarchive, clone, branch, checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove."),
   },
 }, async (args: any, extra: any) => {
@@ -9820,6 +9767,14 @@ function buildHolodeckConfig(): Record<string, unknown> {
     natural_language_paths,
     uncoupled: [] as string[],
   };
+}
+
+// REQ-097a1 — storage-cap utilization for the maintenance surface. A count at
+// or above 80% of its configured cap is reported as a warning; 0 = unlimited.
+function storageCapStatus(count: number, raw: string | undefined, fallback: number) {
+  const cap = parseInt(raw ?? String(fallback), 10);
+  const bounded = Number.isFinite(cap) && cap > 0;
+  return { count, cap: bounded ? cap : null, warning: bounded && count >= Math.ceil(cap * 0.8) };
 }
 
 function buildSpecHealth(): Record<string, unknown> {
@@ -10079,6 +10034,14 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-241c — checkpoint count and storage size.
     checkpoint_count: novel ? novel.checkpoints.length : 0,
     checkpoint_bytes: novel ? JSON.stringify(novel.checkpoints).length : 0,
+    perception_ledger_count: novel ? novel.perception_ledger.length : 0,
+    compression_ladder: novel ? { arc: novel.compression_ladder?.arc?.length ?? 0, campaign: !!novel.compression_ladder?.campaign } : undefined,
+    social_cast: isGM && novel ? { strategy: novel.social_cast.strategy, muted: novel.social_cast.muted, spoken: novel.social_cast.spoken.length } : undefined,
+    storage_caps: novel ? {
+      event_log: storageCapStatus(novel.event_log.length, process.env.TTRPG_EVENT_LOG_MAX_ENTRIES, 50000),
+      perception_ledger: storageCapStatus(novel.perception_ledger.length, process.env.TTRPG_PERCEPTION_MAX_ENTRIES, 20000),
+      checkpoints: storageCapStatus(novel.checkpoints.length, process.env.TTRPG_MAX_CHECKPOINTS, 25),
+    } : undefined,
     // REQ-589 — GM-only ruling-ledger counts.
     ruling_ledger_count: isGM && novel ? (novel.ruling_ledger ?? []).length : undefined,
     ruling_ledger_reverted_count: isGM && novel ? (novel.ruling_ledger ?? []).filter((e) => e.reverted).length : undefined,
@@ -11411,9 +11374,9 @@ const PLAYER_SYNTH_MODULES = ["voice_examples", "action_patterns", "supplementar
 // surface.
 server.registerTool("manage_synthesis", {
   title: "Synthesis Management",
-  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted. Revert the most recent mutation with manage_history (action: undo). activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying citations, recording or reverting a ruling, or player-authoring synthesis items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
+  description: "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted; ruling_list reads the ledger newest-first. Undo the latest mutation with manage_history. activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying, recording or reading rulings, or player-authoring items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
   inputSchema: {
-    action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list", "verify", "record_ruling", "revert_ruling"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, player_list, verify, record_ruling, or revert_ruling."),
+    action: z.enum(["run", "revert", "list", "activate", "deactivate", "toggle", "toggle_action", "player_add", "player_remove", "player_list", "verify", "record_ruling", "revert_ruling", "ruling_list"]).describe("run, revert, list, activate, deactivate, toggle, toggle_action, player_add, player_remove, player_list, verify, record_ruling, revert_ruling, or ruling_list."),
     module: z.string().optional().describe("Synthesis module (activate/deactivate/toggle/player_*/list/verify/record_ruling)."),
     key: z.union([z.string(), z.number()]).optional().describe("Item key (activate: number; player_add/player_remove/verify/record_ruling: string)."),
     content: z.string().optional().describe("Item content (player_add)."),
@@ -11425,6 +11388,8 @@ server.registerTool("manage_synthesis", {
     query: z.string().optional().describe("Question the ruling answers (record_ruling)."),
     ruling: z.string().optional().describe("Ruling text to record (record_ruling)."),
     ruling_id: z.string().optional().describe("Ledger entry id (revert_ruling)."),
+    include_reverted: z.boolean().optional().describe("Include reverted rulings (ruling_list; default false)."),
+    max_entries: z.number().int().positive().optional().describe("Maximum rulings to return, newest first (ruling_list; default 20)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -11517,6 +11482,19 @@ server.registerTool("manage_synthesis", {
       const verdicts = { pass: 0, weak: 0, unsupported: 0 } as Record<string, number>;
       for (const i of items) verdicts[i.verdict]++;
       return raw(JSON.stringify({ checked: items.length, verdicts, items }, null, 2));
+    }
+    case "ruling_list": {
+      // REQ-589 — read the GM-only ruling ledger, newest first.
+      requireGM();
+      const novel = requireNovel();
+      const limit = args.max_entries ?? 20;
+      if (!Number.isInteger(limit) || limit <= 0) return err("INVALID_INPUT", "max_entries must be a positive integer.");
+      const includeReverted = args.include_reverted === true;
+      const entries = (novel.ruling_ledger ?? [])
+        .filter((e) => includeReverted || !e.reverted)
+        .slice(-limit)
+        .reverse();
+      return raw(JSON.stringify(entries, null, 2));
     }
     case "record_ruling": {
       // REQ-589 — verify the selected citations and append one ledger entry.
@@ -12358,6 +12336,12 @@ server.registerTool("close_session", {
   }
   if (novelTool?.handler) {
     parts.push(toolResultText(await novelTool.handler({ action: "save_context" }, undefined)));
+  }
+  // REQ-590 — persist the derived arc/campaign tiers so the GM briefing's
+  // campaign bible is usable without a manual `compact`.
+  if (state.activeNovel) {
+    state.refreshCompressionLadder(state.activeNovel);
+    state.saveNovel(state.activeNovel);
   }
   return raw(parts.filter(Boolean).join("\n\n"));
 });

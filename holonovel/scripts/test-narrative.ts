@@ -129,10 +129,10 @@ async function main() {
       await call(proc, "manage_countdown", { action: "set",  name: "urgency", ticks: 5, on_scene_transition: true });
       await call(proc, "manage_scene", { action: "set",  description: "Scene A" });
       const b1 = await briefing(proc);
-      assertContains(b1, "urgency (3/5)");
+      assertContains(b1, "Countdown: urgency (3 remaining)");
       await call(proc, "manage_scene", { action: "set",  description: "Scene B" });
       const b2 = await briefing(proc);
-      assertContains(b2, "urgency (1/5)");
+      assertContains(b2, "Countdown: urgency (1 remaining)");
     });
 
     await kill(proc);
@@ -149,7 +149,7 @@ async function main() {
       await call(proc, "manage_countdown", { action: "set",  name: "urgency", ticks: 5, on_scene_transition: true });
       await call(proc, "manage_scene", { action: "set",  description: "Scene A" });
       const b = await briefing(proc);
-      assertContains(b, "urgency (2/5)");
+      assertContains(b, "Countdown: urgency (2 remaining)");
     });
 
     await kill(proc);

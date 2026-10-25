@@ -37,6 +37,14 @@ async function main() {
     await kill(p);
   });
 
+  await test("T614/REQ-540: explicit witness fields are stored", async () => {
+    const p = await boot(); await newNovel(p, "pc1b");
+    await rec(p, { entity_id: "hero", kind: "observation", summary: "a whisper", witness: "told", sense: "telling", source_entity: "npc", confidence: 0.7 });
+    const recs = await forEntity(p, "hero");
+    assert(recs.length === 1 && recs[0].witness === "told" && recs[0].sense === "telling" && recs[0].source_entity === "npc" && recs[0].confidence === 0.7, "explicit witness not stored: " + JSON.stringify(recs));
+    await kill(p);
+  });
+
   await test("T615/REQ-541: perception does not create belief", async () => {
     const p = await boot(); await newNovel(p, "pc2");
     await rec(p, { entity_id: "hero", kind: "observation", summary: "a shape in the mist" });

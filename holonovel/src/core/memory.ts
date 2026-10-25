@@ -3,7 +3,7 @@
 // REQ-590, REQ-591, REQ-592
 
 import { describeEntry, type EventLogEntry } from "./event-log.js";
-import type { AuditEntry, AuditArchiveSummary, NovelState, TierSummary } from "./state.js";
+import type { AuditEntry, AuditArchiveSummary, Badge, NovelState, TierSummary } from "./state.js";
 
 export type TierName = "recent" | "session" | "arc" | "campaign";
 
@@ -94,21 +94,35 @@ export function deriveArcTier(
   return arcs;
 }
 
-// REQ-590 — Tier 4: the campaign bible of stable facts.
-export function deriveCampaignTier(novel: NovelState, maxFacts: number, derivedAt: string): TierSummary {
+// REQ-590 — Tier 4: the campaign bible of stable facts. Player/Observer
+// derivation omits secrets, GM-scoped lore, and GM-scoped campaign memory
+// (REQ-072i badge scoping).
+export function deriveCampaignTier(novel: NovelState, maxFacts: number, derivedAt: string, badge: Badge = "game_master"): TierSummary {
+  const gm = badge === "game_master" || badge === "none";
   const facts: { text: string; ref: string; key: string }[] = [];
   for (const [key, lore] of novel.lore) {
-    if (lore.enabled) facts.push({ text: `lore ${key}: ${lore.content}`, ref: `lore:${key}`, key });
+    if (!lore.enabled) continue;
+    if (!gm && lore.badge_scope === "game_master") continue;
+    facts.push({ text: `lore ${key}: ${lore.content}`, ref: `lore:${key}`, key });
   }
   for (const faction of novel.factions) facts.push({ text: `faction ${faction.name}: ${faction.goals.join("; ")}`.trim(), ref: `faction:${faction.name}`, key: faction.name });
-  for (const secret of novel.secrets) facts.push({ text: `secret ${secret.key}: ${secret.content}`, ref: `secret:${secret.key}`, key: secret.key });
+  if (gm) {
+    for (const secret of novel.secrets) facts.push({ text: `secret ${secret.key}: ${secret.content}`, ref: `secret:${secret.key}`, key: secret.key });
+  }
   for (const vow of novel.vows) {
     if (vow.state === "active") facts.push({ text: `vow ${vow.name}: ${vow.milestones} milestones (${vow.difficulty})`, ref: `vow:${vow.name}`, key: vow.name });
   }
   for (const [, npc] of novel.npcs) facts.push({ text: `npc ${npc.name}: ${npc.disposition ?? "neutral"}`, ref: `npc:${npc.name}`, key: npc.name });
+  for (const mem of novel.campaign_memory ?? []) {
+    if (!gm && mem.badge_scope === "game_master") continue;
+    const ref = `campaign:${mem.category}:${mem.at}`;
+    if (facts.some((f) => f.text === mem.text)) continue;
+    facts.push({ text: mem.text, ref, key: mem.at });
+  }
   const capped = maxFacts > 0 ? facts.slice(0, maxFacts) : facts;
   const sourceOrdinals = new Set<number>();
   for (const event of novel.event_log) {
+    if (!gm && event.source === "game_master") continue;
     if (capped.some((f) => f.key.length > 2 && event.text.includes(f.key))) sourceOrdinals.add(event.ordinal);
   }
   return {

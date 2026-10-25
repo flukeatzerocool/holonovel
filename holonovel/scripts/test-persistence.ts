@@ -257,6 +257,37 @@ async function main() {
       }
     });
 
+    await test("T100/REQ-096j: replace-import into a fresh Novel preserves event log and perceptions", async () => {
+      await call(proc, "manage_belief", { action: "perception_record", entity_id: "pc_1", perception_entity_id: "pc_1", perception_summary: "saw the gate", perception_kind: "observation" });
+      await call(proc, "manage_diagnostics", { action: "event", text: "player says hello", source: "player" });
+      const before = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      const beforePerception = (before.novel.perception_ledger ?? []).length;
+      const beforeEvents = (before.novel.event_log ?? []).length;
+      if (beforePerception < 1 || beforeEvents < 1) throw new Error("fixture did not populate event/perception state");
+      if (!(before.manifest.property_groups_present ?? []).includes("perception_ledger")) throw new Error("manifest did not list perception_ledger");
+      const rh = before.manifest.ruleset_hash;
+      if (rh !== null && !/^[0-9a-f]{64}$/.test(rh)) throw new Error(`ruleset_hash is not a SHA-256: ${rh}`);
+      await call(proc, "manage_novel", { action: "create", name: "restore-target" });
+      await call(proc, "manage_archive", { action: "import", data: JSON.stringify(before), mode: "replace" });
+      const after = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if ((after.novel.perception_ledger ?? []).length !== beforePerception) throw new Error("replace-import dropped perceptions");
+      if ((after.novel.event_log ?? []).length !== beforeEvents) throw new Error("replace-import dropped the event log");
+      await call(proc, "manage_novel", { action: "switch", slug: "renamed" });
+    });
+
+    await test("T240/REQ-240a: clone preserves campaign memory and compression state", async () => {
+      await call(proc, "manage_npc", { action: "create", name: "Memorykeeper" });
+      await call(proc, "manage_scene", { action: "set", description: "A memory scene." });
+      const before = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if ((before.novel.campaign_memory ?? []).length < 1) throw new Error("campaign memory fixture empty");
+      await call(proc, "manage_archive", { action: "clone", source_slug: "renamed", new_name: "memory-fork" });
+      await call(proc, "manage_novel", { action: "switch", slug: "memory-fork" });
+      const clone = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if ((clone.novel.campaign_memory ?? []).length !== (before.novel.campaign_memory ?? []).length) throw new Error("clone dropped campaign memory");
+      if (!clone.novel.compression_ladder) throw new Error("clone dropped the compression ladder");
+      await call(proc, "manage_novel", { action: "switch", slug: "renamed" });
+    });
+
     await test("T693/REQ-096b: player scope omits GM-only tiers and imports safely", async () => {
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_novel", { action: "create",  name: "player bundle" });

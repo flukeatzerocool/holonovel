@@ -183,6 +183,19 @@ async function main() {
   });
 
   const probes: Probe[] = JSON.parse(readFileSync(FIXTURE, "utf8")).probes;
+  await test("T699/REQ-072i: Player recap tiers omit GM-only secrets and events", async () => {
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_lore", { action: "set_secret", key: "hidden_heir", content: "The hidden heir is the duke's son." });
+    await call(proc, "manage_diagnostics", { action: "event", text: "GM-ONLY: the duke is a doppelganger", source: "game_master" });
+    await call(proc, "set_badge", { badge: "player" });
+    const campaign = await call(proc, "manage_session", { action: "recap", tier: "campaign" });
+    assertNotContains(campaign, "hidden heir");
+    assertNotContains(campaign, "doppelganger");
+    const recent = await call(proc, "manage_session", { action: "recap", tier: "recent" });
+    assertNotContains(recent, "doppelganger");
+    await call(proc, "set_badge", { badge: "game_master" });
+  });
+
   await test("T700: recall@budget meets the threshold", async () => {
     let hits = 0;
     const misses: string[] = [];
