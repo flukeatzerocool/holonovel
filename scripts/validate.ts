@@ -2358,32 +2358,44 @@ function main(): void {
       .map((d) => ({ name: d.name, hasLicense: fs.existsSync(path.join(narrativeDir, d.name, "LICENSE")) }));
     const footer: string[] = [];
     const lines = fs.readFileSync(readmePath, "utf-8").split("\n");
-    const startLine = lines.findIndex((l) => l.includes("Built from:"));
+    const licenseHeading = lines.findIndex((l) => /^##\s+License\b/.test(l.trim()));
+    const startLine = lines.findIndex((l, i) =>
+      (licenseHeading === -1 || i > licenseHeading) && l.includes("Built from:"));
     if (startLine >= 0) {
-      const chunks: string[] = [];
-      for (let i = startLine; i < lines.length; i++) {
-        if (i > startLine && (/^\[RSS\]/.test(lines[i].trim()) || lines[i].includes("Last updated:"))) break;
-        const chunk = i === startLine
-          ? lines[i].slice(lines[i].indexOf("Built from:") + "Built from:".length)
-          : lines[i];
-        if (i > startLine && !chunk.trim()) break;
-        chunks.push(chunk.trim());
+      const bulletSources: string[] = [];
+      for (let i = startLine + 1; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (/^\[RSS\]/.test(trimmed) || trimmed.includes("Last updated:")) break;
+        if (/^-\s+/.test(trimmed)) bulletSources.push(trimmed.replace(/^-\s+/, ""));
       }
-      const joined = chunks.join(" ").replace(/\.$/, "");
-      const split = (s: string): string[] => {
-        const out: string[] = [];
-        let depth = 0, cur = "";
-        for (const ch of s) {
-          if (ch === "(") depth++;
-          if (ch === ")") depth = Math.max(0, depth - 1);
-          if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+      if (bulletSources.length > 0) {
+        footer.push(...bulletSources);
+      } else {
+        const chunks: string[] = [];
+        for (let i = startLine; i < lines.length; i++) {
+          if (i > startLine && (/^\[RSS\]/.test(lines[i].trim()) || lines[i].includes("Last updated:"))) break;
+          const chunk = i === startLine
+            ? lines[i].slice(lines[i].indexOf("Built from:") + "Built from:".length)
+            : lines[i];
+          if (i > startLine && !chunk.trim()) break;
+          chunks.push(chunk.trim());
         }
-        out.push(cur);
-        return out;
-      };
-      for (let part of split(joined)) {
-        part = part.replace(/^and\s+/i, "").trim();
-        if (part) footer.push(part);
+        const joined = chunks.join(" ").replace(/\.$/, "");
+        const split = (s: string): string[] => {
+          const out: string[] = [];
+          let depth = 0, cur = "";
+          for (const ch of s) {
+            if (ch === "(") depth++;
+            if (ch === ")") depth = Math.max(0, depth - 1);
+            if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+          }
+          out.push(cur);
+          return out;
+        };
+        for (let part of split(joined)) {
+          part = part.replace(/^and\s+/i, "").trim();
+          if (part) footer.push(part);
+        }
       }
     }
     const licenseIssues = checkLicenseSourceParity({ uRows, s114Rows, manifestRows, vendorDirs, readmeSources: footer });

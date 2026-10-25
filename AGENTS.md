@@ -398,6 +398,6 @@ remaining items before committing:
 - [ ] For a spec-changing push, the `### Holonovel Spec Update — <date>` entry
       exists and its verification line is filled — the push pipeline generates
       the scaffold (`npm run spec-update-record`); see Appendix V.4
-- [ ] README license footer lists any newly borrowed mechanics source
+- [ ] README License section lists any newly borrowed mechanics source
 
 Prerequisites: Node.js 24+ (for `markdownlint-cli`, `tsx`, and `typescript`).

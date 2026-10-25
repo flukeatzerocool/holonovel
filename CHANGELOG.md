@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-25 — README license section and wiki-link relocation
+
+- Moved the project-wiki link into the orientation, above the Glama badge.
+- Replaced the README license footer with a `## License` section containing the
+  canonical-origin link, MIT statement, and one attribution bullet per Appendix U
+  source (REQ-154b).
+- Updated the README design comment, `REQ-154b`, §6.4, the README validators, and
+  the AGENTS checklist to match the new section shape.
+
 ## 2026-10-25 — Two-week review remediation: state integrity, badge safety, and surface defaults
 
 - Fixed a Player-badge leak in tiered recaps: `manage_session (action: recap)`

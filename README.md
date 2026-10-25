@@ -27,11 +27,11 @@ README DESIGN:
 
   Structure.
     Orientation → Table of contents → Run a server (§1) → How it works
-    (§2) → How it compares (§3) → Footer. No other
-    ordering. Section headings use canonical numbering (§1–§3) matching
-    the TOC and cross-reference links. The TOC is a bulleted list of
-    every h2 and h3 heading with Markdown anchor links, each h2 entry
-    tagged by audience. It does not link to itself or the Orientation.
+    (§2) → How it compares (§3) → License. No other ordering. Section
+    headings use canonical numbering (§1–§3) matching the TOC and
+    cross-reference links. The TOC is a bulleted list of every h2 and h3
+    heading with Markdown anchor links, each h2 entry tagged by audience.
+    It does not link to itself or the Orientation.
 
   Audience split.
     §1 is for operators who want a server now — one copy-paste
@@ -40,9 +40,9 @@ README DESIGN:
     landscape — one row per competitor category.
 
   Orientation.
-    Exactly four elements: h1 heading, bold tagline on its own line,
-    the MCP server card badges (below the tagline), one prose paragraph
-    (≤80 words). The paragraph defines "holonovel"
+    Exactly five elements: h1 heading, bold tagline on its own line, a
+    project-wiki line, the MCP server card badges (below the wiki line),
+    and one prose paragraph (≤80 words). The paragraph defines "holonovel"
     as a Star Trek holodeck program. States what Holonovel builds (the
     server, the Holodeck), what a campaign becomes (the program, the
     Novel), and what rulebooks become (the engine). Names D&D 5e and
@@ -52,7 +52,7 @@ README DESIGN:
   Table of contents.
     Bulleted list of every h2 and h3 heading with Markdown anchor links.
     Appears between the Orientation and §1. Each h2 entry carries a
-    trailing audience tag — operators or evaluators —
+    trailing audience tag — operators, evaluators, or reference —
     outside the link. h3 entries are untagged. No prose, no descriptions.
     The validator enforces TOC-to-heading consistency.
 
@@ -69,28 +69,29 @@ README DESIGN:
 
   How it works (§2).
     One introductory h2 sentence (≤50 words) naming the pipeline, then
-    five stages — Convert → Build → World → Novel → Synthesis. Each
+    five stages — Convert → Build → Holodeck → Novel → Synthesis. Each
     stage follows this format:
       1. What-it-is paragraph — defines the capability conceptually.
       2. What-you-can-do paragraph — describes player/GM capabilities.
       3. Demo blockquote — 2–5 natural-language prompts, each a
          self-contained sentence valid on the holonovel MCP server.
       4. Closing takeaway — one factual sentence, not a slogan.
-    Badge enforcement is not a stage — it is a cross-cutting runtime
-    layer, described once inside Novel. No forward references between
-    stages. Each stage is readable independently.
+    Badge enforcement is not a stage — it belongs to the Novel, described
+    once there. No forward references between stages. Each stage is
+    readable independently.
 
   Five stages (§2).
     Convert (rulebooks → clean Markdown) and Build (Markdown → a
     declarative ruleset package) carry the Convert/Build claims.
-    World (the spatial model) covers rooms, things, exits, containment.
-    Mentions Inform exactly once.
-    Novel (the campaign object) covers scenes, NPCs, lore, factions,
-    secrets, journal, and the badge settings Player / Game Master /
-    Observer / Editor. Badges are Novel-scoped; enforcement runs
-    server-side.
-    Synthesis (the game evolving) distinguishes Ruleset Wisdom from
-    external research.
+    Holodeck (the simulation engine) covers the spatial model and the
+    narrative model, including their couplings. Mentions Inform exactly
+    once.
+    Novel (the campaign save) covers the customizations and
+    configurations that shape play — badge settings, badge enforcement,
+    autonomy, player signals, narrative directives, behavioral settings,
+    ruleset scope, and presentation.
+    Synthesis (the game evolving) distinguishes Ruleset Wisdom, external
+    research, internal synthesis, and player-authored items.
 
   Badge terminology.
     The canonical term is "badge," not "hat." Badges are Novel-scoped:
@@ -103,7 +104,7 @@ README DESIGN:
     h2 heading, no introductory prose. Three columns (Category | What
     you're used to | How Holonovel differs). Three rows, one per
     competitor category — AI storytelling apps, generic LLM chat, and
-    first-generation rules MCP servers. Never individual products. One
+    rules MCP servers. Never individual products. One
     closing prose paragraph (≤80 words) states the gap and names D&D 5e
     and Starfinder. Rows name the concrete failure mode, not an abstraction.
 
@@ -113,11 +114,13 @@ README DESIGN:
     and the refrain as the product's central metaphor. Additional prose
     uses are permissible where the metaphor drives meaning.
 
-  License footer.
-    Canonical-origin line, project-wiki link, then three attribution
-    lines: MIT, sources (every row in Appendix U), Inform credit. RSS
-    link. "Last updated: YYYY-MM-DD."
+  License section.
+    A `## License` h2 after §3, listed in the TOC with a reference tag.
+    Opens with a canonical-origin line and an MIT statement, then a
+    bulleted attribution list (every row in Appendix U, one per bullet)
+    prefixed with "Built from:", then the RSS link and last-updated date.
     Date matches package.json version date. Update both or neither.
+    Attribution bullets are exempt from the no-feature-list rule.
 
   Demo prompt maintenance.
     Every prompt in a demo blockquote SHALL be a valid natural-language
@@ -140,8 +143,8 @@ README DESIGN:
   No repetition.
     One story vector per section. Don't explain the same concept in two
     different places. The validator detects near-duplicate sentences.
-    No bullet lists of features in prose. No tables for feature
-    descriptions.
+    No bullet lists of features in prose; license attribution bullets
+    are the exception. No tables for feature descriptions.
 
   Future targets.
     The Orientation and §3 closing prose name D&D 5e and Starfinder as
@@ -154,7 +157,7 @@ README DESIGN:
     found in CHANGELOG.md, AGENTS.md, or holonovel.md. Task-based routing
     lives in the wiki: the README links to Getting Started, Building a
     Server, Game Mastering, and the FAQ at the point of need, and links the
-    wiki home once in the footer.
+    wiki home once in the Orientation.
 
   Word budget.
     Total prose ≤ 1,500 words (excludes code blocks, config JSON,
@@ -178,6 +181,9 @@ README DESIGN:
 
 **The Holodeck for your rulebooks — rules enforced, worlds remembered.**
 
+Start with the [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki) —
+it routes players, Game Masters, and builders by task.
+
 [![holonovel MCP server](https://glama.ai/mcp/servers/flukeatzerocool/holonovel/badges/card.svg)](https://glama.ai/mcp/servers/flukeatzerocool/holonovel)
 
 A *holonovel* is a Star Trek holodeck program — an interactive story where you
@@ -194,25 +200,24 @@ Your Holodeck.
 - [How it works](#how-it-works) — evaluators
   - [Convert](#convert)
   - [Build](#build)
-  - [World](#world)
+  - [Holodeck](#holodeck)
   - [Novel](#novel)
   - [Synthesis](#synthesis)
 - [How it compares](#how-it-compares) — evaluators
+- [License](#license) — reference
 
 ## Run a server
 
 ### Install
 
-Install the base server and play — no rulebook required. The first start seeds a
-ruleset-free tutorial Novel, **Torre Nosferatu**, so a fresh install opens on a
-world you can enter immediately; set `TTRPG_STARTER_NOVEL=off` to skip it.
+A fresh install is playable without a rulebook. On first start the server creates
+**Torre Nosferatu**, a tutorial Novel, and opens it; set `TTRPG_STARTER_NOVEL=off`
+to start with an empty world instead.
 
-The base server — a world-model MCP with rooms, things, exits, parser commands,
-narrative tools, and out-of-the-box mechanics from Fate, Ironsworn, and Blades in
-the Dark (Fudge dice, momentum, and stress tracks, no ruleset required). Install
-it, then install any number of ruleset packages — each drops in alongside the
-base and never modifies it. Node.js 24+ required. New to the server? Start with
-the [Getting Started guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Getting-Started).
+The base server runs the Holodeck. Rooms, objects, exits, and containment form a
+real state graph, while scenes, NPCs, lore, and a story journal layer on top, so
+narration is grounded in stored facts rather than prior chat turns. Requires
+Node.js 24+.
 
 ```sh
 cd holonovel
@@ -234,27 +239,29 @@ Add to your MCP client:
 }
 ```
 
+Setup details and first-run checks: [Getting Started
+guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Getting-Started).
+
 ### Install a ruleset
 
-The Build workflow turns a rulebook into a declarative package. Drop the package
-into the server's ruleset install directory and the running server registers it.
-That directory lives inside the server's state directory, which defaults to a
-per-user data location outside the project tree (or `.holonovel-state/` when the
-server runs outside one). Packages load lazily: a ruleset's tools and index
-hydrate only when you open a campaign bound to that ruleset, so stacking many
-packages costs you nothing up front. Install, remove, and list packages from the
-server tools, or just move files and restart. The [Building a Server
-guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Building-a-Server) walks a
-rulebook from PDF to package.
+A ruleset package is a declarative bundle produced by the Build workflow. Copy it
+into the server's ruleset install directory and the server registers it. That
+directory is inside the state directory — by default a per-user data location
+outside the project tree, or `.holonovel-state/` when the server runs inside one.
 
-Your campaign data and installed packages live in that state directory, outside
-the server tree — updating holonovel never touches them.
+Packages load lazily: a ruleset's tools and index are read only when you open a
+campaign bound to it, so unused packages cost nothing at startup. Install,
+remove, and list packages from the server's own tools, or move files and restart.
+
+Campaign data and installed packages stay in the state directory, outside the
+server tree, so updating Holonovel leaves both intact. The [Building a Server
+guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Building-a-Server) covers
+packaging a rulebook.
 
 ## How it works
 
-Holonovel is one pipeline — Convert, Build, World, Novel, Synthesis — that turns
-a rulebook into a running table. Badge enforcement runs across all of it,
-server-side.
+Holonovel is one pipeline — Convert, Build, Holodeck, Novel, Synthesis — that
+turns a rulebook into a running table.
 
 ### Convert
 
@@ -263,10 +270,8 @@ Multi-column pages are read in the right order, and tables split across page
 breaks are reassembled. Scanned pages fall back to OCR. The output is
 structurally sound — headings resolve and references trace.
 
-> "Take the Dungeon Master's Guide — every chapter, every table, every sidebar —
-> and make it a clean source file the server can build from."
-> "Convert this PDF to Markdown, and reassemble the tables that break across
-> pages."
+> "Convert the files in `ruleset/dnd5e/` to Markdown for the D&D 5e ruleset."
+> "Convert the HTML export in `ruleset/starfinder/` for the Starfinder ruleset."
 
 Clean, indexed Markdown ready for the build.
 
@@ -280,113 +285,156 @@ material. The discovery engine reads the source in chunks, measures extraction
 confidence, and works until the mechanical sections are accounted for. Nothing is
 fabricated to fill a gap.
 
-> "Build me a ruleset package from these files."
-> "Extract every mechanic from this rulebook — the dice, the combat, the spells —
-> into a ruleset package."
+> "Build the Markdown in `ruleset/dnd5e/` into a holonovel."
+> "Package `ruleset/starfinder/` as a second ruleset alongside D&D 5e."
 
 One spec reads any rulebook, and the build produces zero hand-written code.
 
-### World
+### Holodeck
 
-The world model is a spatial simulation layer — rooms, exits, containers,
-supports, doors. Every object knows where it is and what it contains. The server
-maintains a real containment graph, not a paragraph of prose it hopes the AI
-remembers. Its conventions are drawn from Inform, the interactive-fiction
-language behind decades of text-adventure classics.
+The Holodeck is the narrative world model — the core engine that drives the
+simulation. It turns a saved Novel into a running game. Every part of a campaign
+is structured state: rooms, objects, exits, and containment in the spatial
+model; scenes, NPCs, lore, factions, secrets, vows, countdowns, relationships,
+decisions, and the story journal in the narrative model; mechanics and ruleset
+voice alongside them. None is decoration. Each has a defined effect on the
+others.
 
-Parser commands navigate the world with real containment logic. Go north. The
-room is there. Take the lantern. It moves from the sarcophagus to your
-inventory. Open containers, lock doors, examine surroundings. Exits connect
-automatically in both directions.
+That effect is what makes it an engine. A scene sets the place and cast and
+activates lore whose triggers match its text. An NPC carries identity,
+disposition, relationships, and a location, so moving them changes who is
+present and who can speak. A secret stays hidden until knowledge and trigger
+conditions allow it to surface. A vow creates a decision the Game Master
+must honor. A countdown advances on schedule and fires its result into the world.
+A mechanical outcome — damage, a destroyed object, a doused light — mutates the
+state it touches. The story journal records the consequence, and later scenes can
+recall it.
 
-> "Go north."
-> "Take the lantern from the sarcophagus."
-> "Look around."
-> "Open the iron door."
-> "Examine the runes carved into the altar."
+The server evaluates these couplings. The AI narrates the result. Nothing is left
+to a "remember this" instruction, and nothing drifts between turns.
 
-The map is real state, not narration.
+Parser commands act on the spatial model with real containment logic. Go north.
+Take the lantern. The room, the object, and the inventory are stored records, not
+claims in narration. Exits connect in both directions, containers hold what they
+hold, and doors stay locked until something unlocks them. The spatial conventions
+are drawn from Inform, the interactive-fiction language behind decades of
+text-adventure classics.
+
+> "Go north into the flooded ossuary."
+> "Set the scene here — the ossuary reeks of stale incense and old water."
+> "Have Sister Mora follow me into the ossuary."
+> "Ask Sister Mora what she knows about the buried order."
+> "Advance the reliquary countdown by one day."
+
+The Holodeck is the live simulation; the Novel is its save file.
 
 ### Novel
 
-A Novel is your entire campaign — party, NPCs, scenes, lore, combat state, world
-model, story journal, factions, secrets, everything. The narrative model gives
-your world depth: scenes set the stage, NPCs carry personality profiles and
-dialogue voice, lore entries fire automatically when keywords match, factions
-track standing, secrets gate knowledge, vows bind quests, countdowns escalate on
-schedule. The story journal records decisions, moments, and consequences — a
-narrative memory that survives every rebuild.
+A Novel is the save file for a Holodeck game, and it stores the configuration
+that shapes that game. Server settings supply defaults; each Novel overrides them
+where the setting is campaign-scoped, and every change is saved with the
+campaign.
 
-A Novel lives on the server. It survives restarts, rebuilds, and session breaks.
-Export as JSON or Markdown. Import with merge, replace, or dry-run modes. Clone
-to test a story branch. Set checkpoints before pivotal moments. Undo any
-mutation. A Novel is not a chat log — it is a structured save file. Other tools
-ask the AI to remember your world. Holonovel writes it to the server —
-structured, queryable, permanent.
+Who plays is configurable. A badge sets your seat at the table and what that seat
+can see: Player is in the story as a character, Game Master sees and controls the
+world, Observer watches while the AI runs both roles, and Editor steps outside
+the story to manage the save. The server enforces the boundary, so GM-only
+secrets do not leak to the Player badge. Each Novel carries its own active badge,
+and four autonomy sliders decide how much the AI handles alongside it: level
+(auto-play, prompt on mechanical actions, or manual), confirmation (execute,
+confirm, or prompt), safety (safe, moderate, or hardcore), and creativity
+(predictable, standard, or chaotic). The sliders compose with any badge, so a
+human can hand off one character, all NPCs, or the whole table without changing
+seats. The [Game Mastering
+guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Game-Mastering) covers
+running the world from the opposite side.
 
-Every Novel has four badge settings. Player. Game Master. Observer. Editor.
-Switch between them at any time — no restart, no reload. The AI takes the
-opposite role automatically: when you're the player, the AI is your GM. Badge
-gating is not a prompt instruction. It is enforced server-side — the GM's
-secrets, lore entries, and narrative directives never leak to the Player badge.
-The [Game Mastering guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Game-Mastering)
-covers running a world from the opposite side of the screen.
+How the story behaves is configurable. Player signals set pace, difficulty, tone,
+focus, and boundaries. A narrative directive tunes pacing, autonomy, world
+reactivity, and synthesis in plain language; matching keywords take effect
+mechanically, and anything else becomes guidance for the narrator. Behavioral
+settings cover whether the world reacts, whether NPCs and factions pursue goals
+on their own, when synthesis refreshes, how much memory each tier retains, and
+whether moments record automatically. Point of view can lock to the active
+character or stay omniscient, and social scenes can use a manual, natural, list,
+or pooled speaker order.
 
-> "Set the scene: a flooded ossuary beneath the old cathedral. The air is thick
-> with stale incense and something older."
-> "A figure emerges from the shadows — Sister Mora, an acolyte of the buried
-> order. She's terrified, not hostile."
-> "I swear a vow to recover the Saint's Reliquary before the next full moon."
-> "Switch to the Game Master badge. I need to set up the next scene."
-> "Pace: I want things to move faster."
+What content appears is configurable. A Novel binds to one ruleset at creation
+and can add supplementary rulesets without changing that binding. The categories
+used to organize available actions can be reassigned per Novel, and briefing
+order, enabled action patterns, and journal detail decide which guidance
+surfaces during play.
 
-The campaign persists on the server as structured, queryable state.
+Export as JSON or Markdown. Import with merge, replace, or dry-run. Clone,
+checkpoint, and roll back. A clone carries the full configuration.
+
+> "Let the AI run all NPCs and player characters, but pause for mechanical decisions."
+> "Make the game faster and darker, with harder fights."
+> "Let the world react and NPCs act independently; use the rulebook's voice patterns."
+> "Run synthesis whenever the scene changes."
+> "Clone this Novel with its settings."
+
+Every Novel-scoped setting is saved with the Novel, so a clone or checkpoint
+preserves the exact game you configured.
 
 ### Synthesis
 
-Synthesis deepens your campaign through two source categories. Ruleset Wisdom is
-extracted from your rulebooks during Build — voice examples from example-of-play
-dialogue, lore templates from setting descriptions, action patterns from
-resolution sequences, narrative voice profiles from inspirational media
-citations. It persists as first-class server behavior — the Holodeck renders
-your rulebook's own genre conventions mechanically. Ruleset Wisdom survives
-every rebuild and synthesis reversion.
+Synthesis deepens the Holodeck beyond mechanics. Ruleset Wisdom comes from the
+rulebook and any vendor package during Build — voice examples from example-of-play dialogue, lore
+templates from setting descriptions, action patterns from resolution sequences,
+and narrative voice profiles from inspirational media citations. It is build
+output, active by default, and survives every rebuild and synthesis reversion.
 
-External research runs on demand — web-sourced GM advice, actual-play
-breakdowns, designer notes. Tagged with source URLs, confidence scores, and
-freshness timestamps. Every synthesis item is inert by default. The GM toggles
-what matters on and off at runtime. Re-running synthesis replaces inactive items
-while preserving everything the GM has activated. Revert synthesis removes
-external research — Ruleset Wisdom persists.
+The Synthesis run adds two layers on demand. External research collects
+web-sourced GM advice, actual-play breakdowns, and designer notes, tagged with
+source URLs, confidence scores, and freshness timestamps. Internal synthesis
+reads the Novel itself for patterns the table has already produced. Both are
+inert by default: the Game Master activates what fits and deactivates what does
+not, and that activation state is saved with the Novel. Re-running synthesis
+replaces inactive items and preserves active ones. Reverting removes the
+synthesis layers; Ruleset Wisdom and player-authored items persist.
 
-> "Find me GM advice and play examples for running horror one-shots."
-> "Research how other tables handle horror pacing, and tag what you find with
-> sources."
+Synthesis can run on demand, at the start of a session, or after a scene change.
 
-The game evolves without losing what you've built.
+> "Research horror one-shot pacing and actual-play examples, tagged with sources."
+> "Enable the horror pacing guidance that fits this campaign."
+> "Run synthesis after every scene change."
+
+Ruleset Wisdom, synthesis layers, and player-authored items coexist in the Novel
+without replacing one another.
 
 ## How it compares
 
 | Category | What you're used to | How Holonovel differs |
 |----------|---------------------|-----------------------|
-| AI storytelling apps | Freeform AI storytellers — memory drifts, conditions vanish, the world flattens | Your rulebooks. Real dice. Real conditions. Not AI improv. |
-| Generic LLM chat | Forgets conditions mid-combat, invents spells, railroads every conflict to a safe resolution | The server remembers every rule you gave it. Deterministic dice. Conditions that don't vanish mid-fight. |
-| First-generation rules MCP servers | Hand-built for one edition of one game. Rules lookup and nothing else. | Not locked to one system. One spec reads any rulebook — D&D 5e, Starfinder, or whatever's on your shelf. |
+| AI storytelling apps | Narrative-first apps with no rule engine — conditions drift, dice are improvised, the world is whatever the model remembers | The server holds the rules, dice, and world state; the AI narrates outcomes it cannot invent. |
+| Generic LLM chat | General-purpose chat with no durable state — forgets conditions mid-combat, invents spells, drifts toward safe outcomes | Mechanics resolve deterministically, state survives restarts, and the game keeps its consequences. |
+| Rules MCP servers | Server-side mechanics and durable saves, but a fixed ruleset or a single SRD seed. | Any rulebook, a containment-based world, and badge-enforced roles in one server. |
 
-Every tool in this space asks you to pick. Rules engines serve one system and
-stop there. AI storytellers improvise mechanics as they go. Holonovel doesn't
-pick. The server enforces every mechanic. The AI narrates. The Novel preserves
-everything — D&D 5e, Starfinder, or your own rulebook. Questions about a
+Rules engines serve one system. Storytellers improvise mechanics. Holonovel does
+neither: any rulebook becomes enforced mechanics, a spatial world, and a saved
+campaign. Across the TTRPG MCP servers reviewed in October 2026, no other
+reviewed server combined rulebook ingestion, spatial containment, and server-side
+role enforcement — for D&D 5e, Starfinder, or your own book. Questions about a
 specific table's setup? See the [FAQ](https://git.gay/flukeatzerocool/Holonovel/wiki/FAQ).
 
-Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel).
-The [project wiki](https://git.gay/flukeatzerocool/Holonovel/wiki) routes players, Game Masters, and builders by task.
+## License
 
-License: MIT. Built from: Graham Nelson's Inform (Artistic License 2.0),
-D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a), if-craft-corpus (CC BY 4.0), dmcp (MIT,
-Shawn Rushefsky), lonelog (CC BY-SA 4.0), BitD SRD (CC BY 3.0, John Harper),
-Ironsworn: Starforged SRD (CC BY 4.0, Shawn Tomkin), Sly Flourish Lazy GM Resource
-Document (CC BY 4.0, Mike Shea), The Alexandrian (CC BY 4.0, Justin Alexander),
-Dungeon World SRD (CC BY 3.0, Sage LaTorra and Adam Koebel), Fate SRD (CC BY 3.0,
-Evil Hat Productions), Ironsworn SRD (CC BY 4.0, Shawn Tomkin).
+Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel).
+
+Holonovel is MIT-licensed. Built from:
+
+- D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a, Wizards of the Coast)
+- Graham Nelson's Inform (Artistic License 2.0, Graham Nelson)
+- if-craft-corpus (CC BY 4.0, pvliesdonk)
+- dmcp (MIT, Shawn Rushefsky)
+- lonelog (CC BY-SA 4.0, zeruhur)
+- BitD SRD (CC BY 3.0, John Harper)
+- Ironsworn: Starforged SRD (CC BY 4.0, Shawn Tomkin)
+- Sly Flourish Lazy GM Resource Document (CC BY 4.0, Mike Shea)
+- The Alexandrian (CC BY 4.0, Justin Alexander)
+- Dungeon World SRD (CC BY 3.0, Sage LaTorra, Adam Koebel)
+- Fate SRD (CC BY 3.0, Evil Hat Productions)
+- Ironsworn SRD (CC BY 4.0, Shawn Tomkin)
+
 [RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-25.
