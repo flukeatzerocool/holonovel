@@ -4,11 +4,12 @@
  *
  * Runs the deterministic Holosuite tiers against a live holonovel server:
  * T0 protocol conformance (`conformance`), T1 bounded model-based invariants
- * (`invariants`), T3 adversarial input fuzzing (`adversarial`), and T4
- * differential/replay determinism (`differential`). The report-only method
- * audit (`mutation`) reports the mutation-audit catch rate and is not part of
- * `all`. Emits a structured JSON report with `--json`. The stochastic
- * Understudies tier is a follow-on increment and is not selected here.
+ * (`invariants`), T2 bundled-Novel walkthrough (`novel`), T3 adversarial input
+ * fuzzing (`adversarial`), and T4 differential/replay determinism
+ * (`differential`). The report-only method audit (`mutation`) reports the
+ * mutation-audit catch rate and is not part of `all`. Emits a structured JSON
+ * report with `--json`. The stochastic Understudies tier is a follow-on
+ * increment and is not selected here.
  *
  * Usage:
  *   tsx scripts/holosuite.ts --tier=all [--server-dir <dir>] [--data-dir <dir>]
@@ -28,17 +29,18 @@ import { runConformance } from "./lib/holosuite-conformance.js";
 import { runInvariants } from "./lib/holosuite-invariants.js";
 import { runAdversarial } from "./lib/holosuite-adversarial.js";
 import { runDifferential } from "./lib/holosuite-differential.js";
+import { runNovel } from "./lib/holosuite-novel.js";
 import { runMutationAudit } from "./lib/holosuite-mutation.js";
 import { appendEvent, canonicalJson, summarize, type EvalProvenance, type TierResult } from "./lib/eval-schema.js";
 
 installHarnessGuard();
 
-type Tier = "conformance" | "invariants" | "adversarial" | "differential" | "mutation" | "all";
+type Tier = "conformance" | "invariants" | "novel" | "adversarial" | "differential" | "mutation" | "all";
 
-const USAGE = `Usage: tsx scripts/holosuite.ts --tier=<conformance|invariants|adversarial|differential|mutation|all> [options]
+const USAGE = `Usage: tsx scripts/holosuite.ts --tier=<conformance|invariants|novel|adversarial|differential|mutation|all> [options]
 
 Options:
-  --tier <name>        Tier to run (required): conformance, invariants,
+  --tier <name>        Tier to run (required): conformance, invariants, novel,
                        adversarial, differential, mutation, or all. The
                        mutation tier is report-only and excluded from all.
   --server-dir <dir>   Server root under test (default: current directory).
@@ -53,10 +55,11 @@ Exit codes: 0 = pass, 1 = failure/finding, 2 = fatal.`;
 
 /** REQ contracts each tier exercises, for event traceability and the aggregate. */
 const TIER_REQS: Record<string, string[]> = {
-  conformance: ["REQ-020", "REQ-022", "REQ-023", "REQ-024", "REQ-025", "REQ-450"],
-  invariants: ["REQ-001", "REQ-032", "REQ-041", "REQ-050"],
-  adversarial: ["REQ-002", "REQ-054", "REQ-444", "REQ-450"],
-  differential: ["REQ-041", "REQ-050", "REQ-055"],
+  conformance: ["REQ-020", "REQ-022", "REQ-023", "REQ-024", "REQ-025", "REQ-450", "REQ-581"],
+  invariants: ["REQ-001", "REQ-032", "REQ-041", "REQ-050", "REQ-603", "REQ-604", "REQ-606"],
+  novel: ["REQ-565", "REQ-096j", "REQ-601", "REQ-603", "REQ-604", "REQ-606", "REQ-599", "REQ-542"],
+  adversarial: ["REQ-002", "REQ-054", "REQ-444", "REQ-450", "REQ-603"],
+  differential: ["REQ-041", "REQ-050", "REQ-055", "REQ-601"],
   mutation: ["REQ-050", "REQ-141m"],
 };
 
@@ -85,7 +88,7 @@ function parseArgs(argv: string[]): { tier: Tier; serverDir: string; dataDir?: s
     return i >= 0 ? argv[i + 1] : undefined;
   };
   const tier = (value("--tier") ?? "all") as Tier;
-  if (!["conformance", "invariants", "adversarial", "differential", "mutation", "all"].includes(tier)) throw new Error(`Unknown tier: ${tier}`);
+  if (!["conformance", "invariants", "novel", "adversarial", "differential", "mutation", "all"].includes(tier)) throw new Error(`Unknown tier: ${tier}`);
   const seed = Number.parseInt(value("--seed") ?? "1", 10);
   const steps = Number.parseInt(value("--steps") ?? "12", 10);
   if (!Number.isFinite(seed) || !Number.isFinite(steps) || steps < 1) throw new Error("--seed/--steps must be positive integers");
@@ -111,6 +114,9 @@ async function main(): Promise<void> {
   }
   if (args.tier === "invariants" || args.tier === "all") {
     results.push(await runInvariants({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed, steps: args.steps }));
+  }
+  if (args.tier === "novel" || args.tier === "all") {
+    results.push(await runNovel({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed }));
   }
   if (args.tier === "adversarial" || args.tier === "all") {
     results.push(await runAdversarial({ serverDir: args.serverDir, dataDir: args.dataDir, seed: args.seed }));

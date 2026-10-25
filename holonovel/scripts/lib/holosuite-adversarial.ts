@@ -13,11 +13,12 @@
 // REQ citations: none — informational evaluation-harness support (exercises the
 // REQ-001/REQ-002 response and error contracts).
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { classifyResult, fingerprintOf } from "./eval-oracle.js";
+import { readPersistedNovel } from "./eval-state.js";
 import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class, so a finding cites the predicate it
@@ -25,6 +26,7 @@ import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
 const P_VALIDATION = "holonovel/src/index.ts:3140"; // manage_world schema
 const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
+const P_DIAGNOSTICS = "holonovel/src/index.ts:8247"; // verify/replay handler
 const P_READONLY = "holonovel/src/core/state.ts:1515"; // snapshot
 const NOVEL_NAME = "Holosuite Adversarial";
 
@@ -54,13 +56,21 @@ const PROBES: Probe[] = [
   { label: "prototype pollution args", tool: "manage_npc", args: JSON.parse('{"action":"create","name":"x","__proto__":{"polluted":true}}'), expect: "envelope", predicate: P_VALIDATION },
   { label: "null action", tool: "manage_novel", args: { action: null }, expect: "envelope", predicate: P_VALIDATION },
   { label: "boolean where string", tool: "manage_world", args: { action: "create_room", name: true }, expect: "envelope", predicate: P_VALIDATION },
+  { label: "replay out-of-range ordinal", tool: "manage_diagnostics", args: { action: "replay", to_event: 999999 }, expect: "envelope", predicate: P_DIAGNOSTICS },
+  { label: "malformed archive import", tool: "manage_archive", args: { action: "import", data: "{" }, expect: "envelope", predicate: P_VALIDATION },
+  { label: "corpus path traversal", tool: "manage_corpus", args: { action: "corpus_register", corpus_document_id: "../../etc/passwd", corpus_body: "probe" }, expect: "envelope", predicate: P_VALIDATION },
+  { label: "take_turn missing intent", tool: "take_turn", args: {}, expect: "envelope", predicate: P_VALIDATION },
 ];
 
-function readNovel(dataDir: string): Record<string, unknown> {
-  const dir = join(dataDir, "novels");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
-  if (files.length === 0) throw new Error("no novel file persisted");
-  return JSON.parse(readFileSync(join(dir, files[0]!), "utf-8")) as Record<string, unknown>;
+/** Keep a 100k hostile payload out of the canonical report. */
+function redactArgs(value: unknown): Record<string, unknown> {
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") return v.length > 180 ? `${v.slice(0, 180)}…<${v.length} chars>` : v;
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return walk(value) as Record<string, unknown>;
 }
 
 interface Ctx {
@@ -96,20 +106,27 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
       const ok = probe.expect === "wellformed" ? res.text.trim().length > 0 : c.prefix !== "[?]";
       record(ctx, probe.expect === "wellformed" ? "wellformed_protocol_error" : "envelope_recognized", ok, `${probe.label}: ${c.prefix}`, step, ["REQ-001", "REQ-002"], probe.predicate);
       ctx.events.push({
-        tier: "adversarial", step, role: "prober", badge: "game_master", tool: probe.tool, args: probe.args,
+        tier: "adversarial", step, role: "prober", badge: "game_master", tool: probe.tool, args: redactArgs(probe.args),
         prefix: c.prefix, error_class: c.error_class, is_error: res.isError, mcp_error: c.mcp_error,
         latency_ms: 0, req_ids: ["REQ-001", "REQ-002"], detail: probe.label,
       });
     }
 
     // --- Read-only injection probes never move the fingerprint --------------
-    const before = fingerprintOf(readNovel(dataDir));
+    const before = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     for (const cmd of ["look; rm -rf /", "$(cat /etc/passwd)", "{{__proto__}}", "{{{"]) {
       await client.call("run_command", { action: "execute", command: cmd });
     }
-    const after = fingerprintOf(readNovel(dataDir));
+    const after = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     step++;
     record(ctx, "read_only_no_mutation", before === after, before === after ? "fingerprint unchanged" : `${before.slice(0, 8)} -> ${after.slice(0, 8)}`, step, ["REQ-041"], P_READONLY);
+
+    // --- Player-badge denial: verify stays GM-only -------------------------
+    await client.call("set_badge", { badge: "player" });
+    step++;
+    const playerVerify = await client.call("manage_diagnostics", { action: "verify" });
+    record(ctx, "player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_DIAGNOSTICS);
+    await client.call("set_badge", { badge: "game_master" });
 
     // --- Liveness: a well-formed call still succeeds after the battery ------
     step++;

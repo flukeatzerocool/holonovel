@@ -11,11 +11,12 @@
 // REQ citations: none — informational evaluation-harness support (exercises
 // the REQ-032 gating, REQ-041 undo, and REQ-050 determinism contracts).
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { fingerprintStable, fingerprintChanged, envelopeRecognized, isDenial, fingerprintOf } from "./eval-oracle.js";
+import { readPersistedNovel } from "./eval-state.js";
 import type { EvalEvent, EvalFinding, TierResult } from "./eval-schema.js";
 
 // Real source anchors per invariant class, so a finding cites the predicate it
@@ -37,13 +38,6 @@ function rng(seed: number): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-function readNovel(dataDir: string): Record<string, unknown> {
-  const dir = join(dataDir, "novels");
-  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
-  if (files.length === 0) throw new Error("no novel file persisted");
-  return JSON.parse(readFileSync(join(dir, files[0]!), "utf-8")) as Record<string, unknown>;
 }
 
 interface Ctx {
@@ -77,10 +71,10 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     await client.call("set_badge", { badge: "game_master" });
 
     // --- Invariant: read-only actions never move the fingerprint -------------
-    let before = fingerprintOf(readNovel(dataDir));
+    let before = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     await client.call("manage_diagnostics", { action: "health" });
     await client.call("run_command", { action: "execute", command: "look" });
-    let after = fingerprintOf(readNovel(dataDir));
+    let after = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record(ctx, "read_only_no_mutation", fingerprintStable(before, after).ok, fingerprintStable(before, after).detail, 1, ["REQ-041"], P_READONLY);
 
     // --- Invariant: badge gating refuses a GM-only mutation under Player -----
@@ -89,13 +83,26 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     record(ctx, "gating_refusal_is_denial", isDenial(refused.text, refused.isError).ok, isDenial(refused.text, refused.isError).detail, 2, ["REQ-032"], P_GATING);
     await client.call("set_badge", { badge: "game_master" });
 
+    // --- Invariant: diagnostics reads are non-mutating and repeat-stable ----
+    const preDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    const verifyOne = await client.call("manage_diagnostics", { action: "verify" });
+    const verifyTwo = await client.call("manage_diagnostics", { action: "verify" });
+    record(ctx, "verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], "holonovel/src/core/state-hash.ts:50");
+    const replayOne = await client.call("manage_diagnostics", { action: "replay" });
+    record(ctx, "replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8267");
+    const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
+    const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
+    record(ctx, "context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8190");
+    const postDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    record(ctx, "diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], "holonovel/src/core/state-hash.ts:50");
+
     // --- Invariant: undo restores the pre-mutation fingerprint ---------------
-    const preUndo = fingerprintOf(readNovel(dataDir));
+    const preUndo = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     await client.call("manage_world", { action: "create_room", name: "Undo Room", description: "Temporary." });
-    const postCreate = fingerprintOf(readNovel(dataDir));
+    const postCreate = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record(ctx, "mutation_observed", fingerprintChanged(preUndo, postCreate).ok, fingerprintChanged(preUndo, postCreate).detail, 3, ["REQ-041"], P_UNDO);
     await client.call("manage_history", { action: "undo" });
-    const postUndo = fingerprintOf(readNovel(dataDir));
+    const postUndo = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record(ctx, "undo_round_trip", fingerprintStable(preUndo, postUndo).ok, `${fingerprintStable(preUndo, postUndo).detail}`, 4, ["REQ-041"], P_UNDO);
 
     // --- Bounded seeded sequence: every result carries a recognized envelope
@@ -112,13 +119,13 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     }
 
     // --- Invariant: fingerprint survives a server restart --------------------
-    const preRestart = fingerprintOf(readNovel(dataDir));
+    const preRestart = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     await client.close();
     const rebooted = await bootServer({ serverDir: opts.serverDir, dataDir, seed });
     try {
       const listed = await rebooted.call("manage_novel", { action: "list" });
       record(ctx, "restart_reloads_novel", envelopeRecognized(listed.text, listed.isError).ok, envelopeRecognized(listed.text, listed.isError).detail, step + 1, ["REQ-050"], P_RESTART);
-      const postRestart = fingerprintOf(readNovel(dataDir));
+      const postRestart = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
       record(ctx, "fingerprint_continuity_restart", fingerprintStable(preRestart, postRestart).ok, fingerprintStable(preRestart, postRestart).detail, step + 2, ["REQ-050"], P_RESTART);
       ctx.events.push({
         tier: "invariants", step, role: "generator", badge: "game_master", tool: "holosuite",
