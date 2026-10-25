@@ -269,3 +269,17 @@ contract-bearing threshold; open items are split opportunistically on future
 edits to their sections. No contract-bearing rewrite was made. Two of the
 195 come from this increment's own Appendix U and §11.4 edits (sentence
 length and readability); both are accepted under the same policy.
+
+## Batch 6 — audit-remediation delta (2026-10-24)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 223 warnings**.
+The 28-warning net increase over Batch 5 is not a regression: the 2026-10-24
+increments added 51 REQs, and the audit remediation added §7.9 and four
+terminology rows. The same lexical families drive it — passive voice, modal
+drift, sentence length, condition stacking, ambiguous pronouns, and
+readability.
+
+**Disposition: all 223 warnings `Accepted` by policy.** These are lexical
+heuristics below the contract-bearing threshold, and the Appendix M
+default/procedural violations they previously masked are now mechanically
+gated. No contract-bearing rewrite was made in this batch.

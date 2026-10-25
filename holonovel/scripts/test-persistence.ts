@@ -180,10 +180,16 @@ async function main() {
       const exported = await call(proc, "manage_archive", { action: "export",  format: "json" });
       const bundle = JSON.parse(exported);
       assertContains(exported, "\"integrity\"");
-      for (const field of ["payload_hash", "state_hash", "event_log_hash"]) {
+      for (const field of ["payload_hash", "state_hash", "audit_hash"]) {
         if (typeof bundle.integrity?.[field] !== "string") throw new Error(`T691 integrity missing ${field}`);
       }
       if (bundle.integrity.algorithm !== "sha256") throw new Error("T691 integrity algorithm is not sha256");
+      const verify = await call(proc, "manage_diagnostics", { action: "verify" });
+      const liveHash = verify.match(/live state hash: ([0-9a-f]+)/)?.[1];
+      if (!liveHash) throw new Error(`T691 could not read the live state hash: ${verify.slice(0, 200)}`);
+      if (bundle.integrity.state_hash !== liveHash) {
+        throw new Error(`T691 integrity.state_hash ${bundle.integrity.state_hash} does not equal the live state hash ${liveHash}`);
+      }
       const clean = await call(proc, "manage_archive", { action: "import",  data: exported, mode: "dry-run" });
       assertNotContains(clean, "[integrity-mismatch]");
       const legacy = JSON.parse(exported);

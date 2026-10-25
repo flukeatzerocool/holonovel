@@ -18,11 +18,13 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { surfaceAliases, type SurfaceRegistryLike } from "./lib/surface.js";
+import { parseRecordedBudgets } from "./lib/surface-record.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const DEFS = join(ROOT, "holonovel", "tool-definitions.json");
 const REGISTRY = join(ROOT, "holonovel", "tool-surface-registry.json");
 const BASELINE = join(ROOT, "spec", "audit", "tool-surface-baseline.json");
+const DECISIONS = join(ROOT, "holonovel", "DECISIONS.md");
 
 interface CatalogSize {
   tools: number;
@@ -162,6 +164,19 @@ if (!existsSync(BASELINE)) {
   if (recorded !== measured) {
     defects.push("baseline is stale — the measured footprint changed; run `npm run surface-budget -- --write`");
   }
+}
+
+// REQ-429/REQ-571 — the human-readable recorded budgets in DECISIONS.md must
+// agree with the generated measurements; a stale header misleads the operator.
+const decisions = existsSync(DECISIONS) ? parseRecordedBudgets(readFileSync(DECISIONS, "utf8")) : null;
+if (!decisions) {
+  defects.push("DECISIONS.md is missing the recorded tool/surface budget lines");
+} else {
+  if (decisions.canonical !== canonicalActions) defects.push(`DECISIONS records ${decisions.canonical} canonical actions; measured ${canonicalActions}`);
+  if (decisions.compatibility !== compatibilityActions) defects.push(`DECISIONS records ${decisions.compatibility} compatibility declarations; measured ${compatibilityActions}`);
+  if (decisions.full !== full.tokens) defects.push(`DECISIONS records ${decisions.full} full tokens; measured ${full.tokens}`);
+  if (decisions.standard !== standard.tokens) defects.push(`DECISIONS records ${decisions.standard} standard tokens; measured ${standard.tokens}`);
+  if (decisions.small !== small.tokens) defects.push(`DECISIONS records ${decisions.small} small tokens; measured ${small.tokens}`);
 }
 
 if (ARGV.includes("--json")) {

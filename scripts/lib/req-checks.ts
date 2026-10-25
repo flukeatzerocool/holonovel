@@ -183,6 +183,9 @@ const PROCEDURAL_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\bin order, stopping\b/gi, label: "ordered algorithm" },
   { re: /\bsorted? by\b/gi, label: "sort order" },
   { re: /\biterate[sd]?\b/gi, label: "iteration" },
+  { re: /\bpack tiers in priority order\b/gi, label: "ordered algorithm" },
+  { re: /\bdrop tiers in reverse priority order\b/gi, label: "ordered algorithm" },
+  { re: /(?:missing|absent|no shared).*?→.*?otherwise/gi, label: "verdict ladder" },
 ];
 
 export function checkReqProceduralContent(text: string): string[] {
@@ -191,6 +194,18 @@ export function checkReqProceduralContent(text: string): string[] {
     for (const { re, label } of PROCEDURAL_PATTERNS) {
       const m = body.match(re);
       if (m) issues.push(`${id}: ${label} ("${m[0]}") in REQ body — move to §6/§7`);
+    }
+  }
+  return issues;
+}
+
+// A parenthetical numeric default in a REQ body leaks a tuning value the
+// runtime configuration surface (§7.6) or Appendix O owns (Appendix M).
+export function checkReqDefaultClauses(text: string): string[] {
+  const issues: string[] = [];
+  for (const { id, body } of extractBodies(text)) {
+    if (/\(default\s+\d/i.test(body)) {
+      issues.push(`${id}: contains a parenthetical default value — §7.6/Appendix O owns defaults`);
     }
   }
   return issues;

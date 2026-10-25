@@ -645,3 +645,41 @@ triggering mutation.
 
 Guidance is quoted inert data — it never influences tool behavior or model extraction.
 
+### 7.9 Derived-surface algorithms
+
+These algorithms define how a conformant server derives the observable results
+required by the citing REQ. They are deterministic; none reads the clock,
+network, or model output.
+
+**7.9a Context-ledger packing.** The ledger sections and their classes are
+`tool_catalog` and `registered_prompts` (stable), `resource_directory`
+(stable), `scene_state` and `memory_tiers` (semi-stable), and
+`last_tool_output` (volatile). `context_report` orders optional sections by
+ascending priority: `last_tool_output`, `resource_directory`, `scene_state`,
+`memory_tiers`. Required sections (`tool_catalog`, `registered_prompts`)
+are never dropped. To fit `budget_tokens`, the allocator drops optional
+sections from the lowest priority upward — `last_tool_output` first — until the
+packed total fits. If the required sections alone exceed the budget, the report
+marks the result as not fitting and names the overflow.
+
+**7.9b Compression-tier assembly.** `recap` packs tiers in priority order —
+campaign, recent, session, arc — and, when `budget_tokens` is supplied, drops
+tiers in the reverse order (arc first, campaign last) until the estimated cost
+fits. The estimate is one token per four UTF-8 characters. A dropped tier is
+named in a `[truncated]` marker.
+
+**7.9c Citation verdicts.** For each stored synthesis item, `verify` applies
+this order: no `quoted_excerpt` → `unsupported` (`excerpt-absent`); no stored
+`source_snapshot` contains it → `unsupported` (`excerpt-not-in-source`); zero
+shared content tokens with the claim → `unsupported` (`no-overlap`); fewer than
+half the excerpt's tokens in the claim → `weak` (`low-overlap`); otherwise
+`pass` (`supported`). An item citing `novel://` is `pass` (`internal-source`)
+without a source check.
+
+**7.9d Integrity hashes.** `state_hash` is the canonical state hash of REQ-601.
+`payload_hash` is SHA-256 over the canonical JSON of the exported payload with
+the `integrity` member removed. `audit_hash` is SHA-256 over the concatenation
+of each audit entry's `timestamp`, `tool`, `args`, and `hash`, in log order.
+When `TTRPG_EXPORT_SIGNING_KEY` is set, the signature is HMAC-SHA256 over
+`payload_hash + state_hash + audit_hash`.
+
