@@ -129,7 +129,12 @@ function runChecked(label: string, cmd: string): boolean {
     const out = execSync(cmd, { cwd: root, stdio: "pipe" }).toString();
     console.log("OK");
     for (const line of out.split("\n")) {
-      if (/^\d+ error\(s\), \d+ warning\(s\)/.test(line) || line.startsWith("WARNING:")) {
+      const reviewLine =
+        /^\d+ error\(s\), \d+ warning\(s\)/.test(line) ||
+        line.startsWith("WARNING:") ||
+        line.startsWith("Dedicated-evidence report") ||
+        line.startsWith("  Bucket-C REQs with no dedicated exercised test:");
+      if (reviewLine) {
         console.log(`  ${line.length > 160 ? line.slice(0, 160) + "…" : line}`);
       }
     }
@@ -212,7 +217,8 @@ if (holoSrcChanged || holoScriptsChanged || !existsSync(join(root, "holonovel", 
 // Step 2: Check spec. The gate suite consumes holonovel/src, holonovel/scripts,
 // the server package files, and the hooks, so any of those changing must re-run
 // it even when spec/ and scripts/ are untouched.
-if (specChanged || scriptsChanged || holoSrcChanged || holoScriptsChanged || holoPkgChanged || hooksChanged) {
+const fullCheckRan = specChanged || scriptsChanged || holoSrcChanged || holoScriptsChanged || holoPkgChanged || hooksChanged;
+if (fullCheckRan) {
   steps.push({ label: "2. Check spec", fn: () => runChecked("2. Check spec", "npm run check") });
 } else {
   steps.push({ label: "2. Check spec", fn: () => skip("2. Check spec", "spec/, scripts/, server source, and hooks unchanged") });
@@ -271,6 +277,14 @@ if (failed) {
 // Recompute after execution since steps may have changed files
 const after = computeCurrent();
 saveFingerprint(after);
+
+// Record whether the full gate actually ran. The push pipeline reads this to
+// decide whether it must supply the fast gate set before publishing; the git
+// hooks never suppress a check on the strength of an optimistic marker.
+writeFileSync(
+  join(root, ".holonovel-state", "build-order-run.json"),
+  JSON.stringify({ check_ran: fullCheckRan, spec_hash: after.spec_hash, scripts_hash: after.scripts_hash }, null, 2) + "\n"
+);
 
 // Copy fingerprint to server data dirs for spec_health visibility
 for (const server of SERVERS) {

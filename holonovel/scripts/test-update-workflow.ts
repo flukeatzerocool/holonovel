@@ -209,6 +209,39 @@ writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", pack
       if (run.status !== 0) throw new Error(`update data tier failed: ${run.stdout} ${run.stderr}`);
       assertContains(run.stdout, "data    persisted artifacts: updated");
     });
+
+    // ── REQ-394 / T462 — --allow-pending requires a recorded override ─────
+    // Re-seed the baseline so the delta is pending regardless of earlier tests.
+    runUpdate(["--server", "holonovel", "--spec-hash", currentHash]);
+    const decisionsDir = mkdtempSync(join(tmpdir(), "update-decisions-"));
+    try {
+      const decisionsPath = join(decisionsDir, "DECISIONS.md");
+      writeFileSync(decisionsPath, "# DECISIONS\n\nNo override recorded.\n");
+
+      test("T462/REQ-394: --allow-pending without a recorded override is refused", () => {
+        const r = runUpdate(
+          ["--server", "holonovel", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint", "--allow-pending"],
+          { HOLONOVEL_DECISIONS_DIR: decisionsDir }
+        );
+        if (r.status === 0) throw new Error(`expected refusal, got exit 0: ${r.stdout}`);
+        assertContains(r.stderr, "requires a recorded operator override");
+      });
+
+      const today = new Date();
+      const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      writeFileSync(decisionsPath, `# DECISIONS\n\n- **Pending-update override:** holonovel ${date} — scheduled update\n`);
+
+      test("T462/REQ-394: --allow-pending accepts a dated recorded override", () => {
+        const r = runUpdate(
+          ["--server", "holonovel", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint", "--allow-pending"],
+          { HOLONOVEL_DECISIONS_DIR: decisionsDir }
+        );
+        if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        assertContains(r.stdout, "overridden with --allow-pending");
+      });
+    } finally {
+      rmSync(decisionsDir, { recursive: true, force: true });
+    }
   } finally {
     // Drop the isolated temp baselines; the live .holonovel-state was never touched.
     rmSync(WORK_STATE_DIR, { recursive: true, force: true });

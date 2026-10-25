@@ -12,12 +12,13 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 echo "Running pre-commit checks..."
-# When invoked by scripts/push-pipeline.sh (HOLONOVEL_PIPELINE=1), build-order has
-# already run assemble, version-check, spec-delta, fingerprint-sync, lint, and
-# validate-readme, so only the guarded-rule-change check (unique to this hook)
-# still needs to run. A direct `git commit` runs the full set.
-if [[ "${HOLONOVEL_PIPELINE:-0}" == "1" ]]; then
-    echo "  (push pipeline already ran assemble/version/lint — running the unique guarded-rule-change check)"
+# When invoked by scripts/push-pipeline.sh, HOLONOVEL_PIPELINE_GATES names the
+# gate pass that actually ran (full = build-order's check, fast = the docs-only
+# fallback), so only the guarded-rule-change check (unique to this hook) still
+# needs to run. An absent marker — including a failed build-order that never
+# wrote its run record — runs the full set.
+if [[ "${HOLONOVEL_PIPELINE_GATES:-}" == "full" || "${HOLONOVEL_PIPELINE_GATES:-}" == "fast" ]]; then
+    echo "  (push pipeline ran the ${HOLONOVEL_PIPELINE_GATES} gate set — running the unique guarded-rule-change check)"
 else
     npm run assemble
     npx tsx scripts/version-check.ts

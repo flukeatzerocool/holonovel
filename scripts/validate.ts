@@ -2524,7 +2524,7 @@ function main(): void {
   const bucketCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
   for (const r of implRows) bucketCounts[r.bucket]++;
 
-  const implStrict = process.argv.includes("--impl-audit=strict");
+  const implStrict = process.argv.includes("--impl-audit=strict") || process.env.HOLONOVEL_IMPL_STRICT === "1";
   const writeRegister = process.argv.includes("--write-register");
   const writeBaseline = process.argv.includes("--write-baseline");
 

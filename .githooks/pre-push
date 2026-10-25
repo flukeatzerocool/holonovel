@@ -18,19 +18,19 @@ fi
 
 echo "Running pre-push checks..."
 
-# When invoked by scripts/push-pipeline.sh (HOLONOVEL_PIPELINE=1), build-order
-# has already run version-check and the full `npm run check` suite, the pending
-# update gate (REQ-394), and spec propagation, so those are skipped here. The
-# implementation-coverage strict gate below is unique to this hook and always
-# runs. A direct `git push` runs the full set.
-if [[ "${HOLONOVEL_PIPELINE:-0}" == "1" ]]; then
-    echo "  (push pipeline already ran version sync, the pending-update gate, spec/server sync, and the check suite — skipping)"
+# When invoked by scripts/push-pipeline.sh, HOLONOVEL_PIPELINE_GATES names the
+# gate pass that actually ran (full = build-order's check, fast = the docs-only
+# fallback), so version sync, the pending-update gate (REQ-394), spec
+# propagation, and the check suite are skipped here. An absent marker runs the
+# full set — including a pipeline run whose build-order never ran a gate.
+if [[ "${HOLONOVEL_PIPELINE_GATES:-}" == "full" || "${HOLONOVEL_PIPELINE_GATES:-}" == "fast" ]]; then
+    echo "  (push pipeline ran the ${HOLONOVEL_PIPELINE_GATES} gate set — skipping its covered steps)"
 else
     echo "  version sync..."
     npx tsx scripts/version-check.ts
 
     echo "  pending-update gate..."
-    spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel.md')).digest('hex'))")
+    spec_hash=$(npx tsx scripts/spec-hash.ts)
     # Capture stdout (JSON) separately from stderr (the human summary): merging
     # them with 2>&1 leaves trailing text that JSON.parse rejects, blocking every
     # push. Parse the first balanced JSON object instead.
@@ -64,7 +64,7 @@ else
     # `spec_hash` was computed above; reuse it for the root comparison instead of
     # spawning a second identical hash process.
     root_spec_hash="$spec_hash"
-    embedded_spec_hash=$(node -e "const {createHash}=require('crypto');const {readFileSync}=require('fs');process.stdout.write(createHash('sha256').update(readFileSync('holonovel/holonovel.md')).digest('hex'))")
+    embedded_spec_hash=$(npx tsx scripts/spec-hash.ts --file holonovel/holonovel.md)
 
     if [ "$root_spec_hash" != "$embedded_spec_hash" ]; then
         echo ""
