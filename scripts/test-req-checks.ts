@@ -5,7 +5,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
@@ -271,6 +271,29 @@ test("procedural scan: ordered criterion is flagged", () => {
   if (!issues.some((i) => i.includes("REQ-905a"))) {
     throw new Error(`expected REQ-905a procedural flag; got ${JSON.stringify(issues)}`);
   }
+});
+
+test("procedural scan: moved tier-pack and verdict ladders are flagged", () => {
+  const pack = "**REQ-905b — Pack (Part b).**\nThe server SHALL pack tiers in priority order. _Check:_ T995.";
+  const verdict = "**REQ-905c — Verdict (Part c).**\nNo shared content tokens → `unsupported`; otherwise `pass`. _Check:_ T995.";
+  const packIssues = checkReqProceduralContent(pack);
+  const verdictIssues = checkReqProceduralContent(verdict);
+  if (!packIssues.some((i) => i.includes("REQ-905b"))) throw new Error(`expected REQ-905b procedural flag; got ${JSON.stringify(packIssues)}`);
+  if (!verdictIssues.some((i) => i.includes("REQ-905c"))) throw new Error(`expected REQ-905c procedural flag; got ${JSON.stringify(verdictIssues)}`);
+});
+
+test("default-clause scan: parenthetical numeric default is flagged", () => {
+  const text = "**REQ-905d — Default (Part d).**\nThe cap is `TTRPG_CAP` (default 10). _Check:_ T995.";
+  const issues = checkReqDefaultClauses(text);
+  if (!issues.some((i) => i.includes("REQ-905d"))) {
+    throw new Error(`expected REQ-905d default-clause flag; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("default-clause scan: a behavioral default statement is not a parenthetical numeric default", () => {
+  const text = "**REQ-905e — Default (Part e).**\nThe server SHALL default to `game_master`. _Check:_ T995.";
+  const issues = checkReqDefaultClauses(text);
+  if (issues.length !== 0) throw new Error(`unexpected default-clause flag; got ${JSON.stringify(issues)}`);
 });
 
 test("worked-example scan: arithmetic in body is flagged", () => {

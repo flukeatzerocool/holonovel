@@ -481,10 +481,10 @@ function buildScenarios(): PBScenario[] {
           assertContains(r, "Galt");
           assertOK(r);
         }},
-        { label: "set_personality on npc", action: TL("manage_character", () => ({ entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
-        { label: "set_voice_examples on npc", action: TL("manage_character", () => ({ entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
-        { label: "update_npc", action: TL("manage_npc", () => ({ npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
-        { label: "remove_npc", action: TL("manage_npc", () => ({ npc_id: npcRef.id })), assert: assertOK },
+        { label: "set_personality on npc", action: TL("manage_character", () => ({ action: "personality", entity_id: npcRef.id, description: "A stocky dwarf with a braided beard.", voice: "Gruff, speaks in mining metaphors.", background: "Once a royal smith.", goals: "Forge the perfect blade." })), assert: assertOK },
+        { label: "set_voice_examples on npc", action: TL("manage_character", () => ({ action: "voice", entity_id: npcRef.id, examples: [{ context: "when asked about his work", dialogue: "This steel's got good bones. Sing to it, and it'll sing back.", tag: "craftsman" }] })), assert: assertOK },
+        { label: "update_npc", action: TL("manage_npc", () => ({ action: "update", npc_id: npcRef.id, disposition: "friendly" })), assert: assertOK },
+        { label: "remove_npc", action: TL("manage_npc", () => ({ action: "remove", npc_id: npcRef.id })), assert: assertOK },
         { label: "remove_nonexistent → NOT_FOUND", action: T("manage_npc", { action: "remove",  npc_id: "nonexistent" }), assert: assertError },
       ];
     })(),
@@ -603,7 +603,7 @@ function buildScenarios(): PBScenario[] {
       { label: "create_character", action: T("manage_character", { action: "create",  name: "VerbSweeper" }), assert: assertOK },
       { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
       { label: "sit bench — supporter via jar? use altar", action: T("run_command", { command: "look" }), assert: assertOK },
-      { label: "listen", action: T("run_command", { command: "listen" }), assert: (r) => assertContains(r, "listen") },
+      { label: "listen", action: T("run_command", { command: "listen" }), assert: (r) => assertContains(r, "You hear") },
       { label: "smell", action: T("run_command", { command: "smell" }), assert: assertOK },
       { label: "touch altar", action: T("run_command", { command: "touch altar" }), assert: (r) => assertContains(r, "touch") },
       { label: "light lantern", action: T("run_command", { command: "light lantern" }), assert: (r) => assertContains(r, "light") },

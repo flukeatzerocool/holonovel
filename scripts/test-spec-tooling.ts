@@ -14,6 +14,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from "./lib/parse-spec.js";
+import { parseRecordedBudgets } from "./lib/surface-record.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -46,6 +47,17 @@ function main(): void {
   const dedicated = run(["scripts/compare-spec-code.ts", "--dedicated"]);
   check(dedicated.includes("Dedicated-evidence report"), "compare-spec-code --dedicated emits the report header");
   check(/no dedicated exercised test: \d+/.test(dedicated), "dedicated report carries a count");
+
+  // REQ-429/REQ-571 — the DECISIONS budget header parses and rejects drift.
+  const recordMd = [
+    "**Recorded tool budget:** 36 listed (225 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)",
+    "",
+    "**Recorded surface budgets:** full 27,910 tokens; standard 24,409; small 1,230; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)",
+  ].join("\n");
+  const record = parseRecordedBudgets(recordMd);
+  check(record?.canonical === 225 && record?.compatibility === 50, "recorded tool budget parses canonical and compatibility counts");
+  check(record?.full === 27910 && record?.standard === 24409 && record?.small === 1230, "recorded surface budgets parse with comma separators");
+  check(parseRecordedBudgets("no budget lines") === null, "missing budget lines return null");
 
   // SC-6 — the bundle report runs and reports a count.
   const bundles = run(["scripts/compare-spec-code.ts", "--bundles"]);

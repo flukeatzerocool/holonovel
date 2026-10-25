@@ -28,6 +28,7 @@ import {
   checkBuildPhaseMapCounts,
   checkFamilyCheckCoverage,
   checkReqProceduralContent,
+  checkReqDefaultClauses,
   checkReqWorkedExamples,
   checkReqThresholds,
   checkBaseCapabilityDefaults,
@@ -2230,16 +2231,18 @@ function main(): void {
 
   console.log("\n=== REQ-BODY CONTENT SCAN ===\n");
   const proceduralIssues = checkReqProceduralContent(text);
+  const defaultClauseIssues = checkReqDefaultClauses(text);
   const workedExampleIssues = checkReqWorkedExamples(text);
   const thresholdIssues = checkReqThresholds(text);
   for (const issue of proceduralIssues) console.log(`ERROR: ${issue}`);
+  for (const issue of defaultClauseIssues) console.log(`ERROR: ${issue}`);
   for (const issue of workedExampleIssues) console.log(`ERROR: ${issue}`);
   for (const issue of thresholdIssues) console.log(`ERROR: ${issue}`);
-  errors += proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length;
-  if (proceduralIssues.length + workedExampleIssues.length + thresholdIssues.length === 0) {
-    console.log("PASS: No procedural, worked-example, or unbounded-threshold content in REQ bodies");
+  errors += proceduralIssues.length + defaultClauseIssues.length + workedExampleIssues.length + thresholdIssues.length;
+  if (proceduralIssues.length + defaultClauseIssues.length + workedExampleIssues.length + thresholdIssues.length === 0) {
+    console.log("PASS: No procedural, default-clause, worked-example, or unbounded-threshold content in REQ bodies");
   } else {
-    console.log(`REQ-body content scan: ${proceduralIssues.length} procedural, ${workedExampleIssues.length} worked-example, ${thresholdIssues.length} unbounded-threshold`);
+    console.log(`REQ-body content scan: ${proceduralIssues.length} procedural, ${defaultClauseIssues.length} default-clause, ${workedExampleIssues.length} worked-example, ${thresholdIssues.length} unbounded-threshold`);
   }
 
   console.log("\n=== AMBIGUITY SCAN ===\n");

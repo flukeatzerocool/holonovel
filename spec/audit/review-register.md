@@ -11,6 +11,18 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Two-week audit remediation — resolved 2026-10-24:** the 2026-10-10..10-24
+  audit's code and spec findings are closed; publication (AU-3) is deferred by
+  the operator. The export envelope now uses the
+  REQ-601 state hash and an `audit_hash`; the Appendix M defaults and
+  procedural ladders moved to §7.6 and §7.9; the validator rejects
+  parenthetical numeric defaults; the recorded DECISIONS budgets are gated
+  against the generated baseline; the three new blocking harness failures are
+  repaired; and the two pattern-buffer debts are cleared. Evidence:
+  `npm run check` → 0 errors; `test:all` → 48 suites passed; `surface-budget`
+  → PASS; `test:surface-guards` → 12/12; `test:persistence` → 34/34;
+  `test:pattern-buffer` → 18/18; `test:pattern-buffer-ruleset` → 27/27.
+
 - **Prompt generation from the ruleset model — resolved 2026-10-24:** the five
   host prompt bodies (`intro`, `badge_briefing`, `session_zero`,
   `novel_setup`, `run_workflow`) are no longer ruleset prose literals.
@@ -655,7 +667,37 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
+- **Location-gated discovery — since-creation absence check (scheduled
+  2026-10-24):** `plans/2026-10-24-location-gated-discovery/plan.md` D3 keeps
+  the fire-time presence check and defers the full "absent from every scene
+  since creation" test. Predicate: `holonovel/src/index.ts` resolves pending
+  discoveries from fire-time entity lists; no since-creation scan exists.
+  Tracked in ROADMAP.md. (REQ-340a, REQ-349a)
+
+- **Discovered-consequence attribution — deferred-resolution variant
+  (scheduled 2026-10-24):** `plans/2026-10-23-discovered-consequence-attribution/plan.md`
+  D1 records attribution at fire time; the deferred-until-present variant
+  remains open if exact REQ-340 timing is required. Tracked in ROADMAP.md.
+  (REQ-340a)
+
 ## Closed-P3 (recorded, no action)
+
+- **Plan-artifact shape drift (AU-9) — closed 2026-10-24:** eight of fourteen
+  10-23/10-24 plans omit a Gate-mapping section and eleven omit a literal
+  "Summary" heading. The artifacts are historical records of executed
+  increments; rewriting them would not change a gate or a contract. New plans
+  continue to follow `plans/README.md`. Record and close.
+
+- **Commit-message convention drift (AU-10) — closed 2026-10-24:** nine of
+  thirty-three commits in the window lack the `## <date> — <title>` prefix.
+  History is immutable; the convention remains the standard for new commits.
+  Record and close.
+
+- **AAR absence for the 10-24 batch (AU-11) — closed 2026-10-24:** thirteen of
+  fourteen increments have no stored AAR artifact; the review register carried
+  a terminal entry only for prompt generation. This remediation increment adds
+  the consolidated AAR and loop status; retroactive per-increment AARs would
+  restate the changelog. Record and close.
 
 - **Dedicated-evidence backlog (`compare-spec-code --dedicated`) — closed
   2026-10-20:** the detector (`scripts/compare-spec-code.ts:477-484`) flags
@@ -850,4 +892,9 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Deferred-by-user
 
-None.
+- **Audit remediation publication (AU-3) — deferred 2026-10-24:** the operator
+  authorized execution with "execute plan, don't publish". The code and spec
+  changes are complete and gated locally; the Spec Update entry, commit, push,
+  and deploy verification remain pending operator authorization. Evidence:
+  `spec-update-record --check` still reports the unpublished delta, and the
+  working tree is uncommitted by design.

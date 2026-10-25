@@ -378,7 +378,7 @@ const S29_STEPS: PBStep[] = [
   { label: "export json", action: T("manage_archive", { action: "export", format: "json" }), assert: (r) => assertContains(r, "format_version", "export-json ") },
   { label: "export lore-only scope", action: T("manage_archive", { action: "export", format: "json", scope: "lore" }), assert: (r) => assertContains(r, "lore", "export-lore ") },
   { label: "import dry-run valid", action: T("manage_archive", { action: "import", data: "{\"slug\":\"x\",\"name\":\"X\"}", mode: "dry-run" }), assert: (r) => assertContains(r, "would be imported", "dryrun-valid ") },
-  { label: "import dry-run broken-ref reports", action: T("manage_archive", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "dry-run", strict: true }), assert: (r) => assertContains(r, "reference failure", "dryrun-broken ") },
+  { label: "import dry-run broken-ref reports", action: T("manage_archive", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "dry-run", strict: true }), assert: (r) => assertContains(r, "references missing", "dryrun-broken ") },
   { label: "import strict replace blocks", action: T("manage_archive", { action: "import", data: "{\"slug\":\"broken\",\"name\":\"B\",\"lore\":{\"k\":{\"entry\":\"e\",\"triggers\":[\"npc:ghost\"]}}}", mode: "replace", strict: true }), assert: assertError },
   { label: "command suggest combat category", action: T("run_command", { action: "suggest", intent: "attack the goblin" }), assert: (r) => assertContains(r.toLowerCase(), "combat", "suggest-combat ") },
 ];

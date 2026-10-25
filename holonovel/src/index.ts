@@ -28,7 +28,7 @@ import {
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
-import { stateHash } from "./core/state-hash.js";
+import { stateHash, canonicalJson } from "./core/state-hash.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -5186,7 +5186,7 @@ server.registerTool("manage_scene", {
       audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
       emitEvent("scene_transition", { location: location ?? null });
       const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
-      const sceneSummary = effectiveDescription || (beat ? `beat ${beat}` : location ? `location ${location}` : "state updated");
+      const sceneSummary = description === undefined && beat !== undefined ? `beat ${beat}` : effectiveDescription || (location ? `location ${location}` : "state updated");
       return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${sceneSummary}`);
     }
     case "directive": {
@@ -8599,21 +8599,17 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
 // REQ-096g/j — portable bundle integrity. Hashes are computed over a freshly
 // constructed payload so key order is deterministic per build; the import
 // side recomputes from the parsed bundle, not the raw argument string.
-const INTEGRITY_EXCLUDED_STATE_KEYS = ["audit_log", "audit_archive", "undo_stacks", "redo_stacks", "checkpoints", "metadata"];
-
 function sha256Json(value: unknown): string {
-  return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return crypto.createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
-function bundleHashes(bundle: any, novel: any): { payload_hash: string; state_hash: string; event_log_hash: string } {
+function bundleHashes(bundle: any, novel: any): { payload_hash: string; state_hash: string; audit_hash: string } {
   const { integrity: _ignored, ...payload } = bundle ?? {};
-  const state: any = { ...(novel ?? {}) };
-  for (const key of INTEGRITY_EXCLUDED_STATE_KEYS) delete state[key];
   const audit = Array.isArray(novel?.audit_log) ? novel.audit_log : [];
   return {
     payload_hash: sha256Json(payload),
-    state_hash: sha256Json(state),
-    event_log_hash: crypto.createHash("sha256").update(audit.map((e: any) => `${e.timestamp ?? ""}${e.tool ?? ""}${e.args ?? ""}${e.hash ?? ""}`).join("\n")).digest("hex"),
+    state_hash: stateHash(novel ?? {}),
+    audit_hash: crypto.createHash("sha256").update(audit.map((e: any) => `${e.timestamp ?? ""}${e.tool ?? ""}${e.args ?? ""}${e.hash ?? ""}`).join("\n")).digest("hex"),
   };
 }
 
@@ -8624,7 +8620,7 @@ function computeBundleIntegrity(bundle: any, novel: any): any {
   if (signingKey) {
     integrity.signature = {
       algorithm: "hmac-sha256",
-      value: crypto.createHmac("sha256", signingKey).update(hashes.payload_hash + hashes.state_hash + hashes.event_log_hash).digest("hex"),
+      value: crypto.createHmac("sha256", signingKey).update(hashes.payload_hash + hashes.state_hash + hashes.audit_hash).digest("hex"),
     };
   }
   return integrity;
@@ -8861,7 +8857,7 @@ Options: yes, cancel`);
         integrityFailures.push(`integrity.algorithm: unsupported '${typeof providedIntegrity === "object" ? providedIntegrity.algorithm ?? "missing" : typeof providedIntegrity}'`);
       } else {
         const expected = computeBundleIntegrity(parsed, flat);
-        for (const field of ["payload_hash", "state_hash", "event_log_hash"] as const) {
+        for (const field of ["payload_hash", "state_hash", "audit_hash"] as const) {
           if (providedIntegrity[field] !== expected[field]) integrityFailures.push(`integrity.${field}: expected ${expected[field]}, got ${providedIntegrity[field] ?? "missing"}`);
         }
         if ((providedIntegrity.format_version ?? 2) !== (parsed.format_version ?? 2)) {
@@ -8872,7 +8868,7 @@ Options: yes, cancel`);
           if (!signingKey) {
             integrityWarnings.push("[signature-unverified] bundle is signed but no signing key is configured");
           } else {
-            const want = crypto.createHmac("sha256", signingKey).update(expected.payload_hash + expected.state_hash + expected.event_log_hash).digest("hex");
+            const want = crypto.createHmac("sha256", signingKey).update(expected.payload_hash + expected.state_hash + expected.audit_hash).digest("hex");
             if (providedIntegrity.signature.algorithm !== "hmac-sha256" || providedIntegrity.signature.value !== want) {
               integrityFailures.push("integrity.signature: HMAC does not verify");
             }

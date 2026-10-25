@@ -6,7 +6,7 @@
 // Exit codes: 0 = pass, 1 = one or more assertions failed.
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -194,13 +194,14 @@ async function run(): Promise<void> {
     });
 
     await test("T675: spec_health and the group directory advertise hidden aliases", async () => {
+      const baseline = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "spec", "audit", "tool-surface-baseline.json"), "utf8")).baseline;
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const surface = health?.tool_surface;
-      assert(surface?.canonical?.tools === 36, `canonical tools ${surface?.canonical?.tools}`);
-      assert(surface?.canonical?.actions === 214, `canonical actions ${surface?.canonical?.actions}`);
-      assert(surface?.compatibility?.tools === 3, `compatibility tools ${surface?.compatibility?.tools}`);
-      assert(surface?.compatibility?.actions === 45, `compatibility actions ${surface?.compatibility?.actions}`);
-      assert(surface?.compatibility?.retired === 45, `retired actions ${surface?.compatibility?.retired}`);
+      assert(surface?.canonical?.tools === baseline.canonical_tools, `canonical tools ${surface?.canonical?.tools} != baseline ${baseline.canonical_tools}`);
+      assert(surface?.canonical?.actions === baseline.canonical_actions, `canonical actions ${surface?.canonical?.actions} != baseline ${baseline.canonical_actions}`);
+      assert(surface?.compatibility?.tools === baseline.compatibility_tools, `compatibility tools ${surface?.compatibility?.tools} != baseline ${baseline.compatibility_tools}`);
+      assert(surface?.compatibility?.actions === baseline.compatibility_actions, `compatibility actions ${surface?.compatibility?.actions} != baseline ${baseline.compatibility_actions}`);
+      assert(surface?.compatibility?.retired === baseline.compatibility_actions, `retired actions ${surface?.compatibility?.retired} != baseline ${baseline.compatibility_actions}`);
       const aliases = surface?.compatibility?.aliases ?? [];
       for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_ruleset.roll"]) {
         assert(aliases.some((a: any) => a.name === name), `alias ${name} missing from spec_health`);

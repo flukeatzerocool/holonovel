@@ -90,6 +90,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Editor badge | Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The default badge on Novel creation and resume. Out of the story. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in manage_session (action: recap), badge_briefing, and manage_archive (action: export). REQ-246. |
 | State ledger    | The `state_ledger` briefing token — reports the last state-mutation timestamp and per-group mutation counts for the session, so the GM sees at a glance what has been persisted. REQ-401. |
+| Context ledger  | The read-only `manage_diagnostics (action: context_report)` token ledger of context sections, their stability classes, the packed total, the stable-prefix hash, and the prefix ratio. REQ-606–REQ-610. |
 | State drift     | The condition where the GM's narration (via pause context or prose) has advanced beyond what has been committed through state tools. Surfaced as a `[state-drift]` marker and gated by `TTRPG_STATE_GATE`. REQ-403. |
 | Health report (`spec_health`) | The build-health diagnostic report produced by the `session` tool's `health` action (REQ-025, REQ-429). Reports live-registry counts, confidence, convergence summary, indexed counts, safety protocols, and badge-filtered sub-reports. `spec_health` names the report surface throughout this specification, not a tool. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
@@ -153,7 +154,9 @@ do not alter meaning are editorial and do not require a version bump.
 | Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable except the single audited migration path (REQ-380c). |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 | Temporal Event Log | The Novel-scoped append-only record of every observation entering play, each entry carrying a deterministic ordinal and a source classification; a Novel branch shares the log through its branch point (REQ-455–460). |
+| Compression ladder | The tiered narrative-memory summaries — raw events, recent window, per-session summaries, arc summaries, and the campaign bible — each carrying source pointers (REQ-590–REQ-593). |
 | Evidence | A record of an admitted observation entering the belief layer, carrying provenance and an admission state (REQ-461–464). |
+| Ruling ledger | The GM-only append-only record of verified rulings and their citations, retained across revert and interchange (REQ-589). |
 | Belief State | The engine-maintained per-entity stance on a belief question, reconciled from admitted evidence (REQ-465–472). |
 | Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class, and the compiled identity kernel (REQ-473–483). |
 | Causal State | Validated objective world state maintained through transition proposals and admission decisions (REQ-484–495). |
@@ -163,6 +166,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
 | Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
 | Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
+| Witness provenance | The witness kind, producing sense, source, room, and confidence carried by a perception entry (REQ-594–REQ-595). |
 | Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
 **Technology stack.** TypeScript on Node.js 24+, with stdio transport. It is a single

@@ -2,11 +2,29 @@
 
 **Spec hash:** 6b361b0af476768917b567f8e827f81707502e8565439192455d7bc649fdd7be
 
-**Recorded tool budget:** 36 listed (214 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 45 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 36 listed (225 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,777 tokens; standard 24,276; small 1,216; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,910 tokens; standard 24,409; small 1,230; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+
+### Two-week audit remediation — 2026-10-24
+
+- **D1 — one canonical state hash.** Export `state_hash` now uses REQ-601's
+  canonical projection; the envelope's former `event_log_hash` is renamed
+  `audit_hash` because it hashes audit entries, not the event log.
+  `payload_hash` hashes canonical JSON. (REQ-096j, REQ-601, §7.9d)
+- **D2 — derived algorithms live in §7.9.** Context-ledger packing,
+  compression-tier assembly, citation verdicts, and integrity hash derivation
+  moved from REQ bodies to §7.9a–d; the REQs state the observable contract.
+  (REQ-610, REQ-592, REQ-080h, REQ-096j)
+- **D3 — defaults are owned by §7.6.** REQ bodies no longer restate tuning
+  defaults; the runtime configuration table is the single source. (REQ-589,
+  REQ-590, REQ-310b, REQ-084a2, REQ-361a)
+- **D4 — recorded budgets mirror the generated baseline.** The recorded
+  tool/surface budgets in this file are gated against
+  `spec/audit/tool-surface-baseline.json`; T675 reads the baseline instead of
+  hard-coding counts. (REQ-429, REQ-571)
 
 ### Prompt generation from the ruleset model — 2026-10-24
 
@@ -59,11 +77,11 @@
 
 - **Re-baseline (2026-10-20).** The baseline is now measured from the serialized projected `tools/list` payload, not a reduced snapshot. Full 25,852 tokens; standard 22,351 (86.5% of full; call-complete, with output-schema bodies reduced to a presence marker); small 1,153 worst-case (4.5% of full; active-group entry tools plus the five globals as a one-line summary). The default remains `full`. Budgets: standard at most 90% of full, small at most 10%. `surface-budget` verifies baseline freshness; `surface-replay` gates full and standard at visibility 1.0 and mean calls 1.0. (REQ-548b, REQ-568, REQ-570, REQ-571, REQ-575, REQ-580)
 - **TDQS proxy correction (2026-10-20).** Conciseness measures description bytes, not full-definition bytes; Parameter Semantics scores 5 at complete schema coverage; Behavioral Transparency counts distinct concepts with morphological variants; the runtime schema converter preserves `.describe()` and enum values. Every host tool now scores 5.0 on the deterministic proxy, and live and static reports agree (T679/T680). Server coherence is 4.3/5: naming, disambiguation, and completeness are 5; tool-count appropriateness is 2 at 36 tools. The deterministic proxy is not the external LLM-graded TDQS score. (REQ-450, REQ-552)
-- **Decision.** The surface is declared by a committed registry (`holonovel/tool-surface-registry.json`) mapping all 214 canonical actions plus 45 retired compatibility declarations to one of eight intent groups, a phase set, an entry flag, and a mutation class. `tools/list` accepts a group and profile; `TTRPG_SURFACE_PROFILE` defaults to `full`, so the pre-contract catalog is unchanged. (REQ-567, REQ-570, REQ-580)
-- **Baseline.** 36 tools, 214 canonical actions, 25,856 full-catalog tokens under the pinned estimator. Standard projection 22,355 tokens (budget 23,271); worst-case small projection 1,153 tokens (budget 2,586). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
+- **Decision.** The surface is declared by a committed registry (`holonovel/tool-surface-registry.json`) mapping all 225 canonical actions plus 50 retired compatibility declarations to one of eight intent groups, a phase set, an entry flag, and a mutation class. `tools/list` accepts a group and profile; `TTRPG_SURFACE_PROFILE` defaults to `full`, so the pre-contract catalog is unchanged. (REQ-567, REQ-570, REQ-580)
+- **Baseline.** 36 tools, 225 canonical actions, 27,910 full-catalog tokens under the pinned estimator. Standard projection 24,409 tokens (budget 25,119); worst-case small projection 1,230 tokens (budget 2,791). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
 - **Gates.** `check-tool-surface` (registry coverage, entry uniqueness, group balance) and `surface-budget` (profile budgets) are wired into `check:fast` and `check`.
 - **Enforcement.** REQ-573 preconditions (combat-active), REQ-575 cross-group edges, and REQ-576 audited Editor override are implemented in the `tools/call` guard; the override count is reported in `spec_health.tool_surface.overrides`. `test:surface-guards` exercises T666/T668/T669 and the REQ-577/REQ-574 composites (T670/T667) and is wired into `test:all`. Cross-group enforcement is inert under the default `full` profile.
-- **Consolidation.** `resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and `manage_ruleset (action: roll)` are consolidated into `resolve_mechanic` under REQ-413. The three prior tool names and the prior roll action are retired under REQ-581; they remain registered as tombstones that return `[NOT_FOUND]` naming `resolve_mechanic`, are omitted from `tools/list`, and are advertised by `spec_health.tool_surface` and `holonovel://tool-groups`. The canonical surface is 36 tools and 214 actions; 45 compatibility declarations are retired. `check-tool-surface` now enforces the two-group span limit over canonical actions, and `manage_ruleset` is author + lookup only.
+- **Consolidation.** `resolve_fate`, `resolve_ironsworn`, `resolve_forged`, and `manage_ruleset (action: roll)` are consolidated into `resolve_mechanic` under REQ-413. The three prior tool names and the prior roll action are retired under REQ-581; they remain registered as tombstones that return `[NOT_FOUND]` naming `resolve_mechanic`, are omitted from `tools/list`, and are advertised by `spec_health.tool_surface` and `holonovel://tool-groups`. The canonical surface is 36 tools and 225 actions; 50 compatibility declarations are retired. `check-tool-surface` now enforces the two-group span limit over canonical actions, and `manage_ruleset` is author + lookup only.
 - **Five splits.** `manage_session` → `manage_diagnostics`, `manage_world` → `manage_causality`, `manage_novel` → `manage_archive`, `manage_scene` → `manage_staging`, and `manage_lore` → `manage_corpus` landed under REQ-413 with REQ-581 compatibility. Each split action set is retired; the original tool keeps its retained actions and advertises the split tool in `_meta`; the split tool delegates to the same handler. Recorded budget 35 → 36. Baseline recorded at full 25,856 / standard 22,355 / small 1,153 tokens. Deterministic replay (40 intents): full and standard visibility 1.0, expected-action precision 1.0, mean calls 1.0; small visibility 0.35, mean calls 1.65. Composites `open_session`, `close_session`, and `take_turn` landed under REQ-577; `take_turn` mints the REQ-574 handle consumed by `manage_story (action: record)`.
 - **Generated surfaces.** REQ-578 is implemented: `RulesetToolSchema` requires `group` and `phases`, the dnd2024 emitter assigns them from `kind` and tool name, and `test-ruleset-gates` covers T671. The dnd2024 package was re-emitted with a new content hash; the host flags ungrouped legacy packages without blocking them.
 - **Aliases.** REQ-581 is implemented at the catalog level: each split original carries `_meta { deprecated: true, replacement: <tool> }`, and `test-surface-guards` asserts the metadata and the replacement's absence. Response-level deprecation notices are not emitted because several originals return machine-parsed JSON.

@@ -379,6 +379,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Editor badge | Full access to all tools. Setting up characters, building the world, loading adventures, refining lore. The default badge on Novel creation and resume. Out of the story. |
 | Story Journal  | The Novel's narrative memory — a typed, timestamped journal of decisions, moments, revelations, bonds, and consequences the GM chooses to record. Surfaced in manage_session (action: recap), badge_briefing, and manage_archive (action: export). REQ-246. |
 | State ledger    | The `state_ledger` briefing token — reports the last state-mutation timestamp and per-group mutation counts for the session, so the GM sees at a glance what has been persisted. REQ-401. |
+| Context ledger  | The read-only `manage_diagnostics (action: context_report)` token ledger of context sections, their stability classes, the packed total, the stable-prefix hash, and the prefix ratio. REQ-606–REQ-610. |
 | State drift     | The condition where the GM's narration (via pause context or prose) has advanced beyond what has been committed through state tools. Surfaced as a `[state-drift]` marker and gated by `TTRPG_STATE_GATE`. REQ-403. |
 | Health report (`spec_health`) | The build-health diagnostic report produced by the `session` tool's `health` action (REQ-025, REQ-429). Reports live-registry counts, confidence, convergence summary, indexed counts, safety protocols, and badge-filtered sub-reports. `spec_health` names the report surface throughout this specification, not a tool. |
 | Roster         | Persistent character store surviving games; baseline values immutable.                    |
@@ -442,7 +443,9 @@ do not alter meaning are editorial and do not require a version bump.
 | Ruleset scope    | The ruleset bound to the active Novel. Determines which ruleset-derived tools are callable (REQ-381), which extraction model serves lookups and search (REQ-382), and which Ruleset Wisdom modules are surfaced in the Novel. Immutable except the single audited migration path (REQ-380c). |
 | Inapplicable hint | A marker on tools in `tools/list` whose `ruleset` scope does not match the active Novel's ruleset — the tool is registered and its description visible, but it is not callable under the current Novel. REQ-381. |
 | Temporal Event Log | The Novel-scoped append-only record of every observation entering play, each entry carrying a deterministic ordinal and a source classification; a Novel branch shares the log through its branch point (REQ-455–460). |
+| Compression ladder | The tiered narrative-memory summaries — raw events, recent window, per-session summaries, arc summaries, and the campaign bible — each carrying source pointers (REQ-590–REQ-593). |
 | Evidence | A record of an admitted observation entering the belief layer, carrying provenance and an admission state (REQ-461–464). |
+| Ruling ledger | The GM-only append-only record of verified rulings and their citations, retained across revert and interchange (REQ-589). |
 | Belief State | The engine-maintained per-entity stance on a belief question, reconciled from admitted evidence (REQ-465–472). |
 | Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class, and the compiled identity kernel (REQ-473–483). |
 | Causal State | Validated objective world state maintained through transition proposals and admission decisions (REQ-484–495). |
@@ -452,6 +455,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
 | Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
 | Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
+| Witness provenance | The witness kind, producing sense, source, room, and confidence carried by a perception entry (REQ-594–REQ-595). |
 | Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
 **Technology stack.** TypeScript on Node.js 24+, with stdio transport. It is a single
@@ -1242,7 +1246,7 @@ Given unchanged registration, badge, and ruleset scope, the serialized default t
 `manage_ruleset (action: search)` SHALL bound the total context it returns per call and SHALL report the count of results suppressed by that bound. A returned passage exceeding the per-result bound SHALL be truncated with a pointer to its `ruleset://` resource. The bound SHALL be configurable as a non-behavioral presentation setting and reported by `spec_health` with the most recent call's returned and suppressed counts. *Acceptance criterion:* a query exceeding the bound reports the suppressed count; an oversized passage truncates with a resolving resource pointer; the configured bound appears in `spec_health`. _Check:_ T688.
 
 **REQ-606 — Context ledger sections.**
-`manage_diagnostics (action: context_report)` SHALL report a per-section token ledger listing exactly once: `tool_catalog`, `registered_prompts`, and `resource_directory` (stable); `scene_state` and `memory_tiers` (semi-stable); `last_tool_output` (volatile). Each section reports its class and a token estimate under the pinned estimator (REQ-592); the report carries the active profile, the total, and the stable-prefix hash and ratio (REQ-607). Values derive at call time; an empty section reports zero. Novel-derived sections SHALL be badge-filtered, and the action SHALL NOT mutate state, append an audit entry, or render `badge_briefing`. *Acceptance criterion:* every section appears once, the total equals the sum, and two calls on unchanged state return identical ledgers. _Check:_ T717.
+`manage_diagnostics (action: context_report)` SHALL report the §7.9a ledger sections exactly once. Each section reports its class and a token estimate under the pinned estimator (REQ-592); the report carries the active profile, the total, and the stable-prefix hash and ratio (REQ-607). Values derive at call time; an empty section reports zero. Novel-derived sections SHALL be badge-filtered, and the action SHALL NOT mutate state, append an audit entry, or render `badge_briefing`. *Acceptance criterion:* every section appears once, the total equals the sum, and two calls on unchanged state return identical ledgers. _Check:_ T717.
 
 **REQ-607 — Cacheable-prefix hash and ratio.**
 `spec_health.tool_surface` SHALL report, in addition to the REQ-587 byte length, a SHA-256 hash of the serialized stable context prefix and `prefix_ratio`, the prefix token estimate divided by the ledger total. Given unchanged registration, badge, and ruleset scope, two calls SHALL return the same hash, and a registration change SHALL alter it. The report SHALL NOT claim a provider cache-hit rate; only the prefix ratio is reported. *Acceptance criterion:* consecutive calls with unchanged scope return the same hash and ratio; a registration change alters the hash; no cache-hit rate field is present. _Check:_ T718.
@@ -1254,7 +1258,7 @@ The REQ-569 surface baseline SHALL also record recall for each profile under tha
 `manage_session (action: discover, query, detail)` SHALL accept `detail` values `summary` (default) and `schema`. With `detail: schema` and a query it SHALL return each matched tool's live input schema alongside its name and description; the default summary response SHALL be unchanged. The response SHALL be badge-filtered like the summary listing and SHALL require no prior state mutation. An unknown `detail` value, or `schema` without a query, SHALL return `[ERROR] [INVALID_INPUT]`. *Acceptance criterion:* a schema request returns a JSON schema for a matched tool; a default request returns the summary text; both invalid forms refuse. _Check:_ T720.
 
 **REQ-610 — Per-turn budget allocator.**
-The context-budget allocator is deterministic. `manage_diagnostics (action: context_report, budget_tokens?)` SHALL report the kept and dropped sections, the packed total, and whether it fits. Required sections (`tool_catalog`, `registered_prompts`) SHALL never drop; optional sections drop lowest-priority first in the order `last_tool_output`, `resource_directory`, `scene_state`, `memory_tiers`. The allocator SHALL NOT alter any existing bound (REQ-004, REQ-083, REQ-118/135, REQ-239, REQ-588). A non-positive or non-integer budget SHALL return `[ERROR] [INVALID_INPUT]`. *Acceptance criterion:* a tight budget drops `last_tool_output` first and keeps both required sections; the packed total never exceeds the budget unless required sections alone do; an invalid budget refuses. _Check:_ T721.
+The context-budget allocator is deterministic. `manage_diagnostics (action: context_report, budget_tokens?)` SHALL report the kept and dropped sections, the packed total, and whether it fits. Required sections (`tool_catalog`, `registered_prompts`) SHALL never drop; optional sections SHALL drop per §7.9a. The allocator SHALL NOT alter any existing bound (REQ-004, REQ-083, REQ-118/135, REQ-239, REQ-588). A non-positive or non-integer budget SHALL return `[ERROR] [INVALID_INPUT]`. *Acceptance criterion:* a tight budget drops `last_tool_output` first and keeps both required sections; the packed total never exceeds the budget unless required sections alone do; an invalid budget refuses. _Check:_ T721.
 **REQ-160a — Synthesis health reporting (Part a).**
 `spec_health` SHALL report synthesis status with these minimum fields. Field (a), `synthesis_active`, is a boolean indicating whether synthesis state exists. Field (b), `module_counts`, reports the per-module item count for each of the seven output modules (§11.1). Field (c), `stale_count`, counts inactive synthesis items whose `collected_at` exceeds `TTRPG_SYNTHESIS_STALE_DAYS`. Field (d), `activated_count`, counts synthesis items the Game Master has incorporated into active Novel state via Novel-scoped tools (REQ-159). Field (e), `fingerprint`, holds the synthesis fingerprint used for idempotence detection (ruleset content hash plus intake answers).
 
@@ -1489,7 +1493,7 @@ The build SHALL provide a reproducible baseline over a fixed intent set that rep
 `tools/list` SHALL accept a group selection. Under the `small` profile the default listing SHALL be the active phase's entry tools plus the five always-visible globals; under `full` and `standard` it SHALL be the complete surface. Group selection SHALL preserve stable ordering, SHALL NOT require a prior state mutation, and SHALL return `[ERROR] [INVALID_INPUT]` for an unknown group. *Acceptance criterion:* a small default listing returns the active group's entry tools plus the globals; a standard listing returns every canonical tool; a group selection returns that group plus the globals; an unknown group returns `[INVALID_INPUT]`. _Check:_ T663, T676, T677.
 
 **REQ-571 — Catalog budgets.**
-The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL NOT exceed ninety percent of the full-surface baseline recorded by REQ-569; the small budget SHALL NOT exceed ten percent. `spec_health` SHALL report each profile's measured value, its budget, the context-ledger total, the stable-prefix hash, the prefix ratio (REQ-606, REQ-607), and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the recorded standard and small baselines satisfy their ratios. _Check:_ T664, T678.
+The build SHALL record a catalog-size budget for each surface profile and SHALL fail when the measured projection exceeds it under the pinned estimator. The standard budget SHALL NOT exceed the O.12 standard ratio of the full-surface baseline recorded by REQ-569; the small budget SHALL NOT exceed the O.12 small ratio. `spec_health` SHALL report each profile's measured value, its budget, the context-ledger total, the stable-prefix hash, the prefix ratio (REQ-606, REQ-607), and the active profile. *Acceptance criterion:* a fixture over budget fails the gate naming the profile and measured value; the recorded standard and small baselines satisfy their ratios. _Check:_ T664, T678.
 
 **REQ-572 — Group directory.**
 The server SHALL expose a group directory as a resource and through `manage_session (action: discover)`, listing each group's purpose, entry action, members, prerequisites, and successor group. The directory SHALL be derived from the live registry and badge-filtered. *Acceptance criterion:* every declared group appears once with a resolvable entry action; a badge change filters the directory. _Check:_ T665.
@@ -2978,7 +2982,7 @@ Player badge returns `[FORBIDDEN]`. *Acceptance criterion:* `manage_story (actio
 THE server SHALL maintain an engine-recorded campaign memory — a per-entity fact store derived automatically from state-changing tool calls, surviving process restart and full rebuild. Facts are recorded by the engine, not the AI, and SHALL be stored in the Novel JSON per REQ-092. The campaign memory tracks per-NPC facts (combat participation, scene presence, relationship changes, personality updates), per-thread facts (faction clock advances, narrative countdowns, orphaned decisions, active vows), and per-location facts (notable events and NPC presence at locations).
 
 **REQ-310b — Campaign Memory (Part b).**
-WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory facts under a `## Campaign Memory` section. The Campaign Memory section is a decision-critical group (REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships to present entities, (c) active thread facts involving present entities, (d) location facts for the current scene, (e) recency (most recent first). The section SHALL render at most `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` facts (default 10), ordered by priority.
+WHEN `badge_briefing` composes GM-oriented content, THE engine SHALL inject campaign memory facts under a `## Campaign Memory` section. The Campaign Memory section is a decision-critical group (REQ-109) ordered after scene state and before entities. Facts SHALL be prioritized by relevance to the current scene: (a) NPCs present in the scene, (b) NPCs with relationships to present entities, (c) active thread facts involving present entities, (d) location facts for the current scene, (e) recency (most recent first). The section SHALL render at most `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` facts (§7.6), ordered by priority.
 
 **REQ-310c — Campaign Memory (Part c).**
 Campaign memory facts SHALL NOT introduce new mutating tools — they are a surfacing layer over existing state. `spec_health` SHALL report `campaign_memory` with per-category counts (`npcs`, `threads`, `locations`) and a total. `manage_archive (action: export)` SHALL include `campaign_memory` in its payload. Campaign memory facts rendered in `badge_briefing` under the Player badge SHALL be presence-scoped: a fact is visible to the Player badge only when the active entity was present in the scene where the fact was recorded as determined by `characters_present` (REQ-307). The Game Master badge sees all facts (current behavior).
@@ -3018,7 +3022,7 @@ Reverting synthesis (REQ-103) removes all synthesis items; Ruleset Wisdom and pl
 **REQ-080g2 — Synthesis boundaries (Part g2).**
 *Acceptance criterion:* Synthesis-sourced voice_examples carry `[supplementary]` tag and source URL; Ruleset Wisdom items carry `[ruleset]` or `[vendor]` tag and source anchor; player-authored items carry `[player]` tag and appear in both Player and GM `badge_briefing` by default; a stale synthesis item (past `TTRPG_SYNTHESIS_STALE_DAYS`) is flagged `[stale]` in `spec_health` and excluded from surfaces; `manage_synthesis (action: revert)` removes synthesis items but preserves Ruleset Wisdom and player items; a Ruleset Wisdom activation key that no longer resolves against the build's current extraction appears as a `[wisdom-gap]` entry in `spec_health`; new Wisdom items in the current extraction with no matching activation key start inactive. _Check:_ T63, T95, T97, T102, T125, T288.
 **REQ-080h — Citation verification.**
-`manage_synthesis (action: verify)` (Game Master only, read-only) SHALL check each stored synthesis item's `quoted_excerpt` against its claim text. Missing excerpt → `unsupported` (`excerpt-absent`); excerpt absent from a stored `source_snapshot` → `unsupported` (`excerpt-not-in-source`); no shared content tokens → `unsupported` (`no-overlap`); fewer than half the excerpt's tokens present in the claim → `weak` (`low-overlap`); otherwise `pass` (`supported`). Items citing `novel://` are `pass` (`internal-source`). Optional `module` and `key` narrow the check. Verification SHALL be local, SHALL NOT fetch or mutate state, and SHALL return verdict, reason, coverage, confidence, and `conflicts_with` per item. _Check:_ T695.
+`manage_synthesis (action: verify)` (Game Master only, read-only) SHALL check each stored synthesis item's `quoted_excerpt` against its claim text and return a verdict and reason per §7.9c, plus coverage, confidence, and `conflicts_with` per item. Optional `module` and `key` narrow the check. Verification SHALL be local and SHALL NOT fetch or mutate state. _Check:_ T695.
 
 **REQ-081a — Narrative directive (Part a).**
 The Game Master may set narrative directives via the `narrative_directive` parameter on `manage_scene (action: set)`. Each directive has a `label` (non-empty, unique within a Novel) and an `instruction` (free-text). Setting a duplicate label replaces the prior entry. An empty array clears all directives. For backward compatibility, `manage_scene (action: directive)` also accepts a single `directive` string — treated as `[{"label": "primary", "instruction": <string>}]`. Directives appear in `badge_briefing` for the Game Master badge only and at `novel://current`, grouped under "Narrative Directives" with their labels.
@@ -3099,7 +3103,7 @@ Unactivated synthesis patterns remain reference-only and do not influence tool o
 IN addition to reactive intent-to-tool mapping, THE server SHALL surface an Available Actions section in `badge_briefing` (REQ-109) — a decision-critical group after combat state and before lore. The Available Actions section lists mechanically legal actions the active entity can take given the current scene state, entity capabilities, and ruleset.
 
 **REQ-084a2 — Proactive action surfacing (Part a2).**
-Actions SHALL be filtered by scene type (combat, social, or exploration). Capability gating keeps only actions whose prerequisites hold. Count gating caps at `TTRPG_MAX_AVAILABLE_ACTIONS` actions (default 8), prioritized by relevance. Badge filtering shows the Player badge only Player or un-gated actions per REQ-137. The `run_command (action: suggest)` tool stays the canonical intent-to-tool mapping; the proactive surface is a discovery aid, not a replacement. The `badge_briefing` output SHALL include an `available_actions` section token following the existing token contract (REQ-082, REQ-185). *Acceptance criterion:* During combat, `badge_briefing` `## Available Actions` lists weapon attack, spell, and condition-clearance actions, filtered to the active entity's capabilities.
+Actions SHALL be filtered by scene type (combat, social, or exploration). Capability gating keeps only actions whose prerequisites hold. Count gating caps at `TTRPG_MAX_AVAILABLE_ACTIONS` actions (§7.6), prioritized by relevance. Badge filtering shows the Player badge only Player or un-gated actions per REQ-137. The `run_command (action: suggest)` tool stays the canonical intent-to-tool mapping; the proactive surface is a discovery aid, not a replacement. The `badge_briefing` output SHALL include an `available_actions` section token following the existing token contract (REQ-082, REQ-185). *Acceptance criterion:* During combat, `badge_briefing` `## Available Actions` lists weapon attack, spell, and condition-clearance actions, filtered to the active entity's capabilities.
 
 **REQ-084a3 — Proactive action surfacing (Part a3).**
 A wizard with no 3rd-level slots does not see "Cast Fireball." An entity in a social scene sees persuasion and deception actions instead of combat actions. `run_command (action: suggest)` keeps returning reactive suggestions apart from the proactive listing. _Check:_ T359.
@@ -3306,7 +3310,7 @@ The recommendation SHALL be surfaced in `badge_briefing` for the Game Master bad
 WHEN the caller reveals a secret to a faction and the secret names another faction in its content, a `rival` relationship (REQ-236) SHALL be recommended between the knowledge-holding faction and the named faction. *Acceptance criterion:* `manage_lore (action: set_secret, "murder_confession", "The butler killed Lord Ashworth")` creates a GM-only lore entry; `manage_lore (action: reveal, "murder_confession", "pc_detective")` adds "Known Information" to the detective's character sheet; `manage_lore (action: knowledge, "pc_detective")` returns the secret. _Check:_ T274.
 
 **REQ-589 — Ruling ledger.**
-The server SHALL store a GM-only `ruling_ledger` property group of `{id, query, ruling, citations, confidence, created_at, reverted}` entries with `ruling_<n>` ids. `manage_synthesis (action: record_ruling, query, ruling, module?, key?)` SHALL verify the selected citations and append an entry at the minimum cited confidence; `manage_synthesis (action: revert_ruling, ruling_id)` SHALL set `reverted` without deleting entries or synthesis items. Both are GM-only and SHALL snapshot, audit, and persist. The ledger SHALL survive `action: revert` and copy through clone, checkpoint, archive, and export; `player` omits it. `TTRPG_MAX_RULING_ENTRIES` (default 500, `0` unlimited) SHALL evict the oldest non-reverted entry first; `spec_health` SHALL report total and reverted counts. _Check:_ T696.
+The server SHALL store a GM-only `ruling_ledger` property group (Appendix Q) with `ruling_<n>` ids. `manage_synthesis (action: record_ruling, query, ruling, module?, key?)` SHALL verify the selected citations and append an entry at the minimum cited confidence; `manage_synthesis (action: revert_ruling, ruling_id)` SHALL set `reverted` without deleting entries or synthesis items. Both are GM-only and SHALL snapshot, audit, and persist. The ledger SHALL survive `action: revert` and copy through clone, checkpoint, archive, and export; `player` omits it. `TTRPG_MAX_RULING_ENTRIES` (§7.6) SHALL bound the ledger, evicting the oldest non-reverted entry first; `spec_health` SHALL report total and reverted counts. _Check:_ T696.
 
 ### 5.9 Novel Persistence and Transport
 
@@ -3508,7 +3512,7 @@ Adventure modules embedded inline SHALL include their prose content (all narrati
 **REQ-096i2 — Novel interchange (Part i2).**
 *Acceptance criterion:* `manage_archive (action: export, "json")` → `manage_archive (action: import, data, "dry-run")` reports changes without side effects; `manage_archive (action: import, data, "replace")` restores the exported state; round-trip preserves `state_hash`; `manage_archive (action: export, "json", "lore")` produces a payload with only the lore tier present; `manage_archive (action: import) (data, "dry-run", strict=true)` with broken references reports all failures and blocks import; `manage_archive (action: export, "json")` includes a `manifest` object with all declared fields present. _Check:_ T100, T281.
 **REQ-096j — Novel interchange (Part j).**
-The `manage_archive (action: export)` JSON payload SHALL include an `integrity` object with `algorithm`, `payload_hash`, `state_hash`, `event_log_hash`, and `format_version`. The hashes are SHA-256 over the canonical serialized payload excluding `integrity`, over the Novel state excluding `audit_log`, `audit_archive`, `undo_stacks`, `redo_stacks`, `checkpoints`, and `metadata`, and over the ordered audit entries' timestamp, tool, args, and hash. When `TTRPG_EXPORT_SIGNING_KEY` is set, the object also carries an `hmac-sha256` signature over the three hashes. Markdown export carries no integrity object. *Acceptance criterion:* every JSON export carries the object; the same payload hashes identically across two exports; a changed payload changes `payload_hash`. _Check:_ T691, T694.
+The `manage_archive (action: export)` JSON payload SHALL include an `integrity` object with `algorithm`, `payload_hash`, `state_hash`, `audit_hash`, and `format_version`. `state_hash` SHALL be the canonical state hash (REQ-601). The three hashes and the `hmac-sha256` signature SHALL be derived per §7.9d. When `TTRPG_EXPORT_SIGNING_KEY` is set, the object also carries the signature over the three hashes. Markdown export carries no integrity object. *Acceptance criterion:* every JSON export carries the object; the same payload hashes identically across two exports; a changed payload changes `payload_hash`; `state_hash` equals the live canonical state hash. _Check:_ T691, T694.
 **REQ-096k — Novel interchange (Part k).**
 The `player` scope produces a player-safe JSON bundle without mutating the Novel. It omits the GM-only property groups classified in §7.7.1, plus audit, snapshot, and checkpoint bookkeeping, and redacts GM-only fields from shared tiers (REQ-075f, REQ-234, REQ-242, REQ-265). It filters belief and perception records to player entities and clears adventure-index premise, hooks, and generated adventures. `replace` imports of a player bundle surface `[WARNING] [player-scope-import]`; under `strict` they return `[ERROR] [STATE_CONFLICT]`. *Acceptance criterion:* the bundle carries no GM-only tier or lore, note, or NPC mind; `merge` imports it; `replace` warns. _Check:_ T693.
 **REQ-096l — Novel interchange (Part l).**
@@ -4115,7 +4119,7 @@ WHEN the GM creates or updates a lore entry via `manage_lore (action: set)` or `
 **REQ-360b — Lore-countdown coupling (Part b).**
 A navigational coupling — the server suggests; the GM decides. *Acceptance criterion:* Call `manage_lore (action: set, "impending-raid", "The goblins are marching — they will be here by nightfall.", triggers=["raid", "imminent"])` — assert `badge_briefing` `narrative_threads` includes a countdown-creation advisory referencing "impending-raid" and the "imminent" trigger. Call `manage_lore (action: set, "forest-lore", "The woods are old and deep.", triggers=["forest"])` — assert no advisory (no urgency keywords). Create countdown with matching name — assert advisory suppressed. _Check:_ T411.
 **REQ-361a — NPC-vow coupling (Part a).**
-(REQ-077) AND the GM calls `badge_briefing`, THE `narrative_threads` section (REQ-281) SHALL include a vow-creation suggestion for each goal-carrying NPC whose goal text length is at or above `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` (default 20) and does not already match an active vow's `description`. The suggestion SHALL carry the NPC name, the goal text, and a prompt for the GM to create a corresponding vow via `manage_vow (action: set)` (REQ-289). A navigational coupling — the server suggests; the GM decides.
+(REQ-077) AND the GM calls `badge_briefing`, THE `narrative_threads` section (REQ-281) SHALL include a vow-creation suggestion for each goal-carrying NPC whose goal text length is at or above `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` (§7.6) and does not already match an active vow's `description`. The suggestion SHALL carry the NPC name, the goal text, and a prompt for the GM to create a corresponding vow via `manage_vow (action: set)` (REQ-289). A navigational coupling — the server suggests; the GM decides.
 
 **REQ-361b — NPC-vow coupling (Part b).**
 An NPC whose goal text already appears in an active vow's `description` SHALL NOT produce a suggestion. *Acceptance criterion:* Create NPC "Blacksmith" with `goals="Forge the legendary blade Starfang"`. Invoke `badge_briefing` — assert `narrative_threads` includes vow-creation suggestion naming the Blacksmith and their goal. Call `manage_vow (action: set, "Forge Starfang", "Forge the legendary blade Starfang", ...)` with at least one party member — assert suggestion no longer appears. NPC with short goal ("smith stuff") — assert no suggestion. _Check:_ T412.
@@ -4741,16 +4745,16 @@ The report SHALL state, for each advisory surface it derives, whether that surfa
 ### 5.34 Compression Ladder and Recall
 
 **REQ-590 — Compression ladder tiers.**
-The server SHALL store a `compression_ladder` Novel property group holding `arc` summaries and one `campaign` summary. Tiers are the raw event log, a recent window of `TTRPG_MEMORY_RECENT_EVENTS` entries (default 10), per-session summaries in `audit_archive`, arc summaries grouping `TTRPG_MEMORY_ARC_SESSIONS` sessions (default 5), and a campaign bible of at most `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` stable facts (default 40). Derivation SHALL be deterministic — no LLM call, network, or wall-clock input — and the group SHALL copy through clone, checkpoint, archive, and export while the `player` scope omits it. _Check:_ T697.
+The server SHALL store a `compression_ladder` Novel property group holding `arc` summaries and one `campaign` summary. Tiers are the raw event log, a recent window of `TTRPG_MEMORY_RECENT_EVENTS` entries (§7.6), per-session summaries in `audit_archive`, arc summaries grouping `TTRPG_MEMORY_ARC_SESSIONS` sessions (§7.6), and a campaign bible of at most `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` stable facts (§7.6). Derivation SHALL be deterministic — no LLM call, network, or wall-clock input — and the group SHALL copy through clone, checkpoint, archive, and export while the `player` scope omits it. _Check:_ T697.
 
 **REQ-591 — Source pointers and traversal.**
 Every derived summary SHALL carry `source_ordinals` (event-log ordinals) and, for the campaign bible, `source_refs` (property keys such as `lore:<key>`). Session summaries in `audit_archive` SHALL carry `source_ordinals` and `source_sessions`, populated before compaction deletes the raw slice. `manage_diagnostics (action: history, ordinals)` SHALL return the named entries in ordinal order and SHALL report `[evicted]` for an ordinal removed by the event-log cap rather than omitting or fabricating it. Traversal SHALL be badge-filtered and read-only. _Check:_ T698.
 
 **REQ-592 — Budgeted tier assembly.**
-When `budget_tokens` is supplied, the server SHALL pack tiers in priority order campaign, recent, session, arc, and SHALL drop tiers in reverse priority order (arc first, campaign last) until the estimated cost fits, where estimate is one token per four characters. A dropped tier SHALL be named in a `[truncated]` marker. Values outside the declared domain SHALL return `[ERROR] [INVALID_INPUT]` with valid values enumerated. _Check:_ T699.
+When `budget_tokens` is supplied, the server SHALL pack and degrade tiers per §7.9b. A dropped tier SHALL be named in a `[truncated]` marker. Values outside the declared domain SHALL return `[ERROR] [INVALID_INPUT]` with valid values enumerated. _Check:_ T699.
 
 **REQ-593 — Recall probes.**
-The server distribution SHALL include a recall-probe harness that builds a deterministic fixture campaign, forces session summarization through the compaction path, and evaluates probe questions drawn from a committed fixture. Each probe declares expected substrings, a tier, a token budget, and whether it is a required-recall probe. The harness SHALL assemble the requested tier at the requested budget and report `recall@budget` per tier. It SHALL fail when any required-recall probe misses at any declared budget or aggregate recall falls below 0.90. _Check:_ T700.
+The server distribution SHALL include a recall-probe harness that builds a deterministic fixture campaign, forces session summarization through the compaction path, and evaluates probe questions drawn from a committed fixture. Each probe declares expected substrings, a tier, a token budget, and whether it is a required-recall probe. The harness SHALL assemble the requested tier at the requested budget and report `recall@budget` per tier. It SHALL fail when any required-recall probe misses at any declared budget or aggregate recall falls below the O.12 recall floor. _Check:_ T700.
 
 #### End of requirements
 
@@ -7547,6 +7551,44 @@ triggering mutation.
 | Briefing | `badge_briefing` composes guidance, state, lore, registry — badge-filtered, GM-overridable ordering (REQ-082) | REQ-109 |
 
 Guidance is quoted inert data — it never influences tool behavior or model extraction.
+
+### 7.9 Derived-surface algorithms
+
+These algorithms define how a conformant server derives the observable results
+required by the citing REQ. They are deterministic; none reads the clock,
+network, or model output.
+
+**7.9a Context-ledger packing.** The ledger sections and their classes are
+`tool_catalog` and `registered_prompts` (stable), `resource_directory`
+(stable), `scene_state` and `memory_tiers` (semi-stable), and
+`last_tool_output` (volatile). `context_report` orders optional sections by
+ascending priority: `last_tool_output`, `resource_directory`, `scene_state`,
+`memory_tiers`. Required sections (`tool_catalog`, `registered_prompts`)
+are never dropped. To fit `budget_tokens`, the allocator drops optional
+sections from the lowest priority upward — `last_tool_output` first — until the
+packed total fits. If the required sections alone exceed the budget, the report
+marks the result as not fitting and names the overflow.
+
+**7.9b Compression-tier assembly.** `recap` packs tiers in priority order —
+campaign, recent, session, arc — and, when `budget_tokens` is supplied, drops
+tiers in the reverse order (arc first, campaign last) until the estimated cost
+fits. The estimate is one token per four UTF-8 characters. A dropped tier is
+named in a `[truncated]` marker.
+
+**7.9c Citation verdicts.** For each stored synthesis item, `verify` applies
+this order: no `quoted_excerpt` → `unsupported` (`excerpt-absent`); no stored
+`source_snapshot` contains it → `unsupported` (`excerpt-not-in-source`); zero
+shared content tokens with the claim → `unsupported` (`no-overlap`); fewer than
+half the excerpt's tokens in the claim → `weak` (`low-overlap`); otherwise
+`pass` (`supported`). An item citing `novel://` is `pass` (`internal-source`)
+without a source check.
+
+**7.9d Integrity hashes.** `state_hash` is the canonical state hash of REQ-601.
+`payload_hash` is SHA-256 over the canonical JSON of the exported payload with
+the `integrity` member removed. `audit_hash` is SHA-256 over the concatenation
+of each audit entry's `timestamp`, `tool`, `args`, and `hash`, in log order.
+When `TTRPG_EXPORT_SIGNING_KEY` is set, the signature is HMAC-SHA256 over
+`payload_hash + state_hash + audit_hash`.
 
 ---
 
@@ -10828,7 +10870,7 @@ diet.
 | T688 | Automated | Search result budget: assert a query exceeding the bound reports the suppressed count; assert an oversized passage truncates with a resolving `ruleset://` pointer; assert the configured bound and the most recent returned and suppressed counts appear in `spec_health`. | REQ-588 |
 | T689 | Automated | Unified Update entry point: dry-run a stale package with a recorded emitter and assert it is planned and nothing is written; apply and assert the emitter runs, the registry advances, and a slug with no recorded emitter is deferred by name; assert the data tier runs in the same invocation. | REQ-395c |
 | T690 | Automated | Per-entity attribution of discovered consequences: create two player entities, leave the active entity absent and the second present when an on-scene-transition countdown fires; assert the absent entity's `knowledge_state` includes the `[discovered]` entry, the present entity's does not, and the absent entity retains it after the active entity is switched and across a process restart. | REQ-349, REQ-340, REQ-308 |
-| T691 | Automated | Bundle integrity envelope: export JSON and assert `integrity` carries `algorithm`, `payload_hash`, `state_hash`, `event_log_hash`, and `format_version`; a clean bundle verifies by dry-run; a bundle with the envelope removed imports with `[WARNING] [integrity-absent]`. | REQ-096j, REQ-096l |
+| T691 | Automated | Bundle integrity envelope: export JSON and assert `integrity` carries `algorithm`, `payload_hash`, `state_hash`, `audit_hash`, and `format_version`, and that `state_hash` equals the live canonical state hash; a clean bundle verifies by dry-run; a bundle with the envelope removed imports with `[WARNING] [integrity-absent]`. | REQ-096j, REQ-096l |
 | T692 | Automated | Tamper refusal: sign an export with a key, tamper the payload, and assert a strict dry-run reports `isError: false` with the failing hash; a strict replace returns `[ERROR] [STATE_CONFLICT]` with state unchanged; non-strict import warns `[integrity-mismatch]`; a wrong key is a mismatch. | REQ-096l |
 | T693 | Automated | Player-safe export: export `scope: player` and assert GM-only tiers (audit log, gm_context, secrets, narrative directive), `game_master` lore/notes, and NPC minds are absent while shared lore survives; `merge` imports it; `replace` warns `[player-scope-import]`, and strict blocks it. | REQ-096b, REQ-096k |
 | T694 | Automated | Round-trip state hash: export full scope, replace-import, and re-export; assert `state_hash` is equal while `payload_hash` changes only by the documented audit/metadata drift; a signed export verifies with the configured key. | REQ-096j, REQ-096l |
@@ -12204,9 +12246,10 @@ The `manifest` object SHALL contain: `novel_format_version` (integer),
 `waiver_dependent_mechanics` (array of mechanic name strings from DECISIONS.md),
 and `scope` (the export scope string).
 
-The `integrity` object SHALL contain `algorithm`, `payload_hash`, `state_hash`,
-`event_log_hash`, and `format_version`; when `TTRPG_EXPORT_SIGNING_KEY` is set it
-also carries an `hmac-sha256` `signature` object. Markdown exports omit it.
+The `integrity` object SHALL contain `algorithm`, `payload_hash`, `state_hash`
+(the canonical state hash, REQ-601), `audit_hash`, and `format_version`; when
+`TTRPG_EXPORT_SIGNING_KEY` is set it also carries an `hmac-sha256` `signature`
+object. Markdown exports omit it.
 
 **Markdown format.** HTML-comment-annotated sections following the same key structure
 as the JSON format. Each section begins with `<!-- @section <key> -->` and contains

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-24 — Two-week audit remediation and dimension closeout
+
+- Export integrity uses one canonical hash. `integrity.state_hash` is the
+  REQ-601 canonical state hash, `payload_hash` hashes canonical JSON, and the
+  misnamed `event_log_hash` is now `audit_hash` because it covers audit
+  entries. (REQ-096j, REQ-601)
+- Derived algorithms moved out of REQ bodies into §7.9: context-ledger packing,
+  compression-tier assembly, citation verdicts, and integrity hashes. The
+  affected REQs state the observable contract and cite §7.9. (REQ-610,
+  REQ-592, REQ-080h, REQ-096j)
+- REQ bodies no longer restate tuning defaults; §7.6 is the single source for
+  the ruling-ledger cap, compression-tier sizes, campaign-memory facts,
+  available actions, and vow-suggestion length. The validator now flags
+  parenthetical numeric defaults. (REQ-589, REQ-590, REQ-310b, REQ-084a2,
+  REQ-361a, Appendix M)
+- Catalog budget ratios and the recall floor moved to Appendix O.12; the
+  recorded DECISIONS budgets are gated against the generated tool-surface
+  baseline, and T675 reads the baseline instead of hard-coding counts.
+  (REQ-571, REQ-593, REQ-429)
+- Repaired the server harness: the sensory `listen` and bundle dry-run
+  assertions match the shipped behavior, the narrative CRUD workflow passes
+  its action discriminators, and a beat-only scene set reports the beat.
+  (T691, T704–T721)
+- Added the Context ledger, Compression ladder, Ruling ledger, and Witness
+  provenance terms, and scheduled the two deferred discovery follow-ups.
+
 ## 2026-10-24 — Prompt generation from the ruleset model
 
 - The five host prompt bodies (`intro`, `badge_briefing`, `session_zero`,
