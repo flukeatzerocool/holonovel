@@ -528,604 +528,14 @@
   "action_patterns_enabled": false,
   "session_zero_completed": false,
   "characters_present": true,
-  "characters_present_ids": [],
+  "characters_present_ids": [
+    "character_01"
+  ],
   "adventure_set": false,
   "pending_workflow": {
     "decision": "present_choices",
     "snapshot": {
-      "timestamp": "2026-10-12T02:06:10.690Z",
-      "state": {
-        "slug": "torre-nosferatu",
-        "name": "Torre Nosferatu",
-        "ruleset": null,
-        "badge": "none",
-        "entities": {},
-        "active_entity_id": null,
-        "npcs": {
-          "npc_mv4m1599": {
-            "id": "npc_mv4m1599",
-            "name": "Vlask",
-            "description": "The hoarder. Cold possession — a wax cache guarded dear. Offers light to those who pay his price; pockets what others drop.",
-            "disposition": "wary",
-            "conditions": [],
-            "condition_rounds": {},
-            "personality": {
-              "goals": "Keep his wax cache intact and reach the exit without spending more of himself than he must."
-            }
-          },
-          "npc_mv4m163y": {
-            "id": "npc_mv4m163y",
-            "name": "Sister Marta",
-            "description": "The archivist. Knowledge — trades lore and information, never light. Reads the tower's contradictions and remembers which door the dead chose.",
-            "disposition": "neutral",
-            "conditions": [],
-            "condition_rounds": {},
-            "personality": {
-              "goals": "Preserve what the tower remembers; know the way even if she never walks it."
-            }
-          },
-          "npc_mv4m16y8": {
-            "id": "npc_mv4m16y8",
-            "name": "Ilona",
-            "description": "The bitten. The dark's bargain — she \"knows the way\", at a price. Something of Orlok already rides in her; she is warm to no one and needs no candle to see.",
-            "disposition": "suspicious",
-            "conditions": [],
-            "condition_rounds": {},
-            "personality": {
-              "goals": "Reach the door ahead of everyone else, by whatever bargain buys the next landing."
-            }
-          },
-          "npc_mv4m17mi": {
-            "id": "npc_mv4m17mi",
-            "name": "Petr",
-            "description": "The innocent. Warmth's wager — a light worth protecting that slows you down. He has been kind to every survivor he has met, and each kindness has cost him wax.",
-            "disposition": "friendly",
-            "conditions": [],
-            "condition_rounds": {},
-            "personality": {
-              "goals": "Not leave anyone alone in the dark; reach the ground floor alive, and in company."
-            }
-          },
-          "npc_mv4m18a8": {
-            "id": "npc_mv4m18a8",
-            "name": "Nadja",
-            "description": "The rival. Winsome, transactional, always one landing ahead. She will trade fair and take the better half; she moves down the tower like she has been here before.",
-            "disposition": "neutral",
-            "conditions": [],
-            "condition_rounds": {},
-            "personality": {
-              "goals": "Reach the exit first and sell the knowledge of how she did it."
-            }
-          },
-          "npc_mv4m19ls": {
-            "id": "npc_mv4m19ls",
-            "name": "Count Orlok",
-            "description": "Count Orlok — the reaper. Never fought, never on any floor's roster. A hunched, coat-shrouded silhouette with an elongated skull, rat's front teeth, bat-pointed ears, and arms far too long that end in splayed claws hanging past the knees. He hovers in the void just past the light, always visible at the mask's edge, edging nearer as the flame shrinks and Dread climbs. He never crosses the light — only a wax-out or a snuff with no match lets him close the last of the dark and take you. Game Over: \"Count Orlok takes you.\"",
-            "disposition": "hostile",
-            "location": "just beyond the candle's reach",
-            "conditions": [],
-            "condition_rounds": {},
-            "personality": {
-              "goals": "Wait out the flame. Take the light when it fails."
-            }
-          }
-        },
-        "scene_description": "You wake flat on cold stone at the top of a tower, with no memory of climbing it and one candle burning low in your hand. The flame reaches a few feet; past it the dark is total. A stair spirals down. Just at the rim of the light — where the amber fails into black — something long and thin hangs motionless, and does not come closer.",
-        "scene_location": "The Spire, top floor of Torre Nosferatu",
-        "scene_time_of_day": "night",
-        "scene_atmosphere": "Absolute black beyond a few feet of candlelight; cold stone; the whisper of a flame and, somewhere below, a patient silence.",
-        "scene_history": [],
-        "scene_beat": "setup",
-        "scene_type": [
-          "exploration"
-        ],
-        "narrative_directive": "Open the novel in second person, gothic-horror register: dread over gore, the light as the only safe fact. Establish the candle as clock, health, and map in concrete sensory terms without naming mechanics. The Spire is a gentle tutorial — only wax, exploration, and at most one teaching creature; no survivors, no Dread weather, no traps yet. Keep Count Orlok always visible at the light's edge but never approaching; his distance is the tension. Do not roll dice or cite rules. Write in prose.",
-        "combat": null,
-        "countdowns": {},
-        "lore": {
-          "the-tower": {
-            "key": "the-tower",
-            "content": "Torre Nosferatu is a pitch-black tower that descends: you wake at the Spire, the top floor, and work downward through winding floors toward the ground floor, where the front door is the only exit. Floors are a graph — several stairwells, loops, dead ends, and the occasional stair that skips a tier. \"Anything goes\" geometry: rooms, floors, and encounters obey no single genre or logic. Each floor is generated once and then lives — items left behind, a key dropped by a survivor, doors opened all remain. Backtracking returns you to the floor you changed, not a fresh one. The Spire is a gentle tutorial: only wax, exploration, and at most one teaching creature; no social play, no Dread, no traps. Social play, Dread, and traps arrive on the second floor down.",
-            "triggers": [
-              "tower",
-              "Spire",
-              "descent",
-              "floors",
-              "stairs",
-              "ground floor"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "the-candle": {
-            "key": "the-candle",
-            "content": "The candle is the clock, the health, and the map. It reaches a few feet; beyond it is total dark. Every action costs wax — one turn is one wax burn — and when the wax reaches zero the flame gutters: the radius shrinks, Count Orlok closes in, and you have a final, desperate scramble before the guttering dark takes you. The candle's radius is tied to remaining wax, so the frame literally closes in as it burns. When a creature or trap snuffs the candle, it is recoverable only if you hold a match; with none, a snuff drops you into the same guttering-dark grace as wax-out. Light is everything.",
-            "triggers": [
-              "candle",
-              "wax",
-              "flame",
-              "light",
-              "radius",
-              "burn",
-              "clock"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "resources": {
-            "key": "resources",
-            "content": "Wax — the candle's fuel; burns per turn and per costly action. Matches — re-light a snuffed candle (from a creature or a trap); a snuff is recoverable only while you hold a match. The key — opens the dungeon exit, the reliable win. Candle radius — current reach, a function of remaining wax and candles found. Dread — a single tower-wide heat dial, 0 (Calm) to 8 (Hunted). Lore — found fragments; non-survival, it never extends the candle; wave 2 it is the trade good for disposition, information, or safe passage, never for light.",
-            "triggers": [
-              "wax",
-              "matches",
-              "key",
-              "radius",
-              "dread",
-              "lore",
-              "resources"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "dread": {
-            "key": "dread",
-            "content": "Dread is the social counterweight to wax: one tower-wide 0–8 heat dial reading as weather, not a per-deed ledger. Cold acts — theft, threats, exploitation — buy light and tempo but raise Dread; warm acts — sharing light, honoring a bargain, allying — bring it down. At higher tiers strangers are warier and Orlok closes faster. Tiers: 0–1 Calm (NPCs start Neutral); 2–3 Watched (new NPCs start Wary, the dark presses closer); 4–5 Marked (warm acts draw the dark closer, Orlok's search advances); 6–7 Hunted (no new Ally without atonement first, Orlok's reach widens); 8 Hunted (full, every NPC reads Hostile until you atone, Orlok locks on). Dread never hard-locks the player — warm acts stay affordable at every tier.",
-            "triggers": [
-              "dread",
-              "calm",
-              "watched",
-              "marked",
-              "hunted",
-              "weather"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "count-orlok": {
-            "key": "count-orlok",
-            "content": "Count Orlok is the reaper — not fought. From the first turn he hovers in the void just outside the candle's reach, always visible at the mask's edge, a readable silhouette. His distance is live: at a full radius and low Dread he hangs at the far rim; as wax falls and Dread climbs he drifts inward, looming larger and nearer the flame. He never crosses the light — only a wax-out (or a snuff with no match) lets him close the last of the dark and take you. Drawn from the 1922 Nosferatu look for the overhead view: a bald, elongated skull with a rat's front teeth and bat-pointed ears; a hunched, coat-shrouded back; arms far too long, ending in splayed, clawed fingers that hang past the knees. He never walks so much as hover-drags — a weightless, bobbing glide with a slight lean toward the flame. The outline is the character. Game Over: \"Count Orlok takes you.\"",
-            "triggers": [
-              "Orlok",
-              "Count",
-              "reaper",
-              "silhouette",
-              "death",
-              "hover"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "the-survivors": {
-            "key": "the-survivors",
-            "content": "Five other survivors are also trapped and hunting for the exit, roaming the tower floor to floor like you. Each is a distinct personality and a distinct temptation: Vlask the hoarder (cold possession — a wax cache guarded dear); Sister Marta the archivist (knowledge — lore and information, never light); Ilona the bitten (the dark's bargain — she \"knows the way\", at a price); Petr the innocent (warmth's wager — a light worth protecting that slows you); and Nadja the tomb-robber (the rival — winsome, transactional, always one landing ahead). As they move, survivors are visible on the map whenever they are inside your visibility range, drawn full-brightness like you inside the candle radius and resolving to a silhouette in the spill ring before they vanish into the void. Outside your light they are unseen. Social play runs on two tracks: per-NPC Disposition (Hostile −2 to Allied +2) and the tower-wide Dread dial.",
-            "triggers": [
-              "survivors",
-              "Vlask",
-              "Marta",
-              "Ilona",
-              "Petr",
-              "Nadja",
-              "NPC",
-              "disposition"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "warm-and-cold": {
-            "key": "warm-and-cold",
-            "content": "Every social action sits between warm (aid) and cold (exploit). Warm — buys allies, spends light: costs wax and turns now, returns shared light (a companion lantern that widens the radius or splits the drain), compounding only if the alliance survives. Cold — buys light, spends allies: instant wax, matches, loot, and tempo, but raises Dread, which accelerates Orlok. Actions, warm to cold: Share light (+2 disposition, give wax now, −1 Dread); Ally (→ +2 locked, sustained shared radius, −1 Dread); Bargain (±1, exchange, 0 Dread); Trade (0, even swap, 0 Dread); Steal (−2, ++ wax/matches/lantern, +1 Dread); Threaten (−2, extracted wax, +1 Dread). The balance: warmth buys light later; cruelty buys light now. Lore is the commodity most often exchanged in Bargain and Trade — it never buys wax or matches.",
-            "triggers": [
-              "warm",
-              "cold",
-              "share light",
-              "ally",
-              "bargain",
-              "trade",
-              "steal",
-              "threaten"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "creatures": {
-            "key": "creatures",
-            "content": "Creatures are obstacles and decisions, never HP-sponges, escalating by density and mix with depth. Bats — swarm a room, startle, scatter; a minor wax spill; appear earliest, teaching that creatures cost light. Rats — swarm near food and light, gnaw, destroy matches. Spiders — swarm doorways and corridors, force a Run (costing turns = wax). Wolves — stalk corridors, close in, force a Run with a heavy wax spill. Shades — drift through walls, drain wax and shrink the radius while inside it. Light-eater — a shadow that seeks the flame, snuffs the candle on contact (needs a match). Every encounter offers Run (spills wax) or Endure / be spooked (spills wax and snuffs the candle — needs a match). No HP, no attack rolls.",
-            "triggers": [
-              "creatures",
-              "bats",
-              "rats",
-              "spiders",
-              "wolves",
-              "shades",
-              "light-eater",
-              "run",
-              "endure"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "traps": {
-            "key": "traps",
-            "content": "A trap is a static danger you choose how to pay for — not a creature (no chase), not a puzzle: a tax with two doors, and reading which door is cheaper is the decision. Avoid → costs wax: the safe route exists by construction but is longer, so dodging burns turns, and turns are wax. Spring → snuffs the candle and costs a match to re-light. No hit-point damage: you trade tempo against fuel. A sprung trap persists as a permanent edit to the floor. Every trap is readable before you commit — an intrinsic cue inside the spill ring (a hairline crack, a glyph's faint pulse, settling dust), never a hidden gotcha. Six types: collapsing floor, snap trap, spider web, light-sensitive glyph, pressure plate, cursed ward. A trap's room is never required for progress — you can always route around it. The survivors trip them too, and that change persists — \"the tower changes.\"",
-            "triggers": [
-              "trap",
-              "collapsing floor",
-              "snap trap",
-              "spider web",
-              "glyph",
-              "pressure plate",
-              "cursed ward"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          },
-          "win-and-loss": {
-            "key": "win-and-loss",
-            "content": "Win (full): hold the key, reach the ground-floor exit, and escape the tower on your own light — the full victory and score. Win (borrowed): a survivor who reaches the door first leaves it ajar for a short window — how long depends on their disposition and the tower's Dread; slipping out through a borrowed door is a lesser ending (\"you slipped out in another's wake\") with a reduced score, and while it stands open the Dread rises and creatures gather near the exit. A snuff is darkness you recover from provided you hold a match; with no match it drops you into the guttering-dark grace. Guttering dark — zero wax — is the terminal state; for a few turns the flame gutters, the radius shrinks, Orlok closes in, and you may still reach a match or the exit. Only when that final grace is spent does Orlok take you. Snuff and guttering dark must read as visibly and audibly different.",
-            "triggers": [
-              "win",
-              "escape",
-              "exit",
-              "borrowed",
-              "snuff",
-              "guttering dark",
-              "game over"
-            ],
-            "badge_scope": "game_master",
-            "priority": 0,
-            "sticky": 0,
-            "sticky_remaining": 0,
-            "enabled": true
-          }
-        },
-        "briefing_assembly_count": 0,
-        "player_signals": {},
-        "adventure_slug": null,
-        "generated_adventure": null,
-        "audit_log": [
-          {
-            "timestamp": "2026-10-12T02:05:03.173Z",
-            "badge": "none",
-            "tool": "[session-boundary]",
-            "args": "{\"session_id\":\"session-1\"}",
-            "output_prefix": "[session-boundary]",
-            "hash": "fe7b0e6e",
-            "session_id": "session-1"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:03.173Z",
-            "badge": "none",
-            "tool": "create_novel",
-            "args": "{\"name\":\"Torre Nosferatu\",\"ruleset\":null}",
-            "output_prefix": "",
-            "hash": "d52754e9"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:09.293Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"the-tower\"}",
-            "output_prefix": "",
-            "hash": "6568bc40"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:10.695Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"the-candle\"}",
-            "output_prefix": "",
-            "hash": "25cdffb6"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:12.109Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"resources\"}",
-            "output_prefix": "",
-            "hash": "62e0d880"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:13.761Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"dread\"}",
-            "output_prefix": "",
-            "hash": "c40f6b04"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:19.262Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"count-orlok\"}",
-            "output_prefix": "",
-            "hash": "7ec625ad"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:20.909Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"the-survivors\"}",
-            "output_prefix": "",
-            "hash": "cad4114d"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:22.633Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"warm-and-cold\"}",
-            "output_prefix": "",
-            "hash": "c7af810c"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:24.481Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"creatures\"}",
-            "output_prefix": "",
-            "hash": "a607a43c"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:26.423Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"traps\"}",
-            "output_prefix": "",
-            "hash": "0bc57710"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:28.139Z",
-            "badge": "none",
-            "tool": "set_lore_entry",
-            "args": "{\"key\":\"win-and-loss\"}",
-            "output_prefix": "",
-            "hash": "b9250035"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:32.273Z",
-            "badge": "none",
-            "tool": "create_npc",
-            "args": "{\"name\":\"Vlask\",\"id\":\"npc_mv4m1599\"}",
-            "output_prefix": "",
-            "hash": "f16e8daf"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:33.369Z",
-            "badge": "none",
-            "tool": "create_npc",
-            "args": "{\"name\":\"Sister Marta\",\"id\":\"npc_mv4m163y\"}",
-            "output_prefix": "",
-            "hash": "3f422214"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:34.467Z",
-            "badge": "none",
-            "tool": "create_npc",
-            "args": "{\"name\":\"Ilona\",\"id\":\"npc_mv4m16y8\"}",
-            "output_prefix": "",
-            "hash": "750e1ddd"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:35.342Z",
-            "badge": "none",
-            "tool": "create_npc",
-            "args": "{\"name\":\"Petr\",\"id\":\"npc_mv4m17mi\"}",
-            "output_prefix": "",
-            "hash": "f6ce231e"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:36.198Z",
-            "badge": "none",
-            "tool": "create_npc",
-            "args": "{\"name\":\"Nadja\",\"id\":\"npc_mv4m18a8\"}",
-            "output_prefix": "",
-            "hash": "fa75b3e7"
-          },
-          {
-            "timestamp": "2026-10-12T02:05:37.909Z",
-            "badge": "none",
-            "tool": "create_npc",
-            "args": "{\"name\":\"Count Orlok\",\"id\":\"npc_mv4m19ls\"}",
-            "output_prefix": "",
-            "hash": "5817f6d9"
-          },
-          {
-            "timestamp": "2026-10-12T02:06:04.342Z",
-            "badge": "none",
-            "tool": "set_scene_state",
-            "args": "{\"description\":\"You wake flat on cold stone at the top of a tower, with no memory of climbing it and one candle burning low in your hand. The flame reaches a few feet; past it the dark is total. A stair spirals down. Just at the rim of the light — where the amber fails into black — something long and thin hangs motionless, and does not come closer.\",\"location\":\"The Spire, top floor of Torre Nosferatu\",\"time_of_day\":\"night\",\"atmosphere\":\"Absolute black beyond a few feet of candlelight; cold stone; the whisper of a flame and, somewhere below, a patient silence.\",\"beat\":\"setup\"}",
-            "output_prefix": "",
-            "hash": "584e560e"
-          }
-        ],
-        "briefing_order": [],
-        "action_patterns_enabled": false,
-        "session_zero_completed": false,
-        "characters_present": false,
-        "characters_present_ids": [],
-        "adventure_set": false,
-        "pending_workflow": null,
-        "connection_counter": 1,
-        "pending_staleness_counter": 1,
-        "pov_mode": "character",
-        "autonomy": {
-          "level": "mechanical_prompt",
-          "confirmation": "prompt",
-          "safety": "safe",
-          "creativity": "standard",
-          "confirmed_safety_tiers": [
-            "safe"
-          ]
-        },
-        "help_category_overrides": {},
-        "story_journal": [],
-        "factions": [],
-        "secrets": [],
-        "relationships": [],
-        "gm_context": {},
-        "constraint_overrides": [],
-        "synthesis_activated": {},
-        "synthesis_deactivated": {},
-        "synthesis_module_enabled": {},
-        "player_synthesis": {},
-        "campaign_memory": [
-          {
-            "category": "npcs",
-            "text": "NPC Vlask created (npc_mv4m1599)",
-            "at": "2026-10-12T02:05:32.253Z",
-            "badge_scope": "game_master",
-            "scene": ""
-          },
-          {
-            "category": "npcs",
-            "text": "NPC Sister Marta created (npc_mv4m163y)",
-            "at": "2026-10-12T02:05:33.358Z",
-            "badge_scope": "game_master",
-            "scene": ""
-          },
-          {
-            "category": "npcs",
-            "text": "NPC Ilona created (npc_mv4m16y8)",
-            "at": "2026-10-12T02:05:34.448Z",
-            "badge_scope": "game_master",
-            "scene": ""
-          },
-          {
-            "category": "npcs",
-            "text": "NPC Petr created (npc_mv4m17mi)",
-            "at": "2026-10-12T02:05:35.322Z",
-            "badge_scope": "game_master",
-            "scene": ""
-          },
-          {
-            "category": "npcs",
-            "text": "NPC Nadja created (npc_mv4m18a8)",
-            "at": "2026-10-12T02:05:36.176Z",
-            "badge_scope": "game_master",
-            "scene": ""
-          },
-          {
-            "category": "npcs",
-            "text": "NPC Count Orlok created (npc_mv4m19ls)",
-            "at": "2026-10-12T02:05:37.888Z",
-            "badge_scope": "game_master",
-            "scene": ""
-          }
-        ],
-        "notes": [],
-        "vows": [],
-        "checkpoints": [],
-        "audit_archive": [],
-        "description": "A gothic-horror novel adapted from the Torre Nosferatu creative-direction brief. You wake at the top of a pitch-black candle-lit tower with only a flame. Every step descends toward the ground-floor door, the only way out — finding wax, matches, and the key as the light burns down. Beyond the light, Count Orlok waits, and the dark is patient.",
-        "genre": "gothic horror",
-        "adventure_index": null,
-        "adventure_scene_waypoint": null,
-        "world": {
-          "rooms": {},
-          "things": {}
-        },
-        "story_beats": [
-          {
-            "beat": "setup",
-            "scene_preview": "You wake flat on cold stone at the top of a tower, with no m",
-            "source": "gm"
-          }
-        ],
-        "pacing_counter": 0,
-        "pacing_autonomy_fired": false,
-        "scene_transition_count": 0,
-        "faction_autonomous_ticks": {},
-        "npc_goal_suggestions": [],
-        "voice_corrections_this_session": 0,
-        "auto_record": true,
-        "session_no_mutation_windows": [],
-        "state_regression": null,
-        "last_mutation_at": "2026-10-12T02:06:04.311Z",
-        "mutation_counts_by_group": {
-          "npc": 6,
-          "scene": 1
-        },
-        "uncommitted_rolls": [],
-        "metadata": {
-          "created": "2026-10-12T02:05:03.173Z",
-          "modified": "2026-10-12T02:06:04.334Z",
-          "session_count": 0,
-          "total_combat_rounds": 0,
-          "last_scene_anchor": "",
-          "sessions": [
-            {
-              "session_id": "session-1",
-              "entry_count": 18,
-              "timespan_start": "2026-10-12T02:05:03.173Z",
-              "timespan_end": null,
-              "combat_rounds": 0,
-              "significant_roll_count": 0,
-              "scene_transitions": 1
-            }
-          ]
-        },
-        "fate": {
-          "aspects": [],
-          "fate_points": {},
-          "stress": {}
-        },
-        "ironsworn": {
-          "momentum": {},
-          "progress_tracks": []
-        },
-        "forged": {
-          "characters": {}
-        },
-        "event_log": [
-          {
-            "ordinal": 1,
-            "source": "game_master",
-            "kind": "scene",
-            "text": "You wake flat on cold stone at the top of a tower, with no memory of climbing it and one candle burning low in your hand. The flame reaches a few feet; past it the dark is total. A stair spirals down. Just at the rim of the light — where the amber fails into black — something long and thin hangs motionless, and does not come closer.",
-            "at": "2026-10-12T02:06:04.334Z"
-          }
-        ],
-        "branch_lineage": {
-          "parent_slug": null,
-          "branch_point": null
-        },
-        "evidence": [],
-        "belief_state": [],
-        "causal_slots": [],
-        "transition_ledger": [],
-        "supplementary_rulesets": [],
-        "agent_tasks": [],
-        "perception_ledger": [],
-        "corpus_documents": [],
-        "corpus_access": [],
-        "corpus_consumption": []
-      }
+      "timestamp": "2026-10-12T02:06:10.690Z"
     },
     "payload": {
       "prompt": "The candle is already shorter than it was when you woke. What do you do?",
@@ -1470,7 +880,9 @@
           "north": "Seventh Floor — Connector 8",
           "down": "Sixth Floor — Entry Landing"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Seventh Floor Stair Door"
+        },
         "annotations": {}
       },
       "seventh floor — connector 1": {
@@ -1570,7 +982,9 @@
           "north": "Sixth Floor — Wax Refill",
           "down": "Fifth Floor — Entry Landing"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Sixth Floor Stair Door"
+        },
         "annotations": {}
       },
       "sixth floor — key room": {
@@ -1690,7 +1104,9 @@
           "north": "Fifth Floor — Wax Refill",
           "down": "Fourth Floor — Entry Landing"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Fifth Floor Stair Door"
+        },
         "annotations": {}
       },
       "fifth floor — key room": {
@@ -1810,7 +1226,9 @@
           "north": "Fourth Floor — Wax Refill",
           "down": "Third Floor — Entry Landing"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Fourth Floor Stair Door"
+        },
         "annotations": {}
       },
       "fourth floor — key room": {
@@ -1930,7 +1348,9 @@
           "north": "Third Floor — Wax Refill",
           "down": "Second Floor — Entry Landing"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Third Floor Stair Door"
+        },
         "annotations": {}
       },
       "third floor — key room": {
@@ -2050,7 +1470,9 @@
           "north": "Second Floor — Wax Refill",
           "down": "First Floor — Entry Landing"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Second Floor Stair Door"
+        },
         "annotations": {}
       },
       "second floor — key room": {
@@ -2170,7 +1592,9 @@
           "north": "First Floor — Connector 6",
           "out": "Beyond the Threshold"
         },
-        "doorRefs": {},
+        "doorRefs": {
+          "out": "The Exit Door"
+        },
         "annotations": {}
       },
       "first floor — key room": {
@@ -2297,7 +1721,7 @@
         "locked": false,
         "lit": true,
         "switchable": true,
-        "switched_on": false,
+        "switched_on": true,
         "enterable": false,
         "vehiclePassengers": [],
         "wearable": true,

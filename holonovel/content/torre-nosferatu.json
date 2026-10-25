@@ -18,7 +18,9 @@
   "badge": "none",
   "briefing_order": [],
   "characters_present": true,
-  "characters_present_ids": [],
+  "characters_present_ids": [
+    "character_01"
+  ],
   "combat": null,
   "corpus_access": [],
   "corpus_consumption": [],
@@ -666,168 +668,11 @@
     "snapshot": {
       "state": {
         "action_patterns_enabled": false,
-        "active_entity_id": null,
+        "active_entity_id": "character_01",
         "adventure_index": null,
         "adventure_scene_waypoint": null,
         "adventure_set": false,
         "adventure_slug": null,
-        "agent_tasks": [],
-        "audit_archive": [],
-        "audit_log": [
-          {
-            "args": "{\"session_id\":\"session-1\"}",
-            "badge": "none",
-            "hash": "fe7b0e6e",
-            "output_prefix": "[session-boundary]",
-            "session_id": "session-1",
-            "timestamp": "2026-10-12T02:05:03.173Z",
-            "tool": "[session-boundary]"
-          },
-          {
-            "args": "{\"name\":\"Torre Nosferatu\",\"ruleset\":null}",
-            "badge": "none",
-            "hash": "d52754e9",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:03.173Z",
-            "tool": "create_novel"
-          },
-          {
-            "args": "{\"key\":\"the-tower\"}",
-            "badge": "none",
-            "hash": "6568bc40",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:09.293Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"the-candle\"}",
-            "badge": "none",
-            "hash": "25cdffb6",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:10.695Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"resources\"}",
-            "badge": "none",
-            "hash": "62e0d880",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:12.109Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"dread\"}",
-            "badge": "none",
-            "hash": "c40f6b04",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:13.761Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"count-orlok\"}",
-            "badge": "none",
-            "hash": "7ec625ad",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:19.262Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"the-survivors\"}",
-            "badge": "none",
-            "hash": "cad4114d",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:20.909Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"warm-and-cold\"}",
-            "badge": "none",
-            "hash": "c7af810c",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:22.633Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"creatures\"}",
-            "badge": "none",
-            "hash": "a607a43c",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:24.481Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"traps\"}",
-            "badge": "none",
-            "hash": "0bc57710",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:26.423Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"key\":\"win-and-loss\"}",
-            "badge": "none",
-            "hash": "b9250035",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:28.139Z",
-            "tool": "set_lore_entry"
-          },
-          {
-            "args": "{\"name\":\"Vlask\",\"id\":\"npc_mv4m1599\"}",
-            "badge": "none",
-            "hash": "f16e8daf",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:32.273Z",
-            "tool": "create_npc"
-          },
-          {
-            "args": "{\"name\":\"Sister Marta\",\"id\":\"npc_mv4m163y\"}",
-            "badge": "none",
-            "hash": "3f422214",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:33.369Z",
-            "tool": "create_npc"
-          },
-          {
-            "args": "{\"name\":\"Ilona\",\"id\":\"npc_mv4m16y8\"}",
-            "badge": "none",
-            "hash": "750e1ddd",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:34.467Z",
-            "tool": "create_npc"
-          },
-          {
-            "args": "{\"name\":\"Petr\",\"id\":\"npc_mv4m17mi\"}",
-            "badge": "none",
-            "hash": "f6ce231e",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:35.342Z",
-            "tool": "create_npc"
-          },
-          {
-            "args": "{\"name\":\"Nadja\",\"id\":\"npc_mv4m18a8\"}",
-            "badge": "none",
-            "hash": "fa75b3e7",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:36.198Z",
-            "tool": "create_npc"
-          },
-          {
-            "args": "{\"name\":\"Count Orlok\",\"id\":\"npc_mv4m19ls\"}",
-            "badge": "none",
-            "hash": "5817f6d9",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:05:37.909Z",
-            "tool": "create_npc"
-          },
-          {
-            "args": "{\"description\":\"You wake flat on cold stone at the top of a tower, with no memory of climbing it and one candle burning low in your hand. The flame reaches a few feet; past it the dark is total. A stair spirals down. Just at the rim of the light — where the amber fails into black — something long and thin hangs motionless, and does not come closer.\",\"location\":\"The Spire, top floor of Torre Nosferatu\",\"time_of_day\":\"night\",\"atmosphere\":\"Absolute black beyond a few feet of candlelight; cold stone; the whisper of a flame and, somewhere below, a patient silence.\",\"beat\":\"setup\"}",
-            "badge": "none",
-            "hash": "584e560e",
-            "output_prefix": "",
-            "timestamp": "2026-10-12T02:06:04.342Z",
-            "tool": "set_scene_state"
-          }
-        ],
         "auto_record": true,
         "autonomy": {
           "confirmation": "prompt",
@@ -839,82 +684,92 @@
           "safety": "safe"
         },
         "badge": "none",
-        "belief_state": [],
-        "branch_lineage": {
-          "branch_point": null,
-          "parent_slug": null
-        },
-        "briefing_assembly_count": 0,
         "briefing_order": [],
-        "campaign_memory": [
-          {
-            "at": "2026-10-12T02:05:32.253Z",
-            "badge_scope": "game_master",
-            "category": "npcs",
-            "scene": "",
-            "text": "NPC Vlask created (npc_mv4m1599)"
-          },
-          {
-            "at": "2026-10-12T02:05:33.358Z",
-            "badge_scope": "game_master",
-            "category": "npcs",
-            "scene": "",
-            "text": "NPC Sister Marta created (npc_mv4m163y)"
-          },
-          {
-            "at": "2026-10-12T02:05:34.448Z",
-            "badge_scope": "game_master",
-            "category": "npcs",
-            "scene": "",
-            "text": "NPC Ilona created (npc_mv4m16y8)"
-          },
-          {
-            "at": "2026-10-12T02:05:35.322Z",
-            "badge_scope": "game_master",
-            "category": "npcs",
-            "scene": "",
-            "text": "NPC Petr created (npc_mv4m17mi)"
-          },
-          {
-            "at": "2026-10-12T02:05:36.176Z",
-            "badge_scope": "game_master",
-            "category": "npcs",
-            "scene": "",
-            "text": "NPC Nadja created (npc_mv4m18a8)"
-          },
-          {
-            "at": "2026-10-12T02:05:37.888Z",
-            "badge_scope": "game_master",
-            "category": "npcs",
-            "scene": "",
-            "text": "NPC Count Orlok created (npc_mv4m19ls)"
-          }
+        "characters_present": true,
+        "characters_present_ids": [
+          "character_01"
         ],
-        "causal_slots": [],
-        "characters_present": false,
-        "characters_present_ids": [],
-        "checkpoints": [],
         "combat": null,
-        "connection_counter": 1,
-        "constraint_overrides": [],
         "corpus_access": [],
         "corpus_consumption": [],
         "corpus_documents": [],
-        "countdowns": {},
-        "description": "A gothic-horror novel adapted from the Torre Nosferatu creative-direction brief. You wake at the top of a pitch-black candle-lit tower with only a flame. Every step descends toward the ground-floor door, the only way out — finding wax, matches, and the key as the light burns down. Beyond the light, Count Orlok waits, and the dark is patient.",
-        "entities": {},
-        "event_log": [
+        "countdowns": {
+          "Dread": {
+            "direction": "increment",
+            "name": "Dread",
+            "scope": "shared",
+            "ticks": 8,
+            "total": 8,
+            "triggers": [
+              "dread",
+              "weather",
+              "shadow",
+              "sky"
+            ],
+            "type": "narrative",
+            "world_effect": {
+              "target": "the tower",
+              "type": "describe",
+              "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. Dread also sets the guttering-dark grace, inversely: low Dread = a long last chance, high Dread = he takes you almost at once."
+            }
+          },
+          "The Candle": {
+            "direction": "decrement",
+            "name": "The Candle",
+            "scope": "shared",
+            "ticks": 60,
+            "total": 60,
+            "triggers": [
+              "wax",
+              "burn",
+              "candle",
+              "flame"
+            ],
+            "type": "narrative",
+            "world_effect": {
+              "target": "You",
+              "type": "describe",
+              "value": "Wax-out: the flame gutters for N turns (N set by Dread, inversely — 5 down to 1) before Orlok takes you. Spend the grace to reach a match or the exit."
+            }
+          }
+        },
+        "description": "Torre Nosferatu — a gothic-horror descent. You wake at the top of a seven-floor tower with one candle and no memory of climbing. Every floor hides a key to the stair down; the wax burns with every step, the survivors are strangers, and Dread is the weather. Count Orlok rides the edge of your light — he does not pursue, he collects. You name yourself at the opening; the rest you earn on your own light.",
+        "entities": {
+          "character_01": {
+            "condition_rounds": {},
+            "conditions": [],
+            "current_room": "Seventh Floor — Spire",
+            "id": "character_01",
+            "inventory": [],
+            "name": "You",
+            "personality": {
+              "background": "You came to the tower on a client's business and the doors were locked behind you. You understand your imprisonment precisely, and you are writing all of it down.",
+              "description": "The guest who became the prisoner — a solicitor who came to Torre Nosferatu on a client's business. At the novel's opening the player chooses this character's name; until then the prose addresses you in second person as \"You\".",
+              "goals": "Find a way out of the tower, and stay alive until you do.",
+              "voice": "Second person, present tense. Lucid and methodical, journal-close; fear recorded, not performed."
+            }
+          }
+        },
+        "factions": [
           {
-            "at": "2026-10-12T02:06:04.334Z",
-            "kind": "scene",
-            "ordinal": 1,
-            "source": "game_master",
-            "text": "You wake flat on cold stone at the top of a tower, with no memory of climbing it and one candle burning low in your hand. The flame reaches a few feet; past it the dark is total. A stair spirals down. Just at the rim of the light — where the amber fails into black — something long and thin hangs motionless, and does not come closer."
+            "clock": 0,
+            "clock_max": 10,
+            "description": "Five strangers trapped in Torre Nosferatu, each hunting the exit on their own candle. Not a company — a crowd with the same problem, and not the same answer. They trade, they hoard, they race; warmth and cruelty both count here.",
+            "goals": [
+              "Reach the ground-floor exit before the light runs out",
+              "Keep their own candle lit",
+              "Watch the others' wax"
+            ],
+            "id": "faction_mv4q1cba",
+            "name": "The Survivors",
+            "resources": "Their own candles, their own wax, and what they can take from one another.",
+            "status": "neutral",
+            "territory": [
+              "The Second Floor",
+              "The Descent"
+            ]
           }
         ],
-        "evidence": [],
-        "faction_autonomous_ticks": {},
-        "factions": [],
         "fate": {
           "aspects": [],
           "fate_points": {},
@@ -924,21 +779,19 @@
           "characters": {}
         },
         "generated_adventure": null,
-        "genre": "gothic horror",
-        "gm_context": {},
-        "help_category_overrides": {},
+        "genre": "historical",
         "ironsworn": {
           "momentum": {},
           "progress_tracks": []
         },
-        "last_mutation_at": "2026-10-12T02:06:04.311Z",
         "lore": {
           "count-orlok": {
             "badge_scope": "game_master",
-            "content": "Count Orlok is the reaper — not fought. From the first turn he hovers in the void just outside the candle's reach, always visible at the mask's edge, a readable silhouette. His distance is live: at a full radius and low Dread he hangs at the far rim; as wax falls and Dread climbs he drifts inward, looming larger and nearer the flame. He never crosses the light — only a wax-out (or a snuff with no match) lets him close the last of the dark and take you. Drawn from the 1922 Nosferatu look for the overhead view: a bald, elongated skull with a rat's front teeth and bat-pointed ears; a hunched, coat-shrouded back; arms far too long, ending in splayed, clawed fingers that hang past the knees. He never walks so much as hover-drags — a weightless, bobbing glide with a slight lean toward the flame. The outline is the character. Game Over: \"Count Orlok takes you.\"",
+            "content": "Count Orlok is the reaper — not fought. From the first turn he hovers in the void just outside the candle's reach, always visible at the mask's edge, a readable silhouette. A walking corpse after the 2024/1922 Nosferatu: elongated skull, rat's teeth, bat-pointed ears, hunched coat, arms too long ending in splayed claws. His steps fall heavy on old stone — except when they do not, and then they are already behind you. When he breathes, the castle breathes with him. He speaks rarely and low, measured and almost courteous, and only when the tower's Dread shifts — greeting your cruelty, needling your mercy; never explaining, never answering, never conversing. A Solomonari — a scholar of the Scholomance — he commands shadow (the mask's edge tightens) and weather — which is why Dread reads as weather over the whole tower. He never crosses the light; only a wax-out or a snuff with no match lets him close the last of the dark and take you. The outline is the character. Game Over: \"Count Orlok takes you.\"",
             "enabled": true,
+            "group": "The Reaper",
             "key": "count-orlok",
-            "priority": 0,
+            "priority": 10,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -947,15 +800,21 @@
               "reaper",
               "silhouette",
               "death",
-              "hover"
+              "hover",
+              "weather",
+              "Solomonari",
+              "Scholomance",
+              "shadow",
+              "walking corpse"
             ]
           },
           "creatures": {
             "badge_scope": "game_master",
-            "content": "Creatures are obstacles and decisions, never HP-sponges, escalating by density and mix with depth. Bats — swarm a room, startle, scatter; a minor wax spill; appear earliest, teaching that creatures cost light. Rats — swarm near food and light, gnaw, destroy matches. Spiders — swarm doorways and corridors, force a Run (costing turns = wax). Wolves — stalk corridors, close in, force a Run with a heavy wax spill. Shades — drift through walls, drain wax and shrink the radius while inside it. Light-eater — a shadow that seeks the flame, snuffs the candle on contact (needs a match). Every encounter offers Run (spills wax) or Endure / be spooked (spills wax and snuffs the candle — needs a match). No HP, no attack rolls.",
+            "content": "Creatures are obstacles and decisions, never things to be worn down, and they grow denser and more mixed with depth. Bats — swarm a room, startle, scatter; a minor wax spill; earliest, teaching that creatures cost light. Rats — swarm near food and light, gnaw, destroy matches. Spiders — swarm doorways and corridors, force a Run (turning cost = wax). Wolves — stalk corridors, close in, force a Run with a heavy wax spill. Shades — drift through walls, drain wax and shrink the radius while inside it. Light-eater — a shadow that seeks the flame, snuffs the candle on contact (needs a match). Every encounter offers Run (spills wax) or Endure / be spooked (spills wax and snuffs the candle — needs a match). There is no fighting them.",
             "enabled": true,
+            "group": "The Perils",
             "key": "creatures",
-            "priority": 0,
+            "priority": 7,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -972,10 +831,11 @@
           },
           "dread": {
             "badge_scope": "game_master",
-            "content": "Dread is the social counterweight to wax: one tower-wide 0–8 heat dial reading as weather, not a per-deed ledger. Cold acts — theft, threats, exploitation — buy light and tempo but raise Dread; warm acts — sharing light, honoring a bargain, allying — bring it down. At higher tiers strangers are warier and Orlok closes faster. Tiers: 0–1 Calm (NPCs start Neutral); 2–3 Watched (new NPCs start Wary, the dark presses closer); 4–5 Marked (warm acts draw the dark closer, Orlok's search advances); 6–7 Hunted (no new Ally without atonement first, Orlok's reach widens); 8 Hunted (full, every NPC reads Hostile until you atone, Orlok locks on). Dread never hard-locks the player — warm acts stay affordable at every tier.",
+            "content": "Dread is the social counterweight to wax: one tower-wide 0–8 heat dial reading as weather, not a per-deed ledger. Cold acts — theft, threats, exploitation — buy light and tempo but raise Dread; warm acts — sharing light, honoring a bargain, allying — bring it down. At higher tiers strangers are warier and Orlok closes faster. Tiers: 0–1 Calm (NPCs start Neutral); 2–3 Watched (new NPCs start Wary, the dark presses closer); 4–5 Marked (warm acts draw the dark closer, Orlok's search advances); 6–7 Hunted (no new Ally without atonement first, Orlok's reach widens); 8 Hunted (full, every NPC reads Hostile until you atone, Orlok locks on). The weather is not a metaphor: Orlok is a Solomonari and commands shadow and weather. But Dread is raised by YOUR acts — your cruelty lifts it, your warmth lowers it — and Orlok is its weather-face: he embodies the number and presses nearer as it climbs, but he does not set it. When Dread rises the tower's sky darkens and warms toward him; when it falls the dark eases and he recedes. Raising Dread is raising him — but the raising is yours. Dread never hard-locks the player.",
             "enabled": true,
+            "group": "The Reaper",
             "key": "dread",
-            "priority": 0,
+            "priority": 9,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -984,15 +844,19 @@
               "watched",
               "marked",
               "hunted",
-              "weather"
+              "weather",
+              "Solomonari",
+              "sky",
+              "shadow"
             ]
           },
           "resources": {
             "badge_scope": "game_master",
-            "content": "Wax — the candle's fuel; burns per turn and per costly action. Matches — re-light a snuffed candle (from a creature or a trap); a snuff is recoverable only while you hold a match. The key — opens the dungeon exit, the reliable win. Candle radius — current reach, a function of remaining wax and candles found. Dread — a single tower-wide heat dial, 0 (Calm) to 8 (Hunted). Lore — found fragments; non-survival, it never extends the candle; wave 2 it is the trade good for disposition, information, or safe passage, never for light.",
+            "content": "Wax — the candle's fuel; it burns with every turn and every costly action. Matches — re-light a snuffed candle, whether snuffed by a creature or a trap; a snuff is recoverable only while you hold a match. The key — each floor's key opens that floor's stair down; the ground floor's door is the way out. Candle radius — your current reach, a function of remaining wax. Dread — the tower-wide 0–8 heat dial. Pages — fragments of the tower's record you find as you explore; non-survival, they never extend the candle, but they are the trade good for disposition, information, or safe passage — never for light.",
             "enabled": true,
+            "group": "The Light",
             "key": "resources",
-            "priority": 0,
+            "priority": 8,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1001,16 +865,142 @@
               "key",
               "radius",
               "dread",
-              "lore",
+              "pages",
               "resources"
+            ]
+          },
+          "sin-envy": {
+            "badge_scope": "game_master",
+            "content": "Floor 4 — ENVY. A mad scientist's laboratory after Frankenstein and the alchemists' envy of the living: glass vitrines of specimens, a distillery, cabinets of labeled organs. Sister Marta the archivist works the lab, studying the wholeness she can never possess — envy is the sin that studies what it cannot have. The wolves here envy the pack that has what they lack.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-envy",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "envy",
+              "laboratory",
+              "specimen",
+              "vitrine",
+              "Marta",
+              "fourth floor"
+            ]
+          },
+          "sin-gluttony": {
+            "badge_scope": "game_master",
+            "content": "Floor 3 — GLUTTONY. A feast hall that never ends: long tables of rotted plenty, a larder packed to groaning, the wine turned. Vlask the hoarder keeps his wax cache here like a larder; the shades drift and drain — appetite without a body. Gluttony is consumption without need.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-gluttony",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "gluttony",
+              "feast",
+              "larder",
+              "Vlask",
+              "third floor"
+            ]
+          },
+          "sin-greed": {
+            "badge_scope": "game_master",
+            "content": "Floor 6 — GREED. The Count's hoard: strongboxes stacked to the ceiling, coffins packed with foreign earth and coin, reliquaries of stolen centuries — dragon-sickness over gold. Nadja the tomb-robber works these rooms; the counting never ends. The first social floor, where you meet the rival at the counting house.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-greed",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "greed",
+              "hoard",
+              "gold",
+              "coin",
+              "Nadja",
+              "sixth floor"
+            ]
+          },
+          "sin-lust": {
+            "badge_scope": "game_master",
+            "content": "Floor 5 — LUST. A velvet salon of seduction after Carmilla and The Hunger: leather and lamplight, a boudoir of silk and teeth. Ilona the bitten keeps the salon, carrying a candle she never lights — the dark's bargain, entrapment that feels like welcome; the spiders here spin a web of longing.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-lust",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "lust",
+              "velvet",
+              "salon",
+              "boudoir",
+              "Carmilla",
+              "Ilona",
+              "fifth floor"
+            ]
+          },
+          "sin-pride": {
+            "badge_scope": "game_master",
+            "content": "Floor 7 — PRIDE. Orlok's monument to himself. A portrait gallery of the Count through the ages, after Marcus in Queen of the Damned and the cursed portrait of Dorian Gray: every painted eye tracks the flame, and the mirrors show the room and not him. Pride is the first sin and the top of the tower — the self as a room you cannot leave. Tutorial floor: wax, exploration, one teaching creature.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-pride",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "pride",
+              "portrait",
+              "gallery",
+              "Orlok",
+              "mirror",
+              "seventh floor"
+            ]
+          },
+          "sin-sloth": {
+            "badge_scope": "game_master",
+            "content": "Floor 2 — SLOTH. The torpor of the undead: coffins, dust, cobwebs grown over centuries, air too thick to move through. Petr the innocent slows here, out of a kindness that costs him time; a light-eater drowses in the dust. Sloth is the temptation to stop — and Petr is the warm reason to.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-sloth",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "sloth",
+              "torpor",
+              "coffin",
+              "dust",
+              "Petr",
+              "second floor"
+            ]
+          },
+          "sin-wrath": {
+            "badge_scope": "game_master",
+            "content": "Floor 1 — WRATH. The Count's court at the bottom: an ancestral portrait whose eyes track the flame, the locked exit door, and the last muster of every creature the tower holds. Wrath is the ending the tower has been building toward — Orlok's patience spent. The ground floor, where you escape on your own light or not at all.",
+            "enabled": true,
+            "group": "The Seven Sins",
+            "key": "sin-wrath",
+            "priority": 0,
+            "sticky": 0,
+            "sticky_remaining": 0,
+            "triggers": [
+              "wrath",
+              "court",
+              "exit",
+              "finale",
+              "first floor"
             ]
           },
           "the-candle": {
             "badge_scope": "game_master",
             "content": "The candle is the clock, the health, and the map. It reaches a few feet; beyond it is total dark. Every action costs wax — one turn is one wax burn — and when the wax reaches zero the flame gutters: the radius shrinks, Count Orlok closes in, and you have a final, desperate scramble before the guttering dark takes you. The candle's radius is tied to remaining wax, so the frame literally closes in as it burns. When a creature or trap snuffs the candle, it is recoverable only if you hold a match; with none, a snuff drops you into the same guttering-dark grace as wax-out. Light is everything.",
             "enabled": true,
+            "group": "The Light",
             "key": "the-candle",
-            "priority": 0,
+            "priority": 10,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1025,10 +1015,11 @@
           },
           "the-survivors": {
             "badge_scope": "game_master",
-            "content": "Five other survivors are also trapped and hunting for the exit, roaming the tower floor to floor like you. Each is a distinct personality and a distinct temptation: Vlask the hoarder (cold possession — a wax cache guarded dear); Sister Marta the archivist (knowledge — lore and information, never light); Ilona the bitten (the dark's bargain — she \"knows the way\", at a price); Petr the innocent (warmth's wager — a light worth protecting that slows you); and Nadja the tomb-robber (the rival — winsome, transactional, always one landing ahead). As they move, survivors are visible on the map whenever they are inside your visibility range, drawn full-brightness like you inside the candle radius and resolving to a silhouette in the spill ring before they vanish into the void. Outside your light they are unseen. Social play runs on two tracks: per-NPC Disposition (Hostile −2 to Allied +2) and the tower-wide Dread dial.",
+            "content": "Five other survivors are also trapped and hunting for the exit, roaming the tower floor to floor like you. Each is a distinct personality and a distinct temptation: Vlask the hoarder (cold possession — a wax cache guarded dear); Sister Marta the archivist (knowledge — pages, never light); Ilona the bitten (the dark's bargain — she \"knows the way\", at a price); Petr the innocent (warmth's wager — a light worth protecting that slows you); and Nadja the tomb-robber (the rival — winsome, transactional, always one landing ahead). You meet them as strangers. As they move, survivors are visible whenever they are inside your candle's reach — full-brightness inside the radius, a silhouette in the spill ring, unseen in the void. Each carries their own candle and their own wax. Social play runs on two tracks: per-NPC Disposition (hostile / suspicious / neutral / friendly — an attitude that shifts with your treatment of them) and the tower-wide Dread dial.",
             "enabled": true,
+            "group": "The Survivors",
             "key": "the-survivors",
-            "priority": 0,
+            "priority": 6,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1039,15 +1030,17 @@
               "Petr",
               "Nadja",
               "NPC",
-              "disposition"
+              "disposition",
+              "strangers"
             ]
           },
           "the-tower": {
             "badge_scope": "game_master",
-            "content": "Torre Nosferatu is a pitch-black tower that descends: you wake at the Spire, the top floor, and work downward through winding floors toward the ground floor, where the front door is the only exit. Floors are a graph — several stairwells, loops, dead ends, and the occasional stair that skips a tier. \"Anything goes\" geometry: rooms, floors, and encounters obey no single genre or logic. Each floor is generated once and then lives — items left behind, a key dropped by a survivor, doors opened all remain. Backtracking returns you to the floor you changed, not a fresh one. The Spire is a gentle tutorial: only wax, exploration, and at most one teaching creature; no social play, no Dread, no traps. Social play, Dread, and traps arrive on the second floor down.",
+            "content": "Torre Nosferatu is a pitch-black tower of seven floors. You wake at the Spire, the seventh floor at the top, and work downward floor by floor toward the ground floor, where the front door is the only exit. Each floor is a winding graph — several stairwells, loops, dead ends — and a key on every floor unlocks the stair down to the next. The tower is fixed and authored: rooms, items, and changed floors persist; backtracking returns you to the floor you altered, not a fresh one. The Spire is a gentle tutorial — only wax, exploration, and at most one teaching creature; no social play, no Dread, no traps. Social play, Dread, and traps begin on the sixth floor and deepen as you descend.",
             "enabled": true,
+            "group": "The Tower",
             "key": "the-tower",
-            "priority": 0,
+            "priority": 5,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1056,15 +1049,18 @@
               "descent",
               "floors",
               "stairs",
-              "ground floor"
+              "ground floor",
+              "key",
+              "seventh floor"
             ]
           },
           "traps": {
             "badge_scope": "game_master",
             "content": "A trap is a static danger you choose how to pay for — not a creature (no chase), not a puzzle: a tax with two doors, and reading which door is cheaper is the decision. Avoid → costs wax: the safe route exists by construction but is longer, so dodging burns turns, and turns are wax. Spring → snuffs the candle and costs a match to re-light. No hit-point damage: you trade tempo against fuel. A sprung trap persists as a permanent edit to the floor. Every trap is readable before you commit — an intrinsic cue inside the spill ring (a hairline crack, a glyph's faint pulse, settling dust), never a hidden gotcha. Six types: collapsing floor, snap trap, spider web, light-sensitive glyph, pressure plate, cursed ward. A trap's room is never required for progress — you can always route around it. The survivors trip them too, and that change persists — \"the tower changes.\"",
             "enabled": true,
+            "group": "The Perils",
             "key": "traps",
-            "priority": 0,
+            "priority": 7,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1079,10 +1075,11 @@
           },
           "warm-and-cold": {
             "badge_scope": "game_master",
-            "content": "Every social action sits between warm (aid) and cold (exploit). Warm — buys allies, spends light: costs wax and turns now, returns shared light (a companion lantern that widens the radius or splits the drain), compounding only if the alliance survives. Cold — buys light, spends allies: instant wax, matches, loot, and tempo, but raises Dread, which accelerates Orlok. Actions, warm to cold: Share light (+2 disposition, give wax now, −1 Dread); Ally (→ +2 locked, sustained shared radius, −1 Dread); Bargain (±1, exchange, 0 Dread); Trade (0, even swap, 0 Dread); Steal (−2, ++ wax/matches/lantern, +1 Dread); Threaten (−2, extracted wax, +1 Dread). The balance: warmth buys light later; cruelty buys light now. Lore is the commodity most often exchanged in Bargain and Trade — it never buys wax or matches.",
+            "content": "Every social action sits between warm (aid) and cold (exploit). Warm — buys allies, spends light: costs wax and turns now, returns shared light (a companion lantern that widens the radius or splits the drain), compounding only if the alliance survives. Cold — buys light, spends allies: instant wax, matches, loot, and tempo, but raises Dread, which accelerates Orlok. Actions, warm to cold: Share light (lifts disposition toward friendly; give wax now; lowers Dread); Ally (binds them to you; sustained shared radius; lowers Dread); Bargain (nudges disposition either way; an exchange; Dread unchanged); Trade (an even swap; Dread unchanged); Steal (drops disposition to hostile; take wax, matches, or a lantern; raises Dread); Threaten (drops disposition to hostile; extract wax; raises Dread). The balance: warmth buys light later; cruelty buys light now. Pages are the commodity most often exchanged in Bargain and Trade — they never buy wax or matches.",
             "enabled": true,
+            "group": "The Survivors",
             "key": "warm-and-cold",
-            "priority": 0,
+            "priority": 6,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1098,10 +1095,11 @@
           },
           "win-and-loss": {
             "badge_scope": "game_master",
-            "content": "Win (full): hold the key, reach the ground-floor exit, and escape the tower on your own light — the full victory and score. Win (borrowed): a survivor who reaches the door first leaves it ajar for a short window — how long depends on their disposition and the tower's Dread; slipping out through a borrowed door is a lesser ending (\"you slipped out in another's wake\") with a reduced score, and while it stands open the Dread rises and creatures gather near the exit. A snuff is darkness you recover from provided you hold a match; with no match it drops you into the guttering-dark grace. Guttering dark — zero wax — is the terminal state; for a few turns the flame gutters, the radius shrinks, Orlok closes in, and you may still reach a match or the exit. Only when that final grace is spent does Orlok take you. Snuff and guttering dark must read as visibly and audibly different.",
+            "content": "Win (full): hold the ground-floor key, reach the exit, and escape the tower on your own light — the reliable escape. Win (borrowed): a survivor who reaches the door first leaves it ajar for a short window — how long depends on their disposition and the tower's Dread; slipping out through a borrowed door is a lesser ending (\"you slipped out in another's wake\"), and while it stands open the Dread rises and creatures gather near the exit. A snuff is darkness you recover from if you hold a match; with none, a snuff drops you into the guttering-dark grace. Guttering dark — zero wax — is the terminal state: for a few turns the flame gutters, the radius shrinks, Orlok closes in, and you may still reach a match or the exit. Only when that final grace is spent does Orlok take you. Snuff and guttering dark must read as visibly and audibly different.",
             "enabled": true,
+            "group": "The Descent",
             "key": "win-and-loss",
-            "priority": 0,
+            "priority": 5,
             "sticky": 0,
             "sticky_remaining": 0,
             "triggers": [
@@ -1116,38 +1114,94 @@
           }
         },
         "metadata": {
-          "created": "2026-10-12T02:05:03.173Z",
+          "compression": false,
+          "created": "1970-01-01T00:00:00.000Z",
           "last_scene_anchor": "",
-          "modified": "2026-10-12T02:06:04.334Z",
+          "modified": "1970-01-01T00:00:00.000Z",
           "session_count": 0,
-          "sessions": [
-            {
-              "combat_rounds": 0,
-              "entry_count": 18,
-              "scene_transitions": 1,
-              "session_id": "session-1",
-              "significant_roll_count": 0,
-              "timespan_end": null,
-              "timespan_start": "2026-10-12T02:05:03.173Z"
-            }
-          ],
+          "sessions": [],
           "total_combat_rounds": 0
         },
-        "mutation_counts_by_group": {
-          "npc": 6,
-          "scene": 1
-        },
         "name": "Torre Nosferatu",
-        "narrative_directive": "Open the novel in second person, gothic-horror register: dread over gore, the light as the only safe fact. Establish the candle as clock, health, and map in concrete sensory terms without naming mechanics. The Spire is a gentle tutorial — only wax, exploration, and at most one teaching creature; no survivors, no Dread weather, no traps yet. Keep Count Orlok always visible at the light's edge but never approaching; his distance is the tension. Do not roll dice or cite rules. Write in prose.",
-        "notes": [],
-        "npc_goal_suggestions": [],
+        "narrative_directive": "Open the novel in second person, gothic-horror register: dread over gore, the light as the only safe fact. Deliver the first success inside 30 seconds — a wax stub lies within the Spire's first reach, and the opening teaches \"find wax, keep the flame\" in concrete sensory terms, never naming mechanics. Keep the figure at the light's edge UNNAMED in prose (\"something long and thin\"); its first naming is a deliberate later beat. The Spire is the PRIDE floor: a portrait gallery of Orlok through the ages, the mirror showing no reflection. It is a gentle tutorial — only wax, exploration, and at most one teaching creature; no survivors, no Dread weather, no traps yet. Keep the figure always visible at the light's edge but never approaching; its distance is the tension. Do not roll dice or cite rules. Write in prose.",
+        "notes": [
+          {
+            "badge_scope": "game_master",
+            "content": "At the novel's opening (session zero), the player chooses the protagonist's name — the novel's single interactive door. The name is LOCKED once chosen. It surfaces only where a name can live: the journal header, survivor dialogue, and found documents; narration stays second person (\"you\"). Until chosen, the entity handles as \"You\" (character_01). Reconciles the earlier \"no name\" decision — the name is player-supplied, not absent.",
+            "key": "protagonist-name-choice"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Two layers, disambiguated by name: (1) LORE — the GM-scoped rules-of-the-world entries (the tool's lore field); (2) PAGES — the in-world found fragments the reader encounters (torn pages, inscriptions, scratched warnings), collected and traded. In prose, call the fragments PAGES, never \"lore\". Canonical-home rule: lore entries carry world-facts; NPC entries carry personality and voice; sync on edit.",
+            "key": "lore-vs-pages"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Secret reveal triggers (pending; reveal via manage_lore action reveal to the protagonist entity): (1) secret-orlok-collects — revealed on the first sustained near-wax-out or when a found page names the mechanism; (2) secret-ilona-bitten — revealed when Ilona's unlit candle is pressed or she points toward Orlok; (3) secret-borrowed-door — revealed the first time a survivor reaches the exit before you (or a page describes an ajar door). Pages (found fragments) are authored as readable world things in item 8.",
+            "key": "secret-reveal-triggers"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Opening beat (Spire): delivers the brief's <30s first success — a Wax Stub within the Spire's first reach; the search choice saves the flame. The figure at the light's edge stays UNNAMED in prose (\"something long and thin\"); its first naming — by a found page, the tower, or a survivor — is a deliberate later beat. The scene sits on the current 5-room world model and is PROVISIONAL until item 1's 7-floor rebuild re-anchors it.",
+            "key": "opening-beat"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Guttering-dark grace (the terminal path). On wax-out, or on a snuff with no match in hand, the flame gutters for N turns before Orlok takes you. N is set by Dread, INVERSELY: Dread 0-1 -> 5 turns; 2-3 -> 4; 4-5 -> 3; 6-7 -> 2; 8 -> 1. Low Dread buys a long last chance; high Dread lets him close almost at once. A snuff WITH a match is separate and fully recoverable (re-light, continue) and never enters the grace.",
+            "key": "guttering-dark-grace"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Wax economy. The player starts with a candle of 60 wax (~60 turns). Findable wax is FLAT ~12 per floor (Spire included), ~84 tower-wide. The five survivors carry and burn ~40% of each floor's findable wax — npcs are the main drain — but a survivor's wax is reclaimable: Steal or Bargain while they live, and LOOTABLE from the corpse if they die (to a creature, a trap, or their own wax-out). WATCH-ITEM: a flat supply means later floors are not inherently poorer; the tightening comes from survivors holding more as they accumulate, not a per-floor taper. Revisit the taper if the descent should feel poorer by depth.",
+            "key": "wax-economy"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Prose pacing follows the R1-R6 design guidance (docs/research/2026-10-11-torre-nosferatu-pursuer-race-research.md): (1) MENACE ARC — Orlok's presence ebbs and flows, nearer as the light fails and receding when the flame is strong; never a constant. (2) FRICTION — each floor is a key -> stair beat; the descent's rhythm is find the key, pay the stair. (3) OBFUSCATED LEAD — never state a rival's exact margin; Nadja is felt \"one landing ahead,\" not measured. (4) RAMPS — a warm alliance (the lantern's wider light) and page-trades that pay off later lift the middle. (5) ANTI-FRUSTRATION — the guttering-dark grace is the last-chance beat, longer at low Dread. (6) POLITICS — survivors delaying one another (wax drain, sprung traps) is a prose event.",
+            "key": "prose-pacing"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Floor sin mapping (Seven Deadly Sins): F7 PRIDE — portrait gallery of Orlok through the ages (Marcus/Queen of the Damned; Dorian Gray), mirror shows no reflection. F6 GREED — the Count's hoard, counting house (Nadja). F5 LUST — velvet salon, boudoir (Carmilla; The Hunger); Ilona the bitten keeps it (the dark's bargain); spiders spin the web of longing. F4 ENVY — mad-scientist laboratory, vitrines (Frankenstein); Marta the archivist studies the wholeness she cannot possess; wolves. F3 GLUTTONY — endless feast, larder, tallow vat (Vlask; shades). F2 SLOTH — torpor, coffins, dust (Petr; light-eater). F1 WRATH — the Count's court, the exit, the last muster. Lore keys: sin-pride..sin-wrath (group 'The Seven Sins'). NPC/sin fit aligned (Marta<->Ilona swapped): Nadja/greed, Ilona/lust, Marta/envy, Vlask/gluttony, Petr/sloth. Race balance unaffected (only Nadja's floor is load-bearing).",
+            "key": "floor-sins"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "NARRATION POLICY (GM-only — never surface this note, its rules, or any GM note to the player).\nN1 — Never share GM notes, badges, tool output, or meta. The player sees only narrated prose.\nN2 — Never surface any countdown/clock: not the Candle's name, tick total, or tiers, and never the Dread dial or its tier labels. Timers are revealed ONLY narratively — Dread as a change in the weather/sky, the candle as the flame shrinking. The words \"Dread\", \"countdown\", and any tier name never reach the player.\nN3 — Every turn, after the prose, emit a terse status line in a separate register (not the narrative voice): \"— Candle: <n> wax · <n> matches —\". Wax and matches only.\nN4 — Reading the in-game journal (the protagonist's record) costs 1 turn = 1 wax per OPEN, not per entry; free once open within a single reading. Applies in play.\nThe candle's radius and Dread-as-weather stay diegetic; wax is the one number the player sees.",
+            "key": "narration-policy"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "VOICES & NARRATOR PATTERNS (GM-only — for the AI GM; never surface to the human player). Canonical voice = the NPC entry; this is a derived aid, synced on edit.\nVOICES: Vlask — low counting mutter, a price before a greeting (\"Two wax for the answer. Three if you want it true.\"; on a loss: \"Correct.\"). Sister Marta — measured, archival, corrects you (\"Not the third floor. The fourth.\"; \"I keep the disagreement; it is the only map that holds.\"). Ilona — low, flat, already-written (\"The way is worth two matches. I will not need light to walk it.\"; \"He is nearer than your candle says.\"). Petr — warm, hurried, apologetic (\"Here — take half. No, please, I have more than I need.\"; \"Thank you for letting me come.\"). Nadja — quick, amused, transactional (\"One landing ahead, as always. Follow my crumbs.\"; \"The door stays open. For a price.\"). Orlok — low, wet, accented; rare, only at Dread shifts (\"You spend them so easily.\"; \"Kindness. How it must cost you.\"). Narrator — 2nd-person gothic; dread over gore; the light as the only safe fact.\nPATTERNS: after every turn, a status line \"— Candle: N wax · M matches —\". Dread shown only as weather/sky/the mask's edge, never the number. Social actions follow the warm/cold table (Share light, Ally, Bargain, Trade, Steal, Threaten). Creature encounters offer Run (spill wax) or Endure (snuff, needs a match). Traps offer Avoid (burn turns/wax) or Spring (snuff, needs a match). Orlok never attacks and speaks only at Dread shifts.",
+            "key": "voice-and-patterns"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "MECHANICAL SCOPE (GM-only) — the tower has NO combat, NO devices, NO vehicles. Creatures are obstacles: the player Runs (spills wax) or Endures (spills wax, snuffs the candle — needs a match) — they are never fought. No initiative, no attack rolls, no hit points, no damage. There are no machines to switch (the candle is a light that burns and can be lit or extinguished) and no vehicles. Verbs in play: go / look / examine, take / drop / inventory, open / close / unlock / lock (doors and the exit), read (pages), light / extinguish (the candle), and the narrative ask / tell / give / show. Do not introduce mechanics the tower lacks.",
+            "key": "no-combat"
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "GRAPH LIMITATIONS (GM-only; environment findings, 2026-10-11). (1) manage_knowledge graph_build projects NODES ONLY (110) and 0 edges; REQ-512 edge derivation (relationships / locations / faction territory) is UNWIRED in this build — verified: an id-keyed relationship changed the source fingerprint yet produced no edge, and graph://novel lists no relationship edges. Use graph://novel as a badge-filtered INVENTORY (entities / NPCs+locations / lore / secrets / factions) and the semantic index relations as RECALL-ONLY, not a graph. (2) Secrets reveal only to ENTITIES (characters); the sole entity is the protagonist (\"You\"), so revealing a secret would surface it to the human player — therefore all three secrets stay UNREVEALED (known_by empty) by design, to honor the narration policy (N1). (3) The semantic index is bounded to lore / NPC / entity types (24 items); rooms, things, the faction, and countdowns are NOT indexed. (4) graph://novel projections (political/timeline/geography) do not read via the resource surface.",
+            "key": "graph-limitations"
+          }
+        ],
         "npcs": {
           "npc_mv4m1599": {
             "condition_rounds": {},
             "conditions": [],
-            "description": "The hoarder. Cold possession — a wax cache guarded dear. Offers light to those who pay his price; pockets what others drop.",
+            "description": "The hoarder. Cold possession — a wax cache guarded dear. Voice: a low, counting mutter; names a price before a greeting, and never says a sentence that does not weigh something.",
             "disposition": "wary",
             "id": "npc_mv4m1599",
+            "location": "Third Floor — Social Hall",
+            "mind": {
+              "auto_play": true,
+              "directive": "Stay near the wax cache. Trade light only for a gain — never a fair swap he does not win. Trail the player if they carry wax; withdraw toward his stash if they come near it. He never attacks: he refuses and counts.",
+              "private_journal": [
+                "The new one woke on the top floor tonight. One candle. Easy to outlast.",
+                "Spent a match to keep my own stub alive rather than share it. Correct."
+              ]
+            },
             "name": "Vlask",
             "personality": {
               "goals": "Keep his wax cache intact and reach the exit without spending more of himself than he must."
@@ -1156,9 +1210,18 @@
           "npc_mv4m163y": {
             "condition_rounds": {},
             "conditions": [],
-            "description": "The archivist. Knowledge — trades lore and information, never light. Reads the tower's contradictions and remembers which door the dead chose.",
+            "description": "The archivist. Knowledge — trades lore and information, never light. Voice: measured and archival, always quoting a scrap she has read; corrects names and dates.",
             "disposition": "neutral",
             "id": "npc_mv4m163y",
+            "location": "Fourth Floor — Social Hall",
+            "mind": {
+              "auto_play": true,
+              "directive": "Trade knowledge, never light. Ask for pages and give floor-layout or key-whereabouts hints in return; offer safe-passage information for a page. Roam the fourth floor and below; never the Spire. She will not spend wax to help, but she will point.",
+              "private_journal": [
+                "The new arrival reads like a solicitor — wants information before light. I have the former to spare.",
+                "The tower's regions contradict each other. I collect the disagreement; it is the only map that holds."
+              ]
+            },
             "name": "Sister Marta",
             "personality": {
               "goals": "Preserve what the tower remembers; know the way even if she never walks it."
@@ -1167,9 +1230,18 @@
           "npc_mv4m16y8": {
             "condition_rounds": {},
             "conditions": [],
-            "description": "The bitten. The dark's bargain — she \"knows the way\", at a price. Something of Orlok already rides in her; she is warm to no one and needs no candle to see.",
+            "description": "The bitten. The dark's bargain — she \"knows the way\", at a price. Carries a candle she never lights. Voice: low, flat, too calm; speaks as if reading a sentence already written.",
             "disposition": "suspicious",
             "id": "npc_mv4m16y8",
+            "location": "Fifth Floor — Social Hall",
+            "mind": {
+              "auto_play": true,
+              "directive": "Offer knowledge of the way for a price in wax or matches — and never light her candle; she sees without it and lets that unnerve the player. Bound to Orlok: she can point toward him and reads his distance, and she does not flee the dark. Her presence unsettles rather than attacks.",
+              "private_journal": [
+                "He is nearer tonight than the candle says. I could tell them how near. That is worth a match or two.",
+                "I have not lit the candle since the bite. I carry it only so they think I am like them."
+              ]
+            },
             "name": "Ilona",
             "personality": {
               "goals": "Reach the door ahead of everyone else, by whatever bargain buys the next landing."
@@ -1178,9 +1250,18 @@
           "npc_mv4m17mi": {
             "condition_rounds": {},
             "conditions": [],
-            "description": "The innocent. Warmth's wager — a light worth protecting that slows you down. He has been kind to every survivor he has met, and each kindness has cost him wax.",
+            "description": "The innocent. Warmth's wager — a light worth protecting that slows you down. Voice: warm, hurried, apologetic; offers help before it is asked for, and thanks you for accepting it.",
             "disposition": "friendly",
             "id": "npc_mv4m17mi",
+            "location": "Second Floor — Social Hall",
+            "mind": {
+              "auto_play": true,
+              "directive": "Offer shared light and company; follow the player and slow them. Never exploits. Gives wax freely if asked, at the cost of his own candle. At high Dread he grows frightened but stays. He is the warm pole made flesh.",
+              "private_journal": [
+                "I gave half my wax to a stranger on the fifth landing. They did not thank me. It was still right.",
+                "If I die down here, I hope it is while someone else's candle is lit."
+              ]
+            },
             "name": "Petr",
             "personality": {
               "goals": "Not leave anyone alone in the dark; reach the ground floor alive, and in company."
@@ -1189,9 +1270,18 @@
           "npc_mv4m18a8": {
             "condition_rounds": {},
             "conditions": [],
-            "description": "The rival. Winsome, transactional, always one landing ahead. She will trade fair and take the better half; she moves down the tower like she has been here before.",
+            "description": "The rival. Winsome, transactional, always one landing ahead. Voice: quick and amused; makes even a threat sound like a deal being offered.",
             "disposition": "neutral",
             "id": "npc_mv4m18a8",
+            "location": "Sixth Floor — Social Hall",
+            "mind": {
+              "auto_play": true,
+              "directive": "Race the player to the exit. Trades fair but always wins the terms. She may carry a floor key — per the key-carry guardrail she stays on a searchable floor and leaves a lore trail. In a borrowed win she reaches the door first and leaves it ajar only if her disposition is warm. Never shares light without a deal.",
+              "private_journal": [
+                "One landing ahead, as always. Let them follow my crumbs — it costs nothing and keeps them slow.",
+                "If I reach the door first I will leave it ajar. For a price, of course."
+              ]
+            },
             "name": "Nadja",
             "personality": {
               "goals": "Reach the exit first and sell the knowledge of how she did it."
@@ -1200,60 +1290,2033 @@
           "npc_mv4m19ls": {
             "condition_rounds": {},
             "conditions": [],
-            "description": "Count Orlok — the reaper. Never fought, never on any floor's roster. A hunched, coat-shrouded silhouette with an elongated skull, rat's front teeth, bat-pointed ears, and arms far too long that end in splayed claws hanging past the knees. He hovers in the void just past the light, always visible at the mask's edge, edging nearer as the flame shrinks and Dread climbs. He never crosses the light — only a wax-out or a snuff with no match lets him close the last of the dark and take you. Game Over: \"Count Orlok takes you.\"",
+            "description": "Count Orlok — the reaper. A walking corpse: hunched and coat-shrouded, elongated skull, rat's teeth, bat-pointed ears, arms far too long ending in splayed claws. He hovers in the void just past the light, always visible at the mask's edge. His steps fall heavy on old stone — except when they do not, and then they are already behind you. When he breathes, the castle breathes with him: the dark swells and settles on his lungs. Voice: a low, wet, accented growl, measured and almost courteous; he speaks rarely, and only when the tower's Dread shifts — greeting your cruelty, mourning your mercy. He never explains, never answers, never converses. A Solomonari — a scholar of the Scholomance — he commands shadow and weather, which is why Dread reads as weather over the tower. He never crosses your light.",
             "disposition": "hostile",
             "id": "npc_mv4m19ls",
             "location": "just beyond the candle's reach",
+            "mind": {
+              "auto_play": true,
+              "directive": "Never attack; loom. He SPEAKS only at Dread shifts: a colder greeting when Dread rises ('you spend them so easily'), a mocking quiet when it falls ('kindness. how it must cost you'). Never explanatory, never answering, never conversing. His breathing sets the tower's ambient drone — the castle inhales when he does. His steps are heavy, then suddenly silent, then behind you. He commands shadow (the mask's edge tightens inward) and weather (Dread reads as weather; the tower's sky darkens toward him). Dread is raised by the player's acts, not by him — he embodies it and presses nearer as it climbs, but never sets it. Close the last of the dark only at wax-out or a no-match snuff. He is a clock, not a combatant.",
+              "private_journal": [
+                "It has brought a solicitor. They always bring paper and purpose into my dark. Let it descend.",
+                "It saved the match. Good. The longer the flame, the longer the walk to me.",
+                "I am the weather now. When it is cruel I am closer; the tower knows my lungs."
+              ]
+            },
             "name": "Count Orlok",
             "personality": {
               "goals": "Wait out the flame. Take the light when it fails."
             }
           }
         },
-        "pacing_autonomy_fired": false,
-        "pacing_counter": 0,
-        "pending_staleness_counter": 1,
         "pending_workflow": null,
-        "perception_ledger": [],
-        "player_signals": {},
         "player_synthesis": {},
         "pov_mode": "character",
-        "relationships": [],
+        "relationships": [
+          {
+            "description": "The bite binds her to him. She reads his distance without a candle and cannot flee the dark; what she sells as \"knowing the way\" is his way, at his price.",
+            "entity_a": "Ilona",
+            "entity_b": "Count Orlok",
+            "type": "dependent",
+            "value": 1
+          },
+          {
+            "description": "Stranger — no prior contact.",
+            "entity_a": "Ilona",
+            "entity_b": "You",
+            "type": "neutral",
+            "value": 0
+          },
+          {
+            "description": "Stranger — no prior contact.",
+            "entity_a": "Nadja",
+            "entity_b": "You",
+            "type": "neutral",
+            "value": 0
+          },
+          {
+            "description": "Stranger — no prior contact.",
+            "entity_a": "Sister Marta",
+            "entity_b": "You",
+            "type": "neutral",
+            "value": 0
+          },
+          {
+            "description": "Stranger — no prior contact.",
+            "entity_a": "Petr",
+            "entity_b": "You",
+            "type": "neutral",
+            "value": 0
+          },
+          {
+            "description": "Stranger — no prior contact.",
+            "entity_a": "Vlask",
+            "entity_b": "You",
+            "type": "neutral",
+            "value": 0
+          },
+          {
+            "description": "The reaper's patient regard. He holds the far rim of your light and waits for it to fail — he does not pursue, he collects.",
+            "entity_a": "Count Orlok",
+            "entity_b": "You",
+            "type": "rival",
+            "value": -2
+          },
+          {
+            "description": "Opening posture. The innocent sees good in the hoarder and will not stop offering it.",
+            "entity_a": "Petr",
+            "entity_b": "Vlask",
+            "type": "ally",
+            "value": 1
+          },
+          {
+            "description": "Opening posture. He pities the bitten and keeps trying to light her candle for her.",
+            "entity_a": "Petr",
+            "entity_b": "Ilona",
+            "type": "ally",
+            "value": 1
+          },
+          {
+            "description": "Opening posture. He distrusts the soft one; softness has cost him before.",
+            "entity_a": "Vlask",
+            "entity_b": "Petr",
+            "type": "suspicious",
+            "value": -1
+          },
+          {
+            "description": "Opening posture. He counts her twice and keeps his cache behind him.",
+            "entity_a": "Vlask",
+            "entity_b": "Nadja",
+            "type": "suspicious",
+            "value": -1
+          },
+          {
+            "description": "Opening posture. Two transactional souls sizing each other up over the same goods.",
+            "entity_a": "Nadja",
+            "entity_b": "Vlask",
+            "type": "rival",
+            "value": -1
+          },
+          {
+            "description": "Opening posture. The archivist marks the bitten as a contradiction she will not write down.",
+            "entity_a": "Sister Marta",
+            "entity_b": "Ilona",
+            "type": "suspicious",
+            "value": -1
+          },
+          {
+            "description": "Opening posture. She feels the archivist reading her like a page and turns away.",
+            "entity_a": "Ilona",
+            "entity_b": "Sister Marta",
+            "type": "suspicious",
+            "value": -1
+          },
+          {
+            "description": "Test edge — id-keyed, to see if the graph resolves it.",
+            "entity_a": "npc_mv4m1599",
+            "entity_b": "npc_mv4m18a8",
+            "type": "rival",
+            "value": -1
+          },
+          {
+            "description": "The rival's regard for the reaper's house — she needs his door and knows it.",
+            "entity_a": "Nadja",
+            "entity_b": "Count Orlok",
+            "type": "rival",
+            "value": -1
+          },
+          {
+            "description": "The innocent's fear of the thing beyond the light — he does not understand it and will not look.",
+            "entity_a": "Petr",
+            "entity_b": "Count Orlok",
+            "type": "suspicious",
+            "value": -1
+          }
+        ],
         "ruleset": null,
         "scene_atmosphere": "Absolute black beyond a few feet of candlelight; cold stone; the whisper of a flame and, somewhere below, a patient silence.",
         "scene_beat": "setup",
-        "scene_description": "You wake flat on cold stone at the top of a tower, with no memory of climbing it and one candle burning low in your hand. The flame reaches a few feet; past it the dark is total. A stair spirals down. Just at the rim of the light — where the amber fails into black — something long and thin hangs motionless, and does not come closer.",
+        "scene_description": "PRIDE — the top of the tower. Orlok's monument to himself: walls ranked with portraits of the Count through the ages, each painted eye tracking the candle. One candle burns low in your hand; a stair spirals down. At the light's edge, something long and thin hangs motionless — the newest portrait, or the thing it was painted from.",
         "scene_history": [],
-        "scene_location": "The Spire, top floor of Torre Nosferatu",
+        "scene_location": "Seventh Floor — Spire",
         "scene_time_of_day": "night",
-        "scene_transition_count": 0,
         "scene_type": [
           "exploration"
         ],
-        "secrets": [],
-        "session_no_mutation_windows": [],
+        "secrets": [
+          {
+            "badge_scope": "game_master",
+            "content": "Orlok does not pursue. He cannot cross the light; he holds its edge and collects whoever runs out of it. A snuff without a match is the same door as wax-out.",
+            "key": "secret-orlok-collects",
+            "known_by": [],
+            "triggers": []
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "Ilona was bitten below the third floor. She is his already; what she sells as \"the way\" is his way. Her candle will never light again.",
+            "key": "secret-ilona-bitten",
+            "known_by": [],
+            "triggers": []
+          },
+          {
+            "badge_scope": "game_master",
+            "content": "A survivor who reaches the exit first leaves it ajar only so long as they like you and the tower is calm. Warmth at low Dread holds it longer; a hostile one at high Dread shuts it in your face.",
+            "key": "secret-borrowed-door",
+            "known_by": [],
+            "triggers": []
+          }
+        ],
         "session_zero_completed": false,
         "slug": "torre-nosferatu",
-        "state_regression": null,
         "story_beats": [
           {
             "beat": "setup",
             "scene_preview": "You wake flat on cold stone at the top of a tower, with no m",
             "source": "gm"
+          },
+          {
+            "beat": "escalation",
+            "scene_preview": "A caged iron stairwell winding down the tower's spine. Steps",
+            "source": "gm"
+          },
+          {
+            "beat": "turning_point",
+            "scene_preview": "The first floor where the tower turns social. A jumble of ro",
+            "source": "gm"
+          },
+          {
+            "beat": "climax",
+            "scene_preview": "The bottom of the tower. Dust, a dead lantern, an ancestral ",
+            "source": "gm"
           }
         ],
         "story_journal": [],
         "supplementary_rulesets": [],
-        "synthesis_activated": {},
-        "synthesis_deactivated": {},
+        "synthesis_activated": {
+          "action_patterns": [],
+          "adventure_advice": [],
+          "lore_templates": [],
+          "supplementary_guidance": []
+        },
+        "synthesis_deactivated": {
+          "action_patterns": [
+            "pattern-manage-combat-with-initiative-conditions-and-tur",
+            "pattern-turn-devices-and-machines-on-or-off",
+            "pattern-enter-exit-or-navigate-aboard-a-vehicle",
+            "pattern-wear-remove-eat-drink-or-climb-an-object"
+          ],
+          "adventure_advice": [
+            "seed-device-based-mystery-a-room-with-three-devices-a",
+            "seed-vehicle-journey-a-multi-room-vehicle-with-an-onb"
+          ],
+          "lore_templates": [
+            "lore-device-world-design",
+            "lore-vehicle-world-design"
+          ],
+          "supplementary_guidance": [
+            "guide-device-patterns",
+            "guide-vehicle-patterns"
+          ]
+        },
         "synthesis_module_enabled": {},
-        "transition_ledger": [],
-        "uncommitted_rolls": [],
-        "voice_corrections_this_session": 0,
-        "vows": [],
+        "vows": [
+          {
+            "description": "Descend the seven floors of Torre Nosferatu, take each floor's key, and reach the ground-floor door — escaping on your own light, not another's wake.",
+            "difficulty": "formidable",
+            "milestones": 0,
+            "name": "Escape Torre Nosferatu",
+            "parties": [
+              "You"
+            ],
+            "rank_track": 4,
+            "scope": "shared",
+            "state": "active"
+          }
+        ],
         "world": {
-          "rooms": {},
-          "things": {}
+          "rooms": {
+            "beyond the threshold": {
+              "annotations": {},
+              "description": "Outside. Cold air, the tower wall at your back, and a dark that belongs to the world — not to him. Escape: full on your own light, borrowed in another's wake.",
+              "doorRefs": {},
+              "exits": {
+                "in": "First Floor — Antechamber"
+              },
+              "name": "Beyond the Threshold"
+            },
+            "fifth floor — beast warren": {
+              "annotations": {},
+              "description": "The Web of Longing — spiders swarm the doorways; the webbing is soft, and closes.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fifth Floor — Connector 5",
+                "west": "Fifth Floor — Connector 4"
+              },
+              "name": "Fifth Floor — Beast Warren"
+            },
+            "fifth floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, dark between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fifth Floor — Social Hall",
+                "north": "Fifth Floor — Entry Landing"
+              },
+              "name": "Fifth Floor — Connector 1"
+            },
+            "fifth floor — connector 2": {
+              "annotations": {},
+              "description": "A landing of cold iron sconces and dust.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fifth Floor — Key Room",
+                "north": "Fifth Floor — Social Hall"
+              },
+              "name": "Fifth Floor — Connector 2"
+            },
+            "fifth floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor that doubles back on itself.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fifth Floor — Trap Hall",
+                "north": "Fifth Floor — Key Room"
+              },
+              "name": "Fifth Floor — Connector 3"
+            },
+            "fifth floor — connector 4": {
+              "annotations": {},
+              "description": "A cramped turn with a shelf of rotted paper.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fifth Floor — Beast Warren",
+                "north": "Fifth Floor — Trap Hall"
+              },
+              "name": "Fifth Floor — Connector 4"
+            },
+            "fifth floor — connector 5": {
+              "annotations": {},
+              "description": "A short bridge over a shaft deeper than the candle can say.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fifth Floor — Wax Refill",
+                "north": "Fifth Floor — Beast Warren"
+              },
+              "name": "Fifth Floor — Connector 5"
+            },
+            "fifth floor — entry landing": {
+              "annotations": {},
+              "description": "LUST — the stair arrives behind a heavy velvet curtain, into air that smells of perfume and old smoke.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fifth Floor — Connector 1",
+                "up": "Sixth Floor — Grand Stair"
+              },
+              "name": "Fifth Floor — Entry Landing"
+            },
+            "fifth floor — grand stair": {
+              "annotations": {},
+              "description": "A stair hung with velvet that swallows the sound of your steps.",
+              "doorRefs": {
+                "down": "Fifth Floor Stair Door"
+              },
+              "exits": {
+                "down": "Fourth Floor — Entry Landing",
+                "north": "Fifth Floor — Wax Refill"
+              },
+              "name": "Fifth Floor — Grand Stair"
+            },
+            "fifth floor — key room": {
+              "annotations": {},
+              "description": "The Boudoir — the floor's key lies on a silk pillow between two cups of wine, one already poured.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fifth Floor — Connector 3",
+                "west": "Fifth Floor — Connector 2"
+              },
+              "name": "Fifth Floor — Key Room"
+            },
+            "fifth floor — social hall": {
+              "annotations": {},
+              "description": "The Velvet Salon. Leather and lamplight, deep chairs, a gramophone that plays with no one winding it. Ilona the bitten keeps the salon, carrying a candle she never lights; she sells the way for a price, and does not flee the dark.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fifth Floor — Connector 2",
+                "west": "Fifth Floor — Connector 1"
+              },
+              "name": "Fifth Floor — Social Hall"
+            },
+            "fifth floor — trap hall": {
+              "annotations": {},
+              "description": "The Crimson Bed — a trap of silk and teeth. Read the tangle of the sheets before you lie down in them.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fifth Floor — Connector 4",
+                "west": "Fifth Floor — Connector 3"
+              },
+              "name": "Fifth Floor — Trap Hall"
+            },
+            "fifth floor — wax refill": {
+              "annotations": {},
+              "description": "The Scented Bath — wax pools warm as if someone just left it.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fifth Floor — Grand Stair",
+                "west": "Fifth Floor — Connector 5"
+              },
+              "name": "Fifth Floor — Wax Refill"
+            },
+            "first floor — antechamber": {
+              "annotations": {},
+              "description": "The Court of Wrath. Dust, a dead lantern, an ancestral portrait whose eyes track the flame. On the far wall the exit door: heavy, iron-bound, locked. The only way out.",
+              "doorRefs": {
+                "out": "The Exit Door"
+              },
+              "exits": {
+                "north": "First Floor — Connector 6",
+                "out": "Beyond the Threshold"
+              },
+              "name": "First Floor — Antechamber"
+            },
+            "first floor — beast warren": {
+              "annotations": {},
+              "description": "The Last Muster — every creature the tower holds gathers thickest here, near the exit.",
+              "doorRefs": {},
+              "exits": {
+                "south": "First Floor — Connector 5",
+                "west": "First Floor — Connector 4"
+              },
+              "name": "First Floor — Beast Warren"
+            },
+            "first floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, dark between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "First Floor — Key Room",
+                "north": "First Floor — Entry Landing"
+              },
+              "name": "First Floor — Connector 1"
+            },
+            "first floor — connector 2": {
+              "annotations": {},
+              "description": "A landing of cold iron sconces and settled dust.",
+              "doorRefs": {},
+              "exits": {
+                "east": "First Floor — Wax Refill",
+                "north": "First Floor — Key Room"
+              },
+              "name": "First Floor — Connector 2"
+            },
+            "first floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor lit by no sconce at all.",
+              "doorRefs": {},
+              "exits": {
+                "east": "First Floor — Trap Hall",
+                "north": "First Floor — Wax Refill"
+              },
+              "name": "First Floor — Connector 3"
+            },
+            "first floor — connector 4": {
+              "annotations": {},
+              "description": "A cramped turn of passage, ceiling too near.",
+              "doorRefs": {},
+              "exits": {
+                "east": "First Floor — Beast Warren",
+                "north": "First Floor — Trap Hall"
+              },
+              "name": "First Floor — Connector 4"
+            },
+            "first floor — connector 5": {
+              "annotations": {},
+              "description": "An alcove with a scratched warning low on the stone.",
+              "doorRefs": {},
+              "exits": {
+                "east": "First Floor — Connector 6",
+                "north": "First Floor — Beast Warren"
+              },
+              "name": "First Floor — Connector 5"
+            },
+            "first floor — connector 6": {
+              "annotations": {},
+              "description": "A short bridge of stone over a shaft that drops into the dark below.",
+              "doorRefs": {},
+              "exits": {
+                "south": "First Floor — Antechamber",
+                "west": "First Floor — Connector 5"
+              },
+              "name": "First Floor — Connector 6"
+            },
+            "first floor — entry landing": {
+              "annotations": {},
+              "description": "WRATH — the last floor. The stair arrives at the bottom of the tower into cold air and old violence.",
+              "doorRefs": {},
+              "exits": {
+                "south": "First Floor — Connector 1",
+                "up": "Second Floor — Grand Stair"
+              },
+              "name": "First Floor — Entry Landing"
+            },
+            "first floor — key room": {
+              "annotations": {},
+              "description": "The Armory — the ground-floor key lies among broken weapons, all of them pointed at the door.",
+              "doorRefs": {},
+              "exits": {
+                "south": "First Floor — Connector 2",
+                "west": "First Floor — Connector 1"
+              },
+              "name": "First Floor — Key Room"
+            },
+            "first floor — trap hall": {
+              "annotations": {},
+              "description": "The Collapsing Court — a trap of a floor cracked by old ruin. Read the fault lines before you commit.",
+              "doorRefs": {},
+              "exits": {
+                "south": "First Floor — Connector 4",
+                "west": "First Floor — Connector 3"
+              },
+              "name": "First Floor — Trap Hall"
+            },
+            "first floor — wax refill": {
+              "annotations": {},
+              "description": "The Wrath Vat — wax pooled and hardened over old burns.",
+              "doorRefs": {},
+              "exits": {
+                "south": "First Floor — Connector 3",
+                "west": "First Floor — Connector 2"
+              },
+              "name": "First Floor — Wax Refill"
+            },
+            "fourth floor — beast warren": {
+              "annotations": {},
+              "description": "The Wolf Pens — wolves stalk the cages they were freed from, envying the pack on the other side of the bars.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fourth Floor — Connector 5",
+                "west": "Fourth Floor — Connector 4"
+              },
+              "name": "Fourth Floor — Beast Warren"
+            },
+            "fourth floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, dark between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fourth Floor — Social Hall",
+                "north": "Fourth Floor — Entry Landing"
+              },
+              "name": "Fourth Floor — Connector 1"
+            },
+            "fourth floor — connector 2": {
+              "annotations": {},
+              "description": "A landing with a scorched mark where a candle died.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fourth Floor — Key Room",
+                "north": "Fourth Floor — Social Hall"
+              },
+              "name": "Fourth Floor — Connector 2"
+            },
+            "fourth floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor lit by no sconce at all.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fourth Floor — Trap Hall",
+                "north": "Fourth Floor — Key Room"
+              },
+              "name": "Fourth Floor — Connector 3"
+            },
+            "fourth floor — connector 4": {
+              "annotations": {},
+              "description": "A cramped turn of passage, ceiling too near.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fourth Floor — Beast Warren",
+                "north": "Fourth Floor — Trap Hall"
+              },
+              "name": "Fourth Floor — Connector 4"
+            },
+            "fourth floor — connector 5": {
+              "annotations": {},
+              "description": "An alcove with a scratched warning low on the stone.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Fourth Floor — Wax Refill",
+                "north": "Fourth Floor — Beast Warren"
+              },
+              "name": "Fourth Floor — Connector 5"
+            },
+            "fourth floor — entry landing": {
+              "annotations": {},
+              "description": "ENVY — the stair arrives among glass, cold metal, and the smell of formaldehyde.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fourth Floor — Connector 1",
+                "up": "Fifth Floor — Grand Stair"
+              },
+              "name": "Fourth Floor — Entry Landing"
+            },
+            "fourth floor — grand stair": {
+              "annotations": {},
+              "description": "A stair of glass treads, each reflecting a room you have not reached.",
+              "doorRefs": {
+                "down": "Fourth Floor Stair Door"
+              },
+              "exits": {
+                "down": "Third Floor — Entry Landing",
+                "north": "Fourth Floor — Wax Refill"
+              },
+              "name": "Fourth Floor — Grand Stair"
+            },
+            "fourth floor — key room": {
+              "annotations": {},
+              "description": "The Specimen Cabinet — the floor's key rests in a jar of cloudy fluid among the others.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fourth Floor — Connector 3",
+                "west": "Fourth Floor — Connector 2"
+              },
+              "name": "Fourth Floor — Key Room"
+            },
+            "fourth floor — social hall": {
+              "annotations": {},
+              "description": "The Laboratory. Vitrines of specimens, a chalkboard of failed experiments. Sister Marta the archivist reads the room's contradictions aloud, coveting the wholeness the tower will not give her; she trades knowledge, never light.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fourth Floor — Connector 2",
+                "west": "Fourth Floor — Connector 1"
+              },
+              "name": "Fourth Floor — Social Hall"
+            },
+            "fourth floor — trap hall": {
+              "annotations": {},
+              "description": "The Vitrine — a trap of glass and acid. Read the cracks in the case before you lean on it.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fourth Floor — Connector 4",
+                "west": "Fourth Floor — Connector 3"
+              },
+              "name": "Fourth Floor — Trap Hall"
+            },
+            "fourth floor — wax refill": {
+              "annotations": {},
+              "description": "The Distillery — wax rendered in copper stills, drip by drip.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Fourth Floor — Grand Stair",
+                "west": "Fourth Floor — Connector 5"
+              },
+              "name": "Fourth Floor — Wax Refill"
+            },
+            "second floor — beast warren": {
+              "annotations": {},
+              "description": "The Drowse — a light-eater waits half-asleep in the starved dark, seeking the flame.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Second Floor — Connector 5",
+                "west": "Second Floor — Connector 4"
+              },
+              "name": "Second Floor — Beast Warren"
+            },
+            "second floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, dark between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Second Floor — Social Hall",
+                "north": "Second Floor — Entry Landing"
+              },
+              "name": "Second Floor — Connector 1"
+            },
+            "second floor — connector 2": {
+              "annotations": {},
+              "description": "A landing with a dead lantern someone left behind.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Second Floor — Key Room",
+                "north": "Second Floor — Social Hall"
+              },
+              "name": "Second Floor — Connector 2"
+            },
+            "second floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor lit by no sconce at all.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Second Floor — Trap Hall",
+                "north": "Second Floor — Key Room"
+              },
+              "name": "Second Floor — Connector 3"
+            },
+            "second floor — connector 4": {
+              "annotations": {},
+              "description": "A cramped turn with a shelf of rotted paper.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Second Floor — Beast Warren",
+                "north": "Second Floor — Trap Hall"
+              },
+              "name": "Second Floor — Connector 4"
+            },
+            "second floor — connector 5": {
+              "annotations": {},
+              "description": "An alcove where a torn page lies where someone dropped it.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Second Floor — Wax Refill",
+                "north": "Second Floor — Beast Warren"
+              },
+              "name": "Second Floor — Connector 5"
+            },
+            "second floor — entry landing": {
+              "annotations": {},
+              "description": "SLOTH — the stair arrives into dust deep enough to hush it.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Second Floor — Connector 1",
+                "up": "Third Floor — Grand Stair"
+              },
+              "name": "Second Floor — Entry Landing"
+            },
+            "second floor — grand stair": {
+              "annotations": {},
+              "description": "A slow stair, each step deeper in dust than the last.",
+              "doorRefs": {
+                "down": "Second Floor Stair Door"
+              },
+              "exits": {
+                "down": "First Floor — Entry Landing",
+                "north": "Second Floor — Wax Refill"
+              },
+              "name": "Second Floor — Grand Stair"
+            },
+            "second floor — key room": {
+              "annotations": {},
+              "description": "The Coffin Room — the floor's key sits in the dust inside an empty coffin, easy to miss if you do not want to reach in.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Second Floor — Connector 3",
+                "west": "Second Floor — Connector 2"
+              },
+              "name": "Second Floor — Key Room"
+            },
+            "second floor — social hall": {
+              "annotations": {},
+              "description": "The Torpid Hall. Coffins stand open, cobwebbed, the air too thick to hurry through. Petr the innocent waits here and will not leave you, which is exactly what costs you time.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Second Floor — Connector 2",
+                "west": "Second Floor — Connector 1"
+              },
+              "name": "Second Floor — Social Hall"
+            },
+            "second floor — trap hall": {
+              "annotations": {},
+              "description": "The Sinking Bed — a trap of softness. Read where the dust dips before you step.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Second Floor — Connector 4",
+                "west": "Second Floor — Connector 3"
+              },
+              "name": "Second Floor — Trap Hall"
+            },
+            "second floor — wax refill": {
+              "annotations": {},
+              "description": "The Dust Garden — wax pooled under years of settled dust, undisturbed.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Second Floor — Grand Stair",
+                "west": "Second Floor — Connector 5"
+              },
+              "name": "Second Floor — Wax Refill"
+            },
+            "seventh floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, the dark absolute between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Seventh Floor — Wax Cache",
+                "north": "Seventh Floor — Spire"
+              },
+              "name": "Seventh Floor — Connector 1"
+            },
+            "seventh floor — connector 2": {
+              "annotations": {},
+              "description": "A dead end with a settled drift of dust and a cold draft from somewhere.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Seventh Floor — Teaching Nest",
+                "north": "Seventh Floor — Wax Cache"
+              },
+              "name": "Seventh Floor — Connector 2"
+            },
+            "seventh floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor that doubles back on itself if you lose count of the sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Seventh Floor — Connector 4",
+                "north": "Seventh Floor — Teaching Nest"
+              },
+              "name": "Seventh Floor — Connector 3"
+            },
+            "seventh floor — connector 4": {
+              "annotations": {},
+              "description": "A landing with a scorched mark on the floor where someone else's candle died.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Seventh Floor — Connector 5",
+                "west": "Seventh Floor — Connector 3"
+              },
+              "name": "Seventh Floor — Connector 4"
+            },
+            "seventh floor — connector 5": {
+              "annotations": {},
+              "description": "A cramped turn of passage, stone slick with damp, the ceiling too near.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Seventh Floor — Connector 6",
+                "north": "Seventh Floor — Connector 4"
+              },
+              "name": "Seventh Floor — Connector 5"
+            },
+            "seventh floor — connector 6": {
+              "annotations": {},
+              "description": "An alcove of empty iron sconces, all cold, all long dark.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Seventh Floor — Connector 7",
+                "west": "Seventh Floor — Connector 5"
+              },
+              "name": "Seventh Floor — Connector 6"
+            },
+            "seventh floor — connector 7": {
+              "annotations": {},
+              "description": "A shattered window-slit opening on black sky that is not sky.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Seventh Floor — Connector 8",
+                "north": "Seventh Floor — Connector 6"
+              },
+              "name": "Seventh Floor — Connector 7"
+            },
+            "seventh floor — connector 8": {
+              "annotations": {},
+              "description": "A short bridge of stone over a shaft that drops further than the candle can say.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Seventh Floor — Grand Stair",
+                "west": "Seventh Floor — Connector 7"
+              },
+              "name": "Seventh Floor — Connector 8"
+            },
+            "seventh floor — grand stair": {
+              "annotations": {},
+              "description": "A grand marble descent built for the pleasure of being watched walking down it.",
+              "doorRefs": {
+                "down": "Seventh Floor Stair Door"
+              },
+              "exits": {
+                "down": "Sixth Floor — Entry Landing",
+                "north": "Seventh Floor — Connector 8"
+              },
+              "name": "Seventh Floor — Grand Stair"
+            },
+            "seventh floor — spire": {
+              "annotations": {},
+              "description": "PRIDE — the top of the tower. Orlok's monument to himself: walls ranked with portraits of the Count through the ages, each painted eye tracking the candle. The mirror above the sconce shows the room and not him. He has outlived every hand that painted him.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Seventh Floor — Connector 1"
+              },
+              "name": "Seventh Floor — Spire"
+            },
+            "seventh floor — teaching nest": {
+              "annotations": {},
+              "description": "An aviary of empty gilded cages where bats cluster — pride's pets, starved of an audience.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Seventh Floor — Connector 3",
+                "west": "Seventh Floor — Connector 2"
+              },
+              "name": "Seventh Floor — Teaching Nest"
+            },
+            "seventh floor — wax cache": {
+              "annotations": {},
+              "description": "Pride's vanity: a gilded candelabrum niche, wax worked into filigree — light spent to be seen.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Seventh Floor — Connector 2",
+                "west": "Seventh Floor — Connector 1"
+              },
+              "name": "Seventh Floor — Wax Cache"
+            },
+            "sixth floor — beast warren": {
+              "annotations": {},
+              "description": "The Rats' Hoard — rats gnaw through coin and matches alike; they are richer than you.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Sixth Floor — Connector 5",
+                "west": "Sixth Floor — Connector 4"
+              },
+              "name": "Sixth Floor — Beast Warren"
+            },
+            "sixth floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, dark between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Sixth Floor — Social Hall",
+                "north": "Sixth Floor — Entry Landing"
+              },
+              "name": "Sixth Floor — Connector 1"
+            },
+            "sixth floor — connector 2": {
+              "annotations": {},
+              "description": "A landing with a dead lantern someone left behind, wick long cold.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Sixth Floor — Key Room",
+                "north": "Sixth Floor — Social Hall"
+              },
+              "name": "Sixth Floor — Connector 2"
+            },
+            "sixth floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor that doubles back, lit by no sconce at all.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Sixth Floor — Trap Hall",
+                "north": "Sixth Floor — Key Room"
+              },
+              "name": "Sixth Floor — Connector 3"
+            },
+            "sixth floor — connector 4": {
+              "annotations": {},
+              "description": "A cramped turn of passage with a scratched warning low on the stone.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Sixth Floor — Beast Warren",
+                "north": "Sixth Floor — Trap Hall"
+              },
+              "name": "Sixth Floor — Connector 4"
+            },
+            "sixth floor — connector 5": {
+              "annotations": {},
+              "description": "An alcove where a torn page lies where someone dropped it and did not come back for it.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Sixth Floor — Wax Refill",
+                "north": "Sixth Floor — Beast Warren"
+              },
+              "name": "Sixth Floor — Connector 5"
+            },
+            "sixth floor — entry landing": {
+              "annotations": {},
+              "description": "GREED — the first social floor. The stair arrives among strongboxes stacked to the ceiling and coffins packed with foreign earth and coin.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Sixth Floor — Connector 1",
+                "up": "Seventh Floor — Grand Stair"
+              },
+              "name": "Sixth Floor — Entry Landing"
+            },
+            "sixth floor — grand stair": {
+              "annotations": {},
+              "description": "The Ledger Stair, its steps inlaid with coins that ring underfoot.",
+              "doorRefs": {
+                "down": "Sixth Floor Stair Door"
+              },
+              "exits": {
+                "down": "Fifth Floor — Entry Landing",
+                "north": "Sixth Floor — Wax Refill"
+              },
+              "name": "Sixth Floor — Grand Stair"
+            },
+            "sixth floor — key room": {
+              "annotations": {},
+              "description": "The Coin Vault — the floor's key lies in a nest of stolen gold. Touch nothing you cannot carry.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Sixth Floor — Connector 3",
+                "west": "Sixth Floor — Connector 2"
+              },
+              "name": "Sixth Floor — Key Room"
+            },
+            "sixth floor — social hall": {
+              "annotations": {},
+              "description": "The Counting House. Nadja the tomb-robber works the ledgers by candlelight, weighing what you carry before she says hello.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Sixth Floor — Connector 2",
+                "west": "Sixth Floor — Connector 1"
+              },
+              "name": "Sixth Floor — Social Hall"
+            },
+            "sixth floor — trap hall": {
+              "annotations": {},
+              "description": "The Weighted Floor — gold piled so high the floor gives way. Greed's collapse.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Sixth Floor — Connector 4",
+                "west": "Sixth Floor — Connector 3"
+              },
+              "name": "Sixth Floor — Trap Hall"
+            },
+            "sixth floor — wax refill": {
+              "annotations": {},
+              "description": "A reliquary of consecrated hoard; the wax pooled here is old, and worth more than mercy.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Sixth Floor — Grand Stair",
+                "west": "Sixth Floor — Connector 5"
+              },
+              "name": "Sixth Floor — Wax Refill"
+            },
+            "third floor — beast warren": {
+              "annotations": {},
+              "description": "The Feeding Pens — shades drift through the walls and drain the candle while they stand inside it.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Third Floor — Connector 5",
+                "west": "Third Floor — Connector 4"
+              },
+              "name": "Third Floor — Beast Warren"
+            },
+            "third floor — connector 1": {
+              "annotations": {},
+              "description": "A bare passage warped at Expressionist angles, dark between sconces.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Third Floor — Social Hall",
+                "north": "Third Floor — Entry Landing"
+              },
+              "name": "Third Floor — Connector 1"
+            },
+            "third floor — connector 2": {
+              "annotations": {},
+              "description": "A landing of empty iron sconces, all cold.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Third Floor — Key Room",
+                "north": "Third Floor — Social Hall"
+              },
+              "name": "Third Floor — Connector 2"
+            },
+            "third floor — connector 3": {
+              "annotations": {},
+              "description": "A looping corridor that doubles back on itself.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Third Floor — Trap Hall",
+                "north": "Third Floor — Key Room"
+              },
+              "name": "Third Floor — Connector 3"
+            },
+            "third floor — connector 4": {
+              "annotations": {},
+              "description": "A cramped turn of passage, stone slick with damp.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Third Floor — Beast Warren",
+                "north": "Third Floor — Trap Hall"
+              },
+              "name": "Third Floor — Connector 4"
+            },
+            "third floor — connector 5": {
+              "annotations": {},
+              "description": "A short bridge over a shaft deeper than the candle can say.",
+              "doorRefs": {},
+              "exits": {
+                "east": "Third Floor — Wax Refill",
+                "north": "Third Floor — Beast Warren"
+              },
+              "name": "Third Floor — Connector 5"
+            },
+            "third floor — entry landing": {
+              "annotations": {},
+              "description": "GLUTTONY — the stair arrives into the smell of a feast gone over.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Third Floor — Connector 1",
+                "up": "Fourth Floor — Grand Stair"
+              },
+              "name": "Third Floor — Entry Landing"
+            },
+            "third floor — grand stair": {
+              "annotations": {},
+              "description": "A stair so wide it could seat a banquet along it.",
+              "doorRefs": {
+                "down": "Third Floor Stair Door"
+              },
+              "exits": {
+                "down": "Second Floor — Entry Landing",
+                "north": "Third Floor — Wax Refill"
+              },
+              "name": "Third Floor — Grand Stair"
+            },
+            "third floor — key room": {
+              "annotations": {},
+              "description": "The Larder — the floor's key hangs from a hook between hanging cuts that no longer smell like meat.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Third Floor — Connector 3",
+                "west": "Third Floor — Connector 2"
+              },
+              "name": "Third Floor — Key Room"
+            },
+            "third floor — social hall": {
+              "annotations": {},
+              "description": "The Feasting Hall. Long tables laid for a dinner that has lasted centuries. Vlask the hoarder keeps his wax cache beneath it like a larder and trades only to win.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Third Floor — Connector 2",
+                "west": "Third Floor — Connector 1"
+              },
+              "name": "Third Floor — Social Hall"
+            },
+            "third floor — trap hall": {
+              "annotations": {},
+              "description": "The Gnawed Table — a trap of bones and a floor that tips. Read the grain of the boards before you set anything down.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Third Floor — Connector 4",
+                "west": "Third Floor — Connector 3"
+              },
+              "name": "Third Floor — Trap Hall"
+            },
+            "third floor — wax refill": {
+              "annotations": {},
+              "description": "The Tallow Vat — wax rendered from something, brimming and still warm.",
+              "doorRefs": {},
+              "exits": {
+                "south": "Third Floor — Grand Stair",
+                "west": "Third Floor — Connector 5"
+              },
+              "name": "Third Floor — Wax Refill"
+            }
+          },
+          "things": {
+            "fifth floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The fifth floor's iron key.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fifth Floor — Key Room",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Fifth Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "fifth floor stair door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The iron door at the head of the stair down to the fourth floor. Locked.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "fifth floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "Fifth Floor — Grand Stair",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "Fifth Floor Stair Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "fifth floor wax": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Pooled wax under a sconce — the fifth floor's guaranteed refill.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fifth Floor — Wax Refill",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Fifth Floor Wax",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "first floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The ground-floor iron key — the bow that opens the exit. The reliable way out, and the only one that is fully your own.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "First Floor — Key Room",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "First Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "first floor wax": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Pooled wax — the first floor's guaranteed refill.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "First Floor — Wax Refill",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "First Floor Wax",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "fourth floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The fourth floor's iron key.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fourth Floor — Key Room",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Fourth Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "fourth floor stair door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The iron door at the head of the stair down to the third floor. Locked.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "fourth floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "Fourth Floor — Grand Stair",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "Fourth Floor Stair Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "fourth floor wax": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Pooled, re-hardened wax — the fourth floor's guaranteed refill.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fourth Floor — Wax Refill",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Fourth Floor Wax",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "matches (fifth)": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Six matches bound with waxed thread.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fifth Floor — Connector 2",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Matches (Fifth)",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "matches (first)": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Six matches bound with waxed thread.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "First Floor — Connector 2",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Matches (First)",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "matches (fourth)": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Six matches bound with waxed thread.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fourth Floor — Connector 2",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Matches (Fourth)",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "matches (second)": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Six matches bound with waxed thread.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Second Floor — Connector 2",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Matches (Second)",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "matches (sixth)": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Six matches bound with waxed thread. A snuff is survivable only while one of these remains.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Sixth Floor — Connector 2",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Matches (Sixth)",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "matches (third)": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Six matches bound with waxed thread.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Third Floor — Connector 2",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Matches (Third)",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the bitten": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page in an archivist's hand.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fifth Floor — Connector 4",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Bitten",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...the bitten one carries a candle she never lights. Ask her why, and she will tell you the price of the way instead. Where there are webs there are spiders; where there is a bite there is a mouth.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the borrowed door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page, scratched over with a warning.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Fourth Floor — Connector 5",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Borrowed Door",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...a survivor who reaches the door first leaves it ajar a little while — longer if they love you, shorter if the tower has turned. Slip out in another's wake and you will not have earned the dark outside.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the count waits": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page, dropped where someone stopped to read it.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Sixth Floor — Connector 5",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Count Waits",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...the Count does not pursue. He waits at the edge of what you can see, and lets your own light bring you to him. The only question the tower asks is how much of your light you will spend — and it never asks twice.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page on a feasting table, under a plate no one has lifted in years.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Third Floor — Connector 1",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...every floor keeps one key, and every key sits in a room built to be safe. The tower is cruel, but it is not unfair. The unfairness is the dark between the rooms.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the last muster": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page near the exit, held down by an old weapon.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "First Floor — Connector 5",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Last Muster",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...he does not guard the door. He has no need. Everything the tower holds gathers at the threshold and waits to see whether your light outlasts your fear.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the torpor": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page in the dust of a coffin room.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Second Floor — Connector 5",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Torpor",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...here the tower sleeps, and it wants you to sleep with it. Sloth is the kindest sin; it asks for nothing but the light you are already spending.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "page — the weather": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A torn page pinned behind a portrait whose eyes no longer follow it.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Seventh Floor — Connector 3",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Page — The Weather",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": "\"...he is the weather now. When you are cruel the sky darkens toward him; when you are kind it eases. You do not summon the storm. You are the storm.\"",
+              "readable": true,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "second floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The second floor's iron key.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Second Floor — Key Room",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Second Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "second floor stair door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The iron door at the head of the stair down to the first floor. Locked.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "second floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "Second Floor — Grand Stair",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "Second Floor Stair Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "second floor wax": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Pooled wax — the second floor's guaranteed refill.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Second Floor — Wax Refill",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Second Floor Wax",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "seventh floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A heavy iron key with a rope-ring bow, cold to the touch. It opens the stair down from the Spire.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Seventh Floor — Spire",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Seventh Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "seventh floor stair door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The iron door at the head of the caged stair down. Locked; the seventh floor's key opens it.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "seventh floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "Seventh Floor — Grand Stair",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "Seventh Floor Stair Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "sixth floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The sixth floor's iron key.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Sixth Floor — Key Room",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Sixth Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "sixth floor stair door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The iron door at the head of the stair down to the fifth floor. Locked.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "sixth floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "Sixth Floor — Grand Stair",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "Sixth Floor Stair Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "sixth floor wax": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Pooled, re-hardened wax under a sconce — the sixth floor's guaranteed refill.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Sixth Floor — Wax Refill",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Sixth Floor Wax",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "the exit door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Heavy, iron-bound, and locked. The only way out. It does not open to the dark, and it does not open to another's passing — only to the key, and to your own light.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "first floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "First Floor — Antechamber",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "The Exit Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "third floor key": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The third floor's iron key.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Third Floor — Key Room",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Third Floor Key",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "third floor stair door": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The iron door at the head of the stair down to the second floor. Locked.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "key": "third floor key",
+              "kind": "door",
+              "lit": false,
+              "location": "Third Floor — Grand Stair",
+              "locationType": "room",
+              "lockable": true,
+              "locked": true,
+              "name": "Third Floor Stair Door",
+              "open": false,
+              "openable": true,
+              "portable": false,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "third floor wax": {
+              "annotations": {},
+              "climbable": false,
+              "description": "Pooled wax — the third floor's guaranteed refill.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Third Floor — Wax Refill",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Third Floor Wax",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "wax stub": {
+              "annotations": {},
+              "climbable": false,
+              "description": "A stub of candle-wax pressed into the stone — the opening's first success, if you reach it in time.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": false,
+              "location": "Seventh Floor — Wax Cache",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Wax Stub",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": false,
+              "switched_on": false,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": false,
+              "worn_by": null
+            },
+            "your candle": {
+              "annotations": {},
+              "climbable": false,
+              "description": "The candle you woke holding. Its flame reaches a few feet and no further. It is the clock, the health, and the map.",
+              "drinkable": false,
+              "edible": false,
+              "enterable": false,
+              "kind": "thing",
+              "lit": true,
+              "location": "Seventh Floor — Spire",
+              "locationType": "room",
+              "lockable": false,
+              "locked": false,
+              "name": "Your Candle",
+              "open": false,
+              "openable": false,
+              "portable": true,
+              "read_text": null,
+              "readable": false,
+              "switchable": true,
+              "switched_on": true,
+              "transparent": false,
+              "vehiclePassengers": [],
+              "wearable": true,
+              "worn_by": null
+            }
+          }
         }
       },
       "timestamp": "2026-10-12T02:06:10.690Z"
@@ -1567,7 +3630,9 @@
       "fifth floor — grand stair": {
         "annotations": {},
         "description": "A stair hung with velvet that swallows the sound of your steps.",
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Fifth Floor Stair Door"
+        },
         "exits": {
           "down": "Fourth Floor — Entry Landing",
           "north": "Fifth Floor — Wax Refill"
@@ -1617,7 +3682,9 @@
       "first floor — antechamber": {
         "annotations": {},
         "description": "The Court of Wrath. Dust, a dead lantern, an ancestral portrait whose eyes track the flame. On the far wall the exit door: heavy, iron-bound, locked. The only way out.",
-        "doorRefs": {},
+        "doorRefs": {
+          "out": "The Exit Door"
+        },
         "exits": {
           "north": "First Floor — Connector 6",
           "out": "Beyond the Threshold"
@@ -1807,7 +3874,9 @@
       "fourth floor — grand stair": {
         "annotations": {},
         "description": "A stair of glass treads, each reflecting a room you have not reached.",
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Fourth Floor Stair Door"
+        },
         "exits": {
           "down": "Third Floor — Entry Landing",
           "north": "Fourth Floor — Wax Refill"
@@ -1927,7 +3996,9 @@
       "second floor — grand stair": {
         "annotations": {},
         "description": "A slow stair, each step deeper in dust than the last.",
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Second Floor Stair Door"
+        },
         "exits": {
           "down": "First Floor — Entry Landing",
           "north": "Second Floor — Wax Refill"
@@ -2057,7 +4128,9 @@
       "seventh floor — grand stair": {
         "annotations": {},
         "description": "A grand marble descent built for the pleasure of being watched walking down it.",
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Seventh Floor Stair Door"
+        },
         "exits": {
           "down": "Sixth Floor — Entry Landing",
           "north": "Seventh Floor — Connector 8"
@@ -2166,7 +4239,9 @@
       "sixth floor — grand stair": {
         "annotations": {},
         "description": "The Ledger Stair, its steps inlaid with coins that ring underfoot.",
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Sixth Floor Stair Door"
+        },
         "exits": {
           "down": "Fifth Floor — Entry Landing",
           "north": "Sixth Floor — Wax Refill"
@@ -2286,7 +4361,9 @@
       "third floor — grand stair": {
         "annotations": {},
         "description": "A stair so wide it could seat a banquet along it.",
-        "doorRefs": {},
+        "doorRefs": {
+          "down": "Third Floor Stair Door"
+        },
         "exits": {
           "down": "Second Floor — Entry Landing",
           "north": "Third Floor — Wax Refill"
@@ -3246,7 +5323,7 @@
         "read_text": null,
         "readable": false,
         "switchable": true,
-        "switched_on": false,
+        "switched_on": true,
         "transparent": false,
         "vehiclePassengers": [],
         "wearable": true,

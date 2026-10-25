@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-10-24 — Torre Nosferatu content fixes
+
+- Wired the starter Novel's locked doors: the six Grand Stair `down` exits and
+  the ground-floor `out` exit now carry `doorRefs`, so the parser blocks
+  descent and escape until the matching floor key unlocks and opens the door.
+  (REQ-565)
+- The opening `present_choices` snapshot is now derived from the authored
+  state at emit time, so `respond_decision (option: cancel)` and staleness
+  auto-cancel restore the world and active entity instead of wiping all 85
+  rooms. The source no longer embeds a stale snapshot. (REQ-565)
+- The starting Spire is lit (`Your Candle.switched_on`), the active PC is in
+  `characters_present_ids`, and `test:starter-novel` adds regression guards for
+  lock binding, snapshot validity, cancel survival, presence, and candle
+  visibility. (REQ-565, REQ-566)
+
 ## 2026-10-24 — Two-week audit remediation and dimension closeout
 
 - Export integrity uses one canonical hash. `integrity.state_hash` is the

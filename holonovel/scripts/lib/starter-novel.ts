@@ -6,6 +6,11 @@
 // sorted keys so emission is byte-deterministic. The build tool and the
 // freshness gate both import this so emit and compare stay one implementation.
 //
+// It also derives the opening workflow snapshot from the source state: a
+// workflow cancel (or staleness auto-cancel) restores the authored world and
+// active entity instead of a stale, empty snapshot. The derivation is
+// deterministic and matches novelToSnapshotJSON (no undo/redo stacks).
+//
 // REQ-566.
 
 import { readFileSync } from "node:fs";
@@ -32,9 +37,24 @@ export function serverVersion(serverDir: string): string {
   return JSON.parse(readFileSync(join(serverDir, "package.json"), "utf-8")).version;
 }
 
+function deriveOpeningSnapshot(source: Record<string, unknown>): void {
+  const pending = source.pending_workflow as { snapshot?: { state?: unknown } } | undefined;
+  const snapshot = pending?.snapshot;
+  if (!snapshot) return;
+  const state = JSON.parse(JSON.stringify(source)) as Record<string, unknown>;
+  delete state._checksum;
+  delete state.data_format;
+  delete state.spec_version;
+  delete state.undo_stacks;
+  delete state.redo_stacks;
+  state.pending_workflow = null;
+  snapshot.state = state;
+}
+
 export function buildStarterArtifact(serverDir: string): string {
   const source = JSON.parse(readFileSync(join(serverDir, SOURCE_REL), "utf-8")) as Record<string, unknown>;
   delete source._checksum;
+  deriveOpeningSnapshot(source);
   source.data_format = DATA_FORMAT;
   source.spec_version = serverVersion(serverDir);
   return JSON.stringify(sortKeys(source), null, 2) + "\n";
