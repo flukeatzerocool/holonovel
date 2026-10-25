@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-24 — Wiki pipeline reorganization and tool-surface count fix
+
+- The wiki is reorganized around the major things a user does with the server —
+  Convert, Build, Synthesis, Update, Codex, Novel, GM notes in a Novel, and
+  Playing a Novel. The two-part TTRPG walkthrough is retired; its Convert steps
+  became the standalone Converting Rulebooks page, and its session-zero material
+  moved to Game Mastering.
+- The Zed article is now a GM-notes guide: keeping campaign notes as Markdown,
+  researching material, synthesizing scenes through the Holonovel MCP server, and
+  loading the result into a Novel. The spec-driven-development material is gone.
+- The server-surface parser now accepts the "host prompts" wording in
+  `holonovel/AGENTS.md`, so the `@spec` markers publish the real 36 tools,
+  40 resources, and 6 prompts in the README and wiki instead of zeros.
+
 ## 2026-10-24 — Torre Nosferatu content fixes
 
 - Wired the starter Novel's locked doors: the six Grand Stair `down` exits and
