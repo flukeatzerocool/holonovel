@@ -40,6 +40,10 @@ export interface IdentityState {
   character_id: string;
   candidates: IdentityCandidate[];
   facets: IdentityFacet[];
+  // Displaced accepted facets, newest last. Used only by revert; list and
+  // snapshot report current facets. Optional for records written before REQ-478
+  // reversibility.
+  history?: IdentityFacet[];
   version: number;
 }
 
@@ -57,7 +61,7 @@ export interface CompiledIdentityKernel {
 export const IDENTITY_COMPILER_VERSION = "2026.09.24";
 
 export function emptyIdentity(characterId: string): IdentityState {
-  return { character_id: characterId, candidates: [], facets: [], version: 0 };
+  return { character_id: characterId, candidates: [], facets: [], history: [], version: 0 };
 }
 
 // REQ-479 — character-card bootstrap stages candidates but excludes the
@@ -116,16 +120,48 @@ export function nextCandidateId(state: IdentityState): string {
 // REQ-477 — identity is the only writer of identity. Applying an accepted
 // candidate is the single mutation path; nothing else calls this.
 export function applyFacet(state: IdentityState, candidate: IdentityCandidate, perspective: IdentityPerspective, at: string): void {
-  const prior = state.facets.filter((f) => f.facet === candidate.facet);
+  const prior = state.facets
+    .filter((f) => f.facet === candidate.facet)
+    .sort((a, b) => b.revision - a.revision)[0];
+  if (prior) {
+    state.history = state.history ?? [];
+    state.history.push({ ...prior });
+  }
+  const history = state.history ?? [];
+  const maxRevision = Math.max(
+    0,
+    ...state.facets.filter((f) => f.facet === candidate.facet).map((f) => f.revision),
+    ...history.filter((f) => f.facet === candidate.facet).map((f) => f.revision),
+  );
   state.facets = state.facets.filter((f) => f.facet !== candidate.facet);
   state.facets.push({
     facet: candidate.facet,
     value: candidate.value,
     stability: candidate.stability,
     perspective,
-    revision: prior.length + 1,
+    revision: maxRevision + 1,
     source: candidate.source,
     accepted_at: at,
   });
   state.version += 1;
+}
+
+// REQ-478 — compensate the most recent accepted replacement by re-applying the
+// displaced facet through applyFacet. The prior value is retained only for
+// this path; list and snapshot report current facets.
+export function revertFacet(state: IdentityState, at: string): IdentityFacet | null {
+  const prior = (state.history ?? []).pop();
+  if (!prior) return null;
+  const candidate: IdentityCandidate = {
+    id: `revert-${prior.facet}-${prior.revision}`,
+    facet: prior.facet,
+    value: prior.value,
+    stability: prior.stability,
+    perspective: prior.perspective,
+    source: prior.source,
+    status: "accepted",
+    proposed_at: at,
+  };
+  applyFacet(state, candidate, prior.perspective, at);
+  return state.facets.find((f) => f.facet === prior.facet) ?? null;
 }

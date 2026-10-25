@@ -1,0 +1,499 @@
+{
+  "schema_version": 1,
+  "description": "External TDQS captures for the Holonovel server. Recorded from the public Glama score card; the externally graded score is authoritative and the deterministic proxy is not published as this score (REQ-552).",
+  "captures": [
+    {
+      "captured_at": "2026-10-25T16:45:00-04:00",
+      "captured_by": "flukeatzerocool",
+      "source": "https://glama.ai/mcp/servers/flukeatzerocool/holonovel",
+      "server": "flukeatzerocool/holonovel",
+      "tool_count": 36,
+      "overall": 4.1,
+      "tier": "A",
+      "description_quality": 4.5,
+      "coherence": 3.3,
+      "dimensions": {
+        "disambiguation": 3,
+        "naming_consistency": 4,
+        "tool_count_appropriateness": 2,
+        "completeness": 4
+      },
+      "justifications": {
+        "disambiguation": "The descriptions are extraordinarily defensive, with explicit 'Use when / Do NOT use when' cross-references on nearly every tool \u2014 a strong signal that boundaries are genuinely fuzzy. Near-neighbors abound (manage_lore vs manage_note vs manage_corpus vs manage_belief, manage_countdown vs manage_vow, manage_staging vs manage_scene, open_session/close_session/take_turn/set_badge), though the routing hints do provide a workable disambiguation path.",
+        "naming_consistency": "The dominant convention is manage_<noun> across ~20 tools, with a secondary verb-first set (set_badge, respond_decision, run_command, open_session, close_session, take_turn, resolve_mechanic) that is still predictable verb_noun form. The two families are discernible (resource CRUD vs. lifecycle actions), so minor blending but no chaos.",
+        "tool_count_appropriateness": "36 tools far exceeds a comfortable surface for one server, and several are multi-action multiplexers (manage_diagnostics, manage_ruleset, manage_synthesis, manage_corpus, manage_archive) that each bundle 8-10 operations. The breadth also spills across genuinely separate concerns \u2014 play, archives, codex, rulesets, diagnostics \u2014 making discovery and selection costly.",
+        "completeness": "The surface is remarkably thorough: world model, PCs/NPCs, factions, lore, story journal, conditions, combat, vows, clocks, beliefs, causality, corpus, rulesets, synthesis, archive/checkpoints, session lifecycle, and diagnostics are all covered with undo semantics. Only minor gaps exist, such as idempotent reversal for character/identity/vow mutations, which agents must work around by re-issuing state."
+      },
+      "tools": [
+        {
+          "name": "close_session",
+          "tdqs": 4.6,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_adventure",
+          "tdqs": 4.7,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_agent",
+          "tdqs": 4.7,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_archive",
+          "tdqs": 4.3,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_belief",
+          "tdqs": 4.6,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_causality",
+          "tdqs": 4.7,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_character",
+          "tdqs": 4.9,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_codex",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_combat",
+          "tdqs": 4.9,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_condition",
+          "tdqs": 4.9,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_corpus",
+          "tdqs": 4.3,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_countdown",
+          "tdqs": 4.6,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_diagnostics",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_faction",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_history",
+          "tdqs": 4.9,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_identity",
+          "tdqs": 4.7,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_knowledge",
+          "tdqs": 4.6,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_lore",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_note",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_novel",
+          "tdqs": 4.4,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 3
+          }
+        },
+        {
+          "name": "manage_npc",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_relationship",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_ruleset",
+          "tdqs": 4.9,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_scene",
+          "tdqs": 4.6,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_session",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_staging",
+          "tdqs": 4.3,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "manage_story",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_synthesis",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_vow",
+          "tdqs": 4.8,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "manage_world",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "open_session",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 3,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "resolve_mechanic",
+          "tdqs": 4.7,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "respond_decision",
+          "tdqs": 4.9,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 4,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "run_command",
+          "tdqs": 4.3,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 4,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 4
+          }
+        },
+        {
+          "name": "set_badge",
+          "tdqs": 4.6,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 5,
+            "parameter_semantics": 3,
+            "conciseness_structure": 4,
+            "contextual_completeness": 5
+          }
+        },
+        {
+          "name": "take_turn",
+          "tdqs": 4.5,
+          "tier": "A",
+          "dimensions": {
+            "purpose_clarity": 5,
+            "usage_guidelines": 5,
+            "behavioral_transparency": 4,
+            "parameter_semantics": 3,
+            "conciseness_structure": 5,
+            "contextual_completeness": 5
+          }
+        }
+      ]
+    }
+  ]
+}

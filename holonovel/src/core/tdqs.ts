@@ -307,20 +307,26 @@ export function dimensionProxies(def: ToolDefinition, signals: ContextSignals, s
 
   const paramCount = signals.paramCount;
   const coverage = signals.schemaDescriptionCoverage;
+  const interactionClause = /\b(interacts?|conflicts? with|requires .* when|only when|together with|precedence|wins|overrides?|falls back)\b/i.test(desc);
   let parameters: number;
   if (paramCount === 0) parameters = 5;
-  else if (coverage >= 100) parameters = 5;
+  else if (coverage >= 100) parameters = interactionClause ? 5 : 4;
   else if (coverage >= 80) parameters = 4;
   else if (coverage >= 50) parameters = 3;
   else parameters = 2;
-  if (parameters < 5 && paramCount > 0 && /\b(interacts?|conflicts? with|requires .* when|only when|together with)\b/i.test(desc)) {
+  if (parameters < 5 && paramCount > 0 && interactionClause) {
     parameters = clamp(parameters + 1);
   }
 
   const bytes = signals.descriptionBytes;
   const conciseness = clamp(desc.length >= 30 && bytes <= budget ? 5 : bytes <= budget ? 4 : 3);
 
-  const completeness = signals.hasOutputSchema && signals.paramsWithDescriptions === paramCount ? 5 : signals.hasOutputSchema ? 4 : 3;
+  let completeness = signals.hasOutputSchema && signals.paramsWithDescriptions === paramCount ? 5 : signals.hasOutputSchema ? 4 : 3;
+  // A declared dead end is below complete unless the description names the
+  // recovery path (revert, restore, re-create, checkpoint, inverse).
+  const irreversible = /\b(?:not reversible|irreversible|permanent|no undo|cannot be undone)\b/i.test(desc);
+  const recovery = /\b(?:re-?create|restore|revert|undo|checkpoint|clone|retry|re-?set|inverse)\b/i.test(desc);
+  if (irreversible && !recovery) completeness = Math.min(completeness, 4);
 
   return {
     purpose_clarity: clamp(purpose),
@@ -358,6 +364,8 @@ export interface CoherenceProxies {
   completeness: number;
   coherence: number;
   overlappingPairs: [string, string][];
+  mutualPairs: [string, string][];
+  unresolvedPairs: [string, string][];
 }
 
 const VERB_ALLOWLIST = ["manage", "resolve", "run", "respond", "set"];
@@ -387,7 +395,7 @@ function toolCountScore(count: number): number {
   return 3;
 }
 
-export function coherenceProxies(defs: ToolDefinition[]): CoherenceProxies {
+export function coherenceProxies(defs: ToolDefinition[], axes?: Record<string, string[]>): CoherenceProxies {
   const names = defs.map((d) => d.name);
   const wellNamed = names.filter((n) => /^[a-z][a-z0-9]*_[a-z0-9_]+$/.test(n) && VERB_ALLOWLIST.includes(n.split("_")[0]!)).length;
   const namingConsistency = names.length === 0 ? 5 : Math.round((wellNamed / names.length) * 4) + 1;
@@ -402,7 +410,26 @@ export function coherenceProxies(defs: ToolDefinition[]): CoherenceProxies {
       if (sim >= 0.5 || (sharedName && sim >= 0.35)) overlappingPairs.push([a.name, b.name]);
     }
   }
-  const disambiguation = overlappingPairs.length === 0 ? 5 : overlappingPairs.length <= 2 ? 4 : 3;
+  const notRefs = new Map(defs.map((d) => {
+    const index = (d.description ?? "").toLowerCase().indexOf("do not use when");
+    const clause = index === -1 ? "" : (d.description ?? "").slice(index);
+    return [d.name, names.filter((n) => n !== d.name && clause.includes(n))];
+  }));
+  const mutualPairs: [string, string][] = [];
+  for (const [name, refs] of notRefs) {
+    for (const other of refs) {
+      if (name < other && (notRefs.get(other) ?? []).includes(name)) mutualPairs.push([name, other]);
+    }
+  }
+  const unresolvedPairs = mutualPairs.filter(([a, b]) =>
+    !(axes?.[a] ?? []).includes(b) && !(axes?.[b] ?? []).includes(a));
+  // Mutual "Do NOT use when" references are the deterministic trace of a
+  // near-neighbour boundary. A recorded axis resolves the gate, but a high
+  // number of mutual references still signals a fuzzy surface, so the proxy
+  // follows the TDQS anchors (4 = one or two could be confused; 3 = some
+  // overlap).
+  const disambiguationScore = overlappingPairs.length + mutualPairs.length;
+  const disambiguation = disambiguationScore === 0 ? 5 : disambiguationScore <= 4 ? 4 : disambiguationScore <= 11 ? 3 : 2;
 
   const complete = defs.filter((d) => {
     const s = computeContextSignals(d);
@@ -412,7 +439,7 @@ export function coherenceProxies(defs: ToolDefinition[]): CoherenceProxies {
 
   const toolCountAppropriateness = toolCountScore(defs.length);
   const coherence = Math.round(((disambiguation + namingConsistency + toolCountAppropriateness + completeness) / 4) * 10) / 10;
-  return { disambiguation, namingConsistency, toolCountAppropriateness, completeness, coherence, overlappingPairs };
+  return { disambiguation, namingConsistency, toolCountAppropriateness, completeness, coherence, overlappingPairs, mutualPairs, unresolvedPairs };
 }
 
 export interface ShadowCandidate {
@@ -472,7 +499,7 @@ export interface ConformanceReport {
   shadowingRisks: ShadowCandidate[];
 }
 
-export function conformanceReport(defs: ToolDefinition[], budget = DESCRIPTION_BUDGET_FALLBACK): ConformanceReport {
+export function conformanceReport(defs: ToolDefinition[], budget = DESCRIPTION_BUDGET_FALLBACK, disambiguation?: Record<string, string[]>): ConformanceReport {
   const siblings = defs.map((d) => d.name);
   const scored = defs.map((d) => scoreTool(d, siblings, budget));
   const mean = scored.length === 0 ? 0 : scored.reduce((s, t) => s + t.tdqs, 0) / scored.length;
@@ -488,7 +515,7 @@ export function conformanceReport(defs: ToolDefinition[], budget = DESCRIPTION_B
     descriptionQualityTier: computeTier(descriptionQuality),
     belowPassing: scored.filter((t) => t.tier > PASSING_TIER).map((t) => t.name),
     hardGateDefects,
-    coherence: coherenceProxies(defs),
+    coherence: coherenceProxies(defs, disambiguation),
     shadowingRisks: shadowCandidates(defs),
   };
 }

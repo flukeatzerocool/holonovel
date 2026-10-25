@@ -653,6 +653,45 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T-new: reversible character and vow mutations (REQ-041, REQ-478) ──
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "undo-t" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const created = await call(proc, "manage_character", { action: "create", name: "Rogue" });
+    const id = created.match(/created as (\S+?)\./)?.[1] ?? created.match(/Entity id (\S+?)\./)?.[1];
+    if (!id) throw new Error("could not parse character id from: " + created.slice(0, 200));
+
+    await test("T-new: character personality mutation is reversible via manage_history", async () => {
+      await call(proc, "manage_character", { action: "personality", entity_id: id, description: "First" });
+      await call(proc, "manage_character", { action: "personality", entity_id: id, description: "Second" });
+      const undone = await call(proc, "manage_history", { action: "undo" });
+      assertContains(undone, "Undo");
+      const sheet = await call(proc, "manage_character", { action: "sheet", entity_id: id, format: "json" });
+      assertContains(sheet, "First");
+      assertNotContains(sheet, "Second");
+    });
+
+    await test("T-new: character removal is reversible via manage_history", async () => {
+      await call(proc, "manage_character", { action: "remove", entity_id: id });
+      const undone = await call(proc, "manage_history", { action: "undo" });
+      assertContains(undone, "Undo");
+      const sheet = await call(proc, "manage_character", { action: "sheet", entity_id: id, format: "json" });
+      assertContains(sheet, "Rogue");
+    });
+
+    await test("T-new: vow resolve is reversible via manage_history", async () => {
+      await call(proc, "manage_vow", { action: "set", name: "Test Vow", difficulty: "troublesome" });
+      await call(proc, "manage_vow", { action: "resolve", vow_name: "Test Vow", outcome: "done" });
+      const undone = await call(proc, "manage_history", { action: "undo" });
+      assertContains(undone, "Undo");
+      const rows = await call(proc, "manage_vow", { action: "list" });
+      assertContains(rows, "\"state\": \"active\"");
+    });
+
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

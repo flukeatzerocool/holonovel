@@ -709,6 +709,22 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
+- **`manage_session` rename — scheduled 2026-10-25:** the external TDQS
+  capture grades naming consistency 4/5 and names the
+  `manage_session`/`open_session`/`close_session` collision
+  (`spec/audit/tdqs-scoreboard.json`, naming justification). Predicate: the
+  three names share the `session` stem while serving lifecycle versus
+  recap/briefing purposes (`holonovel/src/index.ts` tool registrations).
+  Renaming with a hidden alias is deferred from the 2026-10-25 coherence
+  remediation; tracked in ROADMAP.md. (REQ-024a, REQ-554)
+
+- **Compact default tool surface — scheduled 2026-10-25:** the external TDQS
+  capture grades tool-count appropriateness 2/5 at 36 tools
+  (`spec/audit/tdqs-scoreboard.json`, tool-count justification). Predicate:
+  the default `tools/list` exposes all 36 host tools
+  (`holonovel/tool-definitions.json` `surface_footprint.profiles.full`).
+  Deferred as a product decision; tracked in ROADMAP.md. (REQ-429, REQ-554)
+
 - **Location-gated discovery — since-creation absence check (scheduled
   2026-10-24):** `plans/2026-10-24-location-gated-discovery/plan.md` D3 keeps
   the fire-time presence check and defers the full "absent from every scene
