@@ -85,6 +85,7 @@ function checkHeadingOrder(text: string): Issue[] {
     { level: 2, title: "Run a server" },
     { level: 2, title: "How it works" },
     { level: 2, title: "How it compares" },
+    { level: 2, title: "License" },
   ];
 
   let expIdx = 0;
@@ -162,25 +163,29 @@ function checkFeatureLists(text: string): Issue[] {
   const issues: Issue[] = [];
   const lists = extractBulletLists(text);
 
-  // The Table of contents is a bulleted list mandated by the README DESIGN
-  // comment — it is navigation, not a feature list. Exempt its line range.
+  // Two bulleted lists are mandated by the README DESIGN comment and are not
+  // feature lists: the Table of contents (navigation) and the License
+  // attribution list (sources, not features). Exempt both line ranges.
   const lines = text.split("\n");
-  let tocStart = -1;
-  let tocEnd = lines.length;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim().startsWith("## Table of contents")) {
-      tocStart = i + 1;
-      continue;
+  const sectionRange = (heading: string): { start: number; end: number } => {
+    let start = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().startsWith(heading)) {
+        start = i + 1;
+        continue;
+      }
+      if (start !== -1 && /^##\s/.test(lines[i])) return { start, end: i + 1 };
     }
-    if (tocStart !== -1 && /^##\s/.test(lines[i])) {
-      tocEnd = i + 1;
-      break;
-    }
-  }
+    return { start, end: lines.length };
+  };
+  const toc = sectionRange("## Table of contents");
+  const license = sectionRange("## License");
 
   for (const list of lists) {
     if (list.items.length >= 3) {
-      if (tocStart !== -1 && list.startLine >= tocStart && list.startLine < tocEnd) continue;
+      const inToc = toc.start !== -1 && list.startLine >= toc.start && list.startLine < toc.end;
+      const inLicense = license.start !== -1 && list.startLine >= license.start && list.startLine < license.end;
+      if (inToc || inLicense) continue;
       issues.push({
         line: list.startLine,
         error: false,

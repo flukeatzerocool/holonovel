@@ -297,10 +297,10 @@ varies by session. The fourth item is the badge model with tool-access implicati
 **REQ-154b — README.md handoff content (Part b).**
 Every build's README.md also adds two more items. The fifth item is the state model
 describing what survives restart and what stays connection-scoped. The sixth item is
-a license footer rendering the Appendix U content license table, one line per source.
-Each line lists source name, license identifier, and copyright holder. The lines flow
-into a single semicolon-separated paragraph prefixed with "Built from:" and terminated
-by the RSS link and last-updated date.
+a `## License` section rendering the Appendix U content license table, one bullet per
+source, each listing source name, license identifier, and copyright holder. The
+section opens with a canonical-origin line and an MIT statement, prefixes the
+attribution list with "Built from:", and ends with the RSS link and last-updated date.
 *Acceptance criterion:* An operator copies the `mcpServers` block from
 README.md into their client config, launches the server, and the
 initialize handshake succeeds with `serverInfo.name` matching the config
