@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-25 — Server dependency security refresh
+
+- `holonovel/package-lock.json` refreshed with `npm audit fix`; resolves seven
+  advisories, including the critical `proxy-addr` IP-spoofing flaw and the
+  high-severity `@modelcontextprotocol/sdk` and `zod` sets. `npm audit
+  --omit=dev` now reports 0 vulnerabilities for the server (the root package
+  already passed).
+- `holonovel/package.json` floors raised to the fixed releases
+  (`@modelcontextprotocol/sdk ^1.32.2`, `zod ^4.6.7`) so a fresh install cannot
+  re-resolve to a vulnerable version.
+- Regenerated `holonovel/tool-definitions.json`,
+  `spec/audit/tool-surface-baseline.json`, and
+  `spec/audit/tool-surface-replay.json`; the newer SDK/Zod serialization trims
+  the measured catalog (full 26,024 → 25,959 tokens, standard 22,523 → 22,458;
+  small unchanged at 1,159), and `holonovel/DECISIONS.md` records the new
+  budgets.
+- Verified with the server build/typecheck, the CI harnesses (tool
+  definitions, security, starter Novel, all five Holosuite tiers),
+  `npm run check:fast`, and `npm run check`.
+
 ## 2026-10-25 — Fingerprint-delta record and publication update evidence
 
 - `scripts/update-server.ts` writes `.holonovel-state/fingerprint-deltas.json`

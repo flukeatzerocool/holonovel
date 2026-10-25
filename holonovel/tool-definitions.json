@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 104095,
+  "tools_list_bytes": 103833,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 104095,
-        "tokens": 26024
+        "bytes": 103833,
+        "tokens": 25959
       },
       "standard": {
         "tools": 36,
-        "bytes": 90091,
-        "tokens": 22523
+        "bytes": 89829,
+        "tokens": 22458
       },
       "small": {
         "tools": 6,
@@ -409,7 +409,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2739,
+        "definitionBytes": 2665,
         "descriptionBytes": 528
       },
       "category": "",
@@ -849,7 +849,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4615,
+        "definitionBytes": 4596,
         "descriptionBytes": 901
       },
       "category": "",
@@ -1131,7 +1131,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3199,
+        "definitionBytes": 3180,
         "descriptionBytes": 932
       },
       "category": "",
@@ -1445,7 +1445,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3012,
+        "definitionBytes": 2993,
         "descriptionBytes": 871
       },
       "category": "",
@@ -1520,7 +1520,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5172,
+        "definitionBytes": 5153,
         "descriptionBytes": 797
       },
       "category": "",
@@ -1759,7 +1759,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3364,
+        "definitionBytes": 3345,
         "descriptionBytes": 965
       },
       "category": "",
@@ -1911,7 +1911,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6864,
+        "definitionBytes": 6790,
         "descriptionBytes": 800
       },
       "category": "",
@@ -2029,7 +2029,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4432,
+        "definitionBytes": 4413,
         "descriptionBytes": 809
       },
       "category": "",
