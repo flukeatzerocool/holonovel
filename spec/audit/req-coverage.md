@@ -55,7 +55,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T518, T699 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513 | — |
+| REQ-075 | Named-NPC state (Part a) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513, T722, T724, T725 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124, T141 | — |
@@ -305,7 +305,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-336 | Dramatic pacing signal (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T386, T401 | implemented |
 | REQ-337 | Narrative arc visibility (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T387, T402 | implemented |
 | REQ-338 | Faction autonomous advancement (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T388, T401 | implemented |
-| REQ-339 | NPC goal pursuit (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T389, T401, T514 | implemented |
+| REQ-339 | NPC goal pursuit (Part a) (5 sub-parts) | 5.12 Narrative Architecture | C | T389, T401, T514, T726 | implemented |
 | REQ-340 | Discovered consequences (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T390, T399, T690 | implemented |
 | REQ-341 | Player-facing spatial surface (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T391 | implemented |
 | REQ-342 | Scene description from world-model state (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T392 | implemented |
@@ -553,7 +553,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-595 | Derived witness attribution | 5.32 Perception Ledger | C | T704 | — |
 | REQ-596 | Visibility query | 5.10 World-Model Layer | C | T701, T702 | — |
 | REQ-597 | Audibility query | 5.10 World-Model Layer | C | T703 | — |
-| REQ-598 | Narrator clearance | 5.5 Badges and Access | C | T707, T708 | — |
+| REQ-598 | Narrator clearance | 5.5 Badges and Access | C | T707, T708, T729 | — |
 | REQ-599 | Draft visibility scan (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T709, T710 | — |
 | REQ-600 | Visibility audit | 5.5 Badges and Access | C | T711 | — |
 | REQ-601 | Canonical state hash | 5.24 Temporal Event Log and Branching | C | T712 | — |
@@ -566,4 +566,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-608 | Recall-at-budget probe | 5.3 Tools, Resources, and Lookups | C | T719 | — |
 | REQ-609 | On-demand schema disclosure | 5.3 Tools, Resources, and Lookups | C | T720 | — |
 | REQ-610 | Per-turn budget allocator | 5.3 Tools, Resources, and Lookups | C | T721 | — |
+| REQ-611 | Social-scene cast strategy | 5.20 Narrative Turn Conventions | C | T727 | — |
+| REQ-612 | Social-scene speaker selection | 5.20 Narrative Turn Conventions | C | T728 | — |
 

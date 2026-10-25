@@ -441,7 +441,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-075c | Named-NPC state (Part c) | 2026-08-11 |
 | REQ-075d | Named-NPC state (Part d) | 2026-08-11 |
 | REQ-075e | Named-NPC state (Part e) | 2026-08-11 |
-| REQ-075f | Named-NPC state (Part f) | 2026-09-04 |
+| REQ-075f | Named-NPC state (Part f) | 2026-10-24 |
+| REQ-075g | Named-NPC state (Part g) | 2026-10-24 |
+| REQ-075h | NPC card import (Part h) | 2026-10-24 |
+| REQ-075i | NPC card export (Part i) | 2026-10-24 |
 | REQ-119a | NPC stat block reference (Part a) | 2026-08-11 |
 | REQ-119b | NPC stat block reference (Part b) | 2026-08-11 |
 | REQ-119c | NPC stat block reference (Part c) | 2026-08-11 |
@@ -481,7 +484,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-311e | NPC memory model (Part e) | 2026-08-11 |
 | REQ-311f | NPC memory model (Part f) | 2026-08-11 |
 | REQ-311g | NPC memory model (Part g) | 2026-08-11 |
-| REQ-077a | Entity personality fields (Part a) | 2026-08-11 |
+| REQ-077a | Entity personality fields (Part a) | 2026-10-24 |
 | REQ-077b | Entity personality fields (Part b) | 2026-08-11 |
 | REQ-077c | Entity personality fields (Part c) | 2026-08-11 |
 | REQ-077d | Entity personality fields (Part d) | 2026-08-11 |
@@ -973,6 +976,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-339b | NPC goal pursuit (Part b) | 2026-08-11 |
 | REQ-339c | NPC goal pursuit (Part c) | 2026-08-11 |
 | REQ-339d | NPC goal pursuit (Part d) | 2026-09-04 |
+| REQ-339e | NPC goal pursuit (Part e) | 2026-10-24 |
 | REQ-348a | Faction-NPC goal coordination (Part a) | 2026-08-11 |
 | REQ-348b | Faction-NPC goal coordination (Part b) | 2026-08-11 |
 | REQ-348c | Faction-NPC goal coordination (Part c) | 2026-08-11 |
@@ -1259,6 +1263,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-554 | Server tool-surface coherence | 2026-10-02 |
 | REQ-555 | Shadowing-risk report | 2026-10-02 |
 | REQ-412a | Play-loop orientation token (Part a) | 2026-09-26 |
+| REQ-611 | Social-scene cast strategy | 2026-10-24 |
+| REQ-612 | Social-scene speaker selection | 2026-10-24 |
 | REQ-312e | Narration grounding set (Part e) | 2026-09-26 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
@@ -2071,6 +2077,14 @@ diet.
 | T719 | Automated | Recall at budget: the replay baseline records a recall value and budget per profile using the REQ-569 intent set, and a run below the recorded recall fails. | REQ-608 |
 | T720 | Automated | Schema disclosure: `discover (detail: schema, query)` returns a matched tool's input schema, the default response is the summary text, and an unknown detail or schema without a query refuses `[INVALID_INPUT]`. | REQ-609 |
 | T721 | Automated | Budget allocator: a tight `context_report` budget drops `last_tool_output` first while keeping `tool_catalog` and `registered_prompts`, and a non-positive budget refuses `[INVALID_INPUT]`. | REQ-610 |
+| T722 | Automated | NPC identity core and shared notes: create an NPC with `mind.identity_core` and `mind.shared_notes` — assert the GM `badge_briefing` `## NPC Memory` section renders both, the Player badge renders neither, and export → import, clone, checkpoint, and archive round-trip preserve both. | REQ-075f |
+| T723 | Automated | NPC talkativeness: create an NPC without `talkativeness` and assert it defaults to 50; set it to 0 and assert an unmentioned NPC is never selected in a social scene while a metered peer is; Player reads omit the field. | REQ-075g |
+| T724 | Automated | NPC card import: import a CCv3 JSON card — assert name, description, persona, and voice examples map; provenance and the `[imported]` marker are recorded; a card carrying `system_prompt` and `post_history_instructions` reports them as unsupported and imports neither; `character_book` is ignored without `confirm_lore`; an oversized card and a Player attempt are refused. | REQ-075h |
+| T725 | Automated | NPC card export: export an NPC to CCv3 JSON — assert persona maps to `personality`, voice examples map to `mes_example`, provenance maps to `creator_notes` and `source`, unset fields are omitted, and no mind content or ruleset stats appear; re-import preserves name, description, persona, and voice examples. | REQ-075i |
+| T726 | Automated | Session-boundary NPC beats: with autonomy and `TTRPG_NPC_PROACTIVE_BOUNDARY=on`, a session start surfaces one goal-pursuit suggestion per eligible NPC; a second boundary in the same session does not repeat it; the feature is off by default; the Player badge never sees it; the event log records the surfacing. | REQ-339e |
+| T727 | Automated | Social cast strategy: in a three-NPC scene, set `pooled` and assert speakers rotate; mute an NPC and assert it is never selected; force a muted NPC and assert it is selected; a Player attempt to set cast state returns `[FORBIDDEN]`; cast state survives export/clone/checkpoint. | REQ-611 |
+| T728 | Automated | Social speaker selection: under `natural`, a named NPC is selected over a higher-talkativeness peer; with no mention, a seeded draw weights by talkativeness and reproduces identically under the same seed; `list` follows the GM order; `pooled` selects an unspoken NPC and resets on `after_user`; `manual` returns the selected NPC. | REQ-612 |
+| T729 | Automated | Narrator cast direction: the `narrate` prompt under the GM role with two present NPCs includes a cast-direction block naming the speaker, forbidding speech or decisions for the player, and requiring distinct voices; with one present NPC the block is absent; under the Player role no hidden cast appears. | REQ-598 |
 
 ---
 

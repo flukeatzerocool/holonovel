@@ -122,10 +122,14 @@ location?: string;
   // REQ-327 — NPC-world coupling: room id when location matches a room.
   room_id?: string;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
+  persona?: string; // REQ-077a — values, traits, and mannerisms.
+  talkativeness?: number; // REQ-075g — 0-100 social-scene speaking weight.
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
-  // REQ-075f — NPC mind: GM-only journal/directive/auto_play, excluded from
-  // every Player-badge surface.
-  mind?: { private_journal?: string[]; directive?: string; auto_play?: boolean };
+  // REQ-075f — NPC mind: GM-only journal/directive/auto_play/identity_core/
+  // shared_notes, excluded from every Player-badge surface.
+  mind?: { private_journal?: string[]; directive?: string; auto_play?: boolean; identity_core?: string[]; shared_notes?: string[] };
+  imported?: boolean; // REQ-075h — Character Card V3 provenance marker.
+  provenance?: { source?: string | null; license?: string | null; imported_at?: string };
   conditions: string[];
   condition_rounds: Record<string, number>;
   // REQ-311 — per-NPC memory model: witnessed events, per-entity contact
@@ -546,6 +550,7 @@ export interface NovelState {
   session_zero_completed: boolean;
   characters_present: boolean;
   characters_present_ids: string[];
+  social_cast: { strategy: "manual" | "natural" | "list" | "pooled"; order: string[]; muted: string[]; spoken: string[]; selected: string | null };
   adventure_set: boolean;
   pending_workflow:
     | { decision: string; snapshot: WorkflowSnapshot | null; payload?: any }
@@ -980,6 +985,7 @@ export class StateManager {
       session_zero_completed: false,
       characters_present: false,
       characters_present_ids: [],
+      social_cast: { strategy: "manual", order: [], muted: [], spoken: [], selected: null },
       adventure_set: false,
       pending_workflow: null,
       connection_counter: 0,
@@ -1376,6 +1382,7 @@ export class StateManager {
       session_zero_completed: data.session_zero_completed ?? false,
       characters_present: data.characters_present ?? false,
       characters_present_ids: data.characters_present_ids ?? [],
+      social_cast: data.social_cast ?? { strategy: "manual", order: [], muted: [], spoken: [], selected: null },
       adventure_set: data.adventure_set ?? false,
       pending_workflow: data.pending_workflow ?? null,
       connection_counter: data.connection_counter ?? 0,
@@ -2492,6 +2499,7 @@ function novelToJSON(novel: NovelState): any {
     session_zero_completed: novel.session_zero_completed,
     characters_present: novel.characters_present,
     characters_present_ids: novel.characters_present_ids,
+    social_cast: novel.social_cast,
     adventure_set: novel.adventure_set,
     pending_workflow: novel.pending_workflow,
     connection_counter: novel.connection_counter,
@@ -2621,6 +2629,7 @@ function novelFromJSON(data: any): NovelState {
     session_zero_completed: data.session_zero_completed ?? false,
     characters_present: data.characters_present ?? false,
     characters_present_ids: data.characters_present_ids ?? [],
+    social_cast: data.social_cast ?? { strategy: "manual", order: [], muted: [], spoken: [], selected: null },
     adventure_set: data.adventure_set ?? false,
     pending_workflow: data.pending_workflow ?? null,
     connection_counter: data.connection_counter ?? 0,
@@ -2731,6 +2740,7 @@ export function applyNovelState(target: NovelState, source: NovelState): void {
   target.session_zero_completed = source.session_zero_completed;
   target.characters_present = source.characters_present;
   target.characters_present_ids = source.characters_present_ids;
+  target.social_cast = source.social_cast;
   target.adventure_set = source.adventure_set;
   target.pending_workflow = source.pending_workflow;
   target.pov_mode = source.pov_mode;

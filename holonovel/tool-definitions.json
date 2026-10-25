@@ -1,24 +1,24 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 111637,
+  "tools_list_bytes": 113987,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 111637,
-        "tokens": 27910
+        "bytes": 113987,
+        "tokens": 28497
       },
       "standard": {
         "tools": 36,
-        "bytes": 97633,
-        "tokens": 24409
+        "bytes": 99983,
+        "tokens": 24996
       },
       "small": {
         "tools": 6,
-        "bytes": 4917,
-        "tokens": 1230,
+        "bytes": 5127,
+        "tokens": 1282,
         "groups": {
           "table": {
             "tools": 6,
@@ -37,8 +37,8 @@
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4917,
-            "tokens": 1230
+            "bytes": 5127,
+            "tokens": 1282
           },
           "lookup": {
             "tools": 6,
@@ -47,8 +47,8 @@
           },
           "referee": {
             "tools": 6,
-            "bytes": 3984,
-            "tokens": 996
+            "bytes": 4188,
+            "tokens": 1047
           },
           "author": {
             "tools": 6,
@@ -1341,21 +1341,29 @@
         "update",
         "remove",
         "list",
-        "get"
+        "get",
+        "import_card",
+        "export_card"
       ],
-      "param_count": 8,
+      "param_count": 14,
       "required": [
         "action"
       ],
       "params": {
+        "card": "Character Card V3 JSON object or string (import_card).",
+        "confirm_lore": "Import the card's character_book as lore entries (import_card).",
         "description": "Optional description.",
         "disposition": "Optional disposition.",
         "goals": "Optional goals.",
+        "license": "Import license attestation (import_card).",
         "location": "Optional location.",
         "mind": "Optional GM-only NPC mind (create/update).",
         "name": "NPC name (create).",
-        "npc_id": "NPC identifier (update/remove/get).",
-        "ruleset_reference": "Optional ruleset stat-block reference (create)."
+        "npc_id": "NPC identifier (update/remove/get/export_card).",
+        "persona": "Optional values, traits, and mannerisms (create/update).",
+        "ruleset_reference": "Optional ruleset stat-block reference (create).",
+        "source": "Import provenance URL or description (import_card).",
+        "talkativeness": "Optional 0-100 social-scene speaking weight; default 50 (create/update)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -1368,9 +1376,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 9,
+        "paramCount": 15,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 9,
+        "paramsWithDescriptions": 15,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -1381,7 +1389,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2391,
+        "definitionBytes": 3411,
         "descriptionBytes": 601
       },
       "category": "",
@@ -1512,12 +1520,13 @@
         "choices",
         "oracle"
       ],
-      "param_count": 22,
+      "param_count": 28,
       "required": [
         "action"
       ],
       "params": {
         "adventure_scene": "Adventure-scene waypoint anchor; empty or null clears (set).",
+        "after_user": "Reset the pooled spoken-set for a new user turn (next_speaker).",
         "allow_freeform": "Allow free-form response (choices).",
         "atmosphere": "Atmosphere (set).",
         "beat": "Story-beat tag (set): setup, escalation, turning_point, climax, resolution, denouement.",
@@ -1529,16 +1538,21 @@
         "directive": "Narrative directive (directive).",
         "entity_ids": "Entities present (presence).",
         "fast_forward": "Narrative fast-forward (set).",
+        "force": "NPC forced as the next speaker (cast/next_speaker).",
         "level": "Autonomy level (autonomy).",
         "likelihood": "Likelihood tier (oracle).",
         "location": "Scene location (set).",
+        "mute": "NPC muted from speaker selection (cast).",
         "prompt": "Choice prompt (choices).",
         "question": "Question to resolve (oracle).",
         "safety": "Safety tier (autonomy).",
         "scene_type": "Scene-type tag or array (set).",
         "seed": "Deterministic seed (oracle).",
+        "select": "NPC selected as the manual speaker (cast/next_speaker).",
         "skip_transition_hook": "Skip the scene-transition hook (set).",
-        "time_of_day": "Time of day (set)."
+        "strategy": "Speaker-selection strategy (cast).",
+        "time_of_day": "Time of day (set).",
+        "unmute": "NPC restored to speaker selection (cast)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -1551,10 +1565,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 23,
+        "paramCount": 29,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 23,
-        "paramsWithEnums": 7,
+        "paramsWithDescriptions": 29,
+        "paramsWithEnums": 8,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -1564,7 +1578,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4576,
+        "definitionBytes": 5172,
         "descriptionBytes": 797
       },
       "category": "",
@@ -1641,18 +1655,21 @@
     {
       "name": "manage_staging",
       "title": "Scene Staging Management",
-      "description": "Manage scene presence and autonomy staging. Use when: setting which entities are present (presence) or adjusting NPC and world autonomy for the scene (autonomy). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence and autonomy persist to the Novel and are audited; revert with manage_history (action: undo).",
-      "description_bytes": 386,
+      "description": "Manage scene presence, autonomy, and social-cast staging. Use when: setting which entities are present (presence), adjusting NPC and world autonomy for the scene (autonomy), setting a multi-NPC speaker strategy (cast), or selecting the next speaker (next_speaker). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence, autonomy, and cast state persist to the Novel and are audited; revert with manage_history (action: undo).",
+      "description_bytes": 502,
       "action_enum": [
         "presence",
-        "autonomy"
+        "autonomy",
+        "cast",
+        "next_speaker"
       ],
-      "param_count": 22,
+      "param_count": 28,
       "required": [
         "action"
       ],
       "params": {
         "adventure_scene": "Adventure-scene waypoint anchor; empty or null clears (set).",
+        "after_user": "Reset the pooled spoken-set for a new user turn (next_speaker).",
         "allow_freeform": "Allow free-form response (choices).",
         "atmosphere": "Atmosphere (set).",
         "beat": "Story-beat tag (set): setup, escalation, turning_point, climax, resolution, denouement.",
@@ -1664,16 +1681,21 @@
         "directive": "Narrative directive (directive).",
         "entity_ids": "Entities present (presence).",
         "fast_forward": "Narrative fast-forward (set).",
+        "force": "NPC forced as the next speaker (cast/next_speaker).",
         "level": "Autonomy level (autonomy).",
         "likelihood": "Likelihood tier (oracle).",
         "location": "Scene location (set).",
+        "mute": "NPC muted from speaker selection (cast).",
         "prompt": "Choice prompt (choices).",
         "question": "Question to resolve (oracle).",
         "safety": "Safety tier (autonomy).",
         "scene_type": "Scene-type tag or array (set).",
         "seed": "Deterministic seed (oracle).",
+        "select": "NPC selected as the manual speaker (cast/next_speaker).",
         "skip_transition_hook": "Skip the scene-transition hook (set).",
-        "time_of_day": "Time of day (set)."
+        "strategy": "Speaker-selection strategy (cast).",
+        "time_of_day": "Time of day (set).",
+        "unmute": "NPC restored to speaker selection (cast)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -1686,10 +1708,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 23,
+        "paramCount": 29,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 23,
-        "paramsWithEnums": 7,
+        "paramsWithDescriptions": 29,
+        "paramsWithEnums": 8,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -1699,8 +1721,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4124,
-        "descriptionBytes": 386
+        "definitionBytes": 4858,
+        "descriptionBytes": 502
       },
       "category": "",
       "gate": ""

@@ -184,6 +184,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
 | `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
+| `TTRPG_NPC_PROACTIVE_BOUNDARY` | No | `true` enables session-boundary NPC goal-pursuit suggestions (REQ-339e). Behavioral (mechanical) — couples per P30. |
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral (mechanical) — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral — couples per P58. |
@@ -335,11 +336,19 @@ cross-property effects SHALL register as a property group with archetypes and
 coupling rows per REQ-370.
 
 **NPC mind.** NPC mind state (REQ-075f) — the per-NPC GM-only private
-journal, directive, and auto-play flag — is Novel-tier state on the same
-footing as property groups: copy, snapshot, archive, and interchange
-operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
-include property-group state. Mind content is GM-only per REQ-075f and SHALL
-be stripped from every Player-badge surface.
+journal, directive, auto-play flag, identity core, and shared notes — is
+Novel-tier state on the same footing as property groups: copy, snapshot,
+archive, and interchange operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL
+include it wherever they include property-group state. Mind content is GM-only
+per REQ-075f and SHALL be stripped from every Player-badge surface.
+
+**Social cast.** Social-scene cast state (REQ-611/612) — the speaker-selection
+strategy, muted set, pooled spoken-set, and manual selection — is Novel-tier
+state on the same footing as property groups: copy, snapshot, archive, and
+interchange operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it
+wherever they include property-group state. It mutates only through
+`manage_staging (action: cast|next_speaker)` and does not couple to any
+property group.
 
 **Character identity.** Character identity state (REQ-473–483) — the staged
 candidates, accepted facets, and compiled kernel — is Roster-tier, permanent
@@ -523,6 +532,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Autonomous Countdown → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | Faction momentum coordinates with character purpose — overlapping goals suppress NPC pursuit | — | Mechanical | REQ-338, REQ-339, REQ-348 |
 | NPC → World in Motion | P30 | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Character purpose drives the story forward — NPC goals surface as narrative suggestions | — | Narrative | REQ-339, REQ-233a |
 | NPC Mind → World in Motion | P30 | NPCs carrying a populated `mind.directive` (REQ-075f) surface an `auto-apply` option alongside accept/defer/dismiss when `TTRPG_NPC_MIND=on` | Character purpose drives the story forward — NPC directives enable auto-applied goal pursuit | — | Mechanical | REQ-339d, REQ-075f |
+| NPC Goal Pursuit → World in Motion | P30 | A session boundary surfaces one goal-pursuit suggestion per eligible NPC when `TTRPG_NPC_AUTONOMY` and `TTRPG_NPC_PROACTIVE_BOUNDARY` are on | Proactive NPCs carry the story between sessions | — | Narrative | REQ-339e |
 | Countdown → Story Journal | P31 | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | What happens becomes what's remembered — absent-player countdown fire produces discovered consequences | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
 | Countdown → Lore | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-24 — Character-roleplay learnings: social cast, NPC identity, cards
+
+- Added social-scene speaker selection: per-NPC `talkativeness` (REQ-075g) and
+  `manage_staging (action: cast | next_speaker)` with manual, natural, list,
+  and pooled strategies, name-mention activation, seeded weighting, mute, and
+  force (REQ-611, REQ-612; T723, T727, T728).
+- Extended the GM-only NPC mind with `identity_core` and `shared_notes`, and
+  surfaced both in the GM `## NPC Memory` section (REQ-075f; T722).
+- Added session-boundary proactive NPC goal pursuit behind
+  `TTRPG_NPC_PROACTIVE_BOUNDARY` (default off), derived once per session from
+  the audit log (REQ-339e; T726).
+- Added an ensemble cast-direction block to the `narrate` prompt for two or
+  more present NPCs: name the speaker, never speak or decide for the player,
+  and keep per-NPC voices distinct (REQ-598; T729).
+- Added Character Card V3 import/export on `manage_npc` (`import_card`,
+  `export_card`) with a `persona` narrative field, provenance and `[imported]`
+  marking, inert import, 256 KB cap, opt-in lorebook, and no system-prompt or
+  asset import (REQ-077a, REQ-075h, REQ-075i; T724, T725).
+- Tool surface advances to 229 canonical actions (+4); baseline and DECISIONS
+  budgets regenerated. No new tools.
+
 ## 2026-10-24 — Holosuite evidence integrity: assertion coverage, predicates, provenance, determinism
 
 - Per-REQ coverage is now assertion-derived: the five tiers record through a
@@ -21,6 +42,20 @@
 - Added `test:holosuite-evidence` (assertion/coverage/predicate/provenance
   self-tests) and wired it into `holonovel/package.json`,
   `run-test-suite.ts`, CI, and pre-push.
+
+## 2026-10-24 — Competitive report closeout: rev 2.3 and dispositioned P3 items
+
+- Published the competitive-feature report rev 2.3, reclassifying its gap
+  analysis against the spec: items 1–7 shipped or retired with REQ/test
+  evidence, item 8 a stated non-goal, and items 11–12 delivered. The KB
+  entries are `report://...-rev-2-3-closeout` and
+  `report://holonovel-token-footprint-benchmark-2026-10-24`.
+- Recorded the measured token footprint head-to-head: 36 tools / 103,424
+  bytes / 25,856 tokens for Holonovel against rpg-mcp's README-claimed
+  195→36 consolidation, explicitly labeled [RM] for the competitor.
+- Recorded items 9 (VTT interop), 10 (Discord/webhook), and the §13 runtime
+  bake-off as `Closed-P3` with reopen predicates in
+  `spec/audit/review-register.md`. (REQ-433a/b)
 
 ## 2026-10-24 — Holosuite refresh: Torre Nosferatu tier and current surface
 

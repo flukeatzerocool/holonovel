@@ -51,7 +51,7 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
 - **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/update/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
-- **manage_npc** (action: create/update/remove/list/get) — GM NPC management
+- **manage_npc** (action: create/update/remove/list/get/import_card/export_card) — GM NPC management, Character Card V3 import/export
 - **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate) — world-model rooms, things, and exits (REQ-484–REQ-495)
 - **manage_causality** (action: causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — objective causal state and transition ledger; split from `manage_world` (REQ-413/REQ-581)
 - **run_command** (action: execute/resolve/suggest) — parser dispatch, spatial intent resolution, action suggestions
@@ -72,7 +72,7 @@ src/index.ts            McpServer: 36 action-discriminator tools, 40 resources a
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list) — Ruleset Wisdom and synthesis content
 - **manage_ruleset** (action: search/install/remove/list/bind/import_supplementary/remove_supplementary) — ruleset lookup and package management; the table roll moved to `resolve_mechanic (action: roll)`
 - **manage_scene** (action: set/directive/choices/oracle) — scene state and narrative framing
-- **manage_staging** (action: presence/autonomy) — scene presence and autonomy staging; split from `manage_scene` (REQ-413/REQ-581)
+- **manage_staging** (action: presence/autonomy/cast/next_speaker) — scene presence, autonomy, and social-cast staging; split from `manage_scene` (REQ-413/REQ-581)
 - **manage_session** (action: recap/verbosity/briefing_order/discover) — session recap, verbosity, briefing order, and tool discovery
 
 - **manage_diagnostics** (action: health/context_report/compress/compact/subscribe/category/event/history/verify/replay/visibility_check/visibility_audit) — diagnostics and maintenance, including the per-section context ledger (REQ-606–REQ-608), state-hash verification, and read-only replay inspection (REQ-601–REQ-605); the retired `manage_session` action aliases return `[NOT_FOUND]` naming this tool (REQ-413/REQ-581)
