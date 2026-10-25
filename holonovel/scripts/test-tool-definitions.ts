@@ -281,20 +281,21 @@ async function main() {
     assert(t.hard_gate_defects && typeof t.hard_gate_defects === "object", "tdqs.hard_gate_defects missing");
   });
 
-  // ── T679/T680 (REQ-552): every host tool reaches the top proxy score, and
-  // the live report agrees with the static computation.
-  await test(`T679/REQ-552: every host tool scores 5.0 on the deterministic proxy`, async () => {
+  // ── T679 (REQ-552): the deterministic proxies are reported and the
+  // authoritative external score is recorded; no proxy-5.0 tautology.
+  await test(`T679/REQ-552: proxies are reported and the external score record is present`, async () => {
     const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
     const t = health.tdqs;
-    assert(t.mean_tdqs === 5, `mean TDQS ${t.mean_tdqs} != 5.0`);
-    assert(t.min_tdqs === 5, `min TDQS ${t.min_tdqs} != 5.0`);
-    assert(t.coherence?.completeness === 5, `coherence completeness ${t.coherence?.completeness} != 5`);
-    assert(t.coherence?.namingConsistency === 5, `coherence naming ${t.coherence?.namingConsistency} != 5`);
-    assert(t.coherence?.disambiguation === 5, `coherence disambiguation ${t.coherence?.disambiguation} != 5`);
+    assert(typeof t.mean_tdqs === "number" && typeof t.min_tdqs === "number", "tdqs mean/min missing");
+    assert(["A", "B", "C", "D", "F"].includes(t.description_quality_tier), `bad tier '${t.description_quality_tier}'`);
+    assert(t.coherence && typeof t.coherence.disambiguation === "number", "coherence proxies missing");
     const siblings = tools.map((tool) => tool.name);
     const scores = tools.map((tool) => scoreTool(tool, siblings, recordedDescriptionBudget()));
-    const below = scores.filter((score) => score.tdqs !== 5).map((score) => `${score.name}=${score.tdqs}`);
-    assert(below.length === 0, `tools below 5.0: ${below.join(", ")}`);
+    assert(scores.length === tools.length, "static proxy did not cover every tool");
+    assert(scores.every((score) => score.tdqs >= 3), `tools below the passing tier: ${scores.filter((s) => s.tdqs < 3).map((s) => s.name).join(", ")}`);
+    const scoreboard = JSON.parse(readFileSync(join(ROOT, "spec", "audit", "tdqs-scoreboard.json"), "utf-8"));
+    assert(Array.isArray(scoreboard.captures) && scoreboard.captures.length > 0, "external TDQS scoreboard is missing captures");
+    assert(scoreboard.captures.at(-1).tool_count === tools.length, "scoreboard tool_count disagrees with the live surface");
   });
 
   await test(`T680/REQ-552: live and static proxies agree`, async () => {
@@ -305,6 +306,11 @@ async function main() {
     const min = Math.min(...scores.map((score) => score.tdqs));
     assert(health.tdqs.mean_tdqs === mean, `live mean ${health.tdqs.mean_tdqs} != static ${mean}`);
     assert(health.tdqs.min_tdqs === min, `live min ${health.tdqs.min_tdqs} != static ${min}`);
+  });
+
+  await test("T730/REQ-552: the committed external TDQS scoreboard validates", () => {
+    const result = spawnSync("npx", ["tsx", join(ROOT, "scripts", "check-tdqs-scoreboard.ts")], { cwd: ROOT, encoding: "utf-8" });
+    assert(result.status === 0, `tdqs-scoreboard gate failed: ${result.stdout ?? ""}${result.stderr ?? ""}`);
   });
 
   // ── T645 (REQ-553): hard gates — missing, tautological, contradiction.
@@ -326,6 +332,8 @@ async function main() {
     }
     assert(c.namingConsistency === 5, `naming consistency ${c.namingConsistency}/5 — a host name deviates from verb_noun`);
     assert(Array.isArray(c.overlappingPairs) && c.overlappingPairs.length === 0, `overlapping pairs: ${JSON.stringify(c.overlappingPairs)}`);
+    assert(Array.isArray(c.mutualPairs), "coherence mutualPairs missing");
+    assert(Array.isArray(c.unresolvedPairs) && c.unresolvedPairs.length === 0, `unresolved mutual pairs: ${JSON.stringify(c.unresolvedPairs)}`);
   });
 
   // ── T647 (REQ-555): invocation cost and shadow candidates.

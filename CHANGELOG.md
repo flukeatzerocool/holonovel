@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-25 — TDQS coherence remediation
+
+- Recorded the 2026-10-25 external TDQS capture in
+  `spec/audit/tdqs-scoreboard.json` (overall 4.1, coherence 3.3, per-tool
+  scores) and added `check-tdqs-scoreboard` as a gate with T730 coverage; the
+  external score is validated for arithmetic, tiers, and rollups and is never
+  replaced by the deterministic proxy.
+- Rewrote 20 host descriptions for the sub-5 TDQS dimensions: the four 4.3
+  tools (`manage_archive`, `manage_corpus`, `manage_staging`, `run_command`),
+  the parameter-semantics group, and the behavioral-transparency group. The
+  pass adds cross-parameter precedence/default facts, names the concrete state
+  a mutation overwrites, and trims enum-restating clauses. The surface now
+  names 58 directed sibling references (from 65) and 11 mutual pairs (from 36);
+  `tool-definitions-lint` caps descriptions at three siblings and requires a
+  recorded axis for every mutual pair. `holonovel/tool-disambiguation.json`
+  records the axes; `manage_session` rename and surface reduction remain
+  deferred (ROADMAP).
+- Made character and vow mutations reversible: `manage_character` and
+  `manage_vow` now snapshot before Novel-scoped mutations. Identity is
+  roster-scoped, so `manage_identity` retains the displaced facet and adds
+  `revert` (231 canonical actions) instead of a Novel snapshot. Measured
+  snapshot cost: 0.2 ms on a 558 KB Novel, 0.7 ms on 3.6 MB.
+- Corrected the deterministic proxies so they stop reporting 5 on classes the
+  external score grades lower: disambiguation counts mutual references even
+  when resolved, parameter semantics stops at 4 when the schema covers every
+  parameter and no interaction clause is present, and completeness drops for a
+  declared dead end with no recovery path. Post-pass proxy: mean 4.93, min
+  4.80, disambiguation 3/5.
+- Replaced the proxy-5.0 tautologies in REQ-552 and T679 with passing-tier,
+  external-score, and scoreboard assertions; made REQ-024a's `Do NOT use when`
+  clause conditional and REQ-024c state the cross-parameter rule; defined
+  REQ-554 overlap to include mutual references. Removed the inert split
+  parameters from `manage_scene`/`manage_world` while keeping the shared
+  schemas that `manage_staging`/`manage_causality` pick from.
+- Verified with `npm run check:fast` (29 gates), `test-tool-definitions` (17),
+  `test-identity` (15), `test-narrative` (46), and `test-security` (9).
+
 ## 2026-10-25 — Server dependency security refresh
 
 - `holonovel/package-lock.json` refreshed with `npm audit fix`; resolves seven

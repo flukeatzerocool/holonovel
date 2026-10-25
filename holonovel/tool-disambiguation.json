@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "description": "Recorded disambiguation axes for near-neighbour host tools. A mutual 'Do NOT use when' pair is a defect unless one side records the axis that separates the pair here (REQ-554).",
+  "axes": {
+    "manage_archive": {
+      "axis": "Novel archive, export/import, clone/branch, and checkpoints",
+      "resolves": ["manage_novel"]
+    },
+    "manage_novel": {
+      "axis": "Novel save lifecycle (create, resume, switch, end, rename, list)",
+      "resolves": ["manage_archive"]
+    },
+    "manage_belief": {
+      "axis": "per-entity evidence, belief stances, and the perception ledger",
+      "resolves": ["manage_lore"]
+    },
+    "manage_lore": {
+      "axis": "canonical shared world facts and secrets",
+      "resolves": ["manage_belief", "manage_corpus"]
+    },
+    "manage_corpus": {
+      "axis": "external documents and their access state",
+      "resolves": ["manage_lore"]
+    },
+    "manage_causality": {
+      "axis": "objective causal transitions and proposals",
+      "resolves": ["manage_world"]
+    },
+    "manage_world": {
+      "axis": "rooms, things, exits, and spatial containment",
+      "resolves": ["manage_causality", "run_command"]
+    },
+    "run_command": {
+      "axis": "parser execution, movement resolution, and intent mapping",
+      "resolves": ["manage_world"]
+    },
+    "manage_character": {
+      "axis": "player characters and their sheets",
+      "resolves": ["manage_npc"]
+    },
+    "manage_npc": {
+      "axis": "non-player characters",
+      "resolves": ["manage_character"]
+    },
+    "manage_combat": {
+      "axis": "encounter turn order and lifecycle",
+      "resolves": ["manage_condition"]
+    },
+    "manage_condition": {
+      "axis": "per-entity status effects",
+      "resolves": ["manage_combat"]
+    },
+    "manage_countdown": {
+      "axis": "generic clocks",
+      "resolves": ["manage_vow"]
+    },
+    "manage_vow": {
+      "axis": "obligations with a linked clock",
+      "resolves": ["manage_countdown"]
+    },
+    "manage_diagnostics": {
+      "axis": "health, audit compaction, event log, and verification",
+      "resolves": ["manage_session"]
+    },
+    "manage_session": {
+      "axis": "recap, verbosity, briefing, and discovery",
+      "resolves": ["manage_diagnostics"]
+    },
+    "manage_scene": {
+      "axis": "scene framing, directive, choices, and oracle",
+      "resolves": ["manage_staging"]
+    },
+    "manage_staging": {
+      "axis": "presence, autonomy, and speaker selection",
+      "resolves": ["manage_scene"]
+    },
+    "respond_decision": {
+      "axis": "drain a pending workflow decision",
+      "resolves": ["set_badge"]
+    },
+    "set_badge": {
+      "axis": "switch the seat and access level",
+      "resolves": ["respond_decision"]
+    }
+  }
+}

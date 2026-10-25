@@ -11,6 +11,8 @@
  *   - non-tautological opening (description is not just the tool name/title);
  *   - the "Do NOT use when:" clause names at least one real sibling tool;
  *   - uniform `verb_noun` naming against the recorded verb allowlist;
+ *   - sibling-reference density (at most three named siblings) and a recorded
+ *     disambiguation axis for every mutual "Do NOT use when" pair (REQ-554);
  *   - description within the recorded byte budget; title >= name length;
  *   - documented output-schema fields.
  *
@@ -30,6 +32,8 @@ import {
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT = join(ROOT, "holonovel", "tool-definitions.json");
 const DECISIONS = join(ROOT, "holonovel", "DECISIONS.md");
+const DISAMBIGUATION = join(ROOT, "holonovel", "tool-disambiguation.json");
+const MAX_SIBLING_REFERENCES = 3;
 const VERB_ALLOWLIST = ["manage", "resolve", "run", "respond", "set", "open", "close", "take"];
 const NAME_RE = /^(manage|resolve|run|respond|set|open|close|take)_[a-z][a-z0-9_]*$/;
 // REQ-450 disclosure vocabulary: a mutating tool must disclose persistence and
@@ -46,6 +50,28 @@ interface ToolRecord {
   category: string; gate: string;
 }
 interface Artifact { schema_version: number; tool_count: number; tools_list_bytes: number; tools: ToolRecord[]; }
+interface DisambiguationEntry { axis: string; resolves: string[]; }
+interface DisambiguationData { schema_version: number; axes: Record<string, DisambiguationEntry>; }
+
+function loadDisambiguation(): DisambiguationData | null {
+  if (!existsSync(DISAMBIGUATION)) return null;
+  try {
+    return JSON.parse(readFileSync(DISAMBIGUATION, "utf-8")) as DisambiguationData;
+  } catch {
+    // An unreadable disambiguation record is reported as a violation by the caller.
+    return null;
+  }
+}
+
+function siblingReferences(description: string, names: string[], self: string): string[] {
+  return names.filter((name) => name !== self && description.includes(name));
+}
+
+function notClauseReferences(description: string, names: string[], self: string): string[] {
+  const index = description.toLowerCase().indexOf("do not use when");
+  const clause = index === -1 ? "" : description.slice(index);
+  return names.filter((name) => name !== self && clause.includes(name));
+}
 
 function recordedDescriptionBudget(): number {
   const md = readFileSync(DECISIONS, "utf-8");
@@ -125,12 +151,52 @@ for (const t of artifact.tools) {
 
 // REQ-554 — server tool-surface coherence over the live catalog.
 const defs: ToolDefinition[] = artifact.tools.map((t) => ({ name: t.name, title: t.title, description: t.description, annotations: t.annotations }));
-const coherence = coherenceProxies(defs);
+const recordedAxes = loadDisambiguation();
+const coherence = coherenceProxies(
+  defs,
+  recordedAxes ? Object.fromEntries(Object.entries(recordedAxes.axes ?? {}).map(([name, entry]) => [name, entry.resolves ?? []])) : undefined,
+);
 if (coherence.namingConsistency < 5) {
   violations.push(`surface naming consistency ${coherence.namingConsistency}/5 — a tool name deviates from verb_noun (REQ-554)`);
 }
 for (const [a, b] of coherence.overlappingPairs) {
   violations.push(`overlapping pair ${a} / ${b} not disambiguated in both descriptions (REQ-554)`);
+}
+
+// REQ-554 — cross-reference density and recorded disambiguation axes. A
+// description may name at most three siblings; a mutual "Do NOT use when"
+// pair is a defect unless the recorded axis separates it.
+const hostNames = artifact.tools.map((t) => t.name);
+for (const t of artifact.tools) {
+  const refs = siblingReferences(t.description, hostNames, t.name);
+  if (refs.length > MAX_SIBLING_REFERENCES) {
+    violations.push(`${t.name}: names ${refs.length} sibling tools (${refs.join(", ")}); cap is ${MAX_SIBLING_REFERENCES} (REQ-554)`);
+  }
+}
+
+const notRefs = new Map(artifact.tools.map((t) => [t.name, notClauseReferences(t.description, hostNames, t.name)]));
+const mutualPairs: [string, string][] = [];
+for (const [name, refs] of notRefs) {
+  for (const other of refs) {
+    if (name < other && (notRefs.get(other) ?? []).includes(name)) mutualPairs.push([name, other]);
+  }
+}
+const disambiguation = recordedAxes;
+if (!disambiguation) {
+  violations.push(`missing or unreadable ${DISAMBIGUATION} — record the disambiguation axes (REQ-554)`);
+} else {
+  if (disambiguation.schema_version !== 1) violations.push("tool-disambiguation.json schema_version must be 1 (REQ-554)");
+  for (const [name, entry] of Object.entries(disambiguation.axes ?? {})) {
+    if (!hostNames.includes(name)) violations.push(`tool-disambiguation.json names unknown tool '${name}' (REQ-554)`);
+    if (typeof entry?.axis !== "string" || entry.axis.trim() === "") violations.push(`tool-disambiguation.json '${name}' missing axis (REQ-554)`);
+    for (const resolve of entry?.resolves ?? []) {
+      if (!hostNames.includes(resolve) || resolve === name) violations.push(`tool-disambiguation.json '${name}' resolves unknown or self tool '${resolve}' (REQ-554)`);
+    }
+  }
+  for (const [a, b] of mutualPairs) {
+    const resolved = (disambiguation.axes?.[a]?.resolves ?? []).includes(b) || (disambiguation.axes?.[b]?.resolves ?? []).includes(a);
+    if (!resolved) violations.push(`mutual reference ${a} / ${b} has no recorded disambiguation axis (REQ-554)`);
+  }
 }
 // REQ-555 — shadowing candidates are reported beside the score, never gated.
 const shadowRisks = shadowCandidatesWithCosts(
@@ -140,7 +206,7 @@ const shadowRisks = shadowCandidatesWithCosts(
 );
 
 if (process.argv.slice(2).includes("--json")) {
-  process.stdout.write(JSON.stringify({ tool_count: artifact.tool_count, budget, violations, shadowing_risks: shadowRisks }, null, 2) + "\n");
+  process.stdout.write(JSON.stringify({ tool_count: artifact.tool_count, budget, violations, mutual_pairs: mutualPairs, shadowing_risks: shadowRisks }, null, 2) + "\n");
   process.exit(violations.length === 0 ? 0 : 1);
 }
 

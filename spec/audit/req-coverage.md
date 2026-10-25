@@ -507,7 +507,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-547 | Identity candidate retention bound | 5.26 Character Identity | C | T630 | — |
 | REQ-548 | Structured tool-result payload (4 sub-parts) | 5.1 Output and Error Contracts | C | T632, T633, T642, T677, T634, T635 | — |
 | REQ-551 | Extraction structural verification (1 sub-part) | 5.2 Extraction and Confidence | E | T638, T639 | — |
-| REQ-552 | TDQS conformance contract | 5.3 Tools, Resources, and Lookups | C | T644, T679, T680 | — |
+| REQ-552 | TDQS conformance contract | 5.3 Tools, Resources, and Lookups | C | T644, T679, T680, T730 | — |
 | REQ-553 | Tool-definition hard gates | 5.3 Tools, Resources, and Lookups | C | T645 | — |
 | REQ-554 | Server tool-surface coherence | 5.3 Tools, Resources, and Lookups | C | T646 | — |
 | REQ-555 | Shadowing-risk report | 5.3 Tools, Resources, and Lookups | C | T647 | — |

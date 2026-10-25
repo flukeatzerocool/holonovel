@@ -124,6 +124,30 @@ async function main() {
     await kill(p);
   });
 
+  // ── T568b: compensating revert (REQ-478) ─────────────────────────────
+  await test("T568b/REQ-478: revert restores the displaced facet and keeps history internal", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id6b" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    const c1 = await stage(p, cid, "calling", "Wandering blade"); await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: c1 });
+    const c2 = await stage(p, cid, "calling", "Sworn shield"); await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: c2 });
+    const reverted = await call(p, "manage_identity", { action: "revert", character_id: cid });
+    assert(/revision 3/.test(reverted), "revert did not report revision 3: " + reverted.slice(0, 200));
+    const id = await listIdentity(p, cid);
+    const calling = id.facets.find((f: any) => f.facet === "calling");
+    assert(calling.value === "Wandering blade" && calling.revision === 3, "revert did not restore the prior value: " + JSON.stringify(calling));
+    assert(id.version === 3, "revert did not advance the version: " + id.version);
+    assert(id.history === undefined, "list exposed the internal history");
+    await kill(p);
+  });
+
+  await test("T568b/REQ-478: revert with no displaced facet refuses", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id6c" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    const refused = await call(p, "manage_identity", { action: "revert", character_id: cid });
+    assert(/STATE_CONFLICT/.test(refused), "empty-history revert was not refused: " + refused.slice(0, 200));
+    await kill(p);
+  });
+
   // ── T569: card-bootstrap exclusions (REQ-479) ────────────────────────
   await test("T569/REQ-479: bootstrap excludes scenario and first message", async () => {
     const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id7" }); await call(p, "set_badge", { badge: "game_master" });

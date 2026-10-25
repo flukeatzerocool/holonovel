@@ -2,11 +2,11 @@
 
 **Spec hash:** ebb7c4d69cb950be3e03eb1c89a202c7223956844926034423d0ddb2aa8b5fac
 
-**Recorded tool budget:** 36 listed (230 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 36 listed (231 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 25,959 tokens; standard 22,458; small 1,159; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 25,486 tokens; standard 21,985; small 1,103; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Publication update evidence — 2026-10-25
 
@@ -104,6 +104,19 @@
 - **Generated artifact.** `holonovel/narrative_world_model/world/world-model-provider.md` is emitted from `world-model-provider.template.md` plus the schema constants in `src/world/model.ts` (`WORLD_MODEL_KINDS`, `WORLD_MODEL_PROPERTIES`, `BASE_PARSER_COMMANDS`, `WORLD_MODEL_DECLARABLE_KINDS`, `ROOM_DIRECTIONS`, `verbCatalog`). `npm run generate-world-provider` writes it, `check-world-provider` gates freshness, and `test:world-provider` gates the `world://kinds` payload.
 - **Supersedes.** The 2026-08-08 rebuild note that the provider documentation was "indexed and surfaced at `world://kinds`" and the 2026-08-07 note that the server was created alongside that document as a build input. The document is now build output, not a build source.
 - **REQ-202a.** `world://kinds` now includes the property-contract section; the prior payload omitted it. (REQ-200, REQ-202a)
+
+### TDQS coherence remediation — 2026-10-25
+
+- **Supersedes.** The 2026-10-20 "TDQS proxy correction" claim that every host tool scores 5.0 on the deterministic proxy, and the 2026-10-22 description-pass finding that nine tools mutate without a snapshot. The proxy now reports 4.x where a dimension has a real gap, and the three evaluated dead ends gain reversibility. (REQ-024c, REQ-450, REQ-552, REQ-554)
+- **Baseline (external).** Glama scored the server 4.1/A on 2026-10-25 16:45 across 36 tools: description quality 4.5 (mean 4.64, min 4.3), coherence 3.3 (disambiguation 3, naming consistency 4, tool-count appropriateness 2, completeness 4). The capture is recorded in `spec/audit/tdqs-scoreboard.json` and validated by `check-tdqs-scoreboard`; the external score remains authoritative (REQ-552).
+- **Disambiguation axes.** Every near-neighbour tool declares one distinguishing axis. `holonovel/tool-disambiguation.json` is the machine-readable source; this table is the review summary. `manage_lore` = canonical world facts and secrets; `manage_note` = scratch/out-of-play notes; `manage_corpus` = external documents and access state; `manage_belief` = per-entity epistemic state; `manage_knowledge` = derived, non-authoritative index/graph; `manage_scene` = framing, directive, choices, oracle; `manage_staging` = presence, autonomy, speaker selection; `manage_countdown` = generic clock; `manage_vow` = obligation with a linked clock; `manage_session` = recap, verbosity, briefing, discovery; `open_session`/`close_session` = lifecycle boundaries; `take_turn` = turn loop; `set_badge` = seat/access; `manage_novel` = save lifecycle; `manage_archive` = export, import, clone, checkpoint; `manage_world` = rooms, things, exits; `manage_causality` = objective state transitions; `manage_story` = journal entries; `manage_history` = cross-cutting undo/redo. A mutual `Do NOT use when:` pair is a defect unless this table records the axis that separates it.
+- **Cross-reference density.** The 2026-10-25 baseline carries 65 directed sibling references (53 undirected edges, 36 mutual pairs). The authoring standard caps a description at three distinct sibling names and keeps only the nearest boundary; a `manage_history` reference survives only where reversibility differs. The lint gates the cap after the Phase 1 description pass.
+- **Tool count decision.** The 36-tool surface stays. Coherence arithmetic: one dimension is 7.5% of overall, so tool-count 2 → 5 is worth about +0.225, but reduction would remove domain coverage or force a compact default that the same evaluator may read as incomplete. Accepted tradeoff, recorded rather than implemented. (REQ-429, REQ-554)
+- **Naming decision.** `manage_session` keeps its name. Renaming it (for example to `manage_briefing`) would remove the `open_session`/`close_session` collision and is worth about +0.075 overall, but it touches 583 references across 41 files. Deferred; the hidden-alias path remains available for a later plan.
+- **Reversibility decision.** `manage_character`, `manage_identity`, and `manage_vow` are the three mutations the external evaluator named as unreversible dead ends. They gain `novelSnapshot()` coverage. The other six snapshot-less mutations already carry a forward recovery path the evaluator did not flag: `manage_world` re-create, `manage_belief` retract, `manage_session` re-set, `manage_novel` clone, `manage_ruleset` paired action, and `run_command` inverse command. Their descriptions keep that path explicit. (REQ-041, REQ-240)
+- **Proxy calibration.** The deterministic proxies must not report 5 on a class the external score grades below 4. Disambiguation counts mutual references (with a recorded axis resolving the gate); completeness reads the "irreversible with no recovery" predicate; parameter semantics stops at 4 when the schema already covers every parameter and no interaction clause is present. Post-pass proxy: mean 4.93, min 4.80, disambiguation 3/5 — no longer saturated, and still above the passing tier. The proxy remains a build signal, never the published TDQS (REQ-552).
+- **Parameter-interaction dry-run.** The heuristic detects an explicit interaction clause on 19 of 31 action-bearing tools; the other 12 are reported, not gated, because the lexical markers miss semantic interactions (for example `manage_belief`'s admit/reconcile sequence). The proxy scores those tools at Parameter Semantics 4, which is the intended review signal. (REQ-024c, REQ-552)
+- **Snapshot-cost measurement.** On a 558 KB Novel, `snapshot()` averaged 0.2 ms (max 0.4 ms); on a 3.6 MB Novel it averaged 0.7 ms (max 1.3 ms), and ten snapshots occupied 2.5 MB in memory and added about 120 KB to the saved state. Character and vow mutations now take a snapshot; identity retains the displaced facet and exposes `revert` because the roster is outside the Novel history store. (REQ-041, REQ-240, REQ-478)
 
 ### Tool Surface Contract — 2026-10-19
 

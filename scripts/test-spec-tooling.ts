@@ -126,6 +126,68 @@ function main(): void {
   check(unreasonedRun.code === 1 && unreasonedRun.out.includes("waiver without a reason"), "performance-record gate rejects an unreasoned waiver");
   rmSync(perfDir, { recursive: true, force: true });
 
+  // T730 (REQ-552) — the external TDQS scoreboard gate accepts a consistent
+  // capture and rejects one whose overall score contradicts the formula.
+  const scoreDir = mkdtempSync(join(tmpdir(), "tdqs-score-"));
+  const goodCapture = {
+    schema_version: 1,
+    captures: [{
+      captured_at: "2026-10-25T16:45:00-04:00",
+      source: "https://glama.ai/mcp/servers/example/server",
+      server: "example/server",
+      tool_count: 1,
+      overall: 5.0,
+      tier: "A",
+      description_quality: 5.0,
+      coherence: 5.0,
+      dimensions: {
+        disambiguation: 5,
+        naming_consistency: 5,
+        tool_count_appropriateness: 5,
+        completeness: 5,
+      },
+      justifications: {
+        disambiguation: "All tools are distinct.",
+        naming_consistency: "One verb_noun convention.",
+        tool_count_appropriateness: "Well scoped.",
+        completeness: "Full lifecycle coverage.",
+      },
+      tools: [{
+        name: "manage_example",
+        tdqs: 5.0,
+        tier: "A",
+        dimensions: {
+          purpose_clarity: 5,
+          usage_guidelines: 5,
+          behavioral_transparency: 5,
+          parameter_semantics: 5,
+          conciseness_structure: 5,
+          contextual_completeness: 5,
+        },
+      }],
+    }],
+  };
+  const writeScore = (name: string, value: any): string => {
+    const path = join(scoreDir, name);
+    writeFileSync(path, JSON.stringify(value, null, 2));
+    return path;
+  };
+  const goodScore = runCode(["scripts/check-tdqs-scoreboard.ts", writeScore("good.json", goodCapture)]);
+  check(goodScore.code === 0, "tdqs-scoreboard gate accepts a consistent capture");
+  const badOverall = JSON.parse(JSON.stringify(goodCapture));
+  badOverall.captures[0].overall = 4.0;
+  const badOverallRun = runCode(["scripts/check-tdqs-scoreboard.ts", writeScore("bad-overall.json", badOverall)]);
+  check(
+    badOverallRun.code === 1 && badOverallRun.out.includes("disagrees with the 0.7/0.3 formula"),
+    "tdqs-scoreboard gate rejects an inconsistent overall score",
+  );
+  const duplicateTool = JSON.parse(JSON.stringify(goodCapture));
+  duplicateTool.captures[0].tools.push({ ...duplicateTool.captures[0].tools[0] });
+  duplicateTool.captures[0].tool_count = 2;
+  const duplicateRun = runCode(["scripts/check-tdqs-scoreboard.ts", writeScore("duplicate.json", duplicateTool)]);
+  check(duplicateRun.code === 1 && duplicateRun.out.includes("duplicate name"), "tdqs-scoreboard gate rejects duplicate tool records");
+  rmSync(scoreDir, { recursive: true, force: true });
+
   // CR-4 — the Spec Update Verification line is gated, not scaffold-only.
   const marker = "c".repeat(64);
   const specUpdateRecord = [

@@ -52,8 +52,24 @@ for (let i = 0; i < artifact.tools.length; i++) {
 }
 dupes.sort((x, y) => y.sim - x.sim);
 
+const names = artifact.tools.map((t) => t.name);
+const notClauseRefs = new Map(artifact.tools.map((t) => {
+  const index = t.description.toLowerCase().indexOf("do not use when");
+  const clause = index === -1 ? "" : t.description.slice(index);
+  return [t.name, names.filter((n) => n !== t.name && clause.includes(n))];
+}));
+const mutualPairs: [string, string][] = [];
+for (const [name, refs] of notClauseRefs) {
+  for (const other of refs) {
+    if (name < other && (notClauseRefs.get(other) ?? []).includes(name)) mutualPairs.push([name, other]);
+  }
+}
+const dense = artifact.tools
+  .map((t) => ({ name: t.name, refs: names.filter((n) => n !== t.name && t.description.includes(n)) }))
+  .filter((entry) => entry.refs.length > 3);
+
 if (process.argv.slice(2).includes("--json")) {
-  process.stdout.write(JSON.stringify({ missingDisclosure, interactionCovered, interactionBare, dupes, dupThreshold: DUP_THRESHOLD }, null, 2) + "\n");
+  process.stdout.write(JSON.stringify({ missingDisclosure, interactionCovered, interactionBare, dupes, dupThreshold: DUP_THRESHOLD, mutualPairs, dense }, null, 2) + "\n");
   process.exit(0);
 }
 
@@ -63,4 +79,7 @@ console.log(`  parameter-semantics coverage (report-only): ${interactionCovered.
 if (interactionBare.length) console.log(`    without an interaction clause: ${interactionBare.join(", ")}`);
 console.log(`  near-duplicate description pairs (Jaccard >= ${DUP_THRESHOLD}): ${dupes.length}`);
 for (const d of dupes.slice(0, 10)) console.log(`    ${d.a} ~ ${d.b} (${d.sim})`);
+console.log(`  mutual "Do NOT use when" pairs (REQ-554): ${mutualPairs.length}`);
+for (const [a, b] of mutualPairs) console.log(`    ${a} <-> ${b}`);
+console.log(`  descriptions naming more than three siblings (REQ-554): ${dense.length}${dense.length ? " — " + dense.map((d) => `${d.name} (${d.refs.length})`).join(", ") : ""}`);
 process.exit(0);

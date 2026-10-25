@@ -4774,6 +4774,23 @@
       "successors": [],
       "edges": [],
       "mutation_class": "read"
+    },
+    "manage_identity.revert": {
+      "group": "author",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
     }
   }
 }

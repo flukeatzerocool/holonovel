@@ -32,7 +32,7 @@ import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, t
 import { stateHash, canonicalJson } from "./core/state-hash.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
-import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
+import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, revertFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
@@ -1302,8 +1302,22 @@ function hostToolDefinitions(): ToolDefinition[] {
 }
 
 let tdqsHealthCache: { fingerprint: string; result: ReturnType<typeof computeTdqsHealth> } | null = null;
+function recordedDisambiguationAxes(): Record<string, string[]> | undefined {
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(path.dirname(__filename), "..", "tool-disambiguation.json"), "utf-8"));
+    const axes: Record<string, string[]> = {};
+    for (const [name, entry] of Object.entries(data.axes ?? {})) {
+      axes[name] = Array.isArray((entry as any)?.resolves) ? (entry as any).resolves : [];
+    }
+    return axes;
+  } catch {
+    // The record is a build artifact; a missing copy leaves the proxy at its
+    // conservative default rather than blocking health reporting.
+    return undefined;
+  }
+}
 function computeTdqsHealth() {
-  const report = conformanceReport(hostToolDefinitions());
+  const report = conformanceReport(hostToolDefinitions(), undefined, recordedDisambiguationAxes());
   return {
     scope: "host" as const,
     tool_count: report.toolCount,
@@ -2756,7 +2770,7 @@ function badgeLabel(badge: Badge): string {
 // context; REQ-305 — observer mode: read-only spectator, AI plays both roles.
 server.registerTool("set_badge", {
   title: "Set Active Badge",
-  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the active Novel; always callable. Switching immediately re-filters tools/list, so a narrower badge can revoke tools mid-task and switching back restores them; badge changes are mutating session state, audited, and reversible by switching back. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
+  description: "Switch the active badge to player, game_master, observer, or none (Editor), gating tool access server-side for the active Novel; always callable. The badge is per Novel and switching re-filters tools/list immediately, so a narrower badge can revoke tools mid-task and switching back restores them; badge changes are mutating session state, audited, and reversible by switching back. Use when: entering the story, spectating, or stepping away to edit. Do NOT use when: answering a pending workflow decision — use respond_decision.",
   inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]).describe("The badge to activate: player, game_master, observer, or none (Editor).") },
 }, async ({ badge }) => {
   const novel = state.activeNovel;
@@ -3013,6 +3027,7 @@ Character '${name}' created as ${entity.id} (profile-only — no mechanical stat
       statMethod: wf.answers.statMethod ?? "planned",
     };
     const stats = buildCharacterStats(build, rules);
+    novelSnapshot();
     const entity = state.createEntity(novel, build.name, undefined, stats);
     state.addEntity(novel, entity);
     state.saveNovel(novel);
@@ -3064,7 +3079,7 @@ function kwMatch(canonicalDecision: string, keywords: string[]): boolean {
 
 server.registerTool("manage_history", {
   title: "Undo and Redo History",
-  description: "Undo or redo the most recent state mutation for the active badge, restoring the prior per-badge snapshot and clearing the redo stack on a new mutation. Both directions mutate Novel state and persist immediately (readOnlyHint false). The stack is per badge and capped by TTRPG_MAX_SNAPSHOT_DEPTH, and a pending workflow decision blocks both until resolved with respond_decision. Use when: reverting the last mutation (undo) or restoring an undone one (redo). Do NOT use when: an older change is the target — re-run the owning tool (e.g. manage_lore, manage_story, manage_world), because only the most recent mutation is stacked.",
+  description: "Undo or redo the most recent state mutation for the active badge, restoring the prior per-badge snapshot and clearing the redo stack on a new mutation. Both directions mutate Novel state and persist immediately (readOnlyHint false). The stack is per badge and capped by TTRPG_MAX_SNAPSHOT_DEPTH, and a pending workflow decision blocks both until resolved with respond_decision. Use when: reverting the last mutation (undo) or restoring an undone one (redo). Do NOT use when: an older change is the target — re-run the owning tool (for example manage_story), because only the most recent mutation is stacked.",
   inputSchema: {
     action: z.enum(["undo", "redo"]).optional().describe("Which direction to move: undo (revert the last mutation) or redo (re-apply the last undone mutation). Defaults to undo.")
   },
@@ -3296,7 +3311,7 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
 // remove/roster_remove/roster_list surface.
 server.registerTool("manage_character", {
   title: "Player Character Management",
-  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. sheet and roster_list are read-only; every other action mutates the Novel and persists the change. update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so one sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. Changes are not reversible via manage_history; update corrects a sheet, and remove deletes the PC permanently. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
+  description: "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so one sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. stage and roster_remove are exact inverses on the roster; remove deletes the Novel entity and is undoable. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
   inputSchema: {
     action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "update", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, update, remove, roster_remove, or roster_list."),
     name: z.string().optional().describe("Character name; omit (create) to begin step-by-step."),
@@ -3413,7 +3428,7 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
         statMethod: method, seed, equipment: toList(effEquipment),
       };
       const stats = buildCharacterStats(build, rules);
-
+      novelSnapshot();
       const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, stats);
       state.addEntity(novel, entity);
       if (stage_to_roster) state.addToRoster(entity);
@@ -3449,6 +3464,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       // REQ-129b2 — entity cardinality.
       const importRefusal = capGuard("entities", novel.entities.size);
       if (importRefusal) return importRefusal;
+      novelSnapshot();
       state.addEntity(novel, { ...rosterEntity, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
       state.saveNovel(novel);
       return ok(`Character '${rosterEntity.name}' imported.`);
@@ -3469,6 +3485,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       requireNotObserver();
       const novel = requireNovel();
       if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      novelSnapshot();
       novel.active_entity_id = args.entity_id;
       if (args.pov !== undefined) novel.pov_mode = args.pov;
       state.saveNovel(novel);
@@ -3481,6 +3498,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       let target = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      novelSnapshot();
       if (!target.personality) target.personality = {};
       if (args.description !== undefined) {
         target.personality.description = args.description;
@@ -3500,6 +3518,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       let target = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      novelSnapshot();
       target.voice_examples = args.examples;
       state.saveNovel(novel);
       audit("set_voice_examples", { entity_id: args.entity_id, count: args.examples.length });
@@ -3515,6 +3534,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
         if (novel.voice_corrections_this_session >= limit) {
           return warn("Voice correction limit reached for this session.");
         }
+        novelSnapshot();
         if (!entity.voice_examples) entity.voice_examples = [];
         entity.voice_examples.push({ context: "player correction", dialogue: args.value, tag: "player-corrected" });
         novel.voice_corrections_this_session++;
@@ -3522,6 +3542,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
         audit("voice-feedback", { corrected: args.value, count: novel.voice_corrections_this_session });
         return ok(`Voice correction captured (${novel.voice_corrections_this_session}/${limit}).`);
       }
+      novelSnapshot();
       novel.player_signals[args.signal] = args.value;
       state.saveNovel(novel);
       audit("player_signal", { signal: args.signal, value: args.value });
@@ -3532,6 +3553,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       const target: any = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      novelSnapshot();
       if (args.stats && typeof args.stats === "object") target.stats = { ...(target.stats ?? {}), ...args.stats };
       if (args.inventory !== undefined) target.inventory = args.inventory;
       if (args.description !== undefined || args.voice !== undefined || args.background !== undefined || args.goals !== undefined) {
@@ -3550,6 +3572,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       requireGM();
       const novel = requireNovel();
       if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      novelSnapshot();
       novel.entities.delete(args.entity_id);
       if (novel.active_entity_id === args.entity_id) novel.active_entity_id = null;
       state.saveNovel(novel);
@@ -3712,7 +3735,7 @@ function resolveSpatialThing(world: WorldModel, ref: string): SpatialActor | und
 
 server.registerTool("run_command", {
   title: "Parser Command",
-  description: "Execute a parser command, resolve a spatial intent, or map intent to tool calls. execute runs a parsed verb-and-noun command (for example 'take lamp' or 'go north') against the world model, mutates world/entity state, persists to the Novel, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes a movement outcome without mutating, and suggest returns recommended tool calls for an intent. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action (execute), needs a movement outcome without mutating state (resolve), or wants intent mapped to tools (suggest). Do NOT use when: the GM inspects the model directly — use manage_world or manage_lore.",
+  description: "Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
   inputSchema: {
     action: z.enum(["execute", "resolve", "suggest", "visibility", "audibility"]).optional().describe("execute (parser), resolve (non-mutating intent), suggest (intent → tool calls), visibility (can one actor see another or a thing), or audibility (can one actor hear another). Defaults to execute."),
     command: z.string().optional().describe("The natural-language command (execute)."),
@@ -4253,6 +4276,7 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 
 // World (REQ-201, REQ-328, REQ-329, REQ-368) — consolidated room/thing/exit/convert surface with
 // the previously-missing update_room/update_thing lifecycle (completeness).
+const MANAGE_WORLD_CAUSAL_PARAMS = new Set(["causal_scope", "causal_domain", "causal_entity", "causal_key", "causal_value", "causal_from", "causal_expected_version", "causal_origin_source", "causal_source_ordinal", "causal_proposal_id"]);
 const MANAGE_WORLD_SCHEMA = {
     action: z.enum(["create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert", "generate", "causal_propose", "causal_admit", "causal_reject", "causal_list", "causal_state", "causal_ingress"]).describe("World: create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, convert, or generate. Causal: causal_propose, causal_admit, causal_reject, causal_list, causal_state, or causal_ingress."),
     name: z.string().optional().describe("Room/thing name (create/update/remove)."),
@@ -4310,8 +4334,8 @@ const MANAGE_WORLD_SCHEMA = {
 server.registerTool("manage_world", {
   _meta: { deprecated: true, replacement: "manage_causality" },
   title: "World Model Management",
-  description: "Manage the world model — rooms, things, exits, and their spatial properties. create, update, remove, convert, and generate mutate the model and persist to the Novel; removing a room or thing is permanent — re-create it to restore the model. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. There are no read-only actions here; inspect state with run_command (action: execute). Use when: creating, updating, removing, bulk-converting, or generating locations and objects. Do NOT use when: navigating the world — use run_command (action: execute) or run_command (action: resolve); proposing or admitting objective-state transitions — use manage_causality; recording what an entity believes — use manage_belief.",
-  inputSchema: MANAGE_WORLD_SCHEMA,
+  description: "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. There are no read-only actions here; inspect state with run_command (action: execute). Use when: creating, updating, removing, bulk-converting, or generating locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); proposing objective-state transitions — use manage_causality; recording what an entity believes — use manage_belief.",
+  inputSchema: pickParams(MANAGE_WORLD_SCHEMA, Object.keys(MANAGE_WORLD_SCHEMA).filter((key) => !MANAGE_WORLD_CAUSAL_PARAMS.has(key))),
 }, async (args: any) => {
   if (typeof args.action === "string" && args.action.startsWith("causal_")) return handleCausalActions(mergeScopedArgs(args, "causal"));
   switch (args.action) {
@@ -4922,7 +4946,7 @@ server.registerTool("manage_combat", {
 const MANAGE_WORLD_SCHEMA_ACTIONS = ["causal_propose", "causal_admit", "causal_reject", "causal_list", "causal_state", "causal_ingress"] as const;
 server.registerTool("manage_causality", {
   title: "Causality Management",
-  description: "Manage objective causal state and transition proposals. Use when: proposing a causal transition (causal_propose), admitting or rejecting a proposal (causal_admit, causal_reject), listing proposals (causal_list), inspecting causal state (causal_state), or ingressing an external event (causal_ingress). Do NOT use when: changing rooms, things, or exits — use manage_world. Proposals persist and are audited; revert with manage_history (action: undo); list and state are read-only; admit, reject, and ingress mutate Novel state.",
+  description: "Manage objective causal state and transition proposals. causal_propose records a proposal without applying it; causal_admit applies the proposal and causal_reject discards it; causal_expected_version guards optimistic concurrency and causal_from records the expected prior value; causal_ingress admits an external event without a proposal. Proposals persist and are audited; list and state are read-only. Use when: proposing, admitting, rejecting, listing, or inspecting causal transitions, or ingressing an external event. Do NOT use when: changing rooms, things, or exits — use manage_world. Revert with manage_history (action: undo).",
   inputSchema: {
     ...pickParams(MANAGE_WORLD_SCHEMA, ["action", "causal_scope", "causal_domain", "causal_entity", "causal_key", "causal_value", "causal_from", "causal_expected_version", "causal_origin_source", "causal_source_ordinal", "causal_proposal_id"]),
     action: z.enum(MANAGE_WORLD_SCHEMA_ACTIONS).describe("causal_propose, causal_admit, causal_reject, causal_list, causal_state, causal_ingress."),
@@ -5138,6 +5162,7 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
 // consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
+const MANAGE_SCENE_STAGING_PARAMS = new Set(["entity_ids", "strategy", "select", "mute", "unmute", "force", "after_user", "level", "confirmation", "safety", "creativity"]);
 const MANAGE_SCENE_SCHEMA = {
     action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
     description: z.string().optional().describe("Scene description (set)."),
@@ -5177,8 +5202,8 @@ const MANAGE_SCENE_SCHEMA = {
 server.registerTool("manage_scene", {
   _meta: { deprecated: true, replacement: "manage_staging" },
   title: "Scene Management",
-  description: "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls, distinct from the world model's rooms and things. set writes the description, location, type, time, and atmosphere, deriving the description from location only when description is omitted; directive sets the narrative directive; choices offers player options; oracle resolves a chance question and records the roll. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo). Use when: setting scene state, issuing a directive, offering choices, or consulting the oracle. Do NOT use when: recording a story beat — use manage_story (action: record); staging party presence or autonomy — use manage_staging.",
-  inputSchema: MANAGE_SCENE_SCHEMA,
+  description: "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls, distinct from the world model's rooms and things. set overwrites the scene's description and metadata and derives the description from location only when description is omitted; directive replaces the active directive; choices replaces the offered options; oracle resolves a chance question and records the roll. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo). Use when: setting scene state, issuing a directive, offering choices, or consulting the oracle. Do NOT use when: recording a story beat — use manage_story (action: record); staging presence or autonomy — use manage_staging.",
+  inputSchema: pickParams(MANAGE_SCENE_SCHEMA, Object.keys(MANAGE_SCENE_SCHEMA).filter((key) => !MANAGE_SCENE_STAGING_PARAMS.has(key))),
 }, async (args: any) => {
   switch (args.action) {
     case "set": {
@@ -5430,7 +5455,7 @@ server.registerTool("manage_scene", {
 // REQ-075g/075h/075i — talkativeness, card import, and card export.
 server.registerTool("manage_npc", {
   title: "NPC Management",
-  description: "Manage non-player characters in the active Novel. create requires a name; update, remove, and get target an existing npc_id; ruleset_reference links an optional stat block; mind is GM-only and never returned to the Player badge. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); remove deletes the NPC, while list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+  description: "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card"]).describe("create, update, remove, list, get, import_card, or export_card."),
     detail: z.boolean().optional().describe("Return full NPC records instead of summary entries (list)."),
@@ -5663,7 +5688,7 @@ server.registerTool("manage_npc", {
 const MANAGE_SCENE_SCHEMA_ACTIONS = ["presence", "autonomy", "cast", "next_speaker"] as const;
 server.registerTool("manage_staging", {
   title: "Scene Staging Management",
-  description: "Manage scene presence, autonomy, and social-cast staging. Use when: setting which entities are present (presence), adjusting NPC and world autonomy for the scene (autonomy), setting a multi-NPC speaker strategy (cast), or selecting the next speaker (next_speaker). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence, autonomy, and cast state persist to the Novel and are audited; revert with manage_history (action: undo).",
+  description: "Manage scene presence, autonomy, and social-cast staging. presence replaces the present set; cast sets the multi-NPC speaker strategy with mute/unmute adjusting its pool; next_speaker runs manual, forced, or pooled selection, where force overrides select; autonomy changes apply to the current scene only. Presence, autonomy, and cast state persist to the Novel and are audited. Use when: setting who is present, adjusting scene autonomy, choosing a speaker strategy, or selecting the next speaker. Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. Revert the most recent mutation with manage_history (action: undo).",
   inputSchema: {
     ...pickParams(MANAGE_SCENE_SCHEMA, ["action", "entity_ids", "strategy", "select", "mute", "unmute", "force", "after_user", "level", "confirmation", "safety", "creativity"]),
     action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy, cast, or next_speaker."),
@@ -5679,7 +5704,7 @@ server.registerTool("manage_staging", {
 // Countdown (REQ-329, REQ-358, REQ-368) — consolidated set/advance/remove/list surface.
 server.registerTool("manage_countdown", {
   title: "Countdown Manager",
-  description: "Manage countdown timers in the active Novel. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's direction shifts NPC dispositions only when scope is also set. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone).",
+  description: "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; direction shifts NPC dispositions only when scope is also set. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
   inputSchema: {
     action: z.enum(["set", "advance", "remove", "list"]).describe("set, advance, remove, or list."),
     name: z.string().optional().describe("Countdown name (set/advance/remove)."),
@@ -5826,7 +5851,7 @@ const CORPUS_PARAMS = {
 server.registerTool("manage_lore", {
   _meta: { deprecated: true, replacement: "manage_corpus" },
   title: "Lore Management",
-  description: "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus.",
+  description: "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus.",
   inputSchema: MANAGE_LORE_SCHEMA,
 }, async (args: any) => {
   // REQ-581 — retired on manage_lore, but manage_corpus delegates to this
@@ -6124,7 +6149,7 @@ server.registerTool("manage_condition", {
 const MANAGE_LORE_SCHEMA_ACTIONS = ["corpus_register", "corpus_list", "corpus_get", "corpus_route", "corpus_grant", "corpus_deny", "corpus_access", "corpus_consume", "corpus_acquisitions"] as const;
 server.registerTool("manage_corpus", {
   title: "Knowledge Corpus",
-  description: "Manage the cold-reference knowledge corpus. Use when: registering, listing, reading, routing, granting, denying, accessing, consuming, or inspecting acquisitions of corpus documents (corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions). Do NOT use when: writing Novel lore entries or secrets — use manage_lore. corpus_register, corpus_route, corpus_grant, and corpus_deny persist access state; revert with manage_history (action: undo); corpus_list, corpus_get, corpus_access, and corpus_acquisitions are read-only; corpus_consume records usage.",
+  description: "Manage the cold-reference knowledge corpus. corpus_register indexes a document; route derives its domain from a trusted source profile; grant and deny set per-entity access with the latest decision winning; consume records a read; access checks an entity against the recorded grants. Mutating actions persist access state and are audited; list, get, access, and acquisitions are read-only. Use when: registering, listing, reading, routing, granting/denying access, consuming, or inspecting acquisitions of corpus documents. Do NOT use when: writing Novel lore entries or secrets — use manage_lore. Revert the most recent mutation with manage_history (action: undo).",
   inputSchema: {
     ...pickParams(MANAGE_LORE_SCHEMA, ["action"]),
     ...CORPUS_PARAMS,
@@ -6255,7 +6280,7 @@ server.registerTool("manage_relationship", {
 // Vow (REQ-322, REQ-358) — consolidated set/milestone/resolve/forsake/list surface.
 server.registerTool("manage_vow", {
   title: "Vow Management",
-  description: "Track narrative vows, quests, and obligations with milestones. set creates a vow and links a countdown whose ticks follow the difficulty rank track (scope defaults to shared); milestone advances progress; resolve and forsake close the vow with distinct outcomes (fulfilled vs abandoned). Mutations require the GM or Editor badge and persist to the Novel; list is read-only. Vow changes are not reversible via manage_history; resolve and forsake are terminal choices. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
+  description: "Track narrative vows, quests, and obligations with milestones. set creates a vow and links a countdown whose ticks follow the difficulty rank track (scope defaults to shared); milestone advances progress; resolve and forsake close the vow with distinct outcomes (fulfilled vs abandoned). Mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
   inputSchema: {
     action: z.enum(["set", "milestone", "resolve", "forsake", "list"]).describe("set, milestone, resolve, forsake, or list."),
     name: z.string().optional().describe("Vow name (set)."),
@@ -6275,6 +6300,7 @@ server.registerTool("manage_vow", {
       const novel = requireNovel();
       const { name, description, parties, difficulty, scope } = args;
       const existingVow = novel.vows.find(v => v.name === name);
+      novelSnapshot();
       if (existingVow) {
         if (description !== undefined) existingVow.description = description;
         if (parties !== undefined) existingVow.parties = parties;
@@ -6305,6 +6331,7 @@ server.registerTool("manage_vow", {
       const novel = requireNovel();
       const vow = novel.vows.find(v => v.name === args.vow_name);
       if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      novelSnapshot();
       vow.milestones++;
       const linked = novel.countdowns.get(`vow:${args.vow_name}`);
       if (linked) {
@@ -6323,6 +6350,7 @@ server.registerTool("manage_vow", {
       const novel = requireNovel();
       const vow = novel.vows.find(v => v.name === args.vow_name);
       if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      novelSnapshot();
       vow.state = "resolved";
       vow.outcome = args.outcome;
       vow.consequences = args.consequences;
@@ -6334,6 +6362,7 @@ server.registerTool("manage_vow", {
       const novel = requireNovel();
       const vow = novel.vows.find(v => v.name === args.vow_name);
       if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      novelSnapshot();
       vow.state = "forsaken";
       vow.reason = args.reason;
       state.saveNovel(novel);
@@ -6946,7 +6975,7 @@ server.registerTool("manage_story", {
 // Note (REQ-242, REQ-285) — consolidated set/remove/list surface.
 server.registerTool("manage_note", {
   title: "Note Management",
-  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's badge_scope defaults to game_master. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set).",
+  description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. set replaces the note content; badge_scope defaults to game_master and controls which badge can read it; set_server stores a server-level note with an optional narrative_tag, and list_server returns summaries unless detail is set. Mutations persist to the Novel and are audited. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set). Revert with manage_history (action: undo).",
   inputSchema: {
     action: z.enum(["set", "remove", "list", "set_server", "remove_server", "list_server"]).describe("set, remove, list, set_server, remove_server, or list_server."),
     detail: z.boolean().optional().describe("Return full server notes instead of summary entries (list_server)."),
@@ -7091,7 +7120,7 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management",
-  description: "Manage per-entity evidence, reconciled belief stances, the perception ledger, and a one-entity knowledge query. admit takes a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances after evidence changes; knowledge_query returns the entity's perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; reads are read-only. The perception ledger is append-only, so correct a mistaken admit with retract. Use when: inspecting or recording what an entity learned or believes. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore.",
+  description: "Manage per-entity evidence, reconciled belief stances, the perception ledger, and a one-entity knowledge query. admit records a subject/predicate/object proposition with a 0..1 weight and does not change a stance until reconcile recomputes it; retract removes the cited evidence and reconciles; the perception ledger is append-only, so correct a mistaken perception with a new record. Mutating actions persist to the Novel; reads are read-only. knowledge_query returns perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Use when: inspecting or recording what an entity learned or believes. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore.",
   inputSchema: {
     action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Knowledge: knowledge_query."),
     detail: z.boolean().optional().describe("Return full belief records instead of summary entries (list)."),
@@ -7276,9 +7305,9 @@ function identityReadGate(characterId: string) {
 
 server.registerTool("manage_identity", {
   title: "Identity Management",
-  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material, accept replaces a facet and bumps the identity version, and reject marks that candidate rejected without touching accepted facets; bootstrap seeds from a character card, and an accepted facet's prior value is not retained. accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only; identity changes are not reversible via manage_history, so reject a bad candidate before accepting it. Use when: staging identity material, accepting or rejecting a candidate, bootstrapping from a character card, or reading candidates, facets, or the compiled kernel. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material; accept replaces a facet, retains the displaced value in an internal history, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only and report current facets only. Use when: staging, accepting, rejecting, reverting, or reading identity material. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
   inputSchema: {
-    action: z.enum(["stage", "accept", "reject", "list", "snapshot", "bootstrap"]).describe("stage, accept, reject, list, snapshot, or bootstrap."),
+    action: z.enum(["stage", "accept", "reject", "revert", "list", "snapshot", "bootstrap"]).describe("stage, accept, reject, revert, list, snapshot, or bootstrap."),
     character_id: z.string().describe("Roster character id."),
     candidate_id: z.string().optional().describe("Identity candidate id (accept/reject)."),
     facet: z.string().optional().describe("Identity facet key, e.g. name or calling (stage)."),
@@ -7295,7 +7324,8 @@ server.registerTool("manage_identity", {
       const gate = identityReadGate(args.character_id); if (gate) return gate;
       const identity = identityFor(args.character_id);
       if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
-      return raw(JSON.stringify(identity, null, 2));
+      const { history: _history, ...publicIdentity } = identity;
+      return raw(JSON.stringify(publicIdentity, null, 2));
     }
     case "snapshot": {
       requireNotObserver();
@@ -7351,6 +7381,16 @@ server.registerTool("manage_identity", {
       state.saveRoster();
       audit("identity_reject", { character_id: args.character_id, candidate_id: candidate.id });
       return ok(`Rejected identity candidate ${candidate.id}.`);
+    }
+    case "revert": {
+      requireGM();
+      const identity = identityFor(args.character_id);
+      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      const restored = revertFacet(identity, new Date().toISOString());
+      if (!restored) return err("STATE_CONFLICT", "No displaced identity facet to revert. Accept a replacement first.");
+      state.saveRoster();
+      audit("identity_revert", { character_id: args.character_id, facet: restored.facet, revision: restored.revision, version: identity.version });
+      return ok(`Reverted identity facet '${restored.facet}' to revision ${restored.revision}; identity version is now ${identity.version}.`);
     }
     case "bootstrap": {
       requireGM();
@@ -7710,7 +7750,7 @@ function gatherGraphSources(novel: NovelState): GraphSourceSet {
 // and read actions never mutate Novel state.
 server.registerTool("manage_knowledge", {
   title: "Derived Knowledge",
-  description: "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build replace the prior in-memory projection, are audited, and are safe to rebuild from the authoritative Novel file, which is never modified. The read actions (index_status, graph_status, index_list, index_search, index_relations, graph_get, graph_nodes, graph_edges, graph_neighbors) are read-only and do not mutate state. Use when: building or rebuilding the index or graph, checking staleness, listing or ranking indexed items, or reading relations and graph structure. Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording a relationship — use manage_relationship.",
+  description: "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build are audited, replace the prior projection in one step, and do not persist a separate copy; they are safe to rebuild from the authoritative Novel file, which is never modified. The read actions never mutate state. Use when: building or rebuilding the index or graph, checking staleness, ranking indexed items, or reading relations and graph structure. Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording a relationship — use manage_relationship.",
   inputSchema: {
     action: z.enum(["index_build", "index_status", "index_list", "index_search", "index_relations", "graph_build", "graph_status", "graph_get", "graph_nodes", "graph_edges", "graph_neighbors"]).describe("index_* actions operate the semantic index; graph_* actions operate the knowledge graph."),
     query: z.string().optional().describe("Query text to rank candidates against (index_search)."),
@@ -7828,7 +7868,7 @@ function requireTask(novel: NovelState, taskId: string | undefined): AgentTask |
 
 server.registerTool("manage_agent", {
   title: "Agent Task Management",
-  description: "Manage durable NPC/agent tasks and their action lifecycle. Mutating actions (create, start, advance, complete, fail, cancel) persist to the Novel and are audited; list/get are read-only. Revert the most recent mutation with manage_history (action: undo); terminal tasks are immutable. Use when: creating a task (create), starting it (start), logging an action (advance), settling it (complete/fail/cancel), or inspecting tasks (list/get). Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc.",
+  description: "Manage durable NPC/agent tasks and their action lifecycle. create reads goal and optional source_goal; advance appends description; complete, fail, and cancel settle the task and terminal tasks are immutable; autonomy defaults to TTRPG_AGENT_AUTONOMY. Mutating actions persist to the Novel and are audited; list/get are read-only. Use when: creating, starting, advancing, settling, or inspecting tasks. Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc. Revert with manage_history (action: undo).",
   inputSchema: {
     action: z.enum(["create", "list", "get", "start", "advance", "complete", "fail", "cancel"]).describe("create, list, get, start, advance, complete, fail, or cancel."),
     detail: z.boolean().optional().describe("Return full agent tasks instead of summary entries (list)."),
@@ -8107,7 +8147,7 @@ const MANAGE_SESSION_CANONICAL_SCHEMA = pickParams(MANAGE_SESSION_SCHEMA, [
 server.registerTool("manage_session", {
   _meta: { deprecated: true, replacement: "manage_diagnostics" },
   title: "Session Management",
-  description: "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap summarizes recent activity and accepts session_id, gm_notes, and a history window; discover searches the tool catalog by name, description, or title and returns live input schemas on request (detail: schema). verbosity sets normal or terse output; briefing_order reorders briefing sections and requires the GM or Editor badge. verbosity is session-scoped; briefing_order persists to the Novel. recap and discover are read-only, and a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+  description: "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
   inputSchema: MANAGE_SESSION_CANONICAL_SCHEMA,
 
 }, async (args: any) => {
@@ -8461,7 +8501,7 @@ Options: yes, cancel`);
 const DIAGNOSTICS_ACTIONS = ["health", "context_report", "compress", "compact", "subscribe", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"] as const;
 server.registerTool("manage_diagnostics", {
   title: "Session Diagnostics",
-  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. Use when: reporting server health (health), summarizing or compacting the audit log (compress, compact), subscribing to notifications (subscribe), reassigning a tool category (category), appending and reading the Novel event log (event, history), verifying that stored state matches its recorded hashes (verify), inspecting the retained log through an ordinal (replay), or scanning a draft for GM-only disclosure before player-facing narration (visibility_check, visibility_audit). Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session. compact is GM-only and irreversible; category, event, and compact persist; health, compress, subscribe, history, verify, replay, and visibility_audit are read-only; visibility_check records its decision in the audit log.",
+  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. compress summarizes the audit log while compact prunes it irreversibly; verify compares live state with recorded hashes and replay reads the retained log, and both are read-only; visibility_check records its decision in the audit log while visibility_audit reads recent decisions; health, subscribe, and category reassignment do not change Novel content. compact is GM-only. Use when: reporting health, summarizing or compacting the audit log, subscribing, reassigning a category, appending/reading the event log, verifying or replaying state, or scanning a draft for GM-only disclosure. Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session.",
   inputSchema: {
     ...MANAGE_SESSION_SCHEMA,
     action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, context_report, compress, compact, subscribe, category, event, history, verify, replay, visibility_check, or visibility_audit."),
@@ -8903,7 +8943,7 @@ const MANAGE_NOVEL_SCHEMA = {
 server.registerTool("manage_novel", {
   _meta: { deprecated: true, replacement: "manage_archive" },
   title: "Novel Save Management",
-  description: "Manage Novel save files: lifecycle (create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context) and listing. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create and save_context persist to the Novel; list, info, and get_context are read-only. Lifecycle changes are not reversible via manage_history; clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools (manage_npc, manage_lore, manage_faction, manage_vow, manage_story, manage_note); use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
+  description: "Manage Novel save files: create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context, and list. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create and save_context persist to the Novel; list, info, and get_context are read-only. Lifecycle changes are not reversible via manage_history, so clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools; use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
   inputSchema: MANAGE_NOVEL_SCHEMA,
 }, async (args: any) => {
   switch (args.action) {
@@ -9639,7 +9679,7 @@ server.registerTool("manage_ruleset", {
 const MANAGE_NOVEL_SCHEMA_ACTIONS = ["export", "import", "archive", "unarchive", "clone", "branch", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"] as const;
 server.registerTool("manage_archive", {
   title: "Novel Archive Management",
-  description: "Manage Novel archival and checkpoint surfaces. Use when: exporting or importing a Novel (export, import), archiving or unarchiving it (archive, unarchive), cloning or branching it (clone, branch), or setting, listing, restoring, or removing a checkpoint (checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove). Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Export and import write files or Novel state; archive, unarchive, clone, branch, and checkpoint mutations persist; revert with manage_history (action: undo); checkpoint_list is read-only.",
+  description: "Manage Novel archival and checkpoint surfaces. Export writes a file; import writes Novel state and mode selects dry-run (validate only), merge (keep existing entries), or replace (discard current Novel state), while strict aborts on unresolved references. archive is reversible with unarchive; checkpoint_restore replaces the live Novel with the stored checkpoint and is itself undoable; checkpoint subscriptions persist. Use when: exporting or importing a Novel, archiving/unarchiving, cloning/branching, or managing checkpoints. Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Revert the most recent mutation with manage_history (action: undo); checkpoint_list is read-only.",
   inputSchema: {
     ...pickParams(MANAGE_NOVEL_SCHEMA, ["action", "slug", "source_slug", "new_name", "from_event", "format", "scope", "data", "mode", "strict", "include_checkpoints", "trim_audit_sessions", "label"]),
     action: z.enum(MANAGE_NOVEL_SCHEMA_ACTIONS).describe("export, import, archive, unarchive, clone, branch, checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove."),
@@ -12301,7 +12341,7 @@ server.prompt("run_workflow", "Map Intent to Tools", async () => {
 // manage_story (action: record).
 server.registerTool("open_session", {
   title: "Open Play Session",
-  description: "Open a play session by resuming a Novel, activating a badge, and returning a recap. Use when: starting or resuming a session (open_session), especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn. Resume and badge changes persist and are audited; revert with manage_history (action: undo).",
+  description: "Open a play session by resuming a Novel, activating a badge, and returning a recap. novel selects the slug and badge the seat; both are optional and fall back to the active Novel and current badge; resume and badge changes persist and are audited. Use when: starting or resuming a session, especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn. Revert with manage_history (action: undo).",
   inputSchema: {
     novel: z.string().optional().describe("Novel slug to resume (open_session)."),
     badge: z.enum(["player", "game_master", "observer", "none"]).optional().describe("Badge to activate (open_session)."),
@@ -12325,7 +12365,7 @@ server.registerTool("open_session", {
 
 server.registerTool("close_session", {
   title: "Close Play Session",
-  description: "Close a play session by returning a recap and saving the current context. Use when: ending a session (close_session) or checkpointing the narrative context. Do NOT use when: archiving or exporting a Novel — use manage_archive. Context and recap state persist and are audited; revert with manage_history (action: undo).",
+  description: "Close a play session by returning a recap and saving the current context. The close seals the session's recap and saved context but does not archive or export the Novel; resume it later with open_session. Context and recap state persist and are audited; revert with manage_history (action: undo). Use when: ending a session or checkpointing the narrative context. Do NOT use when: archiving or exporting a Novel — use manage_archive.",
   inputSchema: {},
 }, async () => {
   const parts: string[] = [];
@@ -12348,7 +12388,7 @@ server.registerTool("close_session", {
 
 server.registerTool("take_turn", {
   title: "Take Play Turn",
-  description: "Resolve a player intent through the parser and mint a turn handle for the story record. Use when: taking a turn (take_turn) before recording the outcome with manage_story (action: record). Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use resolve_mechanic (action: roll). The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped and expires.",
+  description: "Resolve a player intent through the parser and mint a turn handle for the story record. The turn is read-only and non-persistent: no Novel state is mutated; the handle is session-scoped, single-use, and consumed by manage_story (action: record), though recording without it still works. Use when: taking a turn before recording its outcome. Do NOT use when: resolving a specific combat round — use manage_combat (action: advance); rolling a ruleset check — use resolve_mechanic (action: roll).",
   inputSchema: {
     intent: z.string().describe("Player intent to resolve (take_turn)."),
     entity_id: z.string().optional().describe("Acting entity id (take_turn)."),

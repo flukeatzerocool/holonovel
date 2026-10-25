@@ -58,6 +58,7 @@ const GATES: Gate[] = [
   { name: "surface-budget", fast: npm("surface-budget"), full: npm("surface-budget") },
   { name: "surface-replay", fast: npm("surface-replay"), full: npm("surface-replay") },
   { name: "check-performance-record", fast: npm("check-performance-record"), full: npm("check-performance-record") },
+  { name: "check-tdqs-scoreboard", fast: npm("check-tdqs-scoreboard"), full: npm("check-tdqs-scoreboard") },
   { name: "tool-citation-check", fast: npm("tool-citation-check"), full: npm("tool-citation-check") },
   {
     name: "check-reference-server-cleanliness",
