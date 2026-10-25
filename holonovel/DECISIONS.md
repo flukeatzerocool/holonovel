@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,245 tokens; standard 24,744; small 1,282; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,275 tokens; standard 24,774; small 1,282; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Two-week audit remediation — 2026-10-24
 
@@ -78,7 +78,7 @@
 - **Re-baseline (2026-10-20).** The baseline is now measured from the serialized projected `tools/list` payload, not a reduced snapshot. Full 25,852 tokens; standard 22,351 (86.5% of full; call-complete, with output-schema bodies reduced to a presence marker); small 1,153 worst-case (4.5% of full; active-group entry tools plus the five globals as a one-line summary). The default remains `full`. Budgets: standard at most 90% of full, small at most 10%. `surface-budget` verifies baseline freshness; `surface-replay` gates full and standard at visibility 1.0 and mean calls 1.0. (REQ-548b, REQ-568, REQ-570, REQ-571, REQ-575, REQ-580)
 - **TDQS proxy correction (2026-10-20).** Conciseness measures description bytes, not full-definition bytes; Parameter Semantics scores 5 at complete schema coverage; Behavioral Transparency counts distinct concepts with morphological variants; the runtime schema converter preserves `.describe()` and enum values. Every host tool now scores 5.0 on the deterministic proxy, and live and static reports agree (T679/T680). Server coherence is 4.3/5: naming, disambiguation, and completeness are 5; tool-count appropriateness is 2 at 36 tools. The deterministic proxy is not the external LLM-graded TDQS score. (REQ-450, REQ-552)
 - **Decision.** The surface is declared by a committed registry (`holonovel/tool-surface-registry.json`) mapping all 229 canonical actions plus 50 retired compatibility declarations to one of eight intent groups, a phase set, an entry flag, and a mutation class. `tools/list` accepts a group and profile; `TTRPG_SURFACE_PROFILE` defaults to `full`, so the pre-contract catalog is unchanged. (REQ-567, REQ-570, REQ-580)
-- **Baseline.** 36 tools, 229 canonical actions, 28,245 full-catalog tokens under the pinned estimator. Standard projection 24,744 tokens (budget 25,421); worst-case small projection 1,282 tokens (budget 2,825). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
+- **Baseline.** 36 tools, 229 canonical actions, 28,275 full-catalog tokens under the pinned estimator. Standard projection 24,774 tokens (budget 25,448); worst-case small projection 1,282 tokens (budget 2,828). Recorded in `spec/audit/tool-surface-baseline.json`. (REQ-571)
 - **Response-lean enumeration (2026-10-24).** REQ-409 is now enforced for the direct tool-level list actions (`manage_npc`, `manage_lore`, `manage_faction`, `manage_belief`, `manage_agent`, `manage_note (action: list_server)`). Default summary field sets: npc `id/name/disposition/location` + `description` preview 120; lore `key/badge_scope/enabled` + `content` preview 120; faction `id/name/status` + `description` preview 120; belief `entity_id/question/polarity/confidence/status`; agent_task `id/subject/status/autonomy/updated_at` + `goal` preview 120; server_note `key/narrative_tag` + `content` preview 100. `detail: true` returns full records; single-entry reads stay full (REQ-060). Shimmed sub-surfaces (causal, corpus, perception) keep their existing dispatch and are not routed through the projector. (REQ-409)
 - **Gates.** `check-tool-surface` (registry coverage, entry uniqueness, group balance) and `surface-budget` (profile budgets) are wired into `check:fast` and `check`.
 - **Enforcement.** REQ-573 preconditions (combat-active), REQ-575 cross-group edges, and REQ-576 audited Editor override are implemented in the `tools/call` guard; the override count is reported in `spec_health.tool_surface.overrides`. `test:surface-guards` exercises T666/T668/T669 and the REQ-577/REQ-574 composites (T670/T667) and is wired into `test:all`. Cross-group enforcement is inert under the default `full` profile.
@@ -418,7 +418,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.10.24 |
+| Spec version | 2026.10.25 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

@@ -115,7 +115,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.24",
+  version: "2026.10.25",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -3610,18 +3610,20 @@ function advanceWorldTriggeredCountdowns(novel: NovelState, event: string): void
   const [evType, evTarget] = event.split(":");
   for (const [name, cd] of [...novel.countdowns.entries()]) {
     if (!cd.triggers || cd.triggers.length === 0) continue;
-    const matched = cd.triggers.some((t) => {
-      const m = t.match(/^on_(room_enter|thing_take|door_open)\((.+)\)$/);
-      return m && evType === m[1] && evTarget === m[2];
-    });
-    if (matched) {
+    for (const t of cd.triggers) {
+      const m = t.match(/^on_(room_enter|thing_take|door_open)\((.+?)\)(?:([+-]\d+))?$/);
+      if (!m || evType !== m[1] || evTarget !== m[2]) continue;
       const dir = cd.direction === "increment" ? 1 : -1;
-      cd.ticks += dir;
-      audit("countdown_world_trigger", { name, event, ticks: cd.ticks });
+      // REQ-329a — a signed suffix is a raw tick delta (refill); a bare
+      // trigger keeps the legacy one tick in the countdown's direction.
+      const delta = m[3] ? Number(m[3]) : dir;
+      cd.ticks = Math.max(0, Math.min(cd.total, cd.ticks + delta));
+      audit("countdown_world_trigger", { name, event, ticks: cd.ticks, delta });
       if ((dir < 0 && cd.ticks <= 0) || (dir > 0 && cd.ticks >= cd.total)) {
         fireCountdown(novel, name, cd);
       }
       state.saveNovel(novel);
+      break;
     }
   }
 }
@@ -5050,8 +5052,21 @@ function applyWorldEffect(novel: NovelState, eff: any): { applied: boolean; warn
   }
   if (eff.type === "exit") {
     const roomA = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === String(eff.target).toLowerCase());
+    if (!roomA) return { applied: false, warning: `target missing — effect not applied (${eff.target})` };
+    // REQ-368b — a bare direction (no destination) removes the exit.
+    if (!eff.destination) {
+      const dir = String(eff.direction);
+      const targetName = roomA.exits.get(dir as Direction);
+      if (!targetName) return { applied: false, warning: `exit missing — effect not applied (${eff.target} ${dir})` };
+      novelSnapshot();
+      roomA.exits.delete(dir as Direction);
+      const roomB = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === String(targetName).toLowerCase());
+      const back = oppositeDirection(dir as Direction);
+      if (roomB?.exits.get(back) === roomA.name) roomB.exits.delete(back);
+      return { applied: true };
+    }
     const roomB = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === String(eff.destination).toLowerCase());
-    if (!roomA || !roomB) return { applied: false, warning: `target missing — effect not applied (${eff.target})` };
+    if (!roomB) return { applied: false, warning: `target missing — effect not applied (${eff.target})` };
     novelSnapshot();
     roomA.exits.set(String(eff.direction), roomB.name);
     roomB.exits.set(oppositeDirection(String(eff.direction) as Direction), roomA.name);
@@ -5624,7 +5639,8 @@ server.registerTool("manage_countdown", {
   inputSchema: {
     action: z.enum(["set", "advance", "remove", "list"]).describe("set, advance, remove, or list."),
     name: z.string().optional().describe("Countdown name (set/advance/remove)."),
-    ticks: z.number().min(1).optional().describe("Starting ticks (set)."),
+    ticks: z.number().min(0).optional().describe("Starting ticks (set)."),
+    total: z.number().min(1).optional().describe("Optional capacity for decrement refills (set; defaults to ticks)."),
     type: z.enum(["round", "narrative"]).optional().describe("round or narrative (set)."),
     scope: z.string().optional().describe("Optional scope name (set)."),
     direction: z.string().optional().describe("Optional direction: increment or decrement (set)."),
@@ -5645,7 +5661,7 @@ server.registerTool("manage_countdown", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const { name, ticks, type, scope, direction, on_scene_transition, triggers, world_effect } = args;
+      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect } = args;
       // REQ-129b1 — countdown cardinality applies to new countdowns only.
       if (!novel.countdowns.has(name)) {
         const cdRefusal = capGuard("countdowns", novel.countdowns.size);
@@ -5656,7 +5672,7 @@ server.registerTool("manage_countdown", {
       novel.countdowns.set(name, {
         name,
         ticks: nextTicks,
-        total: ticks ?? existingCd?.total ?? nextTicks,
+        total: total ?? existingCd?.total ?? ticks ?? nextTicks,
         type: type ?? existingCd?.type ?? "narrative",
         scope: scope ?? existingCd?.scope,
         direction: direction ?? existingCd?.direction,
@@ -5666,7 +5682,7 @@ server.registerTool("manage_countdown", {
       });
       state.recordMutation(novel, "set_countdown", "countdown");
       state.saveNovel(novel);
-      audit("set_countdown", { name, ticks: nextTicks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
+      audit("set_countdown", { name, ticks: nextTicks, total: total ?? existingCd?.total ?? nextTicks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
       return ok(`Countdown '${name}' set (${nextTicks} ticks, ${type ?? existingCd?.type ?? "narrative"})${triggers && triggers.length > 0 ? `, ${triggers.length} world trigger${triggers.length === 1 ? "" : "s"}` : ""}.`);
     }
     case "advance": {
@@ -5675,8 +5691,9 @@ server.registerTool("manage_countdown", {
       novelSnapshot();
       const cd = novel.countdowns.get(args.name);
       if (!cd) return err("NOT_FOUND", `Countdown '${args.name}' not found.`);
-      cd.ticks--;
-      if (cd.ticks <= 0) {
+      const dir = cd.direction === "increment" ? 1 : -1;
+      cd.ticks = Math.max(0, Math.min(cd.total, cd.ticks + dir));
+      if ((dir > 0 && cd.ticks >= cd.total) || (dir < 0 && cd.ticks <= 0)) {
         novel.countdowns.delete(args.name);
         if ((cd as any).world_effect) {
           const eff = (cd as any).world_effect;
@@ -5717,7 +5734,7 @@ server.registerTool("manage_countdown", {
       const novel = requireNovel();
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
-      const rows = [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, total: cd.total, type: cd.type, ...(isGM ? { scope: cd.scope, direction: cd.direction } : {}) }));
+      const rows = [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, type: cd.type, ...(isGM ? { total: cd.total, scope: cd.scope, direction: cd.direction } : {}) }));
       return raw(JSON.stringify(rows, null, 2));
     }
     default:
@@ -8353,7 +8370,7 @@ Options: yes, cancel`);
       }
       const activeCountdowns = [...novel.countdowns.entries()].filter(([, cd]) => cd.ticks > 0);
       if (activeCountdowns.length > 0) {
-        recap += `\nCountdowns: ${activeCountdowns.map(([name, cd]) => `${name}(${cd.ticks}/${cd.total})`).join(", ")}`;
+        recap += `\nCountdowns: ${activeCountdowns.map(([name, cd]) => `${name}(${cd.ticks} remaining)`).join(", ")}`;
       }
       const enabledLore = [...novel.lore.values()].filter(l => l.enabled);
       if (enabledLore.length > 0) {
@@ -12126,7 +12143,7 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       if (v.state === "active") threadLines.push(`Vow: ${v.name} (${v.difficulty}, ${v.milestones} milestones)`);
     }
     for (const [name, cd] of novel.countdowns) {
-      if (cd.ticks > 0) threadLines.push(`Countdown: ${name} (${cd.ticks}/${cd.total})`);
+      if (cd.ticks > 0) threadLines.push(`Countdown: ${name} (${cd.ticks} remaining)`);
     }
     if (badge === "game_master") {
       for (const [, npc] of novel.npcs) {

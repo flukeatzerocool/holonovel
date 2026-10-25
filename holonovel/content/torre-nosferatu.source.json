@@ -156,40 +156,47 @@
   "countdowns": {
     "The Candle": {
       "name": "The Candle",
-      "ticks": 60,
-      "total": 60,
+      "ticks": 30,
+      "total": 100,
       "type": "narrative",
       "scope": "shared",
       "direction": "decrement",
+      "on_scene_transition": true,
       "triggers": [
-        "wax",
-        "burn",
-        "candle",
-        "flame"
+        "on_thing_take(wax stub)+10",
+        "on_thing_take(sixth floor wax)+10",
+        "on_thing_take(fifth floor wax)+10",
+        "on_thing_take(fourth floor wax)+10",
+        "on_thing_take(third floor wax)+10",
+        "on_thing_take(second floor wax)+10",
+        "on_thing_take(first floor wax)+10"
       ],
       "world_effect": {
-        "type": "describe",
-        "target": "You",
-        "value": "Wax-out: the flame gutters for N turns (N set by Dread, inversely — 5 down to 1) before Orlok takes you. Spend the grace to reach a match or the exit."
+        "type": "exit",
+        "target": "First Floor — Antechamber",
+        "direction": "out",
+        "value": "Wax-out: the flame gutters out and the tower seals the threshold behind you. Orlok takes the way out."
       }
     },
     "Dread": {
       "name": "Dread",
-      "ticks": 8,
+      "ticks": 0,
       "total": 8,
       "type": "narrative",
       "scope": "shared",
       "direction": "increment",
       "triggers": [
-        "dread",
-        "weather",
-        "shadow",
-        "sky"
+        "on_room_enter(sixth floor — entry landing)",
+        "on_room_enter(fifth floor — entry landing)",
+        "on_room_enter(fourth floor — entry landing)",
+        "on_room_enter(third floor — entry landing)",
+        "on_room_enter(second floor — entry landing)",
+        "on_room_enter(first floor — entry landing)"
       ],
       "world_effect": {
         "type": "describe",
-        "target": "the tower",
-        "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. Dread also sets the guttering-dark grace, inversely: low Dread = a long last chance, high Dread = he takes you almost at once."
+        "target": "First Floor — Antechamber",
+        "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. The Antechamber's dust hangs still — he is almost at the door."
       }
     }
   },

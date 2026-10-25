@@ -150,6 +150,10 @@ async function main(): Promise<void> {
       const candle = [...world.things.values()].find((t) => t.name === "Your Candle");
       assert(candle?.lit && candle?.switched_on, "the starting candle is lit and switched on");
       assert(roomIsLit(world, "Seventh Floor — Spire"), "the Spire is lit");
+      const candleClock = novel!.countdowns.get("The Candle");
+      assert(candleClock?.ticks === 30, "the Candle starts at 30 wax");
+      assert(candleClock?.total === 100, "the Candle capacity is 100");
+      assert((candleClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+10$/.test(t)).length === 7, "seven wax refill triggers are wired");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

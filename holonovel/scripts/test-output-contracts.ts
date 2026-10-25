@@ -778,7 +778,27 @@ async function main() {
     assertContains(nav, "[OK]", "REQ-329 navigation");
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "ambush (1", "REQ-329 trigger advanced countdown");
-    passed++;
+    assertNotContains(brief, "ambush (1/2", "REQ-281a briefing omits the total");
+
+    await call(p, "manage_world", { action: "create_thing",  name: "wax", description: "w", portable: true, location: "guard_room" });
+    await call(p, "manage_countdown", { action: "set",  name: "candle", ticks: 5, total: 12, type: "narrative", direction: "decrement", triggers: ["on_thing_take(wax)+10"] });
+    const took = await call(p, "run_command", { command: "take wax" });
+    assertContains(took, "[OK]", "REQ-329 refill take");
+    const refilled = await call(p, "manage_session", { action: "recap" });
+    assertContains(refilled, "candle(12 remaining", "REQ-329 signed trigger refills and clamps at total");
+    assertNotContains(refilled, "candle(12/12", "REQ-281a refill recap omits the total");
+
+    await call(p, "manage_countdown", { action: "set",  name: "climb", ticks: 0, total: 2, type: "narrative", direction: "increment" });
+    await call(p, "manage_countdown", { action: "advance",  name: "climb" });
+    const climbed = await call(p, "manage_session", { action: "recap" });
+    assertContains(climbed, "climb(1 remaining", "REQ-073c2 advance honors increment direction");
+    await call(p, "manage_countdown", { action: "advance",  name: "climb" });
+    const fired = await call(p, "manage_session", { action: "recap" });
+    assertNotContains(fired, "climb(", "REQ-073c2 increment countdown fires at total");
+
+    await call(p, "set_badge", { badge: "player" });
+    const playerList = await call(p, "manage_countdown", { action: "list" });
+    assertNotContains(playerList, '"total"', "REQ-281a player countdown list omits the total");
     passed++;
     await kill(p);
   });
