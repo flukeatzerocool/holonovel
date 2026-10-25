@@ -76,10 +76,10 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     const verifyTwo = await client.call("manage_diagnostics", { action: "verify" });
     record("verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], "holonovel/src/core/state-hash.ts:50");
     const replayOne = await client.call("manage_diagnostics", { action: "replay" });
-    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8525");
+    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8529");
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
-    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8448");
+    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8452");
     const postDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record("diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], "holonovel/src/core/state-hash.ts:50");
 

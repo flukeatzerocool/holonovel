@@ -30,42 +30,49 @@
       "direction": "increment",
       "name": "Dread",
       "scope": "shared",
-      "ticks": 8,
+      "ticks": 0,
       "total": 8,
       "triggers": [
-        "dread",
-        "weather",
-        "shadow",
-        "sky"
+        "on_room_enter(sixth floor — entry landing)",
+        "on_room_enter(fifth floor — entry landing)",
+        "on_room_enter(fourth floor — entry landing)",
+        "on_room_enter(third floor — entry landing)",
+        "on_room_enter(second floor — entry landing)",
+        "on_room_enter(first floor — entry landing)"
       ],
       "type": "narrative",
       "world_effect": {
-        "target": "the tower",
+        "target": "First Floor — Antechamber",
         "type": "describe",
-        "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. Dread also sets the guttering-dark grace, inversely: low Dread = a long last chance, high Dread = he takes you almost at once."
+        "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. The Antechamber's dust hangs still — he is almost at the door."
       }
     },
     "The Candle": {
       "direction": "decrement",
       "name": "The Candle",
+      "on_scene_transition": true,
       "scope": "shared",
-      "ticks": 60,
-      "total": 60,
+      "ticks": 30,
+      "total": 100,
       "triggers": [
-        "wax",
-        "burn",
-        "candle",
-        "flame"
+        "on_thing_take(wax stub)+10",
+        "on_thing_take(sixth floor wax)+10",
+        "on_thing_take(fifth floor wax)+10",
+        "on_thing_take(fourth floor wax)+10",
+        "on_thing_take(third floor wax)+10",
+        "on_thing_take(second floor wax)+10",
+        "on_thing_take(first floor wax)+10"
       ],
       "type": "narrative",
       "world_effect": {
-        "target": "You",
-        "type": "describe",
-        "value": "Wax-out: the flame gutters for N turns (N set by Dread, inversely — 5 down to 1) before Orlok takes you. Spend the grace to reach a match or the exit."
+        "direction": "out",
+        "target": "First Floor — Antechamber",
+        "type": "exit",
+        "value": "Wax-out: the flame gutters out and the tower seals the threshold behind you. Orlok takes the way out."
       }
     }
   },
-  "data_format": "6dd6e9e857ae3758cd92d3980d822edb3b27cb69ce7b0bf48f53144d549d4171",
+  "data_format": "3eea25ee843ac1f137a2f106054820500cfa39676a4237cc072fa7c014db47a6",
   "description": "Torre Nosferatu — a gothic-horror descent. You wake at the top of a seven-floor tower with one candle and no memory of climbing. Every floor hides a key to the stair down; the wax burns with every step, the survivors are strangers, and Dread is the weather. Count Orlok rides the edge of your light — he does not pursue, he collects. You name yourself at the opening; the rest you earn on your own light.",
   "entities": {
     "character_01": {
@@ -698,38 +705,45 @@
             "direction": "increment",
             "name": "Dread",
             "scope": "shared",
-            "ticks": 8,
+            "ticks": 0,
             "total": 8,
             "triggers": [
-              "dread",
-              "weather",
-              "shadow",
-              "sky"
+              "on_room_enter(sixth floor — entry landing)",
+              "on_room_enter(fifth floor — entry landing)",
+              "on_room_enter(fourth floor — entry landing)",
+              "on_room_enter(third floor — entry landing)",
+              "on_room_enter(second floor — entry landing)",
+              "on_room_enter(first floor — entry landing)"
             ],
             "type": "narrative",
             "world_effect": {
-              "target": "the tower",
+              "target": "First Floor — Antechamber",
               "type": "describe",
-              "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. Dread also sets the guttering-dark grace, inversely: low Dread = a long last chance, high Dread = he takes you almost at once."
+              "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. The Antechamber's dust hangs still — he is almost at the door."
             }
           },
           "The Candle": {
             "direction": "decrement",
             "name": "The Candle",
+            "on_scene_transition": true,
             "scope": "shared",
-            "ticks": 60,
-            "total": 60,
+            "ticks": 30,
+            "total": 100,
             "triggers": [
-              "wax",
-              "burn",
-              "candle",
-              "flame"
+              "on_thing_take(wax stub)+10",
+              "on_thing_take(sixth floor wax)+10",
+              "on_thing_take(fifth floor wax)+10",
+              "on_thing_take(fourth floor wax)+10",
+              "on_thing_take(third floor wax)+10",
+              "on_thing_take(second floor wax)+10",
+              "on_thing_take(first floor wax)+10"
             ],
             "type": "narrative",
             "world_effect": {
-              "target": "You",
-              "type": "describe",
-              "value": "Wax-out: the flame gutters for N turns (N set by Dread, inversely — 5 down to 1) before Orlok takes you. Spend the grace to reach a match or the exit."
+              "direction": "out",
+              "target": "First Floor — Antechamber",
+              "type": "exit",
+              "value": "Wax-out: the flame gutters out and the tower seals the threshold behind you. Orlok takes the way out."
             }
           }
         },

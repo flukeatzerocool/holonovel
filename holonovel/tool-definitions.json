@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 112979,
+  "tools_list_bytes": 113099,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 112979,
-        "tokens": 28245
+        "bytes": 113099,
+        "tokens": 28275
       },
       "standard": {
         "tools": 36,
-        "bytes": 98975,
-        "tokens": 24744
+        "bytes": 99095,
+        "tokens": 24774
       },
       "small": {
         "tools": 6,
@@ -788,7 +788,7 @@
         "remove",
         "list"
       ],
-      "param_count": 8,
+      "param_count": 9,
       "required": [
         "action"
       ],
@@ -798,6 +798,7 @@
         "on_scene_transition": "When true, advance on each scene transition (set).",
         "scope": "Optional scope name (set).",
         "ticks": "Starting ticks (set).",
+        "total": "Optional capacity for decrement refills (set; defaults to ticks).",
         "triggers": "Optional world-model triggers (set).",
         "type": "round or narrative (set).",
         "world_effect": "Optional world-model effect applied when the countdown fires (set)."
@@ -813,9 +814,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 9,
+        "paramCount": 10,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 9,
+        "paramsWithDescriptions": 10,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -826,7 +827,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2530,
+        "definitionBytes": 2650,
         "descriptionBytes": 418
       },
       "category": "",

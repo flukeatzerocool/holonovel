@@ -23,10 +23,10 @@ import type { TierResult } from "./eval-schema.js";
 const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarterArtifact
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
-const P_CONTEXT = "holonovel/src/index.ts:8416";
-const P_VISIBILITY = "holonovel/src/index.ts:8438";
-const P_KNOWLEDGE = "holonovel/src/index.ts:7183"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:8842";
+const P_CONTEXT = "holonovel/src/index.ts:8452";
+const P_VISIBILITY = "holonovel/src/index.ts:8474";
+const P_KNOWLEDGE = "holonovel/src/index.ts:7216"; // knowledge_query handler
+const P_INTEGRITY = "holonovel/src/index.ts:8878";
 const P_RESTART = "holonovel/src/core/state.ts:2236";
 
 const NOVEL_NAME = "Torre Nosferatu";
@@ -58,7 +58,7 @@ interface NovelShape {
   npcs?: Record<string, unknown>;
   lore?: Record<string, unknown>;
   secrets?: Array<{ key: string; content?: string; badge_scope?: string }>;
-  countdowns?: Record<string, unknown>;
+  countdowns?: Record<string, { name?: string; ticks?: number; total?: number; triggers?: string[] }>;
   entities?: Record<string, { inventory?: Array<{ name?: string } | string> }>;
 }
 
@@ -174,6 +174,11 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     }
 
     step++;
+    const candleClock = Object.values(novel.countdowns ?? {}).find((cd) => cd.name === "The Candle");
+    const refills = (candleClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+10$/.test(t)).length;
+    record("candle_starts_partial", candleClock?.ticks === 30 && candleClock?.total === 100 && refills === 7, `Candle ${candleClock?.ticks}/${candleClock?.total}, ${refills} refill triggers`, step, ["REQ-565"], P_STRUCTURE);
+
+    step++;
     const dangling = Object.entries(novel.world?.rooms ?? {}).flatMap(([id, room]) =>
       Object.entries(room.exits ?? {}).filter(([, target]) => !rooms.has(target)).map(([dir, target]) => `${id}.${dir}->${target}`),
     );
@@ -240,6 +245,16 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       const took = await take(client, keyName);
       record(`take_${floor.toLowerCase()}_key`, took.startsWith("[OK]"), took.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
       if (took.startsWith("[OK]")) carried.push(keyName);
+
+      step++;
+      const waxRoom = floor === "Seventh" ? `${prefix} — Wax Cache` : `${prefix} — Wax Refill`;
+      const walkedWax = await walk(client, rooms, at, waxRoom);
+      record(`walk_${floor.toLowerCase()}_wax`, walkedWax.ok, walkedWax.detail, step, ["REQ-565"], P_LOCK);
+      at = walkedWax.at;
+      step++;
+      const waxName = floor === "Seventh" ? "Wax Stub" : `${prefix} Wax`;
+      const tookWax = await take(client, waxName);
+      record(`take_${floor.toLowerCase()}_wax`, tookWax.startsWith("[OK]"), tookWax.split("\n")[0] ?? "", step, ["REQ-565"], P_LOCK);
 
       if (floor !== "First") {
         step++;

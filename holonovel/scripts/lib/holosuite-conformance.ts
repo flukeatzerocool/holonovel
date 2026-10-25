@@ -32,8 +32,8 @@ const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "o
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const PREDICATE_TOOLS = "holonovel/src/index.ts:144"; // TOOL_ANNOTATIONS map
-const PREDICATE_RESOURCES = "holonovel/src/index.ts:8748"; // first registerResource
-const PREDICATE_PROMPTS = "holonovel/src/index.ts:11727"; // first server.prompt
+const PREDICATE_RESOURCES = "holonovel/src/index.ts:8784"; // first registerResource
+const PREDICATE_PROMPTS = "holonovel/src/index.ts:11764"; // first server.prompt
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");

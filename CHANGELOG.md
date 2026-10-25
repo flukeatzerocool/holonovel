@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-25 — Torre Nosferatu wax economy (start at 30, refill by finding wax)
+
+- The Candle now starts at 30 of 100 wax; each of the seven floor wax caches
+  refills 10 via `on_thing_take(<wax>)+10`. A full-wax escape finishes with
+  16 left; skipping two caches expires the Candle, removes the Threshold exit,
+  and fails the oracle (`wax-skip-two`).
+- REQ-329a now permits a signed trigger suffix (`+N`/`-N`) as a raw tick
+  delta, clamped at `total`; a bare trigger keeps the legacy one tick in
+  `direction`. `manage_countdown (action: set)` accepts `total` and `ticks: 0`.
+- Fixed REQ-073c2: `manage_countdown (action: advance)` honors `direction`
+  (increment countdowns add and fire at `total`). Fixed REQ-281a(c) display:
+  `badge_briefing`, `manage_session (action: recap)`, and the Player-badge
+  `manage_countdown (action: list)` show remaining only, never a ticks/total
+  pair; the GM list keeps the total.
+- T373 now covers signed refill/clamp and increment `advance`; T658 asserts
+  the 30/100 start and seven refill triggers; the Holosuite novel walkthrough
+  collects each floor's wax (88 assertions, all tiers PASS).
+- Gates: `test:output-contracts` (302 passed), `test:starter-novel`,
+  `check:starter-freshness`, `holosuite --tier=all`, `typecheck`,
+  `assemble && check:fast`.
+
 ## 2026-10-24 — Holosuite anchor refresh and Torre Nosferatu difficulty clock
 
 - Refreshed every stale Holosuite predicate anchor after the `applyWorldEffect`
