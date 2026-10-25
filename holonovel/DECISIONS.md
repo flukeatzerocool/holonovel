@@ -15,6 +15,14 @@
   surface changed (source, config, lockfile, extraction, and surfaces are all
   unchanged), so the delta advances the spec hash only. The record-writing and
   evidence-gate paths are exercised by `test:update-workflow` (T84e).
+- **Update-deferred:** holonovel 2026-10-25 — the rebuild for revision range
+  `d9d3b3b..20ed904` (spec `ebb7c4d` → `baf320b`, TDQS coherence remediation)
+  landed in commit `20ed904`. This session verified it with `npm run test:all`
+  (49/49) and re-pointed stale Holosuite predicate anchors in
+  `scripts/lib/holosuite-invariants.ts` and `scripts/lib/holosuite-novel.ts`
+  at their current handlers (`manage_history`, `context_report`,
+  `visibility_check`, `replay`, `knowledge_query`, `computeBundleIntegrity`).
+  (REQ-394a)
 
 ### Two-week review remediation — 2026-10-25
 

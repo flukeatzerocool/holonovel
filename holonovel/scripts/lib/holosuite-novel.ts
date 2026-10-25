@@ -23,10 +23,10 @@ import type { TierResult } from "./eval-schema.js";
 const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarterArtifact
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
-const P_CONTEXT = "holonovel/src/index.ts:8370";
-const P_VISIBILITY = "holonovel/src/index.ts:8392";
-const P_KNOWLEDGE = "holonovel/src/index.ts:7216"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:8878";
+const P_CONTEXT = "holonovel/src/index.ts:8410";
+const P_VISIBILITY = "holonovel/src/index.ts:8432";
+const P_KNOWLEDGE = "holonovel/src/index.ts:7152"; // knowledge_query handler
+const P_INTEGRITY = "holonovel/src/index.ts:8858";
 const P_RESTART = "holonovel/src/core/state.ts:2241";
 
 const NOVEL_NAME = "Torre Nosferatu";
