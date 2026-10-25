@@ -40,6 +40,6 @@ jobs:
       - name: Bundled starter Novel harness (REQ-565/REQ-566)
         working-directory: holonovel
         run: npm run test:starter-novel && npm run check:starter-freshness
-      - name: Holosuite deterministic tiers (conformance + invariants + novel + adversarial + differential)
+      - name: Holosuite deterministic tiers (evidence + conformance + invariants + novel + adversarial + differential)
         working-directory: holonovel
-        run: npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential
+        run: npm run test:holosuite-evidence && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential

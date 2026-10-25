@@ -119,7 +119,30 @@ alongside it and gate CI/pre-push:
 
 All five tiers are deterministic (fixed seed, small step count) and wired into
 `holonovel/package.json`, `scripts/run-test-suite.ts`, `.github/workflows/ci.yml`,
-and `.githooks/pre-push`.
+and `.githooks/pre-push`. The evidence self-tests
+(`npm run test:holosuite-evidence`) gate the same wiring.
+
+### Evidence integrity
+
+A green run is meant to be load-bearing, not just a pass count:
+
+- **Coverage is assertion-derived.** Every assertion emits an event with
+  `tool: "assertion"` and its REQ ids; the report's `coverage` map counts only
+  those events. A tier that declares a REQ its assertions never exercise fails
+  with `coverage_unasserted_req`; a REQ id absent from the spec fails with
+  `coverage_unknown_req`.
+- **Predicates resolve.** Every finding and assertion anchor is a `file:line`
+  citation checked against the source tree (existence, range, and a
+  non-empty/non-comment/non-brace line). An unresolvable anchor fails with
+  `predicate_unresolved`. Resolution checks plausibility, not symbol identity.
+- **Provenance is pinned.** The report records `git_sha`, `git_dirty`,
+  `spec_hash` (SHA-256 of `holonovel.md`), and `spec_path`.
+- **Determinism is proven on demand.** `--check-determinism` runs the selected
+  tiers twice in-process and compares canonical evidence digests, emitting
+  `determinism: { checked, digest }` (or a P0 `nondeterministic_report`). The
+  event log is truncated before writing, so reruns are not duplicated.
+- `--spec <path>` overrides the assembled spec used for REQ validation
+  (default: `<server-dir>/../holonovel.md`).
 
 The playtest harness is the stochastic **Understudies** tier. It emits the same
 canonical schema (`lib/eval-schema.ts`) as the deterministic tiers and sections

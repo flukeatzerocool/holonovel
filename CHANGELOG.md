@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-24 — Holosuite evidence integrity: assertion coverage, predicates, provenance, determinism
+
+- Per-REQ coverage is now assertion-derived: the five tiers record through a
+  shared `recordAssertion` (one event per assertion), the runner stops
+  backfilling declared REQs onto events, and `coverage_unknown_req` /
+  `coverage_unasserted_req` fail a run whose declarations the assertions do
+  not support.
+- Every finding and assertion anchor is resolved against the source tree
+  (`predicate_unresolved`): missing files, out-of-range lines, and empty,
+  comment-only, or lone-delimiter lines fail. Fixed stale anchors
+  (`model.js:82` → `model.ts:201`, `index.ts:3140` → `4185`) and two
+  comment-line anchors.
+- Provenance pins `git_sha`, `git_dirty`, `spec_hash` (SHA-256 of
+  `holonovel.md`), and `spec_path`; `--spec` overrides the spec used for REQ
+  validation. `playtest.ts` reuses the shared `gitSha`.
+- `--check-determinism` runs the selected tiers twice and fails on a digest
+  mismatch. Novel-tier details no longer embed run-specific state hashes, and
+  the JSONL log is truncated before writing so reruns are byte-identical.
+- Added `test:holosuite-evidence` (assertion/coverage/predicate/provenance
+  self-tests) and wired it into `holonovel/package.json`,
+  `run-test-suite.ts`, CI, and pre-push.
+
 ## 2026-10-24 — Holosuite refresh: Torre Nosferatu tier and current surface
 
 - Added deterministic tier T2 `novel` (`scripts/lib/holosuite-novel.ts`): it

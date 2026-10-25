@@ -84,6 +84,7 @@
     "test:holosuite-novel": "tsx scripts/holosuite.ts --tier=novel",
     "test:holosuite-adversarial": "tsx scripts/holosuite.ts --tier=adversarial",
     "test:holosuite-differential": "tsx scripts/holosuite.ts --tier=differential",
+    "test:holosuite-evidence": "tsx scripts/test-holosuite-evidence.ts",
     "test:holosuite-mutation": "tsx scripts/holosuite.ts --tier=mutation",
     "test:selection": "tsx scripts/test-selection.ts"
   },

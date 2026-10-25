@@ -32,13 +32,14 @@
  *   status   --run <id>
  *   report
  */
-import { spawn, execSync, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, appendFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, authoredAdventureHash, partyRooms, entityCounts, stateDelta, LENSES, GM_LANES, JUDGMENT_LENSES, JUDGMENT_GM_LANES, toEvalEvents, computeLenses, type LensFinding } from "./lib/playtest-lib.js";
 import { canonicalJson, type EvalProvenance } from "./lib/eval-schema.js";
+import { gitSha } from "./lib/eval-provenance.js";
 
 const HOME = import.meta.dirname;
 const DEFAULT_SERVER_DIR = join(HOME, "..");
@@ -247,10 +248,6 @@ function hashDir(dir: string): string | null {
     try { h.update(f).update(readFileSync(full)); } catch { /* skip unreadable entry; hash covers the rest */ }
   }
   return h.digest("hex");
-}
-function gitSha(dir: string): string | null {
-  try { return execSync(`git -C ${JSON.stringify(dir)} rev-parse HEAD`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); }
-  catch { /* not a git checkout — provenance field left null */ return null; }
 }
 function pickEnv(keys: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -556,7 +553,9 @@ function writeHolosuiteReport(run: string, cfg: RunConfig, oracle: any, allTx: a
   const provenance: EvalProvenance = {
     server_dir: cfg.server_dir,
     git_sha: cfg.provenance?.server_git_sha ?? null,
+    git_dirty: null,
     spec_hash: null,
+    spec_path: null,
     ruleset: cfg.provenance?.ruleset_sha1 ?? null,
     novel: cfg.novel_slug ?? null,
     node: process.version,

@@ -16,7 +16,9 @@ export type Severity = "P0" | "P1" | "P2" | "P3";
 export interface EvalProvenance {
   server_dir: string;
   git_sha: string | null;
+  git_dirty: boolean | null;
   spec_hash: string | null;
+  spec_path: string | null;
   ruleset: string | null;
   novel: string | null;
   node: string;
@@ -37,6 +39,8 @@ export interface EvalEvent {
   mcp_error: boolean;
   latency_ms: number;
   req_ids: string[];
+  /** Assertion anchoring: the `file:line` a finding would cite. */
+  predicate?: string;
   detail?: string;
 }
 

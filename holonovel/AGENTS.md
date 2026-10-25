@@ -133,9 +133,13 @@ conformance (`test:holosuite-conformance`), bounded model-based invariants
 (`test:holosuite-invariants`), the bundled Torre Nosferatu Novel walkthrough
 (`test:holosuite-novel`), adversarial input fuzzing
 (`test:holosuite-adversarial`), and differential/replay determinism
-(`test:holosuite-differential`); all five gate CI and pre-push. The playtest
-harness is the Holosuite's stochastic tier (Understudies,
-`plans/2026-10-02-holosuite`).
+(`test:holosuite-differential`); all five gate CI and pre-push. Evidence
+integrity gates alongside them: per-REQ coverage is derived from assertion
+events (declared-but-unasserted REQs fail), every finding predicate resolves
+against the source tree, provenance pins `git_sha`/`spec_hash`, and
+`--check-determinism` proves a repeat run matches. The pure evidence helpers
+are self-tested by `test:holosuite-evidence`. The playtest harness is the
+Holosuite's stochastic tier (Understudies, `plans/2026-10-02-holosuite`).
 
 Tests live in `scripts/test-*.ts` and run as tsx harnesses via `npm run test:all`.
 There are no conventional `*.test.ts` files or a `test/` directory, so registry
