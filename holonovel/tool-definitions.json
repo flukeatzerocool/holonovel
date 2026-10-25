@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 113987,
+  "tools_list_bytes": 112979,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 113987,
-        "tokens": 28497
+        "bytes": 112979,
+        "tokens": 28245
       },
       "standard": {
         "tools": 36,
-        "bytes": 99983,
-        "tokens": 24996
+        "bytes": 98975,
+        "tokens": 24744
       },
       "small": {
         "tools": 6,
@@ -47,8 +47,8 @@
           },
           "referee": {
             "tools": 6,
-            "bytes": 4188,
-            "tokens": 1047
+            "bytes": 4216,
+            "tokens": 1054
           },
           "author": {
             "tools": 6,
@@ -171,13 +171,14 @@
         "fail",
         "cancel"
       ],
-      "param_count": 6,
+      "param_count": 7,
       "required": [
         "action"
       ],
       "params": {
         "autonomy": "advisory, prompt, or auto (create; default the TTRPG_AGENT_AUTONOMY setting).",
         "description": "Action description (advance).",
+        "detail": "Return full agent tasks instead of summary entries (list).",
         "goal": "Task goal text (create).",
         "source_goal": "Originating goal-pursuit suggestion (create).",
         "subject": "Entity or NPC that owns the task (create/list).",
@@ -194,9 +195,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 7,
+        "paramCount": 8,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 7,
+        "paramsWithDescriptions": 8,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -207,7 +208,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2053,
+        "definitionBytes": 2156,
         "descriptionBytes": 569
       },
       "category": "",
@@ -311,11 +312,12 @@
         "perception_for_entity",
         "perception_for_event"
       ],
-      "param_count": 16,
+      "param_count": 17,
       "required": [
         "action"
       ],
       "params": {
+        "detail": "Return full belief records instead of summary entries (list).",
         "entity_id": "Entity whose beliefs are queried or mutated.",
         "evidence_id": "Evidence record id (retract).",
         "object": "Proposition object (admit).",
@@ -344,9 +346,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 17,
+        "paramCount": 18,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 17,
+        "paramsWithDescriptions": 18,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -357,7 +359,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3641,
+        "definitionBytes": 3747,
         "descriptionBytes": 734
       },
       "category": "",
@@ -714,7 +716,7 @@
         "corpus_consume",
         "corpus_acquisitions"
       ],
-      "param_count": 24,
+      "param_count": 25,
       "required": [
         "action"
       ],
@@ -734,6 +736,7 @@
         "corpus_source_profile": "Trusted source profile the domain is routed from (corpus_register; default manual).",
         "corpus_title": "Document title (corpus_register).",
         "data": "JSON or Markdown lorebook data (import).",
+        "detail": "Return full lore entries instead of summary entries (list).",
         "entity_id": "Entity to reveal to / whose knowledge to read (reveal/knowledge).",
         "format": "Optional output format (export).",
         "group": "Group name, or null to clear (set/update/group).",
@@ -755,9 +758,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 25,
+        "paramCount": 26,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 25,
+        "paramsWithDescriptions": 26,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -768,7 +771,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4369,
+        "definitionBytes": 4473,
         "descriptionBytes": 629
       },
       "category": "",
@@ -916,12 +919,13 @@
         "remove",
         "list"
       ],
-      "param_count": 6,
+      "param_count": 7,
       "required": [
         "action"
       ],
       "params": {
         "description": "Optional description.",
+        "detail": "Return full faction records instead of summary entries (list).",
         "faction_id": "Faction identifier (update/remove).",
         "goals": "Optional goals.",
         "name": "Faction name (create).",
@@ -939,9 +943,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 7,
+        "paramCount": 8,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 7,
+        "paramsWithDescriptions": 8,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -952,7 +956,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1971,
+        "definitionBytes": 2078,
         "descriptionBytes": 670
       },
       "category": "",
@@ -1119,8 +1123,8 @@
     {
       "name": "manage_lore",
       "title": "Lore Management",
-      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus (corpus_* actions here are compatibility aliases).",
-      "description_bytes": 982,
+      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus.",
+      "description_bytes": 932,
       "action_enum": [
         "set",
         "update",
@@ -1137,26 +1141,15 @@
         "secret_list",
         "knowledge"
       ],
-      "param_count": 24,
+      "param_count": 13,
       "required": [
         "action"
       ],
       "params": {
         "badge_scope": "game_master or shared (set/update).",
         "content": "Lore content (set/update).",
-        "corpus_access_domains": "Knowledge domains granted access (corpus_register).",
-        "corpus_access_public": "Whether every entity may consume it (corpus_register; default false).",
-        "corpus_body": "Document reference text (corpus_register).",
-        "corpus_denies": "Entity ids explicitly denied access (corpus_register).",
-        "corpus_document_id": "Corpus document id (corpus_get/corpus_route/corpus_grant/corpus_deny/corpus_consume).",
-        "corpus_domain": "Knowledge domain (corpus_register/corpus_route/corpus_list).",
-        "corpus_domains": "Knowledge domains the entity may access (corpus_access).",
-        "corpus_entity_id": "Entity acquiring or inspected (corpus_consume/corpus_acquisitions/corpus_access/corpus_grant/corpus_deny).",
-        "corpus_grants": "Entity ids explicitly granted access (corpus_register).",
-        "corpus_mode": "read, research, taught, or import (corpus_consume; default read).",
-        "corpus_source_profile": "Trusted source profile the domain is routed from (corpus_register; default manual).",
-        "corpus_title": "Document title (corpus_register).",
         "data": "JSON or Markdown lorebook data (import).",
+        "detail": "Return full lore entries instead of summary entries (list).",
         "entity_id": "Entity to reveal to / whose knowledge to read (reveal/knowledge).",
         "format": "Optional output format (export).",
         "group": "Group name, or null to clear (set/update/group).",
@@ -1178,10 +1171,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 25,
+        "paramCount": 14,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 25,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 14,
+        "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1191,8 +1184,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4841,
-        "descriptionBytes": 982
+        "definitionBytes": 3199,
+        "descriptionBytes": 932
       },
       "category": "",
       "gate": ""
@@ -1210,13 +1203,14 @@
         "remove_server",
         "list_server"
       ],
-      "param_count": 4,
+      "param_count": 5,
       "required": [
         "action"
       ],
       "params": {
         "badge_scope": "game_master, player, or shared (set).",
         "content": "The note content (set/set_server).",
+        "detail": "Return full server notes instead of summary entries (list_server).",
         "key": "The note key (set/remove/set_server/remove_server).",
         "narrative_tag": "Optional narrative tag (set_server)."
       },
@@ -1231,9 +1225,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 5,
+        "paramCount": 6,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 5,
+        "paramsWithDescriptions": 6,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1244,7 +1238,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1782,
+        "definitionBytes": 1893,
         "descriptionBytes": 434
       },
       "category": "",
@@ -1345,7 +1339,7 @@
         "import_card",
         "export_card"
       ],
-      "param_count": 14,
+      "param_count": 15,
       "required": [
         "action"
       ],
@@ -1353,6 +1347,7 @@
         "card": "Character Card V3 JSON object or string (import_card).",
         "confirm_lore": "Import the card's character_book as lore entries (import_card).",
         "description": "Optional description.",
+        "detail": "Return full NPC records instead of summary entries (list).",
         "disposition": "Optional disposition.",
         "goals": "Optional goals.",
         "license": "Import license attestation (import_card).",
@@ -1376,9 +1371,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 15,
+        "paramCount": 16,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 15,
+        "paramsWithDescriptions": 16,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -1389,7 +1384,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3411,
+        "definitionBytes": 3514,
         "descriptionBytes": 601
       },
       "category": "",

@@ -1,5 +1,52 @@
 # Changelog
 
+## 2026-10-24 — Holosuite anchor refresh and Torre Nosferatu difficulty clock
+
+- Refreshed every stale Holosuite predicate anchor after the `applyWorldEffect`
+  edit shifted `src/index.ts`: conformance surface/resources/prompts, novel
+  context/visibility/knowledge/integrity, invariants replay/context, and
+  adversarial diagnostics. All five tiers now PASS (44/22/73/20/3).
+- Made Torre Nosferatu's difficulty engine-enforced: The Candle is 96 ticks
+  (`on_scene_transition`), so it burns one tick per room transition; expiry
+  removes the Antechamber `out` exit. Dread starts at 0/8 and increments on
+  each floor's Entry Landing via `on_room_enter` triggers.
+- Implemented REQ-368b's bare-direction `world_effect.exit` removal in
+  `applyWorldEffect` (no `destination` deletes the exit and its reverse); added
+  T419b. No §5 REQ delta — the contract already specified removal.
+- Playtest evidence: the 85-transition optimal escape finishes with 11/96
+  Candle ticks left (Dread 6/8). A 14-detour route expires the Candle, the exit
+  is deleted, and the oracle returns failure with `gating_leak` even though the
+  GM resolves the vow.
+- Rebuilt `content/torre-nosferatu.json`; `test:starter-novel`,
+  `check:starter-freshness`, `test:output-contracts`, `test:holosuite-*`, and
+  `typecheck` pass.
+
+## 2026-10-24 — Response-lean enumeration, retired-alias schema cleanup, call-cost baseline
+
+- Enforced REQ-409 for the direct tool-level list actions: `manage_npc`,
+  `manage_lore`, `manage_faction`, `manage_belief`, `manage_agent`, and
+  `manage_note (action: list_server)` now return summary entries by default and
+  full records on `detail: true`; single-entry reads and lookups stay full
+  (REQ-409). The shared projector is `holonovel/src/core/enumeration.ts`; the
+  per-kind field sets are recorded in DECISIONS.md.
+- Rewrote T478 to assert summary-by-default, detail-on-request, and full
+  single-entry reads across three tools; updated the belief, output-contract,
+  and agent harness call sites that assert full records.
+- Removed the retired `manage_lore` corpus surface from the schema: 9 action
+  entries and 12 `corpus_*` params moved to `manage_corpus`; the tombstones
+  still return `[NOT_FOUND]` naming `manage_corpus` (REQ-581). The shared
+  handler dispatch stays because `manage_corpus` delegates to it.
+- Extended the deterministic replay corpus from 40 to 46 intents with six
+  multi-step workflows and per-intent `expected_calls`; the gate compares call
+  cost per intent instead of asserting a blanket mean of 1.0 (REQ-569,
+  REQ-586).
+- Surface baseline: full 28,497 → 28,245 tokens, standard 24,996 → 24,744,
+  small 1,282 unchanged; `spec/audit/tool-surface-baseline.json`, DECISIONS
+  budgets, and `tool-definitions.json` regenerated.
+- Re-pointed the holosuite evidence anchors after line drift and added the
+  missing `npc_proactive_boundary` entry to `HOLODECK_BEHAVIORAL`, closing the
+  pre-existing T450 coverage gap (REQ-388).
+
 ## 2026-10-24 — Character-roleplay learnings: social cast, NPC identity, cards
 
 - Added social-scene speaker selection: per-NPC `talkativeness` (REQ-075g) and

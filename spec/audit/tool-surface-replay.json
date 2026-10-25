@@ -1,22 +1,22 @@
 {
   "schema_version": 5,
   "proxy": "expected-action selection precision, wrong-selection count, visibility, recall at budget, and group-switch call cost; live-model selection is advisory",
-  "intents": 40,
+  "intents": 46,
   "precision_floor": 0.9,
   "routing_source": "holonovel/tool-routing.json",
   "profiles": [
     {
       "profile": "full",
-      "intents": 40,
-      "expected_tool_visible": 40,
+      "intents": 46,
+      "expected_tool_visible": 46,
       "visibility_rate": 1,
-      "expected_action_selected": 39,
-      "selection_precision": 0.975,
+      "expected_action_selected": 45,
+      "selection_precision": 0.978,
       "wrong_selection_count": 1,
-      "mean_calls": 1,
+      "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 27910,
-        "expected_action_recalled": 40,
+        "budget_tokens": 28245,
+        "expected_action_recalled": 46,
         "recall": 1
       },
       "rows": [
@@ -28,6 +28,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "create"
@@ -42,6 +43,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "resume"
@@ -56,6 +58,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "switch"
@@ -69,6 +72,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -83,6 +87,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "sheet"
@@ -97,6 +102,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "create"
@@ -111,6 +117,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -125,6 +132,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -139,6 +147,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "execute"
@@ -153,6 +162,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -167,6 +177,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "roll"
@@ -181,6 +192,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "init"
@@ -195,6 +207,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "advance"
@@ -209,6 +222,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_condition",
             "action": "apply"
@@ -223,6 +237,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "fate_roll"
@@ -237,6 +252,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "ironsworn_move"
@@ -251,6 +267,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "forged_action_roll"
@@ -265,6 +282,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_vow",
             "action": "set"
@@ -279,6 +297,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_story",
             "action": "record"
@@ -293,6 +312,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_scene",
             "action": "set"
@@ -307,6 +327,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "recap"
@@ -321,6 +342,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_ruleset",
             "action": "search"
@@ -335,6 +357,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_lore",
             "action": "get"
@@ -349,6 +372,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_knowledge",
             "action": "index_search"
@@ -363,6 +387,7 @@
           "start_group": "referee",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_npc",
             "action": "create"
@@ -377,6 +402,7 @@
           "start_group": "referee",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_countdown",
             "action": "set"
@@ -391,6 +417,7 @@
           "start_group": "author",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_adventure",
             "action": "generate"
@@ -405,6 +432,7 @@
           "start_group": "author",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_archive",
             "action": "export"
@@ -419,6 +447,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_history",
             "action": "undo"
@@ -433,6 +462,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "discover"
@@ -447,6 +477,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "init"
@@ -461,6 +492,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -475,6 +507,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "save_context"
@@ -489,6 +522,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -503,6 +537,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "execute"
@@ -517,6 +552,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "sheet"
@@ -531,6 +567,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "end"
@@ -545,6 +582,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "create"
@@ -559,6 +597,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_scene",
             "action": "choices"
@@ -573,9 +612,106 @@
           "start_group": "author",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_archive",
             "action": "archive"
+          },
+          "correct": true
+        },
+        {
+          "intent": "make a new character",
+          "tool": "manage_character",
+          "action": "create",
+          "group": "table",
+          "steps": 3,
+          "start_group": "table",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "manage_character",
+            "action": "create"
+          },
+          "correct": true
+        },
+        {
+          "intent": "begin a fight",
+          "tool": "manage_combat",
+          "action": "init",
+          "group": "resolve",
+          "steps": 3,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "init"
+          },
+          "correct": true
+        },
+        {
+          "intent": "move to another room",
+          "tool": "run_command",
+          "action": "resolve",
+          "group": "explore",
+          "steps": 2,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
+        },
+        {
+          "intent": "load a saved game",
+          "tool": "manage_novel",
+          "action": "resume",
+          "group": "table",
+          "steps": 2,
+          "start_group": "table",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "resume"
+          },
+          "correct": true
+        },
+        {
+          "intent": "make a skill check",
+          "tool": "resolve_mechanic",
+          "action": "roll",
+          "group": "resolve",
+          "steps": 2,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "roll"
+          },
+          "correct": true
+        },
+        {
+          "intent": "pick up an object",
+          "tool": "run_command",
+          "action": "execute",
+          "group": "explore",
+          "steps": 3,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
           },
           "correct": true
         }
@@ -583,16 +719,16 @@
     },
     {
       "profile": "standard",
-      "intents": 40,
-      "expected_tool_visible": 40,
+      "intents": 46,
+      "expected_tool_visible": 46,
       "visibility_rate": 1,
-      "expected_action_selected": 39,
-      "selection_precision": 0.975,
+      "expected_action_selected": 45,
+      "selection_precision": 0.978,
       "wrong_selection_count": 1,
-      "mean_calls": 1,
+      "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 25119,
-        "expected_action_recalled": 40,
+        "budget_tokens": 25421,
+        "expected_action_recalled": 46,
         "recall": 1
       },
       "rows": [
@@ -604,6 +740,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "create"
@@ -618,6 +755,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "resume"
@@ -632,6 +770,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "switch"
@@ -645,6 +784,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -659,6 +799,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "sheet"
@@ -673,6 +814,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "create"
@@ -687,6 +829,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -701,6 +844,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -715,6 +859,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "execute"
@@ -729,6 +874,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -743,6 +889,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "roll"
@@ -757,6 +904,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "init"
@@ -771,6 +919,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "advance"
@@ -785,6 +934,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_condition",
             "action": "apply"
@@ -799,6 +949,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "fate_roll"
@@ -813,6 +964,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "ironsworn_move"
@@ -827,6 +979,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "resolve_mechanic",
             "action": "forged_action_roll"
@@ -841,6 +994,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_vow",
             "action": "set"
@@ -855,6 +1009,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_story",
             "action": "record"
@@ -869,6 +1024,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_scene",
             "action": "set"
@@ -883,6 +1039,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "recap"
@@ -897,6 +1054,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_ruleset",
             "action": "search"
@@ -911,6 +1069,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_lore",
             "action": "get"
@@ -925,6 +1084,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_knowledge",
             "action": "index_search"
@@ -939,6 +1099,7 @@
           "start_group": "referee",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_npc",
             "action": "create"
@@ -953,6 +1114,7 @@
           "start_group": "referee",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_countdown",
             "action": "set"
@@ -967,6 +1129,7 @@
           "start_group": "author",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_adventure",
             "action": "generate"
@@ -981,6 +1144,7 @@
           "start_group": "author",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_archive",
             "action": "export"
@@ -995,6 +1159,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_history",
             "action": "undo"
@@ -1009,6 +1174,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "discover"
@@ -1023,6 +1189,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "init"
@@ -1037,6 +1204,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1051,6 +1219,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "save_context"
@@ -1065,6 +1234,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1079,6 +1249,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "execute"
@@ -1093,6 +1264,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "sheet"
@@ -1107,6 +1279,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_combat",
             "action": "end"
@@ -1121,6 +1294,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_character",
             "action": "create"
@@ -1135,6 +1309,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_scene",
             "action": "choices"
@@ -1149,9 +1324,106 @@
           "start_group": "author",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_archive",
             "action": "archive"
+          },
+          "correct": true
+        },
+        {
+          "intent": "make a new character",
+          "tool": "manage_character",
+          "action": "create",
+          "group": "table",
+          "steps": 3,
+          "start_group": "table",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "manage_character",
+            "action": "create"
+          },
+          "correct": true
+        },
+        {
+          "intent": "begin a fight",
+          "tool": "manage_combat",
+          "action": "init",
+          "group": "resolve",
+          "steps": 3,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "manage_combat",
+            "action": "init"
+          },
+          "correct": true
+        },
+        {
+          "intent": "move to another room",
+          "tool": "run_command",
+          "action": "resolve",
+          "group": "explore",
+          "steps": 2,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
+        },
+        {
+          "intent": "load a saved game",
+          "tool": "manage_novel",
+          "action": "resume",
+          "group": "table",
+          "steps": 2,
+          "start_group": "table",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "resume"
+          },
+          "correct": true
+        },
+        {
+          "intent": "make a skill check",
+          "tool": "resolve_mechanic",
+          "action": "roll",
+          "group": "resolve",
+          "steps": 2,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "resolve_mechanic",
+            "action": "roll"
+          },
+          "correct": true
+        },
+        {
+          "intent": "pick up an object",
+          "tool": "run_command",
+          "action": "execute",
+          "group": "explore",
+          "steps": 3,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
           },
           "correct": true
         }
@@ -1159,17 +1431,17 @@
     },
     {
       "profile": "small",
-      "intents": 40,
-      "expected_tool_visible": 14,
-      "visibility_rate": 0.35,
-      "expected_action_selected": 14,
-      "selection_precision": 0.35,
-      "wrong_selection_count": 26,
-      "mean_calls": 1.65,
+      "intents": 46,
+      "expected_tool_visible": 17,
+      "visibility_rate": 0.37,
+      "expected_action_selected": 17,
+      "selection_precision": 0.37,
+      "wrong_selection_count": 29,
+      "mean_calls": 1.826,
       "recall_at_budget": {
-        "budget_tokens": 2791,
-        "expected_action_recalled": 14,
-        "recall": 0.35
+        "budget_tokens": 2825,
+        "expected_action_recalled": 17,
+        "recall": 0.37
       },
       "rows": [
         {
@@ -1180,6 +1452,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "create"
@@ -1194,6 +1467,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "resume"
@@ -1208,6 +1482,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "switch"
@@ -1221,6 +1496,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1235,6 +1511,7 @@
           "start_group": "table",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1249,6 +1526,7 @@
           "start_group": "table",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "create"
@@ -1263,6 +1541,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1277,6 +1556,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1291,6 +1571,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "execute"
@@ -1305,6 +1586,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1319,6 +1601,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1333,6 +1616,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1347,6 +1631,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1361,6 +1646,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1375,6 +1661,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1389,6 +1676,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1403,6 +1691,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1417,6 +1706,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "set_badge",
             "action": null
@@ -1431,6 +1721,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "briefing_order"
@@ -1445,6 +1736,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "set_badge",
             "action": null
@@ -1459,6 +1751,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "recap"
@@ -1473,6 +1766,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1487,6 +1781,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1501,6 +1796,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1515,6 +1811,7 @@
           "start_group": "referee",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_npc",
             "action": "create"
@@ -1529,6 +1826,7 @@
           "start_group": "referee",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "set_badge",
             "action": null
@@ -1543,6 +1841,7 @@
           "start_group": "author",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1557,6 +1856,7 @@
           "start_group": "author",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_codex",
             "action": "capture"
@@ -1571,6 +1871,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1585,6 +1886,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_session",
             "action": "discover"
@@ -1599,6 +1901,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1613,6 +1916,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1627,6 +1931,7 @@
           "start_group": "table",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "save_context"
@@ -1641,6 +1946,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "resolve"
@@ -1655,6 +1961,7 @@
           "start_group": "explore",
           "visible": true,
           "calls": 1,
+          "expected_calls": 1,
           "selected": {
             "tool": "run_command",
             "action": "execute"
@@ -1669,6 +1976,7 @@
           "start_group": "table",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1683,6 +1991,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1697,6 +2006,7 @@
           "start_group": "table",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_novel",
             "action": "create"
@@ -1711,6 +2021,7 @@
           "start_group": "explore",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "close_session",
             "action": null
@@ -1725,11 +2036,108 @@
           "start_group": "author",
           "visible": false,
           "calls": 2,
+          "expected_calls": 1,
           "selected": {
             "tool": "manage_codex",
             "action": "capture"
           },
           "correct": false
+        },
+        {
+          "intent": "make a new character",
+          "tool": "manage_character",
+          "action": "create",
+          "group": "table",
+          "steps": 3,
+          "start_group": "table",
+          "visible": false,
+          "calls": 4,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
+        },
+        {
+          "intent": "begin a fight",
+          "tool": "manage_combat",
+          "action": "init",
+          "group": "resolve",
+          "steps": 3,
+          "start_group": "explore",
+          "visible": false,
+          "calls": 4,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
+        },
+        {
+          "intent": "move to another room",
+          "tool": "run_command",
+          "action": "resolve",
+          "group": "explore",
+          "steps": 2,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "run_command",
+            "action": "resolve"
+          },
+          "correct": true
+        },
+        {
+          "intent": "load a saved game",
+          "tool": "manage_novel",
+          "action": "resume",
+          "group": "table",
+          "steps": 2,
+          "start_group": "table",
+          "visible": true,
+          "calls": 2,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "manage_novel",
+            "action": "resume"
+          },
+          "correct": true
+        },
+        {
+          "intent": "make a skill check",
+          "tool": "resolve_mechanic",
+          "action": "roll",
+          "group": "resolve",
+          "steps": 2,
+          "start_group": "explore",
+          "visible": false,
+          "calls": 3,
+          "expected_calls": 2,
+          "selected": {
+            "tool": "close_session",
+            "action": null
+          },
+          "correct": false
+        },
+        {
+          "intent": "pick up an object",
+          "tool": "run_command",
+          "action": "execute",
+          "group": "explore",
+          "steps": 3,
+          "start_group": "explore",
+          "visible": true,
+          "calls": 3,
+          "expected_calls": 3,
+          "selected": {
+            "tool": "run_command",
+            "action": "execute"
+          },
+          "correct": true
         }
       ]
     }
@@ -1747,6 +2155,7 @@
         "start_group": "table",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "manage_novel",
           "action": "create"
@@ -1761,6 +2170,7 @@
         "start_group": "table",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "manage_novel",
           "action": "resume"
@@ -1775,6 +2185,7 @@
         "start_group": "explore",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "manage_relationship",
           "action": "get"
@@ -1789,6 +2200,7 @@
         "start_group": "explore",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "close_session",
           "action": null
@@ -1803,6 +2215,7 @@
         "start_group": "explore",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "resolve_mechanic",
           "action": "roll"
@@ -1817,6 +2230,7 @@
         "start_group": "explore",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "manage_combat",
           "action": "end"
@@ -1831,6 +2245,7 @@
         "start_group": "explore",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "take_turn",
           "action": null
@@ -1844,6 +2259,7 @@
         "start_group": "table",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "close_session",
           "action": null
@@ -1858,6 +2274,7 @@
         "start_group": "explore",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "manage_diagnostics",
           "action": "event"
@@ -1872,6 +2289,7 @@
         "start_group": "author",
         "visible": true,
         "calls": 1,
+        "expected_calls": 1,
         "selected": {
           "tool": "manage_novel",
           "action": "create"

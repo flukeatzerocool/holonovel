@@ -30,7 +30,7 @@ const BUDGETS = join(ROOT, "spec", "audit", "tool-surface-baseline.json");
 
 interface ToolDefinition { name: string; description?: string; action_enum?: string[]; }
 interface Registry extends SurfaceRegistryLike { taxonomy: { groups: string[] } }
-interface Intent { intent: string; tool: string; action?: string; group: string; }
+interface Intent { intent: string; tool: string; action?: string; group: string; steps?: number; }
 interface Routing { schema_version: number; actions: Record<string, string[]>; }
 
 const ARGV = process.argv.slice(2);
@@ -93,6 +93,15 @@ const INTENTS: Intent[] = [
   { intent: "begin a new character", tool: "manage_character", action: "create", group: "table" },
   { intent: "what are my options", tool: "manage_scene", action: "choices", group: "narrate" },
   { intent: "archive this campaign", tool: "manage_archive", action: "archive", group: "author" },
+  // REQ-586 — multi-step workflows. `steps` is the number of calls the
+  // workflow takes once its expected action is reachable; the row's
+  // expected_calls is `steps` under a call-complete profile.
+  { intent: "make a new character", tool: "manage_character", action: "create", group: "table", steps: 3 },
+  { intent: "begin a fight", tool: "manage_combat", action: "init", group: "resolve", steps: 3 },
+  { intent: "move to another room", tool: "run_command", action: "resolve", group: "explore", steps: 2 },
+  { intent: "load a saved game", tool: "manage_novel", action: "resume", group: "table", steps: 2 },
+  { intent: "make a skill check", tool: "resolve_mechanic", action: "roll", group: "resolve", steps: 2 },
+  { intent: "pick up an object", tool: "run_command", action: "execute", group: "explore", steps: 3 },
 ];
 
 // Advisory only: differently worded intents that do not appear in the routing
@@ -208,7 +217,16 @@ function runSet(intents: Intent[], profile: "full" | "standard" | "small") {
     const shown = projected.some((tool) => tool.name === intent.tool);
     const selected = selectFirstChoice(intent.intent, projected as ToolDefinition[]);
     const correct = selected.tool === intent.tool && (intent.action === undefined || selected.action === intent.action);
-    return { ...intent, start_group: group, visible: shown, calls: shown ? 1 : 2, selected, correct };
+    const steps = intent.steps ?? 1;
+    return {
+      ...intent,
+      start_group: group,
+      visible: shown,
+      calls: (shown ? 1 : 2) + (steps - 1),
+      expected_calls: steps,
+      selected,
+      correct,
+    };
   });
 }
 
@@ -256,7 +274,10 @@ for (const result of results) {
   if (hidden.length > 0) {
     defects.push(`${hidden.length} intent(s) hidden in ${result.profile}: ${hidden.map((row) => row.intent).join("; ")}`);
   }
-  if (result.mean_calls !== 1) defects.push(`${result.profile} costs ${result.mean_calls} mean calls (expected 1.0)`);
+  const misCalls = result.rows.filter((row) => row.calls !== row.expected_calls);
+  if (misCalls.length > 0) {
+    defects.push(`${result.profile} call cost differs from expected on: ${misCalls.map((row) => `${row.intent} (${row.calls} != ${row.expected_calls})`).join("; ")}`);
+  }
   if (result.selection_precision < 0.9) {
     defects.push(`${result.profile} selection precision ${result.selection_precision} is below 0.90`);
   }
