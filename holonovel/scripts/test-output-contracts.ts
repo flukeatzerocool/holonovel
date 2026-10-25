@@ -913,7 +913,7 @@ async function main() {
     await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Sturdy smith" } });
     const imp = await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
     assertContains(imp, "[OK]", "T384 import");
-    const list = JSON.parse(await call(p, "manage_npc", { action: "list" }));
+    const list = JSON.parse(await call(p, "manage_npc", { action: "list", detail: true }));
     const smith = list.find((n: any) => n.name === "Blacksmith");
     if (!smith || !smith.codex_source || smith.codex_source.id !== "npc_blacksmith") {
       throw new Error(`T384 codex_source missing: ${JSON.stringify(list)}`);
@@ -922,7 +922,7 @@ async function main() {
     assertContains(JSON.stringify(info.codex_sources), "npc_blacksmith", "T384 codex_sources in novel_info");
     await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Renamed smith" } });
     await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
-    const list2 = JSON.parse(await call(p, "manage_npc", { action: "list" }));
+    const list2 = JSON.parse(await call(p, "manage_npc", { action: "list", detail: true }));
     const smith2 = list2.filter((n: any) => n.name === "Blacksmith");
     if (smith2.length !== 1) throw new Error(`T384 duplicate NPCs: ${smith2.length}`);
     if (smith2[0].description !== "Renamed smith") throw new Error(`T384 in-place update failed: ${smith2[0].description}`);
@@ -1349,6 +1349,23 @@ async function main() {
     void cur;
     const room = await proto(p, "resources/read", { uri: "room://cellar" });
     assertContains(room, "Knee-deep water", "REQ-368 world_effect applied");
+    passed++;
+    await kill(p);
+  });
+
+  await test("T419b/REQ-368: countdown exit effect removes the exit", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w10exit" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_world", { action: "create_room",  name: "vault", description: "sealed" });
+    await call(p, "manage_world", { action: "create_room",  name: "outside", description: "open air" });
+    await call(p, "manage_world", { action: "create_exit",  room: "vault", direction: "out", room_b: "outside" });
+    const before = await proto(p, "resources/read", { uri: "room://vault" });
+    assertContains(before, "out → outside", "REQ-368 exit exists before firing");
+    await call(p, "manage_countdown", { action: "set",  name: "seal", ticks: 1, type: "narrative", world_effect: { type: "exit", target: "vault", direction: "out" } });
+    await call(p, "manage_countdown", { action: "advance",  name: "seal" });
+    const after = await proto(p, "resources/read", { uri: "room://vault" });
+    assertNotContains(after, "out →", "REQ-368 bare-direction exit effect removes the exit");
     passed++;
     await kill(p);
   });

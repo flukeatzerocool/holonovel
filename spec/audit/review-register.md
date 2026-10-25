@@ -705,6 +705,15 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Closed-P3 (recorded, no action)
 
+- **Multi-step replay call cost (REQ-586) — closed 2026-10-24:** the replay
+  corpus now records six multi-step workflows (character creation, combat
+  round, room move, saved-game load, skill check, item pickup); full and
+  standard mean calls are 1.196 against per-intent expectations. Composites
+  would remove a call from character creation and the combat round, but no
+  demonstrated failure depends on it and REQ-577 already covers session and
+  turn composites. Record and close; reopen if the replay corpus shows a call
+  cost above its expected value.
+
 - **Plan-artifact shape drift (AU-9) — closed 2026-10-24:** eight of fourteen
   10-23/10-24 plans omit a Gate-mapping section and eleven omit a literal
   "Summary" heading. The artifacts are historical records of executed

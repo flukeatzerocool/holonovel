@@ -687,9 +687,44 @@ async function main() {
       }
     });
 
-    await test("T478/T409: response-lean enumeration — spec_health reports summary counts", async () => {
+    await test("T478/T409: response-lean enumeration — summary by default, detail on request", async () => {
+      const longText = "A deliberately long description that an enumeration should summarize rather than repeat in full.";
+      await call(proc, "manage_npc", { action: "create", name: "Summary Subject", description: longText });
+      await call(proc, "manage_lore", { action: "set", key: "t478-lore", content: longText });
+      await call(proc, "manage_faction", { action: "create", name: "Summary Faction", description: longText });
+
+      const npcSummary = JSON.parse(await call(proc, "manage_npc", { action: "list" }));
+      const npcRow = npcSummary.find((n: any) => n.name === "Summary Subject");
+      if (!npcRow) throw new Error("npc list omitted the created NPC");
+      if ("description" in npcRow) throw new Error("npc list returned the full description by default");
+      if (!("preview" in npcRow)) throw new Error("npc list omitted the summary preview");
+
+      const loreSummary = JSON.parse(await call(proc, "manage_lore", { action: "list" }));
+      const loreRow = loreSummary.find((e: any) => e.key === "t478-lore");
+      if (!loreRow) throw new Error("lore list omitted the created entry");
+      if ("content" in loreRow) throw new Error("lore list returned full content by default");
+      if (!("preview" in loreRow)) throw new Error("lore list omitted the summary preview");
+
+      const factionSummary = JSON.parse(await call(proc, "manage_faction", { action: "list" }));
+      const factionRow = factionSummary.find((f: any) => f.name === "Summary Faction");
+      if (!factionRow || "description" in factionRow) throw new Error("faction list returned the full description by default");
+
+      const npcFull = JSON.parse(await call(proc, "manage_npc", { action: "list", detail: true }));
+      if (!("description" in (npcFull.find((n: any) => n.name === "Summary Subject") ?? {}))) {
+        throw new Error("detail npc list omitted the full description");
+      }
+      const loreFull = JSON.parse(await call(proc, "manage_lore", { action: "list", detail: true }));
+      if (!("content" in (loreFull.find((e: any) => e.key === "t478-lore") ?? {}))) {
+        throw new Error("detail lore list omitted the full content");
+      }
+
+      // Single-entry reads stay full (REQ-060); the detail path mutates nothing.
+      const npcGet = JSON.parse(await call(proc, "manage_npc", { action: "get", npc_id: npcRow.id }));
+      if (npcGet.description !== longText) throw new Error("single-entry get lost the full description");
+
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.tool_count !== "number") throw new Error("tool_count missing");
+      if (health.enumeration_verbosity !== "summary") throw new Error("spec_health did not report the enumeration mode");
     });
 
     await test("T479/T410: token footprint in performance record", async () => {

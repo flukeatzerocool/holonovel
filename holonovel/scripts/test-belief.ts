@@ -29,7 +29,7 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
 async function admit(p: any, args: any) { return call(p, "manage_belief", { action: "admit", ...args }); }
-async function listBeliefs(p: any, entity_id: string): Promise<any[]> { const t = await call(p, "manage_belief", { action: "list", entity_id }); try { return JSON.parse(t); } catch { return []; } }
+async function listBeliefs(p: any, entity_id: string): Promise<any[]> { const t = await call(p, "manage_belief", { action: "list", entity_id, detail: true }); try { return JSON.parse(t); } catch { return []; } }
 function q(s: string, p1: string, o: string) { return `${s}|${p1}|${o}`.toLowerCase(); }
 
 async function main() {

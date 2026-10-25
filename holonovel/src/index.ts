@@ -16,6 +16,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 import { expandMacros } from "./core/macros.js";
+import { summaryEntries } from "./core/enumeration.js";
 import { buildSurfaceReport } from "./surface-report.js";
 import { composeBadgeOrientation, composeIntro, composeNarrativeTone, composeNovelSetup, composeRunWorkflow, composeSessionZero, type PromptInputs, type ToolCategory } from "./core/prompt-composition.js";
 import { buildContextLedger, allocateContextBudget } from "./core/context-ledger.js";
@@ -5373,6 +5374,7 @@ server.registerTool("manage_npc", {
   description: "Manage non-player characters in the active Novel. create requires a name; update, remove, and get target an existing npc_id; ruleset_reference links an optional stat block; mind is GM-only and never returned to the Player badge. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); remove deletes the NPC, while list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card"]).describe("create, update, remove, list, get, import_card, or export_card."),
+    detail: z.boolean().optional().describe("Return full NPC records instead of summary entries (list)."),
     name: z.string().optional().describe("NPC name (create)."),
     npc_id: z.string().optional().describe("NPC identifier (update/remove/get/export_card)."),
     description: z.string().optional().describe("Optional description."),
@@ -5475,8 +5477,13 @@ server.registerTool("manage_npc", {
       const novel = requireNovel();
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
-      const rows = [...novel.npcs.values()].map((n: any) => isGM ? n : { id: n.id, name: n.name, disposition: n.disposition ?? "neutral", location: n.location ?? null });
-      return raw(JSON.stringify(rows, null, 2));
+      const npcs = [...novel.npcs.values()];
+      if (!isGM) {
+        const rows = npcs.map((n: any) => ({ id: n.id, name: n.name, disposition: n.disposition ?? "neutral", location: n.location ?? null }));
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      if (wantsDetail(args.detail)) return raw(JSON.stringify(npcs, null, 2));
+      return raw(JSON.stringify(summaryEntries("npc", npcs), null, 2));
     }
     case "get": {
       const novel = requireNovel();
@@ -5722,8 +5729,9 @@ server.registerTool("manage_countdown", {
 
 // Lore (REQ-083, REQ-094, REQ-234, REQ-328) — consolidated CRUD + list/get + interchange surface.
 const MANAGE_LORE_SCHEMA = {
-    action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge", "corpus_register", "corpus_list", "corpus_get", "corpus_route", "corpus_grant", "corpus_deny", "corpus_access", "corpus_consume", "corpus_acquisitions"]).describe("Lore: set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge. Corpus: corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, or corpus_acquisitions."),
+    action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge"]).describe("set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge."),
     key: z.string().optional().describe("Lore key (set/update/remove/toggle/group/get)."),
+    detail: z.boolean().optional().describe("Return full lore entries instead of summary entries (list)."),
     content: z.string().optional().describe("Lore content (set/update)."),
     triggers: z.array(z.string()).optional().describe("Optional recall triggers (set/update)."),
     badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared (set/update)."),
@@ -5735,6 +5743,11 @@ const MANAGE_LORE_SCHEMA = {
     format: z.string().optional().describe("Optional output format (export)."),
     data: z.string().optional().describe("JSON or Markdown lorebook data (import)."),
     mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace (import)."),
+  };
+
+// REQ-581 — the corpus_* actions were split to manage_corpus and their
+// manage_lore tombstones are retired. The params live with the replacement tool.
+const CORPUS_PARAMS = {
     corpus_title: z.string().optional().describe("Document title (corpus_register)."),
     corpus_body: z.string().optional().describe("Document reference text (corpus_register)."),
     corpus_domain: z.string().optional().describe("Knowledge domain (corpus_register/corpus_route/corpus_list)."),
@@ -5752,9 +5765,11 @@ const MANAGE_LORE_SCHEMA = {
 server.registerTool("manage_lore", {
   _meta: { deprecated: true, replacement: "manage_corpus" },
   title: "Lore Management",
-  description: "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus (corpus_* actions here are compatibility aliases).",
+  description: "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording a story beat — use manage_story (action: record); recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus.",
   inputSchema: MANAGE_LORE_SCHEMA,
 }, async (args: any) => {
+  // REQ-581 — retired on manage_lore, but manage_corpus delegates to this
+  // handler, so the dispatch stays for the replacement tool.
   if (typeof args.action === "string" && args.action.startsWith("corpus_")) return handleCorpusActions(mergeScopedArgs(args, "corpus"));
   switch (args.action) {
     case "set": {
@@ -5848,8 +5863,11 @@ server.registerTool("manage_lore", {
       // REQ-445 — error-value disclosure control: GM-only lore is invisible to
       // the Player/observer badge; the listing carries no GM-only content.
       const visible = [...novel.lore.values()].filter((e) => isGM || e.badge_scope !== "game_master");
-      const rows = visible.map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, enabled: e.enabled });
-      return raw(JSON.stringify(rows, null, 2));
+      if (wantsDetail(args.detail)) {
+        const rows = visible.map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, enabled: e.enabled });
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      return raw(JSON.stringify(summaryEntries("lore", visible), null, 2));
     }
     case "get": {
       const novel = requireNovel();
@@ -6048,6 +6066,7 @@ server.registerTool("manage_corpus", {
   description: "Manage the cold-reference knowledge corpus. Use when: registering, listing, reading, routing, granting, denying, accessing, consuming, or inspecting acquisitions of corpus documents (corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions). Do NOT use when: writing Novel lore entries or secrets — use manage_lore. corpus_register, corpus_route, corpus_grant, and corpus_deny persist access state; revert with manage_history (action: undo); corpus_list, corpus_get, corpus_access, and corpus_acquisitions are read-only; corpus_consume records usage.",
   inputSchema: {
     ...MANAGE_LORE_SCHEMA,
+    ...CORPUS_PARAMS,
     action: z.enum(MANAGE_LORE_SCHEMA_ACTIONS).describe("corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions."),
   },
 }, async (args: any, extra: any) => {
@@ -6064,6 +6083,7 @@ server.registerTool("manage_faction", {
   description: "Manage organizations in the active Novel: create, update, remove, or list factions, each carrying a name, description, goals, resources, and optional territory room names. name is required to create and faction_id targets an existing faction; the progress clock is Novel-internal and not set directly. create, update, and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); remove deletes the faction permanently unless undone, and list is read-only. Use when: creating, revising, removing, or listing factions. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list"]).describe("create, update, remove, or list."),
+    detail: z.boolean().optional().describe("Return full faction records instead of summary entries (list)."),
     name: z.string().optional().describe("Faction name (create)."),
     faction_id: z.string().optional().describe("Faction identifier (update/remove)."),
     description: z.string().optional().describe("Optional description."),
@@ -6116,8 +6136,11 @@ server.registerTool("manage_faction", {
       const novel = requireNovel();
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
-      const rows = novel.factions.map((f) => isGM ? f : { id: f.id, name: f.name, description: f.description });
-      return raw(JSON.stringify(rows, null, 2));
+      if (wantsDetail(args.detail)) {
+        const rows = novel.factions.map((f) => isGM ? f : { id: f.id, name: f.name, description: f.description });
+        return raw(JSON.stringify(rows, null, 2));
+      }
+      return raw(JSON.stringify(summaryEntries("faction", novel.factions), null, 2));
     }
     default:
       return err("INVALID_INPUT", `Unknown faction action '${args.action}'. Valid actions: create, update, remove, list.`);
@@ -6865,6 +6888,7 @@ server.registerTool("manage_note", {
   description: "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). set's badge_scope defaults to game_master. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set).",
   inputSchema: {
     action: z.enum(["set", "remove", "list", "set_server", "remove_server", "list_server"]).describe("set, remove, list, set_server, remove_server, or list_server."),
+    detail: z.boolean().optional().describe("Return full server notes instead of summary entries (list_server)."),
     key: z.string().optional().describe("The note key (set/remove/set_server/remove_server)."),
     content: z.string().optional().describe("The note content (set/set_server)."),
     badge_scope: z.enum(["game_master", "player", "shared"]).optional().describe("game_master, player, or shared (set)."),
@@ -6928,8 +6952,12 @@ server.registerTool("manage_note", {
     }
     case "list_server": {
       requireGM();
-      const notes = Object.fromEntries(state.serverNotes);
-      return raw(JSON.stringify(notes, null, 2));
+      if (wantsDetail(args.detail)) {
+        const notes = Object.fromEntries(state.serverNotes);
+        return raw(JSON.stringify(notes, null, 2));
+      }
+      const rows = [...state.serverNotes.entries()].map(([key, note]) => ({ key, ...note }));
+      return raw(JSON.stringify(summaryEntries("server_note", rows), null, 2));
     }
     default:
       return err("INVALID_INPUT", `Unknown note action '${args.action}'. Valid actions: set, remove, list, set_server, remove_server, list_server.`);
@@ -7147,6 +7175,7 @@ server.registerTool("manage_belief", {
   description: "Manage per-entity evidence, reconciled belief stances, the perception ledger, and a one-entity knowledge query. admit takes a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances after evidence changes; knowledge_query returns the entity's perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Mutating actions (admit, retract, reconcile, perception_record) persist to the Novel; reads are read-only. The perception ledger is append-only, so correct a mistaken admit with retract. Use when: inspecting or recording what an entity learned or believes. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore.",
   inputSchema: {
     action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Knowledge: knowledge_query."),
+    detail: z.boolean().optional().describe("Return full belief records instead of summary entries (list)."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
     subject: z.string().optional().describe("Proposition subject (admit)."),
     predicate: z.string().optional().describe("Proposition predicate (admit)."),
@@ -7192,7 +7221,8 @@ server.registerTool("manage_belief", {
       const gate = beliefReadGate(novel, args.entity_id); if (gate) return gate;
       const records = novel.belief_state.filter((b) => b.entity_id === args.entity_id);
       if (records.length === 0) return ok(`No beliefs recorded for '${args.entity_id}'.`);
-      return raw(JSON.stringify(records, null, 2));
+      if (wantsDetail(args.detail)) return raw(JSON.stringify(records, null, 2));
+      return raw(JSON.stringify(summaryEntries("belief", records), null, 2));
     }
     case "get": {
       requireNotObserver();
@@ -7877,6 +7907,7 @@ server.registerTool("manage_agent", {
   description: "Manage durable NPC/agent tasks and their action lifecycle. Mutating actions (create, start, advance, complete, fail, cancel) persist to the Novel and are audited; list/get are read-only. Revert the most recent mutation with manage_history (action: undo); terminal tasks are immutable. Use when: creating a task (create), starting it (start), logging an action (advance), settling it (complete/fail/cancel), or inspecting tasks (list/get). Do NOT use when: surfacing an advisory suggestion — use manage_scene (action: oracle); managing NPC identity — use manage_npc.",
   inputSchema: {
     action: z.enum(["create", "list", "get", "start", "advance", "complete", "fail", "cancel"]).describe("create, list, get, start, advance, complete, fail, or cancel."),
+    detail: z.boolean().optional().describe("Return full agent tasks instead of summary entries (list)."),
     subject: z.string().optional().describe("Entity or NPC that owns the task (create/list)."),
     goal: z.string().optional().describe("Task goal text (create)."),
     autonomy: z.enum(["advisory", "prompt", "auto"]).optional().describe("advisory, prompt, or auto (create; default the TTRPG_AGENT_AUTONOMY setting)."),
@@ -7892,7 +7923,8 @@ server.registerTool("manage_agent", {
       let tasks = novel.agent_tasks;
       if (args.subject) tasks = tasks.filter((t) => t.subject === args.subject);
       if (tasks.length === 0) return ok("No agent tasks.");
-      return raw(JSON.stringify(tasks, null, 2));
+      if (wantsDetail(args.detail)) return raw(JSON.stringify(tasks, null, 2));
+      return raw(JSON.stringify(summaryEntries("agent_task", tasks), null, 2));
     }
     case "get": {
       requireNotObserver();
@@ -9731,6 +9763,7 @@ const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
   { variable: "pacing_window", tunable: true, path: "manage_character (action: signal, pace, faster/slower)" },
   { variable: "npc_autonomy", tunable: true, path: "manage_scene (action: directive, 'NPCs act independently')" },
   { variable: "npc_mind", tunable: true, path: "manage_scene (action: directive, 'NPCs think for themselves')" },
+  { variable: "npc_proactive_boundary", tunable: false },
   { variable: "max_available_actions", tunable: true, path: "manage_scene (action: directive, 'more options')" },
   { variable: "story_beat_window", tunable: true, path: "manage_scene (action: directive, 'keep more beats')" },
   { variable: "campaign_memory_max_facts", tunable: true, path: "manage_scene (action: directive, 'more campaign notes')" },
