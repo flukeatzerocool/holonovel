@@ -4695,6 +4695,68 @@
         "replacement": "manage_diagnostics.replay",
         "retired": true
       }
+    },
+    "manage_npc.import_card": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_npc.export_card": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_staging.cast": {
+      "group": "referee",
+      "phases": [
+        "scene",
+        "combat",
+        "downtime"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_staging.next_speaker": {
+      "group": "referee",
+      "phases": [
+        "scene",
+        "combat",
+        "downtime"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
     }
   }
 }

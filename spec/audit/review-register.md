@@ -11,6 +11,29 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Character-roleplay market learnings — resolved 2026-10-24:** the five
+  findings from the adjacent-market research shipped. Social cast strategy and
+  speaker selection (REQ-611/612, T727/T728), NPC `talkativeness` (REQ-075g,
+  T723), NPC `identity_core`/`shared_notes` (REQ-075f, T722), session-boundary
+  proactive beats (REQ-339e, T726), ensemble cast direction in `narrate`
+  (REQ-598, T729), and Character Card V3 import/export with `persona`
+  (REQ-077a/075h/075i, T724/T725). Evidence: `test:competitive-gaps` → 26
+  passed, 0 failed; `npm run build-order` → 0 errors; `check-tool-surface` →
+  PASS (229 actions).
+
+- **Competitive report closeout (rev 2.3) — resolved 2026-10-24:** the
+  Edition 2 competitive report's gap analysis was corrected against the spec
+  and closed out. Items 1–7 are shipped or retired (REQ-075f/REQ-339d,
+  REQ-433a/b, REQ-050a–c, REQ-431a–c, REQ-432 + `resolve_*`, REQ-296c,
+  REQ-072a2/072h; T513–T519, T27, T111); item 8 is a stated non-goal
+  (`SECURITY.md:53-59`); item 11 is delivered as
+  `report://holonovel-token-footprint-benchmark-2026-10-24` (25,856 tokens /
+  103,424 bytes / 36 tools, `spec/audit/performance-record.json`); item 12 is
+  `SECURITY.md`. Rev 2.3 is published at
+  `report://mcp-servers-similar-to-holonovel-competitive-feature-report-rev-2-3-closeout`.
+  Items 9, 10, and the §13 runtime bake-off are dispositioned Closed-P3 below.
+  Evidence: `holonovel/scripts/test-competitive-gaps.ts`; `check-registers`.
+
 - **Two-week audit remediation — resolved 2026-10-24:** the 2026-10-10..10-24
   audit's code and spec findings are closed; publication (AU-3) is deferred by
   the operator. The export envelope now uses the
@@ -889,6 +912,31 @@ pass and completion-oracle green. Fix evidence: regression tests in
   reachability allowlist entry retired. The capability remains in
   `scripts/lib/fingerprints.ts` (REQ-313a–d) and is consumed by
   `scripts/update-server.ts`.
+
+- **Competitive report item 9 — VTT interop (closed 2026-10-24):** Edition 2
+  rated a Foundry/VTT export bridge P3. Holonovel already exports portable,
+  inspectable campaign files (`manage_novel (action: export)`, `SECURITY.md`
+  data-ownership section), and no user request or demonstrated failure
+  depends on a VTT-native protocol. A bridge adds a version-coupled external
+  dependency for an unproven requirement. Record and close; reopen if VTT
+  round-trip demand is demonstrated or a competitor ships portable
+  bidirectional interop that Holonovel cannot match with file export.
+
+- **Competitive report item 10 — Discord/webhook delivery (closed
+  2026-10-24):** Edition 2 rated external chat delivery P3. The in-protocol
+  event surface already ships (REQ-433a/b `manage_diagnostics (action:
+  subscribe)` over MCP notifications, T519); pushing the same events to a
+  third-party chat service is a client/host concern, not a server contract,
+  and no demonstrated need exists. Record and close; reopen if an operator
+  requests a non-MCP delivery channel.
+
+- **Competitive report §13 — competitor runtime bake-off (closed
+  2026-10-24):** Edition 2 named a [RT] bake-off of rpg-mcp, Grimoire, and
+  worldstate as its highest-value next action. It requires running
+  third-party servers (network installs, credentials, model bindings) and no
+  Holonovel defect depends on the result; the P3 triage bar is a demonstrated
+  failure, not an open-ended audit. Record and close; reopen if a competitor
+  capability is observed that Holonovel lacks and cannot cover.
 
 ## Deferred-by-user
 

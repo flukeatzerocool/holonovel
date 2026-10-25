@@ -499,7 +499,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
 | 5.18   | Workflow Entry Points                                   | 395–398, 418, 420–424, 428, 429, 556–561, 563, 564 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
-| 5.20   | Narrative Turn Conventions                              | 412 |
+| 5.20   | Narrative Turn Conventions                              | 412, 412a, 611, 612 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
 | 5.22   | Ironsworn Base Capabilities                             | 438–440 |
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
@@ -1907,7 +1907,7 @@ recorded in DECISIONS.md (6).
 _Check:_ T296.
 
 **REQ-598 — Narrator clearance.**
-The server SHALL provide a `narrate` prompt whose content is assembled from the AI's narrative role (REQ-304) rather than the active badge. A Game Master-role narrator SHALL receive full state; a Player-role narrator SHALL receive only the active entity's knowledge-state view (REQ-286) with NPC mind objects stripped (REQ-075f). The prompt SHALL name the role and audience, and Player-role content SHALL exclude GM-only secrets, lore, notes, and NPC minds. `badge_briefing` SHALL remain the human-badge briefing and SHALL NOT be filtered by narrative role. *Acceptance criterion:* under `TTRPG_AI_ROLE=counterpart` with the human wearing the Game Master badge, `narrate` excludes a GM-only lore entry that `badge_briefing` still shows. _Check:_ T707, T708.
+The server SHALL provide a `narrate` prompt assembled from the AI narrative role (REQ-304), not the badge. A Game Master-role narrator receives full state; a Player-role narrator receives only its entity's knowledge-state view (REQ-286), minds stripped. Player-role content SHALL exclude GM-only secrets, lore, notes, and minds. With two or more NPCs, the prompt SHALL name the speaker, forbid speaking for the player, and require distinct per-NPC voice. `badge_briefing` SHALL remain the human-badge briefing, unfiltered by narrative role. *Acceptance criterion:* under `TTRPG_AI_ROLE=counterpart` with a human Game Master badge, `narrate` excludes a GM-only lore entry that `badge_briefing` still shows; with two present NPCs it includes the cast-direction block. _Check:_ T707, T708, T729.
 
 **REQ-599a — Draft visibility scan (Part a).**
 `manage_diagnostics (action: visibility_check, text, audience)` SHALL scan a draft for GM-only disclosure against the named audience, SHALL return the draft with each match replaced by `[redacted]` in `advisory` mode, and SHALL refuse with `[RULE_VIOLATION]` in `strict` mode. A Game Master or Editor audience SHALL NOT be scanned, and a draft with no match SHALL be returned unchanged. The refusal SHALL NOT echo the matched text. *Acceptance criterion:* a draft carrying a GM-only secret is redacted for a Player audience and returned unchanged for a Game Master audience. _Check:_ T709, T710.
@@ -2156,8 +2156,16 @@ An NPC not seen in 5 or more sessions SHALL carry a `[distant]` marker in `badge
 **REQ-075e — Named-NPC state (Part e).**
 An NPC not seen in 5 sessions carries `[distant]`. `manage_session (action: recap)` includes an NPC relationship heatmap with session and scene counts. _Check:_ T56.
 **REQ-075f — Named-NPC state (Part f).**
-Every NPC MAY carry a GM-only `mind` object holding `private_journal` (a free-text array auto-appended on significant interactions per REQ-311), `directive` (a narrator-facing instruction), and `auto_play` (a boolean flag). Mind content SHALL be excluded from every Player-badge surface, including `badge_briefing`, `npc://<id>`, and `manage_session (action: recap)`. Mind content persists with the Novel and SHALL be included in `manage_archive (action: export)` full scope, clone, checkpoints, and archive (REQ-240, REQ-241, REQ-334). Setting or clearing mind fields is Game Master only.
-*Acceptance criterion:* an NPC with a populated mind renders no mind content under the Player badge; GM surfaces include it; export/import round-trip preserves it. _Check:_ T513.
+Every NPC MAY carry a GM-only `mind` object holding `private_journal`, `directive`, `auto_play`, `identity_core`, and `shared_notes`. Mind content SHALL be excluded from every Player-badge surface. It persists with the Novel and SHALL be included in export, clone, checkpoints, and archive (REQ-240, REQ-241, REQ-334). Setting or clearing mind fields is Game Master only. *Acceptance criterion:* an NPC with a populated mind renders no mind content under the Player badge; GM surfaces include it; export/import round-trip preserves it. _Check:_ T513, T722.
+
+**REQ-075g — Named-NPC state (Part g).**
+Every NPC MAY carry an optional `talkativeness` integer from 0 to 100 describing how frequently it speaks in a multi-NPC social scene: 0 speaks only when named, 100 always volunteers. The field persists with the Novel, is set and cleared through `manage_npc (action: create|update)`, and is Game Master only on read. When unset, the server uses the range midpoint. *Acceptance criterion:* an NPC created without the field uses the midpoint; setting it to 0 suppresses unmentioned selection in a social scene. _Check:_ T723.
+
+**REQ-075h — NPC card import (Part h).**
+`manage_npc (action: import_card, card, source, license?, confirm_lore?)` SHALL import a Character Card V3 JSON object as a Novel NPC, mapping `name` to `name`, `description` to `description`, `personality` to `persona`, and `mes_example` to `voice_examples`. `system_prompt` and `post_history_instructions` SHALL NOT be imported, `character_book` SHALL be imported only when `confirm_lore` is true, and assets SHALL NOT be imported. The import SHALL record provenance, mark the NPC `[imported]`, report unsupported fields, enforce a 256 KB cap, and remain inert narrative context. *Acceptance criterion:* a card imports with provenance; a card carrying a system prompt imports it nowhere and reports the field. _Check:_ T724.
+
+**REQ-075i — NPC card export (Part i).**
+`manage_npc (action: export_card, npc_id)` SHALL emit a Character Card V3 JSON object from a Novel NPC, mapping `persona` to `personality`, `voice_examples` to `mes_example`, and provenance to `creator_notes` and `source`. Unset fields SHALL be omitted. The export SHALL include no Novel secrets, mind content, or ruleset stats. *Acceptance criterion:* export followed by import round-trips name, description, persona, and voice examples without leaking mind content. _Check:_ T725.
 **REQ-119a — NPC stat block reference (Part a).**
 `manage_npc (action: create)` accepts an optional ruleset reference — the name of a monster, NPC template, or stat block entry from the indexed ruleset. When a reference matches a ruleset entry, the builder populates the NPC's stat fields from that entry's baseline values as defined by the ruleset. Any caller-supplied stat fields override the referenced values.
 
@@ -2300,7 +2308,7 @@ Memory facts persist with the Novel. The `spec_health` report SHALL include `npc
 **REQ-311g — NPC memory model (Part g).**
 After a second session where the same player entity helps the blacksmith, the NPC's memory section shows `disposition: friendly` and the disposition flip is a campaign memory fact. An NPC who has never met the party shows "no prior contact." `spec_health` reports `npc_memory_count ≥ 1`. _Check:_ T356.
 **REQ-077a — Entity personality fields (Part a).**
-Each roster entity may carry optional narrative fields. The `description` field holds physical appearance. The `voice` field holds speech characteristics conveying pitch, pace, vocabulary range, mannerisms, and formality register as a free-text description. The `background` field holds history and motivation. The `goals` field holds current objectives. The `voice_examples` field holds up to 5 example dialogue snippets, each recording `context`, `dialogue`, and `tag` — a scene-type or emotional-context label.
+Each roster entity may carry optional narrative fields. The `description` field holds physical appearance. The `voice` field holds speech characteristics conveying pitch, pace, vocabulary range, mannerisms, and formality register as a free-text description. The `persona` field holds values, traits, and mannerisms as free text. The `background` field holds history and motivation. The `goals` field holds current objectives. The `voice_examples` field holds up to 5 example dialogue snippets, each recording `context`, `dialogue`, and `tag` — a scene-type or emotional-context label.
 
 **REQ-077b — Entity personality fields (Part b).**
 The `manage_character (action: personality, entity_id, ...)` tool sets and persists these fields at the roster level, and the `manage_character (action: voice, entity_id, examples)` tool sets `voice_examples`. Voice examples follow the same badge-gating contract as other personality fields: Player-only for own entities (per REQ-165), and GM for all. On NPCs (REQ-122), setting `voice_examples` is Game Master only. Voice examples sourced from synthesis carry a `[supplementary]` tag and a source URL.
@@ -4008,6 +4016,8 @@ Accept it — assert the described state change applies, suggestion does not re-
 **REQ-339d — NPC goal pursuit (Part d).**
 WHEN `TTRPG_NPC_MIND=on` and an NPC carries a populated `directive` (REQ-075f), the goal-pursuit suggestion SHALL offer `auto-apply` alongside `accept`, `defer`, and `dismiss`. The `auto-apply` option SHALL apply the described state change and SHALL then direct the narrator to play the NPC from the directive and mind journal on later initiative turns. The change SHALL be audit-logged as `[npc-mind]`. `auto-apply` SHALL NOT appear when `TTRPG_NPC_MIND=off`; mind-driven behavior SHALL NOT fabricate mechanics — effects resolve through existing ruleset tools per REQ-050.
 *Acceptance criterion:* with `TTRPG_NPC_MIND=on`, a directive-carrying NPC surfaces `auto-apply`; selecting it applies the change with an `[npc-mind]` entry; with the variable off the option is absent. _Check:_ T514.
+**REQ-339e — NPC goal pursuit (Part e).**
+WHEN `TTRPG_NPC_AUTONOMY=on` and `TTRPG_NPC_PROACTIVE_BOUNDARY=on`, a session boundary SHALL surface one goal-pursuit suggestion per eligible NPC using the existing accept, defer, dismiss, and auto-apply options. A suggestion SHALL surface at most once per NPC per session, deriving prior surfacing from the event log without new persisted state. The feature defaults off and SHALL NOT surface to the Player badge. *Acceptance criterion:* a session start surfaces one suggestion per eligible NPC and a second boundary in the same session does not repeat it. _Check:_ T726.
 **REQ-348a — Faction-NPC goal coordination (Part a).**
 When a faction clock receives an autonomous tick per REQ-338, the server SHALL compare the faction's goal description against each NPC's `goals` field. If a faction clock advancement represents an outcome that overlaps with an NPC's current goal — the faction name or goal text intersects the NPC's goal text — the NPC goal pursuit suggestion for that NPC SHALL be suppressed for that scene transition. The suppression SHALL be recorded in the audit log as `[faction-npc-coordination]` with the faction ID, NPC ID, and suppressed goal text.
 
@@ -4484,7 +4494,7 @@ _Check:_ T475.
 
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
-state-persistence tools, regardless of scene type. The section covers the scene, story-journal, countdown, note,
+state-persistence tools, regardless of scene type. The section covers the scene, staging/cast, story-journal, countdown, note,
 personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, perception, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
@@ -4494,6 +4504,12 @@ personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpu
 **REQ-412a — Play-loop orientation token (Part a).**
 `badge_briefing` SHALL render a play-loop orientation token describing the act-resolve-narrate order: read current state, resolve mechanics through tools, then narrate the validated result. The token SHALL appear in the never-truncated tier (REQ-135), SHALL use plain English without tool signatures (Standing Rule 10), and SHALL adapt its wording to the active AI role (REQ-304).
 *Acceptance criterion:* badge_briefing includes the orientation token under each AI role and it survives a minimal briefing budget. _Check:_ T640.
+
+**REQ-611 — Social-scene cast strategy.**
+`manage_staging (action: cast, strategy, select?, mute?, unmute?, force?)` SHALL set the speaker-selection strategy for the active scene to `manual`, `natural`, `list`, or `pooled`, and SHALL support muting or forcing a named NPC. The strategy, muted set, and pooled spoken-set SHALL persist with the active Novel's staging state without creating a property group. Setting cast state is Game Master or Editor only. *Acceptance criterion:* a three-NPC scene set to `pooled` rotates speakers; a muted NPC is never selected; Player attempts return `[FORBIDDEN]`. _Check:_ T727.
+
+**REQ-612 — Social-scene speaker selection.**
+`manage_staging (action: next_speaker, after_user?)` SHALL return one present NPC and a reason. Under `natural`, name mentions activate first, then talkativeness weights a seeded draw, then a random fallback; `list` follows the GM order; `pooled` selects an unspoken NPC and resets on `after_user`; `manual` returns the selected NPC. Mute excludes and force overrides. The selection SHALL consume the seeded PRNG so identical seeds reproduce. *Acceptance criterion:* a seeded natural-order selection reproduces exactly and a mentioned NPC is chosen over a higher-talkativeness peer. _Check:_ T728.
 
 ### 5.21 Fate Base Capabilities
 
@@ -7091,6 +7107,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_FACTION_AUTONOMY_INTERVAL` | No | Scene-transition interval between faction autonomous ticks (REQ-338). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_NPC_AUTONOMY` | No | `true` enables autonomous NPC goal pursuit (REQ-339). Behavioral — couples per P45. |
 | `TTRPG_NPC_MIND` | No | `true` enables the NPC-mind `auto-apply` option on goal-pursuit suggestions (REQ-339d, REQ-075f). Behavioral — couples per P45. |
+| `TTRPG_NPC_PROACTIVE_BOUNDARY` | No | `true` enables session-boundary NPC goal-pursuit suggestions (REQ-339e). Behavioral (mechanical) — couples per P30. |
 | `TTRPG_NPC_URGENCY_THRESHOLD` | No | Goal-text length in characters at or above which an NPC's goal counts as "urgent" and suggests countdown advancement (REQ-369). Behavioral (mechanical) — couples per P4. |
 | `TTRPG_VOW_SUGGESTION_GOAL_MIN_CHARS` | No | Minimum goal-text length in characters before a goal-carrying NPC produces a vow-creation suggestion (default 20; REQ-361). Behavioral (mechanical) — couples per P20. |
 | `TTRPG_MAX_AVAILABLE_ACTIONS` | No | Maximum actions rendered in the proactive `available_actions` briefing section (default 8; REQ-084a2). Behavioral — couples per P58. |
@@ -7242,11 +7259,19 @@ cross-property effects SHALL register as a property group with archetypes and
 coupling rows per REQ-370.
 
 **NPC mind.** NPC mind state (REQ-075f) — the per-NPC GM-only private
-journal, directive, and auto-play flag — is Novel-tier state on the same
-footing as property groups: copy, snapshot, archive, and interchange
-operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
-include property-group state. Mind content is GM-only per REQ-075f and SHALL
-be stripped from every Player-badge surface.
+journal, directive, auto-play flag, identity core, and shared notes — is
+Novel-tier state on the same footing as property groups: copy, snapshot,
+archive, and interchange operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL
+include it wherever they include property-group state. Mind content is GM-only
+per REQ-075f and SHALL be stripped from every Player-badge surface.
+
+**Social cast.** Social-scene cast state (REQ-611/612) — the speaker-selection
+strategy, muted set, pooled spoken-set, and manual selection — is Novel-tier
+state on the same footing as property groups: copy, snapshot, archive, and
+interchange operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it
+wherever they include property-group state. It mutates only through
+`manage_staging (action: cast|next_speaker)` and does not couple to any
+property group.
 
 **Character identity.** Character identity state (REQ-473–483) — the staged
 candidates, accepted facets, and compiled kernel — is Roster-tier, permanent
@@ -7430,6 +7455,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Autonomous Countdown → NPC Goal Pursuit | P29 | When a faction autonomous tick represents an outcome overlapping an NPC's goal, that NPC's goal pursuit suggestion is suppressed for this transition | Faction momentum coordinates with character purpose — overlapping goals suppress NPC pursuit | — | Mechanical | REQ-338, REQ-339, REQ-348 |
 | NPC → World in Motion | P30 | NPC goal-pursuit suggestions surface in `badge_briefing` World in Motion for GM accept/defer/dismiss | Character purpose drives the story forward — NPC goals surface as narrative suggestions | — | Narrative | REQ-339, REQ-233a |
 | NPC Mind → World in Motion | P30 | NPCs carrying a populated `mind.directive` (REQ-075f) surface an `auto-apply` option alongside accept/defer/dismiss when `TTRPG_NPC_MIND=on` | Character purpose drives the story forward — NPC directives enable auto-applied goal pursuit | — | Mechanical | REQ-339d, REQ-075f |
+| NPC Goal Pursuit → World in Motion | P30 | A session boundary surfaces one goal-pursuit suggestion per eligible NPC when `TTRPG_NPC_AUTONOMY` and `TTRPG_NPC_PROACTIVE_BOUNDARY` are on | Proactive NPCs carry the story between sessions | — | Narrative | REQ-339e |
 | Countdown → Story Journal | P31 | Countdowns that fire while the player's entity is absent produce `[discovered]` consequence entries | What happens becomes what's remembered — absent-player countdown fire produces discovered consequences | GM-only (fire); Player-visible (discovered consequences via knowledge_state) | Mechanical | REQ-340, REQ-246 |
 | Countdown → Lore | P28 | `[discovered]` consequences populate the discovering entity's `knowledge_state` with the countdown name, consequence text, and `source: discovered_consequence` | The clock's consequences become known facts — discovered events populate knowledge state | GM-only (write); Player-visible (read own-entity) | Mechanical | REQ-340, REQ-349, REQ-286 |
 | Voice Feedback → Voice Examples | P32 | Player voice_feedback corrections update entity voice_examples with [player-corrected] annotation | The operator refines the character — player corrections update NPC voice patterns | Player-only (write); GM-visible (read) | Mechanical | REQ-344, REQ-077 |
@@ -9271,7 +9297,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-075c | Named-NPC state (Part c) | 2026-08-11 |
 | REQ-075d | Named-NPC state (Part d) | 2026-08-11 |
 | REQ-075e | Named-NPC state (Part e) | 2026-08-11 |
-| REQ-075f | Named-NPC state (Part f) | 2026-09-04 |
+| REQ-075f | Named-NPC state (Part f) | 2026-10-24 |
+| REQ-075g | Named-NPC state (Part g) | 2026-10-24 |
+| REQ-075h | NPC card import (Part h) | 2026-10-24 |
+| REQ-075i | NPC card export (Part i) | 2026-10-24 |
 | REQ-119a | NPC stat block reference (Part a) | 2026-08-11 |
 | REQ-119b | NPC stat block reference (Part b) | 2026-08-11 |
 | REQ-119c | NPC stat block reference (Part c) | 2026-08-11 |
@@ -9311,7 +9340,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-311e | NPC memory model (Part e) | 2026-08-11 |
 | REQ-311f | NPC memory model (Part f) | 2026-08-11 |
 | REQ-311g | NPC memory model (Part g) | 2026-08-11 |
-| REQ-077a | Entity personality fields (Part a) | 2026-08-11 |
+| REQ-077a | Entity personality fields (Part a) | 2026-10-24 |
 | REQ-077b | Entity personality fields (Part b) | 2026-08-11 |
 | REQ-077c | Entity personality fields (Part c) | 2026-08-11 |
 | REQ-077d | Entity personality fields (Part d) | 2026-08-11 |
@@ -9803,6 +9832,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-339b | NPC goal pursuit (Part b) | 2026-08-11 |
 | REQ-339c | NPC goal pursuit (Part c) | 2026-08-11 |
 | REQ-339d | NPC goal pursuit (Part d) | 2026-09-04 |
+| REQ-339e | NPC goal pursuit (Part e) | 2026-10-24 |
 | REQ-348a | Faction-NPC goal coordination (Part a) | 2026-08-11 |
 | REQ-348b | Faction-NPC goal coordination (Part b) | 2026-08-11 |
 | REQ-348c | Faction-NPC goal coordination (Part c) | 2026-08-11 |
@@ -10089,6 +10119,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-554 | Server tool-surface coherence | 2026-10-02 |
 | REQ-555 | Shadowing-risk report | 2026-10-02 |
 | REQ-412a | Play-loop orientation token (Part a) | 2026-09-26 |
+| REQ-611 | Social-scene cast strategy | 2026-10-24 |
+| REQ-612 | Social-scene speaker selection | 2026-10-24 |
 | REQ-312e | Narration grounding set (Part e) | 2026-09-26 |
 | REQ-515 | Readiness cursor | 2026-09-24 |
 | REQ-516 | Consistency declaration | 2026-09-24 |
@@ -10901,6 +10933,14 @@ diet.
 | T719 | Automated | Recall at budget: the replay baseline records a recall value and budget per profile using the REQ-569 intent set, and a run below the recorded recall fails. | REQ-608 |
 | T720 | Automated | Schema disclosure: `discover (detail: schema, query)` returns a matched tool's input schema, the default response is the summary text, and an unknown detail or schema without a query refuses `[INVALID_INPUT]`. | REQ-609 |
 | T721 | Automated | Budget allocator: a tight `context_report` budget drops `last_tool_output` first while keeping `tool_catalog` and `registered_prompts`, and a non-positive budget refuses `[INVALID_INPUT]`. | REQ-610 |
+| T722 | Automated | NPC identity core and shared notes: create an NPC with `mind.identity_core` and `mind.shared_notes` — assert the GM `badge_briefing` `## NPC Memory` section renders both, the Player badge renders neither, and export → import, clone, checkpoint, and archive round-trip preserve both. | REQ-075f |
+| T723 | Automated | NPC talkativeness: create an NPC without `talkativeness` and assert it defaults to 50; set it to 0 and assert an unmentioned NPC is never selected in a social scene while a metered peer is; Player reads omit the field. | REQ-075g |
+| T724 | Automated | NPC card import: import a CCv3 JSON card — assert name, description, persona, and voice examples map; provenance and the `[imported]` marker are recorded; a card carrying `system_prompt` and `post_history_instructions` reports them as unsupported and imports neither; `character_book` is ignored without `confirm_lore`; an oversized card and a Player attempt are refused. | REQ-075h |
+| T725 | Automated | NPC card export: export an NPC to CCv3 JSON — assert persona maps to `personality`, voice examples map to `mes_example`, provenance maps to `creator_notes` and `source`, unset fields are omitted, and no mind content or ruleset stats appear; re-import preserves name, description, persona, and voice examples. | REQ-075i |
+| T726 | Automated | Session-boundary NPC beats: with autonomy and `TTRPG_NPC_PROACTIVE_BOUNDARY=on`, a session start surfaces one goal-pursuit suggestion per eligible NPC; a second boundary in the same session does not repeat it; the feature is off by default; the Player badge never sees it; the event log records the surfacing. | REQ-339e |
+| T727 | Automated | Social cast strategy: in a three-NPC scene, set `pooled` and assert speakers rotate; mute an NPC and assert it is never selected; force a muted NPC and assert it is selected; a Player attempt to set cast state returns `[FORBIDDEN]`; cast state survives export/clone/checkpoint. | REQ-611 |
+| T728 | Automated | Social speaker selection: under `natural`, a named NPC is selected over a higher-talkativeness peer; with no mention, a seeded draw weights by talkativeness and reproduces identically under the same seed; `list` follows the GM order; `pooled` selects an unspoken NPC and resets on `after_user`; `manual` returns the selected NPC. | REQ-612 |
+| T729 | Automated | Narrator cast direction: the `narrate` prompt under the GM role with two present NPCs includes a cast-direction block naming the speaker, forbidding speech or decisions for the player, and requiring distinct voices; with one present NPC the block is absent; under the Player role no hidden cast appears. | REQ-598 |
 
 ---
 

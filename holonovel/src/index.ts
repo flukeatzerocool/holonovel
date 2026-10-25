@@ -287,6 +287,13 @@ function climaxAcceleration(): number { return configInt("TTRPG_CLIMAX_ACCELERAT
 function factionAutonomyInterval(): number { return configInt("TTRPG_FACTION_AUTONOMY_INTERVAL", 0); }
 function npcAutonomyOn(): boolean { return (process.env.TTRPG_NPC_AUTONOMY ?? "off") === "on"; }
 function npcMindOn(): boolean { return (process.env.TTRPG_NPC_MIND ?? "off") === "on"; }
+// REQ-339e — session-boundary proactive NPC beats (default off).
+function npcProactiveBoundaryOn(): boolean { return (process.env.TTRPG_NPC_PROACTIVE_BOUNDARY ?? "off") === "on"; }
+// REQ-075g — talkativeness defaults to the neutral midpoint when unset.
+function npcTalkativeness(npc: any): number {
+  const value = Number(npc?.talkativeness);
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
+}
 // REQ-233a — World in Motion reactivity master switch (default active). A
 // narrative directive carrying reactivity keywords overrides it for the
 // session (P46: "the world reacts" enables, "freeze the world" disables).
@@ -489,7 +496,8 @@ function notifyForBadge(topic: string, payload: Record<string, unknown>, badge: 
 // `mind` object before serialization. GM surfaces include it verbatim.
 function sanitizeNpcForBadge(npc: any, isGM: boolean): any {
   if (isGM) return npc;
-  const { mind, ...rest } = npc;
+  // REQ-075f — mind is GM-only. REQ-075g — talkativeness is GM-only on read.
+  const { mind, talkativeness, ...rest } = npc;
   return rest;
 }
 
@@ -560,6 +568,19 @@ function ensureGoalSuggestion(novel: NovelState, npcId: string, name: string, go
   const existing = novel.npc_goal_suggestions.find((s) => s.npc_id === npcId);
   if (existing) return;
   novel.npc_goal_suggestions.push({ npc_id: npcId, text: `${name} pursues "${goal}" off-screen`, state: "pending" });
+}
+
+// REQ-339e — a session-boundary beat fires once per session. Prior surfacing
+// is derived from the audit log rather than a new persisted marker.
+function boundaryBeatFiredThisSession(novel: NovelState): boolean {
+  let boundary = -1;
+  let beat = -1;
+  for (let i = 0; i < novel.audit_log.length; i++) {
+    const tool = novel.audit_log[i].tool;
+    if (tool === "[session-boundary]") boundary = i;
+    else if (tool === "npc-boundary-beat") beat = i;
+  }
+  return boundary >= 0 && beat > boundary;
 }
 
 // REQ-355 through REQ-365 — navigational coupling advisories surfaced in
@@ -859,6 +880,13 @@ function composeNarrationClearance(novel: NovelState, role: NarrativeRole): stri
   if (role === "game_master" && facts.gm_only.length > 0) {
     lines.push(`### GM-only facts`);
     lines.push(...facts.gm_only);
+  }
+  // REQ-598 — ensemble cast direction prevents monologue and voice bleed.
+  if (facts.npcs.length >= 2) {
+    lines.push(`### Cast direction`);
+    lines.push(`- Name the speaker for this turn before their dialogue.`);
+    lines.push(`- Never speak for the player character or decide the player's actions.`);
+    lines.push(`- Render each NPC from its voice and voice examples; keep voices distinct.`);
   }
   lines.push(`### Narration instruction`);
   lines.push(`Narrate only from the cleared facts above. Do not state, hint at, or imply anything absent from them. Before emitting prose for a Player or Observer audience, call manage_diagnostics (action: visibility_check, text: "<draft>") and use the returned text.`);
@@ -3546,20 +3574,28 @@ function recordNpcInteraction(novel: NovelState, npcId: string, entityName: stri
 // REQ-311d — surface NPC memory in badge_briefing when the NPC is present in
 // the current scene: one-sentence emotional state, last 3 interactions, goals.
 function composeNpcMemorySection(novel: NovelState, npc: any): string {
-  if (!npc.memory) return "";
   const m = npc.memory;
-  const contactCount = Object.keys(m.contacts ?? {}).length;
-  const stress = (m.stress_markers ?? []).length;
-  const emotional = stress > 0
-    ? `${npc.name} is on edge (${stress} stress mark${stress === 1 ? "" : "s"}, disposition ${npc.disposition ?? "neutral"}).`
-    : `${npc.name} is currently ${npc.disposition ?? "neutral"} toward the party.`;
-  const lines = [`## NPC Memory\n${emotional}`];
-  if ((m.last_3_interactions ?? []).length > 0) {
-    for (const i of m.last_3_interactions.slice(-3)) lines.push(`- ${i.summary} (with ${i.entity})`);
-  } else if (contactCount === 0) {
-    lines.push(`No prior contact — ${npc.name} has not met the party.`);
+  const lines: string[] = ["## NPC Memory"];
+  if (m) {
+    const contactCount = Object.keys(m.contacts ?? {}).length;
+    const stress = (m.stress_markers ?? []).length;
+    lines.push(stress > 0
+      ? `${npc.name} is on edge (${stress} stress mark${stress === 1 ? "" : "s"}, disposition ${npc.disposition ?? "neutral"}).`
+      : `${npc.name} is currently ${npc.disposition ?? "neutral"} toward the party.`);
+    if ((m.last_3_interactions ?? []).length > 0) {
+      for (const i of m.last_3_interactions.slice(-3)) lines.push(`- ${i.summary} (with ${i.entity})`);
+    } else if (contactCount === 0) {
+      lines.push(`No prior contact — ${npc.name} has not met the party.`);
+    }
+    if ((m.goals ?? []).length > 0) lines.push(`Goals: ${m.goals.join("; ")}`);
+  } else {
+    lines.push(`${npc.name} has no recorded interactions.`);
   }
-  if ((m.goals ?? []).length > 0) lines.push(`Goals: ${m.goals.join("; ")}`);
+  // REQ-075f — stable identity anchor and GM-authored always-known facts.
+  const core = npc?.mind?.identity_core;
+  if (Array.isArray(core) && core.length > 0) lines.push(`Identity core: ${core.join("; ")}`);
+  const shared = npc?.mind?.shared_notes;
+  if (Array.isArray(shared) && shared.length > 0) lines.push(`Shared notes: ${shared.join("; ")}`);
   return `\n\n${lines.join("\n")}`;
 }
 
@@ -5070,6 +5106,12 @@ const MANAGE_SCENE_SCHEMA = {
     }).optional().describe("Narrative fast-forward (set)."),
     directive: z.string().optional().describe("Narrative directive (directive)."),
     entity_ids: z.array(z.string()).optional().describe("Entities present (presence)."),
+    strategy: z.enum(["manual", "natural", "list", "pooled"]).optional().describe("Speaker-selection strategy (cast)."),
+    select: z.string().optional().describe("NPC selected as the manual speaker (cast/next_speaker)."),
+    mute: z.string().optional().describe("NPC muted from speaker selection (cast)."),
+    unmute: z.string().optional().describe("NPC restored to speaker selection (cast)."),
+    force: z.string().optional().describe("NPC forced as the next speaker (cast/next_speaker)."),
+    after_user: z.boolean().optional().describe("Reset the pooled spoken-set for a new user turn (next_speaker)."),
     level: z.enum(["full", "mechanical_prompt", "manual"]).optional().describe("Autonomy level (autonomy)."),
     confirmation: z.enum(["auto", "confirm", "prompt"]).optional().describe("Confirmation mode (autonomy)."),
     safety: z.enum(["safe", "moderate", "hardcore"]).optional().describe("Safety tier (autonomy)."),
@@ -5230,6 +5272,61 @@ server.registerTool("manage_scene", {
       const a = novel.autonomy;
       return ok(`Autonomy set — level: ${a.level}, confirmation: ${a.confirmation}, safety: ${a.safety}, creativity: ${a.creativity}`);
     }
+    case "cast": {
+      // REQ-611 — social-scene speaker strategy and mute/force controls.
+      requireGM();
+      const novel = requireNovel();
+      novelSnapshot();
+      const cast = novel.social_cast;
+      if (args.strategy) cast.strategy = args.strategy;
+      if (args.select !== undefined) { cast.selected = args.select; cast.strategy = "manual"; }
+      if (args.mute && !cast.muted.includes(args.mute)) cast.muted.push(args.mute);
+      if (args.unmute) cast.muted = cast.muted.filter((id: string) => id !== args.unmute);
+      if (args.force) cast.selected = args.force;
+      state.recordMutation(novel, "set_scene_cast", "scene");
+      state.saveNovel(novel);
+      audit("set_scene_cast", { strategy: cast.strategy, muted: cast.muted, selected: cast.selected });
+      return ok(`Cast strategy: ${cast.strategy}${cast.muted.length ? `; muted: ${cast.muted.join(", ")}` : ""}.`);
+    }
+    case "next_speaker": {
+      // REQ-612 — deterministic speaker selection for social scenes.
+      requireGM();
+      const novel = requireNovel();
+      const cast = novel.social_cast;
+      if (args.after_user) cast.spoken = [];
+      if (args.select) { cast.selected = args.select; cast.strategy = "manual"; }
+      const present = [...novel.npcs.values()].filter((n: any) => !cast.muted.includes(n.id));
+      if (present.length === 0) return err("STATE_CONFLICT", "No eligible NPC is present for speaker selection.");
+      // REQ-612 — force overrides mute, so resolve it from all NPCs.
+      const forced = args.force ? [...novel.npcs.values()].find((n: any) => n.id === args.force) : undefined;
+      if (args.force && !forced) return err("NOT_FOUND", `NPC '${args.force}' is not an eligible speaker.`);
+      let pick: any;
+      let reason: string;
+      if (forced) { pick = forced; reason = "forced"; }
+      else if (cast.strategy === "manual") { pick = present.find((n: any) => n.id === cast.selected) ?? present[0]; reason = "manual"; }
+      else if (cast.strategy === "list") { pick = present.find((n: any) => !cast.spoken.includes(n.id)) ?? present[0]; reason = "list"; }
+      else if (cast.strategy === "pooled") {
+        const unspoken = present.filter((n: any) => !cast.spoken.includes(n.id));
+        const pool = unspoken.length > 0 ? unspoken : present;
+        pick = pool[sessionRoll(pool.length) - 1];
+        reason = unspoken.length > 0 ? "pooled" : "pooled-wrap";
+      } else {
+        const mention = present.find((n: any) => new RegExp(`\\b${escapeRegExpLiteral(n.name)}\\b`, "i").test(novel.scene_description ?? ""));
+        if (mention) { pick = mention; reason = "mentioned"; }
+        else {
+          const total = present.reduce((sum: number, n: any) => sum + npcTalkativeness(n), 0);
+          pick = present[0];
+          if (total > 0) {
+            let roll = sessionRoll(total);
+            for (const n of present) { roll -= npcTalkativeness(n); if (roll <= 0) { pick = n; break; } }
+          }
+          reason = "talkativeness";
+        }
+      }
+      if (!cast.spoken.includes(pick.id)) cast.spoken.push(pick.id);
+      state.saveNovel(novel);
+      return raw(JSON.stringify({ npc_id: pick.id, name: pick.name, reason }, null, 2));
+    }
     case "choices": {
       requireGM();
       const novel = requireNovel();
@@ -5270,22 +5367,31 @@ server.registerTool("manage_scene", {
 // --- NPCs (GM) ---
 
 // NPC (REQ-119, REQ-122, REQ-123, REQ-124, REQ-156, REQ-327) — consolidated create/update/remove/list/get surface.
+// REQ-075g/075h/075i — talkativeness, card import, and card export.
 server.registerTool("manage_npc", {
   title: "NPC Management",
   description: "Manage non-player characters in the active Novel. create requires a name; update, remove, and get target an existing npc_id; ruleset_reference links an optional stat block; mind is GM-only and never returned to the Player badge. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); remove deletes the NPC, while list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
-    action: z.enum(["create", "update", "remove", "list", "get"]).describe("create, update, remove, list, or get."),
+    action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card"]).describe("create, update, remove, list, get, import_card, or export_card."),
     name: z.string().optional().describe("NPC name (create)."),
-    npc_id: z.string().optional().describe("NPC identifier (update/remove/get)."),
+    npc_id: z.string().optional().describe("NPC identifier (update/remove/get/export_card)."),
     description: z.string().optional().describe("Optional description."),
     disposition: z.string().optional().describe("Optional disposition."),
     location: z.string().optional().describe("Optional location."),
     goals: z.string().optional().describe("Optional goals."),
+    persona: z.string().optional().describe("Optional values, traits, and mannerisms (create/update)."),
+    talkativeness: z.number().min(0).max(100).optional().describe("Optional 0-100 social-scene speaking weight; default 50 (create/update)."),
     ruleset_reference: z.string().optional().describe("Optional ruleset stat-block reference (create)."),
+    card: z.union([z.string(), z.record(z.string(), z.any())]).optional().describe("Character Card V3 JSON object or string (import_card)."),
+    source: z.string().optional().describe("Import provenance URL or description (import_card)."),
+    license: z.string().optional().describe("Import license attestation (import_card)."),
+    confirm_lore: z.boolean().optional().describe("Import the card's character_book as lore entries (import_card)."),
     mind: z.object({
       private_journal: z.array(z.string()).optional().describe("Private journal entries (GM only)."),
       directive: z.string().optional().describe("Narrator-facing directive describing how to play this NPC (GM only)."),
       auto_play: z.boolean().optional().describe("When true, the narrator plays this NPC from the directive on initiative."),
+      identity_core: z.array(z.string()).optional().describe("Stable values, bonds, and taboos (GM only)."),
+      shared_notes: z.array(z.string()).optional().describe("Always-known facts (GM only)."),
     }).optional().describe("Optional GM-only NPC mind (create/update)."),
   },
 }, async (args: any) => {
@@ -5297,6 +5403,8 @@ server.registerTool("manage_npc", {
       const { name, description, disposition, location, goals, ruleset_reference } = args;
       const id = `npc_${Date.now().toString(36)}`;
       const npc: any = { id, name, description, disposition, location, conditions: [], condition_rounds: {} };
+      if (args.persona !== undefined) npc.persona = args.persona; // REQ-077a
+      if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
       // REQ-119 — NPC stat block reference.
       if (ruleset_reference) {
         const slug = novel.ruleset ?? null;
@@ -5346,7 +5454,9 @@ server.registerTool("manage_npc", {
       if (disposition !== undefined) npc.disposition = disposition;
       if (location !== undefined) npc.location = location;
       if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
-      if (args.mind !== undefined) npc.mind = args.mind;
+      if (args.persona !== undefined) npc.persona = args.persona; // REQ-077a
+      if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
+      if (args.mind !== undefined) npc.mind = { ...(npc.mind ?? {}), ...args.mind };
       state.saveNovel(novel);
       audit("update_npc", { npc_id });
       return ok(`NPC '${npc_id}' updated.`);
@@ -5375,17 +5485,119 @@ server.registerTool("manage_npc", {
       const isGM = getBadge() === "game_master" || getBadge() === "none";
       return raw(JSON.stringify(sanitizeNpcForBadge(npc, isGM), null, 2));
     }
+    // REQ-075h — Character Card V3 import.
+    case "import_card": {
+      requireGM();
+      const novel = requireNovel();
+      const rawCard = args.card;
+      if (rawCard === undefined) return err("INVALID_INPUT", "import_card requires card (Character Card V3 JSON object or string).");
+      const text = typeof rawCard === "string" ? rawCard : JSON.stringify(rawCard);
+      if (Buffer.byteLength(text, "utf8") > 262144) return err("INVALID_INPUT", "Card exceeds the 256 KB import cap.");
+      let card: any;
+      try { card = typeof rawCard === "string" ? JSON.parse(rawCard) : rawCard; }
+      catch { return err("INVALID_INPUT", "card is not valid JSON."); }
+      const data = card?.data ?? card;
+      if (!data || typeof data.name !== "string" || !data.name.trim()) return err("INVALID_INPUT", "card.data.name is required.");
+      novelSnapshot();
+      const id = `npc_${Date.now().toString(36)}`;
+      const npc: any = {
+        id, name: data.name.trim(),
+        description: typeof data.description === "string" ? data.description : undefined,
+        conditions: [], condition_rounds: {},
+        imported: true,
+        provenance: {
+          source: args.source ?? (Array.isArray(data.source) ? data.source.join(", ") : data.source) ?? null,
+          license: args.license ?? null,
+          imported_at: new Date().toISOString(),
+        },
+      };
+      if (typeof data.personality === "string" && data.personality.trim()) npc.persona = data.personality;
+      if (typeof data.mes_example === "string" && data.mes_example.trim()) {
+        const examples: any[] = [];
+        for (const line of data.mes_example.split(/\r?\n/).map((l: string) => l.trim()).filter(Boolean)) {
+          const m = line.match(/^\{\{char\}\}\s*:\s*(.+)$/i) ?? line.match(/^([^:]{1,40}):\s*(.+)$/);
+          const dialogue = m ? (m[2] ?? m[1]) : line;
+          examples.push({ context: "imported", dialogue: String(dialogue).replace(/\{\{char\}\}/gi, data.name).replace(/\{\{user\}\}/gi, "the player"), tag: "imported" });
+          if (examples.length >= 5) break;
+        }
+        if (examples.length > 0) npc.voice_examples = examples;
+      }
+      const greetings = [data.first_mes, ...(Array.isArray(data.alternate_greetings) ? data.alternate_greetings : []), ...(Array.isArray(data.group_only_greetings) ? data.group_only_greetings : [])]
+        .filter((g: any) => typeof g === "string" && g.trim());
+      if (greetings.length > 0) npc.mind = { shared_notes: greetings.map((g: string) => `[greeting] ${g}`) };
+      const unsupported: string[] = [];
+      for (const field of ["system_prompt", "post_history_instructions", "assets", "extensions"]) {
+        if (data[field] !== undefined) unsupported.push(field);
+      }
+      if (data.character_book !== undefined) {
+        if (!args.confirm_lore) unsupported.push("character_book");
+        else {
+          const entries = Array.isArray(data.character_book.entries) ? data.character_book.entries : [];
+          for (let i = 0; i < entries.length; i++) {
+            const e = entries[i];
+            if (!e || typeof e.content !== "string" || !e.content.trim()) continue;
+            const keys = Array.isArray(e.keys) ? e.keys.filter((k: any) => typeof k === "string" && k.trim()) : [];
+            const key = `imported:${data.name}:${i + 1}`;
+            if (novel.lore.has(key)) continue;
+            novel.lore.set(key, {
+              key, content: e.content, triggers: keys, badge_scope: "game_master",
+              priority: 0, sticky: 0, sticky_remaining: 0, enabled: true, group: `imported:${data.name}`,
+            });
+          }
+        }
+      }
+      const npcRefusal = capGuard("npcs", novel.npcs.size);
+      if (npcRefusal) return npcRefusal;
+      novel.npcs.set(id, npc);
+      recordCampaignMemory(novel, "npcs", `NPC ${npc.name} imported (${id})`);
+      state.recordMutation(novel, "create_npc", "npc");
+      state.saveNovel(novel);
+      audit("import_npc_card", { name: npc.name, id, source: npc.provenance.source, license: npc.provenance.license });
+      const note = unsupported.length > 0 ? ` Unsupported fields: ${unsupported.join(", ")}.` : "";
+      return ok(`NPC '${npc.name}' imported (${id}) with provenance.${note}`);
+    }
+    // REQ-075i — Character Card V3 export.
+    case "export_card": {
+      const novel = requireNovel();
+      const npc = novel.npcs.get(args.npc_id);
+      if (!npc) return err("NOT_FOUND", `NPC '${args.npc_id}' not found.`);
+      const isGM = getBadge() === "game_master" || getBadge() === "none";
+      if (!isGM) return err("FORBIDDEN", "export_card is Game Master only.");
+      const examples = Array.isArray((npc as any).voice_examples) ? (npc as any).voice_examples : [];
+      const card = {
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: {
+          name: npc.name,
+          description: npc.description ?? "",
+          personality: (npc as any).persona ?? "",
+          scenario: novel.scene_description ?? "",
+          first_mes: "",
+          mes_example: examples.map((e: any) => `{{char}}: ${e.dialogue ?? e}`).join("\n"),
+          creator_notes: (npc as any).provenance?.source ?? "",
+          system_prompt: "",
+          post_history_instructions: "",
+          alternate_greetings: [],
+          group_only_greetings: [],
+          creator: "Holonovel",
+          character_version: "1",
+          tags: [],
+          extensions: {},
+        },
+      };
+      return raw(JSON.stringify(card, null, 2));
+    }
     default:
-      return err("INVALID_INPUT", `Unknown npc action '${args.action}'. Valid actions: create, update, remove, list, get.`);
+      return err("INVALID_INPUT", `Unknown npc action '${args.action}'. Valid actions: create, update, remove, list, get, import_card, export_card.`);
   }
 });
 
 // REQ-413 / REQ-581 — split the manage_scene surface. The original name remains
 // callable for one minor version; this tool exposes the named subset.
-const MANAGE_SCENE_SCHEMA_ACTIONS = ["presence", "autonomy"] as const;
+const MANAGE_SCENE_SCHEMA_ACTIONS = ["presence", "autonomy", "cast", "next_speaker"] as const;
 server.registerTool("manage_staging", {
   title: "Scene Staging Management",
-  description: "Manage scene presence and autonomy staging. Use when: setting which entities are present (presence) or adjusting NPC and world autonomy for the scene (autonomy). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence and autonomy persist to the Novel and are audited; revert with manage_history (action: undo).",
+  description: "Manage scene presence, autonomy, and social-cast staging. Use when: setting which entities are present (presence), adjusting NPC and world autonomy for the scene (autonomy), setting a multi-NPC speaker strategy (cast), or selecting the next speaker (next_speaker). Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. presence, autonomy, and cast state persist to the Novel and are audited; revert with manage_history (action: undo).",
   inputSchema: {
     ...MANAGE_SCENE_SCHEMA,
     action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy."),
@@ -6743,6 +6955,7 @@ function novelToJSONState(novel: NovelState): any {
     relationships: novel.relationships, gm_context: novel.gm_context, notes: novel.notes,
     constraint_overrides: novel.constraint_overrides, synthesis_activated: novel.synthesis_activated, synthesis_deactivated: novel.synthesis_deactivated, synthesis_module_enabled: novel.synthesis_module_enabled, ruling_ledger: novel.ruling_ledger,
     characters_present_ids: novel.characters_present_ids,
+    social_cast: novel.social_cast,
     session_zero_completed: novel.session_zero_completed,
     characters_present: novel.characters_present,
     adventure_set: novel.adventure_set,
@@ -6811,7 +7024,7 @@ function loadNovelFromStateData(data: any): NovelState {
     redo_stacks: { player: [], game_master: [], observer: [], none: [] },
     briefing_order: data.briefing_order ?? [],
     action_patterns_enabled: data.action_patterns_enabled ?? false,
-    session_zero_completed: data.session_zero_completed ?? false, characters_present: data.characters_present ?? false, characters_present_ids: data.characters_present_ids ?? [], adventure_set: data.adventure_set ?? false,
+    session_zero_completed: data.session_zero_completed ?? false, characters_present: data.characters_present ?? false, characters_present_ids: data.characters_present_ids ?? [], social_cast: data.social_cast ?? { strategy: "manual", order: [], muted: [], spoken: [], selected: null }, adventure_set: data.adventure_set ?? false,
     pending_workflow: data.pending_workflow ?? null,
     connection_counter: 0, pending_staleness_counter: 0, pov_mode: "character",
     help_category_overrides: {},
@@ -11783,7 +11996,7 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
       const sceneLoc = novel.scene_location?.toLowerCase();
       for (const [, npc] of novel.npcs) {
         const npcPresent = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
-        if (npcPresent && npc.memory) briefing += composeNpcMemorySection(novel, npc);
+        if (npcPresent && (npc.memory || npc.mind?.identity_core || npc.mind?.shared_notes)) briefing += composeNpcMemorySection(novel, npc);
       }
     }
 
@@ -11913,6 +12126,20 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
           if (prevSuggestion?.state === "dismissed" || prevSuggestion?.state === "accepted") continue;
           ensureGoalSuggestion(novel, npc.id, npc.name, goal);
         }
+      }
+      // REQ-339e — session-boundary beats, once per session, derived from the
+      // audit log. Default off; requires NPC autonomy.
+      if (npcAutonomyOn() && npcProactiveBoundaryOn() && !boundaryBeatFiredThisSession(novel)) {
+        const surfaced: string[] = [];
+        for (const [, npc] of novel.npcs) {
+          const goal = npc.personality?.goals;
+          if (!goal) continue;
+          const prev = novel.npc_goal_suggestions.find((s) => s.npc_id === npc.id);
+          if (prev?.state === "dismissed" || prev?.state === "accepted") continue;
+          ensureGoalSuggestion(novel, npc.id, npc.name, goal);
+          surfaced.push(npc.id);
+        }
+        if (surfaced.length > 0) audit("npc-boundary-beat", { npcs: surfaced });
       }
       const active = novel.npc_goal_suggestions.filter((s) => s.state !== "dismissed" && s.state !== "accepted");
       if (active.length > 0) {
