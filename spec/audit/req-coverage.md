@@ -360,7 +360,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456 | — |
 | REQ-392 | Tool-description budget | 5.17 Ruleset Packages | C | T479, T459 | — |
 | REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460 | — |
-| REQ-394 | Spec publication integrity | 5.17 Ruleset Packages | E | T462 | — |
+| REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T84e | — |
 | REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T689 | — |
 | REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | — | — |
 | REQ-397 | Untracked state location | 5.18 Workflow Entry Points | E | — | — |

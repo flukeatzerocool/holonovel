@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from "./lib/parse-spec.js";
 import { parseRecordedBudgets } from "./lib/surface-record.js";
-import { hasUnfilledVerification, isPlaceholderVerification } from "./lib/spec-update.js";
+import { hasUnfilledVerification, hasFingerprintDelta, isLegacyDeltaExempt, isPlaceholderVerification, renderFingerprintDelta } from "./lib/spec-update.js";
 import { hashFile } from "./lib/hash.js";
 
 const root = join(import.meta.dirname, "..");
@@ -140,6 +140,31 @@ function main(): void {
   check(!isPlaceholderVerification("`npm run check` 0 errors"), "a real verification line is accepted");
   check(hasUnfilledVerification(specUpdateRecord, marker, "2026-01-01"), "unfilled entry fails the record check");
   check(!hasUnfilledVerification(specUpdateRecord.replace(/_fill after running the gates[^_]*_/, "done"), marker, "2026-01-01"), "filled entry passes the record check");
+
+  // REQ-313a / REQ-314b — the fingerprint delta bullet and its renderer.
+  const componentHash = "a".repeat(64);
+  const deltaRecord = {
+    spec_hash: marker,
+    prior_spec_hash: "b".repeat(64),
+    changed: ["source", "surfaces"],
+    unchanged: ["config", "lockfile", "extraction"],
+    changed_count: 2,
+    scoping: "partial" as const,
+    invoked: false,
+    deferred: true,
+    reused: ["config", "lockfile", "extraction"],
+    current: { source: componentHash, config: componentHash, lockfile: componentHash, extraction: componentHash, surfaces: componentHash },
+    prior: { source: componentHash, config: componentHash, lockfile: componentHash, extraction: componentHash, surfaces: componentHash },
+  };
+  const rendered = renderFingerprintDelta(deltaRecord);
+  check(hasFingerprintDelta(rendered), "rendered fingerprint delta carries the gated bullet");
+  check(rendered.includes("scoping") || rendered.includes("partial"), "rendered delta names the scoping decision");
+  check(rendered.includes("deferred") && !rendered.includes("invoked: yes"), "rendered delta records a deferral");
+  check(rendered.includes("changed: source, surfaces") && rendered.includes("unchanged: config, lockfile, extraction"), "rendered delta lists changed and unchanged components");
+  check(rendered.includes("reused: config, lockfile, extraction"), "rendered delta lists the reused components");
+  check(!hasFingerprintDelta("- **Verification:** done"), "an entry without the bullet fails the delta predicate");
+  check(isLegacyDeltaExempt("f4bc3d04d34a9629b7d13d5e56194a044e5eb51ccb8c6ec66a3cb612f0697e69"), "the pre-rule publication is grandfathered");
+  check(!isLegacyDeltaExempt("d".repeat(64)), "an unrelated hash is not grandfathered");
 
   // CR-8 — one spec-hash implementation shared with the pipeline and hooks.
   const specHash = run(["scripts/spec-hash.ts"]).trim();

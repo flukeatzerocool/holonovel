@@ -414,8 +414,9 @@ for server in "${SERVERS[@]}"; do
        --spec-hash "$SPEC_HASH" \
        --scope-by-fingerprint "${EXTRA_ARGS[@]}"; then
     echo -e "${RED}Pending update for $server — implementation has not been updated to match the spec.${NC}"
-    echo -e "${YELLOW}Run the printed 'opencode run' command, then re-run this pipeline.${NC}"
-    echo -e "${YELLOW}To override (operator escape hatch per REQ-394), re-run with --allow-pending.${NC}"
+    echo -e "${YELLOW}Run the printed 'opencode run' command (or re-run with --auto-update outside a session), then re-run this pipeline.${NC}"
+    echo -e "${YELLOW}If the rebuild landed in a prior session, record a dated '**Update-deferred:**' bullet in $server/DECISIONS.md naming the revision range and verification (REQ-394a).${NC}"
+    echo -e "${YELLOW}To override a pending update (operator escape hatch per REQ-394), re-run with --allow-pending.${NC}"
     exit 1
   fi
 done

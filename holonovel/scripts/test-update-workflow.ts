@@ -56,6 +56,37 @@ function runUpdate(args: string[], env: Record<string, string> = {}): { stdout: 
   return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", status: r.status ?? -1 };
 }
 
+// Isolated baseline + synthetic server tree for the REQ-394a evidence gate.
+// computeFingerprints reads only these files, so a two-line tree is enough to
+// produce real, changing component hashes without touching the live server.
+const DELTA_SERVER = mkdtempSync(join(tmpdir(), "update-delta-server-"));
+const DELTA_STATE_DIR = mkdtempSync(join(tmpdir(), "update-delta-state-"));
+mkdirSync(join(DELTA_SERVER, "src", "generated"), { recursive: true });
+writeFileSync(join(DELTA_SERVER, "package.json"), JSON.stringify({ name: "fixture", version: "0.0.0" }) + "\n");
+writeFileSync(join(DELTA_SERVER, "tsconfig.json"), "{}\n");
+writeFileSync(join(DELTA_SERVER, "package-lock.json"), "{}\n");
+writeFileSync(join(DELTA_SERVER, "src", "index.ts"), "export const version = 1;\n");
+writeFileSync(join(DELTA_SERVER, "src", "state.ts"), "export const state = {};\n");
+writeFileSync(join(DELTA_SERVER, "src", "generated", "fp.ts"), "export const fp = 1;\n");
+
+function runDelta(args: string[], env: Record<string, string> = {}): { stdout: string; stderr: string; status: number } {
+  const r = spawnSync("npx", ["tsx", join(ROOT, "scripts", "update-server.ts"), ...args, "--server-dir", DELTA_SERVER], {
+    cwd: ROOT,
+    encoding: "utf-8",
+    timeout: 60000,
+    env: { ...process.env, HOLONOVEL_STATE_DIR: DELTA_STATE_DIR, ...env },
+  });
+  return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", status: r.status ?? -1 };
+}
+
+function storedSpecHash(): string | undefined {
+  try {
+    return JSON.parse(readFileSync(join(DELTA_STATE_DIR, "pipeline-fingerprints.json"), "utf-8")).fixture?.spec_hash;
+  } catch {
+    return undefined;
+  }
+}
+
 let passed = 0;
 let failed = 0;
 function test(name: string, fn: () => void): void {
@@ -241,6 +272,91 @@ writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", pack
       });
     } finally {
       rmSync(decisionsDir, { recursive: true, force: true });
+    }
+
+    // ── REQ-394a / T84e — publication update evidence ──────────────────
+    // Seed a baseline for the synthetic tree, then advance its fingerprints.
+    const deltaDecisionsDir = mkdtempSync(join(tmpdir(), "update-delta-decisions-"));
+    const deltaDecisionsPath = join(deltaDecisionsDir, "DECISIONS.md");
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    try {
+      writeFileSync(deltaDecisionsPath, "# DECISIONS\n\nNo deferral recorded.\n");
+      const seed = runDelta(["--server", "fixture", "--spec-hash", currentHash]);
+      if (seed.status !== 0) throw new Error(`delta baseline seed failed: ${seed.stdout} ${seed.stderr}`);
+
+      // source + surfaces change (two components) → scoping "partial".
+      writeFileSync(join(DELTA_SERVER, "src", "index.ts"), "export const version = 2;\n");
+      const evidenceArgs = ["--server", "fixture", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint"];
+
+      test("T84e/REQ-394a: advanced fingerprints without evidence block publication", () => {
+        const r = runDelta(evidenceArgs, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        assertContains(r.stderr, "UPDATE REQUIRED");
+        assertContains(r.stderr, "scoping: partial");
+        assertContains(r.stderr, "Update-deferred");
+        if (storedSpecHash() !== currentHash) throw new Error("stored baseline advanced despite the block");
+        const again = runDelta(evidenceArgs, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (again.status !== 1) throw new Error(`blocked run did not leave the delta detected: ${again.stdout}`);
+      });
+
+      writeFileSync(deltaDecisionsPath, `# DECISIONS\n\n- **Update-deferred:** fixture ${date} — synthetic fixture rebuild\n`);
+
+      test("T84e/REQ-394a: a dated deferral publishes and is recorded in the delta record", () => {
+        const r = runDelta(evidenceArgs, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        assertContains(r.stdout, "deferred");
+        if (storedSpecHash() !== otherHash) throw new Error("stored baseline was not advanced after the recorded deferral");
+        const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
+        if (record.deferred !== true || record.invoked !== false) throw new Error("delta record did not mark the rebuild deferred");
+        if (record.scoping !== "partial") throw new Error(`unexpected scoping ${record.scoping}`);
+        for (const key of ["source", "config", "lockfile", "extraction", "surfaces"]) {
+          // config concatenates two file hashes, so it is 128 hex chars; the
+          // other four are single 64-char SHA-256 digests.
+          if (typeof record.current?.[key] !== "string" || !/^[0-9a-f]{64,128}$/.test(record.current[key])) {
+            throw new Error(`delta record missing the component hash for ${key}`);
+          }
+        }
+        if (!record.prior?.source) throw new Error("delta record missing the prior component hashes");
+      });
+
+      test("T84e/REQ-394a: a failed invocation does not advance the baseline", () => {
+        const failDir = mkdtempSync(join(tmpdir(), "update-fail-opencode-"));
+        try {
+          writeFileSync(join(failDir, "opencode"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+          writeFileSync(join(DELTA_SERVER, "src", "state.ts"), "export const state = { advanced: true };\n");
+          const failedHash = "e".repeat(64);
+          const r = runDelta(
+            ["--server", "fixture", "--spec-hash", failedHash, "--delta-class", "minor", "--scope-by-fingerprint"],
+            { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir, HOLONOVEL_INVOKE_UPDATE: "1", PATH: `${failDir}:${process.env.PATH}` }
+          );
+          if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
+          assertContains(r.stderr, "Update invocation failed");
+          if (storedSpecHash() !== otherHash) throw new Error("a failed invocation advanced the stored baseline");
+        } finally {
+          rmSync(failDir, { recursive: true, force: true });
+        }
+      });
+      test("T84e/REQ-394a: a zero-change publication records a none delta", () => {
+        // Re-seed the synthetic tree's current fingerprints, then present a
+        // Minor delta with no component change and a dated pending override.
+        const seed = runDelta(["--server", "fixture", "--spec-hash", currentHash]);
+        if (seed.status !== 0) throw new Error(`none-delta seed failed: ${seed.stdout} ${seed.stderr}`);
+        writeFileSync(deltaDecisionsPath, `# DECISIONS\n\n- **Pending-update override:** fixture ${date} — builder-side delta\n`);
+        const r = runDelta(
+          ["--server", "fixture", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint", "--allow-pending"],
+          { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir }
+        );
+        if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        assertContains(r.stdout, "overridden with --allow-pending");
+        const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
+        if (record.changed_count !== 0 || record.scoping !== "none") throw new Error(`expected a none delta, got ${record.scoping}/${record.changed_count}`);
+        if (record.unchanged?.length !== 5) throw new Error("none delta did not list all five unchanged components");
+      });
+    } finally {
+      rmSync(deltaDecisionsDir, { recursive: true, force: true });
+      rmSync(DELTA_SERVER, { recursive: true, force: true });
+      rmSync(DELTA_STATE_DIR, { recursive: true, force: true });
     }
   } finally {
     // Drop the isolated temp baselines; the live .holonovel-state was never touched.

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-25 — Fingerprint-delta record and publication update evidence
+
+- `scripts/update-server.ts` writes `.holonovel-state/fingerprint-deltas.json`
+  on every scoped run — changed, unchanged, and reused components, the scoping
+  decision, whether the update was invoked or deferred, and all five component
+  hashes — so the Spec Update record can carry the REQ-313a/REQ-314b delta that
+  was missing from the 2026-10-25 publication.
+- `scripts/spec-update-record.ts` renders that record as a
+  `**Fingerprint delta:**` bullet and fails `--check` for a Minor/Major entry
+  without it, with one documented exemption for the pre-rule `f4bc3d04…`
+  publication whose prior hashes were overwritten.
+- The stored fingerprint baseline is reconciled only after a successful update
+  invocation. A failed invocation exits non-zero and leaves the baseline
+  untouched, so an unapplied update can no longer be recorded as applied.
+- REQ-394a (§5.18) blocks publication when a Minor/Major delta advanced
+  implementation fingerprints without an executed invocation or a dated
+  `**Update-deferred:**` entry in DECISIONS.md naming the server and the
+  verification performed. `push-pipeline.sh` names both recoveries on failure.
+- Tests: T84e (block, deferral lift, failed-invocation baseline) in
+  `test:update-workflow`; renderer and predicate units in `test:spec-tooling`.
+  Review-register entry supersedes the 2026-09-26 Closed-P3 disposition.
+
 ## 2026-10-25 — Push-pipeline hardening: staging integrity and publication evidence
 
 - `push-pipeline.sh` now stages the whole tracked surface (`git add -A`) so
