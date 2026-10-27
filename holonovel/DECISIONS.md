@@ -214,8 +214,10 @@
 ### Holonovel Spec Update — 2026-10-26 (Packaging and distribution integrity)
 
 - **Delta class:** minor. Changed surfaces: Packaging and distribution integrity; Rebuild verification: Holosuite predicate anchors; TDQS coherence remediation; Server dependency security refresh; Fingerprint-delta record and publication update evidence.
-- **Verification:** npm run assemble → OK; npm run check:fast → PASS; npm run check → PASS; HOLONOVEL_IMPL_STRICT=1 npm run validate → 0 errors; npm run test:package-smoke → 10/10; all five Holosuite tiers → PASS
-- **Fingerprint delta:** full — changed: source, config, surfaces; unchanged: extraction; reused: extraction; update invoked: no, server rebuilt in place by build-order. Prior spec baf320bf → current ef12f8d0.
+- **Verification:** npm run assemble → OK; npm run check:fast → PASS; npm run check → PASS; HOLONOVEL_IMPL_STRICT=1 npm run validate → 0 errors; npm run test:all → 50/50 (including all five Holosuite tiers); npm run test:package-smoke → 10/10
+- **Fingerprint delta:** full — changed: source, config, lockfile, extraction, surfaces; unchanged: none; reused: none; update invoked: no, deferred. Prior spec baf320bf → current ef12f8d0.
+- **User-data reconciliation:** packages — no installed ruleset package in the deployed state directory, so none required rebuild; persisted artifacts — current, no stale artifacts under the legacy `.holonovel-state` directory (REQ-556).
+- **Update-deferred:** holonovel 2026-10-26 — in-session §6.7 rebuild executed and verified (test:all 50/50, package smoke 10/10, full check PASS); the baseline is advanced only after this evidence, and deploy verification remains the publication step (REQ-418).
 
 <!-- @spec-update:ef12f8d0becbed018273eb4f26204057b0a33da3f2d3323a7f516e631927fd8e -->
 
