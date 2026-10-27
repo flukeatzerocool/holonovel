@@ -5,10 +5,10 @@
 - Fixed the published artifact: the tarball now ships the embedded
   specification, `tool-surface-registry.json`, `tool-disambiguation.json`, the
   starter Novel, `dist/`, `src/`, and `bin/`, and excludes build-only inputs.
-  `prepack` stages the spec and `postpack` removes the staged copy (REQ-105,
-  REQ-614). The previous package omitted three runtime artifacts, so
-  `spec://build` returned its placeholder and surface/TDQS reads silently fell
-  back.
+  `prepack` stages the spec; the assembled copy is committed, so packing does
+  not dirty the tree (REQ-105, REQ-614). The previous package omitted three
+  runtime artifacts, so `spec://build` returned its placeholder and
+  surface/TDQS reads silently fell back.
 - Made the default data directory portable and safe (REQ-613): the per-OS
   user-data location is used on fresh installs, `TTRPG_DATA_DIR` wins, and an
   existing `<install>/.holonovel-state` is preserved. State no longer lands in
