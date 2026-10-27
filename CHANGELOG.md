@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-26 — Packaging delta rebuild evidence
+
+- Recorded the §6.7 rebuild evidence for the packaging delta
+  (`baf320bf…` → `ef12f8d0…`) in `holonovel/DECISIONS.md`: all five
+  fingerprint components changed, the baseline advanced to the current spec
+  hash, and the dated `Update-deferred` entry names the verification performed
+  (REQ-313a, REQ-314a, REQ-394a).
+- Verified the delta with `npm run test:all` (50/50, including all five
+  Holosuite tiers), `test:package-smoke` (10/10), the full `check` gate, and the
+  strict validator; `migrate-user-data` reports no stale persisted artifacts and
+  no installed ruleset package needed rebuilding (REQ-556).
+
 ## 2026-10-26 — Packaging and distribution integrity
 
 - Fixed the published artifact: the tarball now ships the embedded
