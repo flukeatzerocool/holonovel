@@ -1313,6 +1313,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
 | REQ-565 | Bundled starter Novel | 2026-10-12 |
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
+| REQ-613 | Portable data directory | 2026-10-26 |
+| REQ-614 | Published package integrity | 2026-10-26 |
 | REQ-567 | Tool surface declaration | 2026-10-19 |
 | REQ-568 | Surface conformance report | 2026-10-19 |
 | REQ-569 | Surface baseline evaluation | 2026-10-21 |
@@ -2017,6 +2019,8 @@ diet.
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 | T658 | Automated | Bundled starter Novel: on a fresh data directory, assert the starter seeds once and is listed and resumable under the no-ruleset server and playable through `run_command (action: execute)`; delete it and assert the sentinel prevents re-seed; set `TTRPG_STARTER_NOVEL=off` and assert nothing seeds; point it at a missing asset and assert seeding is skipped without failing startup. | REQ-565 |
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
+| T731 | Automated | Portable data directory: resolve with `TTRPG_DATA_DIR` set and assert it wins; with an existing legacy `<install>/.holonovel-state` and assert it is used and not migrated; with Linux, macOS, and Windows environments and assert the user-data path; assert the default never resolves inside the package root; assert an absent directory is created owner-only and a creation failure propagates. | REQ-613 |
+| T732 | Automated | Published package integrity: pack the server, assert the tarball contains the specification, surface registry, disambiguation record, starter Novel, launcher, compiled entry points, and source; assert build-only inputs and harnesses are absent; install in isolation, exercise `initialize`, `tools/list`, `resources/read spec://build`, `spec_health`, and starter seeding; assert no state is written under the installed package and importing the package root does not start a server. | REQ-614 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

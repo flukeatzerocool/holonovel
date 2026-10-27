@@ -8,6 +8,7 @@ on:
       - "holonovel/src/**"
       - "holonovel/bin/**"
       - "holonovel/content/**"
+      - "holonovel/scripts/**"
       - "holonovel/tsconfig*.json"
       - "holonovel/server.json"
       - ".github/workflows/publish.yml"
@@ -21,8 +22,31 @@ permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Install repo tooling dependencies
+        run: npm ci
+      - name: Install server dependencies
+        working-directory: holonovel
+        run: npm ci
+      - name: Assemble spec
+        run: npm run assemble
+      - name: Fast gate
+        run: npm run check:fast
+      - name: Packed-artifact smoke (REQ-614)
+        run: npm run test:package-smoke
   publish:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-10-26 — Packaging and distribution integrity
+
+- Fixed the published artifact: the tarball now ships the embedded
+  specification, `tool-surface-registry.json`, `tool-disambiguation.json`, the
+  starter Novel, `dist/`, `src/`, and `bin/`, and excludes build-only inputs.
+  `prepack` stages the spec and `postpack` removes the staged copy (REQ-105,
+  REQ-614). The previous package omitted three runtime artifacts, so
+  `spec://build` returned its placeholder and surface/TDQS reads silently fell
+  back.
+- Made the default data directory portable and safe (REQ-613): the per-OS
+  user-data location is used on fresh installs, `TTRPG_DATA_DIR` wins, and an
+  existing `<install>/.holonovel-state` is preserved. State no longer lands in
+  `node_modules` or an `npx` cache. README and `SECURITY.md` reflect the paths.
+- Split the package entry points: `exports["."]` is now the side-effect-free
+  `dist/library.js` (`core`/`world` namespaces), while the executable remains
+  `dist/index.js` via `bin/holonovel.js` and `./server`. Importing the root no
+  longer starts a server.
+- Hardened the package manifest: exact production pins, Node 22+, `types` and
+  per-export conditions, `publishConfig` provenance, keywords, homepage/bugs,
+  and the CC BY attribution list in the package README/LICENSE. `prepublishOnly`
+  is replaced by `prepack`.
+- Added release gates: static `check-package-manifest`, its self-tests, and
+  `test:package-smoke` (pack, isolated install, MCP handshake, spec hash,
+  starter seeding, data-dir placement). CI runs the smoke test; the publish
+  workflow gains a `verify` job and `publish` declares `needs: verify`.
+- Spec: added REQ-613 (portable data directory) and REQ-614 (published package
+  integrity), amended REQ-105/REQ-428, and added T731/T732. `TTRPG_DATA_DIR`'s
+  §7.6 default is rewritten; the packaged spec copy is now in `files`.
+
 ## 2026-10-25 — Rebuild verification: Holosuite predicate anchors
 
 - Re-pointed the stale Holosuite assertion anchors in

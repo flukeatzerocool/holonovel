@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson } from "./core/state-hash.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
@@ -72,12 +72,12 @@ import { groupCaps, capRefusal } from "./core/limits.js";
 // REQ-051 — no runtime network access: the server performs no outbound network
 // calls; all content is drawn from indexed ruleset data and vendor Ruleset Wisdom.
 
-const __filename = new URL(import.meta.url).pathname;
+const __filename = import.meta.filename;
 const __dirname = path.dirname(__filename);
 
 // REQ-052 — path containment: all filesystem access resolves under the data
 // dir or the server's own install dir, never an arbitrary caller-supplied path.
-const DATA_DIR = process.env.TTRPG_DATA_DIR ?? path.join(__dirname, "..", ".holonovel-state");
+const DATA_DIR = resolveDataDir(path.join(__dirname, ".."));
 function computeSpecHash(): string {
   try {
     const specPath = path.join(__dirname, "..", "holonovel.md");
@@ -115,7 +115,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.25",
+  version: "2026.10.26",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the

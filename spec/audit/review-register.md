@@ -11,6 +11,23 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Packaging and distribution integrity — resolved 2026-10-26:** a packed
+  audit found the published tarball omitted three runtime artifacts (the
+  assembled specification, the surface registry, and the disambiguation
+  record), resolved the default state directory inside the install tree
+  (`holonovel/src/index.ts:80`), and documented a source-only client config
+  (`README.md` install JSON, `holonovel/README.md:31-40`). The package now
+  ships the spec and both records, resolves the per-OS data directory with
+  legacy preservation (REQ-613), exposes the library without starting a server,
+  pins production dependencies, supports Node 22+, carries CC BY attribution,
+  and gates publication on a manifest check plus an isolated packed-artifact
+  MCP smoke test (REQ-614). Predicates: the pre-fix `files` allowlist in
+  `holonovel/package.json`, `holonovel/src/index.ts:83,1307,1393,10600`, and
+  `holonovel/src/core/state.ts:50`. Evidence: `npm run test:package-smoke` →
+  10 passed, 0 failed; `check-package-manifest` → PASS; `validate:fast` → 0
+  errors; `test:data-dir` → 10 passed. Reopen only if a published tarball
+  omits a runtime artifact or writes user data under the install directory.
+
 - **Fingerprint-delta record and publication update evidence — resolved
   2026-10-25:** reopens and supersedes the 2026-09-26 Closed-P3 "Pipeline step-4
   flag" row with two confirmed predicates, not a message. (1) The advisory
@@ -745,6 +762,14 @@ pass and completion-oracle green. Fix evidence: regression tests in
   in ROADMAP.md. (REQ-072)
 
 ## Closed-P3 (recorded, no action)
+
+- **Install footprint and optional registry metadata — closed 2026-10-26:** the
+  93-package / ~72 MB installed dependency tree is inherited from
+  `@modelcontextprotocol/sdk` (express, hono, jose, ajv); no demonstrated
+  failure depends on it, and trimming would fork the SDK. Optional
+  `server.json` fields (`title`, `websiteUrl`, `icons`) are recorded as
+  deferred unless the registry schema accepts them. Record and close; reopen
+  only if install size causes a documented failure.
 
 - **Multi-step replay call cost (REQ-586) — closed 2026-10-24:** the replay
   corpus now records six multi-step workflows (character creation, combat

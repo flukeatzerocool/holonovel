@@ -12,6 +12,11 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
+Third-party notices: bundled mechanics and Ruleset Wisdom are derived from the
+sources listed in `README.md` under "License" (including CC BY 4.0, CC BY 3.0,
+CC BY-SA 4.0, OGL 1.0a, and Artistic License 2.0 material). Those notices are
+part of this distribution.
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE

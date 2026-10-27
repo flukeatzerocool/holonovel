@@ -568,4 +568,6 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-610 | Per-turn budget allocator | 5.3 Tools, Resources, and Lookups | C | T721 | — |
 | REQ-611 | Social-scene cast strategy | 5.20 Narrative Turn Conventions | C | T727 | — |
 | REQ-612 | Social-scene speaker selection | 5.20 Narrative Turn Conventions | C | T728 | — |
+| REQ-613 | Portable data directory | 5.9 Novel Persistence and Transport | C | T731 | — |
+| REQ-614 | Published package integrity | 5.9 Novel Persistence and Transport | C | T732 | — |
 

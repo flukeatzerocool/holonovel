@@ -66,6 +66,8 @@ const GATES: Gate[] = [
     full: npm("check-reference-server-cleanliness"),
   },
   { name: "check-starter-freshness", fast: npm("check-starter-freshness"), full: npm("check-starter-freshness") },
+  { name: "check-package-manifest", fast: npm("check-package-manifest"), full: npm("check-package-manifest") },
+  { name: "test:package-manifest", fast: npm("test:package-manifest"), full: npm("test:package-manifest") },
   { name: "check:conformance", fast: npm("check:conformance"), full: npm("check:conformance") },
   {
     name: "action-conflicts",

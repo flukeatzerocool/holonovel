@@ -1,9 +1,10 @@
 {
   "name": "holonovel",
-  "version": "2026.10.25",
-  "description": "Holonovel MCP server — world-model base for tabletop RPG play. Provides core scaffold (state management, badge gating, macros, Ruleset Wisdom) and world-model layer (rooms, things, exits, parser commands, kind hierarchy). Consumed by TTRPG servers as a build-time dependency.",
+  "version": "2026.10.26",
+  "description": "Holonovel MCP server — the world-model host for tabletop RPG play: rooms, parser commands, narrative state, and ruleset-free mechanics. Run it with npx holonovel; load ruleset packages alongside it without modifying the base.",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/library.d.ts",
   "bin": {
     "holonovel": "bin/holonovel.js"
   },
@@ -12,19 +13,53 @@
     "type": "git",
     "url": "git+https://github.com/flukeatzerocool/holonovel.git"
   },
+  "homepage": "https://git.gay/flukeatzerocool/Holonovel",
+  "bugs": {
+    "url": "https://github.com/flukeatzerocool/holonovel/issues"
+  },
+  "author": {
+    "name": "Holonovel"
+  },
   "files": [
     "dist",
+    "src",
     "bin",
-    "content"
+    "content/torre-nosferatu.json",
+    "holonovel.md",
+    "tool-surface-registry.json",
+    "tool-disambiguation.json"
   ],
   "exports": {
-    ".": "./dist/index.js",
-    "./core": "./dist/core/index.js",
-    "./world": "./dist/world/index.js"
+    ".": {
+      "types": "./dist/library.d.ts",
+      "default": "./dist/library.js"
+    },
+    "./server": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./world": {
+      "types": "./dist/world/index.d.ts",
+      "default": "./dist/world/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run build",
+    "clean": "node scripts/clean-dist.mjs",
+    "prepare-package": "node scripts/prepare-package.mjs",
+    "prepack": "npm run clean && npm run build && npm run prepare-package",
+    "test:data-dir": "tsx scripts/test-data-dir.ts",
+    "test:package-smoke": "tsx scripts/smoke-package.ts",
     "build:starter-novel": "tsx scripts/build-starter-novel.ts",
     "check:starter-freshness": "tsx scripts/check-starter-freshness.ts",
     "test:starter-novel": "tsx scripts/test-starter-novel.ts",
@@ -89,20 +124,24 @@
     "test:selection": "tsx scripts/test-selection.ts"
   },
   "keywords": [
-    "parser",
+    "mcp",
+    "mcp-server",
+    "tabletop-rpg",
+    "ttrpg",
     "world-model",
     "interactive-fiction",
-    "mcp",
+    "fate",
+    "ironsworn",
+    "forged-in-the-dark",
     "holonovel"
   ],
-  "author": "Holonovel",
   "license": "MIT",
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.32.2",
-    "zod": "^4.6.7"
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24",

@@ -14,7 +14,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
-| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
+| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
@@ -841,7 +841,8 @@ retrievable via `resources/read` and listed in `resources/list`. The resource re
 full text of the specification that built the server as Markdown, embedded in the
 server directory at build time. The resource is GM-filtered: the Game Master badge
 sees the full text; Player badge attempts return `[FORBIDDEN]` (per REQ-002). The
-embedded copy is a snapshot — it may differ from the current upstream revision.
+embedded copy is a snapshot — it may differ from the current upstream revision. The
+embedded copy SHALL be present in the published package.
 *Acceptance criterion:* `resources/read` on `spec://build` returns the full
 embedded Markdown; Player badge returns `[FORBIDDEN]`; the snapshot content hash
 matches DECISIONS.md.
@@ -3101,6 +3102,12 @@ A fresh install SHALL include a bundled ruleset-free starter Novel, `torre-nosfe
 **REQ-566 — Starter freshness and provenance.**
 The bundled starter artifact SHALL be produced by a build tool that stamps it with the server's current data-format fingerprint, and SHALL ship inside the server package. A gate SHALL re-emit the artifact from its source and fail when the committed artifact's content or data-format fingerprint drifts, ignoring the release version and checksum. `spec_health` SHALL report the starter slug, whether it was seeded or skipped, and the skip reason. *Acceptance criterion:* editing the committed artifact without re-running the build tool fails the gate; `spec_health` reports the seed outcome. _Check:_ T659.
 
+**REQ-613 — Portable data directory.**
+The default data directory SHALL resolve to the per-operating-system user-data location — `$XDG_DATA_HOME/holonovel` or `~/.local/share/holonovel`, `~/Library/Application Support/holonovel`, or `%LOCALAPPDATA%\holonovel` — and SHALL NOT create a new state directory inside the install directory. `TTRPG_DATA_DIR` SHALL take precedence. When a legacy `<install>/.holonovel-state` already exists, the server SHALL keep using it and report the legacy path rather than migrating or deleting it. The directory SHALL be created with owner-only permissions when absent. *Acceptance criterion:* a fresh install under a temporary package directory writes no state beneath the package, an explicit `TTRPG_DATA_DIR` wins, and an existing legacy directory is preserved and used. _Check:_ T731.
+
+**REQ-614 — Published package integrity.**
+The published server package SHALL contain every artifact the server reads at runtime — the embedded specification, surface registry, disambiguation record, starter Novel, launcher, and compiled entry points — and SHALL NOT contain build-only inputs. A gate SHALL pack the artifact, verify its file list, install it in isolation, and exercise an MCP handshake asserting the specification resource, recorded tool surface, starter seeding, and that no user data is written under the install directory. Publication SHALL be gated on that check. *Acceptance criterion:* a package missing the specification or a runtime record fails the gate naming the missing file; a conformant package passes and its `spec://build` resource returns the shipped text. _Check:_ T732.
+
 ### 5.10 World-Model Layer
 
 The server SHALL incorporate a world-model layer — a subsystem that models rooms,
@@ -3958,7 +3965,7 @@ When the Update workflow runs against a deployed instance, it SHALL invoke `upda
 When the Update workflow runs against a deployed instance, it SHALL remediate every installed package surfaced in `ruleset_package_alerts` (REQ-430) through that package's committed emitter (REQ-563), rebuilding the package's durable source so the reported defect clears. A package whose remediation cannot be completed SHALL be recorded deferred with its reason. *Acceptance criterion:* a loaded package flagged for a tool-quality defect is rebuilt through its emitter and the flag clears; an un-remediable package is recorded deferred. _Check:_ T657.
 
 **REQ-428 — Registry-published distribution.**
-The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
+The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. Publication SHALL be gated on the package-integrity check (REQ-614). *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 **REQ-429 — Server-wide action-discriminator surface.**
 The server SHALL expose action-discriminator tools rather than a sibling tool per operation, consolidating related persisted entity types under one tool (REQ-413). The catalog SHALL match a budget recorded in DECISIONS.md; adding a tool SHALL update that budget and the per-tool justification (REQ-021). The budget SHALL bind the raw surface, and each surface profile SHALL bind a projected budget. Every persisted type SHALL be enumerable through `list` and readable through `get`, `info`, `status`, or `knowledge` on a registered entity tool. Names SHALL follow one `verb_noun` convention, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` count equals the recorded budget and every persisted type has read and enumeration actions. _Check:_ T511.

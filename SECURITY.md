@@ -14,11 +14,14 @@ trusts the user running it and the MCP client that spawns it.
 ## Data ownership
 
 Campaign data is the user's. It is stored as plain files under the state
-directory (`.holonovel-state/`):
+directory. The default is the operating system's user-data location
+(`~/.local/share/holonovel` on Linux, `~/Library/Application Support/holonovel`
+on macOS, `%LOCALAPPDATA%\holonovel` on Windows); `TTRPG_DATA_DIR` overrides it.
+An existing `.holonovel-state/` beside the server is preserved.
 
-- Novels: `.holonovel-state/novels/<slug>.json` (atomic writes).
-- Roster: `.holonovel-state/roster.json`.
-- Trash: `.holonovel-state/.trash/` (ended Novels are moved, never deleted).
+- Novels: `<data-dir>/novels/<slug>.json` (atomic writes).
+- Roster: `<data-dir>/roster.json`.
+- Trash: `<data-dir>/.trash/` (ended Novels are moved, never deleted).
 
 Save files are portable and inspectable. `manage_novel (action: export)` and
 `manage_novel (action: import)` move a campaign between machines; `clone`,

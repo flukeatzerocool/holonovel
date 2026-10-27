@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel MCP Server (v2026.10.25)
+# AGENTS.md — holonovel MCP Server (v2026.10.26)
 
 AI maintainer orientation for the holonovel (world-model) MCP server implementation.
 
@@ -152,7 +152,24 @@ npm install
 npm run start
 ```
 
+## Packaging
+
+`npm pack` / `npm publish` run `prepack` → `clean` → `build` → `prepare-package`,
+which stages the assembled `holonovel.md` (REQ-105) and verifies runtime
+artifacts before packing; `postpack` removes the staged copy. The tarball ships
+`dist/`, `src/`, `bin/`, the starter Novel, the spec copy,
+`tool-surface-registry.json`, and `tool-disambiguation.json`, and excludes
+build-only inputs (REQ-614). `test:package-smoke` packs the artifact, installs
+it in isolation, and drives an MCP handshake; it runs in CI and the publish
+`verify` job, not in `test:all` (it needs a registry install). Node 22+ is
+required.
+
 ## State Model
+
+`<DATA_DIR>` defaults to the per-OS user-data location (REQ-613):
+`~/.local/share/holonovel`, `~/Library/Application Support/holonovel`, or
+`%LOCALAPPDATA%\holonovel`. `TTRPG_DATA_DIR` overrides it; an existing
+`.holonovel-state/` beside the server is preserved.
 
 - **Roster:** Persistent character store at `.holonovel-state/roster.json`. Staged via `manage_character (action: stage)` / `manage_character (action: create, stage_to_roster=true)`; imported into a novel via `manage_character (action: import)`. Entries carry name, personality, voice examples, inventory, and optional ruleset-derived `stats`.
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.

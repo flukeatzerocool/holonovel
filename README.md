@@ -217,12 +217,10 @@ to start with an empty world instead.
 The base server runs the Holodeck. Rooms, objects, exits, and containment form a
 real state graph, while scenes, NPCs, lore, and a story journal layer on top, so
 narration is grounded in stored facts rather than prior chat turns. Requires
-Node.js 24+.
+Node.js 22+.
 
 ```sh
-cd holonovel
-npm install
-npm run start
+npx -y holonovel
 ```
 
 Add to your MCP client:
@@ -230,14 +228,18 @@ Add to your MCP client:
 ```json
 "holonovel": {
   "type": "local",
-  "command": ["npx", "tsx", "src/index.ts"],
-  "cwd": "<path>/holonovel",
-  "environment": {
-    "TTRPG_NOVEL": "default"
-  },
+  "command": ["npx", "-y", "holonovel"],
   "enabled": true
 }
 ```
+
+From a source checkout, run `cd holonovel && npm install && npm run start`, then
+point the client at `npx tsx src/index.ts` in that directory.
+
+Campaign data defaults to the operating system's user-data directory:
+`~/.local/share/holonovel` on Linux, `~/Library/Application Support/holonovel`
+on macOS, or `%LOCALAPPDATA%\holonovel` on Windows. Set `TTRPG_DATA_DIR` to
+override it. An existing `.holonovel-state/` beside the server is preserved.
 
 Setup details and first-run checks: [Getting Started
 guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Getting-Started).
@@ -246,8 +248,8 @@ guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Getting-Started).
 
 A ruleset package is a declarative bundle produced by the Build workflow. Copy it
 into the server's ruleset install directory and the server registers it. That
-directory is inside the state directory — by default a per-user data location
-outside the project tree, or `.holonovel-state/` when the server runs inside one.
+directory is inside the state directory — by default the per-user data location
+described above.
 
 Packages load lazily: a ruleset's tools and index are read only when you open a
 campaign bound to it, so unused packages cost nothing at startup. Install,
@@ -437,4 +439,4 @@ Holonovel is MIT-licensed. Built from:
 - Fate SRD (CC BY 3.0, Evil Hat Productions)
 - Ironsworn SRD (CC BY 4.0, Shawn Tomkin)
 
-[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-25.
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-26.
