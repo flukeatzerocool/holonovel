@@ -402,15 +402,20 @@ done
 # ── 4. Fingerprint and scoped spec-driven update (pending-update gate) ──
 
 echo -e "${GREEN}=== 4. Fingerprint and scoped spec-driven update ===${NC}"
+# Scope HOLONOVEL_INVOKE_UPDATE to the update-server.ts invocation. Exported
+# globally it leaks into step 4b's `npm run test:all`, where
+# test:update-workflow's baseline-seed call would recursively invoke
+# `opencode run` and fail (REQ-098).
+UPDATE_ENV=()
 if $AUTO_UPDATE; then
-  export HOLONOVEL_INVOKE_UPDATE=1
+  UPDATE_ENV=(HOLONOVEL_INVOKE_UPDATE=1)
   echo -e "${YELLOW}--auto-update: the §6.7 update command will be executed (requires opencode on PATH).${NC}"
 fi
 for server in "${SERVERS[@]}"; do
   DELTA_CLASS="${DELTA_CLASS_OF[$server]}"
   EXTRA_ARGS=("--delta-class" "$DELTA_CLASS")
   if $ALLOW_PENDING; then EXTRA_ARGS+=(--allow-pending); fi
-  if ! "${TSX[@]}" scripts/update-server.ts --server "$server" \
+  if ! env "${UPDATE_ENV[@]}" "${TSX[@]}" scripts/update-server.ts --server "$server" \
        --spec-hash "$SPEC_HASH" \
        --scope-by-fingerprint "${EXTRA_ARGS[@]}"; then
     echo -e "${RED}Pending update for $server — implementation has not been updated to match the spec.${NC}"
