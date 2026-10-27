@@ -110,6 +110,13 @@ export function shellIssues(rel: string, content: string): string[] {
     issues.push(`${rel}: hardcoded server list — read scripts/lib/servers.json`);
   }
 
+  // The §6.7 update switch must be scoped to the update-server.ts invocation.
+  // Exported globally it leaks into a harness run, where test:update-workflow's
+  // baseline-seed call recursively invokes `opencode run` and fails (REQ-098).
+  if (/^\s*export\s+["']?HOLONOVEL_INVOKE_UPDATE=/m.test(content)) {
+    issues.push(`${rel}: HOLONOVEL_INVOKE_UPDATE exported globally — scope it to the update-server invocation`);
+  }
+
   // Colors must be gated on a TTY (AGENTS.md: "color only on TTY"). Heuristic:
   // an ANSI escape or tput with no `-t 0/1` test is unguarded.
   const usesColor = /\\033\[|\\e\[|\\x1b\[/.test(content) || /\btput\b/.test(content);

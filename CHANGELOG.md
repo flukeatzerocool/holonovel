@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-26 — Pipeline update-invocation scope fix
+
+- Fixed `scripts/push-pipeline.sh` so `--auto-update` sets
+  `HOLONOVEL_INVOKE_UPDATE=1` only for the `update-server.ts` invocation instead
+  of exporting it to the whole run. The global export leaked into `npm run
+  test:all`, where `test:update-workflow`'s baseline seed recursively invoked
+  `opencode run` and failed (REQ-098).
+- Added a script-discipline guard and self-test that reject a global export of
+  the update-invocation switch.
+
 ## 2026-10-26 — Packaging delta rebuild evidence
 
 - Recorded the §6.7 rebuild evidence for the packaging delta

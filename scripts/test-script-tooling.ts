@@ -90,6 +90,17 @@ exit 7
   check(has(dirtyShIssues, "non-standard exit code 7"), "non-standard shell exit code detected");
   check(has(dirtyShIssues, "TTY guard"), "unguarded color detected");
 
+  const exportedUpdate = `#!/usr/bin/env bash
+# demo.sh — bad fixture.
+set -euo pipefail
+export HOLONOVEL_INVOKE_UPDATE=1
+exit 0
+`;
+  check(
+    has(shellIssues("demo.sh", exportedUpdate), "exported globally"),
+    "globally exported update-invocation switch detected"
+  );
+
   // ── Quality: C4 REQ-header predicate ────────────────────────────────────
   check(isReqHeaderRegex("/\\*\\*(REQ-\\d{3}[a-z0-9]*\\s+—\\s+.+?)\\.\\*\\*/g"), "REQ-header regex recognized");
   check(!isReqHeaderRegex("/\\bREQ-(\\d{3}[a-z0-9]*)\\b/g"), "bare citation regex not flagged");
