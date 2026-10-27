@@ -448,7 +448,8 @@ skipped when no adventure files are present.
 
 **Spec copy.** During Layer 1 (MCP skeleton), the builder copies the specification
 document (`holonovel.md`) into the server's installation directory. The copy
-establishes the `spec://build` resource (REQ-105). The builder records the
+establishes the `spec://build` resource (REQ-105). The published package SHALL
+include the copy (REQ-614). The builder records the
 specification's content hash in DECISIONS.md (1) alongside the ruleset intake hash.
 
 The six-step order below is a recommended construction sequence, not a

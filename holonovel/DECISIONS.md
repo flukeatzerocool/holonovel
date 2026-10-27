@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** baf320bfca3da28aa96460052bbc77f5a02a72ba89d7de738360a9324ccd3b4f
+**Spec hash:** ef12f8d0becbed018273eb4f26204057b0a33da3f2d3323a7f516e631927fd8e
 
 **Recorded tool budget:** 36 listed (231 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
@@ -23,6 +23,37 @@
   at their current handlers (`manage_history`, `context_report`,
   `visibility_check`, `replay`, `knowledge_query`, `computeBundleIntegrity`).
   (REQ-394a)
+
+### Packaging and distribution — 2026-10-26
+
+- **P1 — published artifact completeness (REQ-105, REQ-614).** The tarball
+  ships the embedded specification, `tool-surface-registry.json`,
+  `tool-disambiguation.json`, the starter Novel, `dist/`, `src/`, and `bin/`.
+  It excludes build-only inputs (`content/*.source.json`,
+  `tool-definitions.json`, `tool-routing.json`, and harnesses). `prepack`
+  stages the spec. The staged `holonovel/holonovel.md` is committed (the
+  assemble step writes it), so packing leaves the tree clean without a
+  post-pack delete.
+- **P2 — portable data directory (REQ-613).** The default resolves to the
+  per-OS user-data location. `TTRPG_DATA_DIR` wins; an existing
+  `<install>/.holonovel-state` is honored but never newly created. No
+  migration or deletion occurs.
+- **P3 — library entry (REQ-614).** `exports["."]` resolves to
+  `dist/library.js` (namespaced `core`/`world`); the executable remains
+  `dist/index.js` via `bin/holonovel.js` and `./server`. Importing the package
+  root no longer starts a server. This is a breaking change for consumers that
+  imported the root for its side effect.
+- **P4 — release verification (REQ-614).** `check-package-manifest` is a static
+  fast gate; `test:package-smoke` packs, installs in isolation, and exercises
+  the MCP handshake, spec hash, tool surface, starter seeding, and data-dir
+  placement. The publish workflow's `verify` job runs both and `publish`
+  declares `needs: verify`.
+- **P5 — supply chain.** Production dependencies are pinned exactly; install
+  lifecycle scripts are rejected by the manifest gate; releases use npm
+  trusted publishing with provenance. Node 22+ is supported.
+- **Coverage dispositions.** REQ-613 and REQ-614 are bucket C: cited in
+  `holonovel/src/core/data-dir.ts` and the package/runtime scripts, exercised
+  by T731 (`test:data-dir`) and T732 (`test:package-smoke`).
 
 ### Two-week review remediation — 2026-10-25
 
@@ -179,6 +210,14 @@
 - The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
+
+### Holonovel Spec Update — 2026-10-26 (Packaging and distribution integrity)
+
+- **Delta class:** minor. Changed surfaces: Packaging and distribution integrity; Rebuild verification: Holosuite predicate anchors; TDQS coherence remediation; Server dependency security refresh; Fingerprint-delta record and publication update evidence.
+- **Verification:** npm run assemble → OK; npm run check:fast → PASS; npm run check → PASS; HOLONOVEL_IMPL_STRICT=1 npm run validate → 0 errors; npm run test:package-smoke → 10/10; all five Holosuite tiers → PASS
+- **Fingerprint delta:** full — changed: source, config, surfaces; unchanged: extraction; reused: extraction; update invoked: no, server rebuilt in place by build-order. Prior spec baf320bf → current ef12f8d0.
+
+<!-- @spec-update:ef12f8d0becbed018273eb4f26204057b0a33da3f2d3323a7f516e631927fd8e -->
 
 ### Holonovel Spec Update — 2026-10-25 (Rebuild verification: Holosuite predicate anchors)
 
@@ -504,7 +543,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.10.25 |
+| Spec version | 2026.10.26 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

@@ -10,42 +10,45 @@ packages; each loads alongside the base and never modifies it.
 
 ## Requirements
 
-- Node.js 24+
+- Node.js 22+
 
 ## Install
 
 ```sh
-npm install
-npm run start
-```
-
-Or run the published package:
-
-```sh
 npx -y holonovel
 ```
+
+From a source checkout, run `npm install` and `npm run start`.
 
 ## MCP client configuration
 
 ```json
 "holonovel": {
   "type": "local",
-  "command": ["npx", "tsx", "src/index.ts"],
-  "cwd": "<path>/holonovel",
-  "environment": {
-    "TTRPG_NOVEL": "default"
-  },
+  "command": ["npx", "-y", "holonovel"],
   "enabled": true
 }
 ```
 
+## Data
+
+A Novel is a structured save file with atomic saves, per-badge undo/redo
+snapshots, and an append-only audit log. By default the state directory is the
+operating system's user-data location: `~/.local/share/holonovel` on Linux,
+`~/Library/Application Support/holonovel` on macOS, or
+`%LOCALAPPDATA%\holonovel` on Windows. Set `TTRPG_DATA_DIR` to override it. An
+existing `.holonovel-state/` beside the server is honored for compatibility.
+
+Campaign data and installed packages live under the state directory, outside
+the server tree, so updating holonovel never touches them.
+
 ## Tool surface
 
-The host exposes 34 action-discriminator tools — one per persisted entity
-type — plus a parser command tool and three base-mechanics resolvers. Every
-tool carries all four MCP mutation-class hints and a three-clause description
-(see `AGENTS.md` for the full surface and the tool-definition authoring
-standard).
+The host exposes 36 action-discriminator tools covering persisted entity
+types, the parser command layer, and base-mechanics resolvers. Retired tool
+aliases are hidden from the default listing. Every tool carries all four MCP
+mutation-class hints and a three-clause description (see `AGENTS.md` for the
+full surface and the tool-definition authoring standard).
 
 Categories:
 
@@ -64,7 +67,7 @@ default. Common values:
 
 | Variable | Purpose |
 |---|---|
-| `TTRPG_DATA_DIR` | State directory (default: `.holonovel-state`) |
+| `TTRPG_DATA_DIR` | State directory (default: the per-user data location) |
 | `TTRPG_NOVEL` | Novel to activate at startup |
 | `TTRPG_SEED` | Deterministic PRNG seed |
 | `TTRPG_RULESETS` | Ruleset slugs to load eagerly |
@@ -73,13 +76,6 @@ default. Common values:
 | `TTRPG_WORLD_REACTIVITY` | World-in-Motion reactivity (default on) |
 | `TTRPG_NARRATION_VALIDATION` | Narration grounding validation |
 | `TTRPG_GUIDANCE_PROFILE` | `full` or `lean` guidance |
-
-## State
-
-A Novel is a structured save file under `.holonovel-state/novels/<slug>.json`
-with atomic saves, per-badge undo/redo snapshots, and an append-only audit
-log. Campaign data and installed packages live under `.holonovel-state/`,
-outside the server tree, so updating holonovel never touches them.
 
 ## Development
 
@@ -93,3 +89,18 @@ Tests are `tsx` harnesses under `scripts/` (there is no `test/` directory).
 ## License
 
 MIT. See `LICENSE.md`.
+
+Bundled mechanics and Ruleset Wisdom are built from:
+
+- D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a, Wizards of the Coast)
+- Graham Nelson's Inform (Artistic License 2.0, Graham Nelson)
+- if-craft-corpus (CC BY 4.0, pvliesdonk)
+- dmcp (MIT, Shawn Rushefsky)
+- lonelog (CC BY-SA 4.0, zeruhur)
+- BitD SRD (CC BY 3.0, John Harper)
+- Ironsworn: Starforged SRD (CC BY 4.0, Shawn Tomkin)
+- Sly Flourish Lazy GM Resource Document (CC BY 4.0, Mike Shea)
+- The Alexandrian (CC BY 4.0, Justin Alexander)
+- Dungeon World SRD (CC BY 3.0, Sage LaTorra, Adam Koebel)
+- Fate SRD (CC BY 3.0, Evil Hat Productions)
+- Ironsworn SRD (CC BY 4.0, Shawn Tomkin)

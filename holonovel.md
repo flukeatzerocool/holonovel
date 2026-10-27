@@ -488,7 +488,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
-| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566 |
+| 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
@@ -1315,7 +1315,8 @@ retrievable via `resources/read` and listed in `resources/list`. The resource re
 full text of the specification that built the server as Markdown, embedded in the
 server directory at build time. The resource is GM-filtered: the Game Master badge
 sees the full text; Player badge attempts return `[FORBIDDEN]` (per REQ-002). The
-embedded copy is a snapshot — it may differ from the current upstream revision.
+embedded copy is a snapshot — it may differ from the current upstream revision. The
+embedded copy SHALL be present in the published package.
 *Acceptance criterion:* `resources/read` on `spec://build` returns the full
 embedded Markdown; Player badge returns `[FORBIDDEN]`; the snapshot content hash
 matches DECISIONS.md.
@@ -3575,6 +3576,12 @@ A fresh install SHALL include a bundled ruleset-free starter Novel, `torre-nosfe
 **REQ-566 — Starter freshness and provenance.**
 The bundled starter artifact SHALL be produced by a build tool that stamps it with the server's current data-format fingerprint, and SHALL ship inside the server package. A gate SHALL re-emit the artifact from its source and fail when the committed artifact's content or data-format fingerprint drifts, ignoring the release version and checksum. `spec_health` SHALL report the starter slug, whether it was seeded or skipped, and the skip reason. *Acceptance criterion:* editing the committed artifact without re-running the build tool fails the gate; `spec_health` reports the seed outcome. _Check:_ T659.
 
+**REQ-613 — Portable data directory.**
+The default data directory SHALL resolve to the per-operating-system user-data location — `$XDG_DATA_HOME/holonovel` or `~/.local/share/holonovel`, `~/Library/Application Support/holonovel`, or `%LOCALAPPDATA%\holonovel` — and SHALL NOT create a new state directory inside the install directory. `TTRPG_DATA_DIR` SHALL take precedence. When a legacy `<install>/.holonovel-state` already exists, the server SHALL keep using it and report the legacy path rather than migrating or deleting it. The directory SHALL be created with owner-only permissions when absent. *Acceptance criterion:* a fresh install under a temporary package directory writes no state beneath the package, an explicit `TTRPG_DATA_DIR` wins, and an existing legacy directory is preserved and used. _Check:_ T731.
+
+**REQ-614 — Published package integrity.**
+The published server package SHALL contain every artifact the server reads at runtime — the embedded specification, surface registry, disambiguation record, starter Novel, launcher, and compiled entry points — and SHALL NOT contain build-only inputs. A gate SHALL pack the artifact, verify its file list, install it in isolation, and exercise an MCP handshake asserting the specification resource, recorded tool surface, starter seeding, and that no user data is written under the install directory. Publication SHALL be gated on that check. *Acceptance criterion:* a package missing the specification or a runtime record fails the gate naming the missing file; a conformant package passes and its `spec://build` resource returns the shipped text. _Check:_ T732.
+
 ### 5.10 World-Model Layer
 
 The server SHALL incorporate a world-model layer — a subsystem that models rooms,
@@ -4432,7 +4439,7 @@ When the Update workflow runs against a deployed instance, it SHALL invoke `upda
 When the Update workflow runs against a deployed instance, it SHALL remediate every installed package surfaced in `ruleset_package_alerts` (REQ-430) through that package's committed emitter (REQ-563), rebuilding the package's durable source so the reported defect clears. A package whose remediation cannot be completed SHALL be recorded deferred with its reason. *Acceptance criterion:* a loaded package flagged for a tool-quality defect is rebuilt through its emitter and the flag clears; an un-remediable package is recorded deferred. _Check:_ T657.
 
 **REQ-428 — Registry-published distribution.**
-The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
+The distribution SHALL build a container image that runs the host server and SHALL maintain a registry manifest (`server.json`) whose version and package version match the host version as published to the package registry (REQ-107a). A publish to an external registry SHALL validate the manifest against its schema and SHALL fail closed when the manifest is missing or its version does not match. Publication SHALL be gated on the package-integrity check (REQ-614). *Acceptance criterion:* the container image builds and starts the host; the manifest versions equal the host version; the publish entry point rejects a missing or mismatched manifest. _Check:_ T510.
 
 **REQ-429 — Server-wide action-discriminator surface.**
 The server SHALL expose action-discriminator tools rather than a sibling tool per operation, consolidating related persisted entity types under one tool (REQ-413). The catalog SHALL match a budget recorded in DECISIONS.md; adding a tool SHALL update that budget and the per-tool justification (REQ-021). The budget SHALL bind the raw surface, and each surface profile SHALL bind a projected budget. Every persisted type SHALL be enumerable through `list` and readable through `get`, `info`, `status`, or `knowledge` on a registered entity tool. Names SHALL follow one `verb_noun` convention, and each action SHALL be a documented sub-REQ. *Acceptance criterion:* `tools/list` count equals the recorded budget and every persisted type has read and enumeration actions. _Check:_ T511.
@@ -5229,7 +5236,8 @@ skipped when no adventure files are present.
 
 **Spec copy.** During Layer 1 (MCP skeleton), the builder copies the specification
 document (`holonovel.md`) into the server's installation directory. The copy
-establishes the `spec://build` resource (REQ-105). The builder records the
+establishes the `spec://build` resource (REQ-105). The published package SHALL
+include the copy (REQ-614). The builder records the
 specification's content hash in DECISIONS.md (1) alongside the ruleset intake hash.
 
 The six-step order below is a recommended construction sequence, not a
@@ -7064,7 +7072,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_STARTER_NOVEL` | No | Bundled starter Novel slug seeded once on a fresh install (REQ-565). Defaults to `torre-nosferatu`; set to `off` to disable seeding. |
 | `TTRPG_SEED`         | No       | String seed for the deterministic PRNG              |
 | `TTRPG_SESSION_ID`   | No       | Optional label for grouping audit log entries by play session |
-| `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the well-known per-operating-system user-data location (e.g. `~/.local/share/holonovel` on Linux) when the server runs inside a git work tree, and to `.holonovel-state` otherwise; the default SHALL NOT resolve inside a git work tree. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-390, REQ-396, REQ-397) |
+| `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the per-operating-system user-data location (`$XDG_DATA_HOME/holonovel` or `~/.local/share/holonovel`, `~/Library/Application Support/holonovel`, `%LOCALAPPDATA%\holonovel`); an existing legacy `<install>/.holonovel-state` is honored but never newly created. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-613, REQ-396, REQ-397) |
 | `TTRPG_PORT`         | No       | Optional inbound MCP transport port (HTTP); the server makes no outbound requests (REQ-051)                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (default 500)          |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |
@@ -10172,6 +10180,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-564 | Update-workflow tool-quality remediation | 2026-10-10 |
 | REQ-565 | Bundled starter Novel | 2026-10-12 |
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
+| REQ-613 | Portable data directory | 2026-10-26 |
+| REQ-614 | Published package integrity | 2026-10-26 |
 | REQ-567 | Tool surface declaration | 2026-10-19 |
 | REQ-568 | Surface conformance report | 2026-10-19 |
 | REQ-569 | Surface baseline evaluation | 2026-10-21 |
@@ -10876,6 +10886,8 @@ diet.
 | T657 | Automated | Update-workflow tool-quality remediation: on a fixture deployed instance with a package flagged in `ruleset_package_alerts` for a tool-quality defect, run the §6.7 Update — assert the package is rebuilt through its emitter and the flag clears; assert a package whose remediation cannot complete is recorded deferred naming it. | REQ-564 |
 | T658 | Automated | Bundled starter Novel: on a fresh data directory, assert the starter seeds once and is listed and resumable under the no-ruleset server and playable through `run_command (action: execute)`; delete it and assert the sentinel prevents re-seed; set `TTRPG_STARTER_NOVEL=off` and assert nothing seeds; point it at a missing asset and assert seeding is skipped without failing startup. | REQ-565 |
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
+| T731 | Automated | Portable data directory: resolve with `TTRPG_DATA_DIR` set and assert it wins; with an existing legacy `<install>/.holonovel-state` and assert it is used and not migrated; with Linux, macOS, and Windows environments and assert the user-data path; assert the default never resolves inside the package root; assert an absent directory is created owner-only and a creation failure propagates. | REQ-613 |
+| T732 | Automated | Published package integrity: pack the server, assert the tarball contains the specification, surface registry, disambiguation record, starter Novel, launcher, compiled entry points, and source; assert build-only inputs and harnesses are absent; install in isolation, exercise `initialize`, `tools/list`, `resources/read spec://build`, `spec_health`, and starter seeding; assert no state is written under the installed package and importing the package root does not start a server. | REQ-614 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

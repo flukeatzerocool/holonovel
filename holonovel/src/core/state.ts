@@ -2761,3 +2761,6 @@ export function applyNovelState(
     dst[key] = src[key];
   }
 }
+
+export { resolveDataDir } from "./data-dir.js";
+export type { DataDirOptions } from "./data-dir.js";

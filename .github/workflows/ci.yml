@@ -45,3 +45,5 @@ jobs:
       - name: Holosuite deterministic tiers (evidence + conformance + invariants + novel + adversarial + differential)
         working-directory: holonovel
         run: npm run test:holosuite-evidence && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential
+      - name: Packed-artifact smoke (REQ-614)
+        run: npm run test:package-smoke

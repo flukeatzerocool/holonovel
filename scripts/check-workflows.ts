@@ -105,7 +105,33 @@ function checkFile(file: string): void {
         `${rel}: does not delegate registry presence to ${REGISTRY_SCRIPT} (single source of truth)`,
       );
     }
+    const verify = jobBlock(content, "verify");
+    const publish = jobBlock(content, "publish");
+    if (!verify) {
+      issues.push(`${rel}: missing the 'verify' job that gates publication`);
+    } else if (!verify.includes("test:package-smoke")) {
+      issues.push(`${rel}: the 'verify' job must run test:package-smoke (REQ-614)`);
+    }
+    if (!publish) {
+      issues.push(`${rel}: missing the 'publish' job`);
+    } else if (!/^\s+needs:\s*verify\s*$/m.test(publish)) {
+      issues.push(`${rel}: the 'publish' job must declare needs: verify`);
+    }
   }
+}
+
+function jobBlock(content: string, name: string): string | null {
+  const lines = content.split("\n");
+  const start = lines.findIndex((line) => new RegExp(`^  ${name}:\\s*$`).test(line));
+  if (start < 0) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^  [A-Za-z0-9_-]+:\s*$/.test(lines[i]!)) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(start, end).join("\n");
 }
 
 const files = listWorkflows();

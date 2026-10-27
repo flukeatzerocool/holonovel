@@ -35,6 +35,7 @@ const TESTS = [
   "test:persistence",
   "test:persistence-guardrails",
   "test:starter-novel",
+  "test:data-dir",
   "test:limits",
   "test:narrative",
   "test:memory-recall",

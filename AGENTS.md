@@ -80,6 +80,14 @@ holonovel/scripts/generate-world-provider.ts  Emit the world-model provider
                           `--check` is a freshness gate
 holonovel/scripts/test-world-provider.ts      Gate the `world://kinds` payload
                           (kinds, property contracts, parser catalog)
+scripts/lib/package-manifest.ts  Pure published-package manifest assertions (REQ-614)
+scripts/check-package-manifest.ts  Static package-manifest gate (REQ-614)
+scripts/test-package-manifest.ts   Self-tests for the manifest gate
+holonovel/scripts/prepare-package.mjs  Stage the assembled spec and verify runtime
+                          artifacts before packing (REQ-105, REQ-614)
+holonovel/scripts/clean-dist.mjs  Clean the compiled output before packing
+holonovel/scripts/test-data-dir.ts  Portable data-directory harness (REQ-613)
+holonovel/scripts/smoke-package.ts  Packed-artifact MCP smoke gate (REQ-614)
 ```
 
 ## Conventions
@@ -254,6 +262,8 @@ This runs:
 | `npm run test:script-tooling` | Self-tests (`scripts/test-script-tooling.ts`) for the discipline and quality detectors — guards both gates against regression |
 | `npm run check-markers` | `@spec:` marker freshness — README (and wiki with `--include-wiki`) values must equal the spec-derived values (`cross-property-couple.ts --check`) |
 | `npm run check-registers` | Review/proofread register structure — terminal dispositions, Scheduled-roadmap↔ROADMAP traceability, proofread disposition tokens (report-only; `check-registers:strict` gates in `check`) |
+| `npm run check-package-manifest` | Published-package manifest (REQ-614): metadata, export types, files allowlist, exact pins, Node 22+, no install scripts |
+| `npm run test:package-manifest` | Self-tests for the manifest gate |
 
 Also available separately:
 
@@ -262,6 +272,7 @@ Also available separately:
 | `npm run typecheck`  | TypeScript type checking (`tsc --noEmit`) — included in `check`/`check:fast` |
 | `npm run gates -- --list` | Print the gate manifest (`scripts/run-gates.ts`) |
 | `npm run build-order` | Assemble + check + propagate + source-propagate + typecheck + version sync — the holonovel→dnd5e pipeline (fingerprint-scoped) |
+| `npm run test:package-smoke` | Pack, install in isolation, MCP handshake, spec hash, starter seeding, and per-OS data-directory placement (REQ-614) |
 | `npm run check`      | Full gate including proofreading pass (passive voice, readability, sentence analysis) and the validator self-tests — use for CI and pre-push |
 | `npm run check:full` | Full gate including near-duplicate detection (`detect-dupes`) |
 | `npm run validate:sdd` | Full validation including proofreading |
@@ -399,6 +410,8 @@ remaining items before committing:
       §5.19 guardrail enumerations (REQ-400/407); new tools are classified in
       the DECISIONS.md gate-classification table (REQ-137a)
 - [ ] `holonovel/AGENTS.md` tool-surface list and counts match `tools/list`
+- [ ] `npm run test:package-smoke` passes before a publish (packed artifact,
+      spec hash, starter seeding, per-OS data directory; REQ-614)
 - [ ] Add the CHANGELOG entry, then run `npm run build-order` (or
       `npm run version-bump`) — the CalVer, AGENTS.md, DECISIONS.md, index.ts,
       lockfile, and server.json advance together (REQ-107a)
