@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-29 — E5 non-TTRPG world-pack pilot (local social drama)
+
+- Added `--novel <path>` to `holonovel/scripts/playability.ts` so the headless
+  gate can evaluate a Novel outside `content/` and the fixture manifest. The
+  flag runs one external Novel expected clean and cannot be combined with
+  `--all`, `--fixture`, or `--self-test`.
+- Built the E5 pilot as a ruleset-free social drama from an existing campaign:
+  stripped SWSE stat blocks, reset runtime state to the canonical ruleset-free
+  shape, rebuilt a navigable world graph, and retargeted the social clocks.
+  The pack is Star Wars Legends IP, so it stays in the gitignored
+  `.holonovel-state/local-packs/shadows-over-coruscant/` and is not published.
+- The pilot plays headlessly (`pass: true`, final room `Transit Nexus`) and a
+  local probe confirms relationships, beliefs, secrets, factions, vows,
+  agents, corpus, staging, and ruleset-free Fate rolls.
+- Added `docs/e5-world-pack-gap-report.md`: the engine supports a non-TTRPG
+  social drama on existing primitives; the open gap is Novel-pack distribution
+  (E6/E7), not simulation. Retired E5 from `ROADMAP.md`.
+- Documented that `plans/*` artifacts are local working records and that
+  reports meant to be tracked belong under `docs/` (`plans/README.md`).
+
 ## 2026-10-29 — Headless playability gate (E4)
 
 - Added `holonovel/scripts/playability.ts`, a deterministic gate that loads

@@ -12,8 +12,8 @@
  * declared classes.
  *
  * Usage:
- *   tsx scripts/playability.ts [--all] [--fixture <id>] [--seed <n>]
- *                              [--self-test] [--json] [--help]
+ *   tsx scripts/playability.ts [--all] [--fixture <id>] [--novel <path>]
+ *                              [--seed <n>] [--self-test] [--json] [--help]
  *
  * Exit codes: 0 = every Novel matched its expectation, 1 = a mismatch or run
  * failure, 2 = fatal setup error.
@@ -22,8 +22,8 @@
  * REQ-073c2 / REQ-329a (countdown direction and trigger deltas), REQ-090 /
  * REQ-091 (adventure/encounter content).
  */
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join, basename } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { join, basename, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -39,10 +39,11 @@ const CONTENT_DIR = join(SERVER_DIR, "content");
 const MANIFEST_PATH = join(HOME, "fixtures", "playability", "manifest.json");
 const CHILD = join(HOME, "lib", "playability-run.ts");
 
-const USAGE = `Usage: tsx scripts/playability.ts [--all] [--fixture <id>] [--seed <n>] [--self-test] [--json] [--help]
+const USAGE = `Usage: tsx scripts/playability.ts [--all] [--fixture <id>] [--novel <path>] [--seed <n>] [--self-test] [--json] [--help]
 
   --all          Run every shipped Novel and fixture (default).
   --fixture <id> Run one manifest fixture (id or path).
+  --novel <path> Run one Novel from an arbitrary path (expected clean).
   --seed <n>     Deterministic seed for tie-breaking (default 1).
   --self-test    Re-run the fixtures and assert identical violation classes.
   --json         Emit a machine-readable report to stdout.
@@ -205,9 +206,13 @@ function evaluate(target: Target, seed: number, workDir: string): RunResult {
   };
 }
 
-function run(only: string | null, seed: number): RunResult[] {
+function run(only: string | null, seed: number, novel: string | null): RunResult[] {
   const manifest = loadManifest();
-  const targets = only ? fixtureTargets(manifest, only) : [...shippedNovels(), ...fixtureTargets(manifest, null)];
+  const targets = novel
+    ? [{ path: resolve(novel), expect: [] as FindingClass[] }]
+    : only
+      ? fixtureTargets(manifest, only)
+      : [...shippedNovels(), ...fixtureTargets(manifest, null)];
   if (only && targets.length === 0) {
     process.stderr.write(`playability: no fixture matches '${only}'\n`);
     process.exit(1);
@@ -242,9 +247,10 @@ function summarize(results: RunResult[], selfTest: { stable: boolean } | null): 
 function main(): void {
   const argv = process.argv.slice(2);
   handleHelp(argv, USAGE);
-  rejectUnknown(argv, new Set(["--all", "--fixture", "--seed", "--self-test", "--json", "--help", "-h"]), USAGE);
+  rejectUnknown(argv, new Set(["--all", "--fixture", "--novel", "--seed", "--self-test", "--json", "--help", "-h"]), USAGE);
 
   const only = parseValueFlag(argv, "--fixture");
+  const novel = parseValueFlag(argv, "--novel");
   const seed = Number(parseValueFlag(argv, "--seed") ?? "1");
   const selfTest = parseFlag(argv, "--self-test");
   const json = parseFlag(argv, "--json");
@@ -252,8 +258,20 @@ function main(): void {
     process.stderr.write("playability: --seed must be a positive integer\n");
     process.exit(2);
   }
+  if (argv.includes("--novel") && !novel) {
+    process.stderr.write("playability: --novel requires a path\n");
+    process.exit(1);
+  }
+  if (novel && (only || parseFlag(argv, "--all") || selfTest)) {
+    process.stderr.write("playability: --novel cannot be combined with --all, --fixture, or --self-test\n");
+    process.exit(1);
+  }
+  if (novel && !existsSync(resolve(novel))) {
+    process.stderr.write(`playability: no Novel at '${novel}'\n`);
+    process.exit(1);
+  }
 
-  const first = run(only, seed);
+  const first = run(only, seed, novel);
   let stability: { stable: boolean } | null = null;
   if (selfTest) {
     const fixtures = fixtureTargets(loadManifest(), only);
