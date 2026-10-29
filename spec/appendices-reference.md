@@ -1368,6 +1368,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-619 | Reference package provenance emission | 2026-10-29 |
 | REQ-620 | Local artifact registry | 2026-10-29 |
 | REQ-621 | Artifact admission | 2026-10-29 |
+| REQ-096m | Novel sharing | 2026-10-29 |
+| REQ-621a | Novel pack admission | 2026-10-29 |
 
 ---
 
@@ -2034,7 +2036,8 @@ diet.
 | T736 | Automated | Ruleset creator attribution: a package whose manifest carries creator and attribution lists both from `manage_ruleset (action: list)` and records both in the install audit entry; a package without either field loads unchanged. | REQ-618 |
 | T737 | Automated | Reference package provenance emission: re-emitting the `swse` package from its committed provenance record yields a manifest carrying the recorded creator and attribution; an emitter with no provenance record omits both. | REQ-619 |
 | T738 | Automated | Local artifact registry: two isolated installations holding the same Novel, adventure, and ruleset artifacts report equal registry listings; `list` filters by kind and is deterministic across repeated calls; a corrupted artifact reports a non-verified integrity state rather than being omitted; each kind's catalog lists an installed artifact; `spec_health` reports a count per kind. | REQ-620 |
-| T739 | Automated | Artifact admission: installing from the exchange inbox admits a Novel pack, adventure module, and ruleset package, each verified by content hash and provenance; a tampered copy is refused `[STATE_CONFLICT]` naming the slug; an existing slug is refused; remove deletes an artifact and refuses while a Novel depends on it; install and remove each record a security-event audit entry; a traversal source is refused without a read. | REQ-621 |
+| T739 | Automated | Artifact admission: installing from the exchange inbox admits a Novel pack, adventure module, and ruleset package, each verified by content hash and provenance; a tampered copy is refused `[STATE_CONFLICT]` naming the slug; a duplicate Novel slug is admitted under a `-N` suffix; a ruleset-bound pack without its ruleset is refused before any write; an embedded adventure is materialized and loadable; remove deletes an artifact and refuses while a Novel depends on it; install and remove each record a security-event audit entry; a traversal source is refused without a read. | REQ-621 |
+| T740 | Automated | Novel sharing: a `share` export with `TTRPG_EXPORT_EMBED_ADVENTURES` unset embeds adventure content and forces full scope; `share` with markdown or a non-full scope is refused `[INVALID_INPUT]`; a shared bundle materializes its embedded adventure in a fresh installation and the copy loads it; a tampered embedded adventure blocks import. | REQ-096m |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

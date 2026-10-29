@@ -214,6 +214,35 @@ async function main() {
       if (reexport.adventure?.provenance?.creator !== "Ada Example") throw new Error("import lost module provenance");
     });
 
+    await test("T740/REQ-096m: a shared bundle materializes its adventure on a fresh installation", async () => {
+      await call(proc, "manage_adventure", { action: "load", slug: "good" });
+      const shared = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", share: true }));
+      if (!shared.adventure?.content_hash) throw new Error("share export did not embed adventure content");
+      const freshData = mkdtempSync(join(tmpdir(), "holonovel-adventure-share-"));
+      const proc2 = await boot({ TTRPG_DATA_DIR: freshData });
+      try {
+        await call(proc2, "set_badge", { badge: "game_master" });
+        await call(proc2, "manage_novel", { action: "create", name: "shared-import" });
+        const imported = await call(proc2, "manage_archive", { action: "import", data: JSON.stringify(shared), mode: "replace" });
+        assertNotContains(imported, "STATE_CONFLICT");
+        const loaded = await call(proc2, "manage_adventure", { action: "load", slug: "good" });
+        assertContains(loaded, "Ada Example");
+        assertNotContains(loaded, "NOT_FOUND");
+      } finally {
+        await kill(proc2);
+        rmSync(freshData, { recursive: true, force: true });
+      }
+    });
+
+    await test("T740/REQ-096m: a tampered embedded adventure blocks import", async () => {
+      await call(proc, "manage_adventure", { action: "load", slug: "good" });
+      const shared = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", share: true }));
+      shared.adventure.content = `${shared.adventure.content}\ntampered`;
+      const importOut = await call(proc, "manage_archive", { action: "import", data: JSON.stringify(shared), mode: "replace" });
+      assertContains(importOut, "STATE_CONFLICT");
+      assertContains(importOut, "hash mismatch");
+    });
+
     await test("T735/REQ-617: adventure hash and signature mismatches are refused", async () => {
       const tampered = await call(proc, "manage_adventure", { action: "load", slug: "tampered" });
       assertContains(tampered, "STATE_CONFLICT");
