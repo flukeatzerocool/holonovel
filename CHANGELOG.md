@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-29 — State-hash bookkeeping exclusions
+
+- Amended REQ-601 so the canonical state projection excludes session and
+  wall-clock bookkeeping (`active_session_id`, `last_mutation_at`). Two
+  identical seeded runs now hash equally, and a REQ-237 session boundary
+  written after a handler's save no longer makes `verify` report divergence.
+  The projection carries a version; REQ-602 tags each per-event hash with it,
+  and REQ-603 reports a digest recorded under an older projection as stale
+  rather than clean or divergent
+  (`holonovel/src/core/state-hash.ts`, `holonovel/src/index.ts`).
+- Migrated pre-version-2 Novels on load: the last-save and checkpoint digests
+  are re-derived and stamped with the current projection. Historical event
+  hashes are never recomputed and are reported as historical
+  (`holonovel/src/core/state.ts`).
+- Removed the three E3 workarounds: the `audit()` boundary flush, the novel
+  tier's `active_session_id` strip, and the façade determinism mask. Added a
+  loaded-path map so a Novel whose filename differs from its internal slug
+  saves back to its own file instead of creating a second one (REQ-088).
+- Extended `test:persistence` with misnamed-save mutation retention and
+  projection migration checks; regenerated the starter artifact for the
+  fingerprint change. Evidence: `test:all` 51/51, `test:persistence` 39/39,
+  all five Holosuite tiers PASS, `check:fast` 31/31, `build-order` exit 0 with
+  full check at 0 errors.
+
 ## 2026-10-29 — Tool registry, adapter seam, and engine façade (E3)
 
 - Added the tool registry as the single tool-definition site. `ToolRegistry`

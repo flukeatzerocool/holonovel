@@ -111,7 +111,10 @@ Replay rests on three artifacts.
 
 1. **Canonical state hash.** SHA-256 over a sorted-key canonical JSON projection
    of persisted Novel state, excluding audit log, audit archive, undo/redo
-   stacks, checkpoints, metadata, and the event log (REQ-601).
+   stacks, checkpoints, metadata, the event log, and session/wall-clock
+   bookkeeping (`active_session_id`, `last_mutation_at`) (REQ-601). The
+   projection carries a version; a digest recorded under an older projection is
+   reported stale rather than clean or divergent (REQ-603).
 2. **Per-event hash.** Each new observation records the state hash committed by
    that mutation, computed after derived perception records; legacy entries
    report as unhashed rather than fabricated (REQ-602).
@@ -183,8 +186,10 @@ The write path is conservative by design.
   future version loads with a warning rather than losing data (REQ-092e,
   REQ-092g).
 - **Committed digest.** `metadata.state_hash` records the canonical digest of the
-  last committed save, which verification compares against live state
-  (REQ-603).
+  last committed save and its projection version; verification compares it
+  against live state and reports an older projection as stale (REQ-603).
+  Loading a pre-version-2 Novel re-derives the last-save and checkpoint digests;
+  historical event hashes are never recomputed (REQ-602).
 - **Optional compression.** `TTRPG_NOVEL_COMPRESS` gzips the on-disk payload;
   backups follow the primary's setting, and a mismatch on load warns
   (REQ-092g, REQ-092h1).
