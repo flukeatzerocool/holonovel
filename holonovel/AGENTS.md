@@ -43,7 +43,7 @@ src/tool-registry.ts    Tool registry: the single definition site. `ToolRegistry
                         `bindMcp` binds them to the MCP adapter. Dynamic
                         definitions register immediately once bound.
         ↓
-src/index.ts            McpServer adapter: 36 action-discriminator tools, 40 resources and 21 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
+src/index.ts            McpServer adapter: 37 action-discriminator tools, 40 resources and 21 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
                         Registers tools through the registry, then binds MCP.
                         Entry point for STDIO transport, guarded by
                         HOLONOVEL_NO_AUTOSTART. Badge gating via
@@ -88,9 +88,9 @@ src/library.ts          Package library entry: core and world namespaces plus
 - **manage_ruleset** (action: search/install/remove/list/bind/import_supplementary/remove_supplementary) — ruleset lookup and package management; the table roll moved to `resolve_mechanic (action: roll)`
 - **manage_scene** (action: set/directive/choices/oracle) — scene state and narrative framing
 - **manage_staging** (action: presence/autonomy/cast/next_speaker) — scene presence, autonomy, and social-cast staging; split from `manage_scene` (REQ-413/REQ-581)
-- **manage_session** (action: recap/verbosity/briefing_order/discover) — session recap, verbosity, briefing order, and tool discovery
+- **manage_context** (action: recap/verbosity/briefing_order/discover) — play-facing recap, verbosity, briefing order, and tool discovery
 
-- **manage_diagnostics** (action: health/context_report/compress/compact/subscribe/category/event/history/verify/replay/visibility_check/visibility_audit) — diagnostics and maintenance, including the per-section context ledger (REQ-606–REQ-608), state-hash verification, and read-only replay inspection (REQ-601–REQ-605); the retired `manage_session` action aliases return `[NOT_FOUND]` naming this tool (REQ-413/REQ-581)
+- **manage_diagnostics** (action: health/context_report/compress/compact/subscribe/category/event/history/verify/replay/visibility_check/visibility_audit) — diagnostics and maintenance, including the per-section context ledger (REQ-606–REQ-608), state-hash verification, and read-only replay inspection (REQ-601–REQ-605); the retired `manage_session` action aliases return `[NOT_FOUND]` naming this tool, and the retired `manage_session` tool name returns `[NOT_FOUND]` naming `manage_context` (REQ-413/REQ-581)
 
 - **open_session** (novel?/badge?) — composite: resume, badge, recap (REQ-577)
 - **close_session** (no params) — composite: recap and save context (REQ-577)

@@ -32,7 +32,7 @@ For run id `<run>`, with the server under test and a scratch `PLAYTEST_HOME`:
 
 ## Roles
 
-- **Player** — declares intent in fiction, calls `manage_session (discover)`,
+- **Player** — declares intent in fiction, calls `manage_context (discover)`,
   `manage_character` for its own sheet, and `run_command (action: suggest)` for
   spatial intent. On ruleset-bound Novels the Player may also issue read-only
   perception commands via `run_command (action: execute)` — `look`, `examine`,

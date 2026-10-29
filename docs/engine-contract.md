@@ -228,9 +228,12 @@ requests. Two rules keep that seam honest:
 
 The engine makes no outbound network calls at runtime (Standing Rule 3;
 REQ-051), and it assumes nothing about transport beyond what the adapter
-supplies. The current reference implementation hosts one engine per process;
-per-engine state injection and N engines per process are a later decision (E8),
-not part of this contract.
+supplies. The current reference implementation hosts one engine per process.
+Per-engine state injection, N engines per process, and the harness entry
+migration were declined as E8 on 2026-10-29 — no consumer demonstrated a need
+for more than one live engine per process, and child-per-run isolation is
+deliberate. They are not part of this contract, and a future proposal needs a
+demonstrated consumer rather than a speculative refactor.
 
 ### Explicitly outside the engine core
 

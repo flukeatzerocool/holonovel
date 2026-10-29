@@ -31,9 +31,9 @@ interface ArtifactTool {
 const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const PREDICATE_TOOLS = "holonovel/src/index.ts:144"; // TOOL_ANNOTATIONS map
-const PREDICATE_RESOURCES = "holonovel/src/index.ts:8702"; // first registerResource
-const PREDICATE_PROMPTS = "holonovel/src/index.ts:11764"; // first server.prompt
+const PREDICATE_TOOLS = "holonovel/src/index.ts:149"; // TOOL_ANNOTATIONS map
+const PREDICATE_RESOURCES = "holonovel/src/index.ts:8899"; // first registerResource
+const PREDICATE_PROMPTS = "holonovel/src/index.ts:12185"; // first server.prompt
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");
@@ -166,7 +166,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
         `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`,
         step,
         ["REQ-570"],
-        "holonovel/src/index.ts:1427",
+        "holonovel/src/index.ts:1532",
       );
     } finally {
       await scoped.close();

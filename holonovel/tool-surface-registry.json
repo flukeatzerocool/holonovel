@@ -3245,7 +3245,7 @@
       "successors": [],
       "edges": []
     },
-    "manage_session.briefing_order": {
+    "manage_context.briefing_order": {
       "group": "narrate",
       "phases": [
         "scene",
@@ -3257,6 +3257,76 @@
       "preconditions": [],
       "successors": [],
       "edges": []
+    },
+    "manage_session.recap": {
+      "group": "narrate",
+      "phases": [
+        "scene",
+        "downtime"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_context.recap",
+        "retired": true
+      }
+    },
+    "manage_session.discover": {
+      "group": "table",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_context.discover",
+        "retired": true
+      }
+    },
+    "manage_session.verbosity": {
+      "group": "narrate",
+      "phases": [
+        "scene",
+        "downtime"
+      ],
+      "entry": false,
+      "mutation_class": "idempotent",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_context.verbosity",
+        "retired": true
+      }
+    },
+    "manage_session.briefing_order": {
+      "group": "narrate",
+      "phases": [
+        "scene",
+        "downtime"
+      ],
+      "entry": false,
+      "mutation_class": "idempotent",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": [],
+      "compatibility": {
+        "replacement": "manage_context.briefing_order",
+        "retired": true
+      }
     },
     "manage_session.category": {
       "group": "maintain",
@@ -3321,7 +3391,7 @@
         "retired": true
       }
     },
-    "manage_session.discover": {
+    "manage_context.discover": {
       "group": "table",
       "phases": [
         "none",
@@ -3399,7 +3469,7 @@
         "retired": true
       }
     },
-    "manage_session.recap": {
+    "manage_context.recap": {
       "group": "narrate",
       "phases": [
         "scene",
@@ -3437,7 +3507,7 @@
         "retired": true
       }
     },
-    "manage_session.verbosity": {
+    "manage_context.verbosity": {
       "group": "narrate",
       "phases": [
         "scene",

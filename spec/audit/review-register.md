@@ -754,18 +754,18 @@ pass and completion-oracle green. Fix evidence: regression tests in
   correction, and `scripts/validate.ts` updated the `TTRPG_AUTONOMY` alias to
   the canonical `manage_staging (action: autonomy)` token.
 
+- **`manage_session` rename (resolved 2026-10-29):** the play-facing tool is
+  now `manage_context` (recap, verbosity, briefing_order, discover), so the
+  lifecycle tools `open_session`/`close_session` no longer share a stem with a
+  play-facing tool (REQ-024a, REQ-554). `manage_session` is a retired hidden
+  whole-tool alias whose calls return `[NOT_FOUND]` naming
+  `manage_context.<action>`; its maintenance action aliases still name
+  `manage_diagnostics` (REQ-581). Canonical surface unchanged at 37 tools;
+  compatibility declarations 50 → 54. T674/T675 cover the tombstone.
+
 ## Scheduled-roadmap
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
-
-- **`manage_session` rename — scheduled 2026-10-25:** the external TDQS
-  capture grades naming consistency 4/5 and names the
-  `manage_session`/`open_session`/`close_session` collision
-  (`spec/audit/tdqs-scoreboard.json`, naming justification). Predicate: the
-  three names share the `session` stem while serving lifecycle versus
-  recap/briefing purposes (`holonovel/src/index.ts` tool registrations).
-  Renaming with a hidden alias is deferred from the 2026-10-25 coherence
-  remediation; tracked in ROADMAP.md. (REQ-024a, REQ-554)
 
 - **Compact default tool surface — scheduled 2026-10-25:** the external TDQS
   capture grades tool-count appropriateness 2/5 at 36 tools

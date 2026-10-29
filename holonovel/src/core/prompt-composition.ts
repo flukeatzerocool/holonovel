@@ -309,7 +309,7 @@ from the live registry, not hardcoded strings.
 - **Combat**: ${catalog(["manage_combat"]) || "combat (init/advance/end)"}
 - **World building**: ${catalog(["manage_world"]) || "world (create_room/create_thing/create_exit/convert)"}
 - **Narrative / scene**: ${[catalog(["manage_scene"]), catalog(["manage_story"])].filter(Boolean).join(", ") || "manage_scene (set/directive), manage_story (record)"}
-- **Lookup**: ${[catalog(["manage_ruleset"]), catalog(["manage_session"]), catalog(["run_command"])].filter(Boolean).join(", ") || "ruleset (search), session (health), command (suggest)"}
+- **Lookup**: ${[catalog(["manage_ruleset"]), catalog(["manage_context"]), catalog(["run_command"])].filter(Boolean).join(", ") || "ruleset (search), context (recap), command (suggest)"}
 
 Select the tool whose registered action classification matches the intent.`;
   }

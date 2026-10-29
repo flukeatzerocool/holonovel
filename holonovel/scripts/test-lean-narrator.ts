@@ -100,7 +100,7 @@ async function main(): Promise<void> {
 
   await test("REQ-067d T636 task-map intent routing", async () => {
     await call(p, "set_badge", { badge: "game_master" });
-    const t = await call(p, "manage_session", { action: "discover" });
+    const t = await call(p, "manage_context", { action: "discover" });
     assert(t.includes("Example:"), "no example invocation in task map");
   });
 

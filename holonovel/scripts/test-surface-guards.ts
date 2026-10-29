@@ -159,9 +159,9 @@ async function run(): Promise<void> {
       const listed = await send(proc, { method: "tools/list", params: { profile: "full" } });
       const tools = listed?.result?.tools ?? [];
       const old = tools.find((t: any) => t.name === "manage_session");
-      const fresh = tools.find((t: any) => t.name === "manage_diagnostics");
-      assert(old?._meta?.deprecated === true, `old tool lacks deprecation: ${JSON.stringify(old?._meta)}`);
-      assert(old?._meta?.replacement === "manage_diagnostics", `old tool replacement wrong: ${JSON.stringify(old?._meta)}`);
+      const fresh = tools.find((t: any) => t.name === "manage_context");
+      assert(old === undefined, `retired manage_session must be hidden from tools/list: ${JSON.stringify(old?._meta)}`);
+      assert(fresh !== undefined, "manage_context missing from tools/list");
       assert(!fresh?._meta?.deprecated, `replacement is deprecated: ${JSON.stringify(fresh?._meta)}`);
     });
 
@@ -169,12 +169,12 @@ async function run(): Promise<void> {
       const listed = await send(proc, { method: "tools/list", params: { _meta: { profile: "full" } } });
       const tools = listed?.result?.tools ?? [];
       const names = tools.map((t: any) => t.name);
-      for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged"]) {
+      for (const name of ["resolve_fate", "resolve_ironsworn", "resolve_forged", "manage_session"]) {
         assert(!names.includes(name), `${name} must be hidden from tools/list`);
       }
       assert(names.includes("resolve_mechanic"), "resolve_mechanic missing from tools/list");
       const ruleset = tools.find((t: any) => t.name === "manage_ruleset");
-      const session = tools.find((t: any) => t.name === "manage_session");
+      const session = tools.find((t: any) => t.name === "manage_context");
       assert(!ruleset?.inputSchema?.properties?.action?.enum?.includes("roll"), "retired roll action still advertised");
       assert(!session?.inputSchema?.properties?.action?.enum?.includes("health"), "retired health action still advertised");
       const retired: Array<[string, Record<string, unknown>, string]> = [
@@ -183,6 +183,7 @@ async function run(): Promise<void> {
         ["resolve_forged", { action: "stress" }, "resolve_mechanic.forged_stress"],
         ["manage_ruleset", { action: "roll", table: "weather" }, "resolve_mechanic.roll"],
         ["manage_session", { action: "health" }, "manage_diagnostics.health"],
+        ["manage_session", { action: "recap" }, "manage_context.recap"],
       ];
       for (const [name, args, replacement] of retired) {
         const text = await call(proc, name, args);

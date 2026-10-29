@@ -22,11 +22,11 @@ import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per invariant class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const P_READONLY = "holonovel/src/core/state.ts:1685"; // snapshot
+const P_READONLY = "holonovel/src/core/state.ts:1621"; // snapshot
 const P_GATING = "holonovel/src/core/server.ts:22"; // requireGM
 const P_UNDO = "holonovel/src/index.ts:3080"; // undo/redo handler
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
-const P_RESTART = "holonovel/src/core/state.ts:2270"; // atomic persist
+const P_RESTART = "holonovel/src/core/state.ts:2280"; // atomic persist
 const NOVEL_NAME = "Holosuite Invariants";
 
 /** Deterministic PRNG (mulberry32) — no wall-clock, reproducible per seed. */

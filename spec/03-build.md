@@ -1058,7 +1058,7 @@ states its objective, the tool calls to make, which badge calls each, and the pa
 criterion.
 
 **Verification principle.** Pattern Buffer sub-workflows verify state through tool-observable
-surfaces — `manage_character (action: sheet)`, `manage_session (action: recap)`, `spec_health`, `badge_briefing`,
+surfaces — `manage_character (action: sheet)`, `manage_context (action: recap)`, `spec_health`, `badge_briefing`,
 tool output — where the same assertion can be expressed through a tool call. The
 on-disk state format is tested by verification workflow G4 (Appendix F derived tests, T72/T77) and
 is an implementation detail. A Pattern Buffer sub-workflow that reads raw state files to
@@ -1125,7 +1125,7 @@ four items is incomplete and blocks handoff.
     `[WARNING]` in `spec_health` enumerating corrupted Novel, no crash, uncorrupted
     Novels/roster continue working; (c) 10 rapid `set_badge` alternations → no lost state
     or crash after final switch; (d) 50-round combat with 2 entities + 2 dangers using
-    deterministic seeds → round counter reaches 50, conditions persist, `manage_session (action: recap)`
+    deterministic seeds → round counter reaches 50, conditions persist, `manage_context (action: recap)`
     summarizes all rounds, memory hasn't doubled. (Blocking.)
 16. **Narrative state** — scene, NPC, countdown, lore, and briefing tools work end to end with deterministic seeds.
 17. **Novel lifecycle and persistence** — create/resume/end/switch cycle works; state persists
@@ -1144,7 +1144,7 @@ four items is incomplete and blocks handoff.
 21. **Campaign endurance** — 2 entities, 3 NPCs, 2 countdowns, 3 lore entries across 30
     combat rounds in 3 confrontations: all lore still triggers, ≥100 audit-log entries,
     verify audit log hash chain integrity per REQ-040 (consecutive entries form valid
-    chain), `manage_session (action: recap)` returns correct final state, memory hasn't doubled,
+    chain), `manage_context (action: recap)` returns correct final state, memory hasn't doubled,
     Novel file ≤5 MB. (Blocking.)
 22. **Workflow validation** — `[NEED_INPUT]`: unknown decision/option → `[NOT_FOUND]` with
     enumeration; cancel restores pre-workflow state; second workflow → `[STATE_CONFLICT]`;
@@ -1166,16 +1166,16 @@ four items is incomplete and blocks handoff.
     correctly (first to full wins), `linked` clock chain triggers child on parent
     completion, `tug_of_war` retreated to zero does not trigger, `mission` clock
     decrements on `manage_novel (action: resume)`. All mutations appear in audit log and
-    `manage_session (action: recap)`. (Blocking.)
+    `manage_context (action: recap)`. (Blocking.)
 24. **Session segmentation and audit compaction** — two sessions with different
     `TTRPG_SESSION_ID` values: assert two `[session-boundary]` markers in audit log
-    with session IDs and timestamps; `manage_session (action: recap, session_id="s1")` returns only s1
-    entries; `manage_session (action: recap, session_id="s2")` returns only s2 entries; `manage_session (action: recap)`
+    with session IDs and timestamps; `manage_context (action: recap, session_id="s1")` returns only s1
+    entries; `manage_context (action: recap, session_id="s2")` returns only s2 entries; `manage_context (action: recap)`
     returns all entries; `spec_health` reports per-session metrics array. With
     `TTRPG_AUDIT_RETENTION_SESSIONS=1`, `manage_diagnostics (action: compact)` prompts `[NEED_INPUT]`
     confirmation; on confirm, session 1 entries removed from live log,
-    `audit://novel/archive` returns session 1 summary; `manage_session (action: recap, session_id="s1")`
-    returns the summary from archive; `manage_session (action: recap)` returns only session 2 entries.
+    `audit://novel/archive` returns session 1 summary; `manage_context (action: recap, session_id="s1")`
+    returns the summary from archive; `manage_context (action: recap)` returns only session 2 entries.
     Player badge `manage_diagnostics (action: compact)` returns `[FORBIDDEN]`. (Non-blocking.)
 25. **State durability: backups, checkpoints, clones** — with
     `TTRPG_NOVEL_BACKUP_COUNT=3`, after 10 mutations assert three rotated backup
@@ -1216,13 +1216,13 @@ four items is incomplete and blocks handoff.
     Wisdom appears in results (P10). Deactivate the relevant Wisdom item — assert
     mechanical behavior suppressed. Reactivate — assert restored. (Blocking.)
 28. **Briefing ordering, voice examples, session notation** —
-    `manage_session (action: briefing_order, ["scene", "entities", "lore"])` — assert `badge_briefing`
+    `manage_context (action: briefing_order, ["scene", "entities", "lore"])` — assert `badge_briefing`
     sections in that order; unknown token returns `[INVALID_INPUT]` with valid tokens
-    enumerated; `manage_session (action: briefing_order, [])` resets to builder defaults.
+    enumerated; `manage_context (action: briefing_order, [])` resets to builder defaults.
     `manage_character (action: voice, entity_id, [{context:"greeting", dialogue:"Hello",
     tag:"formal"}])` — assert `entity://<id>/voice_examples` returns examples;
     `entity://<id>/personality` reflects `manage_character (action: personality)` fields.
-    `manage_session (action: recap, format="lonelog")` — assert output in Lonelog notation (`###` scene
+    `manage_context (action: recap, format="lonelog")` — assert output in Lonelog notation (`###` scene
     headers, `@` actions, `=>` outcomes); `manage_diagnostics (action: compress, format="lonelog")` —
     assert compressed Lonelog entries. (Non-blocking.)
 29. **Novel export/import cycle** — `manage_archive (action: export, "json")` → `manage_archive (action: import, data,
@@ -1807,7 +1807,7 @@ are selected for changed surfaces.
 6. **Property state propagation** — open a closed container, assert contents
    accessible. Close it, assert contents blocked. Lock a lockable door — assert
    it cannot be opened. Unlock it — assert it opens. All property mutations
-   appear in audit log and `manage_session (action: recap)`. (Blocking.)
+   appear in audit log and `manage_context (action: recap)`. (Blocking.)
 
 7. **World-model resources** — call `room://<id>`, `thing://<id>`,
    `world://map`, `world://kinds`. Assert room and thing content matches state.
@@ -1818,7 +1818,7 @@ are selected for changed surfaces.
 
 8. **Large-map navigation** — populate 50+ room world model. Navigate from one
    end to the other (≥10 sequential moves). Assert each room description is
-   correct, no state corruption, memory stable. `manage_session (action: recap)` covers
+   correct, no state corruption, memory stable. `manage_context (action: recap)` covers
    traversal history.
 
 9. **Empty world model** — on a Novel with zero rooms (fresh create, no
@@ -1837,7 +1837,7 @@ are selected for changed surfaces.
     fields via `manage_character (action: personality)`, attach voice examples via `manage_character (action: voice)`,
     update the NPC's disposition via `manage_npc (action: update)`, then remove it via
     `manage_npc (action: remove)`. Assert `badge_briefing` surfaces NPC name and disposition after
-    each mutation. Assert `manage_session (action: recap)` covers the create-update-remove
+    each mutation. Assert `manage_context (action: recap)` covers the create-update-remove
     sequence. Assert `manage_npc (action: remove)` on a nonexistent NPC returns `[NOT_FOUND]`.
     (Non-blocking.)
 
@@ -1853,7 +1853,7 @@ are selected for changed surfaces.
     `manage_scene (action: set, description, location, time_of_day, atmosphere)`, set scene
     type to `["social", "exploration"]`, set a narrative directive. Assert
     `badge_briefing` surfaces all scene fields, scene type, and directive. Set a
-    custom briefing order via `manage_session (action: briefing_order, [...])` — assert `badge_briefing`
+    custom briefing order via `manage_context (action: briefing_order, [...])` — assert `badge_briefing`
     sections appear in the specified order. Assert `manage_scene (action: set)` transitions
     push the prior scene to `scene_history`. (Non-blocking.)
 

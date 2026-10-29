@@ -59,13 +59,13 @@ exercises: status prefix
 and `isError` semantics (REQ-001), required fields in order, die values pinned
 by per-call seeds (REQ-050), gating decisions (REQ-032), decision round-trips
 (REQ-042), condition lifecycle (REQ-043), countdown auto-decrement (REQ-073),
-manage_session (action: recap) correctness (REQ-072), and undo round-trip (REQ-041). Wording is
+manage_context (action: recap) correctness (REQ-072), and undo round-trip (REQ-041). Wording is
 not asserted. Assertion boundary: status prefixes, `isError` flags, required
 fields in `spec_health` output, die values, badge gating decisions, and
 structural completeness (every transcript interaction produces an assertable
 result — `[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`) SHALL
 be asserted exactly. Natural-language prose in `manage_scene (action: set)`,
-`manage_session (action: recap)`, narrative tool output, and error corrective-action text SHALL
+`manage_context (action: recap)`, narrative tool output, and error corrective-action text SHALL
 be checked for structural presence (the field exists and is non-empty) but not
 for exact wording.
 

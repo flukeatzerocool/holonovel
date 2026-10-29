@@ -127,7 +127,7 @@ function assertArray(value: unknown, message: string): void {
   assert(Array.isArray(value), message);
 }
 
-const GLOBALS = ["set_badge", "manage_session", "respond_decision", "open_session", "close_session"];
+const GLOBALS = ["set_badge", "manage_context", "respond_decision", "open_session", "close_session"];
 
 function fixtureRegistry(): SurfaceRegistry {
   const decl = (group: string, entry: boolean, successors: string[] = []) => ({
@@ -324,7 +324,7 @@ async function run(): Promise<void> {
       assert(group.tools.includes(entryTool), `group ${group.group} entry ${group.entry} is not a member`);
     }
 
-    const discover = await call(standard, "manage_session", { action: "discover" });
+    const discover = await call(standard, "manage_context", { action: "discover" });
     const discoverGroups = [...discover.matchAll(/^- \*\*([a-z_]+)\*\* — entry:/gm)].map((m) => m[1]);
     assert(JSON.stringify([...discoverGroups].sort()) === JSON.stringify([...gmNames].sort()),
       `discover ${discoverGroups.join(",")} != resource ${gmNames.join(",")}`);
@@ -384,6 +384,19 @@ async function run(): Promise<void> {
       `lean guidance orientation missing: ${leanBriefing.slice(0, 200)}`);
     assert(!leanBriefing.includes("Read the current state, resolve mechanics through tools, then"),
       "lean guidance still carried the full orientation");
+  });
+
+  await test("T674/T675: manage_context is canonical; manage_session is a hidden tombstone", async () => {
+    const proc = await boot("full");
+    await call(proc, "manage_novel", { action: "create", name: "rename-check" });
+    const names = toolNames(await listTools(proc));
+    assert(names.includes("manage_context"), "manage_context missing from tools/list");
+    assert(!names.includes("manage_session"), "retired manage_session must be hidden from tools/list");
+    const recap = await call(proc, "manage_context", { action: "recap" });
+    assert(!recap.includes("[NOT_FOUND]"), `manage_context recap failed: ${recap.slice(0, 160)}`);
+    const old = await call(proc, "manage_session", { action: "recap" });
+    assert(old.includes("[NOT_FOUND]") && old.includes("manage_context.recap"),
+      `tombstone refusal wrong: ${old.slice(0, 200)}`);
   });
 
   await test("T676: standard is call-complete and lean", async () => {

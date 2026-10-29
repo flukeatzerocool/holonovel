@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 104614,
+  "tools_list_bytes": 104075,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 104614,
-        "tokens": 26154
+        "bytes": 104075,
+        "tokens": 26019
       },
       "standard": {
         "tools": 37,
-        "bytes": 90221,
-        "tokens": 22556
+        "bytes": 89682,
+        "tokens": 22421
       },
       "small": {
         "tools": 6,
-        "bytes": 4522,
-        "tokens": 1131,
+        "bytes": 4457,
+        "tokens": 1115,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4522,
-            "tokens": 1131
+            "bytes": 4457,
+            "tokens": 1115
           },
           "explore": {
             "tools": 6,
-            "bytes": 3480,
-            "tokens": 870
+            "bytes": 3415,
+            "tokens": 854
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4398,
-            "tokens": 1100
+            "bytes": 4333,
+            "tokens": 1084
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4117,
-            "tokens": 1030
+            "bytes": 4052,
+            "tokens": 1013
           },
           "lookup": {
             "tools": 6,
-            "bytes": 3741,
-            "tokens": 936
+            "bytes": 3676,
+            "tokens": 919
           },
           "referee": {
             "tools": 6,
-            "bytes": 3725,
-            "tokens": 932
+            "bytes": 3660,
+            "tokens": 915
           },
           "author": {
             "tools": 6,
-            "bytes": 3717,
-            "tokens": 930
+            "bytes": 3652,
+            "tokens": 913
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4250,
-            "tokens": 1063
+            "bytes": 4185,
+            "tokens": 1047
           }
         }
       }
@@ -711,6 +711,61 @@
       "gate": ""
     },
     {
+      "name": "manage_context",
+      "title": "Context Controls",
+      "description": "Manage play-facing context controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+      "description_bytes": 832,
+      "action_enum": [
+        "recap",
+        "verbosity",
+        "briefing_order",
+        "discover"
+      ],
+      "param_count": 8,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
+        "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
+        "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
+        "mode": "normal or terse (verbosity).",
+        "query": "Optional search term matched against tool name, description, and title (discover).",
+        "sections": "Ordered list of briefing sections (briefing_order).",
+        "session_id": "Archived session id to include in recap (recap).",
+        "tier": "Compression tier to assemble (recap; REQ-592)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 9,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 9,
+        "paramsWithEnums": 4,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2729,
+        "descriptionBytes": 832
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
       "name": "manage_corpus",
       "title": "Knowledge Corpus",
       "description": "Manage the cold-reference knowledge corpus. corpus_register indexes a document; route derives its domain from a trusted source profile; grant and deny set per-entity access with the latest decision winning; consume records a read; access checks an entity against the recorded grants. Mutating actions persist access state and are audited; list, get, access, and acquisitions are read-only. Use when: registering, listing, reading, routing, granting/denying access, consuming, or inspecting acquisitions of corpus documents. Do NOT use when: writing Novel lore entries or secrets — use manage_lore. Revert the most recent mutation with manage_history (action: undo).",
@@ -833,7 +888,7 @@
     {
       "name": "manage_diagnostics",
       "title": "Session Diagnostics",
-      "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. compress summarizes the audit log while compact prunes it irreversibly; verify compares live state with recorded hashes and replay reads the retained log, and both are read-only; visibility_check records its decision in the audit log while visibility_audit reads recent decisions; health, subscribe, and category reassignment do not change Novel content. compact is GM-only. Use when: reporting health, summarizing or compacting the audit log, subscribing, reassigning a category, appending/reading the event log, verifying or replaying state, or scanning a draft for GM-only disclosure. Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session.",
+      "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. compress summarizes the audit log while compact prunes it irreversibly; verify compares live state with recorded hashes and replay reads the retained log, and both are read-only; visibility_check records its decision in the audit log while visibility_audit reads recent decisions; health, subscribe, and category reassignment do not change Novel content. compact is GM-only. Use when: reporting health, summarizing or compacting the audit log, subscribing, reassigning a category, appending/reading the event log, verifying or replaying state, or scanning a draft for GM-only disclosure. Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_context.",
       "description_bytes": 786,
       "action_enum": [
         "health",
@@ -1447,7 +1502,7 @@
     {
       "name": "manage_ruleset",
       "title": "Ruleset Package Management",
-      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove supplementary Wisdom. search accepts an optional slug, works with no active Novel, and is read-only; install, remove, import_supplementary, and remove_supplementary mutate state, are audited, and are reversible via the paired action. install of an existing slug conflicts, and remove refuses while a Novel is bound to that slug. binding scopes only Novel-dependent features; import_supplementary uses inline wisdom when present and reads source only when absent. Table rolls are resolve_mechanic (action: roll). Use when: searching rules content, managing packages, binding a Novel, or adding/removing supplementary Wisdom. Do NOT use when: the ruleset name is unknown — use manage_session (action: discover).",
+      "description": "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove supplementary Wisdom. search accepts an optional slug, works with no active Novel, and is read-only; install, remove, import_supplementary, and remove_supplementary mutate state, are audited, and are reversible via the paired action. install of an existing slug conflicts, and remove refuses while a Novel is bound to that slug. binding scopes only Novel-dependent features; import_supplementary uses inline wisdom when present and reads source only when absent. Table rolls are resolve_mechanic (action: roll). Use when: searching rules content, managing packages, binding a Novel, or adding/removing supplementary Wisdom. Do NOT use when: the ruleset name is unknown — use manage_context (action: discover).",
       "description_bytes": 871,
       "action_enum": [
         "search",
@@ -1567,61 +1622,6 @@
         "titleIsMeaningful": true,
         "definitionBytes": 4000,
         "descriptionBytes": 788
-      },
-      "category": "",
-      "gate": ""
-    },
-    {
-      "name": "manage_session",
-      "title": "Session Management",
-      "description": "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
-      "description_bytes": 832,
-      "action_enum": [
-        "recap",
-        "verbosity",
-        "briefing_order",
-        "discover"
-      ],
-      "param_count": 8,
-      "required": [
-        "action"
-      ],
-      "params": {
-        "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
-        "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
-        "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
-        "mode": "normal or terse (verbosity).",
-        "query": "Optional search term matched against tool name, description, and title (discover).",
-        "sections": "Ordered list of briefing sections (briefing_order).",
-        "session_id": "Archived session id to include in recap (recap).",
-        "tier": "Compression tier to assemble (recap; REQ-592)."
-      },
-      "output_fields": {
-        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
-        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
-      },
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false
-      },
-      "context_signals": {
-        "paramCount": 9,
-        "requiredParamCount": 1,
-        "paramsWithDescriptions": 9,
-        "paramsWithEnums": 4,
-        "schemaDescriptionCoverage": 100,
-        "hasNestedObjects": false,
-        "requiredFieldCount": 1,
-        "schemaDepth": 1,
-        "unionChoiceCount": 0,
-        "invocationCost": 1,
-        "hasOutputSchema": true,
-        "hasAnnotations": true,
-        "titleIsMeaningful": true,
-        "definitionBytes": 3205,
-        "descriptionBytes": 832
       },
       "category": "",
       "gate": ""
@@ -2388,76 +2388,28 @@
       "retired": true
     },
     {
-      "name": "manage_session.category",
-      "kind": "action",
-      "replacement": "manage_diagnostics.category",
-      "retired": true
-    },
-    {
-      "name": "manage_session.compact",
-      "kind": "action",
-      "replacement": "manage_diagnostics.compact",
-      "retired": true
-    },
-    {
-      "name": "manage_session.compress",
-      "kind": "action",
-      "replacement": "manage_diagnostics.compress",
-      "retired": true
-    },
-    {
-      "name": "manage_session.context_report",
-      "kind": "action",
-      "replacement": "manage_diagnostics.context_report",
-      "retired": true
-    },
-    {
-      "name": "manage_session.event",
-      "kind": "action",
-      "replacement": "manage_diagnostics.event",
-      "retired": true
-    },
-    {
-      "name": "manage_session.health",
-      "kind": "action",
-      "replacement": "manage_diagnostics.health",
-      "retired": true
-    },
-    {
-      "name": "manage_session.history",
-      "kind": "action",
-      "replacement": "manage_diagnostics.history",
-      "retired": true
-    },
-    {
-      "name": "manage_session.replay",
-      "kind": "action",
-      "replacement": "manage_diagnostics.replay",
-      "retired": true
-    },
-    {
-      "name": "manage_session.subscribe",
-      "kind": "action",
-      "replacement": "manage_diagnostics.subscribe",
-      "retired": true
-    },
-    {
-      "name": "manage_session.verify",
-      "kind": "action",
-      "replacement": "manage_diagnostics.verify",
-      "retired": true
-    },
-    {
-      "name": "manage_session.visibility_audit",
-      "kind": "action",
-      "replacement": "manage_diagnostics.visibility_audit",
-      "retired": true
-    },
-    {
-      "name": "manage_session.visibility_check",
-      "kind": "action",
-      "replacement": "manage_diagnostics.visibility_check",
-      "retired": true
+      "name": "manage_session",
+      "kind": "tool",
+      "replacement": "manage_context",
+      "retired": true,
+      "action_enum": [
+        "briefing_order",
+        "category",
+        "compact",
+        "compress",
+        "context_report",
+        "discover",
+        "event",
+        "health",
+        "history",
+        "recap",
+        "replay",
+        "subscribe",
+        "verbosity",
+        "verify",
+        "visibility_audit",
+        "visibility_check"
+      ]
     },
     {
       "name": "manage_world.causal_admit",
