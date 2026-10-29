@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-29 — manage_artifact TDQS authoring pass
+
+- Rewrote the `manage_artifact` description to the Appendix T.2 standard ahead
+  of its first external TDQS grading. It now discloses the GM-badge
+  requirement for install/remove, ruleset hydration and tool unregistration,
+  the adventure-without-provenance warning, the permanent remove with its
+  reinstall recovery path, and the cross-parameter rules the schema cannot
+  express (kind-dependent `source`, `slug` override on install, list-only
+  `integrity`). Parameter descriptions gain the same format and scope detail.
+  The definition scores 5.0 on the deterministic proxy (999 B, within the
+  1000 B budget); `tool-definitions.json` and the surface baseline are
+  regenerated (full 26,280 / standard 22,682 tokens).
+
 ## 2026-10-29 — Recap notation/bounds and since-creation discovery
 
 - `manage_context (action: recap)` now honors REQ-072e/f/g: optional `format`

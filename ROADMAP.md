@@ -13,6 +13,9 @@
   Re-run the external evaluation and record the capture in
   `spec/audit/tdqs-scoreboard.json`; `T679` reports the stale count until then.
   (REQ-552)
+- As of 2026-10-29 the published package is 2026.10.26 and Glama still lists
+  36 tools, so the recapture waits on publishing the 2026.10.29 build and its
+  re-inspection.
 
 ## Compact default tool surface
 

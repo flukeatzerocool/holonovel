@@ -10046,13 +10046,13 @@ function artifactDependencyError(kind: ArtifactKind, slug: string): string | nul
 
 server.registerTool("manage_artifact", {
   title: "Local Artifact Registry",
-  description: "Manage the host-level registry of shareable artifacts — Novel packs, adventure modules, and ruleset packages — exchanged offline through a local inbox. list and verify are read-only; install copies a verified artifact from the exchange inbox into its kind directory and audits it; remove deletes an installed artifact and refuses while a Novel depends on it. install refuses a content-hash or provenance mismatch and an existing slug. install and remove are audited; remove is permanent — reinstall the artifact from the inbox to restore it. Installed artifacts appear in their kind catalog. Use when: exchanging a world pack or ruleset between installations, or listing and verifying installed artifacts. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
+  description: "Manage the host registry of shareable artifacts — Novel packs, adventures, and ruleset packages — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact from the inbox into its kind directory, audits it, and catalogs it; a ruleset install hydrates its tools. remove deletes the installed artifact, unregisters a removed ruleset's tools, refuses while a Novel depends on it, and is permanent (no undo); reinstall to restore. install/remove need the GM badge. install refuses a hash/provenance mismatch or existing slug. source is an inbox-relative JSON pack, Markdown module, or package directory by kind; slug names the remove/verify target and may override the install slug; integrity filters list only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
   inputSchema: {
     action: z.enum(["list", "install", "remove", "verify"]).describe("list, install, remove, or verify."),
-    kind: z.enum(["novel", "adventure", "ruleset"]).optional().describe("Artifact kind (list filter, install/remove/verify target)."),
-    source: z.string().optional().describe("Inbox-relative file or directory to install (install)."),
-    slug: z.string().optional().describe("Artifact slug (remove/verify)."),
-    integrity: z.enum(["verified", "unverified", "absent"]).optional().describe("Integrity filter (list)."),
+    kind: z.enum(["novel", "adventure", "ruleset"]).optional().describe("Artifact kind; filters list and targets install/remove/verify."),
+    source: z.string().optional().describe("Inbox-relative Novel pack (.json), adventure module (.md), or ruleset package directory to install (install)."),
+    slug: z.string().optional().describe("Artifact slug (remove/verify); overrides the artifact's own slug on install."),
+    integrity: z.enum(["verified", "unverified", "absent"]).optional().describe("Integrity filter: verified, unverified, or absent (list)."),
   },
 }, async (args: any) => {
   switch (args.action) {
