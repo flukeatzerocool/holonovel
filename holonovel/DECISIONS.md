@@ -2,11 +2,11 @@
 
 **Spec hash:** ef12f8d0becbed018273eb4f26204057b0a33da3f2d3323a7f516e631927fd8e
 
-**Recorded tool budget:** 36 listed (232 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (236 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 25,605 tokens; standard 22,104; small 1,131; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,154 tokens; standard 22,556; small 1,131; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Publication update evidence — 2026-10-25
 
@@ -82,6 +82,41 @@
   T733–T736. REQ-619 is builder-side, owed by
   `scripts/ruleset-builds/*/build-package.mjs`, exercised by T737, and
   whitelisted in `INTENDED_GAP_REQS`.
+
+### Artifact exchange (E7) — 2026-10-29
+
+- **D1 — one dedicated tool, not three extended ones.** `manage_artifact`
+  (`list`/`install`/`remove`/`verify`) is the single host-level registry and
+  admission surface. Extending `manage_ruleset`, `manage_adventure`, and
+  `manage_archive` would scatter the install path across three schemas with no
+  single discovery action. The recorded tool budget advances 36 → 37 and the
+  canonical action count 232 → 236 under REQ-429.
+- **D2 — scan-derived registry, no persisted index.** The catalog is recomputed
+  from `<DATA_DIR>/novels/`, the adventure directories, and
+  `<DATA_DIR>/rulesets/` on every call. A `<DATA_DIR>/registry.json` was
+  rejected: it would add a persisted surface needing a §5.19 guardrail row, a
+  retention bound, and a data-format fingerprint bump.
+- **D3 — filesystem inbox as the exchange channel.** `TTRPG_ARTIFACT_INBOX`
+  (default `<DATA_DIR>/inbox/`) is the only install source, preserving REQ-052
+  path containment. An arbitrary `path` parameter was rejected.
+- **D4 — placement in §5.7.** REQ-620/621 sit beside REQ-615–619 as integrity
+  and admission contracts. §5.7 is not a fingerprint section, so no fingerprint
+  advances.
+- **D5 — host-level storage, not Novel state.** Install and remove mutate files
+  in the data directory only. No §7.7 property group, no §5.19 enumeration, and
+  no lifecycle/coupling row apply.
+- **D6 — no §5.6 edit.** REQ-620 requires an installed artifact to be
+  discoverable through its kind catalog; the adventure read sites now scan the
+  data-directory install target alongside the configured directory. This keeps
+  §5.6 (data-format fingerprinted) untouched.
+- **Help category and gate.** `manage_artifact` maps to the **Novel Lifecycle**
+  help category; the tool is un-gated in `tools/list` (its read actions are
+  badge-neutral) while `install`/`remove` enforce the GM/Editor badge at the
+  handler.
+- **Coverage dispositions.** REQ-620 and REQ-621 are bucket C (server-runtime),
+  cited in `holonovel/src/core/artifact-registry.ts` and
+  `holonovel/src/index.ts`, exercised by T738/T739 in
+  `test:artifact-registry`.
 
 ### Two-week review remediation — 2026-10-25
 
@@ -564,6 +599,7 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_adventure` | un-gated | Player, Game Master |
 | `manage_novel` | un-gated | Player, Game Master |
 | `manage_archive` | un-gated | Player, Game Master |
+| `manage_artifact` | un-gated | Player, Game Master |
 | `manage_ruleset` | un-gated | Player, Game Master |
 | `manage_codex` | un-gated | Player, Game Master |
 | `manage_synthesis` | un-gated | Player, Game Master |

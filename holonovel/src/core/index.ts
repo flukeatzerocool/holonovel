@@ -29,3 +29,8 @@ export type {
   WisdomManifest,
   NarrativeVoice,
 } from "./wisdom.js";
+export { buildArtifactRegistry, registryCounts } from "./artifact-registry.js";
+export type { ArtifactEntry, ArtifactKind, ArtifactIntegrity, RegistrySources } from "./artifact-registry.js";
+export { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary } from "./adventure-provenance.js";
+export type { AdventureProvenance } from "./adventure-provenance.js";
+export { resolveInboxDir } from "./data-dir.js";

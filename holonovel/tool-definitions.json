@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
-  "tool_count": 36,
-  "tools_list_bytes": 102418,
+  "tool_count": 37,
+  "tools_list_bytes": 104614,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
-        "tools": 36,
-        "bytes": 102418,
-        "tokens": 25605
+        "tools": 37,
+        "bytes": 104614,
+        "tokens": 26154
       },
       "standard": {
-        "tools": 36,
-        "bytes": 88414,
-        "tokens": 22104
+        "tools": 37,
+        "bytes": 90221,
+        "tokens": 22556
       },
       "small": {
         "tools": 6,
@@ -275,6 +275,57 @@
         "titleIsMeaningful": true,
         "definitionBytes": 2895,
         "descriptionBytes": 715
+      },
+      "category": "",
+      "gate": ""
+    },
+    {
+      "name": "manage_artifact",
+      "title": "Local Artifact Registry",
+      "description": "Manage the host-level registry of shareable artifacts — Novel packs, adventure modules, and ruleset packages — exchanged offline through a local inbox. list and verify are read-only; install copies a verified artifact from the exchange inbox into its kind directory and audits it; remove deletes an installed artifact and refuses while a Novel depends on it. install refuses a content-hash or provenance mismatch and an existing slug. install and remove are audited; remove is permanent — reinstall the artifact from the inbox to restore it. Installed artifacts appear in their kind catalog. Use when: exchanging a world pack or ruleset between installations, or listing and verifying installed artifacts. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
+      "description_bytes": 887,
+      "action_enum": [
+        "list",
+        "install",
+        "remove",
+        "verify"
+      ],
+      "param_count": 4,
+      "required": [
+        "action"
+      ],
+      "params": {
+        "integrity": "Integrity filter (list).",
+        "kind": "Artifact kind (list filter, install/remove/verify target).",
+        "slug": "Artifact slug (remove/verify).",
+        "source": "Inbox-relative file or directory to install (install)."
+      },
+      "output_fields": {
+        "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
+        "text": "Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."
+      },
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false
+      },
+      "context_signals": {
+        "paramCount": 5,
+        "requiredParamCount": 1,
+        "paramsWithDescriptions": 5,
+        "paramsWithEnums": 3,
+        "schemaDescriptionCoverage": 100,
+        "hasNestedObjects": false,
+        "requiredFieldCount": 1,
+        "schemaDepth": 1,
+        "unionChoiceCount": 0,
+        "invocationCost": 1,
+        "hasOutputSchema": true,
+        "hasAnnotations": true,
+        "titleIsMeaningful": true,
+        "definitionBytes": 2155,
+        "descriptionBytes": 887
       },
       "category": "",
       "gate": ""

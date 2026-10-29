@@ -244,3 +244,37 @@ what it would change.
 - An edit lands in a fingerprint-scoped section (§5.9, §5.16–§5.17, §6.3,
   §6.4.2, §7.7, §5.19, Appendix Q): run `npm run build-order` before commit.
 
+### V.10 Exchange an artifact between installations
+
+**Entry point.** `manage_artifact (action: list|install|remove|verify)`.
+
+**Exchange formats.** A Novel pack is the Appendix Q interchange JSON produced
+by `manage_archive (action: export)`. An adventure module is an Appendix K
+Markdown file (with its provenance block, REQ-616). A ruleset package is the
+six-file package directory (REQ-389).
+
+**Happy path.**
+
+1. On the source installation, produce the artifact: export the Novel, copy
+   the adventure Markdown, or emit the package with `build-ruleset`.
+2. Copy the artifact into the receiving installation's exchange inbox
+   (`TTRPG_ARTIFACT_INBOX`, default `<DATA_DIR>/inbox/`). Do not copy it
+   directly into a kind directory.
+3. Run `manage_artifact (action: install, kind, source)`. The host verifies the
+   content hash and any declared provenance (`REQ-096j`, `REQ-617`,
+   `REQ-446`), writes the artifact into its kind directory, and audits the
+   install.
+4. Run `manage_artifact (action: list)` to confirm the entry and its integrity
+   state. The artifact is also visible through its kind catalog
+   (`manage_novel (action: list)`, `manage_adventure (action: list)`,
+   `manage_ruleset (action: list)`).
+
+**Recovery.**
+
+- `[ERROR] [STATE_CONFLICT]` naming the slug: the slug already exists, or the
+  declared hash does not match. Re-export from the source; never patch the
+  inbox copy.
+- `[ERROR] [NOT_FOUND]`: `source` is absent from the inbox. Copy the artifact
+  into the inbox named in the error, then retry.
+- `manage_artifact (action: verify)` reports the expected and received hashes
+  for an on-disk artifact that no longer matches its declaration.

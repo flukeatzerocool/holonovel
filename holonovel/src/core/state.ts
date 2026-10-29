@@ -69,6 +69,16 @@ function computeSourceHash(): string {
 
 export type Badge = "player" | "game_master" | "observer" | "none";
 
+// REQ-092 — shared checksum predicate: absent on legacy writes, otherwise the
+// SHA-256 of the payload excluding the checksum field.
+export function novelChecksumValid(data: any): boolean {
+  if (!data?._checksum) return true;
+  const payload = { ...data };
+  delete (payload as any)._checksum;
+  const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return computed === data._checksum;
+}
+
 export function normalizeBadge(raw: unknown): Badge {
   if (raw === "player" || raw === "game_master" || raw === "observer") return raw;
   return "none"; // null, undefined, "none", and unknown values resolve to the Editor badge
@@ -1104,11 +1114,7 @@ export class StateManager {
   // REQ-092 — a payload's checksum is valid when absent (legacy writes) or when
   // it matches the recomputed hash of the payload excluding the checksum field.
   private hasValidChecksum(data: any): boolean {
-    if (!data._checksum) return true;
-    const payload = { ...data };
-    delete (payload as any)._checksum;
-    const computed = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-    return computed === data._checksum;
+    return novelChecksumValid(data);
   }
 
   // REQ-092g — gzip compression toggled by TTRPG_NOVEL_COMPRESS.

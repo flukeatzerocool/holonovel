@@ -64,3 +64,11 @@ export function resolveDataDir(packageRoot: string, options: DataDirOptions = {}
   if (!exists(target)) mkdir(target);
   return target;
 }
+
+// REQ-621 — the exchange inbox is the only artifact-install source. An
+// explicit TTRPG_ARTIFACT_INBOX wins; otherwise it sits under the data
+// directory so it travels with portable user state (REQ-613).
+export function resolveInboxDir(dataDir: string, env: NodeJS.ProcessEnv = process.env): string {
+  const explicit = env.TTRPG_ARTIFACT_INBOX?.trim();
+  return explicit ? path.resolve(explicit) : path.join(dataDir, "inbox");
+}

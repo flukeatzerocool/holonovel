@@ -170,8 +170,9 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_archive (action: export)` output (default `false`; REQ-096h) |
 | `TTRPG_EXPORT_SIGNING_KEY` | No | Local HMAC-SHA256 key used to sign the export `integrity` envelope; absent means hash-only bundles (REQ-096j). Storage. |
 | `TTRPG_ARTIFACT_VERIFY_KEY` | No | Local HMAC-SHA256 key used to verify a ruleset package manifest signature (REQ-446) and an adventure module provenance signature (REQ-617). Symmetric: the holder can also sign. Absent means a declared signature warns `[signature-unverified]` and loads. Storage — non-behavioral; it gates artifact admission, not story state. |
+| `TTRPG_ARTIFACT_INBOX` | No | Directory from which `manage_artifact (action: install)` admits Novel packs, adventure modules, and ruleset packages; defaults to `<TTRPG_DATA_DIR>/inbox/`. Reads and writes stay within it and the kind directory (REQ-052, REQ-621). Storage — non-behavioral. |
 | `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
-| `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
+| `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory. Installed modules in `<TTRPG_DATA_DIR>/adventures/` are scanned alongside it (REQ-079, REQ-132, REQ-620). Storage. |
 | `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
 | `TTRPG_OUTPUT_SESSION_LIMIT` | No | Maximum truncated full-output payloads retained per session (default 20; REQ-004). Presentation. |
 | `TTRPG_MAX_LORE_TOKENS` | No | Maximum lore tokens recalled into a prompt (REQ-083). Presentation. |

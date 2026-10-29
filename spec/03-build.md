@@ -1541,6 +1541,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-617 | S18, S30 | Adventure provenance verification |
 | REQ-618 | S30 | Ruleset package creator attribution |
 | REQ-619 | S30 | Reference package provenance emission |
+| REQ-620 | S1, S6, S29 | Local artifact registry |
+| REQ-621 | S1, S24, S29, S30 | Artifact admission |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
 | REQ-329 | S16, S23 | Countdown-world coupling |

@@ -67,6 +67,9 @@ import {
 import { createRng, sessionRoll, rollNotationWithRng, type Rng } from "./core/rng.js";
 import { deriveAnchor } from "./core/anchors.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
+import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
+import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, type AdventureProvenance } from "./core/adventure-provenance.js";
+import { resolveInboxDir } from "./core/data-dir.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 //
@@ -176,6 +179,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_adventure: MUTATING,
   manage_novel: MUTATING,
   manage_archive: MUTATING,
+  manage_artifact: MUTATING,
   manage_ruleset: MUTATING,
   manage_codex: MUTATING,
   manage_synthesis: MUTATING,
@@ -2205,10 +2209,40 @@ function deriveWitnessPerceptions(novel: NovelState, kind: string, text: string,
   }
 }
 
+// REQ-620 — adventure discovery scans the data-directory install target first,
+// then the configured/build directory, so an installed module is visible to
+// every adventure surface. A slug present in both resolves to the installed
+// copy (first directory wins).
+function adventureDirs(): string[] {
+  const configured = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+  const installed = path.join(DATA_DIR, "adventures");
+  return configured === installed ? [installed] : [installed, configured];
+}
+
+function adventureFiles(): { slug: string; file: string; dir: string }[] {
+  const seen = new Set<string>();
+  const out: { slug: string; file: string; dir: string }[] = [];
+  for (const dir of adventureDirs()) {
+    let files: string[];
+    try { files = fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort(); } catch { continue; }
+    for (const file of files) {
+      const slug = file.replace(/\.md$/, "");
+      if (seen.has(slug)) continue;
+      seen.add(slug);
+      out.push({ slug, file, dir });
+    }
+  }
+  return out;
+}
+
+function findAdventureFile(slug: string): string | null {
+  const match = adventureFiles().find((entry) => entry.slug === slug);
+  return match ? path.join(match.dir, match.file) : null;
+}
+
 // REQ-292 — count adventure modules on disk (empty → 0).
 function countAdventureModules(): number {
-  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
-  try { return fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")).length; } catch { return 0; }
+  return adventureFiles().length;
 }
 
 function getActiveEntity() {
@@ -2557,7 +2591,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Codex": ["manage_codex"],
   "Adventure": ["manage_adventure"],
   "Session": ["manage_session", "manage_diagnostics", "open_session", "close_session", "take_turn"],
-  "Novel Lifecycle": ["manage_novel", "manage_archive"],
+  "Novel Lifecycle": ["manage_novel", "manage_archive", "manage_artifact"],
   "Synthesis": ["manage_synthesis"],
   "Belief & Evidence": ["manage_belief"],
   "Identity": ["manage_identity"],
@@ -8770,9 +8804,8 @@ server.registerTool("manage_adventure", {
     case "load": {
       requireGM();
       const novel = requireNovel();
-      const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
-      const filePath = path.join(adventureDir, `${args.slug}.md`);
-      if (!fs.existsSync(filePath)) return err("NOT_FOUND", `Adventure '${args.slug}' not found at ${filePath}.`);
+      const filePath = findAdventureFile(args.slug);
+      if (!filePath) return err("NOT_FOUND", `Adventure '${args.slug}' not found in ${adventureDirs().join(", ")}.`);
       const raw = fs.readFileSync(filePath, "utf-8");
       // REQ-616/REQ-617 — provenance is verified before any state mutation.
       const { provenance, body: content } = parseAdventureProvenance(raw);
@@ -8816,15 +8849,13 @@ server.registerTool("manage_adventure", {
       return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
     }
     case "list": {
-      const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
-      let files: string[] = [];
-      try { files = fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")); } catch { }
+      const files = adventureFiles();
       if (files.length === 0) return ok("[No adventure modules found.]");
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
-      const entries = files.map((f) => {
-        const slug = f.replace(/\.md$/, "");
-        const content = fs.readFileSync(path.join(adventureDir, f), "utf-8");
+      const entries = files.map(({ slug, file, dir }) => {
+        const filePath = path.join(dir, file);
+        const content = fs.readFileSync(filePath, "utf-8");
         const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
         const preview = content.match(/## (?:Premise|Adventure Hook)\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim().split(/\s+/).slice(0, 30).join(" ") ?? "";
         const genreTags: string[] = [];
@@ -8834,7 +8865,7 @@ server.registerTool("manage_adventure", {
         const roomCount = (content.match(/^### .+$/gm) ?? []).length;
         const npcCount = (content.match(/\*\*[A-Z][^*]{1,40}\*\*\s*\n/g) ?? []).length;
         const complexity = roomCount >= 15 ? "epic" : roomCount >= 6 ? "standard" : "short";
-        const stat = fs.statSync(path.join(adventureDir, f));
+        const stat = fs.statSync(filePath);
         // REQ-616 — surface the module's provenance block with its catalog entry.
         const { provenance } = parseAdventureProvenance(content);
         return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString(), provenance: provenance ?? null };
@@ -8850,14 +8881,11 @@ server.registerTool("manage_adventure", {
 // REQ-170 — adventure discovery surface: adventures:// lists indexed adventure
 // slugs with titles and badge-filtered hooks.
 server.registerResource("adventures", "adventures://", { title: "Adventure Catalog" }, async () => {
-  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
-  let files: string[] = [];
-  try { files = fs.readdirSync(adventureDir).filter((f) => f.endsWith(".md")); } catch { }
+  const files = adventureFiles();
   const badge = getBadge();
   const isGM = badge === "game_master" || badge === "none";
-  const entries = files.map((f) => {
-    const slug = f.replace(/\.md$/, "");
-    const content = fs.readFileSync(path.join(adventureDir, f), "utf-8");
+  const entries = files.map(({ slug, file, dir }) => {
+    const content = fs.readFileSync(path.join(dir, file), "utf-8");
     const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
     const hook = content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
     const overview = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
@@ -8921,66 +8949,15 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
   }
   const slug = novel.adventure_slug;
   if (!slug) return null;
-  const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
+  const filePath = findAdventureFile(slug);
+  if (!filePath) return null;
   try {
-    const content = fs.readFileSync(path.join(adventureDir, `${slug}.md`), "utf-8");
+    const content = fs.readFileSync(filePath, "utf-8");
     // REQ-616 — carry the block; hash the body so the declared hash stays
     // meaningful after the block is stripped.
     const { provenance, body } = parseAdventureProvenance(content);
     return { slug, content: body, content_hash: crypto.createHash("sha256").update(body).digest("hex"), provenance };
   } catch { return null; /* module not present on disk — nothing to embed */ }
-}
-
-// REQ-616/REQ-617 — adventure module provenance. A module may open with a
-// `---`-delimited block of key: value lines (Appendix K). The content hash
-// covers the body after the closing delimiter, not the block itself.
-type AdventureProvenance = { creator?: string; attribution?: string; license?: string; content_hash?: string; signature?: string };
-const ADVENTURE_PROVENANCE_KEYS = new Set(["creator", "attribution", "license", "content_hash", "signature"]);
-
-function parseAdventureProvenance(content: string): { provenance: AdventureProvenance | null; body: string } {
-  const lines = content.split("\n");
-  if (lines[0]?.trim() !== "---") return { provenance: null, body: content };
-  let end = -1;
-  for (let i = 1; i < lines.length && i <= 40; i++) {
-    if (lines[i].trim() === "---") { end = i; break; }
-  }
-  if (end < 0) return { provenance: null, body: content };
-  const block: AdventureProvenance = {};
-  for (let i = 1; i < end; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
-    const m = line.match(/^([a-z_]+):\s*(.*)$/);
-    if (!m || !ADVENTURE_PROVENANCE_KEYS.has(m[1])) return { provenance: null, body: content };
-    (block as Record<string, string>)[m[1]] = m[2].trim();
-  }
-  if (Object.keys(block).length === 0) return { provenance: null, body: content };
-  return { provenance: block, body: lines.slice(end + 1).join("\n") };
-}
-
-function verifyAdventureProvenance(provenance: AdventureProvenance, body: string): { failures: string[]; warnings: string[] } {
-  const failures: string[] = [];
-  const warnings: string[] = [];
-  if (provenance.content_hash) {
-    const actual = crypto.createHash("sha256").update(body).digest("hex");
-    if (actual !== provenance.content_hash) failures.push(`content_hash: expected ${provenance.content_hash}, got ${actual}`);
-  }
-  if (provenance.signature) {
-    const key = process.env.TTRPG_ARTIFACT_VERIFY_KEY;
-    if (!key) warnings.push("[signature-unverified] module is signed but no verification key is configured");
-    else {
-      const want = crypto.createHmac("sha256", key).update(provenance.content_hash ?? "").digest("hex");
-      if (provenance.signature !== want) failures.push("signature: HMAC does not verify");
-    }
-  }
-  return { failures, warnings };
-}
-
-function provenanceSummary(provenance: AdventureProvenance | null | undefined): string {
-  if (!provenance) return "";
-  const parts: string[] = [];
-  if (provenance.creator) parts.push(`creator: ${provenance.creator}`);
-  if (provenance.license) parts.push(`license: ${provenance.license}`);
-  return parts.length ? ` Provenance — ${parts.join("; ")}.` : "";
 }
 
 // REQ-096g/j — portable bundle integrity. Hashes are computed over a freshly
@@ -9903,6 +9880,201 @@ server.registerTool("manage_archive", {
   return target.handler(args, extra);
 });
 
+// REQ-620 — registry sources. The registry is scan-derived; package hashes are
+// recomputed from the five payload files only when the registry is built.
+function artifactRegistry(): ReturnType<typeof buildArtifactRegistry> {
+  return buildArtifactRegistry({
+    novelsDir: path.join(DATA_DIR, "novels"),
+    adventureDirs: adventureDirs(),
+    rulesets: () => rulesets.manifests(),
+    rulesetHash: (dir) => {
+      const read = (name: string): any => JSON.parse(fs.readFileSync(path.join(dir, name), "utf-8"));
+      return computeContentHash(read("index.json"), read("model.json"), read("tools.json"), read("resources.json"), read("prompts.json"));
+    },
+  });
+}
+
+// REQ-621 — resolve a source under the exchange inbox, rejecting traversal and
+// absolute paths (REQ-052).
+function inboxSourcePath(source: string): string | null {
+  const inbox = resolveInboxDir(DATA_DIR);
+  const candidate = path.resolve(inbox, source);
+  const rel = path.relative(inbox, candidate);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  return candidate;
+}
+
+function artifactDependencyError(kind: ArtifactKind, slug: string): string | null {
+  if (kind === "ruleset") {
+    for (const novel of state.novels.values()) {
+      if (novel.ruleset === slug) return `Novel '${novel.slug}' is bound to ruleset '${slug}'.`;
+    }
+  }
+  if (kind === "adventure") {
+    const active = state.activeNovel;
+    if (active?.adventure_slug === slug) return `Novel '${active.slug}' has adventure '${slug}' loaded.`;
+  }
+  if (kind === "novel") {
+    if (state.activeNovel?.slug === slug) return `Novel '${slug}' is active.`;
+  }
+  return null;
+}
+
+server.registerTool("manage_artifact", {
+  title: "Local Artifact Registry",
+  description: "Manage the host-level registry of shareable artifacts — Novel packs, adventure modules, and ruleset packages — exchanged offline through a local inbox. list and verify are read-only; install copies a verified artifact from the exchange inbox into its kind directory and audits it; remove deletes an installed artifact and refuses while a Novel depends on it. install refuses a content-hash or provenance mismatch and an existing slug. install and remove are audited; remove is permanent — reinstall the artifact from the inbox to restore it. Installed artifacts appear in their kind catalog. Use when: exchanging a world pack or ruleset between installations, or listing and verifying installed artifacts. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
+  inputSchema: {
+    action: z.enum(["list", "install", "remove", "verify"]).describe("list, install, remove, or verify."),
+    kind: z.enum(["novel", "adventure", "ruleset"]).optional().describe("Artifact kind (list filter, install/remove/verify target)."),
+    source: z.string().optional().describe("Inbox-relative file or directory to install (install)."),
+    slug: z.string().optional().describe("Artifact slug (remove/verify)."),
+    integrity: z.enum(["verified", "unverified", "absent"]).optional().describe("Integrity filter (list)."),
+  },
+}, async (args: any) => {
+  switch (args.action) {
+    case "list": {
+      let entries = artifactRegistry();
+      if (args.kind) entries = entries.filter((e) => e.kind === args.kind);
+      if (args.integrity) entries = entries.filter((e) => e.integrity === args.integrity);
+      return raw(JSON.stringify({
+        counts: registryCounts(artifactRegistry()),
+        artifacts: entries.map((e) => ({
+          kind: e.kind, slug: e.slug, title: e.title, version: e.version,
+          content_hash: e.content_hash, creator: e.creator, attribution: e.attribution,
+          license: e.license, integrity: e.integrity, location: e.location,
+        })),
+      }, null, 2));
+    }
+    case "verify": {
+      if (!args.kind || !args.slug) return err("INVALID_INPUT", "verify requires kind and slug.");
+      const entry = artifactRegistry().find((e) => e.kind === args.kind && e.slug === args.slug);
+      if (!entry) return err("NOT_FOUND", `No ${args.kind} artifact '${args.slug}' is installed.`);
+      return raw(JSON.stringify({
+        kind: entry.kind, slug: entry.slug, content_hash: entry.content_hash,
+        integrity: entry.integrity, location: entry.location,
+      }, null, 2));
+    }
+    case "install": {
+      requireGM();
+      if (!args.kind || !args.source) return err("INVALID_INPUT", "install requires kind and source.");
+      const kind = args.kind as ArtifactKind;
+      const resolved = inboxSourcePath(String(args.source));
+      if (!resolved) return err("INVALID_INPUT", `Source '${args.source}' resolves outside the exchange inbox ${resolveInboxDir(DATA_DIR)}.`);
+      if (!fs.existsSync(resolved)) return err("NOT_FOUND", `Source '${args.source}' is not present in the exchange inbox ${resolveInboxDir(DATA_DIR)}.`);
+
+      if (kind === "novel") {
+        const file = resolved.endsWith(".json") ? resolved : `${resolved}.json`;
+        if (!fs.existsSync(file)) return err("NOT_FOUND", `Novel pack '${args.source}' not found in the exchange inbox.`);
+        let bundle: any;
+        try { bundle = JSON.parse(fs.readFileSync(file, "utf-8")); } catch { return err("INVALID_INPUT", `Novel pack '${args.source}' is not valid JSON.`); }
+        const payload = bundle?.novel ?? bundle;
+        if (bundle?.integrity?.payload_hash) {
+          const recomputed = bundleHashes(bundle, payload).payload_hash;
+          if (recomputed !== bundle.integrity.payload_hash) {
+            return err("STATE_CONFLICT", `Novel pack '${args.source}' payload hash mismatch. Expected ${bundle.integrity.payload_hash}, received ${recomputed}.`);
+          }
+        }
+        if (bundle?.novel && typeof bundle.integrity?.state_hash === "string") {
+          const recomputed = bundleHashes(bundle, payload).state_hash;
+          if (recomputed !== bundle.integrity.state_hash) {
+            return err("STATE_CONFLICT", `Novel pack '${args.source}' state hash mismatch. Expected ${bundle.integrity.state_hash}, received ${recomputed}.`);
+          }
+        }
+        const novel = importNovelJSON(payload);
+        const slug = String(novel.slug ?? args.slug ?? "");
+        if (!slug) return err("INVALID_INPUT", "Novel pack has no slug.");
+        if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
+          return err("STATE_CONFLICT", `Novel '${slug}' is already installed.`);
+        }
+        state.saveNovel(novel);
+        state.hydrateNovelsFromDisk();
+        audit("install_artifact", { kind, slug, content_hash: bundle?.integrity?.payload_hash ?? null });
+        if (state.activeNovel) state.saveNovel(state.activeNovel);
+        return ok(`Novel pack '${slug}' installed. It is available through manage_novel (action: list).`);
+      }
+
+      if (kind === "adventure") {
+        const file = resolved.endsWith(".md") ? resolved : `${resolved}.md`;
+        if (!fs.existsSync(file)) return err("NOT_FOUND", `Adventure module '${args.source}' not found in the exchange inbox.`);
+        const content = fs.readFileSync(file, "utf-8");
+        const { provenance, body } = parseAdventureProvenance(content);
+        const checks = verifyAdventureProvenance(provenance ?? {}, body);
+        if (checks.failures.length > 0) {
+          return err("STATE_CONFLICT", `Adventure '${args.source}' provenance verification failed: ${checks.failures.join("; ")}.`);
+        }
+        const slug = path.basename(file).replace(/\.md$/, "");
+        const target = path.join(DATA_DIR, "adventures", `${slug}.md`);
+        if (fs.existsSync(target)) return err("STATE_CONFLICT", `Adventure '${slug}' is already installed.`);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        const tmp = `${target}.${process.pid}.tmp`;
+        fs.writeFileSync(tmp, content);
+        fs.renameSync(tmp, target);
+        audit("install_artifact", { kind, slug, content_hash: provenance?.content_hash ?? null });
+        if (state.activeNovel) state.saveNovel(state.activeNovel);
+        return ok(`Adventure module '${slug}' installed.${provenance ? "" : " [provenance-absent]"}${checks.warnings.length ? ` Warnings: ${checks.warnings.join("; ")}` : ""}`);
+      }
+
+      const manifestPath = path.join(resolved, "manifest.json");
+      if (!fs.existsSync(manifestPath)) return err("NOT_FOUND", `Ruleset package '${args.source}' has no manifest.json in the exchange inbox.`);
+      let manifest: any;
+      try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")); } catch { return err("INVALID_INPUT", `Ruleset package '${args.source}' has an unreadable manifest.json.`); }
+      const slug = String(manifest.slug ?? args.slug ?? "");
+      if (!slug) return err("INVALID_INPUT", "Ruleset package manifest has no slug.");
+      if (rulesets.isInstalled(slug)) return err("STATE_CONFLICT", `Ruleset '${slug}' is already installed.`);
+      const read = (name: string): any => JSON.parse(fs.readFileSync(path.join(resolved, name), "utf-8"));
+      try {
+        const pkg = rulesets.installPackage(slug, {
+          manifest,
+          index: read("index.json"),
+          model: read("model.json"),
+          tools: read("tools.json"),
+          resources: read("resources.json"),
+          prompts: read("prompts.json"),
+        });
+        reloadPackagePrompts();
+        audit("install_artifact", { kind, slug, content_hash: pkg.manifest.content_hash ?? null });
+        if (state.activeNovel) state.saveNovel(state.activeNovel);
+        return ok(`Ruleset package '${slug}' installed and hydrated.`);
+      } catch (e: any) {
+        return err("STATE_CONFLICT", e.message);
+      }
+    }
+    case "remove": {
+      requireGM();
+      if (!args.kind || !args.slug) return err("INVALID_INPUT", "remove requires kind and slug.");
+      const kind = args.kind as ArtifactKind;
+      const slug = String(args.slug);
+      const dependency = artifactDependencyError(kind, slug);
+      if (dependency) return err("STATE_CONFLICT", dependency);
+      const entry = artifactRegistry().find((e) => e.kind === kind && e.slug === slug);
+      if (!entry) return err("NOT_FOUND", `No ${kind} artifact '${slug}' is installed.`);
+      if (kind === "ruleset") {
+        if (!rulesets.isInstalled(slug)) return err("NOT_FOUND", `Ruleset '${slug}' is not installed.`);
+        rulesets.removePackage(slug);
+      } else if (kind === "adventure") {
+        const target = path.join(DATA_DIR, "adventures", `${slug}.md`);
+        if (!fs.existsSync(target)) return err("STATE_CONFLICT", `Adventure '${slug}' is not installed in ${path.join(DATA_DIR, "adventures")}; remove the source copy instead.`);
+        fs.unlinkSync(target);
+      } else {
+        const dir = path.join(DATA_DIR, "novels");
+        const target = path.join(dir, `${slug}.json`);
+        if (!fs.existsSync(target)) return err("STATE_CONFLICT", `Novel '${slug}' is not installed in ${dir}.`);
+        fs.unlinkSync(target);
+        for (const f of fs.readdirSync(dir)) {
+          if (f.startsWith(`${slug}.json.bak`)) fs.unlinkSync(path.join(dir, f));
+        }
+        state.novels.delete(slug);
+        if (state.activeNovel?.slug === slug) state.activeNovelId = null;
+      }
+      audit("remove_artifact", { kind, slug });
+      if (state.activeNovel) state.saveNovel(state.activeNovel);
+      return ok(`${kind === "novel" ? "Novel pack" : kind === "adventure" ? "Adventure module" : "Ruleset package"} '${slug}' removed.`);
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown artifact action '${args.action}'. Valid actions: list, install, remove, verify.`);
+  }
+});
+
 // REQ-022 resource URI catalog — presence is reported against this fixed list.
 const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "novel://current", title: "Active Novel" },
@@ -10262,6 +10434,8 @@ function buildSpecHealth(): Record<string, unknown> {
     indexed_adventures: isGM ? Object.fromEntries((novel?.adventure_index ? [[novel.adventure_slug ?? "generated", "adventure-scaffold"]] : [])) : undefined,
     // REQ-292b — adventure catalog count.
     adventure_catalog_count: countAdventureModules(),
+    // REQ-620 — host-level artifact registry counts per kind.
+    artifacts_registered: registryCounts(artifactRegistry()),
     constraint_override_counts: isGM ? (novel ? Object.keys(novel.constraint_overrides ?? {}).length : 0) : undefined,
     active_novel: novel?.slug ?? null,
     // REQ-294 — genre declaration surfaced in spec_health when set.
