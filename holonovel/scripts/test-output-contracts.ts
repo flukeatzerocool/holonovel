@@ -373,7 +373,7 @@ async function main() {
     const p = await boot();
     const wf = await proto(p, "prompts/get", { name: "run_workflow" });
     if (!wf.includes("- **")) throw new Error("run_workflow has no derived category lines");
-    if (!wf.includes("manage_session")) throw new Error("run_workflow does not name a live registered tool");
+    if (!wf.includes("manage_context")) throw new Error("run_workflow does not name a live registered tool");
     if (wf.includes("combat (init/advance/end)")) throw new Error("run_workflow still uses the hardcoded category fallback");
     await kill(p);
     passed++;
@@ -496,7 +496,7 @@ async function main() {
     assertContains(s, "read-only spectator mode", "REQ-305 observer mode");
     const fb = await call(p, "manage_npc", { action: "create",  name: "No" });
     assertContains(fb, "[FORBIDDEN]", "REQ-305 observer mutating call forbidden");
-    const help = await call(p, "manage_session", { action: "discover" });
+    const help = await call(p, "manage_context", { action: "discover" });
     assertNotContains(help, "[ERROR]", "REQ-305 observer read-only succeeds");
     passed++;
     await kill(p);
@@ -604,7 +604,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "g5" });
     await call(p, "set_badge", { badge: "game_master" });
-    const help = await call(p, "manage_session", { action: "discover",  query: "story" });
+    const help = await call(p, "manage_context", { action: "discover",  query: "story" });
     if (/_def|ZodObject|safeParse|toJSONSchema|ZodOptional/.test(help)) {
       throw new Error("discover leaked schema internals: " + help.slice(0, 200));
     }
@@ -704,7 +704,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w4c" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_story", { action: "record",  type: "decision", entry: "The party weighs the two doors." });
-    const recap = await call(p, "manage_session", { action: "recap" });
+    const recap = await call(p, "manage_context", { action: "recap" });
     assertContains(recap, "narrative_orientation", "REQ-279 orientation field");
     assertContains(recap, "The party weighs the two doors", "REQ-279 decision in orientation");
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
@@ -784,16 +784,16 @@ async function main() {
     await call(p, "manage_countdown", { action: "set",  name: "candle", ticks: 5, total: 12, type: "narrative", direction: "decrement", triggers: ["on_thing_take(wax)+10"] });
     const took = await call(p, "run_command", { command: "take wax" });
     assertContains(took, "[OK]", "REQ-329 refill take");
-    const refilled = await call(p, "manage_session", { action: "recap" });
+    const refilled = await call(p, "manage_context", { action: "recap" });
     assertContains(refilled, "candle(12 remaining", "REQ-329 signed trigger refills and clamps at total");
     assertNotContains(refilled, "candle(12/12", "REQ-281a refill recap omits the total");
 
     await call(p, "manage_countdown", { action: "set",  name: "climb", ticks: 0, total: 2, type: "narrative", direction: "increment" });
     await call(p, "manage_countdown", { action: "advance",  name: "climb" });
-    const climbed = await call(p, "manage_session", { action: "recap" });
+    const climbed = await call(p, "manage_context", { action: "recap" });
     assertContains(climbed, "climb(1 remaining", "REQ-073c2 advance honors increment direction");
     await call(p, "manage_countdown", { action: "advance",  name: "climb" });
-    const fired = await call(p, "manage_session", { action: "recap" });
+    const fired = await call(p, "manage_context", { action: "recap" });
     assertNotContains(fired, "climb(", "REQ-073c2 increment countdown fires at total");
 
     await call(p, "set_badge", { badge: "player" });
@@ -1169,7 +1169,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w7e" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_session", { action: "verbosity",  mode: "terse" });
+    await call(p, "manage_context", { action: "verbosity",  mode: "terse" });
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (health.verbosity_mode !== "terse") throw new Error("REQ-253 verbosity_mode not reported");
     passed++;
@@ -1247,7 +1247,7 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!Array.isArray(health.section_tokens) || health.section_tokens.length === 0) throw new Error("REQ-185/186 section_tokens missing");
-    const bad = await call(p, "manage_session", { action: "briefing_order",  sections: ["not_a_token"] });
+    const bad = await call(p, "manage_context", { action: "briefing_order",  sections: ["not_a_token"] });
     assertContains(bad, "[INVALID_INPUT]", "REQ-082 unknown token");
     passed++;
     await kill(p);
@@ -1625,10 +1625,10 @@ async function main() {
     await call(p, "manage_combat", { action: "init" });
     await call(p, "manage_combat", { action: "advance" });
     await call(p, "manage_combat", { action: "end",  outcome: "goblins routed" });
-    const recap = await call(p, "manage_session", { action: "recap" });
+    const recap = await call(p, "manage_context", { action: "recap" });
     assertContains(recap, "confrontations_completed:", "REQ-175 completed confrontations");
     await call(p, "manage_combat", { action: "init" });
-    const recap2 = await call(p, "manage_session", { action: "recap" });
+    const recap2 = await call(p, "manage_context", { action: "recap" });
     assertContains(recap2, "confrontation_pending:", "REQ-175 pending confrontation");
     passed++;
     await kill(p);

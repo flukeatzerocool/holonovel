@@ -139,7 +139,7 @@ output.
    tokens follow their builder-default position after the listed tokens. Tokens not
    in the vocabulary are invalid and the synthesis module SHALL NOT produce them.
    Stored at `synthesis://briefing_order`. **Inert** — visible in `spec_health`,
-   never auto-applies. The GM must explicitly call `manage_session (action: briefing_order)` (REQ-082) to
+   never auto-applies. The GM must explicitly call `manage_context (action: briefing_order)` (REQ-082) to
    use it.
 
 3. **Lore templates.** Up to 3 seed entries per major ruleset setting keyword, 30 entries

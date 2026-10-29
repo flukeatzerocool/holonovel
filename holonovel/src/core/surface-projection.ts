@@ -41,7 +41,7 @@ export type SurfaceProfile = "full" | "standard" | "small";
 
 export const SURFACE_GLOBALS = new Set([
   "set_badge",
-  "manage_session",
+  "manage_context",
   "respond_decision",
   "open_session",
   "close_session",

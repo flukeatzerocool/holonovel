@@ -6,31 +6,13 @@
   Update this file when planning a release.
 -->
 
-## E1 — Position Holonovel as an engine, not a TTRPG server
+## Re-capture the external TDQS after surface changes
 
-- Align the framing across `spec/01-foundations.md`, `README.md`, root
-  `AGENTS.md`, `holonovel/AGENTS.md`, and the package description: Holonovel is
-  a narrative simulation engine; the MCP server is the reference adapter; the
-  Novel is the portable program.
-- Additive framing only — TTRPG remains the first application, not the
-  definition. No tool, contract, or behavior change.
-- Done when the five surfaces agree, `npm run assemble && npm run check:fast`
-  is green, and the README guardrail passes.
-
-## E8 — Decision gate: multi-engine and entry split (3c)
-
-- Per-engine state and config injection, N engines per process, and the
-  ~25-harness entry migration — only if E3 and E4 evidence justifies it.
-- Close the item if the evidence does not; do not implement speculatively.
-- Depends on E3 and E4. Done when a written go/no-go decision is recorded.
-
-## Rename `manage_session` to remove the session-name collision
-
-- `manage_session` (recap, verbosity, briefing, discovery) collides with
-  `open_session` and `close_session` (lifecycle). The 2026-10-25 TDQS capture
-  graded naming consistency 4/5. A rename with a hidden alias/tombstone is
-  worth about +0.075 overall but touches 583 references across 41 files.
-  Deferred from the 2026-10-25 coherence remediation. (REQ-024a, REQ-554)
+- The 2026-10-25 capture predates the E7 `manage_artifact` addition (36 → 37
+  tools), so the recorded external score no longer describes the live surface.
+  Re-run the external evaluation and record the capture in
+  `spec/audit/tdqs-scoreboard.json`; `T679` reports the stale count until then.
+  (REQ-552)
 
 ## Compact default tool surface
 

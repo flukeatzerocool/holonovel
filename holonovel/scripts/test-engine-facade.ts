@@ -169,7 +169,7 @@ async function main(): Promise<void> {
       const calls: Array<[string, Record<string, unknown>]> = [
         ["manage_novel", { action: "list" }],
         ["manage_countdown", { action: "list" }],
-        ["manage_session", { action: "discover", query: "novel" }],
+        ["manage_context", { action: "discover", query: "novel" }],
       ];
       for (const [name, args] of calls) {
         const viaFacade = await engine.tools.call(name, args);

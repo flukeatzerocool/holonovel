@@ -2,11 +2,11 @@
 
 **Spec hash:** ef12f8d0becbed018273eb4f26204057b0a33da3f2d3323a7f516e631927fd8e
 
-**Recorded tool budget:** 37 listed (236 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (236 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 26,154 tokens; standard 22,556; small 1,131; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,019 tokens; standard 22,421; small 1,115; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Publication update evidence — 2026-10-25
 
@@ -142,7 +142,7 @@
 - **D6 — bounded storage defaults.** Checkpoints 25, event log 50,000,
   perceptions 20,000; `0` still means unlimited. (REQ-241b, REQ-455, REQ-540)
 - **D7 — split tools carry minimal schemas.** Parent schemas are filtered with
-  `pickParams`; `manage_session` exposes its four canonical actions while
+  `pickParams`; `manage_context` exposes its four canonical actions while
   `manage_diagnostics` keeps the full diagnostics schema. (REQ-570, REQ-581)
 
 ### Two-week audit remediation — 2026-10-24
@@ -191,7 +191,7 @@
 - **D2 — prefix ratio, not a hit rate.** `spec_health.tool_surface` reports a SHA-256 of the serialized stable prefix and `prefix_ratio`. The server cannot observe provider cache behaviour, so no `cache_hit_rate` field is emitted. (REQ-607)
 - **D3 — a read-only diagnostics action, not a tool.** `manage_diagnostics (action: context_report)` adds no tool and no REQ-137a gate-classification row. It enumerates `tool_catalog`, `registered_prompts`, `resource_directory`, `scene_state`, `memory_tiers`, and `last_tool_output`. It does not render `badge_briefing`, whose render advances the pacing counter (REQ-336/351), and Novel-derived sections are badge-filtered. (REQ-606)
 - **D4 — recall extends the existing baseline.** `surface-replay` records `recall_at_budget` per profile from the REQ-569 intent set and the recorded REQ-571 budgets; no second intent set or estimator is introduced, and a run below the recorded recall fails. Baseline: full 1.0, standard 1.0, small 0.35 (14/40 intents) at the recorded budgets. (REQ-608)
-- **D5 — progressive disclosure extends `discover` (resolves plan D3).** `manage_session (action: discover)` gains `detail: summary|schema`. Schema detail returns live input schemas for the matched tools; it adds no tool, no catalog entry, and no REQ-137a gate-classification row. Badge filtering is the existing listing filter. (REQ-609)
+- **D5 — progressive disclosure extends `discover` (resolves plan D3).** `manage_context (action: discover)` gains `detail: summary|schema`. Schema detail returns live input schemas for the matched tools; it adds no tool, no catalog entry, and no REQ-137a gate-classification row. Badge filtering is the existing listing filter. (REQ-609)
 - **D6 — the allocator packs the ledger, it does not replace bounds.** `context_report (budget_tokens?)` drops optional sections in the order `last_tool_output`, `resource_directory`, `scene_state`, `memory_tiers`; `tool_catalog` and `registered_prompts` are never dropped. The allocator changes no existing bound (REQ-004/083/118/135/239/588), so their regression tests remain authoritative. (REQ-610)
 
 ### Witness-aware perception and spatial queries — 2026-10-24
@@ -211,11 +211,11 @@
 
 - **Supersedes.** The 2026-10-20 "TDQS proxy correction" claim that every host tool scores 5.0 on the deterministic proxy, and the 2026-10-22 description-pass finding that nine tools mutate without a snapshot. The proxy now reports 4.x where a dimension has a real gap, and the three evaluated dead ends gain reversibility. (REQ-024c, REQ-450, REQ-552, REQ-554)
 - **Baseline (external).** Glama scored the server 4.1/A on 2026-10-25 16:45 across 36 tools: description quality 4.5 (mean 4.64, min 4.3), coherence 3.3 (disambiguation 3, naming consistency 4, tool-count appropriateness 2, completeness 4). The capture is recorded in `spec/audit/tdqs-scoreboard.json` and validated by `check-tdqs-scoreboard`; the external score remains authoritative (REQ-552).
-- **Disambiguation axes.** Every near-neighbour tool declares one distinguishing axis. `holonovel/tool-disambiguation.json` is the machine-readable source; this table is the review summary. `manage_lore` = canonical world facts and secrets; `manage_note` = scratch/out-of-play notes; `manage_corpus` = external documents and access state; `manage_belief` = per-entity epistemic state; `manage_knowledge` = derived, non-authoritative index/graph; `manage_scene` = framing, directive, choices, oracle; `manage_staging` = presence, autonomy, speaker selection; `manage_countdown` = generic clock; `manage_vow` = obligation with a linked clock; `manage_session` = recap, verbosity, briefing, discovery; `open_session`/`close_session` = lifecycle boundaries; `take_turn` = turn loop; `set_badge` = seat/access; `manage_novel` = save lifecycle; `manage_archive` = export, import, clone, checkpoint; `manage_world` = rooms, things, exits; `manage_causality` = objective state transitions; `manage_story` = journal entries; `manage_history` = cross-cutting undo/redo. A mutual `Do NOT use when:` pair is a defect unless this table records the axis that separates it.
+- **Disambiguation axes.** Every near-neighbour tool declares one distinguishing axis. `holonovel/tool-disambiguation.json` is the machine-readable source; this table is the review summary. `manage_lore` = canonical world facts and secrets; `manage_note` = scratch/out-of-play notes; `manage_corpus` = external documents and access state; `manage_belief` = per-entity epistemic state; `manage_knowledge` = derived, non-authoritative index/graph; `manage_scene` = framing, directive, choices, oracle; `manage_staging` = presence, autonomy, speaker selection; `manage_countdown` = generic clock; `manage_vow` = obligation with a linked clock; `manage_context` = recap, verbosity, briefing, discovery; `open_session`/`close_session` = lifecycle boundaries; `take_turn` = turn loop; `set_badge` = seat/access; `manage_novel` = save lifecycle; `manage_archive` = export, import, clone, checkpoint; `manage_world` = rooms, things, exits; `manage_causality` = objective state transitions; `manage_story` = journal entries; `manage_history` = cross-cutting undo/redo. A mutual `Do NOT use when:` pair is a defect unless this table records the axis that separates it.
 - **Cross-reference density.** The 2026-10-25 baseline carries 65 directed sibling references (53 undirected edges, 36 mutual pairs). The authoring standard caps a description at three distinct sibling names and keeps only the nearest boundary; a `manage_history` reference survives only where reversibility differs. The lint gates the cap after the Phase 1 description pass.
 - **Tool count decision.** The 36-tool surface stays. Coherence arithmetic: one dimension is 7.5% of overall, so tool-count 2 → 5 is worth about +0.225, but reduction would remove domain coverage or force a compact default that the same evaluator may read as incomplete. Accepted tradeoff, recorded rather than implemented. (REQ-429, REQ-554)
-- **Naming decision.** `manage_session` keeps its name. Renaming it (for example to `manage_briefing`) would remove the `open_session`/`close_session` collision and is worth about +0.075 overall, but it touches 583 references across 41 files. Deferred; the hidden-alias path remains available for a later plan.
-- **Reversibility decision.** `manage_character`, `manage_identity`, and `manage_vow` are the three mutations the external evaluator named as unreversible dead ends. They gain `novelSnapshot()` coverage. The other six snapshot-less mutations already carry a forward recovery path the evaluator did not flag: `manage_world` re-create, `manage_belief` retract, `manage_session` re-set, `manage_novel` clone, `manage_ruleset` paired action, and `run_command` inverse command. Their descriptions keep that path explicit. (REQ-041, REQ-240)
+- **Naming decision (superseded 2026-10-29).** `manage_session` kept its name through the 2026-10-25 remediation (about 523 live references; the earlier 583/41 estimate was inflated). On 2026-10-29 it was renamed to `manage_context` with a hidden retired tombstone, removing the `open_session`/`close_session` stem collision from the play-facing tool. (REQ-024a, REQ-554, REQ-581)
+- **Reversibility decision.** `manage_character`, `manage_identity`, and `manage_vow` are the three mutations the external evaluator named as unreversible dead ends. They gain `novelSnapshot()` coverage. The other six snapshot-less mutations already carry a forward recovery path the evaluator did not flag: `manage_world` re-create, `manage_belief` retract, `manage_context` re-set, `manage_novel` clone, `manage_ruleset` paired action, and `run_command` inverse command. Their descriptions keep that path explicit. (REQ-041, REQ-240)
 - **Proxy calibration.** The deterministic proxies must not report 5 on a class the external score grades below 4. Disambiguation counts mutual references (with a recorded axis resolving the gate); completeness reads the "irreversible with no recovery" predicate; parameter semantics stops at 4 when the schema already covers every parameter and no interaction clause is present. Post-pass proxy: mean 4.93, min 4.80, disambiguation 3/5 — no longer saturated, and still above the passing tier. The proxy remains a build signal, never the published TDQS (REQ-552).
 - **Parameter-interaction dry-run.** The heuristic detects an explicit interaction clause on 19 of 31 action-bearing tools; the other 12 are reported, not gated, because the lexical markers miss semantic interactions (for example `manage_belief`'s admit/reconcile sequence). The proxy scores those tools at Parameter Semantics 4, which is the intended review signal. (REQ-024c, REQ-552)
 - **Snapshot-cost measurement.** On a 558 KB Novel, `snapshot()` averaged 0.2 ms (max 0.4 ms); on a 3.6 MB Novel it averaged 0.7 ms (max 1.3 ms), and ten snapshots occupied 2.5 MB in memory and added about 120 KB to the saved state. Character and vow mutations now take a snapshot; identity retains the displaced facet and exposes `revert` because the roster is outside the Novel history store. (REQ-041, REQ-240, REQ-478)
@@ -591,7 +591,7 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 | `manage_identity` | un-gated | Player, Game Master |
 | `manage_knowledge` | un-gated | Player, Game Master |
 | `manage_agent` | un-gated | Player, Game Master |
-| `manage_session` | un-gated | Player, Game Master |
+| `manage_context` | un-gated | Player, Game Master |
 | `manage_diagnostics` | un-gated | Player, Game Master |
 | `open_session` | un-gated | Player, Game Master |
 | `close_session` | un-gated | Player, Game Master |

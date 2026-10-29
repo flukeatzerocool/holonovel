@@ -102,11 +102,11 @@
       "present options",
       "list possible actions"
     ],
-    "manage_session.recap": [
+    "manage_context.recap": [
       "summarize the session",
       "recap what happened"
     ],
-    "manage_session.discover": [
+    "manage_context.discover": [
       "list available tools",
       "show tool categories"
     ],

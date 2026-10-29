@@ -97,7 +97,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "help-t62a" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = await call(p, "manage_session", { action: "discover" });
+    const h = await call(p, "manage_context", { action: "discover" });
     assertContains(h, "### Tool Categories", "T62a");
     assertContains(h, "**Combat:** manage_combat", "T62a combat category");
     assertContains(h, "**Characters:** manage_character", "T62a characters category");
@@ -112,7 +112,7 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "help-t62b" });
     await call(p, "set_badge", { badge: "game_master" });
-    const h = await call(p, "manage_session", { action: "discover", query: "manage_combat" });
+    const h = await call(p, "manage_context", { action: "discover", query: "manage_combat" });
     assertContains(h, "manage_combat", "T62b");
     await kill(p);
   });
@@ -120,7 +120,7 @@ async function main() {
   await test("T62: Player badge sees no GM-only tools", async () => {
     const p = await boot();
     await call(p, "set_badge", { badge: "player" });
-    const h = await call(p, "manage_session", { action: "discover" });
+    const h = await call(p, "manage_context", { action: "discover" });
     assertContains(h, "**Characters:** manage_character", "T62c player-visible category");
     assertNotContains(h, "**Combat:**", "T62c GM-only combat hidden from player");
     // REQ-067: GM-mutation tools stay hidden from the Player task map, while
@@ -141,7 +141,7 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     const r = await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "Custom" });
     assertContains(r, "assigned to category 'Custom'", "T118a");
-    const h = await call(p, "manage_session", { action: "discover" });
+    const h = await call(p, "manage_context", { action: "discover" });
     assertContains(h, "**Custom:** manage_combat", "T118a override rendered");
     assertNotContains(h, "**Combat:** manage_combat", "T118a removed from builder category");
     await kill(p);
@@ -154,7 +154,7 @@ async function main() {
     await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "Custom" });
     const r = await call(p, "manage_diagnostics", { action: "category", tool_name: "manage_combat", category: "" });
     assertContains(r, "removed", "T118b");
-    const h = await call(p, "manage_session", { action: "discover" });
+    const h = await call(p, "manage_context", { action: "discover" });
     assertContains(h, "**Combat:** manage_combat", "T118b restored builder category");
     assertNotContains(h, "**Custom:**", "T118b override cleared");
     await kill(p);

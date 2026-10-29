@@ -460,7 +460,7 @@ function buildScenarios(): PBScenario[] {
       }},
       { label: "go north to Hall", action: T("run_command", { command: "go north" }), assert: (r) => assertContains(r, "Hall of Statues") },
       { label: "go north to Inner Sanctum", action: T("run_command", { command: "go north" }), assert: (r) => assertContains(r, "Inner Sanctum") },
-      { label: "session_recap", action: T("manage_session", { action: "recap" }), assert: (r) => {
+      { label: "session_recap", action: T("manage_context", { action: "recap" }), assert: (r) => {
         assertContains(r, "rooms");
       }},
     ],
@@ -529,7 +529,7 @@ function buildScenarios(): PBScenario[] {
         assertContains(r, "midday");
       }},
       { label: "set_scene_state beat only reports the beat", action: T("manage_scene", { action: "set",  beat: "escalation" }), assert: (r) => assertContains(r, "escalation") },
-      { label: "set_briefing_order", action: T("manage_session", { action: "briefing_order",  sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
+      { label: "set_briefing_order", action: T("manage_context", { action: "briefing_order",  sections: ["scene_state", "world_state", "narrative_threads"] }), assert: assertOK },
     ],
   };
 
@@ -753,7 +753,7 @@ async function main() {
   const toolNames = [
     "manage_adventure", "manage_character", "manage_codex", "manage_combat", "run_command", "manage_condition", "manage_countdown",
     "manage_faction", "manage_history", "manage_lore", "manage_note", "manage_novel", "manage_npc", "manage_relationship",
-    "respond_decision", "manage_ruleset", "manage_scene", "manage_session", "set_badge", "manage_story", "manage_synthesis",
+    "respond_decision", "manage_ruleset", "manage_scene", "manage_context", "set_badge", "manage_story", "manage_synthesis",
     "manage_vow", "manage_world", "resolve_mechanic",
   ].sort();
   const resourceUris = [

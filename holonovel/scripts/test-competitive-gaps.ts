@@ -410,11 +410,11 @@ async function main() {
     const proc = await boot();
     await newNovel(proc, "recap-test");
     await test("T518/REQ-072h: gm_notes returns to GM, never to Player", async () => {
-      const gm = await call(proc, "manage_session", { action: "recap", gm_notes: "The real culprit is the butler." });
+      const gm = await call(proc, "manage_context", { action: "recap", gm_notes: "The real culprit is the butler." });
       assertContains(gm, "gm_notes");
       assertContains(gm, "butler");
       await call(proc, "set_badge", { badge: "player" });
-      const player = await call(proc, "manage_session", { action: "recap", gm_notes: "The real culprit is the butler." });
+      const player = await call(proc, "manage_context", { action: "recap", gm_notes: "The real culprit is the butler." });
       assertNotContains(player, "gm_notes");
       assertNotContains(player, "butler");
     });

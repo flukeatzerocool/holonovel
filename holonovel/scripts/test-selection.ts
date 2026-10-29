@@ -200,16 +200,16 @@ async function main(): Promise<void> {
     });
 
     await test("T720/REQ-609: discover discloses schemas on demand and keeps the summary default", async () => {
-      const summary = await text(proc, "manage_session", { action: "discover", query: "npc" });
+      const summary = await text(proc, "manage_context", { action: "discover", query: "npc" });
       assert(!summary.trim().startsWith("{"), "default discover returned a schema payload");
-      const body = await text(proc, "manage_session", { action: "discover", query: "npc", detail: "schema" });
+      const body = await text(proc, "manage_context", { action: "discover", query: "npc", detail: "schema" });
       const parsed = JSON.parse(body.slice(body.indexOf("{")));
       assert(parsed.detail === "schema", "schema detail not echoed");
       assert(parsed.matches.length > 0, "schema detail returned no matches");
       assert(parsed.matches[0].input_schema?.properties, "matched tool carries no input schema");
-      const unknown = await text(proc, "manage_session", { action: "discover", query: "npc", detail: "bogus" });
+      const unknown = await text(proc, "manage_context", { action: "discover", query: "npc", detail: "bogus" });
       assert(unknown.includes("INVALID_INPUT"), "unknown detail did not refuse");
-      const noQuery = await text(proc, "manage_session", { action: "discover", detail: "schema" });
+      const noQuery = await text(proc, "manage_context", { action: "discover", detail: "schema" });
       assert(noQuery.includes("INVALID_INPUT"), "schema detail without a query did not refuse");
     });
 

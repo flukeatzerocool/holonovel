@@ -121,20 +121,20 @@ async function main() {
 
     await test("T473/REQ-404: uncommitted roll flagged and cleared by commit", async () => {
       await call(proc, "manage_scene", { action: "oracle",  question: "Do they notice?", seed: "z1" });
-      const recap = await call(proc, "manage_session", { action: "recap" });
+      const recap = await call(proc, "manage_context", { action: "recap" });
       assertContains(recap, "[uncommitted-roll]");
       await call(proc, "manage_note", { action: "set",  key: "commit-note", content: "v" });
-      const recap2 = await call(proc, "manage_session", { action: "recap" });
+      const recap2 = await call(proc, "manage_context", { action: "recap" });
       assertNotContains(recap2, "[uncommitted-roll]");
     });
 
     await test("T473/REQ-404: base-capability roll names its commit tool", async () => {
       await call(proc, "resolve_mechanic", { action: "forged_action_roll",  name: "Skirmish", dice: 2, seed: "x1" });
-      const recap = await call(proc, "manage_session", { action: "recap" });
+      const recap = await call(proc, "manage_context", { action: "recap" });
       assertContains(recap, "[uncommitted-roll]");
       assertContains(recap, "resolve_mechanic (action: forged_stress)");
       await call(proc, "resolve_mechanic", { action: "forged_stress",  op: "mark", entity_id: "pc_1", amount: 1 });
-      const recap2 = await call(proc, "manage_session", { action: "recap" });
+      const recap2 = await call(proc, "manage_context", { action: "recap" });
       assertNotContains(recap2, "[uncommitted-roll]");
     });
 
@@ -198,7 +198,7 @@ async function main() {
       // Resuming again closes silent-session's first (zero-mutation) window.
       await call(proc, "manage_novel", { action: "switch",  slug: "mut-novel" });
       await call(proc, "manage_novel", { action: "resume",  slug: "silent-session" });
-      const recap = await call(proc, "manage_session", { action: "recap" });
+      const recap = await call(proc, "manage_context", { action: "recap" });
       assertContains(recap, "session-no-mutations");
     });
 

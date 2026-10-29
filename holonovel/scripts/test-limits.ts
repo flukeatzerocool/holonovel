@@ -289,7 +289,7 @@ async function main() {
       }
       const h = await health(p);
       if (h.audit_chain?.valid !== true) throw new Error(`hash chain broken after compaction: ${JSON.stringify(h.audit_chain)}`);
-      const recap = await call(p, "manage_session", { action: "recap", session_id: "s1" });
+      const recap = await call(p, "manage_context", { action: "recap", session_id: "s1" });
       assertContains(recap, "archived_session: s1");
     });
 

@@ -15,7 +15,7 @@
       "wrong_selection_count": 1,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 26154,
+        "budget_tokens": 26019,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -321,7 +321,7 @@
         },
         {
           "intent": "recap what happened",
-          "tool": "manage_session",
+          "tool": "manage_context",
           "action": "recap",
           "group": "narrate",
           "start_group": "explore",
@@ -329,7 +329,7 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "recap"
           },
           "correct": true
@@ -456,7 +456,7 @@
         },
         {
           "intent": "show me the tool groups",
-          "tool": "manage_session",
+          "tool": "manage_context",
           "action": "discover",
           "group": "table",
           "start_group": "table",
@@ -464,7 +464,7 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "discover"
           },
           "correct": true
@@ -727,7 +727,7 @@
       "wrong_selection_count": 1,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 23539,
+        "budget_tokens": 23418,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -1033,7 +1033,7 @@
         },
         {
           "intent": "recap what happened",
-          "tool": "manage_session",
+          "tool": "manage_context",
           "action": "recap",
           "group": "narrate",
           "start_group": "explore",
@@ -1041,7 +1041,7 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "recap"
           },
           "correct": true
@@ -1168,7 +1168,7 @@
         },
         {
           "intent": "show me the tool groups",
-          "tool": "manage_session",
+          "tool": "manage_context",
           "action": "discover",
           "group": "table",
           "start_group": "table",
@@ -1176,7 +1176,7 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "discover"
           },
           "correct": true
@@ -1439,7 +1439,7 @@
       "wrong_selection_count": 29,
       "mean_calls": 1.826,
       "recall_at_budget": {
-        "budget_tokens": 2616,
+        "budget_tokens": 2602,
         "expected_action_recalled": 17,
         "recall": 0.37
       },
@@ -1723,7 +1723,7 @@
           "calls": 2,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "briefing_order"
           },
           "correct": false
@@ -1745,7 +1745,7 @@
         },
         {
           "intent": "recap what happened",
-          "tool": "manage_session",
+          "tool": "manage_context",
           "action": "recap",
           "group": "narrate",
           "start_group": "explore",
@@ -1753,7 +1753,7 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "recap"
           },
           "correct": true
@@ -1880,7 +1880,7 @@
         },
         {
           "intent": "show me the tool groups",
-          "tool": "manage_session",
+          "tool": "manage_context",
           "action": "discover",
           "group": "table",
           "start_group": "table",
@@ -1888,7 +1888,7 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_session",
+            "tool": "manage_context",
             "action": "discover"
           },
           "correct": true

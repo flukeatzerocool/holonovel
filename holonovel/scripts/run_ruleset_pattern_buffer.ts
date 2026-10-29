@@ -362,13 +362,13 @@ const S20_STEPS: PBStep[] = [
 const S28_STEPS: PBStep[] = [
   { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-brieforder" }), assert: assertOK },
-  { label: "briefing_order known order", action: T("manage_session", { action: "briefing_order", sections: ["scene_state", "entities", "lore"] }), assert: (r) => assertContains(r, "Briefing order set", "order ") },
-  { label: "briefing_order unknown token → INVALID_INPUT", action: T("manage_session", { action: "briefing_order", sections: ["bogus"] }), assert: (r) => assertContains(r, "INVALID_INPUT", "order-bad ") },
-  { label: "briefing_order reset", action: T("manage_session", { action: "briefing_order", sections: [] }), assert: (r) => assertContains(r, "Briefing order set", "order-reset ") },
+  { label: "briefing_order known order", action: T("manage_context", { action: "briefing_order", sections: ["scene_state", "entities", "lore"] }), assert: (r) => assertContains(r, "Briefing order set", "order ") },
+  { label: "briefing_order unknown token → INVALID_INPUT", action: T("manage_context", { action: "briefing_order", sections: ["bogus"] }), assert: (r) => assertContains(r, "INVALID_INPUT", "order-bad ") },
+  { label: "briefing_order reset", action: T("manage_context", { action: "briefing_order", sections: [] }), assert: (r) => assertContains(r, "Briefing order set", "order-reset ") },
   { label: "character with voice examples", action: T("manage_character", { action: "create", name: "Voiced", voice: "Laconic with a drawl." }), assert: (r) => { assertOK(r, "voice-create "); capture("voicedId", /Entity id (\S+?)\./)(r); } },
   { label: "character voice examples set", action: T("manage_character", () => ({ action: "voice", entity_id: captured.voicedId, examples: [{ context: "greeting", dialogue: "Howdy.", tag: "formal" }] })), assert: (r) => assertContains(r, "examples", "voice-set ") },
   { label: "entity voice resource", action: R(() => `entity://${captured.voicedId}/voice_examples`), assert: (r) => assertContains(r, "formal", "voice-res ") },
-  { label: "session recap lonelog", action: T("manage_session", { action: "recap", format: "lonelog" }), assert: (r) => assertContains(r, "narrative_orientation", "lonelog ") },
+  { label: "session recap lonelog", action: T("manage_context", { action: "recap", format: "lonelog" }), assert: (r) => assertContains(r, "narrative_orientation", "lonelog ") },
 ];
 
 const S29_STEPS: PBStep[] = [
@@ -550,7 +550,7 @@ const S21_STEPS: PBStep[] = [
   ...repeat(10, (i) => ({ label: `confrontation 3 round ${i + 1}`, action: T("manage_combat", { action: "advance" }), assert: assertOK })),
   { label: "audit log carries the run", action: R("audit://novel"), assert: (r) => assertContains(r, "advance", "audit ") },
   { label: "countdowns persist", action: R("countdown://active"), assert: (r) => { assertContains(r, "Endurance Clock", "cd-persist1 "); assertContains(r, "Doom Clock", "cd-persist2 "); } },
-  { label: "recap returns final state", action: T("manage_session", { action: "recap" }), assert: (r) => assertContains(r, "Endurance", "recap ") },
+  { label: "recap returns final state", action: T("manage_context", { action: "recap" }), assert: (r) => assertContains(r, "Endurance", "recap ") },
 ];
 
 // S23 — Narrative features sweep (blocking).
@@ -574,7 +574,7 @@ const S23_STEPS: PBStep[] = [
   { label: "countdown set with on_scene_transition", action: T("manage_countdown", { action: "set", name: "Sweep Clock", ticks: 3, on_scene_transition: true }), assert: (r) => assertContains(r, "tick", "cd-set ") },
   { label: "scene transition ticks the countdown", action: T("manage_scene", { action: "set", description: "The hall shifts." }), assert: assertOK },
   { label: "countdown advanced after transition", action: R("countdown://active"), assert: (r) => assertContains(r, "Sweep Clock", "cd-tick ") },
-  { label: "recap lists the sweep", action: T("manage_session", { action: "recap" }), assert: (r) => assertContains(r, "Sweep", "recap ") },
+  { label: "recap lists the sweep", action: T("manage_context", { action: "recap" }), assert: (r) => assertContains(r, "Sweep", "recap ") },
 ];
 
 // S24 — Session segmentation and audit compaction (non-blocking).
@@ -586,7 +586,7 @@ const S24_STEPS: PBStep[] = [
   { label: "session 1 second mutation", action: T("manage_scene", { action: "set", description: "Session one continues." }), assert: assertOK },
   { label: "restart into session s2", action: RS("pb-session", { TTRPG_SESSION_ID: "s2" }), assert: assertOK },
   { label: "session 2 mutation", action: T("manage_scene", { action: "set", description: "Session two opens." }), assert: assertOK },
-  { label: "recap scoped to s2", action: T("manage_session", { action: "recap", session_id: "s2" }), assert: (r) => assertContains(r, "two", "recap-s2 ") },
+  { label: "recap scoped to s2", action: T("manage_context", { action: "recap", session_id: "s2" }), assert: (r) => assertContains(r, "two", "recap-s2 ") },
   { label: "restart with retention 1", action: RS("pb-session", { TTRPG_SESSION_ID: "s2", TTRPG_AUDIT_RETENTION_SESSIONS: "1" }), assert: assertOK },
   { label: "compact prompts confirmation", action: T("manage_diagnostics", { action: "compact" }), assert: (r) => assertContains(r, "NEED_INPUT", "compact-prompt ") },
   { label: "confirm compaction", action: T("respond_decision", { decision: "compact", option: "yes" }), assert: assertOK },

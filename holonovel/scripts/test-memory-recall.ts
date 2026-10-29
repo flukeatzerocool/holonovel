@@ -145,14 +145,14 @@ async function main() {
   assertContains(compacted, "compacted");
 
   await test("T697: campaign and arc tiers carry deterministic facts and pointers", async () => {
-    const campaign = await call(proc, "manage_session", { action: "recap", tier: "campaign", budget_tokens: 4000 });
+    const campaign = await call(proc, "manage_context", { action: "recap", tier: "campaign", budget_tokens: 4000 });
     assertContains(campaign, "Kael");
     assertContains(campaign, "Merchant Guild");
     assertContains(campaign, "lore vault");
-    const again = await call(proc, "manage_session", { action: "recap", tier: "campaign", budget_tokens: 4000 });
+    const again = await call(proc, "manage_context", { action: "recap", tier: "campaign", budget_tokens: 4000 });
     const strip = (s: string) => s.replace(/\d{4}-\d{2}-\d{2}T[^\s]+/g, "<ts>");
     if (strip(campaign) !== strip(again)) throw new Error("campaign tier derivation is not deterministic");
-    const arc = await call(proc, "manage_session", { action: "recap", tier: "arc", budget_tokens: 4000 });
+    const arc = await call(proc, "manage_context", { action: "recap", tier: "arc", budget_tokens: 4000 });
     assertContains(arc, "Kael swore to protect the chapel");
   });
 
@@ -168,17 +168,17 @@ async function main() {
   });
 
   await test("T699: budgeted assembly drops tiers in declared order; no-arg recap unchanged", async () => {
-    const plain1 = await call(proc, "manage_session", { action: "recap" });
-    const plain2 = await call(proc, "manage_session", { action: "recap" });
+    const plain1 = await call(proc, "manage_context", { action: "recap" });
+    const plain2 = await call(proc, "manage_context", { action: "recap" });
     if (plain1 !== plain2) throw new Error("no-arg recap is not deterministic");
     assertNotContains(plain1, "tiered_memory");
-    const tight = await call(proc, "manage_session", { action: "recap", budget_tokens: 1 });
+    const tight = await call(proc, "manage_context", { action: "recap", budget_tokens: 1 });
     assertContains(tight, "tiered_memory:");
     assertContains(tight, "[truncated] arc tier omitted");
     assertContains(tight, "[truncated] session tier omitted");
-    const bad = await call(proc, "manage_session", { action: "recap", tier: "nope" });
+    const bad = await call(proc, "manage_context", { action: "recap", tier: "nope" });
     assertContains(bad, "[INVALID_INPUT]");
-    const badBudget = await call(proc, "manage_session", { action: "recap", budget_tokens: 0 });
+    const badBudget = await call(proc, "manage_context", { action: "recap", budget_tokens: 0 });
     assertContains(badBudget, "[INVALID_INPUT]");
   });
 
@@ -188,10 +188,10 @@ async function main() {
     await call(proc, "manage_lore", { action: "set_secret", key: "hidden_heir", content: "The hidden heir is the duke's son." });
     await call(proc, "manage_diagnostics", { action: "event", text: "GM-ONLY: the duke is a doppelganger", source: "game_master" });
     await call(proc, "set_badge", { badge: "player" });
-    const campaign = await call(proc, "manage_session", { action: "recap", tier: "campaign" });
+    const campaign = await call(proc, "manage_context", { action: "recap", tier: "campaign" });
     assertNotContains(campaign, "hidden heir");
     assertNotContains(campaign, "doppelganger");
-    const recent = await call(proc, "manage_session", { action: "recap", tier: "recent" });
+    const recent = await call(proc, "manage_context", { action: "recap", tier: "recent" });
     assertNotContains(recent, "doppelganger");
     await call(proc, "set_badge", { badge: "game_master" });
   });
@@ -200,7 +200,7 @@ async function main() {
     let hits = 0;
     const misses: string[] = [];
     for (const probe of probes) {
-      const out = await call(proc, "manage_session", { action: "recap", tier: probe.tier, budget_tokens: probe.budget_tokens });
+      const out = await call(proc, "manage_context", { action: "recap", tier: probe.tier, budget_tokens: probe.budget_tokens });
       const hit = probe.expected_contains.every((needle) => out.toLowerCase().includes(needle.toLowerCase()));
       if (hit) hits++;
       else misses.push(`${probe.id} (${probe.tier})`);

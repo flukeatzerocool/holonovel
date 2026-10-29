@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-10-29 — Rename manage_session to manage_context
+
+- Renamed the play-facing tool `manage_session` to `manage_context` (recap,
+  verbosity, briefing_order, discover), removing the `session` stem shared with
+  the lifecycle tools `open_session` and `close_session` (REQ-024a, REQ-554).
+  `manage_session` remains as a retired hidden whole-tool alias: its calls
+  return `[NOT_FOUND]` naming `manage_context.<action>`, while its old
+  maintenance actions still name `manage_diagnostics` (REQ-581). The canonical
+  tool surface is unchanged at 37 tools / 236 actions; compatibility
+  declarations move 50 → 54.
+- One handler backs both names, so the tombstone cannot drift. The canonical
+  schema now narrows its `action` enum to the four play-facing actions;
+  `pickParams` had copied the full session enum. `manage_diagnostics` and the
+  `open_session`/`close_session` recap delegates point at the new name.
+- Renamed the tool across the spec (8 files), including Appendix T T698, whose
+  `manage_session (action: history)` citation now names `manage_diagnostics`;
+  the fixture-notation token is `context`. Updated `tool-surface-registry.json`
+  (4 canonical keys + 4 retired aliases), `tool-routing.json`,
+  `tool-disambiguation.json`, `holonovel/DECISIONS.md` (naming decision
+  superseded; disambiguation axes; gate table), `holonovel/AGENTS.md`, the
+  Holosuite predicate anchors, and the harnesses. Regenerated
+  `tool-definitions.json`, the surface baseline/replay artifacts, the starter
+  Novel, `holonovel.md`, and the contract fingerprints; recorded surface
+  budgets are now full 26,019 / standard 22,421 / small 1,115 tokens.
+- Retired E1 from `ROADMAP.md`; the positioning work shipped in commit
+  `5c9ba43`. Added a roadmap item to request a fresh external TDQS capture
+  after surface changes.
+- Reconciled `T679` (REQ-552): the live surface is compared to the recorded
+  tool budget, and a historical external capture that predates a later surface
+  change is reported rather than treated as a live defect. Fixed the
+  `holonovel/AGENTS.md` tool count (36 → 37) and refreshed stale predicate
+  anchors in five Holosuite tiers.
+- Evidence: `test:all` 53/53 PASS; `check:fast` 32/32 with `check:fast: PASS`;
+  `build-order` exit 0 with the full check at 0 errors; `test:tool-surface`
+  12/12, `test:surface-guards` 12/12, `test:tool-definitions` 17/17.
+
+## 2026-10-29 — E8 no-go: multi-engine and entry split declined
+
+- Recorded the E8 decision gate as **no-go**. Per-engine state and config
+  injection, N engines per process, and the ~25-harness entry migration are
+  declined. No consumer demonstrated a need for more than one live engine per
+  process; E3's façade (`holonovel/src/engine.ts`) and E4's playability gate
+  (`holonovel/scripts/lib/playability-run.ts`) both work by isolating each run
+  in a child process, which is deliberate rather than a limitation to remove.
+- The current implementation remains one engine per process: `state`,
+  `server`, `toolRegistry`, the event listeners, and the badge are module-level
+  in `holonovel/src/index.ts`, and `createEngine()` is a façade over them. A
+  future proposal reopens E8 only with a demonstrated concurrent consumer.
+- Retired E8 from `ROADMAP.md`; updated `docs/engine-contract.md` §2 to record
+  the decline. No REQ, tool, runtime behavior, or fingerprint changes.
+
 ## 2026-10-29 — E7 artifact exchange and local registry
 
 - Added REQ-620 and REQ-621 to §5.7: a host-level artifact registry over Novel

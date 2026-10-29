@@ -156,7 +156,7 @@ async function main() {
 
     await test("T5/T020: tools/list exposes the registered tool surface", async () => {
       const tools = await listTools(proc);
-      for (const t of ["manage_novel", "set_badge", "manage_world", "manage_session", "manage_combat", "manage_scene"]) {
+      for (const t of ["manage_novel", "set_badge", "manage_world", "manage_context", "manage_combat", "manage_scene"]) {
         if (!tools.includes(t)) throw new Error(`missing tool ${t}`);
       }
     });
@@ -212,7 +212,7 @@ async function main() {
     });
 
     await test("T214/T215/T261/T072: session_recap summarizes the session", async () => {
-      const recap = await call(proc, "manage_session", { action: "recap" });
+      const recap = await call(proc, "manage_context", { action: "recap" });
       assertContains(recap, "Active Novel");
     });
 

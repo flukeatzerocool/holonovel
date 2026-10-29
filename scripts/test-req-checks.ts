@@ -160,15 +160,15 @@ test("reference prose includes §6 and appendix paragraphs", () => {
 });
 
 test("action bindings: named parameters are extracted", () => {
-  const text = "**REQ-910a — Compress (Part a).**\n`manage_session (action: compress, max_entries)` renders a prompt. _Check:_ T1.";
+  const text = "**REQ-910a — Compress (Part a).**\n`manage_context (action: compress, max_entries)` renders a prompt. _Check:_ T1.";
   const b = extractActionBindings(text);
-  if (b.length !== 1 || b[0].tool !== "manage_session" || b[0].action !== "compress" || b[0].params.join(",") !== "max_entries") {
+  if (b.length !== 1 || b[0].tool !== "manage_context" || b[0].action !== "compress" || b[0].params.join(",") !== "max_entries") {
     throw new Error(`unexpected bindings: ${JSON.stringify(b)}`);
   }
 });
 
 test("action bindings: optional `?` parameter is normalized", () => {
-  const text = "**REQ-911a — Compact (Part a).**\n`manage_session (action: compress, sessions?)` compacts. _Check:_ T2.";
+  const text = "**REQ-911a — Compact (Part a).**\n`manage_context (action: compress, sessions?)` compacts. _Check:_ T2.";
   const b = extractActionBindings(text);
   if (b.length !== 1 || b[0].params.join(",") !== "sessions") {
     throw new Error(`unexpected bindings: ${JSON.stringify(b)}`);
@@ -195,7 +195,7 @@ test("action bindings: acceptance-criterion calls are not bindings", () => {
   const text = [
     "**REQ-914a — Body (Part a).**",
     "The server SHALL do work.",
-    "*Acceptance criterion:* `manage_session (action: compress, max_entries)` renders a prompt.",
+    "*Acceptance criterion:* `manage_context (action: compress, max_entries)` renders a prompt.",
     "_Check:_ T5.",
   ].join("\n");
   const b = extractActionBindings(text);

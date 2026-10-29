@@ -171,6 +171,7 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   resolve_mechanic: MUTATING,
   manage_story: MUTATING,
   manage_note: MUTATING,
+  manage_context: MUTATING,
   manage_session: MUTATING,
   manage_diagnostics: MUTATING,
   open_session: MUTATING,
@@ -1644,9 +1645,9 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
   if (toolName && registered.length > 0 && !registered.includes(toolName)) {
     selectionTelemetry.unknown_tool_calls++;
   }
-  if (toolName === "manage_session" && callArgs?.action === "discover") {
+  if (toolName === "manage_context" && callArgs?.action === "discover") {
     discoveryPendingCall = true;
-  } else if (discoveryPendingCall && toolName !== "manage_session") {
+  } else if (discoveryPendingCall && toolName !== "manage_context") {
     selectionTelemetry.discovery_to_call++;
     discoveryPendingCall = false;
   }
@@ -2590,7 +2591,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
   "Notes": ["manage_note"],
   "Codex": ["manage_codex"],
   "Adventure": ["manage_adventure"],
-  "Session": ["manage_session", "manage_diagnostics", "open_session", "close_session", "take_turn"],
+  "Session": ["manage_context", "manage_diagnostics", "open_session", "close_session", "take_turn"],
   "Novel Lifecycle": ["manage_novel", "manage_archive", "manage_artifact"],
   "Synthesis": ["manage_synthesis"],
   "Belief & Evidence": ["manage_belief"],
@@ -2602,7 +2603,7 @@ const BUILDER_CATEGORIES: Record<string, string[]> = {
 const GMToolsSet = new Set([
   "manage_scene", "manage_combat", "manage_condition", "manage_npc", "manage_faction", "manage_relationship", "manage_vow",
   "manage_countdown", "manage_causality", "manage_lore", "manage_story", "manage_note", "manage_world", "manage_adventure", "manage_novel",
-  "manage_synthesis", "manage_codex", "manage_ruleset", "manage_session", "resolve_fate", "resolve_ironsworn", "resolve_forged", "resolve_mechanic",
+  "manage_synthesis", "manage_codex", "manage_ruleset", "manage_context", "resolve_fate", "resolve_ironsworn", "resolve_forged", "resolve_mechanic",
   "manage_belief", "manage_identity", "manage_agent",
 ]);
 
@@ -8271,16 +8272,15 @@ const MANAGE_SESSION_SCHEMA = {
     to_event: z.number().optional().describe("Target event ordinal for replay inspection (replay; default the newest retained entry)."),
   };
 
-const MANAGE_SESSION_CANONICAL_SCHEMA = pickParams(MANAGE_SESSION_SCHEMA, [
-  "action", "mode", "sections", "gm_notes", "session_id", "query", "detail", "tier", "budget_tokens",
-]);
-server.registerTool("manage_session", {
-  _meta: { deprecated: true, replacement: "manage_diagnostics" },
-  title: "Session Management",
-  description: "Manage play-facing session controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
-  inputSchema: MANAGE_SESSION_CANONICAL_SCHEMA,
-
-}, async (args: any) => {
+const MANAGE_CONTEXT_CANONICAL_SCHEMA = {
+  ...pickParams(MANAGE_SESSION_SCHEMA, [
+    "action", "mode", "sections", "gm_notes", "session_id", "query", "detail", "tier", "budget_tokens",
+  ]),
+  action: z.enum(["recap", "verbosity", "briefing_order", "discover"]).describe("recap, verbosity, briefing_order, or discover."),
+};
+// REQ-413 / REQ-581 — one handler backs the canonical `manage_context` tool and
+// its retired `manage_session` tombstone, so the two cannot drift.
+const handleContextTool = async (args: any): Promise<any> => {
   switch (args.action) {
     case "event": {
       requireNotObserver();
@@ -8358,7 +8358,7 @@ server.registerTool("manage_session", {
       return ok(`Briefing order set to: ${args.sections.join(", ")}.`);
     }
     case "compress": {
-      // REQ-086 — `manage_session (action: compress, max_entries)` is the
+      // REQ-086 — `manage_diagnostics (action: compress, max_entries)` is the
       // non-mutating summarize prompt: a Markdown prompt listing recent chained
       // entries, badge-filtered. Distinct from `compact` (REQ-239).
       if (args.max_entries === undefined) {
@@ -8625,23 +8625,39 @@ Options: yes, cancel`);
       return ok(replayInspection(novel, args.to_event));
     }
     default:
-      return err("INVALID_INPUT", `Unknown session action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history, verify, replay, visibility_check, visibility_audit.`);
+      return err("INVALID_INPUT", `Unknown context action '${args.action}'. Valid actions: recap, verbosity, briefing_order, compress, compact, health, subscribe, discover, category, event, history, verify, replay, visibility_check, visibility_audit.`);
   }
-});
+};
 
-// REQ-413 / REQ-581 — split the maintenance actions out of `manage_session`.
+server.registerTool("manage_context", {
+  title: "Context Controls",
+  description: "Manage play-facing context controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+  inputSchema: MANAGE_CONTEXT_CANONICAL_SCHEMA,
+}, handleContextTool);
+
+// REQ-581 — retired whole-tool alias. Calls reach the guard, which refuses and
+// names the replacement; the registration keeps the name resolvable so the
+// refusal is a tombstone rather than an unknown-tool error.
+server.registerTool("manage_session", {
+  _meta: { deprecated: true, replacement: "manage_context" },
+  title: "Session Management (retired)",
+  description: "Retired alias for manage_context; recap, verbosity, briefing_order, and discovery moved there. Use when: a client still calls manage_session and needs the replacement named in the refusal. Do NOT use when: performing any operation — use manage_context for play-facing context or manage_diagnostics for maintenance.",
+  inputSchema: MANAGE_CONTEXT_CANONICAL_SCHEMA,
+}, handleContextTool);
+
+// REQ-413 / REQ-581 — split the maintenance actions out of the play-facing tool.
 // The original name stays callable for one minor version (REQ-581); the split
 // tool exposes only the diagnostics subset and delegates to the same handler.
 const DIAGNOSTICS_ACTIONS = ["health", "context_report", "compress", "compact", "subscribe", "category", "event", "history", "verify", "replay", "visibility_check", "visibility_audit"] as const;
 server.registerTool("manage_diagnostics", {
   title: "Session Diagnostics",
-  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. compress summarizes the audit log while compact prunes it irreversibly; verify compares live state with recorded hashes and replay reads the retained log, and both are read-only; visibility_check records its decision in the audit log while visibility_audit reads recent decisions; health, subscribe, and category reassignment do not change Novel content. compact is GM-only. Use when: reporting health, summarizing or compacting the audit log, subscribing, reassigning a category, appending/reading the event log, verifying or replaying state, or scanning a draft for GM-only disclosure. Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_session.",
+  description: "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. compress summarizes the audit log while compact prunes it irreversibly; verify compares live state with recorded hashes and replay reads the retained log, and both are read-only; visibility_check records its decision in the audit log while visibility_audit reads recent decisions; health, subscribe, and category reassignment do not change Novel content. compact is GM-only. Use when: reporting health, summarizing or compacting the audit log, subscribing, reassigning a category, appending/reading the event log, verifying or replaying state, or scanning a draft for GM-only disclosure. Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_context.",
   inputSchema: {
     ...MANAGE_SESSION_SCHEMA,
     action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, context_report, compress, compact, subscribe, category, event, history, verify, replay, visibility_check, or visibility_audit."),
   },
 }, async (args: any, extra: any) => {
-  const target = toolRegistry.get("manage_session");
+  const target = toolRegistry.get("manage_context");
   if (!target?.handler) return err("STATE_CONFLICT", "Session handler unavailable.");
   return target.handler(args, extra);
 });
@@ -9136,7 +9152,7 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
     case "switch": {
       const active = state.activeNovel;
       if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
-        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_session (action: recap) before switching.");
+        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_context (action: recap) before switching.");
       }
       if (active) {
         const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
@@ -9154,7 +9170,7 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
       const novel = requireNovel();
       if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
       if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
-        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_session (action: recap) before ending.");
+        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_context (action: recap) before ending.");
       }
       novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
       state.saveNovel(novel);
@@ -9655,7 +9671,7 @@ function extractSupplementaryWisdom(raw: string): Array<{ module: string; key: s
 
 server.registerTool("manage_ruleset", {
   title: "Ruleset Package Management",
-  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove supplementary Wisdom. search accepts an optional slug, works with no active Novel, and is read-only; install, remove, import_supplementary, and remove_supplementary mutate state, are audited, and are reversible via the paired action. install of an existing slug conflicts, and remove refuses while a Novel is bound to that slug. binding scopes only Novel-dependent features; import_supplementary uses inline wisdom when present and reads source only when absent. Table rolls are resolve_mechanic (action: roll). Use when: searching rules content, managing packages, binding a Novel, or adding/removing supplementary Wisdom. Do NOT use when: the ruleset name is unknown — use manage_session (action: discover).",
+  description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove supplementary Wisdom. search accepts an optional slug, works with no active Novel, and is read-only; install, remove, import_supplementary, and remove_supplementary mutate state, are audited, and are reversible via the paired action. install of an existing slug conflicts, and remove refuses while a Novel is bound to that slug. binding scopes only Novel-dependent features; import_supplementary uses inline wisdom when present and reads source only when absent. Table rolls are resolve_mechanic (action: roll). Use when: searching rules content, managing packages, binding a Novel, or adding/removing supplementary Wisdom. Do NOT use when: the ruleset name is unknown — use manage_context (action: discover).",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, import_supplementary, or remove_supplementary."),
     query: z.string().optional().describe("Search query (search)."),
@@ -12415,7 +12431,7 @@ Player-callable tools:
 - manage_character (action: sheet) — your character sheet
 - manage_character (action: signal) — pacing, tone, or boundary feedback
 - manage_history (action: undo) — undo your last mutation
-- manage_session (action: discover) — discover tools
+- manage_context (action: discover) — discover tools
 - set_badge — switch badges`;
 
     // REQ-341 — player-facing spatial surface (no internal IDs).
@@ -12737,7 +12753,7 @@ server.registerTool("open_session", {
   const parts: string[] = [];
   const novelTool = toolRegistry.get("manage_novel");
   const badgeTool = toolRegistry.get("set_badge");
-  const sessionTool = toolRegistry.get("manage_session");
+  const sessionTool = toolRegistry.get("manage_context");
   if (args.novel && novelTool?.handler) {
     parts.push(toolResultText(await novelTool.handler({ action: "resume", slug: args.novel }, undefined)));
   }
@@ -12756,7 +12772,7 @@ server.registerTool("close_session", {
   inputSchema: {},
 }, async () => {
   const parts: string[] = [];
-  const sessionTool = toolRegistry.get("manage_session");
+  const sessionTool = toolRegistry.get("manage_context");
   const novelTool = toolRegistry.get("manage_novel");
   if (sessionTool?.handler) {
     parts.push(toolResultText(await sessionTool.handler({ action: "recap" }, undefined)));
