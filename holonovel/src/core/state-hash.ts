@@ -7,6 +7,9 @@
 
 import crypto from "node:crypto";
 
+// REQ-601 — every field here is bookkeeping, not story state. Session identity
+// and wall-clock stamps change without a story mutation, so including them
+// would make two identical runs hash differently.
 export const STATE_HASH_EXCLUDED_KEYS: readonly string[] = [
   "audit_log",
   "audit_archive",
@@ -15,7 +18,13 @@ export const STATE_HASH_EXCLUDED_KEYS: readonly string[] = [
   "checkpoints",
   "metadata",
   "event_log",
+  "active_session_id",
+  "last_mutation_at",
 ];
+
+// REQ-601/REQ-602 — the projection's shape is versioned so a digest recorded
+// under an older exclusion set is distinguishable from a current one.
+export const STATE_HASH_PROJECTION_VERSION = 2;
 
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);

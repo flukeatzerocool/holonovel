@@ -443,6 +443,11 @@ async function main() {
     await test("T159/REQ-088: TTRPG_NOVEL activates a misnamed save by internal slug", async () => {
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.active_novel !== "real-slug") throw new Error(`misnamed startup novel not active: ${health.active_novel}`);
+      const mutated = await call(proc, "manage_countdown", { action: "set", name: "misnamed-clock", ticks: 2 });
+      if (mutated.includes("[ERROR]")) throw new Error(`mutation on a misnamed Novel failed: ${mutated.slice(0, 120)}`);
+      if (!existsSync(join(dir, "novels", "misnamed.json"))) {
+        throw new Error("save relocated the misnamed Novel instead of writing back to its file");
+      }
     });
     await kill(proc);
     if (existsSync(join(dir, "novels", "real-slug.json"))) {
@@ -642,6 +647,29 @@ async function main() {
       assertContains(drift, "[ruleset-drift]");
       assertContains(drift, "stored=");
       assertContains(drift, "current=");
+    });
+    await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // ── REQ-601 — projection migration for a pre-version-2 digest ─────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-projection-test-"));
+    mkdirSync(join(dir, "novels"), { recursive: true });
+    const meta = { created: new Date().toISOString(), modified: new Date().toISOString(), session_count: 0, state_hash: "0".repeat(64) };
+    writeFileSync(join(dir, "novels", "legacy-hash.json"), JSON.stringify({ slug: "legacy-hash", name: "legacy-hash", badge: "game_master", metadata: meta }));
+    const proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "legacy-hash" });
+    await test("T712/REQ-601: a version-1 digest migrates on load", async () => {
+      const verify = await call(proc, "manage_diagnostics", { action: "verify" });
+      assertContains(verify, "State verification: clean");
+      assertContains(verify, "projection: v2");
+    });
+    await test("T712/REQ-601: the next save stamps the current projection", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      const saved = JSON.parse(readFileSync(join(dir, "novels", "legacy-hash.json"), "utf-8"));
+      if (saved.metadata.state_hash_projection !== 2) {
+        throw new Error(`save did not stamp projection v2: ${saved.metadata.state_hash_projection}`);
+      }
     });
     await kill(proc);
     rmSync(dir, { recursive: true, force: true });

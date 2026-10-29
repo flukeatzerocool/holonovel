@@ -11,6 +11,22 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **State-hash bookkeeping exclusions — resolved 2026-10-29:** the canonical
+  projection covered `last_mutation_at` (wall clock) and `active_session_id`
+  (session identity), so identical seeded runs could not hash equally and a
+  REQ-237 boundary written after a save made `verify` report divergence
+  (`holonovel/src/core/state-hash.ts` exclusion list;
+  `holonovel/src/core/state.ts` audit/save ordering). REQ-601 now excludes both
+  fields under a versioned projection, REQ-602 tags per-event hashes with the
+  projection, and REQ-603 reports older-projection digests as stale; load-time
+  migration re-derives the last-save and checkpoint digests. The E3 workarounds
+  (boundary flush, novel-tier strip, façade mask) are removed, and a loaded-path
+  map keeps a misnamed Novel's filename across a save. Evidence:
+  `test:persistence` 39/39 (misnamed retention + projection migration),
+  `test:engine-facade` 7/7 with unmasked determinism, all five Holosuite tiers
+  PASS, `test:all` 51/51, `check:fast` 31/31. Reopen only if two identical
+  seeded runs diverge or an older-projection digest reports clean.
+
 - **Engine contract divergences — resolved 2026-10-29:** the E2 review found six
   mismatches between `docs/engine-contract.md` and the reference implementation.
   Pacing advanced on briefing renders rather than tool calls and a prompt
@@ -741,18 +757,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 ## Scheduled-roadmap
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
-
-- **State-hash bookkeeping exclusions — scheduled 2026-10-29:** the E3 restart
-  gate showed that the canonical hash covers `last_mutation_at` (wall clock) and
-  `active_session_id` (session identity), so two identical seeded processes
-  cannot hash equally and a REQ-237 boundary written after a save makes
-  `verify` report divergence (`holonovel/src/core/state-hash.ts:10-19`;
-  `holonovel/src/core/state.ts:1735-1790`). Predicate: the projection is the
-  full persisted Novel minus the REQ-601 exclusion list, while both fields
-  change without a story mutation. Interim workarounds are masking in two
-  harnesses and a canonical-primary guard in `audit()`. Tracked in ROADMAP.md;
-  the fix amends the exclusion list and removes the workarounds. (REQ-092a,
-  REQ-237, REQ-601, REQ-602, REQ-603)
 
 - **`manage_session` rename — scheduled 2026-10-25:** the external TDQS
   capture grades naming consistency 4/5 and names the

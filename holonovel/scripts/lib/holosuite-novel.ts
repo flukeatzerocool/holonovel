@@ -24,10 +24,10 @@ const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarter
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
 const P_CONTEXT = "holonovel/src/index.ts:8488";
-const P_VISIBILITY = "holonovel/src/index.ts:8510";
-const P_KNOWLEDGE = "holonovel/src/index.ts:7230"; // knowledge_query handler
+const P_VISIBILITY = "holonovel/src/index.ts:8528";
+const P_KNOWLEDGE = "holonovel/src/index.ts:7231"; // knowledge_query handler
 const P_INTEGRITY = "holonovel/src/index.ts:9096";
-const P_RESTART = "holonovel/src/core/state.ts:2260";
+const P_RESTART = "holonovel/src/core/state.ts:2270";
 
 const NOVEL_NAME = "Torre Nosferatu";
 const SLUG = "torre-nosferatu";
@@ -66,12 +66,11 @@ function asNovel(raw: Record<string, unknown>): NovelShape {
   return raw as NovelShape;
 }
 
-/** REQ-601 hash over persisted story content, excluding the storage checksum
- *  stamp and session-identity bookkeeping. `active_session_id` is serialized
- *  Novel state (REQ-092a) but changes when a restart opens a new REQ-237
- *  session boundary, so it is not part of the story-content comparison. */
+/** REQ-601 hash over persisted story content, excluding only the storage
+ *  checksum stamp; session and wall-clock bookkeeping are excluded by the
+ *  canonical projection itself. */
 function contentHash(novel: Record<string, unknown>): string {
-  const { _checksum: _ignored, active_session_id: _session, ...content } = novel;
+  const { _checksum: _ignored, ...content } = novel;
   return stateHash(content);
 }
 

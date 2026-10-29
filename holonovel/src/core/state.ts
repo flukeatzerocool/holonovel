@@ -17,7 +17,7 @@ import * as zlib from "zlib";
 import { createRng } from "./rng.js";
 import { snapshotDepth } from "./limits.js";
 import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
-import { stateHash } from "./state-hash.js";
+import { stateHash, STATE_HASH_PROJECTION_VERSION } from "./state-hash.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 import { normalizePerceptionRecord } from "./perception.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
@@ -360,6 +360,7 @@ export interface Checkpoint {
   // (REQ-601). Optional so pre-existing checkpoints still load.
   ordinal?: number | null;
   state_hash?: string;
+  state_hash_projection?: number;
   state: any;
 }
 
@@ -620,6 +621,8 @@ export interface NovelState {
     // REQ-603 — canonical state digest of the last committed save, compared by
     // `manage_diagnostics (action: verify)`. Excluded from the digest itself.
     state_hash?: string;
+    // REQ-601 — projection version that produced `state_hash`; absent = 1.
+    state_hash_projection?: number;
     // REQ-237 — session segmentation: per-session metadata derived from
     // `[session-boundary]` audit markers (entry_count, combat rounds,
     // significant rolls, scene transitions, timespan).
@@ -842,6 +845,9 @@ export class StateManager {
   // `.bak.1`, so a good backup is never overwritten and corruption is never
   // propagated into the rotated chain.
   private restoredThisSession = new Set<string>();
+  // REQ-088 — a Novel's loaded filename may differ from its internal slug. Save
+  // back to the file it came from instead of creating a second canonical file.
+  private novelPaths = new Map<string, string>();
 
   private stateDir: string;
 
@@ -1156,6 +1162,7 @@ export class StateManager {
         };
         this.novels.set(slug, loaded);
         this.activeNovelId = slug;
+        this.novelPaths.set(slug, filePath);
         this.restoredThisSession.add(slug);
         this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: restored.index });
         return loaded;
@@ -1167,6 +1174,7 @@ export class StateManager {
     const novel = this.loadNovelFromData(data);
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
+    this.novelPaths.set(slug, filePath);
     this.audit(novel, novel.badge, "resume_novel", { slug });
     this.checkWorkflowStaleness(novel);
     return novel;
@@ -1321,12 +1329,14 @@ export class StateManager {
         const existingCanonical = canonicalKeys.has(key);
         if (candidateCanonical && !existingCanonical) {
           this.novels.set(key, novel); // canonical filename displaces a misnamed copy
+          this.novelPaths.set(key, filePath);
           canonicalKeys.add(key);
         }
         process.stderr.write(`[holonovel] hydration: duplicate slug '${key}' — skipped '${file}'.\n`);
         continue;
       }
       this.novels.set(key, novel);
+      this.novelPaths.set(key, filePath);
       if (fileSlug === key) canonicalKeys.add(key);
     }
     // REQ-238 / TTRPG_NOVEL_RETENTION_DAYS — purge expired .trash entries at
@@ -1457,6 +1467,7 @@ export class StateManager {
       extras[key] = data[key];
     }
     (novel as any).future_fields = extras;
+    migrateStateDigestProjection(novel);
     return novel;
   }
 
@@ -1482,6 +1493,8 @@ export class StateManager {
     novel.name = newSlug;
     this.novels.delete(oldSlug);
     this.novels.set(newSlug, novel);
+    this.novelPaths.delete(oldSlug);
+    this.novelPaths.set(newSlug, path.join(this.stateDir, "novels", `${newSlug}.json`));
     if (this.activeNovelId === oldSlug) this.activeNovelId = newSlug;
     this.audit(novel, novel.badge, "rename_novel", { from: oldSlug, to: newSlug });
     this.saveNovel(novel);
@@ -1515,6 +1528,7 @@ export class StateManager {
       }
     }
     this.novels.delete(novel.slug);
+    this.novelPaths.delete(novel.slug);
     if (this.activeNovelId === novel.slug) {
       this.activeNovelId = null;
     }
@@ -1539,6 +1553,7 @@ export class StateManager {
       fs.renameSync(bakPath, dest);
     }
     this.novels.delete(slug);
+    this.novelPaths.delete(slug);
     if (this.activeNovelId === slug) this.activeNovelId = null;
     return { archived: true, at: new Date().toISOString() };
   }
@@ -1558,6 +1573,7 @@ export class StateManager {
       if (fs.existsSync(dest)) fs.unlinkSync(dest);
       fs.renameSync(bakPath, dest);
     }
+    this.novelPaths.set(slug, target);
     return this.resumeNovel(slug);
   }
 
@@ -1735,9 +1751,7 @@ export class StateManager {
     // mutating call after start/resume, or a new TTRPG_SESSION_ID), emit a
     // `[session-boundary]` marker entry and open a new session record.
     const sessionId = process.env.TTRPG_SESSION_ID ?? `session-${novel.metadata.session_count + 1}`;
-    let boundaryOpened = false;
     if (novel.active_session_id !== sessionId) {
-      boundaryOpened = true;
       const prev = novel.active_session_id;
       const now = new Date().toISOString();
       const prevSession = prev ? novel.metadata.sessions.find((s) => s.session_id === prev) : undefined;
@@ -1781,14 +1795,6 @@ export class StateManager {
       cur.entry_count++;
       if (tool === "advance_combat") cur.combat_rounds++;
       if (tool === "set_scene_state") cur.scene_transitions++;
-    }
-    // REQ-237/REQ-603 — `active_session_id` is persisted Novel state, but many
-    // handlers audit after their save. Persist the boundary now so verify does
-    // not report divergence between the live state and the last save. A Novel
-    // loaded from a non-canonical filename has no canonical primary yet; its
-    // boundary lands on the next real save rather than creating a second file.
-    if (boundaryOpened && fs.existsSync(path.join(this.stateDir, "novels", `${novel.slug}.json`))) {
-      this.saveNovel(novel);
     }
   }
 
@@ -2264,7 +2270,7 @@ ${turnOrder}`;
   saveNovel(novel: NovelState): void {
     const dir = path.join(this.stateDir, "novels");
     fs.mkdirSync(dir, { recursive: true });
-    const filePath = path.join(dir, `${novel.slug}.json`);
+    const filePath = this.novelPaths.get(novel.slug) ?? path.join(dir, `${novel.slug}.json`);
     const tmpPath = filePath + `.${process.pid}-${Date.now()}.tmp`;
     const count = this.backupCount();
 
@@ -2272,6 +2278,7 @@ ${turnOrder}`;
     // REQ-603 — record the committed-state digest with every save so verify can
     // compare live state against the last write without a mutation journal.
     novel.metadata.state_hash = this.stateDigest(novel);
+    novel.metadata.state_hash_projection = STATE_HASH_PROJECTION_VERSION;
 
     // Defensive guard: the undo/redo stacks are internal bookkeeping. If they
     // have grown pathologically (e.g. a snapshot regression embedded prior
@@ -2629,6 +2636,23 @@ function estimateJsonBytes(value: unknown): number {
   }
 }
 
+// REQ-601/REQ-602 — re-derive digests recorded under an older projection so a
+// pre-version-2 Novel loads clean instead of reporting divergence. Historical
+// event hashes are never recomputed; an absent version marks them version 1.
+function migrateStateDigestProjection(novel: NovelState): void {
+  const current = STATE_HASH_PROJECTION_VERSION;
+  if (novel.metadata?.state_hash && (novel.metadata.state_hash_projection ?? 1) !== current) {
+    novel.metadata.state_hash = stateHash(novelToJSON(novel));
+    novel.metadata.state_hash_projection = current;
+  }
+  for (const checkpoint of novel.checkpoints ?? []) {
+    if (typeof checkpoint.state_hash !== "string") continue;
+    if ((checkpoint.state_hash_projection ?? 1) === current) continue;
+    checkpoint.state_hash = stateHash(checkpoint.state);
+    checkpoint.state_hash_projection = current;
+  }
+}
+
 function novelFromJSON(data: any): NovelState {
   data = migrateNovelData(data);
   const out: any = {
@@ -2746,6 +2770,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     extras[key] = data[key];
   }
   out.future_fields = extras;
+  migrateStateDigestProjection(out as NovelState);
   return out as NovelState;
 }
 

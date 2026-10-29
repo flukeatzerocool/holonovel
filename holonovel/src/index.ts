@@ -29,7 +29,7 @@ import {
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
-import { stateHash, canonicalJson } from "./core/state-hash.js";
+import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, revertFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -2151,6 +2151,7 @@ function recordEvent(kind: string, text: string, source?: EventSource): void {
   // REQ-602 — the digest covers post-mutation state, after the perception
   // derivation side effect, so a clean Novel verifies.
   entry.state_hash = state.stateDigest(novel);
+  entry.state_hash_projection = STATE_HASH_PROJECTION_VERSION;
 }
 
 // REQ-594 — append a perception with its witness provenance, honoring the cap.
@@ -8105,6 +8106,7 @@ interface CheckpointHashStatus {
   recorded: string | null;
   actual: string;
   match: boolean;
+  projection_stale: boolean;
 }
 
 interface StateVerifyReport {
@@ -8112,6 +8114,10 @@ interface StateVerifyReport {
   verified: boolean;
   live_hash: string;
   recorded_hash: string | null;
+  projection_version: number;
+  recorded_projection: number | null;
+  projection_stale: boolean;
+  historical_event_hashes: number;
   horizon: number | null;
   newest_ordinal: number | null;
   unhashed_events: number;
@@ -8123,34 +8129,46 @@ interface StateVerifyReport {
 function verifyStateHashes(novel: NovelState): StateVerifyReport {
   const live = state.stateDigest(novel);
   const recorded = typeof novel.metadata?.state_hash === "string" ? novel.metadata.state_hash : null;
+  // REQ-603 — a digest recorded under an older projection is stale, never
+  // clean and never a fabricated divergence.
+  const recordedProjection = recorded !== null ? (novel.metadata?.state_hash_projection ?? 1) : null;
+  const projectionStale = recordedProjection !== null && recordedProjection !== STATE_HASH_PROJECTION_VERSION;
   const log = novel.event_log ?? [];
   const newest = log.length ? log[log.length - 1].ordinal : null;
   const horizon = log.length ? log[0].ordinal : null;
   const unhashedEvents = log.filter((e) => typeof e.state_hash !== "string" || e.state_hash.length === 0).length;
+  const historicalEventHashes = log.filter((e) =>
+    typeof e.state_hash === "string" && (e.state_hash_projection ?? 1) !== STATE_HASH_PROJECTION_VERSION).length;
   const checkpoints: CheckpointHashStatus[] = (novel.checkpoints ?? []).map((cp: any) => {
     const actual = cp.state ? stateHash(cp.state) : "";
     const rec = typeof cp.state_hash === "string" ? cp.state_hash : null;
+    const stale = rec !== null && (cp.state_hash_projection ?? 1) !== STATE_HASH_PROJECTION_VERSION;
     return {
       label: cp.label,
       ordinal: Number.isInteger(cp.ordinal) ? cp.ordinal : null,
       recorded: rec,
       actual,
-      match: rec !== null && actual === rec,
+      match: rec !== null && !stale && actual === rec,
+      projection_stale: stale,
     };
   });
   const unhashedCheckpoints = (novel.checkpoints ?? [])
     .filter((cp: any) => typeof cp.state_hash !== "string")
     .map((cp: any) => cp.label as string);
   const mismatchOrdinals: number[] = [];
-  if (recorded !== null && live !== recorded) mismatchOrdinals.push(newest ?? 0);
+  if (recorded !== null && !projectionStale && live !== recorded) mismatchOrdinals.push(newest ?? 0);
   for (const cp of checkpoints) {
-    if (cp.recorded !== null && !cp.match && cp.ordinal !== null) mismatchOrdinals.push(cp.ordinal);
+    if (cp.recorded !== null && !cp.projection_stale && !cp.match && cp.ordinal !== null) mismatchOrdinals.push(cp.ordinal);
   }
   return {
-    clean: recorded !== null && mismatchOrdinals.length === 0,
+    clean: recorded !== null && !projectionStale && mismatchOrdinals.length === 0,
     verified: recorded !== null,
     live_hash: live,
     recorded_hash: recorded,
+    projection_version: STATE_HASH_PROJECTION_VERSION,
+    recorded_projection: recordedProjection,
+    projection_stale: projectionStale,
+    historical_event_hashes: historicalEventHashes,
     horizon,
     newest_ordinal: newest,
     unhashed_events: unhashedEvents,
@@ -8547,14 +8565,18 @@ Options: yes, cancel`);
       const novel = requireNovel();
       const report = verifyStateHashes(novel);
       const status = report.verified
-        ? (report.clean ? "clean" : `DIVERGENCE at #${report.first_mismatch_ordinal ?? "?"}`)
+        ? (report.projection_stale
+          ? `stale (projection v${report.recorded_projection}, current v${report.projection_version})`
+          : report.clean ? "clean" : `DIVERGENCE at #${report.first_mismatch_ordinal ?? "?"}`)
         : "unverified (no save-time digest recorded)";
       const lines = [
         `State verification: ${status}`,
         `live state hash: ${report.live_hash}`,
         `recorded save hash: ${report.recorded_hash ?? "[unhashed]"}`,
+        `projection: v${report.projection_version}`,
         `horizon: ${report.horizon ?? "none"} (newest #${report.newest_ordinal ?? "none"})`,
         `unhashed events: ${report.unhashed_events}`,
+        `historical event hashes: ${report.historical_event_hashes}`,
         `checkpoints: ${report.checkpoints.length} checked, ${report.checkpoints.filter((c) => c.recorded !== null && !c.match).length} mismatched`,
       ];
       if (report.unhashed_checkpoints.length) lines.push(`unhashed checkpoints: ${report.unhashed_checkpoints.join(", ")}`);
@@ -9471,6 +9493,7 @@ Options: yes, cancel`);
         timestamp: new Date().toISOString(),
         ordinal: novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null,
         state_hash: stateHash(snapshot),
+        state_hash_projection: STATE_HASH_PROJECTION_VERSION,
         state: snapshot,
       });
       // REQ-241b — when at the configured capacity, the oldest is discarded.

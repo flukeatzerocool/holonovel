@@ -67,10 +67,9 @@ async function runSequence(): Promise<void> {
   const exported = await engine.tools.call("manage_archive", { action: "export" });
   engine.close();
   const bundle = JSON.parse(textOf(exported));
-  // The canonical hash covers every persisted field, including the wall-clock
-  // `last_mutation_at`; mask only that field so the sequence's deterministic
-  // content can be compared across processes.
-  const novel = { ...(bundle?.novel ?? {}), last_mutation_at: null };
+  // REQ-601 excludes session and wall-clock bookkeeping, so two identical
+  // seeded sequences must produce the same canonical hash with no masking.
+  const novel = bundle?.novel ?? {};
   console.log(JSON.stringify({ state_hash: stateHash(novel), events: novel?.event_log?.length ?? null }));
 }
 
