@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 26,863 tokens; standard 23,265; small 1,142; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,864 tokens; standard 23,266; small 1,142; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Recap and discovery remediation — 2026-10-29
 
@@ -140,6 +140,12 @@
   cited in `holonovel/src/core/artifact-registry.ts` and
   `holonovel/src/index.ts`, exercised by T738/T739 in
   `test:artifact-registry`.
+- **D7 — ruleset tool hot-deregistration deferred (2026-10-29).** The MCP SDK
+  has no `unregisterTool`, so `manage_artifact (action: remove)` deletes the
+  package and rebuilds package prompts immediately, but a removed ruleset's
+  tools stay in `tools/list` until restart. The tool description states this
+  limitation rather than claiming live deregistration (REQ-621's "deregister"
+  is the scan-derived artifact registry entry, which is removed).
 
 ### Two-week review remediation — 2026-10-25
 

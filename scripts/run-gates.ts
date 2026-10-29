@@ -28,7 +28,7 @@ type Mode = "fast" | "full";
 
 interface Gate {
   name: string;
-  fast: string[];
+  fast: string[] | null;
   full: string[];
 }
 
@@ -66,7 +66,8 @@ const GATES: Gate[] = [
     full: npm("check-reference-server-cleanliness"),
   },
   { name: "check-starter-freshness", fast: npm("check-starter-freshness"), full: npm("check-starter-freshness") },
-  { name: "playability", fast: npm("check-playability"), full: npm("check-playability") },
+  // Full-gate only: spawns a child per shipped Novel, too slow for check:fast.
+  { name: "playability", fast: null, full: npm("check-playability") },
   { name: "check-package-manifest", fast: npm("check-package-manifest"), full: npm("check-package-manifest") },
   { name: "test:package-manifest", fast: npm("test:package-manifest"), full: npm("test:package-manifest") },
   { name: "check:conformance", fast: npm("check:conformance"), full: npm("check:conformance") },
@@ -86,7 +87,8 @@ interface Result {
 }
 
 function runGate(gate: Gate, mode: Mode, capture: boolean): Promise<Result> {
-  const args = gate[mode];
+  const args = mode === "fast" ? gate.fast : gate.full;
+  if (!args) return Promise.resolve({ code: 0, stdout: "", stderr: "" });
   return new Promise((resolve) => {
     const child = spawn(args[0], args.slice(1), {
       cwd: ROOT,
@@ -131,7 +133,7 @@ async function main(): Promise<void> {
 
   if (list) {
     for (const gate of GATES) {
-      const modes = [fast && "fast", full && "full"].filter(Boolean).join(",");
+      const modes = [gate.fast ? "fast" : null, "full"].filter(Boolean).join(",");
       console.log(`${gate.name}${modes ? ` (${modes})` : ""}`);
     }
     process.exit(0);
@@ -161,10 +163,11 @@ async function main(): Promise<void> {
     finish(mode, 0);
   }
 
-  const results = await Promise.all(GATES.map((gate) => runGate(gate, mode, true)));
+  const fastGates = GATES.filter((gate) => gate.fast !== null);
+  const results = await Promise.all(fastGates.map((gate) => runGate(gate, mode, true)));
   let failed = 0;
-  for (let i = 0; i < GATES.length; i++) {
-    const gate = GATES[i];
+  for (let i = 0; i < fastGates.length; i++) {
+    const gate = fastGates[i];
     const result = results[i];
     if (result.error) {
       console.error(`gate ${gate.name} could not start: ${result.error.message}`);
@@ -179,7 +182,7 @@ async function main(): Promise<void> {
       console.log(`PASS ${gate.name}`);
     }
   }
-  console.log(`\n${GATES.length - failed} passed, ${failed} failed`);
+  console.log(`\n${fastGates.length - failed} passed, ${failed} failed`);
   finish(mode, failed);
 }
 

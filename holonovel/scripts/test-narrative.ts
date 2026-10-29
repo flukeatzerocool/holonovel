@@ -634,6 +634,19 @@ async function main() {
       assertNotContains(b2, "[pacing] Scene stabilized");
     });
 
+    await test("T386b: a delegating tool advances pacing once, not twice", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "Delegation reset", beat: "exploration" });
+      // The scene set resets the counter; its own call then lands at 1.
+      // Two delegating calls reach 3 (== window, no signal) when counted once,
+      // but 5 (> window) when the inner and outer wrapper both count.
+      for (let i = 0; i < 2; i++) await call(proc, "manage_causality", { action: "causal_list" });
+      const under = await briefing(proc);
+      assertNotContains(under, "[pacing] Scene stabilized");
+      await call(proc, "manage_causality", { action: "causal_list" });
+      const over = await briefing(proc);
+      assertContains(over, "[pacing] Scene stabilized");
+    });
+
     await test("T401: pacing-triggered autonomy advances faction and surfaces goal pursuit", async () => {
       await call(proc, "manage_faction", { action: "create",  name: "Thieves Guild", goals: ["Plunder the treasury"], resources: "lockpicks" });
       await call(proc, "manage_npc", { action: "create",  name: "Locke", disposition: "suspicious", goals: "Crack the vault" });

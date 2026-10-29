@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { initServer, withForbiddenAudit } from "../src/core/server.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -57,6 +58,18 @@ const RULESET_PKG = {
 };
 
 async function main() {
+  // ── R4/REQ-133a: only the envelope's leading line is a refusal ──────
+  await test("R4/REQ-133a: a quoted [FORBIDDEN] in success output is not audited", async () => {
+    let audited = 0;
+    initServer({ auditForbidden() { audited++; } } as any);
+    const okHandler = withForbiddenAudit(async () => ({ content: [{ type: "text", text: "ok\n[FORBIDDEN] quoted in prose" }] }) as any, "x");
+    await okHandler({}, { badge: "game_master" });
+    assert(audited === 0, `unexpected boundary audit (${audited}) for a quoted marker`);
+    const denied = withForbiddenAudit(async () => ({ content: [{ type: "text", text: "[ERROR] [FORBIDDEN] nope" }], structuredContent: { category: "FORBIDDEN" } }) as any, "x");
+    await denied({}, { badge: "player" });
+    assert(audited === 1, `expected exactly one boundary audit, got ${audited}`);
+  });
+
   // ── T530: import-channel inertness (REQ-444) ────────────────────────
   await test("T530/REQ-444: import-channel inertness", async () => {
     const p = await boot();
@@ -170,6 +183,26 @@ async function main() {
     const audit = await readResource(p, "audit://novel");
     assert(audit.includes("[BOUNDARY_VIOLATION]"), "T534b boundary violation missing from audit");
     assert(audit.includes("manage_belief"), "T534b manage_belief not named in audit");
+    await kill(p);
+  });
+
+  // ── R3/T534c: a delegated refusal is audited exactly once (REQ-133a) ──
+  await test("T534c/REQ-133a: a delegated [FORBIDDEN] is audited exactly once", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "deleg-audit" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const count = async (): Promise<number> =>
+      (JSON.parse(await readResource(p, "audit://novel")) as any[]).filter((e) => e.output_prefix === "[BOUNDARY_VIOLATION]").length;
+    const before = await count();
+    await call(p, "set_badge", { badge: "player" });
+    const refused = await call(p, "manage_causality", {
+      action: "causal_propose", causal_scope: "world", causal_domain: "location",
+      causal_entity: "x", causal_key: "k", causal_value: "v",
+    });
+    assert(refused.includes("FORBIDDEN"), "expected [FORBIDDEN] from a delegated GM-only action");
+    await call(p, "set_badge", { badge: "game_master" });
+    const after = await count();
+    assert(after - before === 1, `expected exactly one boundary audit for a delegated refusal, got ${after - before}`);
     await kill(p);
   });
 

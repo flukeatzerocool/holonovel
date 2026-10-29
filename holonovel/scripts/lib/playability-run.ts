@@ -76,13 +76,13 @@ async function main(): Promise<void> {
   process.env.TTRPG_SEED = String(seed);
 
   const { createEngine } = (await import(pathToFileURL(join(import.meta.dirname, "..", "..", "src", "library.ts")).href)) as {
-    createEngine: () => {
+    createEngine: () => Promise<{
       tools: { call: (name: string, args?: Record<string, unknown>) => Promise<unknown> };
       close: () => void;
-    };
+    }>;
   };
 
-  const engine = createEngine();
+  const engine = await createEngine();
   const steps: StepResult[] = [];
   const findings: { class: string; detail: string }[] = [];
   let fatal = false;

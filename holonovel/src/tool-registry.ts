@@ -27,7 +27,11 @@ export type RegisteredToolHandler = (args: any, ctx: any) => Promise<any>;
 export interface RegisteredTool {
   readonly name: string;
   readonly config: ToolConfig;
+  /** Transport-facing handler: wrapped with pacing and forbidden-audit fidelity. */
   readonly handler: RegisteredToolHandler;
+  /** Un-wrapped handler. Cross-tool delegation calls this so one user request
+   *  advances pacing and records a boundary audit exactly once. */
+  readonly rawHandler: RegisteredToolHandler;
 }
 
 /** The slice of `McpServer` the adapter needs; kept structural so the registry
@@ -46,11 +50,11 @@ export class ToolRegistry {
   private readonly tools = new Map<string, RegisteredTool>();
   private adapter: ((tool: RegisteredTool) => unknown) | null = null;
 
-  define(name: string, config: ToolConfig, handler: RegisteredToolHandler): void {
+  define(name: string, config: ToolConfig, handler: RegisteredToolHandler, rawHandler: RegisteredToolHandler = handler): void {
     if (this.tools.has(name)) {
       throw new Error(`Tool '${name}' is already registered`);
     }
-    const tool: RegisteredTool = { name, config, handler };
+    const tool: RegisteredTool = { name, config, handler, rawHandler };
     this.tools.set(name, tool);
     this.adapter?.(tool);
   }

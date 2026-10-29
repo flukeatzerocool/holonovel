@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-29 — Artifact admission hardening and delegation audit fixes
+
+- Hardened artifact admission (REQ-621): validate the slug against
+  `^[a-z0-9]+(?:-[a-z0-9]+)*$` and confine every install/remove destination to
+  its kind directory via `resolveWithin` (`novel`, `adventure`, `ruleset`), so a
+  crafted pack or manifest slug can no longer traverse out of the data
+  directory. `install` refuses a mismatched `slug`; a bare pack adopts one; the
+  parameter description no longer claims a silent override.
+- Artifact audit and lifecycle: `install_artifact`/`remove_artifact` are now
+  tagged security events (REQ-621); artifact ruleset removal rebuilds package
+  prompts like `manage_ruleset (action: remove)`; `location` is GM/Editor-only
+  in `list`/`verify` (REQ-032); the `manage_artifact` description is corrected
+  (ruleset tools apply after restart; no false unregister claim; DECISIONS D7).
+- Delegation counted once: the tool registry exposes `rawHandler`, and
+  `manage_causality`, `manage_staging`, `manage_corpus`, `resolve_mechanic`,
+  `manage_diagnostics`, `manage_archive`, `open_session`, `close_session`, and
+  `take_turn` delegate through it, so one user call advances pacing once
+  (REQ-336) and a delegated `[FORBIDDEN]` is audited once (REQ-133a).
+- Library entry is lazy: `createEngine()` is async and loads `index.ts` only on
+  first call, so importing the package root no longer boots the server, creates
+  the data directory, or scans rulesets; both call sites await it.
+- Adventure provenance: the block now scans to the first heading (Appendix K)
+  instead of a 40-line cap, and absent provenance emits
+  `[WARNING] [provenance-absent]` (REQ-617).
+- The forbidden-audit detector inspects only the envelope's leading line, so a
+  success payload that quotes `[FORBIDDEN]` is not mis-audited; artifact Novel
+  removal clears the recorded filename mapping.
+- `check:fast` no longer runs the playability sweep (full gate only), and
+  `run-gates --list` reports each gate's supported modes.
+- Regenerated `tool-definitions.json` and re-baselined the surface/replay
+  artifacts; updated `docs/engine-contract.md` and `holonovel/AGENTS.md`.
+
 ## 2026-10-29 — Second TDQS description batch
 
 - Second authoring pass on ten tools from the external feedback:

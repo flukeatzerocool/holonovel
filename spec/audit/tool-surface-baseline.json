@@ -202,19 +202,19 @@
         "retired": true
       }
     ],
-    "full_tokens": 26863,
-    "tools_list_bytes": 107450
+    "full_tokens": 26864,
+    "tools_list_bytes": 107454
   },
   "measurements": {
     "full": {
       "tools": 37,
-      "bytes": 107450,
-      "tokens": 26863
+      "bytes": 107454,
+      "tokens": 26864
     },
     "standard": {
       "tools": 37,
-      "bytes": 93057,
-      "tokens": 23265
+      "bytes": 93061,
+      "tokens": 23266
     },
     "small": {
       "tools": 6,
@@ -265,11 +265,11 @@
     }
   },
   "budgets": {
-    "standard": 24177,
+    "standard": 24178,
     "small": 2687
   },
   "worst_case": {
-    "standard_tokens": 23265,
+    "standard_tokens": 23266,
     "small_tokens": 1142
   },
   "groups": [
@@ -277,7 +277,7 @@
       "group": "table",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 1142
     },
@@ -285,7 +285,7 @@
       "group": "explore",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 885
     },
@@ -293,7 +293,7 @@
       "group": "resolve",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 1114
     },
@@ -301,7 +301,7 @@
       "group": "narrate",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 1032
     },
@@ -309,7 +309,7 @@
       "group": "lookup",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 950
     },
@@ -317,7 +317,7 @@
       "group": "referee",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 946
     },
@@ -325,7 +325,7 @@
       "group": "author",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 944
     },
@@ -333,7 +333,7 @@
       "group": "maintain",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 23265,
+      "standard_tokens": 23266,
       "small_tools": 6,
       "small_tokens": 1108
     }

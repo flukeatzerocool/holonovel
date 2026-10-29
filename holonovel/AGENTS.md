@@ -50,8 +50,9 @@ src/index.ts            McpServer adapter: 37 action-discriminator tools, 40 res
                         requireGM()/requirePlayer()/requireNotObserver().
                         Exposes the in-process createEngine() façade. Error taxonomy.
         ↓
-src/engine.ts           In-process façade entry: sets HOLONOVEL_NO_AUTOSTART,
-                        then loads index.ts and re-exports createEngine().
+src/engine.ts           In-process façade entry: exports async createEngine(),
+                        which sets HOLONOVEL_NO_AUTOSTART and only then loads
+                        index.ts (importing this module has no side effects).
                         One engine per process; no transport.
 src/library.ts          Package library entry: core and world namespaces plus
                         createEngine() for build-time and headless consumers.
