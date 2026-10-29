@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-29 — E6 artifact provenance and creator rights
+
+- Added REQ-615–REQ-619 to §5.7 and amended REQ-446 to name
+  `TTRPG_ARTIFACT_VERIFY_KEY`: Novels, adventure modules, and ruleset packages
+  now carry creator, attribution, license, content hash, and an optional
+  signature, and a tampered artifact is refused.
+- `manage_novel (action: provenance)` records a Novel's provenance in its
+  metadata (readable by any badge, Editor/GM writable, audited); it travels in
+  the `novel` interchange payload and does not change the canonical state hash.
+- Adventure modules accept an Appendix K provenance block; load verifies the
+  body hash and a declared signature, refusing a mismatch and warning
+  `[provenance-absent]` or `[signature-unverified]`; list, `adventures://`, and
+  embedded exports surface it.
+- Ruleset package manifests accept optional `creator` and `attribution`,
+  surfaced by `manage_ruleset (action: list)` and recorded in the install audit
+  entry; install now verifies the manifest HMAC when the key is configured,
+  closing REQ-446's previously unimplemented signature clause.
+- The `swse` and `dnd2024` reference emitters populate the two fields from a
+  committed `provenance.json` beside each emitter (REQ-619).
+- Tests: T733–T737 added; T532 extended to exercise signature verification and
+  creator attribution. No fingerprint section changed; installed packages and
+  persisted Novels are unaffected.
+- Retired E6 from `ROADMAP.md`; E7 remains the exchange/registry successor.
+
 ## 2026-10-29 — E5 non-TTRPG world-pack pilot (local social drama)
 
 - Added `--novel <path>` to `holonovel/scripts/playability.ts` so the headless

@@ -8773,7 +8773,14 @@ server.registerTool("manage_adventure", {
       const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
       const filePath = path.join(adventureDir, `${args.slug}.md`);
       if (!fs.existsSync(filePath)) return err("NOT_FOUND", `Adventure '${args.slug}' not found at ${filePath}.`);
-      const content = fs.readFileSync(filePath, "utf-8");
+      const raw = fs.readFileSync(filePath, "utf-8");
+      // REQ-616/REQ-617 — provenance is verified before any state mutation.
+      const { provenance, body: content } = parseAdventureProvenance(raw);
+      const checks = verifyAdventureProvenance(provenance ?? {}, content);
+      if (checks.failures.length > 0) {
+        return err("STATE_CONFLICT", `Adventure '${args.slug}' provenance verification failed: ${checks.failures.join("; ")}. Corrective action: re-export the module or remove its provenance block.`);
+      }
+      const provenanceNotes = provenance ? checks.warnings : ["[provenance-absent] module declares no provenance block"];
       const headings = content.match(/^#{2,3} .+$/gm) ?? [];
       const npcRefs: string[] = [];
       const m = content.match(/\*\*([A-Z][^*]{1,40})\*\*\s*\n/gm);
@@ -8787,6 +8794,7 @@ server.registerTool("manage_adventure", {
         locations: locHeadings.map((l) => ({ name: l, description: "" })),
         factions: (content.match(/## Factions\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").split("\n").filter((l) => l.trim().length > 2 && !l.startsWith("#")).map((l) => ({ name: l.trim() })),
         scene_count: sceneCount,
+        ...(provenance ? { provenance } : {}),
       };
       const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
       if (worldMatch) {
@@ -8795,17 +8803,17 @@ server.registerTool("manage_adventure", {
         novel.adventure_slug = args.slug;
         novel.adventure_set = true;
         state.saveNovel(novel);
-        audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things });
+        audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null });
         const synthVoice = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
         const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
         const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
-        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}`);
+        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
       }
       novel.adventure_slug = args.slug;
       novel.adventure_set = true;
       state.saveNovel(novel);
-      audit("load_adventure", { slug: args.slug, rooms: 0, things: 0 });
-      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).`);
+      audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, creator: provenance?.creator ?? null });
+      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
     }
     case "list": {
       const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
@@ -8827,7 +8835,9 @@ server.registerTool("manage_adventure", {
         const npcCount = (content.match(/\*\*[A-Z][^*]{1,40}\*\*\s*\n/g) ?? []).length;
         const complexity = roomCount >= 15 ? "epic" : roomCount >= 6 ? "standard" : "short";
         const stat = fs.statSync(path.join(adventureDir, f));
-        return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString() };
+        // REQ-616 — surface the module's provenance block with its catalog entry.
+        const { provenance } = parseAdventureProvenance(content);
+        return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString(), provenance: provenance ?? null };
       }).filter((e) => !args.filter || e.genre_tags.includes(args.filter) || isGM);
       const visible = isGM ? entries : entries.filter((e) => e.preview);
       return raw(JSON.stringify(visible, null, 2));
@@ -8851,7 +8861,9 @@ server.registerResource("adventures", "adventures://", { title: "Adventure Catal
     const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
     const hook = content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
     const overview = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
-    return { slug, title, hook: isGM ? hook || overview : hook };
+    // REQ-616 — provenance is public attribution and appears in the catalog.
+    const { provenance } = parseAdventureProvenance(content);
+    return { slug, title, hook: isGM ? hook || overview : hook, provenance: provenance ?? null };
   });
   return { contents: [{ uri: "adventures://", text: JSON.stringify(entries, null, 2), mimeType: "application/json" }] };
 });
@@ -8900,20 +8912,75 @@ const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horr
 // REQ-096h/i1 — embed loaded adventure module content inline on export when
 // TTRPG_EXPORT_EMBED_ADVENTURES is true (default false). Generated adventures
 // live only in the Novel; indexed modules re-read their Markdown source.
-function embeddedAdventureContent(novel: NovelState): { slug: string; content: string; content_hash: string } | null {
+function embeddedAdventureContent(novel: NovelState): { slug: string; content: string; content_hash: string; provenance: AdventureProvenance | null } | null {
   if ((process.env.TTRPG_EXPORT_EMBED_ADVENTURES ?? "false") !== "true") return null;
   if (!novel.adventure_slug && !novel.generated_adventure) return null;
   if (novel.generated_adventure) {
     const content = JSON.stringify(novel.generated_adventure);
-    return { slug: novel.adventure_slug ?? "generated", content, content_hash: crypto.createHash("sha256").update(content).digest("hex") };
+    return { slug: novel.adventure_slug ?? "generated", content, content_hash: crypto.createHash("sha256").update(content).digest("hex"), provenance: null };
   }
   const slug = novel.adventure_slug;
   if (!slug) return null;
   const adventureDir = process.env.TTRPG_ADVENTURE_DIR ?? path.join(__dirname, "..", "adventures");
   try {
     const content = fs.readFileSync(path.join(adventureDir, `${slug}.md`), "utf-8");
-    return { slug, content, content_hash: crypto.createHash("sha256").update(content).digest("hex") };
+    // REQ-616 — carry the block; hash the body so the declared hash stays
+    // meaningful after the block is stripped.
+    const { provenance, body } = parseAdventureProvenance(content);
+    return { slug, content: body, content_hash: crypto.createHash("sha256").update(body).digest("hex"), provenance };
   } catch { return null; /* module not present on disk — nothing to embed */ }
+}
+
+// REQ-616/REQ-617 — adventure module provenance. A module may open with a
+// `---`-delimited block of key: value lines (Appendix K). The content hash
+// covers the body after the closing delimiter, not the block itself.
+type AdventureProvenance = { creator?: string; attribution?: string; license?: string; content_hash?: string; signature?: string };
+const ADVENTURE_PROVENANCE_KEYS = new Set(["creator", "attribution", "license", "content_hash", "signature"]);
+
+function parseAdventureProvenance(content: string): { provenance: AdventureProvenance | null; body: string } {
+  const lines = content.split("\n");
+  if (lines[0]?.trim() !== "---") return { provenance: null, body: content };
+  let end = -1;
+  for (let i = 1; i < lines.length && i <= 40; i++) {
+    if (lines[i].trim() === "---") { end = i; break; }
+  }
+  if (end < 0) return { provenance: null, body: content };
+  const block: AdventureProvenance = {};
+  for (let i = 1; i < end; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+    const m = line.match(/^([a-z_]+):\s*(.*)$/);
+    if (!m || !ADVENTURE_PROVENANCE_KEYS.has(m[1])) return { provenance: null, body: content };
+    (block as Record<string, string>)[m[1]] = m[2].trim();
+  }
+  if (Object.keys(block).length === 0) return { provenance: null, body: content };
+  return { provenance: block, body: lines.slice(end + 1).join("\n") };
+}
+
+function verifyAdventureProvenance(provenance: AdventureProvenance, body: string): { failures: string[]; warnings: string[] } {
+  const failures: string[] = [];
+  const warnings: string[] = [];
+  if (provenance.content_hash) {
+    const actual = crypto.createHash("sha256").update(body).digest("hex");
+    if (actual !== provenance.content_hash) failures.push(`content_hash: expected ${provenance.content_hash}, got ${actual}`);
+  }
+  if (provenance.signature) {
+    const key = process.env.TTRPG_ARTIFACT_VERIFY_KEY;
+    if (!key) warnings.push("[signature-unverified] module is signed but no verification key is configured");
+    else {
+      const want = crypto.createHmac("sha256", key).update(provenance.content_hash ?? "").digest("hex");
+      if (provenance.signature !== want) failures.push("signature: HMAC does not verify");
+    }
+  }
+  return { failures, warnings };
+}
+
+function provenanceSummary(provenance: AdventureProvenance | null | undefined): string {
+  if (!provenance) return "";
+  const parts: string[] = [];
+  if (provenance.creator) parts.push(`creator: ${provenance.creator}`);
+  if (provenance.license) parts.push(`license: ${provenance.license}`);
+  return parts.length ? ` Provenance — ${parts.join("; ")}.` : "";
 }
 
 // REQ-096g/j — portable bundle integrity. Hashes are computed over a freshly
@@ -9011,7 +9078,7 @@ function redactNovelForPlayer(novel: any): any {
 }
 
 const MANAGE_NOVEL_SCHEMA = {
-    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "complete_session_zero", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, complete_session_zero, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, or checkpoint_remove."),
+    action: z.enum(["create", "resume", "switch", "end", "export", "import", "rename", "description", "list", "archive", "unarchive", "info", "genre", "complete_session_zero", "clone", "branch", "save_context", "get_context", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove", "provenance"]).describe("create, resume, switch, end, export, import, rename, description, list, archive, unarchive, info, genre, complete_session_zero, clone, branch, save_context, get_context, checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove, or provenance."),
     name: z.string().optional().describe("Novel name (create)."),
     slug: z.string().optional().describe("Novel slug (resume/switch/archive/unarchive/info)."),
     source_slug: z.string().optional().describe("Novel to copy or branch from (clone/branch)."),
@@ -9038,12 +9105,15 @@ const MANAGE_NOVEL_SCHEMA = {
     include_checkpoints: z.boolean().optional().describe("Include checkpoints in export (default false; export)."),
     trim_audit_sessions: z.number().optional().describe("Keep only the most recent N sessions' audit entries in the clone (clone; default full copy)."),
     label: z.string().optional().describe("Checkpoint label (checkpoint_set/list/restore/remove)."),
+    creator: z.string().optional().describe("Creator attributed on the Novel's provenance record (provenance)."),
+    attribution: z.string().optional().describe("Source attributed on the Novel's provenance record (provenance)."),
+    license: z.string().optional().describe("License declared on the Novel's provenance record (provenance)."),
   };
 
 server.registerTool("manage_novel", {
   _meta: { deprecated: true, replacement: "manage_archive" },
   title: "Novel Save Management",
-  description: "Manage Novel save files: create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context, and list. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create and save_context persist to the Novel; list, info, and get_context are read-only. Lifecycle changes are not reversible via manage_history, so clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools; use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
+  description: "Manage Novel save files: create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context, provenance, and list. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create, save_context, and provenance persist to the Novel; list, info, and get_context are read-only. provenance records the creator, attribution, and license carried by the Novel's export payload. Lifecycle changes are not reversible via manage_history, so clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools; use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
   inputSchema: MANAGE_NOVEL_SCHEMA,
 }, async (args: any) => {
   switch (args.action) {
@@ -9283,6 +9353,12 @@ Options: yes, cancel`);
         for (const c of imported.countdowns) if (!novel.countdowns.has(c[0])) novel.countdowns.set(c[0], c[1]);
         for (const f of imported.factions) if (!novel.factions.some(x => x.name === f.name)) novel.factions.push(f);
       }
+      // REQ-616 — restore embedded module provenance when the bundle carries an
+      // adventure block; the Novel payload already carries it otherwise.
+      const embeddedProvenance = parsed?.adventure?.provenance;
+      if (embeddedProvenance && typeof embeddedProvenance === "object" && novel.adventure_index) {
+        (novel.adventure_index as any).provenance = embeddedProvenance;
+      }
       state.saveNovel(novel);
       // REQ-444 — import-channel inertness: imported content is untrusted data;
       // embedded directives are stored verbatim as inert data and logged as
@@ -9375,7 +9451,33 @@ Options: yes, cancel`);
         codex_sources: novel.codex_sources ?? [],
         event_count: novel.event_log.length,
         branch_lineage: novel.branch_lineage,
+        // REQ-615 — creator rights are public attribution.
+        provenance: novel.metadata.provenance ?? null,
       }, null, 2));
+    }
+    case "provenance": {
+      // REQ-615 — creator rights record. Metadata, not state: it does not
+      // change the canonical state hash but is covered by payload_hash.
+      requireGM();
+      const novel = requireNovel();
+      const creator = typeof args.creator === "string" ? args.creator.trim() : undefined;
+      const attribution = typeof args.attribution === "string" ? args.attribution.trim() : undefined;
+      const license = typeof args.license === "string" ? args.license.trim() : undefined;
+      if (creator === undefined && attribution === undefined && license === undefined) {
+        return err("INVALID_INPUT", "Provide creator, attribution, or license.");
+      }
+      const current = novel.metadata.provenance;
+      if (!current && !creator) {
+        return err("INVALID_INPUT", "A provenance record requires a creator.");
+      }
+      novel.metadata.provenance = {
+        creator: creator ?? current!.creator,
+        ...(attribution !== undefined ? { attribution } : current?.attribution !== undefined ? { attribution: current.attribution } : {}),
+        ...(license !== undefined ? { license } : current?.license !== undefined ? { license: current.license } : {}),
+      };
+      state.saveNovel(novel);
+      audit("set_provenance", { creator: novel.metadata.provenance.creator, license: novel.metadata.provenance.license ?? null });
+      return ok(`Novel provenance recorded — creator: ${novel.metadata.provenance.creator}${novel.metadata.provenance.license ? `; license: ${novel.metadata.provenance.license}` : ""}.`);
     }
     case "genre": {
       requireGM();
@@ -9639,7 +9741,14 @@ server.registerTool("manage_ruleset", {
         });
         // REQ-446/448 — install provenance + security-event audit: the slug,
         // content hash, and source are recorded and tagged.
-        audit("install_ruleset", { slug: pkg.slug, content_hash: pkg.manifest.content_hash ?? null, source: pkg.manifest.source_license ?? null });
+        audit("install_ruleset", {
+          slug: pkg.slug,
+          content_hash: pkg.manifest.content_hash ?? null,
+          source: pkg.manifest.source_license ?? null,
+          // REQ-618 — creator rights are part of the provenance record.
+          creator: pkg.manifest.creator ?? null,
+          attribution: pkg.manifest.attribution ?? null,
+        });
         reloadPackagePrompts();
         return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
       } catch (e: any) {
@@ -9675,6 +9784,9 @@ server.registerTool("manage_ruleset", {
             // REQ-432a — vendor package license attribution.
             licensed: pkg.manifest.source_license !== undefined,
             source_license: pkg.manifest.source_license ?? null,
+            // REQ-618 — creator rights.
+            creator: pkg.manifest.creator ?? null,
+            attribution: pkg.manifest.attribution ?? null,
           };
         } catch (e: any) {
           return { slug, state: "rejected", error: e.message };

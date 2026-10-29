@@ -6,6 +6,7 @@
 // (TDQS-conformant tool definitions).
 
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -33,6 +34,17 @@ function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 
 function contentHash(pkg: any): string {
   return sha256Canonical(pkg.index, pkg.model, pkg.tools, pkg.resources, pkg.prompts);
+}
+// REQ-446 — mirrors the host's canonical manifest signature payload.
+function canonicalManifest(v: any): string {
+  if (Array.isArray(v)) return `[${v.map(canonicalManifest).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v).filter((k) => k !== "signature").sort().map((k) => `${JSON.stringify(k)}:${canonicalManifest(v[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v ?? null);
+}
+function signManifest(manifest: any, key: string): string {
+  return createHmac("sha256", key).update(canonicalManifest(manifest)).digest("hex");
 }
 const RULESET_PKG = {
   slug: "sectest",
@@ -77,8 +89,9 @@ async function main() {
   });
 
   // ── T532: ruleset package provenance (REQ-446) ───────────────────────
-  await test("T532/REQ-446: install provenance + hash refusal", async () => {
-    const p = await boot();
+  await test("T532/REQ-446: install provenance, hash refusal, signature verification", async () => {
+    const VERIFY_KEY = "test-artifact-key";
+    const p = await boot({ TTRPG_ARTIFACT_VERIFY_KEY: VERIFY_KEY });
     await call(p, "manage_novel", { action: "create", name: "s3" });
     await call(p, "set_badge", { badge: "game_master" });
     const bad = JSON.parse(JSON.stringify(RULESET_PKG));
@@ -87,10 +100,21 @@ async function main() {
     assert(badRes.includes("hash") || badRes.includes("STATE_CONFLICT") || badRes.includes("mismatch"), "T532 tampered install not refused: " + badRes.slice(0, 200));
     const good = JSON.parse(JSON.stringify(RULESET_PKG));
     good.manifest.content_hash = contentHash(good);
+    good.manifest.creator = "Ada Example";
+    good.manifest.attribution = "Table One campaign";
+    good.manifest.signature = signManifest(good.manifest, VERIFY_KEY);
     const okRes = await call(p, "manage_ruleset", { action: "install", slug: "sectest", manifest: good.manifest, index: good.index, model: good.model, tools: good.tools, resources: [], prompts: [] });
     assert(okRes.includes("installed"), "T532 valid install failed: " + okRes.slice(0, 200));
     const audit = await readResource(p, "audit://novel");
     assert(audit.includes("install_ruleset"), "T532 provenance audit entry missing");
+    assert(audit.includes("Ada Example"), "T532 audit entry did not record the creator (REQ-618)");
+    assert(audit.includes("Table One campaign"), "T532 audit entry did not record the attribution (REQ-618)");
+    const badSig = JSON.parse(JSON.stringify(good));
+    badSig.manifest.slug = "sectest-bad";
+    badSig.manifest.content_hash = contentHash(badSig);
+    badSig.manifest.signature = "0".repeat(64);
+    const badSigRes = await call(p, "manage_ruleset", { action: "install", slug: "sectest-bad", manifest: badSig.manifest, index: badSig.index, model: badSig.model, tools: badSig.tools, resources: [], prompts: [] });
+    assert(badSigRes.includes("signature") && badSigRes.includes("STATE_CONFLICT"), "T532 bad signature not refused: " + badSigRes.slice(0, 200));
     await kill(p);
   });
 

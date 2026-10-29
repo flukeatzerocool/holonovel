@@ -493,7 +493,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306, 598–600 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
-| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586 |
+| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–619 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
@@ -2959,13 +2959,23 @@ WHEN `TTRPG_NARRATION_VALIDATION` is enabled, a state-mutating tool response SHA
 
 **REQ-445 — Error-value disclosure control.** Error responses SHALL NOT reveal the existence or content of badge-invisible surfaces. Validation hints and "did you mean" suggestions SHALL enumerate only values visible to the caller's active badge. A Player-badge caller receiving `[FORBIDDEN]`, `[NOT_FOUND]`, or `[AMBIGUOUS]` SHALL get no hint naming a GM-only tool, resource, lore key, or secret. *Acceptance criterion:* a Player-badge call for a GM-only lore key returns an error that does not echo the key's existence, while the same call under the Game Master badge returns the key-specific corrective action. _Check:_ T531.
 
-**REQ-446 — Ruleset package provenance.** `manage_ruleset (action: install)` SHALL verify the package-format fingerprint (REQ-420) and content hash (REQ-389b) before activation. Install SHALL record a provenance audit entry naming the slug, content hash, and source. When an operator supplies a verification key via configuration, install SHALL verify a signature over the package manifest and refuse a package whose signature does not verify, naming the failure. *Acceptance criterion:* a tampered package with a mismatched hash is refused by slug; a package installed with a configured key records provenance and verifies the signature; a signature failure names the failure. _Check:_ T532.
+**REQ-446 — Ruleset package provenance.** `manage_ruleset (action: install)` SHALL verify the package-format fingerprint (REQ-420) and content hash (REQ-389b) before activation. Install SHALL record a provenance audit entry naming the slug, content hash, and source. When `TTRPG_ARTIFACT_VERIFY_KEY` is configured, install SHALL verify a signature over the package manifest and refuse a package whose signature does not verify, naming the failure. *Acceptance criterion:* a tampered package with a mismatched hash is refused by slug; a package installed with a configured key records provenance and verifies the signature; a signature failure names the failure. _Check:_ T532.
 
 **REQ-447 — Audit-log growth cap.** The audit log SHALL honor a configurable maximum entry count. When appending an entry would exceed the configured maximum, the server SHALL refuse with `[ERROR] [STATE_CONFLICT]` naming the cap and the corrective action. `spec_health` SHALL report `audit_at_capacity`. *Acceptance criterion:* with a small configured cap, a mutating call that would exceed it is refused with the cap named; `spec_health` reports `audit_at_capacity`; raising the cap re-enables appends. _Check:_ T533.
 
 **REQ-448 — Security-event audit completeness.** Security-relevant events SHALL be recorded in the append-only chained audit log. The events are: badge switches, Novel import or export, codex or lore import, ruleset package install or remove, boundary violations (REQ-133), generation-guard overrides (REQ-251), cap refusals (REQ-447). Each entry SHALL carry the badge, the tool name, and a security-event tag. *Acceptance criterion:* a session that switches badges, imports a Novel, installs a package, and trips a boundary violation yields one tagged audit entry per event in append order with chained hashes intact. _Check:_ T534.
 
 **REQ-449 — Excessive-agency mutation ceiling.** A configurable per-turn mutation ceiling SHALL bound AI-initiated state mutations when `manage_staging (action: autonomy)` sits at `level=full` with `confirmation=auto`. Exceeding the ceiling within one turn SHALL surface a `[NEED_INPUT]` decision naming the accumulated mutations rather than auto-continuing. The refusal SHALL be recorded in the audit log. *Acceptance criterion:* with a ceiling of three, four consecutive auto-executed mutations in one turn surface a `[NEED_INPUT]` listing the three applied mutations and the pending one; a human-originated call never counts against the ceiling. _Check:_ T535.
+
+**REQ-615 — Novel provenance record.** The `manage_novel (action: provenance)` action SHALL record a Novel's creator, attribution, and license as a provenance record in the Novel's metadata, readable by any badge and writable with the Editor or Game Master badge. The record SHALL travel with the Novel's interchange payload and SHALL be restored on import. Recording or changing it SHALL NOT alter the canonical state hash. *Acceptance criterion:* setting a creator, attribution, and license then exporting and importing into a new Novel preserves all three; `manage_novel (action: info)` reports them; two exports of unchanged state hash identically. _Check:_ T733.
+
+**REQ-616 — Adventure module provenance.** An adventure module MAY declare a provenance block naming its creator, attribution, license, and content hash, in the Appendix K format. `manage_adventure (action: load)` and `manage_adventure (action: list)` SHALL record and surface the block, and the `adventures://` catalog SHALL include it. When a loaded module is embedded in a Novel export (REQ-096h), the export SHALL carry the block and import SHALL restore it as module provenance. *Acceptance criterion:* a module with a provenance block lists its creator and license; an export-import round-trip preserves them. _Check:_ T734.
+
+**REQ-617 — Adventure provenance verification.** `manage_adventure (action: load)` SHALL recompute a module's content hash over its body excluding the provenance block and SHALL refuse a mismatch with `[ERROR] [STATE_CONFLICT]` naming the expected and received hashes. When the module declares a signature and `TTRPG_ARTIFACT_VERIFY_KEY` is configured, load SHALL verify it and refuse a failure; a declared signature with no configured key SHALL warn `[signature-unverified]` and load. A module declaring no provenance SHALL load with `[WARNING] [provenance-absent]`. *Acceptance criterion:* a tampered module is refused; a signed module verifies under the key; an unsigned module warns. _Check:_ T735.
+
+**REQ-618 — Ruleset package creator attribution.** A ruleset package's version manifest MAY carry a `creator` and an `attribution` field alongside `source_license` (REQ-432a). When present, `manage_ruleset (action: list)` SHALL surface both, and install SHALL record them in the provenance audit entry (REQ-446). A package without either field SHALL load unchanged. *Acceptance criterion:* a package carrying creator and attribution lists both and records them on install; a package without them loads. _Check:_ T736.
+
+**REQ-619 — Reference package provenance emission.** The committed reference-package emitters SHALL populate the version manifest's `creator` and `attribution` from a provenance record committed beside each emitter (REQ-563). The record SHALL name the human creator and the source attribution. An emitter with no provenance record SHALL omit both fields rather than fabricate them. *Acceptance criterion:* re-emitting a reference package whose provenance record names a creator yields a manifest carrying it; an emitter with no record omits both fields. _Check:_ T737.
 
 ### 5.8 Synthesis, Lore, and Macros
 
@@ -6334,6 +6344,11 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-447 | S21, S24 | Audit-log growth cap |
 | REQ-448 | S6, S21, S24 | Security-event audit completeness |
 | REQ-449 | S22 | Excessive-agency mutation ceiling |
+| REQ-615 | S6, S24, S29 | Novel provenance record |
+| REQ-616 | S18, S29 | Adventure module provenance |
+| REQ-617 | S18, S30 | Adventure provenance verification |
+| REQ-618 | S30 | Ruleset package creator attribution |
+| REQ-619 | S30 | Reference package provenance emission |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
 | REQ-329 | S16, S23 | Countdown-world coupling |
@@ -7113,6 +7128,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NOVEL_BACKUP_COUNT` | No | Rotating backup retention count (minimum 1) |
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_archive (action: export)` output (default `false`; REQ-096h) |
 | `TTRPG_EXPORT_SIGNING_KEY` | No | Local HMAC-SHA256 key used to sign the export `integrity` envelope; absent means hash-only bundles (REQ-096j). Storage. |
+| `TTRPG_ARTIFACT_VERIFY_KEY` | No | Local HMAC-SHA256 key used to verify a ruleset package manifest signature (REQ-446) and an adventure module provenance signature (REQ-617). Symmetric: the holder can also sign. Absent means a declared signature warns `[signature-unverified]` and loads. Storage — non-behavioral; it gates artifact admission, not story state. |
 | `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
 | `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
 | `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
@@ -7635,7 +7651,11 @@ without a source check.
 the `integrity` member removed. `audit_hash` is SHA-256 over the concatenation
 of each audit entry's `timestamp`, `tool`, `args`, and `hash`, in log order.
 When `TTRPG_EXPORT_SIGNING_KEY` is set, the signature is HMAC-SHA256 over
-`payload_hash + state_hash + audit_hash`.
+`payload_hash + state_hash + audit_hash`. Artifact provenance signatures use the
+same HMAC-SHA256 construction with `TTRPG_ARTIFACT_VERIFY_KEY`: a package
+manifest's signature covers its canonical manifest JSON without the signature
+member (REQ-446), and an adventure module's signature covers its declared
+`content_hash` string (REQ-617).
 
 ---
 
@@ -10238,6 +10258,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-608 | Recall-at-budget probe | 2026-10-24 |
 | REQ-609 | On-demand schema disclosure | 2026-10-24 |
 | REQ-610 | Per-turn budget allocator | 2026-10-24 |
+| REQ-615 | Novel provenance record | 2026-10-29 |
+| REQ-616 | Adventure module provenance | 2026-10-29 |
+| REQ-617 | Adventure provenance verification | 2026-10-29 |
+| REQ-618 | Ruleset package creator attribution | 2026-10-29 |
+| REQ-619 | Reference package provenance emission | 2026-10-29 |
 
 ---
 
@@ -10768,7 +10793,7 @@ diet.
 | T529 | Automated | Forged downtime: mark three stress, recover two — assert one remains; indulge a vice — assert stress clears to 0. | REQ-443 |
 | T530 | Automated | Import-channel inertness: call `manage_archive (action: import, <C.3 payload>, "merge")` — assert the scene description is stored and echoed verbatim; assert no new tool appears in `tools/list`; assert no mechanical bonus is applied; assert a finding is logged. | REQ-444 |
 | T531 | Automated | Error-value disclosure control: call `manage_lore (action: get, key="gm-only-key")` under the Player badge — assert an error that does not echo the key's existence; repeat under the Game Master badge — assert the key-specific corrective action. | REQ-445 |
-| T532 | Automated | Ruleset package provenance: install a package whose content hash mismatches — assert refusal by slug; install a valid package with a configured verification key — assert a provenance audit entry naming slug, hash, and source; install a package with a bad signature — assert the failure named. | REQ-446 |
+| T532 | Automated | Ruleset package provenance: install a package whose content hash mismatches — assert refusal by slug; install a valid package with a configured `TTRPG_ARTIFACT_VERIFY_KEY` and a matching manifest signature — assert a provenance audit entry naming slug, hash, source, creator, and attribution; install a package whose signature does not verify under the configured key — assert the failure named and the package not activated. | REQ-446 |
 | T533 | Automated | Audit-log growth cap: configure a small cap, append entries until the cap is reached — assert the next mutating call returns `[ERROR] [STATE_CONFLICT]` naming the cap; assert `spec_health` reports `audit_at_capacity`; raise the cap — assert appends resume. | REQ-447 |
 | T534 | Automated | Security-event audit completeness: switch badges, import a Novel, install a package, and trip a boundary violation — assert one tagged audit entry per event in append order with chained hashes intact. | REQ-448 |
 | T535 | Automated | Excessive-agency mutation ceiling: set autonomy `level=full`, `confirmation=auto` with a ceiling of three — assert four consecutive auto-executed mutations surface a `[NEED_INPUT]` naming the three applied and the pending one; assert a human-originated call is not counted. | REQ-449 |
@@ -10898,6 +10923,11 @@ diet.
 | T659 | Automated | Starter freshness and provenance: edit the committed starter artifact and assert `check-starter-freshness` fails until the build tool re-emits it; assert the gate ignores the release version; assert `spec_health` reports the starter slug, seeded-or-skipped outcome, and no `[data-stale]` entry for the seeded Novel. | REQ-566 |
 | T731 | Automated | Portable data directory: resolve with `TTRPG_DATA_DIR` set and assert it wins; with an existing legacy `<install>/.holonovel-state` and assert it is used and not migrated; with Linux, macOS, and Windows environments and assert the user-data path; assert the default never resolves inside the package root; assert an absent directory is created owner-only and a creation failure propagates. | REQ-613 |
 | T732 | Automated | Published package integrity: pack the server, assert the tarball contains the specification, surface registry, disambiguation record, starter Novel, launcher, compiled entry points, and source; assert build-only inputs and harnesses are absent; install in isolation, exercise `initialize`, `tools/list`, `resources/read spec://build`, `spec_health`, and starter seeding; assert no state is written under the installed package and importing the package root does not start a server. | REQ-614 |
+| T733 | Automated | Novel provenance: set a creator, attribution, and license, assert `manage_novel (action: info)` reports them, export and import into a new Novel and assert all three survive, assert two exports of unchanged state hash identically, and assert a tampered payload is refused under `strict`. | REQ-615 |
+| T734 | Automated | Adventure provenance round-trip: a module with a provenance block lists its creator and license from `manage_adventure (action: list)` and `adventures://`; embed it in a Novel export and import into a new Novel, and assert the provenance survives; a module without a block loads unaffected. | REQ-616 |
+| T735 | Automated | Adventure provenance verification: a module whose declared content hash does not match its body is refused `[STATE_CONFLICT]` naming expected and received; a signed module verifies under `TTRPG_ARTIFACT_VERIFY_KEY`; a bad signature is refused; a signature with no configured key warns `[signature-unverified]`; a module with no block warns `[provenance-absent]`. | REQ-617 |
+| T736 | Automated | Ruleset creator attribution: a package whose manifest carries creator and attribution lists both from `manage_ruleset (action: list)` and records both in the install audit entry; a package without either field loads unchanged. | REQ-618 |
+| T737 | Automated | Reference package provenance emission: re-emitting the `swse` package from its committed provenance record yields a manifest carrying the recorded creator and attribution; an emitter with no provenance record omits both. | REQ-619 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -11378,6 +11408,34 @@ runtime.
 
 An unrecognized annotation category SHALL be treated as guidance content —
 indexed for search but not mechanically linked.
+
+### Provenance block
+
+A module MAY begin with a provenance block delimited by a line containing only
+`---` at the start of the file and another line containing only `---` before the
+first heading. Each line between the delimiters is one `key: value` pair. The
+recognized keys are `creator`, `attribution`, `license`, `content_hash`, and
+`signature`. Any other key, or a line that is not a `key: value` pair, makes the
+block ordinary prose; the module then loads with `[WARNING] [provenance-absent]`
+(REQ-616, REQ-617).
+
+`content_hash` is the SHA-256 hex digest of the module body — the exact bytes
+after the closing delimiter, with no normalization. `signature` is the
+HMAC-SHA256 hex digest of the `content_hash` string, keyed with
+`TTRPG_ARTIFACT_VERIFY_KEY`. A block carrying a `content_hash` that does not
+match the body is refused at load; a block carrying a `signature` with no
+configured key warns `[signature-unverified]` and loads.
+
+```markdown
+---
+creator: Jane Doe
+attribution: Based on material by Example Games
+license: CC BY 4.0
+content_hash: 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0
+signature: 9a8b7c6d5e4f30211f2e3d4c5b6a79889a8b7c6d5e4f30211f2e3d4c5b6a7988
+---
+# Adventure Title
+```
 
 ### Format example
 

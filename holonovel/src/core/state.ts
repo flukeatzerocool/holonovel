@@ -588,7 +588,7 @@ export interface NovelState {
   checkpoints: Checkpoint[];
   description: string;
   genre: string;
-  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[]; scene_count?: number } | null;
+  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[]; scene_count?: number; provenance?: { creator?: string; attribution?: string; license?: string; content_hash?: string; signature?: string } } | null;
   adventure_scene_waypoint: { anchor: string; description: string } | null;
   // World-model tier
   world: WorldModel;
@@ -616,6 +616,10 @@ export interface NovelState {
     session_count: number;
     total_combat_rounds: number;
     last_scene_anchor: string;
+    // REQ-615 — creator rights. Travels with the interchange payload; excluded
+    // from the canonical state hash (metadata is not hashed), included in
+    // payload_hash.
+    provenance?: { creator: string; attribution?: string; license?: string };
     // REQ-092h1 — compression state recorded for integrity verification on resume.
     compression?: boolean;
     // REQ-603 — canonical state digest of the last committed save, compared by

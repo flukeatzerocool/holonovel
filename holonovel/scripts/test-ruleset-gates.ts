@@ -12,7 +12,7 @@
  * Exit codes: 0 = pass, 1 = one or more assertions failed.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
@@ -281,6 +281,40 @@ test("T689/REQ-563+REQ-578: emitter declares surfaces and is deterministic at a 
   assert(emitted.every((t: any) => t.group && Array.isArray(t.phases) && t.phases.length > 0), "emitter did not declare surfaces");
   for (const f of ["manifest.json", "index.json", "model.json", "tools.json", "resources.json", "prompts.json"]) {
     assert(readFileSync(join(outs[0], f), "utf-8") === readFileSync(join(outs[1], f), "utf-8"), `${f} differs between emissions`);
+  }
+});
+
+test("T737/REQ-619: reference emitter populates creator/attribution from its provenance record", () => {
+  const base = join(TMP, "swse-prov-base");
+  emitPackage(base, goodParts());
+  const toolsPath = join(base, "tools.json");
+  const stripped = JSON.parse(readFileSync(toolsPath, "utf-8"));
+  for (const t of stripped) { delete t.group; delete t.phases; }
+  writeFileSync(toolsPath, JSON.stringify(stripped, null, 2) + "\n");
+
+  const emitter = join(import.meta.dirname, "..", "..", "scripts", "ruleset-builds", "swse", "build-package.mjs");
+  const provPath = join(import.meta.dirname, "..", "..", "scripts", "ruleset-builds", "swse", "provenance.json");
+  const expected = JSON.parse(readFileSync(provPath, "utf-8"));
+  const env = { ...process.env, HOLONOVEL_BUILD_TIMESTAMP: "2020-01-01T00:00:00.000Z" };
+  const out = join(TMP, "swse-prov-out");
+  const r = spawnSync("node", [emitter, "--baseline", base, "--out", out, "--no-backup"], { encoding: "utf-8", env });
+  assert(r.status === 0, `emitter failed: ${(r.stderr ?? "") + (r.stdout ?? "")}`);
+  const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf-8"));
+  assert(manifest.creator === expected.creator, `creator not populated: ${manifest.creator}`);
+  assert(manifest.attribution === expected.attribution, `attribution not populated: ${manifest.attribution}`);
+
+  // A missing provenance record omits both fields rather than fabricating them.
+  const parked = `${provPath}.test-parked`;
+  renameSync(provPath, parked);
+  try {
+    const out2 = join(TMP, "swse-prov-out-none");
+    const r2 = spawnSync("node", [emitter, "--baseline", base, "--out", out2, "--no-backup"], { encoding: "utf-8", env });
+    assert(r2.status === 0, `emitter failed without provenance: ${(r2.stderr ?? "") + (r2.stdout ?? "")}`);
+    const manifest2 = JSON.parse(readFileSync(join(out2, "manifest.json"), "utf-8"));
+    assert(!("creator" in manifest2), "creator fabricated without a record");
+    assert(!("attribution" in manifest2), "attribution fabricated without a record");
+  } finally {
+    renameSync(parked, provPath);
   }
 });
 

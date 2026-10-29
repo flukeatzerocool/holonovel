@@ -28,6 +28,9 @@ import {
 
 const HERE = import.meta.dirname;
 const REPO_ROOT = path.resolve(HERE, "..", "..", "..");
+// REQ-619 — creator rights from a committed record beside the emitter.
+const PROVENANCE_PATH = path.join(HERE, "provenance.json");
+const PROVENANCE = fs.existsSync(PROVENANCE_PATH) ? readJson(PROVENANCE_PATH) : {};
 const DEPLOYED = process.env.TC_DEPLOYED ?? path.join(REPO_ROOT, "..", "Holonovel-deployed", "holonovel");
 const DEFAULT_INSTALL = path.join(DEPLOYED, ".holonovel-state", "rulesets", "dnd2024");
 
@@ -104,6 +107,9 @@ function main() {
     built_at: buildTimestamp(),
     counts,
     package_format: readPackageFormat(path.dirname(DEPLOYED)),
+    // REQ-619 — optional creator rights from the committed provenance record.
+    ...(PROVENANCE.creator ? { creator: PROVENANCE.creator } : {}),
+    ...(PROVENANCE.attribution ? { attribution: PROVENANCE.attribution } : {}),
   };
 
   console.log(`build-package — dnd2024 + ThunderCats`);

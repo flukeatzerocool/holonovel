@@ -5,10 +5,12 @@
 // encounter batch generation with a single undo target.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { createHash, createHmac } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { resourceReader } from "./lib/jsonrpc.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -73,6 +75,7 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   const content = resp.result?.content ?? [];
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
+const readResource = resourceReader(send);
 function kill(proc: ChildProcess): Promise<void> {
   return new Promise((resolve) => { proc.on("exit", () => resolve()); proc.kill(); });
 }
@@ -166,6 +169,71 @@ async function main() {
     });
 
     await kill(proc);
+  }
+
+  {
+    // REQ-616/REQ-617 — provenance block, verification, and embed round-trip.
+    const ADV_DIR = mkdtempSync(join(tmpdir(), "holonovel-adventure-modules-"));
+    const PROV_DATA = mkdtempSync(join(tmpdir(), "holonovel-adventure-prov-"));
+    const body = "# Provenance Quest\n\n## Adventure Hook\nA signed module.\n\n## World\nThe Hall is a room. \"A hall.\"\n";
+    const hash = createHash("sha256").update(body).digest("hex");
+    const key = "test-artifact-key";
+    const sig = createHmac("sha256", key).update(hash).digest("hex");
+    writeFileSync(join(ADV_DIR, "good.md"), `---\ncreator: Ada Example\nattribution: Table One\nlicense: CC BY 4.0\ncontent_hash: ${hash}\nsignature: ${sig}\n---\n${body}`);
+    writeFileSync(join(ADV_DIR, "tampered.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${"0".repeat(64)}\n---\n${body}`);
+    writeFileSync(join(ADV_DIR, "badsig.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${hash}\nsignature: ${"0".repeat(64)}\n---\n${body}`);
+    writeFileSync(join(ADV_DIR, "unsigned.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${hash}\n---\n${body}`);
+    writeFileSync(join(ADV_DIR, "plain.md"), body);
+
+    const proc = await boot({ TTRPG_ADVENTURE_DIR: ADV_DIR, TTRPG_DATA_DIR: PROV_DATA, TTRPG_EXPORT_EMBED_ADVENTURES: "true", TTRPG_ARTIFACT_VERIFY_KEY: key });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_novel", { action: "create", name: "provenance" });
+
+    await test("T734/REQ-616: adventure provenance surfaces and survives embed/import", async () => {
+      const list = await call(proc, "manage_adventure", { action: "list" });
+      assertContains(list, "Ada Example");
+      assertContains(list, "CC BY 4.0");
+      const catalog = await readResource(proc, "adventures://");
+      assertContains(catalog, "Ada Example");
+      const loaded = await call(proc, "manage_adventure", { action: "load", slug: "good" });
+      assertContains(loaded, "Ada Example");
+      const exported = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if (exported.adventure?.provenance?.creator !== "Ada Example") {
+        throw new Error(`export did not carry provenance: ${JSON.stringify(exported.adventure)}`);
+      }
+      await call(proc, "manage_novel", { action: "create", name: "provenance-import" });
+      await call(proc, "manage_archive", { action: "import", data: JSON.stringify(exported), mode: "replace" });
+      const reexport = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if (reexport.adventure?.provenance?.creator !== "Ada Example") throw new Error("import lost module provenance");
+    });
+
+    await test("T735/REQ-617: adventure hash and signature mismatches are refused", async () => {
+      const tampered = await call(proc, "manage_adventure", { action: "load", slug: "tampered" });
+      assertContains(tampered, "STATE_CONFLICT");
+      assertContains(tampered, "content_hash");
+      assertContains(tampered, "expected");
+      const badsig = await call(proc, "manage_adventure", { action: "load", slug: "badsig" });
+      assertContains(badsig, "STATE_CONFLICT");
+      assertContains(badsig, "signature");
+      const unsigned = await call(proc, "manage_adventure", { action: "load", slug: "unsigned" });
+      assertContains(unsigned, "loaded");
+      await kill(proc);
+    });
+
+    const proc2 = await boot({ TTRPG_ADVENTURE_DIR: ADV_DIR, TTRPG_DATA_DIR: PROV_DATA });
+    await call(proc2, "set_badge", { badge: "game_master" });
+    await call(proc2, "manage_novel", { action: "create", name: "no-key" });
+
+    await test("T735/REQ-617: a declared signature without a configured key warns and loads", async () => {
+      const signed = await call(proc2, "manage_adventure", { action: "load", slug: "good" });
+      assertContains(signed, "[signature-unverified]");
+      const plain = await call(proc2, "manage_adventure", { action: "load", slug: "plain" });
+      assertContains(plain, "[provenance-absent]");
+      await kill(proc2);
+    });
+
+    rmSync(ADV_DIR, { recursive: true, force: true });
+    rmSync(PROV_DATA, { recursive: true, force: true });
   }
 
   harnessComplete();

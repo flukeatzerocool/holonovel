@@ -2,11 +2,11 @@
 
 **Spec hash:** ef12f8d0becbed018273eb4f26204057b0a33da3f2d3323a7f516e631927fd8e
 
-**Recorded tool budget:** 36 listed (231 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 36 listed (232 canonical actions; 3 retired hidden tools + 1 retired hidden action carrying 50 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 25,486 tokens; standard 21,985; small 1,103; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 25,605 tokens; standard 22,104; small 1,131; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Publication update evidence — 2026-10-25
 
@@ -54,6 +54,34 @@
 - **Coverage dispositions.** REQ-613 and REQ-614 are bucket C: cited in
   `holonovel/src/core/data-dir.ts` and the package/runtime scripts, exercised
   by T731 (`test:data-dir`) and T732 (`test:package-smoke`).
+
+### Artifact provenance (E6) — 2026-10-29
+
+- **D1 — placement.** REQ-615–619 live in §5.7 beside REQ-446/REQ-448
+  because provenance and refusal are integrity contracts. §5.7 is not a
+  fingerprint section, so neither the package-format nor the data-format
+  fingerprint advances.
+- **D2 — no Appendix Q edit.** Novel provenance is `novel.metadata.provenance`,
+  which already serializes through the `novel` interchange payload. Appendix Q
+  is unchanged; no persisted artifact is flagged `[data-stale]`. The
+  pre-existing Appendix Q flat-schema versus nested-payload divergence is
+  recorded as an observation, not fixed here.
+- **D3 — package manifest fields are additive.** `creator` and `attribution`
+  are optional version-manifest fields ignored by older loaders, so the
+  package-format fingerprint is not bumped and installed packages are not
+  invalidated. REQ-446's manifest-signature clause is the precedent for a
+  package-manifest contract outside §5.17.
+- **D4 — one verification key.** `TTRPG_ARTIFACT_VERIFY_KEY` is a symmetric
+  HMAC-SHA256 key that verifies a package manifest and an adventure module. It
+  is storage configuration, not behavioral: no narrative coupling row applies.
+- **D5 — adventure refusal is unconditional.** A declared adventure content
+  hash must match; a declared signature without a configured key warns and
+  loads (REQ-096l parity).
+- **Coverage dispositions.** REQ-615–618 are bucket C (server-runtime), cited
+  in `holonovel/src/index.ts` and `holonovel/src/rulesets.ts`, exercised by
+  T733–T736. REQ-619 is builder-side, owed by
+  `scripts/ruleset-builds/*/build-package.mjs`, exercised by T737, and
+  whitelisted in `INTENDED_GAP_REQS`.
 
 ### Two-week review remediation — 2026-10-25
 

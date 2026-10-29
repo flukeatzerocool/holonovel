@@ -36,6 +36,10 @@ const SCRIPT_DIR = import.meta.dirname;
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..", "..");
 const SLUG = "swse";
 const NAME = "Star Wars Saga Edition";
+// REQ-619 — creator rights come from a committed record beside the emitter. An
+// absent record omits the fields rather than fabricating them.
+const PROVENANCE_PATH = path.join(SCRIPT_DIR, "provenance.json");
+const PROVENANCE = fs.existsSync(PROVENANCE_PATH) ? readJson(PROVENANCE_PATH) : {};
 
 // REQ-399a — the authored character-creation model must declare every
 // damage-tracking resource the ruleset defines, as a derived statistic.
@@ -92,6 +96,9 @@ try {
   const manifest = {
     slug: SLUG, name: NAME, host_version: hostVersion, content_hash: contentHash,
     built_at: buildTimestamp(), counts: baselineManifest.counts ?? {}, package_format: packageFormat,
+    // REQ-619 — optional creator rights from the committed provenance record.
+    ...(PROVENANCE.creator ? { creator: PROVENANCE.creator } : {}),
+    ...(PROVENANCE.attribution ? { attribution: PROVENANCE.attribution } : {}),
   };
 
   console.log(`build-package — ${SLUG}`);

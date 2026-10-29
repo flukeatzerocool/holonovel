@@ -99,7 +99,7 @@ async function newNovel(proc: ChildProcess, name: string): Promise<void> {
 function packageContentHash(index: any[], model: any, tools: any[], resources: any[], prompts: any[]): string {
   return sha256Canonical(index, model, tools, resources, prompts);
 }
-function seedPackage(slug: string, model: Record<string, any>, sourceLicense?: string): void {
+function seedPackage(slug: string, model: Record<string, any>, sourceLicense?: string, rights?: { creator?: string; attribution?: string }): void {
   const dir = join(DATA_DIR, "rulesets", slug);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
@@ -114,6 +114,9 @@ function seedPackage(slug: string, model: Record<string, any>, sourceLicense?: s
     built_at: new Date().toISOString(), counts: {},
   };
   if (sourceLicense !== undefined) manifest.source_license = sourceLicense;
+  // REQ-618 — optional creator rights.
+  if (rights?.creator !== undefined) manifest.creator = rights.creator;
+  if (rights?.attribution !== undefined) manifest.attribution = rights.attribution;
   for (const [name, obj] of Object.entries({
     "manifest.json": manifest, "index.json": index, "model.json": model,
     "tools.json": tools, "resources.json": resources, "prompts.json": prompts,
@@ -380,6 +383,24 @@ async function main() {
       const alerts = health.ruleset_package_alerts ?? [];
       const unattributed = alerts.filter((a: any) => String(a.reason ?? "").includes("[license-unattributed]"));
       assert(unattributed.some((a: any) => String(a.slug) === "vendor-bad"), "vendor-bad should be flagged [license-unattributed]");
+    });
+    proc.kill("SIGKILL");
+  }
+
+  // ── T736 (REQ-618) — ruleset creator attribution ──────────────────
+  {
+    seedPackage("rights-ok", {}, "CC BY 4.0", { creator: "Ada Example", attribution: "Table One campaign" });
+    seedPackage("rights-none", {});
+    const proc = await boot();
+    await newNovel(proc, "rights-test");
+    await test("T736/REQ-618: creator and attribution surface; a package without them loads unchanged", async () => {
+      const list = JSON.parse(await call(proc, "manage_ruleset", { action: "list" }));
+      const ok = list.find((p: any) => p.slug === "rights-ok");
+      assert(ok, "rights-ok should be listed");
+      assert(ok.creator === "Ada Example", `creator not surfaced: ${JSON.stringify(ok)}`);
+      assert(ok.attribution === "Table One campaign", `attribution not surfaced: ${JSON.stringify(ok)}`);
+      const none = list.find((p: any) => p.slug === "rights-none");
+      assert(none && none.creator === null && none.attribution === null, "a package without rights should list null, not fail");
     });
     proc.kill("SIGKILL");
   }

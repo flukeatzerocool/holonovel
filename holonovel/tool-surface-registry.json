@@ -2730,6 +2730,21 @@
       "successors": [],
       "edges": []
     },
+    "manage_novel.provenance": {
+      "group": "table",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_novel.rename": {
       "group": "table",
       "phases": [

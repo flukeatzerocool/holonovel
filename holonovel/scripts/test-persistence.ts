@@ -257,6 +257,33 @@ async function main() {
       }
     });
 
+    await test("T733/REQ-615: Novel provenance round-trips, leaves state_hash alone, and refuses tamper", async () => {
+      const setRes = await call(proc, "manage_novel", { action: "provenance", creator: "Ada Example", attribution: "Played at Table One", license: "CC BY 4.0" });
+      assertContains(setRes, "Ada Example");
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
+      if (info.provenance?.creator !== "Ada Example" || info.provenance?.license !== "CC BY 4.0") {
+        throw new Error(`info did not report provenance: ${JSON.stringify(info.provenance)}`);
+      }
+      const before = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      await call(proc, "manage_novel", { action: "create", name: "provenance-target" });
+      await call(proc, "manage_archive", { action: "import", data: JSON.stringify(before), mode: "replace" });
+      const roundtripInfo = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
+      if (roundtripInfo.provenance?.creator !== "Ada Example" || roundtripInfo.provenance?.attribution !== "Played at Table One") {
+        throw new Error(`round-trip lost provenance: ${JSON.stringify(roundtripInfo.provenance)}`);
+      }
+      const after = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      if (before.integrity.state_hash !== after.integrity.state_hash) {
+        throw new Error("provenance changed the canonical state hash");
+      }
+      const tampered = JSON.parse(JSON.stringify(before));
+      tampered.novel.metadata.provenance.creator = "Mallory";
+      const refused = await call(proc, "manage_archive", { action: "import", data: JSON.stringify(tampered), mode: "replace", strict: true });
+      assertContains(refused, "[STATE_CONFLICT]");
+      const still = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
+      if (still.provenance?.creator !== "Ada Example") throw new Error("tampered import mutated state");
+      await call(proc, "manage_novel", { action: "switch", slug: "renamed" });
+    });
+
     await test("T100/REQ-096j: replace-import into a fresh Novel preserves event log and perceptions", async () => {
       await call(proc, "manage_belief", { action: "perception_record", entity_id: "pc_1", perception_entity_id: "pc_1", perception_summary: "saw the gate", perception_kind: "observation" });
       await call(proc, "manage_diagnostics", { action: "event", text: "player says hello", source: "player" });
