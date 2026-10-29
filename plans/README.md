@@ -13,6 +13,10 @@ plans/<date>-<slug>/
   tasks.md   — the dependency-ordered task breakdown the builder executes
 ```
 
+`plans/*` is gitignored except this README: increment artifacts are local
+working records, not committed. When an artifact must be tracked (for example
+a gap report cited by a closed roadmap item), place it under `docs/`.
+
 ## plan.md shape
 
 - **Summary** — one paragraph: what the increment changes and why.

@@ -17,15 +17,6 @@
 - Done when the five surfaces agree, `npm run assemble && npm run check:fast`
   is green, and the README guardrail passes.
 
-## E5 — Non-TTRPG world-pack pilot
-
-- Build one non-TTRPG scenario (mystery, management sim, or social drama) from
-  existing primitives.
-- Report what required new REQs versus packaging only; that report decides
-  whether "general engine" is a real claim.
-- Depends on E3. Done when the pack plays headlessly and the gap report is
-  recorded.
-
 ## E6 — Artifact provenance and creator rights
 
 - License, attribution, content hash, and optional signature on ruleset
