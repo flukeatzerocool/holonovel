@@ -1,29 +1,29 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 107454,
+  "tools_list_bytes": 107793,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 107454,
-        "tokens": 26864
+        "bytes": 107793,
+        "tokens": 26949
       },
       "standard": {
         "tools": 37,
-        "bytes": 93061,
-        "tokens": 23266
+        "bytes": 93400,
+        "tokens": 23350
       },
       "small": {
         "tools": 6,
-        "bytes": 4568,
-        "tokens": 1142,
+        "bytes": 4595,
+        "tokens": 1149,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4568,
-            "tokens": 1142
+            "bytes": 4595,
+            "tokens": 1149
           },
           "explore": {
             "tools": 6,
@@ -217,8 +217,8 @@
     {
       "name": "manage_archive",
       "title": "Novel Archive Management",
-      "description": "Export, import, archive, unarchive, clone, branch, and checkpoint Novel save files. export writes a file in json or markdown; import writes Novel state and mode selects dry-run (validate only), merge (keep existing entries), or replace (discard current Novel state), while strict aborts on unresolved references. clone copies the whole Novel unless trim_audit_sessions keeps only recent sessions; branch starts from from_event (default latest); archive is reversible with unarchive; checkpoint_restore replaces the live Novel with the stored checkpoint and is itself undoable; checkpoint subscriptions persist. Use when: exporting or importing a Novel, archiving/unarchiving, cloning/branching, or managing checkpoints. Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Revert the most recent mutation with manage_history (action: undo); checkpoint_list is read-only.",
-      "description_bytes": 904,
+      "description": "Export, import, archive, unarchive, clone, branch, and checkpoint Novel save files. export writes a file in json or markdown; share emits a portable full-scope json bundle with embedded adventure content; import writes Novel state and mode selects dry-run (validate only), merge (keep existing entries), or replace (discard current Novel state), while strict aborts on unresolved references. clone copies the whole Novel unless trim_audit_sessions keeps only recent sessions; branch starts from from_event (default latest); archive is reversible with unarchive; checkpoint_restore replaces the live Novel with the stored checkpoint and is itself undoable; checkpoint subscriptions persist. Use when: exporting or importing a Novel, archiving/unarchiving, cloning/branching, or managing checkpoints. Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Revert the most recent mutation with manage_history (action: undo); checkpoint_list is read-only.",
+      "description_bytes": 983,
       "action_enum": [
         "export",
         "import",
@@ -231,7 +231,7 @@
         "checkpoint_restore",
         "checkpoint_remove"
       ],
-      "param_count": 12,
+      "param_count": 13,
       "required": [
         "action"
       ],
@@ -244,6 +244,7 @@
         "mode": "dry-run, merge, or replace (import).",
         "new_name": "Name for the copy or branch (clone/branch).",
         "scope": "Export scope (export).",
+        "share": "Emit a portable full-scope bundle with embedded adventure content (export; JSON only).",
         "slug": "Novel slug (resume/switch/archive/unarchive/info).",
         "source_slug": "Novel to copy or branch from (clone/branch).",
         "strict": "Fail on any cross-reference mismatch (import).",
@@ -260,9 +261,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 13,
+        "paramCount": 14,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 13,
+        "paramsWithDescriptions": 14,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -273,8 +274,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3084,
-        "descriptionBytes": 904
+        "definitionBytes": 3293,
+        "descriptionBytes": 983
       },
       "category": "",
       "gate": ""
@@ -1324,7 +1325,7 @@
         "get_context",
         "provenance"
       ],
-      "param_count": 29,
+      "param_count": 30,
       "required": [
         "action"
       ],
@@ -1353,6 +1354,7 @@
         "player_goals": "Player goals (save_context).",
         "ruleset": "Ruleset slug (create).",
         "scope": "Export scope (export).",
+        "share": "Emit a portable full-scope bundle with embedded adventure content (export; JSON only).",
         "short_term_plans": "Short-term plans (save_context).",
         "slug": "Novel slug (resume/switch/archive/unarchive/info).",
         "source_slug": "Novel to copy or branch from (clone/branch).",
@@ -1370,9 +1372,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 30,
+        "paramCount": 31,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 30,
+        "paramsWithDescriptions": 31,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1383,7 +1385,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4640,
+        "definitionBytes": 4770,
         "descriptionBytes": 847
       },
       "category": "",

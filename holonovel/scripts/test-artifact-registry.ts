@@ -171,10 +171,35 @@ async function main() {
     assert.match(pkg, /\[OK\]/);
   });
 
-  await test("T739: an existing slug is refused", async () => {
+  await test("T739/REQ-621a: a duplicate slug is admitted under a -2 suffix", async () => {
     const out = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "pack-one.json" });
+    assert.match(out, /\[OK\]/);
+    assert.match(out, /'pack-one-2' installed/);
+    const list = await call(b, "manage_novel", { action: "list" });
+    assert.match(list, /pack-one-2/);
+  });
+
+  await test("T739/REQ-621a: a Novel bound to an absent ruleset is refused before any write", async () => {
+    writeFileSync(join(ROOT_B, "inbox", "rules-bound.json"), JSON.stringify({ novel: { slug: "rules-bound", name: "Rules Bound", ruleset: "missing-rules" } }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "rules-bound.json" });
     assert.match(out, /\[ERROR\] \[STATE_CONFLICT\]/);
-    assert.match(out, /already installed/);
+    assert.match(out, /missing-rules/);
+    assert.match(out, /not installed/);
+  });
+
+  await test("T739/REQ-621a: an embedded adventure is materialized on install", async () => {
+    const body = "# Shared Signal\n\n## Overview\nAn embedded module.\n";
+    const hash = createHash("sha256").update(body).digest("hex");
+    writeFileSync(join(ROOT_B, "inbox", "shared-pack.json"), JSON.stringify({
+      novel: { slug: "shared-pack", name: "Shared Pack", adventure_slug: "shared-signal" },
+      adventure: { slug: "shared-signal", content: body, content_hash: hash, provenance: { creator: "Ada", license: "CC BY 4.0" } },
+    }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "shared-pack.json" });
+    assert.match(out, /\[OK\]/);
+    const loaded = await call(b, "manage_adventure", { action: "load", slug: "shared-signal" });
+    assert.match(loaded, /\[OK\]/);
+    assert.match(loaded, /creator: Ada/);
+    assert.doesNotMatch(loaded, /NOT_FOUND/);
   });
 
   await test("T739: a traversal destination slug is refused", async () => {

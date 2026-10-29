@@ -76,7 +76,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-093 | Novel listing and metadata (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T78, T99 | — |
 | REQ-094 | Lorebook interchange (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T80 | — |
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
-| REQ-096 | Novel interchange (Part a) (14 sub-parts) | 5.9 Novel Persistence and Transport | C | T100, T281, T693, T691, T694, T692 | — |
+| REQ-096 | Novel interchange (Part a) (15 sub-parts) | 5.9 Novel Persistence and Transport | C | T100, T281, T693, T691, T694, T692, T740 | — |
 | REQ-097 | Novel health (Part a1) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T101, T160, T384 | — |
 | REQ-098 | Spec-driven update workflow | 6.7 Spec-driven updates | E | T84b | — |
 | REQ-099 | Confidence-floor acknowledgment | 5.2 Extraction and Confidence | E | — | — |
@@ -576,5 +576,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-618 | Ruleset package creator attribution | 5.7 Determinism, Safety, and Performance | C | T736 | — |
 | REQ-619 | Reference package provenance emission | 5.7 Determinism, Safety, and Performance | E | T737 | — |
 | REQ-620 | Local artifact registry | 5.7 Determinism, Safety, and Performance | C | T738, S6 | — |
-| REQ-621 | Artifact admission | 5.7 Determinism, Safety, and Performance | C | T739 | — |
+| REQ-621 | Artifact admission (1 sub-part) | 5.7 Determinism, Safety, and Performance | C | T739 | — |
 

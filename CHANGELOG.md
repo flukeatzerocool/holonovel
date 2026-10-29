@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-29 — Novel sharing and portable pack admission
+
+- A Novel can now be shared as one portable file: export with `share: true`
+  embeds the active adventure and forces a full bundle, so a friend can
+  install it and play an independent copy. (REQ-096m)
+- Importing a shared Novel now materializes its embedded adventure so it is
+  actually playable; a tampered adventure is refused before any write.
+  (REQ-096m, REQ-616)
+- Installing a Novel whose ruleset is absent is refused up front with a clear
+  message, and a Novel with an already-used name installs as a numbered copy
+  instead of failing. (REQ-621a)
+- Player-scope exports still never carry GM adventure material; the
+  adventure-embedding environment default is unchanged.
+
 ## 2026-10-29 — Artifact admission hardening and delegation audit fixes
 
 - Hardened artifact admission (REQ-621): validate the slug against

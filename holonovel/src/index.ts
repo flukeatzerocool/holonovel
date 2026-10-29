@@ -9058,10 +9058,11 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
 
 // REQ-096h/i1 — embed loaded adventure module content inline on export when
-// TTRPG_EXPORT_EMBED_ADVENTURES is true (default false). Generated adventures
-// live only in the Novel; indexed modules re-read their Markdown source.
-function embeddedAdventureContent(novel: NovelState): { slug: string; content: string; content_hash: string; provenance: AdventureProvenance | null } | null {
-  if ((process.env.TTRPG_EXPORT_EMBED_ADVENTURES ?? "false") !== "true") return null;
+// TTRPG_EXPORT_EMBED_ADVENTURES is true (default false) or the request sets
+// REQ-096m `share: true`. Generated adventures live only in the Novel; indexed
+// modules re-read their Markdown source.
+function embeddedAdventureContent(novel: NovelState, force = false): { slug: string; content: string; content_hash: string; provenance: AdventureProvenance | null } | null {
+  if (!force && (process.env.TTRPG_EXPORT_EMBED_ADVENTURES ?? "false") !== "true") return null;
   if (!novel.adventure_slug && !novel.generated_adventure) return null;
   if (novel.generated_adventure) {
     const content = JSON.stringify(novel.generated_adventure);
@@ -9078,6 +9079,52 @@ function embeddedAdventureContent(novel: NovelState): { slug: string; content: s
     const { provenance, body } = parseAdventureProvenance(content);
     return { slug, content: body, content_hash: crypto.createHash("sha256").update(body).digest("hex"), provenance };
   } catch { return null; /* module not present on disk — nothing to embed */ }
+}
+
+// REQ-096m/REQ-621a — materialize an adventure block carried by a shared Novel
+// bundle so the recipient can load it. Verifies the embedded content hash,
+// writes into the data-directory adventure install target (the first directory
+// `adventureDirs()` scans), and returns the slug the Novel should bind to.
+// A slug already occupied by identical content is reused; a different module
+// under the same slug is namespaced with a short content hash.
+function materializeEmbeddedAdventure(adventure: any): { slug: string; warnings: string[] } | null {
+  if (!adventure || typeof adventure !== "object" || typeof adventure.content !== "string") return null;
+  const warnings: string[] = [];
+  const body = adventure.content;
+  // A generated adventure is serialized JSON carried in the Novel payload
+  // itself; it is not a Markdown module and must not be written to disk.
+  let embeddedJson: unknown = null;
+  try { embeddedJson = JSON.parse(body); } catch { /* Markdown module */ }
+  if (embeddedJson && typeof embeddedJson === "object") return null;
+  const actual = crypto.createHash("sha256").update(body).digest("hex");
+  if (typeof adventure.content_hash === "string" && adventure.content_hash !== actual) {
+    throw new Error(`embedded adventure content hash mismatch: expected ${adventure.content_hash}, received ${actual}`);
+  }
+  const declared = String(adventure.slug ?? "generated");
+  let slug = isSafeSlug(declared) ? declared : `adventure-${actual.slice(0, 8)}`;
+  const dir = path.join(DATA_DIR, "adventures");
+  let target = resolveWithin(dir, `${slug}.md`);
+  if (!target) throw new Error(`embedded adventure slug '${declared}' resolves outside the adventure directory`);
+  if (fs.existsSync(target)) {
+    const existing = parseAdventureProvenance(fs.readFileSync(target, "utf-8")).body;
+    if (crypto.createHash("sha256").update(existing).digest("hex") !== actual) {
+      slug = `${slug}-${actual.slice(0, 8)}`;
+      target = resolveWithin(dir, `${slug}.md`);
+      if (!target) throw new Error(`embedded adventure slug '${slug}' resolves outside the adventure directory`);
+      warnings.push(`[adventure-slug-conflict] installed embedded adventure as '${slug}'`);
+    } else {
+      return { slug, warnings };
+    }
+  }
+  const provenance = adventure.provenance && typeof adventure.provenance === "object" ? adventure.provenance : null;
+  const block = provenance
+    ? `---\n${Object.entries(provenance).filter(([, v]) => typeof v === "string" && v).map(([k, v]) => `${k}: ${v}`).join("\n")}\n---\n`
+    : "";
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, block + body);
+  fs.renameSync(tmp, target);
+  return { slug, warnings };
 }
 
 // REQ-096g/j — portable bundle integrity. Hashes are computed over a freshly
@@ -9192,6 +9239,7 @@ const MANAGE_NOVEL_SCHEMA = {
     codex_adventure: z.string().optional().describe("Codex adventure to seed from (create)."),
     format: z.string().optional().describe("Output format (export)."),
     scope: z.string().optional().describe("Export scope (export)."),
+    share: z.boolean().optional().describe("Emit a portable full-scope bundle with embedded adventure content (export; JSON only)."),
     data: z.string().optional().describe("Exported Novel JSON (import)."),
     mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace (import)."),
     strict: z.boolean().optional().describe("Fail on any cross-reference mismatch (import)."),
@@ -9291,10 +9339,16 @@ Options: yes, cancel`);
       if (args.format && !INTERCHANGE_FORMATS.includes(args.format)) {
         return err("INVALID_INPUT", `Unsupported format '${args.format}'. Supported formats: ${INTERCHANGE_FORMATS.join(", ")}.`);
       }
+      // REQ-096m — `share` is a portable JSON bundle: full scope, embedded
+      // adventure, never a redacted or human-readable export.
+      if (args.share === true) {
+        if (args.format === "markdown") return err("INVALID_INPUT", "share requires format 'json'; markdown exports are not portable Novel bundles.");
+        if (args.scope !== undefined && args.scope !== "full") return err("INVALID_INPUT", `share requires full scope; '${args.scope}' cannot be shared as a playable Novel.`);
+      }
       const novel = requireNovel();
-      const exportScope = args.scope ?? "full";
+      const exportScope = args.share === true ? "full" : (args.scope ?? "full");
       // REQ-448 — security-event audit: Novel exports are recorded and tagged.
-      audit("export_novel", { slug: novel.slug, format: args.format ?? "json", scope: exportScope });
+      audit("export_novel", { slug: novel.slug, format: args.format ?? "json", scope: exportScope, ...(args.share === true ? { share: true } : {}) });
       if (args.format === "markdown") {
         let md = `# ${novel.name}\n\n## World\n`;
         for (const [, room] of novel.world.rooms) {
@@ -9311,8 +9365,8 @@ Options: yes, cancel`);
         return raw(md);
       }
       const full = exportNovelJSON(novel);
-      // REQ-096h/i1 — embed adventure content when configured.
-      const embedded = embeddedAdventureContent(novel);
+      // REQ-096h/i1 — embed adventure content when configured or shared.
+      const embedded = embeddedAdventureContent(novel, args.share === true);
       const data: any = {
         format_version: 2,
         manifest: {
@@ -9460,6 +9514,20 @@ Options: yes, cancel`);
       if (embeddedProvenance && typeof embeddedProvenance === "object" && novel.adventure_index) {
         (novel.adventure_index as any).provenance = embeddedProvenance;
       }
+      // REQ-096m — materialize the embedded adventure so a shared bundle is
+      // playable on this installation. A hash mismatch blocks the import.
+      let materializeWarnings: string[] = [];
+      if (parsed?.adventure) {
+        try {
+          const materialized = materializeEmbeddedAdventure(parsed.adventure);
+          if (materialized) {
+            novel.adventure_slug = materialized.slug;
+            materializeWarnings = materialized.warnings;
+          }
+        } catch (e: any) {
+          return err("STATE_CONFLICT", `Import blocked by embedded adventure: ${e.message}`);
+        }
+      }
       state.saveNovel(novel);
       // REQ-444 — import-channel inertness: imported content is untrusted data;
       // embedded directives are stored verbatim as inert data and logged as
@@ -9470,7 +9538,7 @@ Options: yes, cancel`);
         const finding = `[import-finding] Novel import carried an embedded directive; stored verbatim as inert data (REQ-444).`;
         process.stderr.write(`[holonovel] ${finding}\n`);
       }
-      const warnings = [...integrityWarnings];
+      const warnings = [...integrityWarnings, ...materializeWarnings];
       if (integrityFailures.length > 0) warnings.push(`[integrity-mismatch] ${integrityFailures.join("; ")}`);
       if (playerReplace) warnings.push("[player-scope-import] replace cleared GM-only tiers omitted from the player bundle");
       const warningSuffix = warnings.length ? `\n${warnings.map(w => `  - ${w}`).join("\n")}` : "";
@@ -9993,9 +10061,9 @@ server.registerTool("manage_ruleset", {
 const MANAGE_NOVEL_SCHEMA_ACTIONS = ["export", "import", "archive", "unarchive", "clone", "branch", "checkpoint_set", "checkpoint_list", "checkpoint_restore", "checkpoint_remove"] as const;
 server.registerTool("manage_archive", {
   title: "Novel Archive Management",
-  description: "Export, import, archive, unarchive, clone, branch, and checkpoint Novel save files. export writes a file in json or markdown; import writes Novel state and mode selects dry-run (validate only), merge (keep existing entries), or replace (discard current Novel state), while strict aborts on unresolved references. clone copies the whole Novel unless trim_audit_sessions keeps only recent sessions; branch starts from from_event (default latest); archive is reversible with unarchive; checkpoint_restore replaces the live Novel with the stored checkpoint and is itself undoable; checkpoint subscriptions persist. Use when: exporting or importing a Novel, archiving/unarchiving, cloning/branching, or managing checkpoints. Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Revert the most recent mutation with manage_history (action: undo); checkpoint_list is read-only.",
+  description: "Export, import, archive, unarchive, clone, branch, and checkpoint Novel save files. export writes a file in json or markdown; share emits a portable full-scope json bundle with embedded adventure content; import writes Novel state and mode selects dry-run (validate only), merge (keep existing entries), or replace (discard current Novel state), while strict aborts on unresolved references. clone copies the whole Novel unless trim_audit_sessions keeps only recent sessions; branch starts from from_event (default latest); archive is reversible with unarchive; checkpoint_restore replaces the live Novel with the stored checkpoint and is itself undoable; checkpoint subscriptions persist. Use when: exporting or importing a Novel, archiving/unarchiving, cloning/branching, or managing checkpoints. Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Revert the most recent mutation with manage_history (action: undo); checkpoint_list is read-only.",
   inputSchema: {
-    ...pickParams(MANAGE_NOVEL_SCHEMA, ["action", "slug", "source_slug", "new_name", "from_event", "format", "scope", "data", "mode", "strict", "include_checkpoints", "trim_audit_sessions", "label"]),
+    ...pickParams(MANAGE_NOVEL_SCHEMA, ["action", "slug", "source_slug", "new_name", "from_event", "format", "scope", "share", "data", "mode", "strict", "include_checkpoints", "trim_audit_sessions", "label"]),
     action: z.enum(MANAGE_NOVEL_SCHEMA_ACTIONS).describe("export, import, archive, unarchive, clone, branch, checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove."),
   },
 }, async (args: any, extra: any) => {
@@ -10113,16 +10181,49 @@ server.registerTool("manage_artifact", {
           }
         }
         const novel = importNovelJSON(payload);
-        const slug = String(novel.slug ?? args.slug ?? "");
+        let slug = String(novel.slug ?? args.slug ?? "");
         if (!slug) return err("INVALID_INPUT", "Novel pack has no slug; pass slug.");
         if (args.slug !== undefined && String(args.slug) !== slug) {
           return err("INVALID_INPUT", `slug '${args.slug}' does not match the pack slug '${slug}'.`);
         }
         if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Novel slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
-        const target = resolveWithin(path.join(DATA_DIR, "novels"), `${slug}.json`);
+        // REQ-621a — a bound ruleset must be installed before admission; the
+        // Novel would refuse to resume otherwise.
+        if (novel.ruleset && !rulesets.isInstalled(novel.ruleset)) {
+          return err("STATE_CONFLICT", `Novel '${slug}' is bound to ruleset '${novel.ruleset}', which is not installed. Install it first with manage_artifact (action: install, kind: ruleset).`);
+        }
+        // REQ-621a — a duplicate slug is admitted under the first free suffix,
+        // leaving the existing Novel untouched.
+        const novelsDir = path.join(DATA_DIR, "novels");
+        let target = resolveWithin(novelsDir, `${slug}.json`);
         if (!target) return err("INVALID_INPUT", `Novel slug '${slug}' resolves outside the novels directory.`);
         if (state.novels.has(slug) || fs.existsSync(target)) {
-          return err("STATE_CONFLICT", `Novel '${slug}' is already installed.`);
+          const base = slug;
+          let candidate = "";
+          for (let n = 2; n <= 999; n++) {
+            const next = `${base}-${n}`;
+            const nextTarget = resolveWithin(novelsDir, `${next}.json`);
+            if (nextTarget && !state.novels.has(next) && !fs.existsSync(nextTarget)) { candidate = next; target = nextTarget; break; }
+          }
+          if (!candidate) return err("STATE_CONFLICT", `Novel '${base}' has no free slug suffix.`);
+          slug = candidate;
+        }
+        // REQ-621a — materialize an embedded adventure before writing the Novel.
+        let adventureWarnings: string[] = [];
+        if (bundle?.adventure) {
+          try {
+            const materialized = materializeEmbeddedAdventure(bundle.adventure);
+            if (materialized) {
+              novel.adventure_slug = materialized.slug;
+              adventureWarnings = materialized.warnings;
+            }
+          } catch (e: any) {
+            return err("STATE_CONFLICT", `Novel pack '${args.source}' blocked by embedded adventure: ${e.message}`);
+          }
+        }
+        const declaredAdventures = Array.isArray(bundle?.manifest?.adventure_module_slugs) ? bundle.manifest.adventure_module_slugs.length : 0;
+        if (declaredAdventures > 0 && bundle?.manifest?.adventures_embedded !== true && !bundle?.adventure) {
+          adventureWarnings.push("[adventure-not-embedded] pack declares an adventure but carries no content; ask the sender to export with share: true (REQ-096m)");
         }
         novel.slug = slug;
         if (!novel.name) novel.name = slug;
@@ -10130,7 +10231,8 @@ server.registerTool("manage_artifact", {
         state.hydrateNovelsFromDisk();
         audit("install_artifact", { kind, slug, content_hash: bundle?.integrity?.payload_hash ?? null });
         if (state.activeNovel) state.saveNovel(state.activeNovel);
-        return ok(`Novel pack '${slug}' installed. It is available through manage_novel (action: list).`);
+        const warningSuffix = adventureWarnings.length ? `\n${adventureWarnings.map((w) => `- ${w}`).join("\n")}` : "";
+        return ok(`Novel pack '${slug}' installed. It is available through manage_novel (action: list).${warningSuffix}`);
       }
 
       if (kind === "adventure") {

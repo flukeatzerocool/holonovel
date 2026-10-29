@@ -4,7 +4,7 @@
 // T101/T160 against live server processes booted with per-test configuration.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -228,6 +228,42 @@ async function main() {
       const out = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json", scope: "full" }));
       if (out.manifest.adventures_embedded !== true) throw new Error("adventures_embedded not true");
       if (!out.adventure || !out.adventure.content_hash) throw new Error(`adventure not embedded: ${JSON.stringify(out.adventure)}`);
+    });
+    await kill(proc);
+  }
+
+  // ── Share export (REQ-096m) ─────────────────────────────────────────────
+  {
+    const proc = await boot({ TTRPG_EXPORT_EMBED_ADVENTURES: "false" });
+    await freshNovel(proc, "share-export");
+    let shareBundle = "";
+    await test("T740/REQ-096m: share embeds adventure content with the env unset", async () => {
+      await call(proc, "manage_adventure", { action: "generate", premise: "A shared harbor." });
+      shareBundle = await call(proc, "manage_archive", { action: "export", format: "json", share: true });
+      const out = JSON.parse(shareBundle);
+      if (out.manifest.adventures_embedded !== true) throw new Error("adventures_embedded not true");
+      if (out.manifest.scope !== "full") throw new Error(`manifest scope ${out.manifest.scope}`);
+      if (!out.adventure || !out.adventure.content_hash) throw new Error("adventure not embedded");
+    });
+    await test("T740/REQ-096m: share refuses markdown and a non-full scope", async () => {
+      const md = await call(proc, "manage_archive", { action: "export", format: "markdown", share: true });
+      assertContains(md, "INVALID_INPUT");
+      const player = await call(proc, "manage_archive", { action: "export", format: "json", scope: "player", share: true });
+      assertContains(player, "INVALID_INPUT");
+    });
+    await test("T740/REQ-096m: a generated-adventure share imports without writing a module file", async () => {
+      const fresh = mkdtempSync(join(tmpdir(), "holonovel-share-generated-"));
+      const proc2 = await boot({}, fresh);
+      try {
+        await call(proc2, "set_badge", { badge: "game_master" });
+        await call(proc2, "manage_novel", { action: "create", name: "imported" });
+        const out = await call(proc2, "manage_archive", { action: "import", data: shareBundle, mode: "replace" });
+        assertContains(out, "imported");
+        if (existsSync(join(fresh, "adventures", "generated.md"))) throw new Error("generated adventure was materialized as a module file");
+      } finally {
+        await kill(proc2);
+        rmSync(fresh, { recursive: true, force: true });
+      }
     });
     await kill(proc);
   }
