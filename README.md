@@ -45,7 +45,7 @@ README DESIGN:
     and one prose paragraph (≤80 words). The paragraph defines "holonovel"
     as a Star Trek holodeck program. States what Holonovel builds (the
     server, the Holodeck), what a campaign becomes (the program, the
-    Novel), and what rulebooks become (the engine). Names D&D 5e and
+    Novel), and what rulebooks become (the mechanics). Names D&D 5e and
     Starfinder as example rulesets the spec can build. Closes with
     "Your books. Your server. Your Holodeck."
 
@@ -189,7 +189,7 @@ it routes players, Game Masters, and builders by task.
 A *holonovel* is a Star Trek holodeck program — an interactive story where you
 step inside as a character and the rules govern. Holonovel builds the server (the
 Holodeck). Your campaign is the program (the Novel). Your rulebooks become the
-engine — D&D 5e, Starfinder, or the game on your shelf. Your books. Your server.
+mechanics — D&D 5e, Starfinder, or the game on your shelf. Your books. Your server.
 Your Holodeck.
 
 ## Table of contents
@@ -302,7 +302,7 @@ decisions, and the story journal in the narrative model; mechanics and ruleset
 voice alongside them. None is decoration. Each has a defined effect on the
 others.
 
-That effect is what makes it an engine. A scene sets the place and cast and
+That effect is what makes Holonovel an engine. A scene sets the place and cast and
 activates lore whose triggers match its text. An NPC carries identity,
 disposition, relationships, and a location, so moving them changes who is
 present and who can speak. A secret stays hidden until knowledge and trigger
@@ -312,8 +312,9 @@ A mechanical outcome — damage, a destroyed object, a doused light — mutates 
 state it touches. The story journal records the consequence, and later scenes can
 recall it.
 
-The server evaluates these couplings. The AI narrates the result. Nothing is left
-to a "remember this" instruction, and nothing drifts between turns.
+The engine evaluates these couplings. The AI narrates the result. Nothing is left
+to a "remember this" instruction, and nothing drifts between turns. The MCP server
+is one adapter over the engine; the Novel is the portable program.
 
 Parser commands act on the spatial model with real containment logic. Go north.
 Take the lantern. The room, the object, and the inventory are stored records, not
@@ -439,4 +440,4 @@ Holonovel is MIT-licensed. Built from:
 - Fate SRD (CC BY 3.0, Evil Hat Productions)
 - Ironsworn SRD (CC BY 4.0, Shawn Tomkin)
 
-[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-26.
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-29.

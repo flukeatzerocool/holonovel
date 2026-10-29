@@ -1,7 +1,7 @@
 {
   "name": "holonovel",
-  "version": "2026.10.26",
-  "description": "Holonovel MCP server — the world-model host for tabletop RPG play: rooms, parser commands, narrative state, and ruleset-free mechanics. Run it with npx holonovel; load ruleset packages alongside it without modifying the base.",
+  "version": "2026.10.29",
+  "description": "Holonovel — a narrative simulation engine for tabletop RPG play. The MCP server is the reference adapter: rooms, parser commands, narrative state, and ruleset-free mechanics. Run it with npx holonovel; load ruleset packages alongside it without modifying the base.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/library.d.ts",

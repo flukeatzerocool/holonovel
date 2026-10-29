@@ -6,6 +6,74 @@
   Update this file when planning a release.
 -->
 
+## E1 — Position Holonovel as an engine, not a TTRPG server
+
+- Align the framing across `spec/01-foundations.md`, `README.md`, root
+  `AGENTS.md`, `holonovel/AGENTS.md`, and the package description: Holonovel is
+  a narrative simulation engine; the MCP server is the reference adapter; the
+  Novel is the portable program.
+- Additive framing only — TTRPG remains the first application, not the
+  definition. No tool, contract, or behavior change.
+- Done when the five surfaces agree, `npm run assemble && npm run check:fast`
+  is green, and the README guardrail passes.
+
+## E2 — Publish the Engine Contract
+
+- Non-normative design note: state authority, turn semantics, determinism and
+  replay, event stream, save format, and adapter boundary. Explicitly excludes
+  resources, prompts, and UI from the engine core.
+- Promote stable clauses to a REQ only after E3 proves the shape.
+- Depends on E1. Done when reviewed and referenced by E3.
+
+## E3 — Tool registry, adapter seam, and `createEngine()`
+
+- The accepted 3b increment: one tool registry as the definition site, MCP as
+  one adapter, an in-process façade, and a parity harness. One engine per
+  process.
+- Plan ready and plan-review passed 2026-10-28. Depends on E2's contract for
+  the façade surface.
+- Done when S1–S4 are green and `_registeredTools` no longer appears in
+  `holonovel/src`.
+
+## E4 — Headless playability gate
+
+- Simulate seeded action scripts through `createEngine()`: reachability,
+  soft-locks, countdown targets, encounter survivability, and economy collapse.
+- Gate content changes in CI.
+- Depends on E3. Done when a non-conformant adventure fails and a conformant
+  one passes.
+
+## E5 — Non-TTRPG world-pack pilot
+
+- Build one non-TTRPG scenario (mystery, management sim, or social drama) from
+  existing primitives.
+- Report what required new REQs versus packaging only; that report decides
+  whether "general engine" is a real claim.
+- Depends on E3. Done when the pack plays headlessly and the gap report is
+  recorded.
+
+## E6 — Artifact provenance and creator rights
+
+- License, attribution, content hash, and optional signature on ruleset
+  packages, adventures, and Novels; preserved through export and import.
+- Prerequisite for any sharing surface.
+- Depends on E2. Done when a round-trip preserves provenance and a tampered
+  artifact is refused.
+
+## E7 — Shareable artifacts and local registry
+
+- Documented exchange formats for packages, adventures, and Novels; local
+  install, discovery, and import/export. No network.
+- Depends on E6. Done when two installations exchange an artifact and the
+  registry resolves it offline.
+
+## E8 — Decision gate: multi-engine and entry split (3c)
+
+- Per-engine state and config injection, N engines per process, and the
+  ~25-harness entry migration — only if E3 and E4 evidence justifies it.
+- Close the item if the evidence does not; do not implement speculatively.
+- Depends on E3 and E4. Done when a written go/no-go decision is recorded.
+
 ## Rename `manage_session` to remove the session-name collision
 
 - `manage_session` (recap, verbosity, briefing, discovery) collides with
@@ -38,3 +106,11 @@
 
 - Attribution records at fire time. The deferred-resolution variant remains
   a follow-up if exact REQ-340 timing is required. (REQ-340a)
+
+## Not planned — engine and platform track
+
+- Hosted platform, multiplayer, discovery, monetization, and default
+  HTTP/WebSocket transport are out of scope. REQ-030 (single-user connection)
+  and REQ-051 (no runtime network) stay unchanged.
+- A domain-shaped transactional turn API and real-time or rendered
+  presentation are not planned. Revisit only with a concrete requirement.

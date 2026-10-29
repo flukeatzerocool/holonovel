@@ -115,6 +115,13 @@ token and time costs. The builder prefers incremental updates when the spec delt
 narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
 model changes, or the spec version changes.
 
+**Engine, adapter, program.** Holonovel is a narrative simulation engine: it owns
+canonical state, resolves the rules, and records what happened. The MCP server is
+the reference adapter — one way to reach the engine, not the engine itself. A
+Novel is the portable program: the save file that carries a world and its history
+to another host. Tabletop play is the first application of the engine, not its
+definition.
+
 **The north star.** A *holonovel* is a Star Trek holodeck program — an interactive
 narrative where the user steps inside as a character, the cast responds with intent,
 and the rules govern every outcome. Holonovel builds the server (the Holodeck) and
