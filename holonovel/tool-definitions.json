@@ -1,64 +1,64 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 104075,
+  "tools_list_bytes": 104869,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 104075,
-        "tokens": 26019
+        "bytes": 104869,
+        "tokens": 26218
       },
       "standard": {
         "tools": 37,
-        "bytes": 89682,
-        "tokens": 22421
+        "bytes": 90476,
+        "tokens": 22619
       },
       "small": {
         "tools": 6,
-        "bytes": 4457,
-        "tokens": 1115,
+        "bytes": 4580,
+        "tokens": 1145,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4457,
-            "tokens": 1115
+            "bytes": 4580,
+            "tokens": 1145
           },
           "explore": {
             "tools": 6,
-            "bytes": 3415,
-            "tokens": 854
+            "bytes": 3538,
+            "tokens": 885
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4333,
-            "tokens": 1084
+            "bytes": 4456,
+            "tokens": 1114
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4052,
-            "tokens": 1013
+            "bytes": 4175,
+            "tokens": 1044
           },
           "lookup": {
             "tools": 6,
-            "bytes": 3676,
-            "tokens": 919
+            "bytes": 3799,
+            "tokens": 950
           },
           "referee": {
             "tools": 6,
-            "bytes": 3660,
-            "tokens": 915
+            "bytes": 3783,
+            "tokens": 946
           },
           "author": {
             "tools": 6,
-            "bytes": 3652,
-            "tokens": 913
+            "bytes": 3775,
+            "tokens": 944
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4185,
-            "tokens": 1047
+            "bytes": 4431,
+            "tokens": 1108
           }
         }
       }
@@ -721,14 +721,17 @@
         "briefing_order",
         "discover"
       ],
-      "param_count": 8,
+      "param_count": 11,
       "required": [
         "action"
       ],
       "params": {
         "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
         "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
+        "format": "Recap/compress output notation (recap, compress; default markdown; REQ-072g).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
+        "max_rolls": "Significant rolls to return, bounded 1–50 (recap; default 5; REQ-072e).",
+        "max_transitions": "Scene transitions to return, bounded 1–20 (recap; default 5; REQ-072e).",
         "mode": "normal or terse (verbosity).",
         "query": "Optional search term matched against tool name, description, and title (discover).",
         "sections": "Ordered list of briefing sections (briefing_order).",
@@ -746,10 +749,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 9,
+        "paramCount": 12,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 9,
-        "paramsWithEnums": 4,
+        "paramsWithDescriptions": 12,
+        "paramsWithEnums": 5,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -759,7 +762,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2729,
+        "definitionBytes": 3126,
         "descriptionBytes": 832
       },
       "category": "",
@@ -904,7 +907,7 @@
         "visibility_check",
         "visibility_audit"
       ],
-      "param_count": 21,
+      "param_count": 24,
       "required": [
         "action"
       ],
@@ -913,9 +916,12 @@
         "budget_tokens": "Positive token budget for tier assembly (recap; REQ-592) or for ledger packing (context_report; REQ-610).",
         "category": "New category label, or null/empty to restore the default (category).",
         "detail": "discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609).",
+        "format": "Recap/compress output notation (recap, compress; default markdown; REQ-072g).",
         "gm_notes": "GM-only free-text notes returned only to the Game Master badge (recap).",
         "include_superseded": "Include superseded events (history; default true).",
         "max_entries": "Positive integer; returns a non-mutating summarize prompt over the most recent entries (compress).",
+        "max_rolls": "Significant rolls to return, bounded 1–50 (recap; default 5; REQ-072e).",
+        "max_transitions": "Scene transitions to return, bounded 1–20 (recap; default 5; REQ-072e).",
         "mode": "normal or terse (verbosity).",
         "ordinals": "Exact event ordinals to return in order (history; REQ-591).",
         "query": "Optional search term matched against tool name, description, and title (discover).",
@@ -942,10 +948,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 22,
+        "paramCount": 25,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 22,
-        "paramsWithEnums": 6,
+        "paramsWithDescriptions": 25,
+        "paramsWithEnums": 7,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -955,7 +961,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4481,
+        "definitionBytes": 4878,
         "descriptionBytes": 786
       },
       "category": "",

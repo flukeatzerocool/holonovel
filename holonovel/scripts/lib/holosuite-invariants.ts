@@ -22,7 +22,7 @@ import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per invariant class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const P_READONLY = "holonovel/src/core/state.ts:1621"; // snapshot
+const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
 const P_GATING = "holonovel/src/core/server.ts:22"; // requireGM
 const P_UNDO = "holonovel/src/index.ts:3080"; // undo/redo handler
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
@@ -76,7 +76,7 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     const verifyTwo = await client.call("manage_diagnostics", { action: "verify" });
     record("verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], "holonovel/src/core/state-hash.ts:50");
     const replayOne = await client.call("manage_diagnostics", { action: "replay" });
-    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8565");
+    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8268"); // replayInspection
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
     record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8488");

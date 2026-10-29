@@ -21,24 +21,6 @@
   +0.225 overall but may read as incomplete. Deferred as a product decision
   from the 2026-10-25 coherence remediation. (REQ-429, REQ-554)
 
-## Recap notation and configurable bounds
-
-- REQ-072f/g declare `format` (markdown/lonelog), `max_transitions`, and
-  `max_rolls` on `manage_session (action: recap)`, but the current schema and
-  handler do not expose or honor them. Implement the Lonelog formatter and
-  bounded arrays; T272 is the target. (REQ-072)
-
-## Since-creation absence for location-gated discovery
-
-- Discovery currently checks presence at countdown fire time. A full
-  "absent from every scene since creation" check is deferred from the
-  2026-10-24 location-gated increment. (REQ-340a, REQ-349a)
-
-## Deferred-resolution variant for discovered consequences
-
-- Attribution records at fire time. The deferred-resolution variant remains
-  a follow-up if exact REQ-340 timing is required. (REQ-340a)
-
 ## Not planned — engine and platform track
 
 - Hosted platform, multiplayer, discovery, monetization, and default

@@ -6,7 +6,30 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 26,019 tokens; standard 22,421; small 1,115; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,218 tokens; standard 22,619; small 1,145; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+
+### Recap and discovery remediation — 2026-10-29
+
+- **D3 — deferred discovery attribution (REQ-340a).** A location-linked
+  countdown records the scene-ledger window at fire (`created_scene_index`,
+  `fire_scene_index`, `fire_present_ids`) but does not assign discoverers
+  (`entity_ids` stays empty) until the party reaches the linked location.
+  Legacy pending entries fall back to their recorded `eligible_entity_ids`.
+- **D4 — attendance window.** The since-creation absence check spans countdown
+  creation through the fire transition; movement after the fire does not
+  retroactively disqualify discovery (T390's Gatehouse step).
+- **D5 — parser moves are ledger transitions.** A parser `go` into a new room
+  appends a `scene_history` entry with the party presence snapshot, matching
+  the existing countdown-transition hook (REQ-125/P13).
+- **D6 — audit notation at append time (REQ-072g).** `notation` is written once
+  in `StateManager.audit`; `audit_log` is excluded from the canonical state
+  hash, so digests are unchanged.
+- **D7 — attendance is GM-only.** `characters_present_ids` on scene-ledger
+  entries is stripped from Player-badge `scene://history` and the `player`
+  export scope.
+- **New entities.** An entity created after the fire but absent from every
+  scene in the creation-to-fire window is eligible at resolution; the spec's
+  "do not appear on all scenes since creation" text is read literally.
 
 ### Publication update evidence — 2026-10-25
 

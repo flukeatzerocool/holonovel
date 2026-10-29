@@ -166,7 +166,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
         `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`,
         step,
         ["REQ-570"],
-        "holonovel/src/index.ts:1532",
+        "holonovel/src/index.ts:1521", // surfaceProfile
       );
     } finally {
       await scoped.close();

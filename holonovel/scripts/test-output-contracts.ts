@@ -1850,6 +1850,42 @@ async function main() {
     await kill(p);
   });
 
+  // ── REQ-072e/f/g recap notation and configurable bounds (T272) ──
+  await test("T272/REQ-072: recap Lonelog notation, bounded arrays, audit notation", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w272" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "Rook" });
+    await call(p, "manage_scene", { action: "set",  description: "A cold courtyard", location: "Courtyard" });
+    await call(p, "manage_scene", { action: "set",  description: "The guard room is wrecked", location: "Guard Room" });
+    await call(p, "manage_story", { action: "record",  type: "decision", entry: "We chose to enter the guard room" });
+    const md = await call(p, "manage_context", { action: "recap" });
+    assertContains(md, "narrative_orientation:", "T272 markdown recap field");
+    assertContains(md, "scene_transitions:", "T272 scene transitions block");
+    assertNotContains(md, "### ", "T272 markdown has no Lonelog headers");
+    const ll = await call(p, "manage_context", { action: "recap", format: "lonelog" });
+    assertContains(ll, "narrative_orientation:", "T272 lonelog orientation");
+    assertContains(ll, "### Guard Room", "T272 lonelog scene header");
+    assertContains(ll, "### Courtyard", "T272 lonelog transition header");
+    assertContains(ll, "? We chose to enter the guard room", "T272 lonelog decision");
+    const compressed = await call(p, "manage_diagnostics", { action: "compress", max_entries: 10, format: "lonelog" });
+    assertContains(compressed, "Lonelog notation", "T272 lonelog compress header");
+    assertContains(compressed, "d: ", "T272 lonelog mechanics line");
+    const badRolls = await call(p, "manage_context", { action: "recap", max_rolls: 0 });
+    assertContains(badRolls, "[INVALID_INPUT]", "T272 max_rolls range error");
+    assertContains(badRolls, "1–50", "T272 max_rolls enumerates range");
+    const badTransitions = await call(p, "manage_context", { action: "recap", max_transitions: 21 });
+    assertContains(badTransitions, "[INVALID_INPUT]", "T272 max_transitions range error");
+    assertContains(badTransitions, "1–20", "T272 max_transitions enumerates range");
+    const exported = await call(p, "manage_archive", { action: "export", format: "json", scope: "full" });
+    assertContains(exported, "\"notation\"", "T272 audit entries carry notation");
+    assertContains(exported, "characters_present_ids", "T272 GM export retains attendance");
+    await call(p, "set_badge", { badge: "player" });
+    const playerBundle = await call(p, "manage_archive", { action: "export", format: "json", scope: "player" });
+    assertNotContains(playerBundle, "characters_present_ids", "T272 Player export redacts attendance");
+    await kill(p);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

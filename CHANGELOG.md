@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-29 — Recap notation/bounds and since-creation discovery
+
+- `manage_context (action: recap)` now honors REQ-072e/f/g: optional `format`
+  (`markdown`/`lonelog`), `max_transitions` (1–20), and `max_rolls` (1–50).
+  Out-of-range values return `[INVALID_INPUT]` with the valid range; recap
+  emits a bounded `scene_transitions` array and per-roll tool, entity, die
+  faces, and outcome fields. `manage_diagnostics (action: compress)` accepts
+  the same `format`; audit entries gain an optional `notation` field written
+  at append time.
+- Countdown discovery now applies REQ-340a's since-creation absence check.
+  Scene-ledger entries carry a party-presence snapshot on scene transitions
+  and parser moves; countdowns record their creation ledger index. Discovery
+  attribution is resolved at the discovery transition from the creation-to-fire
+  window instead of being snapshotted at fire, with a legacy fallback for
+  saved pending entries. Attendance snapshots are stripped from Player
+  `scene://history` and the `player` export scope.
+- Exercised T272 in `test:output-contracts` (316 checks) and expanded T390/T399
+  in `test:narrative` (48 checks) with the since-creation negative and the
+  deferred attribution case; amended the Appendix F T390 script.
+- Regenerated `tool-definitions.json`; retired the three corresponding
+  ROADMAP items and moved their review-register rows to Resolved. The two
+  tool-surface items remain deferred.
+
 ## 2026-10-29 — Rename manage_session to manage_context
 
 - Renamed the play-facing tool `manage_session` to `manage_context` (recap,
