@@ -578,8 +578,8 @@ async function main() {
 
     await test("T386: pacing signal fires after tool calls, resets on scene transition", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "Start", beat: "setup" });
-      // 4 non-mutating tool calls (window 3).
-      for (let i = 0; i < 4; i++) await briefing(proc);
+      // 4 non-mutating tool calls (window 3) — briefing renders do not count.
+      for (let i = 0; i < 4; i++) await call(proc, "manage_session", { action: "recap" });
       const b = await briefing(proc);
       assertContains(b, "[pacing] Scene stabilized");
       await call(proc, "manage_scene", { action: "set",  description: "New scene" });
@@ -590,7 +590,7 @@ async function main() {
     await test("T401: pacing-triggered autonomy advances faction and surfaces goal pursuit", async () => {
       await call(proc, "manage_faction", { action: "create",  name: "Thieves Guild", goals: ["Plunder the treasury"], resources: "lockpicks" });
       await call(proc, "manage_npc", { action: "create",  name: "Locke", disposition: "suspicious", goals: "Crack the vault" });
-      for (let i = 0; i < 4; i++) await briefing(proc);
+      for (let i = 0; i < 4; i++) await call(proc, "manage_session", { action: "recap" });
       const b = await briefing(proc);
       assertContains(b, "[pacing]");
       assertContains(b, "World in Motion");

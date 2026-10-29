@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-29 — Engine divergence remediation
+
+- Closed the six divergences recorded in `docs/engine-contract.md` §9. Pacing
+  now counts tool calls in the registry wrapper, not `badge_briefing` renders;
+  the counter is session-scoped so read-only calls do not move the live state
+  hash, and the briefing still commits the spec-required one-shot autonomy
+  cycle (REQ-336, REQ-351).
+- Returned `[FORBIDDEN]` envelopes now reach the boundary audit exactly once,
+  matching the thrown path (REQ-133a). The save serializer emits
+  `active_session_id`, `pending_vow_countdown_suggestion`, and `codex_sources`,
+  and both load paths retain unknown top-level fields as inert data so a
+  newer-format Novel survives a save (REQ-092a, REQ-092e).
+- Clarified REQ-055: the session PRNG position is intentionally not persisted,
+  aligning durability with restart determinism (REQ-050c).
+- Evidence: `test:narrative` 46/46, `test:security` 10/10,
+  `test:persistence` 37/37, plus the full `check:fast` gate.
+
+## 2026-10-29 — Engine contract published (E2)
+
+- Published the non-normative engine contract at `docs/engine-contract.md`.
+  It fixes the invariants E3 must preserve across state authority, turn
+  semantics, determinism and replay, the event stream, the save format, and the
+  adapter boundary, and it explicitly places resources, prompts, and UI outside
+  the engine core. Every clause cites a current REQ or code path; no REQ, tool,
+  or runtime behavior changes.
+- Retired roadmap item E2. E3 and E6 now reference the contract document
+  directly, and the layer map names it.
+
 ## 2026-10-29 — Engine positioning and engine-track roadmap
 
 - Positioned Holonovel as a narrative simulation engine whose reference adapter

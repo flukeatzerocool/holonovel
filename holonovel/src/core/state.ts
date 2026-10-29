@@ -606,6 +606,9 @@ export interface NovelState {
   last_mutation_at: string | null; // REQ-401/403 — timestamp of last state write
   mutation_counts_by_group: Record<string, number>; // REQ-401 — per-group counts this session
   uncommitted_rolls: Array<{ roll: string; suggested_tool: string; at: string }>; // REQ-404
+  // REQ-092e/092g — unknown top-level fields from a newer format version are
+  // retained as inert data and re-emitted at the top level on save.
+  future_fields?: Record<string, unknown>;
   metadata: {
     created: string;
     modified: string;
@@ -1444,6 +1447,14 @@ export class StateManager {
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
     };
+    // REQ-092e/092g — retain unknown top-level fields across a load-and-save.
+    const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields"]);
+    const extras: Record<string, unknown> = {};
+    for (const key of Object.keys(data ?? {})) {
+      if (blocked.has(key) || Object.prototype.hasOwnProperty.call(novel, key)) continue;
+      extras[key] = data[key];
+    }
+    (novel as any).future_fields = extras;
     return novel;
   }
 
@@ -2476,6 +2487,9 @@ ${turnOrder}`;
 
 function novelToJSON(novel: NovelState): any {
   return {
+    // Unknown fields from a newer format version ride along at the top level;
+    // known fields below win on any collision.
+    ...(novel.future_fields ?? {}),
     slug: novel.slug,
     name: novel.name,
     ruleset: novel.ruleset,
@@ -2550,6 +2564,11 @@ function novelToJSON(novel: NovelState): any {
     mutation_counts_by_group: novel.mutation_counts_by_group,
     uncommitted_rolls: novel.uncommitted_rolls,
     metadata: novel.metadata,
+    // REQ-055/REQ-237/REQ-332 — session segmentation, vow suggestion, and
+    // Codex provenance are Novel state and must survive save/reload.
+    active_session_id: novel.active_session_id,
+    pending_vow_countdown_suggestion: novel.pending_vow_countdown_suggestion,
+    codex_sources: novel.codex_sources,
     fate: novel.fate,
     ironsworn: novel.ironsworn,
     forged: novel.forged,
@@ -2600,7 +2619,7 @@ function estimateJsonBytes(value: unknown): number {
 
 function novelFromJSON(data: any): NovelState {
   data = migrateNovelData(data);
-  return {
+  const out: any = {
     slug: data.slug,
     name: data.name,
     ruleset: data.ruleset ?? null,
@@ -2704,6 +2723,16 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
   };
+  // REQ-092e/092g — retain unknown top-level fields as inert data so a newer
+  // format version survives a load-and-save. Prototype keys are never copied.
+  const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields"]);
+  const extras: Record<string, unknown> = {};
+  for (const key of Object.keys(data ?? {})) {
+    if (blocked.has(key) || Object.prototype.hasOwnProperty.call(out, key)) continue;
+    extras[key] = data[key];
+  }
+  out.future_fields = extras;
+  return out as NovelState;
 }
 
 // Serialize a Novel to its full interchange form (REQ-096). Returns the flat

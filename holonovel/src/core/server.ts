@@ -50,7 +50,17 @@ export function withForbiddenAudit(
   // marker in compress_audit / audit://novel.
   return async (args: any, ctx: ToolCtx) => {
     try {
-      return await handler(args, ctx);
+      const result = await handler(args, ctx);
+      // Handlers may return the forbidden envelope instead of throwing it;
+      // REQ-133a requires either form to reach the boundary audit exactly once.
+      const text = (result?.content ?? [])
+        .map((part: any) => part?.text ?? "")
+        .join("\n");
+      const category = (result as any)?.structuredContent?.category;
+      if (category === "FORBIDDEN" || /^\s*(\[ERROR\]\s*)?\[FORBIDDEN\]/m.test(text)) {
+        _state.auditForbidden(ctx.badge, toolName, args);
+      }
+      return result;
     } catch (e: any) {
       if (e.message?.startsWith("[FORBIDDEN]")) {
         _state.auditForbidden(ctx.badge, toolName, args);

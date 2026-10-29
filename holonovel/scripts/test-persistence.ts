@@ -647,6 +647,33 @@ async function main() {
     rmSync(dir, { recursive: true, force: true });
   }
 
+  // ── R4/R6: session fields and unknown top-level keys survive a restart ──
+  {
+    const proc = await boot({ TTRPG_SESSION_ID: "sess-r4" });
+    await call(proc, "manage_novel", { action: "create", name: "field-save" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const payload = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+    payload.novel.active_session_id = "sess-r4";
+    payload.novel.pending_vow_countdown_suggestion = { vow_name: "v", countdown_name: "c", tick_count: 3, scope: "shared" };
+    payload.novel.codex_sources = [{ id: "cx-1", kind: "lore", imported_at: "2026-01-01T00:00:00.000Z", codex_modified_at: "2026-01-01T00:00:00.000Z" }];
+    payload.novel.future_field = { marker: "keep-me" };
+    const imported = await call(proc, "manage_archive", { action: "import", data: JSON.stringify(payload), mode: "replace" });
+    if (imported.includes("[ERROR]")) throw new Error(`fixture import failed: ${imported.slice(0, 200)}`);
+    await kill(proc);
+
+    const resumed = await boot({ TTRPG_SESSION_ID: "sess-r4" });
+    await call(resumed, "manage_novel", { action: "resume", slug: "field-save" });
+    await call(resumed, "manage_lore", { action: "set", key: "r4", content: "x" });
+    await test("R4/R6: session fields and unknown top-level keys survive save/reload", async () => {
+      const after = JSON.parse(await call(resumed, "manage_archive", { action: "export", format: "json" }));
+      if (after.novel.active_session_id !== "sess-r4") throw new Error(`active_session_id lost: ${after.novel.active_session_id}`);
+      if (after.novel.pending_vow_countdown_suggestion?.tick_count !== 3) throw new Error("pending_vow_countdown_suggestion lost");
+      if (after.novel.codex_sources?.[0]?.id !== "cx-1") throw new Error("codex_sources lost");
+      if (after.novel.future_field?.marker !== "keep-me") throw new Error("unknown top-level field lost");
+    });
+    await kill(resumed);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

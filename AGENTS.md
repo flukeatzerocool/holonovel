@@ -41,6 +41,8 @@ File numbering follows canonical load order, not section number
 (e.g., `03-build.md` = third file loaded, contains §6).
 README.md               Project orientation; see HTML comment at top for
                           README design conventions
+docs/engine-contract.md Non-normative engine contract (state authority, turns,
+                          determinism, event stream, save format, adapter seam)
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
 package.json            Task runner (lint, validate, typecheck)

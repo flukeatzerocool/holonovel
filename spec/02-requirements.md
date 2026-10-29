@@ -2412,12 +2412,15 @@ and echoes the string verbatim; no SQL execution, no behavior change, no crash.
 _Check:_ T20, T42.
 
 **REQ-055 — Durability.** Novel state survives connection restarts: entities,
-HP, conditions, slots, turn order, audit logs, and RNG state persist. The roster
+HP, conditions, slots, turn order, and audit logs persist. The session PRNG
+position is intentionally not persisted, so a restart without an explicit seed
+reproduces the default-seed sequence (REQ-050c). The roster
 is permanent and immutable at baseline. `manage_character (action: import)` copies a roster entry
 into a Novel. `manage_novel (action: end)` discards the Novel; the roster survives. Resuming an
 ended Novel fails with `[ERROR] [STATE_CONFLICT]`.
 *Acceptance criterion:* Server restart restores entities, HP, conditions, and
-RNG state; `manage_novel (action: resume, "ended-novel")` returns `[STATE_CONFLICT]`.
+slots, and a restart without `TTRPG_SEED` reproduces the default-seed draw
+sequence; `manage_novel (action: resume, "ended-novel")` returns `[STATE_CONFLICT]`.
 _Check:_ T9, T31, T108.
 
 **REQ-055a — Badge precedence on resume.** WHEN the operator resumes or switches to a Novel, the Novel's persisted badge state takes precedence over `TTRPG_BADGE`. The `TTRPG_BADGE` variable

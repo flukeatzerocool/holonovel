@@ -17,21 +17,13 @@
 - Done when the five surfaces agree, `npm run assemble && npm run check:fast`
   is green, and the README guardrail passes.
 
-## E2 — Publish the Engine Contract
-
-- Non-normative design note: state authority, turn semantics, determinism and
-  replay, event stream, save format, and adapter boundary. Explicitly excludes
-  resources, prompts, and UI from the engine core.
-- Promote stable clauses to a REQ only after E3 proves the shape.
-- Depends on E1. Done when reviewed and referenced by E3.
-
 ## E3 — Tool registry, adapter seam, and `createEngine()`
 
 - The accepted 3b increment: one tool registry as the definition site, MCP as
   one adapter, an in-process façade, and a parity harness. One engine per
   process.
-- Plan ready and plan-review passed 2026-10-28. Depends on E2's contract for
-  the façade surface.
+- Plan ready and plan-review passed 2026-10-28. Depends on the engine contract
+  (`docs/engine-contract.md`) for the façade surface.
 - Done when S1–S4 are green and `_registeredTools` no longer appears in
   `holonovel/src`.
 
@@ -57,8 +49,8 @@
 - License, attribution, content hash, and optional signature on ruleset
   packages, adventures, and Novels; preserved through export and import.
 - Prerequisite for any sharing surface.
-- Depends on E2. Done when a round-trip preserves provenance and a tampered
-  artifact is refused.
+- Depends on the engine contract (`docs/engine-contract.md`). Done when a
+  round-trip preserves provenance and a tampered artifact is refused.
 
 ## E7 — Shareable artifacts and local registry
 
