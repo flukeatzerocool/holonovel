@@ -1,0 +1,126 @@
+{
+  "slug": "harbor-lights-broken",
+  "name": "Harbor Lights (Broken)",
+  "ruleset": null,
+  "badge": "none",
+  "description": "A deliberately non-conformant twin of Harbor Lights: the key is behind the door it opens, the lamp runs dry before the skiff, and the declared encounter names a missing participant.",
+  "genre": "mystery",
+  "entities": {
+    "character_01": {
+      "id": "character_01",
+      "name": "Castaway",
+      "current_room": "Pier",
+      "inventory": [],
+      "conditions": [],
+      "condition_rounds": {},
+      "personality": ""
+    }
+  },
+  "active_entity_id": "character_01",
+  "npcs": {},
+  "scene_description": "A cold pier at the edge of the harbor. A single lamp burns in the lighthouse.",
+  "scene_location": "Pier",
+  "scene_time_of_day": "night",
+  "scene_atmosphere": "Salt wind, low fog, and a lamp already nearly dry.",
+  "scene_type": [
+    "exploration"
+  ],
+  "narrative_directive": "The lamp is nearly out and the key is not where it should be.",
+  "combat": null,
+  "countdowns": {
+    "Lamp": {
+      "name": "Lamp",
+      "ticks": 1,
+      "total": 8,
+      "type": "narrative",
+      "scope": "shared",
+      "direction": "decrement",
+      "on_scene_transition": true,
+      "triggers": [],
+      "world_effect": {
+        "type": "exit",
+        "target": "Lighthouse",
+        "direction": "out",
+        "value": "The lamp gutters out and the skiff slips away into the dark."
+      }
+    }
+  },
+  "lore": {},
+  "characters_present": true,
+  "characters_present_ids": [
+    "character_01"
+  ],
+  "fate": {
+    "aspects": [],
+    "fate_points": 3,
+    "stress": []
+  },
+  "ironsworn": {
+    "momentum": 2,
+    "progress_tracks": []
+  },
+  "world": {
+    "rooms": {
+      "pier": {
+        "name": "Pier",
+        "description": "Weathered planks end at a locked lighthouse door.",
+        "exits": {
+          "east": "lighthouse"
+        },
+        "doorRefs": {
+          "east": "lighthouse door"
+        },
+        "annotations": {}
+      },
+      "lighthouse": {
+        "name": "Lighthouse",
+        "description": "The lamp room. The key hangs inside, behind the locked door.",
+        "exits": {
+          "west": "pier",
+          "out": "skiff"
+        },
+        "doorRefs": {
+          "west": "lighthouse door"
+        },
+        "annotations": {}
+      },
+      "skiff": {
+        "name": "Skiff",
+        "description": "A small boat knocking against the lighthouse stair.",
+        "exits": {
+          "in": "lighthouse"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      }
+    },
+    "things": {
+      "lighthouse door": {
+        "name": "Lighthouse Door",
+        "description": "A salt-swollen door with a brass lock.",
+        "kind": "door",
+        "location": "Pier",
+        "locationType": "room",
+        "portable": false,
+        "openable": true,
+        "open": false,
+        "lockable": true,
+        "locked": true,
+        "key": "skiff key"
+      },
+      "skiff key": {
+        "name": "Skiff Key",
+        "description": "A brass key on a tarred cord, hanging just inside the lighthouse.",
+        "kind": "thing",
+        "location": "Lighthouse",
+        "locationType": "room",
+        "portable": true,
+        "openable": false,
+        "open": false,
+        "lockable": false,
+        "locked": false,
+        "key": null
+      }
+    }
+  }
+}

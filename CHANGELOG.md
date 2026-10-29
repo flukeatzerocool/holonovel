@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-29 — Headless playability gate (E4)
+
+- Added `holonovel/scripts/playability.ts`, a deterministic gate that loads
+  every shipped Novel plus fixtures into an isolated `createEngine()` child,
+  derives a seeded action script from the world graph, and reports goal
+  reachability, soft-lock, countdown-target, encounter-survivability, and
+  economy-collapse findings. Fixtures declare their expected violation
+  classes, so the clean control and the shipped `torre-nosferatu` pass
+  silently while the broken twin fails with exactly `soft_lock`,
+  `economy_collapse`, and `encounter_unsurvivable` (REQ-565, REQ-200,
+  REQ-073c2/REQ-329a, REQ-090/REQ-091).
+- Added the pure static model (`playability-model.ts`) and the engine child
+  driver (`playability-run.ts`), plus three `harbor-lights` fixtures unrelated
+  to Torre. The bad-encounter fixture proves the dynamic path: `manage_combat
+  init` refuses the missing participant with `[NOT_FOUND]`.
+- Wired `test:playability` into `test:all` and a `playability` gate into
+  `check`/`check:fast`; retired E4 from `ROADMAP.md`.
+- Evidence: `test:playability` 4/4 PASS with the self-test stable across runs;
+  `check:fast` 32/32 PASS; `build-order` exit 0 with the full check at 0
+  errors.
+
 ## 2026-10-29 — State-hash bookkeeping exclusions
 
 - Amended REQ-601 so the canonical state projection excludes session and
