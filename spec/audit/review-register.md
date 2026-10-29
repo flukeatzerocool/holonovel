@@ -11,6 +11,16 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Compact default tool surface — resolved 2026-10-29:** the 2026-10-25 TDQS
+  capture graded tool-count appropriateness 2/5 at 36 tools, and a compact
+  default was worth about +0.225 overall. Closed as a product decision: keep
+  the full default. The recorded replays show `small` keeps 37% of expected
+  tools visible and raises mean calls to 1.826, against 1.0 and 1.196 for
+  `full`; hiding capability risks the completeness dimension. Disambiguation
+  and per-tool quality remain the levers. ROADMAP entry moved to Not planned;
+  the 2026-10-25 compact decision stays as the build record. (REQ-429,
+  REQ-554, REQ-580)
+
 - **Recap notation and configurable bounds — resolved 2026-10-29:** REQ-072e/f/g
   declared `format`, `max_transitions`, and `max_rolls` while
   `MANAGE_SESSION_SCHEMA` and the recap/compress handlers exposed none of them
@@ -793,14 +803,7 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-<!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
-
-- **Compact default tool surface — scheduled 2026-10-25:** the external TDQS
-  capture grades tool-count appropriateness 2/5 at 36 tools
-  (`spec/audit/tdqs-scoreboard.json`, tool-count justification). Predicate:
-  the default `tools/list` exposes all 36 host tools
-  (`holonovel/tool-definitions.json` `surface_footprint.profiles.full`).
-  Deferred as a product decision; tracked in ROADMAP.md. (REQ-429, REQ-554)
+<!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved); no open scheduled items. -->
 
 ## Closed-P3 (recorded, no action)
 

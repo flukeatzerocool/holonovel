@@ -6,23 +6,14 @@
   Update this file when planning a release.
 -->
 
-## Re-capture the external TDQS after surface changes
+## Not planned — compact tool surface
 
-- The 2026-10-25 capture predates the E7 `manage_artifact` addition (36 → 37
-  tools), so the recorded external score no longer describes the live surface.
-  Re-run the external evaluation and record the capture in
-  `spec/audit/tdqs-scoreboard.json`; `T679` reports the stale count until then.
-  (REQ-552)
-- As of 2026-10-29 the published package is 2026.10.26 and Glama still lists
-  36 tools, so the recapture waits on publishing the 2026.10.29 build and its
-  re-inspection.
-
-## Compact default tool surface
-
-- The default `tools/list` exposes 36 tools; the 2026-10-25 TDQS capture graded
+- The default `tools/list` exposes 37 tools; the 2026-10-25 TDQS capture graded
   tool-count appropriateness 2/5. A curated compact default is worth about
-  +0.225 overall but may read as incomplete. Deferred as a product decision
-  from the 2026-10-25 coherence remediation. (REQ-429, REQ-554)
+  +0.225 overall but may read as incomplete, and the recorded replays show the
+  compact projections cost visibility and calls. Closed as a product decision:
+  keep the full default, improve disambiguation and per-tool quality instead.
+  (REQ-429, REQ-554, REQ-580)
 
 ## Not planned — engine and platform track
 
