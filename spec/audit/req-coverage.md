@@ -570,4 +570,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-612 | Social-scene speaker selection | 5.20 Narrative Turn Conventions | C | T728 | — |
 | REQ-613 | Portable data directory | 5.9 Novel Persistence and Transport | C | T731 | — |
 | REQ-614 | Published package integrity | 5.9 Novel Persistence and Transport | C | T732 | — |
+| REQ-615 | Novel provenance record | 5.7 Determinism, Safety, and Performance | C | T733, S6 | — |
+| REQ-616 | Adventure module provenance | 5.7 Determinism, Safety, and Performance | C | T734 | — |
+| REQ-617 | Adventure provenance verification | 5.7 Determinism, Safety, and Performance | C | T735 | — |
+| REQ-618 | Ruleset package creator attribution | 5.7 Determinism, Safety, and Performance | C | T736 | — |
+| REQ-619 | Reference package provenance emission | 5.7 Determinism, Safety, and Performance | E | T737 | — |
 

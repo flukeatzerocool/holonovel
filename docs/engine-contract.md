@@ -10,8 +10,9 @@ requirements it satisfies, not a source of new obligations. The divergences
 found by the E2 review were closed in the 2026-10-29 remediation increment;
 §9 records the closure.
 
-**Scope.** Six engine concerns: state authority, turn semantics, determinism and
-replay, the event stream, the save format, and the adapter boundary.
+**Scope.** Seven engine concerns: state authority, turn semantics, determinism
+and replay, the event stream, the save format, the adapter boundary, and
+artifact provenance.
 
 **Out of scope.** Resources, prompts, and user interfaces are not part of the
 engine core. They are read or presentation surfaces over engine state; the
@@ -276,6 +277,32 @@ The six divergences recorded by the E2 review were closed on 2026-10-29:
 | REQ-055 claimed RNG state persisted. | REQ-055 now excludes the session PRNG position and cites REQ-050c. |
 | Unknown top-level save keys were dropped. | `novelFromJSON` retains them as inert `future_fields` and `novelToJSON` re-emits them. |
 
+## 10. Artifact provenance
+
+The three shareable artifact classes — ruleset package, adventure module, and
+Novel — carry one provenance envelope:
+
+| Field | Meaning |
+| --- | --- |
+| `creator` | The human or organization that authored the artifact. |
+| `attribution` | The source attributed to (for example a third-party SRD). |
+| `license` | The license the creator grants or the source requires. |
+| `content_hash` | SHA-256 over the artifact's canonical content, excluding the envelope. |
+| `signature` | Optional HMAC-SHA256 over the content hash, verified with `TTRPG_ARTIFACT_VERIFY_KEY`. |
+
+The envelope is metadata, not state: for a Novel it lives in `metadata` and is
+excluded from the canonical state hash but included in the interchange
+`payload_hash`. A transfer that carries the artifact carries the envelope
+unchanged. A missing field is omitted, never fabricated.
+
+Refusal is part of the contract, not an optional mode. A ruleset package whose
+content hash or manifest signature does not verify is refused at install
+(REQ-446). An adventure module whose declared hash does not match its body, or
+whose declared signature does not verify under a configured key, is refused at
+load (REQ-617). A Novel whose `integrity` envelope does not verify refuses under
+`strict` (REQ-096l). A declared signature with no configured key warns and
+loads; it is not evidence of tampering.
+
 ## Appendix: Clause-to-source map
 
 | Clause | Source |
@@ -290,5 +317,6 @@ The six divergences recorded by the E2 review were closed on 2026-10-29:
 | Event log append, supersession, cap, branching | REQ-455–REQ-460 |
 | Save format, checksum, backups, migration | REQ-092a–h2, REQ-238 |
 | Interchange and export scopes | REQ-096, Appendix Q |
+| Artifact provenance envelope and refusal | REQ-446, REQ-615–REQ-619 |
 | Adapter and library entries | `holonovel/package.json` exports; `holonovel/src/library.ts` |
 | No runtime network | Standing Rule 3; REQ-051 |

@@ -29,6 +29,13 @@ export interface RulesetManifest {
   // content source records its license here; the host flags any declared
   // license not present in Appendix U as [license-unattributed].
   source_license?: string;
+  // REQ-618 — creator rights. Optional and loader-compatible: an older host
+  // ignores them, and a package without them loads unchanged.
+  creator?: string;
+  attribution?: string;
+  // REQ-446 — optional HMAC-SHA256 over the canonical manifest JSON (without
+  // this member), verified with TTRPG_ARTIFACT_VERIFY_KEY when configured.
+  signature?: string;
 }
 
 // REQ-432 — the Appendix U license values a vendor package may declare. A
@@ -116,6 +123,25 @@ export function computeContentHash(
     h.update(canonical(obj));
   }
   return h.digest("hex");
+}
+
+// REQ-446 — manifest signature. The payload is the manifest with the signature
+// member removed and keys sorted, so emitter and host agree regardless of
+// property order in the serialized package.
+function canonicalManifest(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalManifest).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.keys(value as Record<string, unknown>)
+      .filter((k) => k !== "signature")
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonicalManifest((value as Record<string, unknown>)[k])}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+export function computeManifestSignature(manifest: RulesetManifest, key: string): string {
+  return crypto.createHmac("sha256", key).update(canonicalManifest(manifest)).digest("hex");
 }
 
 // NdM[+|-X] dice parser. Returns total, per-die results, and modifier.
@@ -530,6 +556,15 @@ export class RulesetManager {
     );
     if (hash !== manifest.content_hash) {
       throw new Error(`[INVALID_INPUT] content hash mismatch. Expected ${manifest.content_hash}, received ${hash}.`);
+    }
+    // REQ-446 — verify the manifest signature when a verification key is
+    // configured. A declared signature with no configured key is accepted.
+    const verifyKey = process.env.TTRPG_ARTIFACT_VERIFY_KEY;
+    if (manifest.signature && verifyKey) {
+      const want = computeManifestSignature(manifest, verifyKey);
+      if (manifest.signature !== want) {
+        throw new Error(`[INVALID_INPUT] manifest signature does not verify. Expected ${want}, received ${manifest.signature}.`);
+      }
     }
     const dir = path.join(this.installDir, slug);
     fs.mkdirSync(dir, { recursive: true });

@@ -17,20 +17,12 @@
 - Done when the five surfaces agree, `npm run assemble && npm run check:fast`
   is green, and the README guardrail passes.
 
-## E6 — Artifact provenance and creator rights
-
-- License, attribution, content hash, and optional signature on ruleset
-  packages, adventures, and Novels; preserved through export and import.
-- Prerequisite for any sharing surface.
-- Depends on the engine contract (`docs/engine-contract.md`). Done when a
-  round-trip preserves provenance and a tampered artifact is refused.
-
 ## E7 — Shareable artifacts and local registry
 
 - Documented exchange formats for packages, adventures, and Novels; local
   install, discovery, and import/export. No network.
-- Depends on E6. Done when two installations exchange an artifact and the
-  registry resolves it offline.
+- Depends on E6 (shipped: artifact provenance, REQ-615–619). Done when two
+  installations exchange an artifact and the registry resolves it offline.
 
 ## E8 — Decision gate: multi-engine and entry split (3c)
 

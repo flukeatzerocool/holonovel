@@ -80,7 +80,7 @@ src/library.ts          Package library entry: core and world namespaces plus
 - **manage_story** (action: record/update/remove/list/promote) — story journal beats
 - **manage_note** (action: set/remove/list/set_server/remove_server/list_server) — Novel-scoped and server notes
 - **manage_codex** (action: set/list/get/capture/import/delete) — server-level, out-of-play reusable content library (Editor and Game Master badges; a Player badge mid-adventure is refused; reads are not badge-filtered)
-- **manage_novel** (action: create/resume/switch/end/rename/description/list/info/genre/complete_session_zero/save_context/get_context) — save-file lifecycle (REQ-458/REQ-459)
+- **manage_novel** (action: create/resume/switch/end/rename/description/list/info/genre/complete_session_zero/save_context/get_context/provenance) — save-file lifecycle (REQ-458/REQ-459) and creator-rights provenance (REQ-615)
 - **manage_archive** (action: export/import/archive/unarchive/clone/branch/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — archival and checkpoint surfaces; split from `manage_novel` (REQ-413/REQ-581)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list/verify/record_ruling/revert_ruling/ruling_list) — Ruleset Wisdom, local citation verification, and the GM-only ruling ledger

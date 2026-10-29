@@ -1,29 +1,29 @@
 {
   "schema_version": 2,
   "tool_count": 36,
-  "tools_list_bytes": 101941,
+  "tools_list_bytes": 102418,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 36,
-        "bytes": 101941,
-        "tokens": 25486
+        "bytes": 102418,
+        "tokens": 25605
       },
       "standard": {
         "tools": 36,
-        "bytes": 87937,
-        "tokens": 21985
+        "bytes": 88414,
+        "tokens": 22104
       },
       "small": {
         "tools": 6,
-        "bytes": 4409,
-        "tokens": 1103,
+        "bytes": 4522,
+        "tokens": 1131,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4409,
-            "tokens": 1103
+            "bytes": 4522,
+            "tokens": 1131
           },
           "explore": {
             "tools": 6,
@@ -1195,8 +1195,8 @@
     {
       "name": "manage_novel",
       "title": "Novel Save Management",
-      "description": "Manage Novel save files: create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context, and list. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create and save_context persist to the Novel; list, info, and get_context are read-only. Lifecycle changes are not reversible via manage_history, so clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools; use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
-      "description_bytes": 691,
+      "description": "Manage Novel save files: create, resume, switch, end, rename, description, info, genre, complete_session_zero, save_context, get_context, provenance, and list. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create, save_context, and provenance persist to the Novel; list, info, and get_context are read-only. provenance records the creator, attribution, and license carried by the Novel's export payload. Lifecycle changes are not reversible via manage_history, so clone a Novel with manage_archive before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools; use manage_archive for export, import, archive/unarchive, clone/branch, and checkpoints.",
+      "description_bytes": 812,
       "action_enum": [
         "create",
         "resume",
@@ -1209,14 +1209,17 @@
         "genre",
         "complete_session_zero",
         "save_context",
-        "get_context"
+        "get_context",
+        "provenance"
       ],
-      "param_count": 26,
+      "param_count": 29,
       "required": [
         "action"
       ],
       "params": {
+        "attribution": "Source attributed on the Novel's provenance record (provenance).",
         "codex_adventure": "Codex adventure to seed from (create).",
+        "creator": "Creator attributed on the Novel's provenance record (provenance).",
         "current_scene": "Current-scene summary (save_context).",
         "data": "Exported Novel JSON (import).",
         "description": "Description (create/description).",
@@ -1228,6 +1231,7 @@
         "immediate_situation": "Immediate situation (save_context).",
         "include_checkpoints": "Include checkpoints in export (default false; export).",
         "label": "Checkpoint label (checkpoint_set/list/restore/remove).",
+        "license": "License declared on the Novel's provenance record (provenance).",
         "long_term_plans": "Long-term plans (save_context).",
         "mode": "dry-run, merge, or replace (import).",
         "name": "Novel name (create).",
@@ -1254,9 +1258,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 27,
+        "paramCount": 30,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 27,
+        "paramsWithDescriptions": 30,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1267,8 +1271,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4128,
-        "descriptionBytes": 691
+        "definitionBytes": 4605,
+        "descriptionBytes": 812
       },
       "category": "",
       "gate": ""
