@@ -56,8 +56,11 @@ export function withForbiddenAudit(
       const text = (result?.content ?? [])
         .map((part: any) => part?.text ?? "")
         .join("\n");
+      // Only the envelope's first non-empty line can carry a refusal marker; a
+      // success payload that merely quotes `[FORBIDDEN]` must not be audited.
+      const firstLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
       const category = (result as any)?.structuredContent?.category;
-      if (category === "FORBIDDEN" || /^\s*(\[ERROR\]\s*)?\[FORBIDDEN\]/m.test(text)) {
+      if (category === "FORBIDDEN" || /^\s*(\[ERROR\]\s*)?\[FORBIDDEN\]/.test(firstLine)) {
         _state.auditForbidden(ctx.badge, toolName, args);
       }
       return result;

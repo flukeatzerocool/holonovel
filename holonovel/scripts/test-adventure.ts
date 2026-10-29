@@ -184,6 +184,10 @@ async function main() {
     writeFileSync(join(ADV_DIR, "badsig.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${hash}\nsignature: ${"0".repeat(64)}\n---\n${body}`);
     writeFileSync(join(ADV_DIR, "unsigned.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${hash}\n---\n${body}`);
     writeFileSync(join(ADV_DIR, "plain.md"), body);
+    // Appendix K places no line cap on the block; a block longer than 40 lines
+    // must still parse (regression guard for the fixed line scan).
+    const longBlock = `---\ncreator: Ada Example\n${Array.from({ length: 45 }, (_, i) => `attribution: line ${i}`).join("\n")}\ncontent_hash: ${hash}\n---\n${body}`;
+    writeFileSync(join(ADV_DIR, "longprov.md"), longBlock);
 
     const proc = await boot({ TTRPG_ADVENTURE_DIR: ADV_DIR, TTRPG_DATA_DIR: PROV_DATA, TTRPG_EXPORT_EMBED_ADVENTURES: "true", TTRPG_ARTIFACT_VERIFY_KEY: key });
     await call(proc, "set_badge", { badge: "game_master" });
@@ -197,6 +201,9 @@ async function main() {
       assertContains(catalog, "Ada Example");
       const loaded = await call(proc, "manage_adventure", { action: "load", slug: "good" });
       assertContains(loaded, "Ada Example");
+      const longLoaded = await call(proc, "manage_adventure", { action: "load", slug: "longprov" });
+      assertContains(longLoaded, "Ada Example");
+      assertNotContains(longLoaded, "[provenance-absent]");
       const exported = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
       if (exported.adventure?.provenance?.creator !== "Ada Example") {
         throw new Error(`export did not carry provenance: ${JSON.stringify(exported.adventure)}`);
@@ -228,7 +235,7 @@ async function main() {
       const signed = await call(proc2, "manage_adventure", { action: "load", slug: "good" });
       assertContains(signed, "[signature-unverified]");
       const plain = await call(proc2, "manage_adventure", { action: "load", slug: "plain" });
-      assertContains(plain, "[provenance-absent]");
+      assertContains(plain, "[WARNING] [provenance-absent]");
       await kill(proc2);
     });
 

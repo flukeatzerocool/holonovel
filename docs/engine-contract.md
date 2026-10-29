@@ -219,12 +219,16 @@ requests. Two rules keep that seam honest:
    composition may vary by adapter; they must not otherwise redefine engine
    state (REQ-031a, REQ-032a).
 2. **Library and executable entries differ.** Importing the package root loads
-   the library that exposes `core` and `world` namespaces; the executable entry
-   starts the server. The library does not start a transport, though it is not
-   wholly effect-free: importing it evaluates the RNG module, which logs the
-   seed to stderr, and reads `package.json` (`holonovel/src/library.ts`;
-   `holonovel/src/core/rng.ts:45-47`; `holonovel/package.json` exports). The
-   split is a packaging contract, not a REQ-614 clause.
+   the library that exposes `core` and `world` namespaces plus a lazy
+   `createEngine()`; the executable entry starts the server. Importing the
+   library evaluates the `core`/`world` modules (so the RNG seed is logged and
+   `package.json` is read) but does not load the server entry, create the data
+   directory, scan rulesets, or start a transport. Calling the async
+   `createEngine()` sets `HOLONOVEL_NO_AUTOSTART` and only then loads
+   `index.ts`, so those server-side effects occur on first engine construction
+   (`holonovel/src/library.ts`; `holonovel/src/engine.ts`;
+   `holonovel/package.json` exports). The split is a packaging contract, not a
+   REQ-614 clause.
 
 The engine makes no outbound network calls at runtime (Standing Rule 3;
 REQ-051), and it assumes nothing about transport beyond what the adapter

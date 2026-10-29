@@ -78,6 +78,10 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return (resp.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
 }
 const readResource = resourceReader(send);
+async function listPromptNames(proc: ChildProcess): Promise<string[]> {
+  const resp = await send(proc, { method: "prompts/list" });
+  return (resp.result?.prompts ?? []).map((p: any) => p.name);
+}
 function kill(proc: ChildProcess): Promise<void> {
   return new Promise((resolve) => { proc.on("exit", () => resolve()); proc.kill(); });
 }
@@ -105,7 +109,7 @@ function rulesetFixture(dir: string): { slug: string; manifest: any } {
   const model = {};
   const tools: any[] = [];
   const resources: any[] = [];
-  const prompts: any[] = [];
+  const prompts: any[] = [{ name: "fixture-prompt", text: "Fixture prompt text." }];
   manifest.content_hash = computeContentHash(index, model, tools, resources, prompts);
   mkdirSync(dir, { recursive: true });
   for (const [name, value] of Object.entries({ "manifest.json": manifest, "index.json": index, "model.json": model, "tools.json": tools, "resources.json": resources, "prompts.json": prompts })) {
@@ -173,6 +177,49 @@ async function main() {
     assert.match(out, /already installed/);
   });
 
+  await test("T739: a traversal destination slug is refused", async () => {
+    writeFileSync(join(ROOT_B, "inbox", "evil-pack.json"), JSON.stringify({ slug: "../../evil", name: "Evil" }));
+    const novel = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "evil-pack.json" });
+    assert.match(novel, /\[ERROR\] \[INVALID_INPUT\]/);
+    assert.match(novel, /must match \^\[a-z0-9\]/);
+    const evilDir = join(ROOT_B, "inbox", "evil-rules");
+    mkdirSync(evilDir, { recursive: true });
+    writeFileSync(join(evilDir, "manifest.json"), JSON.stringify({ slug: "../../evil", name: "Evil", host_version: "0", package_format: PACKAGE_FORMAT, content_hash: "x" }));
+    const rules = await call(b, "manage_artifact", { action: "install", kind: "ruleset", source: "evil-rules" });
+    assert.match(rules, /\[ERROR\] \[INVALID_INPUT\]/);
+    assert.match(rules, /must match \^\[a-z0-9\]/);
+  });
+
+  await test("T739: a mismatched install slug is refused", async () => {
+    const out = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "pack-one.json", slug: "other-slug" });
+    assert.match(out, /\[ERROR\] \[INVALID_INPUT\]/);
+    assert.match(out, /does not match the pack slug/);
+  });
+
+  await test("T739: a bare pack adopts a supplied slug", async () => {
+    writeFileSync(join(ROOT_B, "inbox", "bare-pack.json"), JSON.stringify({ name: "Adopted Pack", badge: "game_master" }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "bare-pack.json", slug: "adopted" });
+    assert.match(out, /\[OK\]/);
+    assert.match(await call(b, "manage_novel", { action: "list" }), /Adopted Pack/);
+    const entries = (await registry(b, { kind: "novel" })).artifacts.map((e: any) => e.slug);
+    assert.ok(entries.includes("adopted"));
+  });
+
+  await test("REQ-032: a Player artifact list omits absolute location paths", async () => {
+    await call(b, "set_badge", { badge: "game_master" });
+    const gm = await call(b, "manage_artifact", { action: "list" });
+    assert.match(gm, /"location"/);
+    // The starter Novel ships a pending `present_choices` workflow, which
+    // blocks a badge switch; drain it by applying a choice (not cancel, which
+    // would restore the starter's legacy snapshot shape).
+    await call(b, "respond_decision", { decision: "present_choices", option: "take_stair" });
+    const badge = await call(b, "set_badge", { badge: "player" });
+    assert.match(badge, /player/);
+    const player = await call(b, "manage_artifact", { action: "list" });
+    assert.ok(!player.includes('"location"'), `player list leaked location (badge=${badge}): ${player.slice(0, 240)}`);
+    await call(b, "set_badge", { badge: "game_master" });
+  });
+
   await test("T738: both installations report equal registry entries", async () => {
     const strip = (entry: any) => ({ kind: entry.kind, slug: entry.slug, title: entry.title, content_hash: entry.content_hash, creator: entry.creator, attribution: entry.attribution, license: entry.license, integrity: entry.integrity });
     const wanted = new Set(["pack-one", "harbor-signal", ruleset.slug]);
@@ -209,7 +256,8 @@ async function main() {
     const out = await call(b, "manage_artifact", { action: "remove", kind: "ruleset", slug: ruleset.slug });
     assert.match(out, /\[ERROR\] \[STATE_CONFLICT\]/);
     assert.match(out, /is bound to ruleset/);
-    await call(b, "manage_novel", { action: "end", dispose: "yes" });
+    await call(b, "manage_novel", { action: "end" });
+    await call(b, "respond_decision", { decision: "end novel", option: "yes" });
     await call(b, "manage_novel", { action: "resume", slug: "torre-nosferatu" });
   });
 
@@ -222,14 +270,37 @@ async function main() {
 
   await test("T739: install and remove record security-event audit entries", async () => {
     const audit = await readResource(b, "audit://novel");
-    assert.match(audit, /install_artifact/);
-    assert.match(audit, /remove_artifact/);
+    const entries = JSON.parse(audit);
+    const installed = entries.find((e: any) => e.tool === "install_artifact");
+    const removed = entries.find((e: any) => e.tool === "remove_artifact");
+    assert.ok(installed, "install_artifact audit entry missing");
+    assert.equal(installed.security_event, true, "install_artifact must be tagged a security event");
+    assert.ok(removed, "remove_artifact audit entry missing");
+    assert.equal(removed.security_event, true, "remove_artifact must be tagged a security event");
   });
 
   await test("REQ-620: spec_health reports artifact counts per kind", async () => {
     const health = await call(b, "manage_diagnostics", { action: "health" });
     assert.match(health, /artifacts_registered/);
     assert.match(health, /"ruleset": 1/);
+  });
+
+  await test("REQ-389c: artifact ruleset remove rebuilds package prompts", async () => {
+    const before = await listPromptNames(b);
+    assert.ok(before.includes("fixture-prompt"), "fixture prompt should be registered before removal");
+    const out = await call(b, "manage_artifact", { action: "remove", kind: "ruleset", slug: ruleset.slug });
+    assert.match(out, /\[OK\]/);
+    const after = await listPromptNames(b);
+    assert.ok(!after.includes("fixture-prompt"), "removed ruleset prompt must be deregistered");
+  });
+
+  await test("T739: a removed Novel can be reinstalled without a stale path", async () => {
+    const removed = await call(b, "manage_artifact", { action: "remove", kind: "novel", slug: "pack-one" });
+    assert.match(removed, /\[OK\]/);
+    const reinstalled = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "pack-one.json" });
+    assert.match(reinstalled, /\[OK\]/);
+    const entries = (await registry(b, { kind: "novel" })).artifacts.filter((e: any) => e.slug === "pack-one");
+    assert.equal(entries.length, 1);
   });
 
   await kill(a);

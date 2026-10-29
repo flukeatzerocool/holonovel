@@ -58,7 +58,7 @@ async function loadLibrary(): Promise<any> {
 async function runSequence(): Promise<void> {
   const { createEngine } = await loadLibrary();
   const { stateHash } = await import(pathToFileURL(join(ROOT, "src", "core", "state-hash.ts")).href);
-  const engine = createEngine();
+  const engine = await createEngine();
   await engine.tools.call("manage_novel", { action: "resume", slug: NOVEL });
   await engine.tools.call("respond_decision", { decision: "present_choices", option: "take_stair" });
   await engine.tools.call("set_badge", { badge: "game_master" });
@@ -103,21 +103,28 @@ async function skipAutostartCheck(): Promise<void> {
     && statSync(builtEngine).mtimeMs >= statSync(sourceEntry).mtimeMs;
   const target = useBuilt ? pathToFileURL(built).href : pathToFileURL(source).href;
   const code = `import(${JSON.stringify(target)}).then((m) => { if (typeof m.createEngine !== "function") process.exit(1); process.exit(0); })`;
+  // A distinct, non-existent data dir proves importing the library does not
+  // boot the server module (which would create it via resolveDataDir).
+  const importDir = join(tmpdir(), `holonovel-engine-import-${process.pid}-${Date.now()}`);
   const run = useBuilt
     ? spawnSync(process.execPath, ["--input-type=module", "-e", code], {
         cwd: ROOT,
-        env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, TTRPG_SEED: "1" },
+        env: { ...process.env, TTRPG_DATA_DIR: importDir, TTRPG_SEED: "1" },
         encoding: "utf8",
         timeout: 60_000,
       })
     : spawnSync("npx", ["tsx", "-e", code], {
         cwd: ROOT,
-        env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, TTRPG_SEED: "1" },
+        env: { ...process.env, TTRPG_DATA_DIR: importDir, TTRPG_SEED: "1" },
         encoding: "utf8",
         timeout: 60_000,
       });
   if (run.status !== 0) {
     throw new Error(`importing the library did not exit cleanly (status ${run.status}, signal ${run.signal}): ${(run.stderr ?? "").slice(0, 300)}`);
+  }
+  if (existsSync(importDir)) {
+    rmSync(importDir, { recursive: true, force: true });
+    throw new Error("importing the library created the data directory (server module evaluated eagerly)");
   }
 }
 
@@ -133,7 +140,7 @@ async function main(): Promise<void> {
     return;
   }
   const { createEngine } = await loadLibrary();
-  const engine = createEngine();
+  const engine = await createEngine();
   const index = await import(pathToFileURL(join(ROOT, "src", "index.ts")).href);
 
   try {

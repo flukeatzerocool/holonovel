@@ -1519,6 +1519,13 @@ export class StateManager {
     return novel;
   }
 
+  // REQ-088/REQ-620 — drop a Novel's recorded filename mapping when an
+  // artifact is removed out-of-band (no trash move), so a later install of the
+  // same slug writes the canonical `<slug>.json` instead of a stale path.
+  forgetNovelPath(slug: string): void {
+    this.novelPaths.delete(slug);
+  }
+
   // REQ-117 — Novel retention period: ended Novels move to .trash/ and are
   // excluded from resume_novel; retention is configurable via
   // TTRPG_NOVEL_RETENTION_DAYS (cleanupExpiredTrash).
@@ -1755,7 +1762,8 @@ export class StateManager {
   // REQ-448 — security-relevant events are tagged in the chained audit log.
   private static readonly SECURITY_EVENT_TOOLS = new Set([
     "set_badge", "import_novel", "export_novel", "import_codex", "import_lore",
-    "install_ruleset", "remove_ruleset", "archive_novel", "unarchive_novel",
+    "install_ruleset", "remove_ruleset", "install_artifact", "remove_artifact",
+    "archive_novel", "unarchive_novel",
     "end_novel", "clone_novel", "checkpoint_set", "checkpoint_restore",
   ]);
 

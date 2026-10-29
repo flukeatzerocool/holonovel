@@ -70,7 +70,7 @@ import { deriveAnchor } from "./core/anchors.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
 import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
 import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, type AdventureProvenance } from "./core/adventure-provenance.js";
-import { resolveInboxDir } from "./core/data-dir.js";
+import { resolveInboxDir, resolveWithin, isSafeSlug } from "./core/data-dir.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 //
@@ -256,7 +256,7 @@ server.registerTool = ((name: string, config: any, handler: any) => {
     annotations,
     inputSchema: normalizeToolSchema(config.inputSchema),
     outputSchema: normalizeToolSchema(config.outputSchema ?? OUTPUT_SCHEMA),
-  }, paced as any);
+  }, paced as any, handler as any);
 }) as unknown as typeof server.registerTool;
 
 // Registry view in the shape the MCP SDK exposes, so introspection and
@@ -5083,8 +5083,8 @@ server.registerTool("manage_causality", {
   },
 }, async (args: any, extra: any) => {
   const target = toolRegistry.get("manage_world");
-  if (!target?.handler) return err("STATE_CONFLICT", "manage_world handler unavailable.");
-  return target.handler(args, extra);
+  if (!target?.rawHandler) return err("STATE_CONFLICT", "manage_world handler unavailable.");
+  return target.rawHandler(args, extra);
 });
 
 // --- Narrative (GM) ---
@@ -5860,8 +5860,8 @@ server.registerTool("manage_staging", {
   },
 }, async (args: any, extra: any) => {
   const target = toolRegistry.get("manage_scene");
-  if (!target?.handler) return err("STATE_CONFLICT", "manage_scene handler unavailable.");
-  return target.handler(args, extra);
+  if (!target?.rawHandler) return err("STATE_CONFLICT", "manage_scene handler unavailable.");
+  return target.rawHandler(args, extra);
 });
 
 // --- Countdowns (GM) ---
@@ -6323,8 +6323,8 @@ server.registerTool("manage_corpus", {
   },
 }, async (args: any, extra: any) => {
   const target = toolRegistry.get("manage_lore");
-  if (!target?.handler) return err("STATE_CONFLICT", "manage_lore handler unavailable.");
-  return target.handler(args, extra);
+  if (!target?.rawHandler) return err("STATE_CONFLICT", "manage_lore handler unavailable.");
+  return target.rawHandler(args, extra);
 });
 
 // --- Factions (GM) ---
@@ -7002,7 +7002,7 @@ server.registerTool("resolve_mechanic", {
 }, async (args: any) => {
   const action = String(args.action ?? "");
   const call = async (tool: string, mapped: Record<string, unknown>) => {
-    const handler = toolRegistry.get(tool)?.handler;
+    const handler = toolRegistry.get(tool)?.rawHandler;
     if (typeof handler !== "function") {
       return err("INTERNAL_ERROR", `Resolution handler '${tool}' is unavailable.`);
     }
@@ -8762,8 +8762,8 @@ server.registerTool("manage_diagnostics", {
   },
 }, async (args: any, extra: any) => {
   const target = toolRegistry.get("manage_context");
-  if (!target?.handler) return err("STATE_CONFLICT", "Session handler unavailable.");
-  return target.handler(args, extra);
+  if (!target?.rawHandler) return err("STATE_CONFLICT", "Session handler unavailable.");
+  return target.rawHandler(args, extra);
 });
 
 // Slug-ify a free-text premise into a stable identifier for adventure storage
@@ -8933,7 +8933,7 @@ server.registerTool("manage_adventure", {
       if (checks.failures.length > 0) {
         return err("STATE_CONFLICT", `Adventure '${args.slug}' provenance verification failed: ${checks.failures.join("; ")}. Corrective action: re-export the module or remove its provenance block.`);
       }
-      const provenanceNotes = provenance ? checks.warnings : ["[provenance-absent] module declares no provenance block"];
+      const provenanceNotes = provenance ? checks.warnings : ["[WARNING] [provenance-absent] module declares no provenance block"];
       const headings = content.match(/^#{2,3} .+$/gm) ?? [];
       const npcRefs: string[] = [];
       const m = content.match(/\*\*([A-Z][^*]{1,40})\*\*\s*\n/gm);
@@ -10000,8 +10000,8 @@ server.registerTool("manage_archive", {
   },
 }, async (args: any, extra: any) => {
   const target = toolRegistry.get("manage_novel");
-  if (!target?.handler) return err("STATE_CONFLICT", "manage_novel handler unavailable.");
-  return target.handler(args, extra);
+  if (!target?.rawHandler) return err("STATE_CONFLICT", "manage_novel handler unavailable.");
+  return target.rawHandler(args, extra);
 });
 
 // REQ-620 — registry sources. The registry is scan-derived; package hashes are
@@ -10021,11 +10021,14 @@ function artifactRegistry(): ReturnType<typeof buildArtifactRegistry> {
 // REQ-621 — resolve a source under the exchange inbox, rejecting traversal and
 // absolute paths (REQ-052).
 function inboxSourcePath(source: string): string | null {
-  const inbox = resolveInboxDir(DATA_DIR);
-  const candidate = path.resolve(inbox, source);
-  const rel = path.relative(inbox, candidate);
-  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
-  return candidate;
+  return resolveWithin(resolveInboxDir(DATA_DIR), source);
+}
+
+// REQ-032 — GM/Editor-only view predicate for surfaces that expose internal
+// filesystem layout (the artifact catalog's absolute `location`).
+function isGmView(): boolean {
+  const badge = getBadge();
+  return badge === "game_master" || badge === "none";
 }
 
 function artifactDependencyError(kind: ArtifactKind, slug: string): string | null {
@@ -10046,12 +10049,12 @@ function artifactDependencyError(kind: ArtifactKind, slug: string): string | nul
 
 server.registerTool("manage_artifact", {
   title: "Local Artifact Registry",
-  description: "Manage the host registry of shareable artifacts — Novel packs, adventures, and ruleset packages — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact from the inbox into its kind directory, audits it, and catalogs it; a ruleset install hydrates its tools. remove deletes the installed artifact, unregisters a removed ruleset's tools, refuses while a Novel depends on it, and is permanent (no undo); reinstall to restore. install/remove need the GM badge. install refuses a hash/provenance mismatch or existing slug. source is an inbox-relative JSON pack, Markdown module, or package directory by kind; slug names the remove/verify target and may override the install slug; integrity filters list only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
+  description: "Manage the host registry of shareable artifacts — Novel packs, adventure modules, and ruleset packages — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact into its kind directory and audits it; ruleset tools become callable after restart. remove is permanent (no undo), rebuilds ruleset prompts, and refuses while a Novel depends on it. install/remove need the GM badge and record a security event, and install refuses a hash/provenance mismatch, a mismatched slug, or an existing slug; slug names remove/verify and must match the artifact's slug on install (a pack without one adopts it). source is an inbox-relative file or package directory; location is GM-only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
   inputSchema: {
     action: z.enum(["list", "install", "remove", "verify"]).describe("list, install, remove, or verify."),
     kind: z.enum(["novel", "adventure", "ruleset"]).optional().describe("Artifact kind; filters list and targets install/remove/verify."),
     source: z.string().optional().describe("Inbox-relative Novel pack (.json), adventure module (.md), or ruleset package directory to install (install)."),
-    slug: z.string().optional().describe("Artifact slug (remove/verify); overrides the artifact's own slug on install."),
+    slug: z.string().optional().describe("Artifact slug (remove/verify); on install it must match the artifact's own slug, and a pack without one adopts it."),
     integrity: z.enum(["verified", "unverified", "absent"]).optional().describe("Integrity filter: verified, unverified, or absent (list)."),
   },
 }, async (args: any) => {
@@ -10060,12 +10063,16 @@ server.registerTool("manage_artifact", {
       let entries = artifactRegistry();
       if (args.kind) entries = entries.filter((e) => e.kind === args.kind);
       if (args.integrity) entries = entries.filter((e) => e.integrity === args.integrity);
+      // REQ-032 — absolute install paths are GM/Editor-only; a Player sees the
+      // catalog but not the server filesystem layout.
+      const showLocation = isGmView();
       return raw(JSON.stringify({
         counts: registryCounts(artifactRegistry()),
         artifacts: entries.map((e) => ({
           kind: e.kind, slug: e.slug, title: e.title, version: e.version,
           content_hash: e.content_hash, creator: e.creator, attribution: e.attribution,
-          license: e.license, integrity: e.integrity, location: e.location,
+          license: e.license, integrity: e.integrity,
+          ...(showLocation ? { location: e.location } : {}),
         })),
       }, null, 2));
     }
@@ -10075,7 +10082,8 @@ server.registerTool("manage_artifact", {
       if (!entry) return err("NOT_FOUND", `No ${args.kind} artifact '${args.slug}' is installed.`);
       return raw(JSON.stringify({
         kind: entry.kind, slug: entry.slug, content_hash: entry.content_hash,
-        integrity: entry.integrity, location: entry.location,
+        integrity: entry.integrity,
+        ...(isGmView() ? { location: entry.location } : {}),
       }, null, 2));
     }
     case "install": {
@@ -10106,10 +10114,18 @@ server.registerTool("manage_artifact", {
         }
         const novel = importNovelJSON(payload);
         const slug = String(novel.slug ?? args.slug ?? "");
-        if (!slug) return err("INVALID_INPUT", "Novel pack has no slug.");
-        if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
+        if (!slug) return err("INVALID_INPUT", "Novel pack has no slug; pass slug.");
+        if (args.slug !== undefined && String(args.slug) !== slug) {
+          return err("INVALID_INPUT", `slug '${args.slug}' does not match the pack slug '${slug}'.`);
+        }
+        if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Novel slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
+        const target = resolveWithin(path.join(DATA_DIR, "novels"), `${slug}.json`);
+        if (!target) return err("INVALID_INPUT", `Novel slug '${slug}' resolves outside the novels directory.`);
+        if (state.novels.has(slug) || fs.existsSync(target)) {
           return err("STATE_CONFLICT", `Novel '${slug}' is already installed.`);
         }
+        novel.slug = slug;
+        if (!novel.name) novel.name = slug;
         state.saveNovel(novel);
         state.hydrateNovelsFromDisk();
         audit("install_artifact", { kind, slug, content_hash: bundle?.integrity?.payload_hash ?? null });
@@ -10127,7 +10143,12 @@ server.registerTool("manage_artifact", {
           return err("STATE_CONFLICT", `Adventure '${args.source}' provenance verification failed: ${checks.failures.join("; ")}.`);
         }
         const slug = path.basename(file).replace(/\.md$/, "");
-        const target = path.join(DATA_DIR, "adventures", `${slug}.md`);
+        if (args.slug !== undefined && String(args.slug) !== slug) {
+          return err("INVALID_INPUT", `slug '${args.slug}' does not match the module file slug '${slug}'.`);
+        }
+        if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Adventure slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
+        const target = resolveWithin(path.join(DATA_DIR, "adventures"), `${slug}.md`);
+        if (!target) return err("INVALID_INPUT", `Adventure slug '${slug}' resolves outside the adventures directory.`);
         if (fs.existsSync(target)) return err("STATE_CONFLICT", `Adventure '${slug}' is already installed.`);
         fs.mkdirSync(path.dirname(target), { recursive: true });
         const tmp = `${target}.${process.pid}.tmp`;
@@ -10135,7 +10156,7 @@ server.registerTool("manage_artifact", {
         fs.renameSync(tmp, target);
         audit("install_artifact", { kind, slug, content_hash: provenance?.content_hash ?? null });
         if (state.activeNovel) state.saveNovel(state.activeNovel);
-        return ok(`Adventure module '${slug}' installed.${provenance ? "" : " [provenance-absent]"}${checks.warnings.length ? ` Warnings: ${checks.warnings.join("; ")}` : ""}`);
+        return ok(`Adventure module '${slug}' installed.${provenance ? "" : " [WARNING] [provenance-absent]"}${checks.warnings.length ? ` Warnings: ${checks.warnings.join("; ")}` : ""}`);
       }
 
       const manifestPath = path.join(resolved, "manifest.json");
@@ -10144,6 +10165,10 @@ server.registerTool("manage_artifact", {
       try { manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")); } catch { return err("INVALID_INPUT", `Ruleset package '${args.source}' has an unreadable manifest.json.`); }
       const slug = String(manifest.slug ?? args.slug ?? "");
       if (!slug) return err("INVALID_INPUT", "Ruleset package manifest has no slug.");
+      if (args.slug !== undefined && String(args.slug) !== slug) {
+        return err("INVALID_INPUT", `slug '${args.slug}' does not match the package slug '${slug}'.`);
+      }
+      if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Ruleset slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
       if (rulesets.isInstalled(slug)) return err("STATE_CONFLICT", `Ruleset '${slug}' is already installed.`);
       const read = (name: string): any => JSON.parse(fs.readFileSync(path.join(resolved, name), "utf-8"));
       try {
@@ -10168,6 +10193,7 @@ server.registerTool("manage_artifact", {
       if (!args.kind || !args.slug) return err("INVALID_INPUT", "remove requires kind and slug.");
       const kind = args.kind as ArtifactKind;
       const slug = String(args.slug);
+      if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Artifact slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
       const dependency = artifactDependencyError(kind, slug);
       if (dependency) return err("STATE_CONFLICT", dependency);
       const entry = artifactRegistry().find((e) => e.kind === kind && e.slug === slug);
@@ -10175,19 +10201,26 @@ server.registerTool("manage_artifact", {
       if (kind === "ruleset") {
         if (!rulesets.isInstalled(slug)) return err("NOT_FOUND", `Ruleset '${slug}' is not installed.`);
         rulesets.removePackage(slug);
+        // REQ-389c — mirror manage_ruleset remove: package prompts are rebuilt
+        // immediately and clients are told the prompt list changed.
+        reloadPackagePrompts();
+        (server as any).sendPromptListChanged?.();
       } else if (kind === "adventure") {
-        const target = path.join(DATA_DIR, "adventures", `${slug}.md`);
+        const target = resolveWithin(path.join(DATA_DIR, "adventures"), `${slug}.md`);
+        if (!target) return err("INVALID_INPUT", `Adventure slug '${slug}' resolves outside the adventures directory.`);
         if (!fs.existsSync(target)) return err("STATE_CONFLICT", `Adventure '${slug}' is not installed in ${path.join(DATA_DIR, "adventures")}; remove the source copy instead.`);
         fs.unlinkSync(target);
       } else {
         const dir = path.join(DATA_DIR, "novels");
-        const target = path.join(dir, `${slug}.json`);
+        const target = resolveWithin(dir, `${slug}.json`);
+        if (!target) return err("INVALID_INPUT", `Novel slug '${slug}' resolves outside the novels directory.`);
         if (!fs.existsSync(target)) return err("STATE_CONFLICT", `Novel '${slug}' is not installed in ${dir}.`);
         fs.unlinkSync(target);
         for (const f of fs.readdirSync(dir)) {
           if (f.startsWith(`${slug}.json.bak`)) fs.unlinkSync(path.join(dir, f));
         }
         state.novels.delete(slug);
+        state.forgetNovelPath(slug);
         if (state.activeNovel?.slug === slug) state.activeNovelId = null;
       }
       audit("remove_artifact", { kind, slug });
@@ -12867,14 +12900,14 @@ server.registerTool("open_session", {
   const novelTool = toolRegistry.get("manage_novel");
   const badgeTool = toolRegistry.get("set_badge");
   const sessionTool = toolRegistry.get("manage_context");
-  if (args.novel && novelTool?.handler) {
-    parts.push(toolResultText(await novelTool.handler({ action: "resume", slug: args.novel }, undefined)));
+  if (args.novel && novelTool?.rawHandler) {
+    parts.push(toolResultText(await novelTool.rawHandler({ action: "resume", slug: args.novel }, undefined)));
   }
-  if (args.badge && badgeTool?.handler) {
-    parts.push(toolResultText(await badgeTool.handler({ badge: args.badge }, undefined)));
+  if (args.badge && badgeTool?.rawHandler) {
+    parts.push(toolResultText(await badgeTool.rawHandler({ badge: args.badge }, undefined)));
   }
-  if (sessionTool?.handler) {
-    parts.push(toolResultText(await sessionTool.handler({ action: "recap" }, undefined)));
+  if (sessionTool?.rawHandler) {
+    parts.push(toolResultText(await sessionTool.rawHandler({ action: "recap" }, undefined)));
   }
   return raw(parts.filter(Boolean).join("\n\n"));
 });
@@ -12887,11 +12920,11 @@ server.registerTool("close_session", {
   const parts: string[] = [];
   const sessionTool = toolRegistry.get("manage_context");
   const novelTool = toolRegistry.get("manage_novel");
-  if (sessionTool?.handler) {
-    parts.push(toolResultText(await sessionTool.handler({ action: "recap" }, undefined)));
+  if (sessionTool?.rawHandler) {
+    parts.push(toolResultText(await sessionTool.rawHandler({ action: "recap" }, undefined)));
   }
-  if (novelTool?.handler) {
-    parts.push(toolResultText(await novelTool.handler({ action: "save_context" }, undefined)));
+  if (novelTool?.rawHandler) {
+    parts.push(toolResultText(await novelTool.rawHandler({ action: "save_context" }, undefined)));
   }
   // REQ-590 — persist the derived arc/campaign tiers so the GM briefing's
   // campaign bible is usable without a manual `compact`.
@@ -12911,9 +12944,9 @@ server.registerTool("take_turn", {
   },
 }, async (args: any) => {
   const run = toolRegistry.get("run_command");
-  if (!run?.handler) return err("STATE_CONFLICT", "Parser unavailable.");
-  const resolved = await run.handler({ action: "resolve", intent: args.intent, entity_id: args.entity_id }, undefined);
-  const suggested = await run.handler({ action: "suggest", intent: args.intent, entity_id: args.entity_id }, undefined);
+  if (!run?.rawHandler) return err("STATE_CONFLICT", "Parser unavailable.");
+  const resolved = await run.rawHandler({ action: "resolve", intent: args.intent, entity_id: args.entity_id }, undefined);
+  const suggested = await run.rawHandler({ action: "suggest", intent: args.intent, entity_id: args.entity_id }, undefined);
   const handle = mintTurnHandle(args.intent);
   return raw(`[TURN] ${handle}\n\nIntent resolution:\n${toolResultText(resolved)}\n\nSuggested next actions:\n${toolResultText(suggested)}`);
 });

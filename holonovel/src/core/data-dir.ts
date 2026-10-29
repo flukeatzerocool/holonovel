@@ -72,3 +72,24 @@ export function resolveInboxDir(dataDir: string, env: NodeJS.ProcessEnv = proces
   const explicit = env.TTRPG_ARTIFACT_INBOX?.trim();
   return explicit ? path.resolve(explicit) : path.join(dataDir, "inbox");
 }
+
+// REQ-621 — resolve `candidate` under `base`, rejecting anything that escapes
+// it. Returns null for an empty relative path (the base itself), a `..`
+// escape, or an absolute result. Shared by the inbox source check and every
+// artifact install/remove destination so a crafted slug cannot traverse out.
+export function resolveWithin(base: string, candidate: string): string | null {
+  const root = path.resolve(base);
+  const target = path.resolve(root, candidate);
+  const rel = path.relative(root, target);
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  return target;
+}
+
+// REQ-620/REQ-621 — the artifact slug grammar. Mirrors the create/rename
+// sanitizer (`[^a-z0-9]+` → `-`, trimmed) so existing slugs pass and a
+// path-bearing slug (`..`, `/`, `\`) is refused before any filesystem write.
+const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function isSafeSlug(slug: unknown): slug is string {
+  return typeof slug === "string" && SAFE_SLUG.test(slug);
+}

@@ -17,9 +17,13 @@ const ADVENTURE_PROVENANCE_KEYS = new Set(["creator", "attribution", "license", 
 export function parseAdventureProvenance(content: string): { provenance: AdventureProvenance | null; body: string } {
   const lines = content.split("\n");
   if (lines[0]?.trim() !== "---") return { provenance: null, body: content };
+  // Appendix K — the block ends at the closing `---` before the first heading.
+  // Scan to that heading (or EOF) rather than a fixed line cap so a long but
+  // valid provenance block still parses.
   let end = -1;
-  for (let i = 1; i < lines.length && i <= 40; i++) {
+  for (let i = 1; i < lines.length; i++) {
     if (lines[i].trim() === "---") { end = i; break; }
+    if (/^#{1,6}\s/.test(lines[i])) break;
   }
   if (end < 0) return { provenance: null, body: content };
   const block: AdventureProvenance = {};

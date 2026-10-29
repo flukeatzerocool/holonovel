@@ -10,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
 import { createRng, sessionRoll } from "./core/rng.js";
+import { isSafeSlug, resolveWithin } from "./core/data-dir.js";
 import { applyHardGates } from "./core/tdqs.js";
 import { PACKAGE_FORMAT } from "./generated/contract-fingerprints.js";
 
@@ -551,6 +552,14 @@ export class RulesetManager {
     const manifest: RulesetManifest = files.manifest;
     if (!manifest || manifest.slug !== slug) {
       throw new Error(`[INVALID_INPUT] manifest.slug must equal '${slug}'.`);
+    }
+    // REQ-621 — the slug becomes a directory name; reject traversal before any
+    // filesystem write so a crafted manifest cannot escape the install dir.
+    if (!isSafeSlug(slug)) {
+      throw new Error(`[INVALID_INPUT] slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
+    }
+    if (!resolveWithin(this.installDir, slug)) {
+      throw new Error(`[INVALID_INPUT] slug '${slug}' resolves outside the install directory.`);
     }
     if (!manifest.package_format || manifest.package_format !== PACKAGE_FORMAT) {
       throw new Error(`[INVALID_INPUT] incompatible package-format fingerprint '${manifest.package_format}' (expected '${PACKAGE_FORMAT}').`);
