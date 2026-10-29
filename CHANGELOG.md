@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-29 — Engine positioning and engine-track roadmap
+
+- Positioned Holonovel as a narrative simulation engine whose reference adapter
+  is the MCP server, with the Novel as the portable program and tabletop play as
+  the first application. Updated the README, spec §1 mission framing, maintainer
+  docs, and the package description; "engine" now names Holonovel and
+  "mechanics" names the rulebook.
+- Added the engine and platform roadmap (E1–E8) with dependency order, done-bars,
+  and decision gates. Hosted platform, multiplayer, discovery, monetization, and
+  default network transport are recorded as not planned (REQ-030, REQ-051).
+
 ## 2026-10-26 — Pipeline update-invocation scope fix
 
 - Fixed `scripts/push-pipeline.sh` so `--auto-update` sets

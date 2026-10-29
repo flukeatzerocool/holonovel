@@ -1,6 +1,6 @@
-# AGENTS.md — holonovel MCP Server (v2026.10.26)
+# AGENTS.md — holonovel engine (v2026.10.29)
 
-AI maintainer orientation for the holonovel (world-model) MCP server implementation.
+AI maintainer orientation for the holonovel engine and its reference MCP adapter.
 
 ## Layer Map
 

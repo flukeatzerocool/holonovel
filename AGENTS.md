@@ -3,9 +3,10 @@
 ## Project overview
 
 This repository holds the **Holonovel specification** — a self-contained
-build specification for an MCP server that serves tabletop RPG rulesets from
-Markdown sources. The canonical document is `holonovel.md`. This is a
-specification document, not an implementation.
+build specification for a narrative simulation engine whose reference adapter is
+an MCP server that serves tabletop RPG rulesets from Markdown sources. The
+canonical document is `holonovel.md`. This is a specification document, not an
+implementation.
 
 ## Spec Kit phased model
 
