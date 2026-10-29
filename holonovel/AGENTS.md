@@ -38,9 +38,23 @@ src/core/wisdom.ts     Ruleset Wisdom manifest — 7 output modules populated
                         from vendor content (Tier 1). Ruleset-free mode
                         uses vendor as the sole Ruleset Wisdom source.
         ↓
-src/index.ts            McpServer: 36 action-discriminator tools, 40 resources and 21 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
-                        Entry point for STDIO transport. Badge gating via
-                        requireGM()/requirePlayer()/requireNotObserver(). Error taxonomy.
+src/tool-registry.ts    Tool registry: the single definition site. `ToolRegistry`
+                        records `RegisteredTool` entries in insertion order;
+                        `bindMcp` binds them to the MCP adapter. Dynamic
+                        definitions register immediately once bound.
+        ↓
+src/index.ts            McpServer adapter: 36 action-discriminator tools, 40 resources and 21 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
+                        Registers tools through the registry, then binds MCP.
+                        Entry point for STDIO transport, guarded by
+                        HOLONOVEL_NO_AUTOSTART. Badge gating via
+                        requireGM()/requirePlayer()/requireNotObserver().
+                        Exposes the in-process createEngine() façade. Error taxonomy.
+        ↓
+src/engine.ts           In-process façade entry: sets HOLONOVEL_NO_AUTOSTART,
+                        then loads index.ts and re-exports createEngine().
+                        One engine per process; no transport.
+src/library.ts          Package library entry: core and world namespaces plus
+                        createEngine() for build-time and headless consumers.
                         Narrative-intent verbs (ask/tell/give/show/throw) and
                         vehicle-aboard state are resolved here (Novel + entity serve
                         as the surfaces for NPC resolution, item transfer, and

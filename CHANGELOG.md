@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-10-29 — Tool registry, adapter seam, and engine façade (E3)
+
+- Added the tool registry as the single tool-definition site. `ToolRegistry`
+  records definitions in insertion order; `bindMcp` registers them with the MCP
+  SDK after the last top-level definition, and a definition made after binding
+  registers immediately. Tool annotations, output-schema defaults, forbidden
+  auditing, and pacing stay in the registry wrapper, so `tools/list`, metrics,
+  and every handler behave as before. All 24 `_registeredTools` reads now go
+  through the registry (`holonovel/src/tool-registry.ts`,
+  `holonovel/src/index.ts`; REQ-450, REQ-548).
+- Added `createEngine()`: an in-process façade over the same registry and guard
+  path, with `tools.list/get/call`, an event subscription that shares the
+  REQ-433 topic gate, and `close()`. `index.ts` autostarts only when
+  `HOLONOVEL_NO_AUTOSTART !== "1"`; `src/engine.ts` sets that guard and loads
+  the engine, so `import { createEngine } from "holonovel"` never starts stdio
+  while the executable entry and every harness keep starting it. The façade
+  runs `guardToolCall`, which is now shared with the MCP `tools/call` handler
+  (unknown-tool telemetry, discovery linkage, retired-alias refusal, surface
+  refusal).
+- Added `test:engine-facade`: GM success, Player `[FORBIDDEN]` on a GM-only
+  tool, retired-alias refusal naming its replacement, façade↔registry envelope
+  parity, list/get surface, identical seeded state projections across
+  processes, and a child process that imports the library and exits without a
+  transport. Wired into `test:all`.
+- Fixed two inherited persistence/digest defects exposed by the restart gate:
+  write-time envelope stamps (`data_format`, `spec_version`, `_checksum`) no
+  longer re-enter state through `future_fields` and shift the saved digest, and
+  a REQ-237 session boundary opened by `audit()` is persisted (only for a Novel
+  with a canonical primary) so `verify` does not report divergence against the
+  last save (REQ-092e, REQ-237, REQ-603).
+- Refreshed the Holosuite predicate anchors shifted by the `index.ts` and
+  `state.ts` edits; the novel tier's restart-stability hash now excludes
+  session-identity bookkeeping from the story-content comparison.
+- Evidence: `test:all` 51/51, `check:fast` 31/31 with `check:fast: PASS`,
+  `rg '_registeredTools' holonovel/src` zero.
+
 ## 2026-10-29 — Engine divergence remediation
 
 - Closed the six divergences recorded in `docs/engine-contract.md` §9. Pacing

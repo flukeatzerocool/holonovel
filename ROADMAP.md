@@ -17,15 +17,23 @@
 - Done when the five surfaces agree, `npm run assemble && npm run check:fast`
   is green, and the README guardrail passes.
 
-## E3 — Tool registry, adapter seam, and `createEngine()`
+## State-hash bookkeeping exclusions
 
-- The accepted 3b increment: one tool registry as the definition site, MCP as
-  one adapter, an in-process façade, and a parity harness. One engine per
-  process.
-- Plan ready and plan-review passed 2026-10-28. Depends on the engine contract
-  (`docs/engine-contract.md`) for the façade surface.
-- Done when S1–S4 are green and `_registeredTools` no longer appears in
-  `holonovel/src`.
+- The canonical state hash (REQ-601) covers two session/wall-clock fields:
+  `last_mutation_at` and `active_session_id`. Two identical seeded runs cannot
+  produce the same hash, and a REQ-237 session boundary written after a save
+  makes `verify` report divergence until the next write. Interim: the façade
+  test masks `last_mutation_at`, the novel tier excludes `active_session_id`
+  from its content comparison, and `audit()` flushes a boundary only when the
+  Novel has a canonical primary; a Novel loaded from a non-canonical filename
+  is still relocated on its next real save.
+- Fix is a REQ-601/REQ-603 amendment excluding session bookkeeping from the
+  projection, removal of the three workarounds, and either a recorded
+  loaded-path map for misnamed Novels or an explicit refusal at load (REQ-092a,
+  REQ-237, REQ-601, REQ-602, REQ-603).
+- Depends on E3. Done when two seeded processes hash equally without masking,
+  restart verification needs no boundary flush, and a misnamed save keeps its
+  filename across a mutation.
 
 ## E4 — Headless playability gate
 

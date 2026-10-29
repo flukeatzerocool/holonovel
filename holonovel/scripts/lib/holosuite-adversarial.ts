@@ -28,7 +28,7 @@ const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
 const P_VALIDATION = "holonovel/src/index.ts:4284"; // manage_world action enum
 const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
 const P_DIAGNOSTICS = "holonovel/src/index.ts:8529"; // verify/replay handler
-const P_READONLY = "holonovel/src/core/state.ts:1515"; // snapshot
+const P_READONLY = "holonovel/src/core/state.ts:1669"; // snapshot
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {

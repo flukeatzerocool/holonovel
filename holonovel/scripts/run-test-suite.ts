@@ -51,6 +51,7 @@ const TESTS = [
   "test:surface-guards",
   "test:tool-surface",
   "test:selection",
+  "test:engine-facade",
   "test:event-log",
   "test:belief",
   "test:identity",

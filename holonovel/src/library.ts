@@ -3,3 +3,5 @@
 // `dist/index.js` (bin/holonovel.js).
 export * as core from "./core/index.js";
 export * as world from "./world/index.js";
+export { createEngine } from "./engine.js";
+export type { Engine, EngineToolMeta, EngineEventListener } from "./index.js";
