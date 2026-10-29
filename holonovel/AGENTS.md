@@ -61,7 +61,7 @@ src/library.ts          Package library entry: core and world namespaces plus
                         [vehicle-entry]/[vehicle-exit] story-journal moments).
 ```
 
-## Tool Surface (36 tools — the REQ-429 recorded budget in DECISIONS.md)
+## Tool Surface (37 tools — the REQ-429 recorded budget in DECISIONS.md)
 
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
 - **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/update/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
@@ -82,6 +82,7 @@ src/library.ts          Package library entry: core and world namespaces plus
 - **manage_codex** (action: set/list/get/capture/import/delete) — server-level, out-of-play reusable content library (Editor and Game Master badges; a Player badge mid-adventure is refused; reads are not badge-filtered)
 - **manage_novel** (action: create/resume/switch/end/rename/description/list/info/genre/complete_session_zero/save_context/get_context/provenance) — save-file lifecycle (REQ-458/REQ-459) and creator-rights provenance (REQ-615)
 - **manage_archive** (action: export/import/archive/unarchive/clone/branch/checkpoint_set/checkpoint_list/checkpoint_restore/checkpoint_remove) — archival and checkpoint surfaces; split from `manage_novel` (REQ-413/REQ-581)
+- **manage_artifact** (action: list/install/remove/verify) — host-level artifact registry and offline exchange admission for Novel packs, adventure modules, and ruleset packages (REQ-620/REQ-621)
 - **manage_adventure** (action: generate/generate_encounter/load/list) — adventure scaffolds and encounters
 - **manage_synthesis** (action: run/revert/list/activate/deactivate/toggle/toggle_action/player_add/player_remove/player_list/verify/record_ruling/revert_ruling/ruling_list) — Ruleset Wisdom, local citation verification, and the GM-only ruling ledger
 - **manage_ruleset** (action: search/install/remove/list/bind/import_supplementary/remove_supplementary) — ruleset lookup and package management; the table roll moved to `resolve_mechanic (action: roll)`
@@ -114,7 +115,7 @@ and `prompt_health` include package prompts; collisions are reported under
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) as explicit booleans, set in the `TOOL_ANNOTATIONS` map in
-`src/index.ts`. All 36 tools are command/hybrid (`destructiveHint: true`);
+`src/index.ts`. All 37 tools are command/hybrid (`destructiveHint: true`);
 `openWorldHint` is `false` everywhere (REQ-051 — no network). Registering a host
 tool without a map entry throws at startup; ruleset-derived tools (REQ-379)
 compute their hints from `schema.kind` — all are read-only (none mutates Novel

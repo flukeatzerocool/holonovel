@@ -2,13 +2,21 @@
   "schema_version": 1,
   "description": "Recorded disambiguation axes for near-neighbour host tools. A mutual 'Do NOT use when' pair is a defect unless one side records the axis that separates the pair here (REQ-554).",
   "axes": {
+    "manage_artifact": {
+      "axis": "host-level exchange registry of Novel packs, adventures, and ruleset packages",
+      "resolves": ["manage_ruleset", "manage_archive", "manage_adventure"]
+    },
+    "manage_ruleset": {
+      "axis": "ruleset package lookup, binding, and in-process install",
+      "resolves": ["manage_artifact"]
+    },
     "manage_archive": {
       "axis": "Novel archive, export/import, clone/branch, and checkpoints",
-      "resolves": ["manage_novel"]
+      "resolves": ["manage_novel", "manage_artifact"]
     },
     "manage_novel": {
       "axis": "Novel save lifecycle (create, resume, switch, end, rename, list)",
-      "resolves": ["manage_archive"]
+      "resolves": ["manage_archive", "manage_artifact"]
     },
     "manage_belief": {
       "axis": "per-entity evidence, belief stances, and the perception ledger",

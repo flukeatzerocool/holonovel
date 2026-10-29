@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-10-29 — E7 artifact exchange and local registry
+
+- Added REQ-620 and REQ-621 to §5.7: a host-level artifact registry over Novel
+  packs, adventure modules, and ruleset packages, and an admission contract
+  that installs from a local exchange inbox after verifying each kind's content
+  hash and provenance. No network, no persisted index, no fingerprint change.
+- Added the `manage_artifact` tool (action: list/install/remove/verify). The
+  registry is scan-derived and deterministic; it reports kind, slug, title,
+  content hash, provenance, and integrity state per artifact. `spec_health`
+  reports `artifacts_registered` per kind.
+- Install admits artifacts from `<DATA_DIR>/inbox/` (override
+  `TTRPG_ARTIFACT_INBOX`), refuses tampered or duplicate slugs, writes
+  atomically, and audits the security event. Remove refuses while a Novel binds
+  the ruleset or has the adventure loaded.
+- Adventure discovery now also scans `<DATA_DIR>/adventures/`; installed
+  modules are visible to `manage_adventure (action: list/load)` and the
+  `adventures://` catalog.
+- Added the §4 terms Artifact, Exchange inbox, and Artifact registry, the §7.6
+  `TTRPG_ARTIFACT_INBOX` row, Appendix A/F entries, and Appendix V.10 (exchange
+  an artifact between installations).
+- Tests: T738/T739 added and exercised by the gated
+  `test:artifact-registry` harness (two isolated installations, tamper and
+  traversal refusal, dependency-safe removal, audit coverage). Tool budget
+  36 → 37; canonical actions 232 → 236.
+- Retired E7 from `ROADMAP.md`.
+
 ## 2026-10-29 — E6 artifact provenance and creator rights
 
 - Added REQ-615–REQ-619 to §5.7 and amended REQ-446 to name

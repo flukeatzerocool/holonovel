@@ -17,13 +17,6 @@
 - Done when the five surfaces agree, `npm run assemble && npm run check:fast`
   is green, and the README guardrail passes.
 
-## E7 — Shareable artifacts and local registry
-
-- Documented exchange formats for packages, adventures, and Novels; local
-  install, discovery, and import/export. No network.
-- Depends on E6 (shipped: artifact provenance, REQ-615–619). Done when two
-  installations exchange an artifact and the registry resolves it offline.
-
 ## E8 — Decision gate: multi-engine and entry split (3c)
 
 - Per-engine state and config injection, N engines per process, and the

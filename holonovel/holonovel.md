@@ -435,6 +435,9 @@ do not alter meaning are editorial and do not require a version bump.
 | Fixture notation  | Golden transcripts (Appendices B/C/N/W/X) and the Appendix T test catalog abbreviate tool invocations for readability: a short token (`novel`, `world`, `scene`, `session`, `character`, `command`, `respond`, …) denotes the corresponding registered tool (`manage_novel`, `manage_world`, `manage_scene`, `manage_session`, `manage_character`, `run_command`, `respond_decision`, …), and `command("X")` denotes `run_command (action: execute, "X")`. The abbreviation is notation only; the registered tool name and the parser gate (REQ-309/REQ-309e — a ruleset-free Novel keeps the parser as the Player surface; a ruleset-bound Novel gates it to the Game Master) are normative. |
 | Ruleset package   | A self-contained declarative artifact produced by the Package step (§6.4.2): the extracted model, full-text search index, tool schemas with execution logic as data, resources, prompts, a content hash, and a version manifest. Loaded by the host without re-parsing ruleset Markdown (REQ-389). |
 | Install directory | The well-known directory from which the host scans and validates installed packages at startup. Lives under the preserved state directory (`TTRPG_DATA_DIR`) so it survives updates (REQ-390, §7.6). |
+| Artifact           | A file-backed exchange unit of one of three kinds — Novel pack, adventure module, or ruleset package — admitted through `manage_artifact` and recorded in the artifact registry (REQ-620, REQ-621). |
+| Exchange inbox     | The state-directory directory (`TTRPG_ARTIFACT_INBOX`, default `<DATA_DIR>/inbox/`) from which `manage_artifact (action: install)` admits artifacts. It is the only install source, preserving path containment (REQ-052, REQ-621). |
+| Artifact registry  | The scan-derived, host-level catalog of installed artifacts carrying kind, slug, content hash, provenance, and integrity state. It is recomputed from the artifact directories and is never a separately persisted surface (REQ-620). |
 | Deployment        | The git-managed specification repository (source of truth, edited by maintainers) versus the separately deployed host server tree (built from it, hosting runtime state). Spec changes reach the deployed server only via the Update workflow (§6.7) and the fingerprint gate (REQ-394); user data and installed packages live outside the spec repository (REQ-396, REQ-397, REQ-398). |
 | User data         | Operator-owned persistent state served by the host: Novels (including embedded world-model data), roster, codex, server notes, and installed ruleset packages. Preserved byte-for-byte across deploys and host updates (REQ-396, REQ-397). |
 | Host version      | The CalVer of the host server at the time a package or state artifact was produced, recorded in each package's version manifest (REQ-389). Compatibility between the host and installed packages or state artifacts is determined by the package-format and data-format fingerprints, not by this string alone (REQ-420, REQ-423). |
@@ -493,7 +496,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306, 598–600 |
 | 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
-| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–619 |
+| 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–621 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
 | 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
@@ -2976,6 +2979,10 @@ WHEN `TTRPG_NARRATION_VALIDATION` is enabled, a state-mutating tool response SHA
 **REQ-618 — Ruleset package creator attribution.** A ruleset package's version manifest MAY carry a `creator` and an `attribution` field alongside `source_license` (REQ-432a). When present, `manage_ruleset (action: list)` SHALL surface both, and install SHALL record them in the provenance audit entry (REQ-446). A package without either field SHALL load unchanged. *Acceptance criterion:* a package carrying creator and attribution lists both and records them on install; a package without them loads. _Check:_ T736.
 
 **REQ-619 — Reference package provenance emission.** The committed reference-package emitters SHALL populate the version manifest's `creator` and `attribution` from a provenance record committed beside each emitter (REQ-563). The record SHALL name the human creator and the source attribution. An emitter with no provenance record SHALL omit both fields rather than fabricate them. *Acceptance criterion:* re-emitting a reference package whose provenance record names a creator yields a manifest carrying it; an emitter with no record omits both fields. _Check:_ T737.
+
+**REQ-620 — Local artifact registry.** The server SHALL derive a host-level registry of installed Novel, adventure, and ruleset artifacts from the configured artifact directories, offline and without a separately persisted index. Each entry SHALL carry its kind, slug, title, content hash, declared provenance, and an integrity state. `manage_artifact (action: list)` SHALL render the registry deterministically and accept a kind filter; `manage_artifact (action: verify)` SHALL recompute integrity without mutating. An installed artifact SHALL be discoverable through its kind catalog. `spec_health` SHALL report counts per kind. *Acceptance criterion:* two installations holding the same artifacts report equal listings; a corrupted artifact reports a non-verified integrity state. _Check:_ T738.
+
+**REQ-621 — Artifact admission.** `manage_artifact (action: install)` SHALL admit a Novel pack, adventure module, or ruleset package from the exchange inbox into its kind directory, verify the kind's content hash and any declared provenance before admission, and refuse a mismatch or an existing slug with `[ERROR] [STATE_CONFLICT]`. `manage_artifact (action: remove)` SHALL deregister and delete an artifact and SHALL refuse while a Novel depends on it. Both actions SHALL be Game Master or Editor operations and SHALL record a security-event audit entry. Reads and writes SHALL resolve only within the exchange inbox and the kind directory, rejecting traversal. *Acceptance criterion:* a tampered artifact is refused by slug; a removed artifact leaves the registry; each action yields one tagged audit entry. _Check:_ T739.
 
 ### 5.8 Synthesis, Lore, and Macros
 
@@ -6349,6 +6356,8 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-617 | S18, S30 | Adventure provenance verification |
 | REQ-618 | S30 | Ruleset package creator attribution |
 | REQ-619 | S30 | Reference package provenance emission |
+| REQ-620 | S1, S6, S29 | Local artifact registry |
+| REQ-621 | S1, S24, S29, S30 | Artifact admission |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
 | REQ-329 | S16, S23 | Countdown-world coupling |
@@ -7129,8 +7138,9 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_EXPORT_EMBED_ADVENTURES` | No | Embed adventure modules in `manage_archive (action: export)` output (default `false`; REQ-096h) |
 | `TTRPG_EXPORT_SIGNING_KEY` | No | Local HMAC-SHA256 key used to sign the export `integrity` envelope; absent means hash-only bundles (REQ-096j). Storage. |
 | `TTRPG_ARTIFACT_VERIFY_KEY` | No | Local HMAC-SHA256 key used to verify a ruleset package manifest signature (REQ-446) and an adventure module provenance signature (REQ-617). Symmetric: the holder can also sign. Absent means a declared signature warns `[signature-unverified]` and loads. Storage — non-behavioral; it gates artifact admission, not story state. |
+| `TTRPG_ARTIFACT_INBOX` | No | Directory from which `manage_artifact (action: install)` admits Novel packs, adventure modules, and ruleset packages; defaults to `<TTRPG_DATA_DIR>/inbox/`. Reads and writes stay within it and the kind directory (REQ-052, REQ-621). Storage — non-behavioral. |
 | `TTRPG_AUDIT_MAX_ENTRIES` | No | Maximum audit-log entries retained per Novel before appends are refused with `[ERROR] [STATE_CONFLICT]` (0 = unlimited; REQ-447). Storage. |
-| `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory (REQ-079, REQ-132). Storage. |
+| `TTRPG_ADVENTURE_DIR` | No | Directory scanned for adventure Markdown modules; defaults to the build's `adventures/` directory. Installed modules in `<TTRPG_DATA_DIR>/adventures/` are scanned alongside it (REQ-079, REQ-132, REQ-620). Storage. |
 | `TTRPG_OUTPUT_LIMIT` | No | Maximum tool-output length in characters before truncation with an `output://` pointer (default 32000; REQ-004). Presentation. |
 | `TTRPG_OUTPUT_SESSION_LIMIT` | No | Maximum truncated full-output payloads retained per session (default 20; REQ-004). Presentation. |
 | `TTRPG_MAX_LORE_TOKENS` | No | Maximum lore tokens recalled into a prompt (REQ-083). Presentation. |
@@ -10263,6 +10273,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-617 | Adventure provenance verification | 2026-10-29 |
 | REQ-618 | Ruleset package creator attribution | 2026-10-29 |
 | REQ-619 | Reference package provenance emission | 2026-10-29 |
+| REQ-620 | Local artifact registry | 2026-10-29 |
+| REQ-621 | Artifact admission | 2026-10-29 |
 
 ---
 
@@ -10928,6 +10940,8 @@ diet.
 | T735 | Automated | Adventure provenance verification: a module whose declared content hash does not match its body is refused `[STATE_CONFLICT]` naming expected and received; a signed module verifies under `TTRPG_ARTIFACT_VERIFY_KEY`; a bad signature is refused; a signature with no configured key warns `[signature-unverified]`; a module with no block warns `[provenance-absent]`. | REQ-617 |
 | T736 | Automated | Ruleset creator attribution: a package whose manifest carries creator and attribution lists both from `manage_ruleset (action: list)` and records both in the install audit entry; a package without either field loads unchanged. | REQ-618 |
 | T737 | Automated | Reference package provenance emission: re-emitting the `swse` package from its committed provenance record yields a manifest carrying the recorded creator and attribution; an emitter with no provenance record omits both. | REQ-619 |
+| T738 | Automated | Local artifact registry: two isolated installations holding the same Novel, adventure, and ruleset artifacts report equal registry listings; `list` filters by kind and is deterministic across repeated calls; a corrupted artifact reports a non-verified integrity state rather than being omitted; each kind's catalog lists an installed artifact; `spec_health` reports a count per kind. | REQ-620 |
+| T739 | Automated | Artifact admission: installing from the exchange inbox admits a Novel pack, adventure module, and ruleset package, each verified by content hash and provenance; a tampered copy is refused `[STATE_CONFLICT]` naming the slug; an existing slug is refused; remove deletes an artifact and refuses while a Novel depends on it; install and remove each record a security-event audit entry; a traversal source is refused without a read. | REQ-621 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -12966,6 +12980,41 @@ what it would change.
   accepted exception.
 - An edit lands in a fingerprint-scoped section (§5.9, §5.16–§5.17, §6.3,
   §6.4.2, §7.7, §5.19, Appendix Q): run `npm run build-order` before commit.
+
+### V.10 Exchange an artifact between installations
+
+**Entry point.** `manage_artifact (action: list|install|remove|verify)`.
+
+**Exchange formats.** A Novel pack is the Appendix Q interchange JSON produced
+by `manage_archive (action: export)`. An adventure module is an Appendix K
+Markdown file (with its provenance block, REQ-616). A ruleset package is the
+six-file package directory (REQ-389).
+
+**Happy path.**
+
+1. On the source installation, produce the artifact: export the Novel, copy
+   the adventure Markdown, or emit the package with `build-ruleset`.
+2. Copy the artifact into the receiving installation's exchange inbox
+   (`TTRPG_ARTIFACT_INBOX`, default `<DATA_DIR>/inbox/`). Do not copy it
+   directly into a kind directory.
+3. Run `manage_artifact (action: install, kind, source)`. The host verifies the
+   content hash and any declared provenance (`REQ-096j`, `REQ-617`,
+   `REQ-446`), writes the artifact into its kind directory, and audits the
+   install.
+4. Run `manage_artifact (action: list)` to confirm the entry and its integrity
+   state. The artifact is also visible through its kind catalog
+   (`manage_novel (action: list)`, `manage_adventure (action: list)`,
+   `manage_ruleset (action: list)`).
+
+**Recovery.**
+
+- `[ERROR] [STATE_CONFLICT]` naming the slug: the slug already exists, or the
+  declared hash does not match. Re-export from the source; never patch the
+  inbox copy.
+- `[ERROR] [NOT_FOUND]`: `source` is absent from the inbox. Copy the artifact
+  into the inbox named in the error, then retry.
+- `manage_artifact (action: verify)` reports the expected and received hashes
+  for an on-disk artifact that no longer matches its declaration.
 
 ---
 

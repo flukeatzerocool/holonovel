@@ -149,6 +149,24 @@
     "manage_history.undo": [
       "undo an edit",
       "revert the last change"
+    ],
+    "manage_artifact.list": [
+      "list installed artifacts",
+      "show available world packs",
+      "what artifacts are installed"
+    ],
+    "manage_artifact.install": [
+      "install this world pack",
+      "add an artifact from the inbox",
+      "import a shared adventure module"
+    ],
+    "manage_artifact.remove": [
+      "remove an installed artifact",
+      "uninstall this world pack"
+    ],
+    "manage_artifact.verify": [
+      "verify an artifact",
+      "check an artifact's integrity"
     ]
   }
 }

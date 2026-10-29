@@ -15,7 +15,7 @@
       "wrong_selection_count": 1,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 25959,
+        "budget_tokens": 26154,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -727,7 +727,7 @@
       "wrong_selection_count": 1,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 23364,
+        "budget_tokens": 23539,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -1439,7 +1439,7 @@
       "wrong_selection_count": 29,
       "mean_calls": 1.826,
       "recall_at_budget": {
-        "budget_tokens": 2596,
+        "budget_tokens": 2616,
         "expected_action_recalled": 17,
         "recall": 0.37
       },
@@ -1513,8 +1513,8 @@
           "calls": 2,
           "expected_calls": 1,
           "selected": {
-            "tool": "close_session",
-            "action": null
+            "tool": "manage_novel",
+            "action": "list"
           },
           "correct": false
         },
@@ -1978,8 +1978,8 @@
           "calls": 2,
           "expected_calls": 1,
           "selected": {
-            "tool": "close_session",
-            "action": null
+            "tool": "manage_novel",
+            "action": "list"
           },
           "correct": false
         },
@@ -2157,10 +2157,10 @@
         "calls": 1,
         "expected_calls": 1,
         "selected": {
-          "tool": "manage_novel",
-          "action": "create"
+          "tool": "manage_archive",
+          "action": "archive"
         },
-        "correct": true
+        "correct": false
       },
       {
         "intent": "go back to my saved game",
@@ -2247,10 +2247,10 @@
         "calls": 1,
         "expected_calls": 1,
         "selected": {
-          "tool": "take_turn",
-          "action": null
+          "tool": "manage_combat",
+          "action": "advance"
         },
-        "correct": false
+        "correct": true
       },
       {
         "intent": "wrap up the session",
@@ -2276,8 +2276,8 @@
         "calls": 1,
         "expected_calls": 1,
         "selected": {
-          "tool": "manage_diagnostics",
-          "action": "event"
+          "tool": "manage_belief",
+          "action": "perception_for_event"
         },
         "correct": false
       },
@@ -2291,8 +2291,8 @@
         "calls": 1,
         "expected_calls": 1,
         "selected": {
-          "tool": "manage_novel",
-          "action": "create"
+          "tool": "manage_archive",
+          "action": "archive"
         },
         "correct": false
       }

@@ -339,6 +339,14 @@ export class RulesetManager {
     return [...this.installed.keys()];
   }
 
+  // REQ-620 — read-only manifest view for the artifact registry. Includes the
+  // package directory so the registry can recompute the content hash.
+  manifests(): { slug: string; manifest: RulesetManifest; dir: string }[] {
+    return [...this.installed.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([slug, manifest]) => ({ slug, manifest, dir: path.join(this.installDir, slug) }));
+  }
+
   // Content hash of one installed package (for export manifests). Returns
   // null when the slug is absent or no package is bound.
   contentHashFor(slug: string | null | undefined): string | null {
