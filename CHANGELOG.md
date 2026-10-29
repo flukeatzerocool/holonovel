@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-29 — Second TDQS description batch
+
+- Second authoring pass on ten tools from the external feedback:
+  `manage_corpus` (access predicate and non-undoability), `manage_countdown`
+  (`remove` and GM rule), `manage_note` (`remove`/`remove_server`/`list`
+  paths), `open_session` (resume and badge effects), `manage_causality`
+  (reject retention and ledger cap), `manage_scene` (`fast_forward` and
+  additive oracle rolls), `manage_vow` (difficulty tracks and name fields),
+  `manage_adventure` (targets and `!force`), `manage_character`
+  (`stage`/`set_active`/`import`), and `manage_lore` (upsert, import merge,
+  and sticky behavior).
+- Corrected false recoverability claims for `manage_corpus`,
+  `manage_causality`, `manage_note`, and `open_session`, none of which take a
+  history snapshot.
+- Sharpened the knowledge/memory, scene/spatial, and lifecycle boundaries;
+  recorded the corpus/knowledge and lore/note axes; regenerated
+  `tool-definitions.json` and re-baselined the surface (full 26,863 / standard
+  23,265 / small 1,142).
+
 ## 2026-10-29 — Compact-surface decision and TDQS description pass
 
 - Closed the compact-default tool surface as a product decision: keep the full

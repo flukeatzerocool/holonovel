@@ -41,13 +41,15 @@
       "axis": "canonical shared world facts and secrets",
       "resolves": [
         "manage_belief",
-        "manage_corpus"
+        "manage_corpus",
+        "manage_note"
       ]
     },
     "manage_corpus": {
       "axis": "external documents and their access state",
       "resolves": [
-        "manage_lore"
+        "manage_lore",
+        "manage_knowledge"
       ]
     },
     "manage_knowledge": {
