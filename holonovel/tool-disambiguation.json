@@ -33,7 +33,8 @@
     "manage_belief": {
       "axis": "per-entity evidence, belief stances, and the perception ledger",
       "resolves": [
-        "manage_lore"
+        "manage_lore",
+        "manage_knowledge"
       ]
     },
     "manage_lore": {
@@ -47,6 +48,12 @@
       "axis": "external documents and their access state",
       "resolves": [
         "manage_lore"
+      ]
+    },
+    "manage_knowledge": {
+      "axis": "derived semantic index and knowledge graph over Novel sources",
+      "resolves": [
+        "manage_belief"
       ]
     },
     "manage_causality": {

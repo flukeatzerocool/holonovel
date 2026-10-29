@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-29 — Compact-surface decision and TDQS description pass
+
+- Closed the compact-default tool surface as a product decision: keep the full
+  37-tool default. ROADMAP moves the item to Not planned and the
+  review-register Scheduled-roadmap row becomes Resolved. The recorded replays
+  show `small` keeps 37% of expected tools visible with 1.826 mean calls,
+  against 1.0 and 1.196 for `full`.
+- Improved eight descriptions against the external per-tool TDQS feedback:
+  `manage_history` (restoration scope and response), `manage_belief` and
+  `manage_knowledge` (read/write split, parameter interactions, sibling
+  routing), `manage_diagnostics` (`context_report` and its budget),
+  `manage_novel` and `manage_archive` (compatibility actions and clone/branch
+  semantics), `manage_agent` and `take_turn` (parameter and repeated-call
+  semantics).
+- Recorded the `manage_belief` ↔ `manage_knowledge` disambiguation axis,
+  regenerated `tool-definitions.json`, and re-baselined the surface (full
+  26,539 / standard 22,941 / small 1,142 tokens).
+
 ## 2026-10-29 — manage_artifact TDQS authoring pass
 
 - Rewrote the `manage_artifact` description to the Appendix T.2 standard ahead
