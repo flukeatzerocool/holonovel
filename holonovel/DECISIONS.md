@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 26,539 tokens; standard 22,941; small 1,142; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 26,863 tokens; standard 23,265; small 1,142; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 ### Recap and discovery remediation — 2026-10-29
 

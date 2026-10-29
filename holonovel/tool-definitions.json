@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 106154,
+  "tools_list_bytes": 107450,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 106154,
-        "tokens": 26539
+        "bytes": 107450,
+        "tokens": 26863
       },
       "standard": {
         "tools": 37,
-        "bytes": 91761,
-        "tokens": 22941
+        "bytes": 93057,
+        "tokens": 23265
       },
       "small": {
         "tools": 6,
@@ -37,8 +37,8 @@
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4175,
-            "tokens": 1044
+            "bytes": 4125,
+            "tokens": 1032
           },
           "lookup": {
             "tools": 6,
@@ -107,8 +107,8 @@
     {
       "name": "manage_adventure",
       "title": "Adventure Management",
-      "description": "Generate, load, or list adventure content. generate writes an adventure scaffold into the target store (novel by default when one is active; a !force prefix bypasses the guard) and generate_encounter writes one encounter; both persist to the Novel, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load and list are read-only, and list accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
-      "description_bytes": 596,
+      "description": "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load and list are read-only, and list accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 649,
       "action_enum": [
         "generate",
         "generate_encounter",
@@ -150,8 +150,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1869,
-        "descriptionBytes": 596
+        "definitionBytes": 1922,
+        "descriptionBytes": 649
       },
       "category": "",
       "gate": ""
@@ -410,8 +410,8 @@
     {
       "name": "manage_causality",
       "title": "Causality Management",
-      "description": "Manage objective causal state and transition proposals. causal_propose records a proposal without applying it; causal_admit applies the proposal and causal_reject discards it; causal_expected_version guards optimistic concurrency and causal_from records the expected prior value; causal_ingress admits an external event without a proposal. Proposals persist and are audited; list and state are read-only. Use when: proposing, admitting, rejecting, listing, or inspecting causal transitions, or ingressing an external event. Do NOT use when: changing rooms, things, or exits — use manage_world. Revert with manage_history (action: undo).",
-      "description_bytes": 638,
+      "description": "Manage objective causal state and transition proposals. causal_propose records a proposal without applying it; causal_admit applies the proposal and causal_reject marks it rejected without deleting the ledger record; causal_expected_version guards optimistic concurrency and causal_from records the expected prior value; causal_ingress admits an external event without a proposal. Proposals persist and are audited, and the ledger is capped by TTRPG_CAUSAL_MAX_LEDGER_ENTRIES; list and state are read-only. Causal changes are not undoable via manage_history. Use when: proposing, admitting, rejecting, listing, or inspecting causal transitions, or ingressing an external event. Do NOT use when: changing rooms, things, or exits — use manage_world.",
+      "description_bytes": 749,
       "action_enum": [
         "causal_propose",
         "causal_admit",
@@ -460,8 +460,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2775,
-        "descriptionBytes": 638
+        "definitionBytes": 2886,
+        "descriptionBytes": 749
       },
       "category": "",
       "gate": ""
@@ -469,8 +469,8 @@
     {
       "name": "manage_character",
       "title": "Player Character Management",
-      "description": "Manage player characters: create (quick or step-by-step), stage to roster, import, render a sheet, set the active entity, set personality/voice, patch mechanical stats, send player signals, remove, or list roster characters. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields in place (stats shallow-merge; omitted fields are preserved) so one sheet field can change without re-creating the character. The personality{} object aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. stage and roster_remove are exact inverses on the roster; remove deletes the Novel entity and is undoable. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
-      "description_bytes": 983,
+      "description": "Manage player characters: create, import, stage, activate, edit, signal, remove, or list roster characters. stage adds an existing entity to the roster; set_active chooses which Novel entity play acts through and optionally sets pov; import requires roster_id and copies that roster character into the Novel. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields (stats shallow-merge; omitted fields preserved), personality{} aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. stage and roster_remove are exact inverses on the roster; remove deletes the Novel entity and is undoable. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
+      "description_bytes": 979,
       "action_enum": [
         "create",
         "stage",
@@ -541,8 +541,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5405,
-        "descriptionBytes": 983
+        "definitionBytes": 5401,
+        "descriptionBytes": 979
       },
       "category": "",
       "gate": ""
@@ -771,8 +771,8 @@
     {
       "name": "manage_corpus",
       "title": "Knowledge Corpus",
-      "description": "Manage the cold-reference knowledge corpus. corpus_register indexes a document; route derives its domain from a trusted source profile; grant and deny set per-entity access with the latest decision winning; consume records a read; access checks an entity against the recorded grants. Mutating actions persist access state and are audited; list, get, access, and acquisitions are read-only. Use when: registering, listing, reading, routing, granting/denying access, consuming, or inspecting acquisitions of corpus documents. Do NOT use when: writing Novel lore entries or secrets — use manage_lore. Revert the most recent mutation with manage_history (action: undo).",
-      "description_bytes": 667,
+      "description": "Manage the cold-reference knowledge corpus. corpus_register indexes a document with optional access_public, access_domains, grants, and denies; route derives its domain from a trusted source profile; grant and deny add per-entity decisions, and an explicit deny overrides public, grant, and domain access; access sets an entity's domain profile; consume records a read. Mutating actions persist access state and are audited; list, get, and acquisitions are read-only. Corpus mutations are not undoable via manage_history. Use when: registering, listing, reading, routing, granting/denying access, consuming, or inspecting acquisitions of corpus documents. Do NOT use when: writing Novel lore entries or secrets — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+      "description_bytes": 812,
       "action_enum": [
         "corpus_register",
         "corpus_list",
@@ -826,8 +826,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3258,
-        "descriptionBytes": 667
+        "definitionBytes": 3403,
+        "descriptionBytes": 812
       },
       "category": "",
       "gate": ""
@@ -835,8 +835,8 @@
     {
       "name": "manage_countdown",
       "title": "Countdown Manager",
-      "description": "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; direction shifts NPC dispositions only when scope is also set. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
-      "description_bytes": 556,
+      "description": "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; direction shifts NPC dispositions only when scope is also set. remove is GM-only and deletes the timer without firing its world_effect. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
+      "description_bytes": 629,
       "action_enum": [
         "set",
         "advance",
@@ -882,8 +882,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2788,
-        "descriptionBytes": 556
+        "definitionBytes": 2861,
+        "descriptionBytes": 629
       },
       "category": "",
       "gate": ""
@@ -1183,8 +1183,8 @@
     {
       "name": "manage_lore",
       "title": "Lore Management",
-      "description": "Manage the active Novel's lore entries — shared, durable world facts every caller recalls. set/update writes a keyed entry with recall triggers, priority, sticky weight, and a badge_scope (game_master hides it from the Player badge); set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a non-mutating dry-run, while merge and replace write. Lore mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list, get, export, secret_list, and knowledge are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, or importing lore, or controlling what an entity knows. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference corpus documents — use manage_corpus.",
-      "description_bytes": 870,
+      "description": "Manage the active Novel's lore entries — durable world facts every caller recalls. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a dry-run; merge overwrites colliding keys and keeps entries not in the import, and replace clears first. Triggers fire when scene text contains them; sticky counts scenes an entry stays active after its last match. Lore mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling what an entity knows. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference documents — use manage_corpus; storing scratch notes — use manage_note.",
+      "description_bytes": 960,
       "action_enum": [
         "set",
         "update",
@@ -1244,8 +1244,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3118,
-        "descriptionBytes": 870
+        "definitionBytes": 3208,
+        "descriptionBytes": 960
       },
       "category": "",
       "gate": ""
@@ -1253,8 +1253,8 @@
     {
       "name": "manage_note",
       "title": "Note Management",
-      "description": "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. set replaces the note content; badge_scope defaults to game_master and controls which badge can read it; set_server stores a server-level note with an optional narrative_tag, and list_server returns summaries unless detail is set. Mutations persist to the Novel and are audited. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set). Revert with manage_history (action: undo).",
-      "description_bytes": 551,
+      "description": "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. set replaces the note content; badge_scope defaults to game_master and controls which badge can read it; remove deletes one note, and the Player badge cannot remove a game_master note; list hides game_master notes from non-GM badges. set_server stores a GM-only server-level note with an optional narrative_tag; remove_server deletes it; list_server returns summaries unless detail is set. Mutating note actions persist and are audited, but are not undoable. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set); handling external documents — use manage_corpus; ranking derived text — use manage_knowledge.",
+      "description_bytes": 786,
       "action_enum": [
         "set",
         "remove",
@@ -1298,8 +1298,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2010,
-        "descriptionBytes": 551
+        "definitionBytes": 2245,
+        "descriptionBytes": 786
       },
       "category": "",
       "gate": ""
@@ -1571,8 +1571,8 @@
     {
       "name": "manage_scene",
       "title": "Scene Management",
-      "description": "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls, distinct from the world model's rooms and things. set overwrites the scene's description and metadata and derives the description from location only when description is omitted; directive replaces the active directive; choices replaces the offered options; oracle resolves a chance question and records the roll. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo). Use when: setting scene state, issuing a directive, offering choices, or consulting the oracle. Do NOT use when: recording a story beat — use manage_story (action: record); staging presence or autonomy — use manage_staging.",
-      "description_bytes": 788,
+      "description": "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls. set overwrites the scene's description and metadata, derives the description from location only when description is omitted, and accepts fast_forward to skip an interval: changes applies NPC moves, conditions, or dispositions and skip_countdowns preserves narrative countdowns. directive replaces the active directive; choices replaces the offered options; oracle resolves a chance question and records the roll, so repeated calls are additive rather than idempotent. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable. Use when: setting scene state, issuing a directive, offering choices, consulting the oracle, or skipping time. Do NOT use when: recording a story beat — use manage_story (action: record); staging presence or autonomy — use manage_staging; changing the spatial model — use manage_world.",
+      "description_bytes": 973,
       "action_enum": [
         "set",
         "directive",
@@ -1626,8 +1626,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4000,
-        "descriptionBytes": 788
+        "definitionBytes": 4185,
+        "descriptionBytes": 973
       },
       "category": "",
       "gate": ""
@@ -1819,8 +1819,8 @@
     {
       "name": "manage_vow",
       "title": "Vow Management",
-      "description": "Track narrative vows, quests, and obligations with milestones. set creates a vow and links a countdown whose ticks follow the difficulty rank track (scope defaults to shared); milestone advances progress; resolve and forsake close the vow with distinct outcomes (fulfilled vs abandoned). Mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
-      "description_bytes": 611,
+      "description": "Track narrative vows, quests, and obligations with milestones. set creates a vow and suggests a linked countdown whose ticks follow the difficulty track (troublesome 12, dangerous 8, formidable 4, extreme 2, epic 1; scope defaults to shared); accept the suggestion in the briefing to create it. milestone increments progress and any linked countdown; resolve and forsake close the vow as fulfilled or abandoned and keep the record. set identifies the vow with name; milestone, resolve, and forsake use vow_name. Mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
+      "description_bytes": 835,
       "action_enum": [
         "set",
         "milestone",
@@ -1867,8 +1867,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2324,
-        "descriptionBytes": 611
+        "definitionBytes": 2548,
+        "descriptionBytes": 835
       },
       "category": "",
       "gate": ""
@@ -1961,8 +1961,8 @@
     {
       "name": "open_session",
       "title": "Open Play Session",
-      "description": "Open a play session by resuming a Novel, activating a badge, and returning a recap. novel selects the slug and badge the seat; both are optional and fall back to the active Novel and current badge; resume and badge changes persist and are audited. Use when: starting or resuming a session, especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn. Revert with manage_history (action: undo).",
-      "description_bytes": 467,
+      "description": "Open a play session by resuming a Novel, activating a badge, and returning a recap. novel selects the slug and badge the seat; both are optional and fall back to the active Novel and current badge. resume closes the current session window, switches the active Novel, and increments its session count; a badge change persists, is audited, and re-filters tools/list immediately; neither deletes prior Novel state. Session and badge changes are not undoable via manage_history. Use when: starting or resuming a session, especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn.",
+      "description_bytes": 651,
       "action_enum": [],
       "param_count": 2,
       "required": [],
@@ -1994,8 +1994,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1366,
-        "descriptionBytes": 467
+        "definitionBytes": 1550,
+        "descriptionBytes": 651
       },
       "category": "",
       "gate": ""
