@@ -11,6 +11,22 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Engine contract divergences — resolved 2026-10-29:** the E2 review found six
+  mismatches between `docs/engine-contract.md` and the reference implementation.
+  Pacing advanced on briefing renders rather than tool calls and a prompt
+  incremented the counter (`holonovel/src/index.ts:11842-11843`, `545-568`);
+  returned `[FORBIDDEN]` envelopes skipped the boundary audit
+  (`holonovel/src/core/server.ts:52-58`); the serializer omitted three declared
+  Novel fields (`holonovel/src/core/state.ts:634-641` vs `2477-2573`); REQ-055
+  claimed RNG state persisted; and both load paths dropped unknown top-level
+  keys. Fixed by counting completed tool calls in the registry wrapper with a
+  session-scoped counter, auditing either forbidden envelope form, emitting the
+  three fields, retaining unknown fields in `future_fields`, and amending
+  REQ-055 to match REQ-050c. Evidence: `test:narrative` 46/46,
+  `test:security` 10/10, `test:persistence` 37/37, `check:fast` PASS. Reopen only
+  if a read-only call changes the live state hash, a returned forbidden call
+  leaves no boundary audit, or a save drops a declared or unknown field.
+
 - **Packaging and distribution integrity — resolved 2026-10-26:** a packed
   audit found the published tarball omitted three runtime artifacts (the
   assembled specification, the surface registry, and the disambiguation

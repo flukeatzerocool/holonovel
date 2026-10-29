@@ -177,6 +177,27 @@
 - **Replay and alignment.** The deterministic replay proxy is recorded in `spec/audit/tool-surface-replay.json` (46 intents, including six multi-step workflows with per-intent `expected_calls`; full and standard visibility 1.0 / precision 0.978 / mean calls 1.196; small 0.37 / 1.826; held-out precision 0.40 advisory). A live-model selection run remains advisory, not a gate. REQ-067d categories now carry their intent group, and the group directory lists every group.
 - **Deferred.** No planned surface item is open; the live-model accuracy run remains advisory.
 
+### Engine divergence remediation — 2026-10-29
+
+- **Pacing counts completed tool calls.** REQ-336 counts tool calls, so the
+  registry wrapper advances a session-scoped counter after every completed call;
+  `badge_briefing` only renders the signal and commits the one-shot autonomy
+  cycle (REQ-336, REQ-351). The counter is not written per call: persisting it
+  on a read-only call would move the live state hash (REQ-601) and make
+  `manage_diagnostics (action: verify)` report divergence (REQ-605). A firing
+  autonomy cycle writes `pacing_counter` with the Novel.
+- **REQ-055 excludes the session PRNG position.** The code intentionally does
+  not persist it; persisting it would break the restart determinism REQ-050c
+  requires. The REQ text and acceptance criterion now say so.
+- **Unknown top-level Novel fields are retained.** Both load paths collect
+  unknown keys into `future_fields`; the serializer re-emits them at top level.
+  Prototype-pollution keys are never copied. Because they are persisted state,
+  they participate in the canonical state hash.
+- **Returned forbidden envelopes are audited.** `withForbiddenAudit` audits a
+  returned `[FORBIDDEN]` once, matching the thrown path (REQ-133a).
+- **Evidence.** `test:narrative` 46/46, `test:security` 10/10,
+  `test:persistence` 37/37; `check:fast` PASS; `build-order` exit 0.
+
 ### Package prompts — 2026-10-21
 
 - **Decision.** Installed package `prompts.json` entries are registered at

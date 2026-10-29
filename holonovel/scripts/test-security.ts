@@ -129,6 +129,26 @@ async function main() {
     await kill(p);
   });
 
+  // ── R2/T534b: returned [FORBIDDEN] reaches the boundary audit (REQ-133a) ──
+  await test("T534b/REQ-133a: returned [FORBIDDEN] is audited", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "s5b" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const first = await call(p, "manage_character", { action: "create", name: "Alpha", description: "one" });
+    const second = await call(p, "manage_character", { action: "create", name: "Beta", description: "two" });
+    const activeId = first.match(/\((\w+)\)/)?.[1] ?? "character_01";
+    const otherId = second.match(/\((\w+)\)/)?.[1] ?? "character_02";
+    await call(p, "manage_character", { action: "set_active", entity_id: activeId });
+    await call(p, "set_badge", { badge: "player" });
+    const refused = await call(p, "manage_belief", { action: "knowledge_query", entity_id: otherId });
+    assert(refused.includes("FORBIDDEN"), "T534b expected a returned [FORBIDDEN], got: " + refused.slice(0, 200));
+    await call(p, "set_badge", { badge: "game_master" });
+    const audit = await readResource(p, "audit://novel");
+    assert(audit.includes("[BOUNDARY_VIOLATION]"), "T534b boundary violation missing from audit");
+    assert(audit.includes("manage_belief"), "T534b manage_belief not named in audit");
+    await kill(p);
+  });
+
   // ── T535: excessive-agency mutation ceiling (REQ-449) ────────────────
   await test("T535/REQ-449: mutation ceiling under full+auto autonomy", async () => {
     const p = await boot({ TTRPG_AUTONOMY_MUTATION_CEILING: "3" });

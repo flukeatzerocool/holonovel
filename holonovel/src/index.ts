@@ -223,7 +223,19 @@ function ensureStructured(handler: any) {
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
-  return _registerTool(name, { ...config, annotations, outputSchema: config.outputSchema ?? OUTPUT_SCHEMA }, withForbiddenAudit(ensureStructured(handler), name) as any);
+  const audited = withForbiddenAudit(ensureStructured(handler), name) as any;
+  // REQ-336 — every completed tool call advances the session pacing counter,
+  // mutating or not. The count is not persisted per call; only a firing
+  // autonomy cycle writes it (see triggerPacingAutonomy).
+  const paced = async (args: any, ctx: any) => {
+    try {
+      return await audited(args, ctx);
+    } finally {
+      const novel = state.activeNovel;
+      if (novel) bumpPacing(novel);
+    }
+  };
+  return _registerTool(name, { ...config, annotations, outputSchema: config.outputSchema ?? OUTPUT_SCHEMA }, paced as any);
 }) as unknown as typeof server.registerTool;
 
 // REQ-137a/REQ-137b — gate classification. The DECISIONS.md gate table records
@@ -530,12 +542,35 @@ function currentBeat(novel: NovelState): string {
   return novel.scene_beat || DEFAULT_BEAT;
 }
 
+// REQ-336 — the pacing counter counts tool calls, not briefing renders. It is
+// session-scoped in memory: incrementing a persisted Novel field on every
+// read-only call would change the live state hash (REQ-601) and make
+// `manage_diagnostics (action: verify)` report divergence (REQ-605).
+interface PacingSession { count: number; fired: boolean }
+const pacingSessions = new Map<string, PacingSession>();
+
+function pacingSession(novel: NovelState): PacingSession {
+  let session = pacingSessions.get(novel.slug);
+  if (!session) {
+    session = { count: novel.pacing_counter, fired: novel.pacing_autonomy_fired };
+    pacingSessions.set(novel.slug, session);
+  }
+  return session;
+}
+
+// Called by the tool-registry wrapper after every completed tool call.
+function bumpPacing(novel: NovelState): void {
+  pacingSession(novel).count++;
+}
+
 // REQ-336 — pacing signal fires when the tool-call counter exceeds the window.
-// Called by badge_briefing (a read surface); the counter increments elsewhere.
+// Called by badge_briefing (a read surface); the counter increments in the
+// tool-registry wrapper.
 function pacingSignalText(novel: NovelState): string | null {
   const window = pacingWindow();
   if (window <= 0) return null;
-  return novel.pacing_counter > window ? `[pacing] Scene stabilized — ${novel.pacing_counter} actions since last transition.` : null;
+  const count = pacingSession(novel).count;
+  return count > window ? `[pacing] Scene stabilized — ${count} actions since last transition.` : null;
 }
 
 // REQ-351 — pacing-triggered autonomy. When the pacing signal fires, perform one
@@ -544,8 +579,11 @@ function pacingSignalText(novel: NovelState): string | null {
 // whose goal overlaps the faction's advanced goal.
 function triggerPacingAutonomy(novel: NovelState): void {
   if (pacingSignalText(novel) === null) return;
-  if (novel.pacing_autonomy_fired) return;
+  const session = pacingSession(novel);
+  if (session.fired) return;
+  session.fired = true;
   novel.pacing_autonomy_fired = true;
+  novel.pacing_counter = session.count;
 
   const affectedFactions: string[] = [];
   for (const f of novel.factions) {
@@ -4992,6 +5030,7 @@ function recordBeatTransition(novel: NovelState, newBeat: string, scenePreview: 
 function resetPacing(novel: NovelState): void {
   novel.pacing_counter = 0;
   novel.pacing_autonomy_fired = false;
+  pacingSessions.delete(novel.slug);
 }
 
 // REQ-338 — faction autonomous advancement: one tick per interval, [autonomous].
@@ -11837,9 +11876,9 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   const profile = guidanceProfile();
   const orientation = composeBadgeOrientation(profile, loopRole);
 
-  // REQ-336/351 — advancing the pacing counter on each briefing render; the
-  // pacing signal fires (and pacing autonomy triggers) when it exceeds the window.
-  novel.pacing_counter++;
+  // REQ-336/351 — the pacing counter advances in the tool-registry wrapper.
+  // Rendering the briefing reads the signal and commits one autonomy cycle when
+  // the window has been exceeded.
   triggerPacingAutonomy(novel);
 
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
