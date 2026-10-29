@@ -1,0 +1,74 @@
+{
+  "novels": [
+    {
+      "path": "novels/harbor-lights.json",
+      "expect": [],
+      "seed": 1,
+      "encounters": [
+        {
+          "at_room": "Lighthouse",
+          "participants": [
+            "character_01"
+          ],
+          "dangers": [
+            {
+              "name": "Reef Hound",
+              "ac": 12,
+              "hp": 4,
+              "initiative_bonus": 1
+            }
+          ],
+          "max_rounds": 2
+        }
+      ]
+    },
+    {
+      "path": "novels/harbor-lights-broken.json",
+      "expect": [
+        "soft_lock",
+        "economy_collapse",
+        "encounter_unsurvivable"
+      ],
+      "seed": 1,
+      "encounters": [
+        {
+          "at_room": "Lighthouse",
+          "participants": [
+            "ghost_party"
+          ],
+          "dangers": [
+            {
+              "name": "Reef Hound",
+              "ac": 12,
+              "hp": 4
+            }
+          ],
+          "max_rounds": 2
+        }
+      ]
+    },
+    {
+      "path": "novels/harbor-lights-bad-encounter.json",
+      "expect": [
+        "encounter_unsurvivable"
+      ],
+      "seed": 1,
+      "encounters": [
+        {
+          "at_room": "Lighthouse",
+          "participants": [
+            "ghost_party"
+          ],
+          "dangers": [
+            {
+              "name": "Reef Hound",
+              "ac": 12,
+              "hp": 4
+            }
+          ],
+          "max_rounds": 2
+        }
+      ]
+    }
+  ]
+}

@@ -121,6 +121,7 @@
     "test:holosuite-differential": "tsx scripts/holosuite.ts --tier=differential",
     "test:holosuite-evidence": "tsx scripts/test-holosuite-evidence.ts",
     "test:holosuite-mutation": "tsx scripts/holosuite.ts --tier=mutation",
+    "test:playability": "tsx scripts/playability.ts --all --self-test",
     "test:selection": "tsx scripts/test-selection.ts",
     "test:engine-facade": "tsx scripts/test-engine-facade.ts"
   },

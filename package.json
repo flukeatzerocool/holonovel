@@ -36,6 +36,7 @@
     "check-ruleset-model": "npx tsx scripts/check-ruleset-model.ts",
     "check-reference-server-cleanliness": "npx tsx scripts/check-reference-server-cleanliness.ts",
     "check-starter-freshness": "npx tsx holonovel/scripts/check-starter-freshness.ts",
+    "check-playability": "npx tsx holonovel/scripts/playability.ts --all",
     "check-package-manifest": "npx tsx scripts/check-package-manifest.ts",
     "test:package-manifest": "npx tsx scripts/test-package-manifest.ts",
     "test:package-smoke": "npx tsx holonovel/scripts/smoke-package.ts",

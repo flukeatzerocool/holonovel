@@ -17,14 +17,6 @@
 - Done when the five surfaces agree, `npm run assemble && npm run check:fast`
   is green, and the README guardrail passes.
 
-## E4 — Headless playability gate
-
-- Simulate seeded action scripts through `createEngine()`: reachability,
-  soft-locks, countdown targets, encounter survivability, and economy collapse.
-- Gate content changes in CI.
-- Depends on E3. Done when a non-conformant adventure fails and a conformant
-  one passes.
-
 ## E5 — Non-TTRPG world-pack pilot
 
 - Build one non-TTRPG scenario (mystery, management sim, or social drama) from
