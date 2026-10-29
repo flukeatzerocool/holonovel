@@ -11,6 +11,34 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Recap notation and configurable bounds — resolved 2026-10-29:** REQ-072e/f/g
+  declared `format`, `max_transitions`, and `max_rolls` while
+  `MANAGE_SESSION_SCHEMA` and the recap/compress handlers exposed none of them
+  (`holonovel/src/index.ts` schema and handler; T272 had no exercised
+  evidence). The schema and canonical `manage_context` now carry all three,
+  out-of-range values return `[INVALID_INPUT]` with the valid range, recap
+  bounds its significant-roll and scene-transition arrays, Lonelog notation is
+  available in recap and `compress`, and audit entries carry `notation`.
+  Evidence: T272 in `test:output-contracts` 316/316; markdown output
+  unchanged. Reopen only if a declared bound is ignored again.
+
+- **Location-gated discovery — since-creation absence — resolved 2026-10-29:**
+  discovery used only fire-time presence (`fireCountdown` read
+  `characters_present_ids` directly; `scene_history` carried no attendance).
+  Scene-ledger entries now snapshot presence, countdowns record a creation
+  index, and eligibility scans scenes from creation through the fire
+  transition. Evidence: T390 since-creation negative in `test:narrative`
+  48/48; `test:persistence` round-trip. Reopen only if an entity present
+  before the fire can later "discover" the event.
+
+- **Discovered-consequence attribution — deferred-resolution variant —
+  resolved 2026-10-29:** `fireCountdown` snapshotted `eligible_entity_ids` at
+  fire. Pending consequences now store the creation/fire ledger bounds and
+  resolve the discoverer set at the discovery transition; legacy entries keep
+  the recorded eligible list. Evidence: T399 post-fire creation and
+  resolution-time attribution in `test:narrative` 48/48. Reopen only if an
+  entity's discoverer status is decided at fire instead of resolution.
+
 - **State-hash bookkeeping exclusions — resolved 2026-10-29:** the canonical
   projection covered `last_mutation_at` (wall clock) and `active_session_id`
   (session identity), so identical seeded runs could not hash equally and a
@@ -773,25 +801,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
   the default `tools/list` exposes all 36 host tools
   (`holonovel/tool-definitions.json` `surface_footprint.profiles.full`).
   Deferred as a product decision; tracked in ROADMAP.md. (REQ-429, REQ-554)
-
-- **Location-gated discovery — since-creation absence check (scheduled
-  2026-10-24):** `plans/2026-10-24-location-gated-discovery/plan.md` D3 keeps
-  the fire-time presence check and defers the full "absent from every scene
-  since creation" test. Predicate: `holonovel/src/index.ts` resolves pending
-  discoveries from fire-time entity lists; no since-creation scan exists.
-  Tracked in ROADMAP.md. (REQ-340a, REQ-349a)
-
-- **Discovered-consequence attribution — deferred-resolution variant
-  (scheduled 2026-10-24):** `plans/2026-10-23-discovered-consequence-attribution/plan.md`
-  D1 records attribution at fire time; the deferred-until-present variant
-  remains open if exact REQ-340 timing is required. Tracked in ROADMAP.md.
-  (REQ-340a)
-
-- **Recap notation and configurable bounds (scheduled 2026-10-25):** REQ-072f/g
-  declare `format` (`markdown`/`lonelog`), `max_transitions`, and `max_rolls`
-  on `manage_session (action: recap)`, but `MANAGE_SESSION_SCHEMA` and the
-  handler do not expose or honor them; T272 has no exercised evidence. Tracked
-  in ROADMAP.md. (REQ-072)
 
 ## Closed-P3 (recorded, no action)
 

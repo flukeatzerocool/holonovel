@@ -21,6 +21,7 @@ import { stateHash, STATE_HASH_PROJECTION_VERSION } from "./state-hash.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 import { normalizePerceptionRecord } from "./perception.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
+import { auditNotation } from "./lonelog.js";
 
 const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
@@ -189,6 +190,9 @@ export interface Countdown {
   triggers?: string[];
   // REQ-368 — countdown-world effect coupling: applied when the countdown fires.
   world_effect?: { type: "describe" | "property" | "exit"; target: string; direction?: string; destination?: string; property?: string; value?: string };
+  // REQ-340a — ledger index at creation; discovery eligibility scans scenes
+  // recorded at or after this index. Absent for legacy countdowns (index 0).
+  created_scene_index?: number;
 }
 
 export interface CombatState {
@@ -208,6 +212,7 @@ export interface AuditEntry {
   output_prefix: string;
   hash: string;
   security_event?: boolean; // REQ-448 — security-relevant events carry a tag
+  notation?: string; // REQ-072g — Lonelog representation alongside the raw data
 }
 
 // REQ-239 — a compacted audit session: the per-session summary that replaces
@@ -261,6 +266,9 @@ export interface StoryEntry {
   pending_discovery?: boolean; // REQ-340a — discovery awaits the linked location
   discovery_scope?: string; // REQ-340a — countdown location link
   eligible_entity_ids?: string[]; // REQ-349b — entities existing at fire
+  created_scene_index?: number; // REQ-340a — deferred-attribution ledger anchor
+  fire_scene_index?: number; // REQ-340a — absence window ends at the fire transition
+  fire_present_ids?: string[]; // REQ-340a — presence at the fire transition
   countdown_name?: string; // REQ-340a/349a — source countdown
   fired_at?: string; // REQ-340a — fire time, distinct from discovery time
 }
@@ -540,7 +548,7 @@ export interface NovelState {
   scene_location?: string;
   scene_time_of_day?: string;
   scene_atmosphere?: string;
-  scene_history: { timestamp: string; description: string; location?: string; time_of_day?: string; atmosphere?: string; beat?: string }[];
+  scene_history: { timestamp: string; description: string; location?: string; time_of_day?: string; atmosphere?: string; beat?: string; characters_present_ids?: string[] }[];
   scene_beat: string; // REQ-335 — current beat ("" = unset, renders as mid_scene)
   scene_type: ("combat" | "social" | "exploration" | "neutral")[];
   narrative_directive: string;
@@ -1783,6 +1791,7 @@ export class StateManager {
         args: JSON.stringify({ session_id: sessionId }),
         output_prefix: "[session-boundary]",
         hash: "",
+        notation: "? session boundary",
       };
       marker.session_id = sessionId;
       marker.hash = crypto.createHash("sha256").update((novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000") + marker.tool + marker.args).digest("hex").substring(0, 8);
@@ -1798,6 +1807,8 @@ export class StateManager {
       hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
       // REQ-448 — security-relevant events are tagged; omitted when undefined.
       security_event: StateManager.SECURITY_EVENT_TOOLS.has(tool) || undefined,
+      // REQ-072g — Lonelog representation alongside the raw audit data.
+      notation: auditNotation(tool, args),
     };
     novel.audit_log.push(entry);
     const cur = novel.metadata.sessions.find((s) => s.session_id === novel.active_session_id);
@@ -1820,6 +1831,7 @@ export class StateManager {
       output_prefix: "[BOUNDARY_VIOLATION]",
       hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
       security_event: true,
+      notation: auditNotation(tool, args),
     };
     (entry as any).violation_type = "boundary";
     novel.audit_log.push(entry as AuditEntry);

@@ -28,6 +28,7 @@ import {
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
+import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
@@ -4081,7 +4082,21 @@ server.registerTool("run_command", {
       // entity; fall back to the active entity when no presence list is set.
       const movers = movePartyTo(novel, entity, goResult.newRoom);
       // Single source of truth for the party's location (REQ-331 journal coupling).
+      const priorLocation = novel.scene_location;
       novel.scene_location = goResult.newRoom;
+      // REQ-340a — record the arrival in the scene ledger so since-creation
+      // attendance includes parser-driven transitions (REQ-125/P13).
+      if (priorLocation !== goResult.newRoom) {
+        novel.scene_history.push({
+          timestamp: new Date().toISOString(),
+          description: novel.scene_description,
+          location: goResult.newRoom,
+          time_of_day: novel.scene_time_of_day,
+          atmosphere: novel.scene_atmosphere,
+          beat: currentBeat(novel),
+          characters_present_ids: presentIdsForLedger(novel, [...movers.keys()]),
+        });
+      }
       audit("command", { command, moved_to: goResult.newRoom, party: [...movers.keys()] });
       // REQ-329 — countdown on_room_enter triggers; REQ-330 — explored rooms.
       advanceWorldTriggeredCountdowns(novel, `room_enter:${goResult.newRoom.toLowerCase()}`);
@@ -5129,19 +5144,42 @@ function normalizePlace(value: string): string {
   return value.toLowerCase().replace(/^the\s+/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+// REQ-340a — presence snapshot for the scene ledger. Callers supply parser
+// movers explicitly; otherwise the configured party-presence list is recorded.
+function presentIdsForLedger(novel: NovelState, extra: string[] = []): string[] {
+  return [...new Set([...(novel.characters_present_ids ?? []), ...extra])];
+}
+
+// REQ-340a — entities that appear in no scene-ledger entry at or after the
+// countdown's creation index. Legacy entries without a snapshot contribute no
+// presence information (they cannot prove attendance).
+function absentSinceCreation(novel: NovelState, startIndex: number): Set<string> {
+  return absentInWindow(novel, startIndex, novel.scene_history.length);
+}
+
+// REQ-340a — the absence window is countdown creation through the fire
+// transition; later movement does not retroactively disqualify discovery.
+function absentInWindow(novel: NovelState, startIndex: number, endIndex: number): Set<string> {
+  const presentEver = new Set<string>();
+  for (const entry of novel.scene_history.slice(Math.max(0, startIndex), Math.max(0, endIndex))) {
+    for (const id of entry.characters_present_ids ?? []) presentEver.add(id);
+  }
+  return new Set([...novel.entities.keys()].filter((id) => !presentEver.has(id)));
+}
+
+
 // REQ-340 — when an on_scene_transition countdown fires while the active entity
 // is absent from all scenes since its creation, produce a [discovered] entry.
-function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any; scope?: string }): void {
+function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any; scope?: string; created_scene_index?: number }): void {
   const presentIds = new Set(novel.characters_present_ids ?? []);
   const activeId = novel.active_entity_id;
   const absent = activeId && !presentIds.has(activeId);
-  // REQ-349b — attribute discovery to every player entity absent at fire so
-  // knowledge surfaces only for entities that were not there to witness it.
-  // An unconfigured presence list keeps the pre-attribution behavior.
+  // REQ-340a — absent from every scene since the countdown's creation, not
+  // merely absent at fire. Legacy countdowns default to the full ledger.
+  const createdIndex = cd.created_scene_index ?? 0;
+  const absentSince = absentSinceCreation(novel, createdIndex);
   const discoverers = absent
-    ? (presentIds.size > 0
-        ? [...novel.entities.keys()].filter((id) => !presentIds.has(id))
-        : (activeId ? [activeId] : []))
+    ? [...absentSince].filter((id) => !presentIds.has(id))
     : [];
   novel.countdowns.delete(name);
   // REQ-368 — countdown-world effect coupling: apply the effect immediately
@@ -5164,13 +5202,15 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
   if (discoverers.length > 0) {
     if (cd.scope) {
       // REQ-340a — defer discovery until the party reaches the linked location;
-      // the discovery timestamp is that scene transition, not the fire. Every
-      // entity absent at fire is eligible, including when presence is unset.
+      // attribution is resolved at that transition, not snapshotted at fire.
       entry.discovered = false;
       entry.pending_discovery = true;
       entry.discovery_scope = cd.scope;
-      entry.eligible_entity_ids = [...novel.entities.keys()].filter((id) => !presentIds.has(id));
+      entry.created_scene_index = createdIndex;
+      entry.fire_scene_index = novel.scene_history.length;
+      entry.fire_present_ids = [...presentIds];
       entry.fired_at = entry.timestamp;
+      entry.entity_ids = [];
     } else {
       // No location link: retain the immediate-discovery fallback (REQ-349b).
       entry.discovered = true;
@@ -5194,8 +5234,16 @@ function resolvePendingDiscoveries(novel: NovelState): void {
   if (present.size === 0 && activeId) present.add(activeId);
   for (const entry of pending) {
     if (!entry.discovery_scope || !places.has(normalizePlace(entry.discovery_scope))) continue;
-    const eligible = entry.eligible_entity_ids ?? [...novel.entities.keys()];
-    const discoverers = eligible.filter((id) => present.has(id));
+    // REQ-340a — deferred attribution: the eligibility window ends at the fire
+    // transition, but the discoverer set is resolved here. Legacy entries fall
+    // back to their fire-time list.
+    const eligible = entry.created_scene_index !== undefined
+      ? absentInWindow(novel, entry.created_scene_index, entry.fire_scene_index ?? novel.scene_history.length)
+      : new Set(entry.eligible_entity_ids ?? [...novel.entities.keys()]);
+    if (entry.fire_present_ids) {
+      for (const id of entry.fire_present_ids) eligible.delete(id);
+    }
+    const discoverers = [...present].filter((id) => eligible.has(id));
     if (discoverers.length === 0) continue;
     entry.discovered = true;
     entry.pending_discovery = false;
@@ -5337,6 +5385,7 @@ server.registerTool("manage_scene", {
           description: novel.scene_description, location: novel.scene_location,
           time_of_day: novel.scene_time_of_day, atmosphere: novel.scene_atmosphere,
           beat: currentBeat(novel),
+          characters_present_ids: presentIdsForLedger(novel),
         };
         if (novel.scene_description !== effectiveDescription) novel.scene_history.push(historyEntry);
       }
@@ -5864,6 +5913,7 @@ server.registerTool("manage_countdown", {
         on_scene_transition: on_scene_transition ?? existingCd?.on_scene_transition,
         triggers: triggers ?? existingCd?.triggers,
         world_effect: world_effect ?? existingCd?.world_effect,
+        created_scene_index: existingCd?.created_scene_index ?? novel.scene_history.length,
       });
       state.recordMutation(novel, "set_countdown", "countdown");
       state.saveNovel(novel);
@@ -8255,6 +8305,9 @@ const MANAGE_SESSION_SCHEMA = {
     sessions: z.number().optional().describe("Number of recent sessions to retain live; triggers irreversible compaction (compact; default TTRPG_AUDIT_RETENTION_SESSIONS)."),
     gm_notes: z.string().optional().describe("GM-only free-text notes returned only to the Game Master badge (recap)."),
     session_id: z.string().optional().describe("Archived session id to include in recap (recap)."),
+    format: z.enum(["markdown", "lonelog"]).optional().describe("Recap/compress output notation (recap, compress; default markdown; REQ-072g)."),
+    max_transitions: z.number().optional().describe("Scene transitions to return, bounded 1–20 (recap; default 5; REQ-072e)."),
+    max_rolls: z.number().optional().describe("Significant rolls to return, bounded 1–50 (recap; default 5; REQ-072e)."),
     topics: z.array(z.string()).optional().describe("Notification topics to subscribe to (subscribe)."),
     query: z.string().optional().describe("Optional search term matched against tool name, description, and title (discover)."),
     detail: z.enum(["summary", "schema"]).optional().describe("discover response detail: summary (default) or schema (live input schemas for the matches; requires query; REQ-609)."),
@@ -8274,7 +8327,7 @@ const MANAGE_SESSION_SCHEMA = {
 
 const MANAGE_CONTEXT_CANONICAL_SCHEMA = {
   ...pickParams(MANAGE_SESSION_SCHEMA, [
-    "action", "mode", "sections", "gm_notes", "session_id", "query", "detail", "tier", "budget_tokens",
+    "action", "mode", "sections", "gm_notes", "session_id", "format", "max_transitions", "max_rolls", "query", "detail", "tier", "budget_tokens",
   ]),
   action: z.enum(["recap", "verbosity", "briefing_order", "discover"]).describe("recap, verbosity, briefing_order, or discover."),
 };
@@ -8370,6 +8423,10 @@ const handleContextTool = async (args: any): Promise<any> => {
       const recent = novel.audit_log.slice(-max);
       const isGM = novel.badge === "game_master" || novel.badge === "none";
       const filtered = isGM ? recent : recent.filter((e) => e.badge !== "game_master");
+      // REQ-072g — Lonelog compress notation.
+      if (args.format === "lonelog") {
+        return raw(`Compressed audit log (Lonelog notation):\n${renderCompressLonelog(filtered)}`);
+      }
       const lines = filtered.map((e) => {
         const stamp = (e.timestamp ?? "").split("T")[0] + " " + ((e.timestamp ?? "").split("T")[1]?.substring(0, 8) ?? "");
         const marker = e.output_prefix === "[BOUNDARY_VIOLATION]" ? " — [BOUNDARY_VIOLATION]" : e.output_prefix ? ` — ${e.output_prefix}` : "";
@@ -8400,6 +8457,14 @@ Options: yes, cancel`);
     case "recap": {
       const novel = requireNovel();
       const entity = state.getActiveEntity();
+      const maxRolls = args.max_rolls ?? 5;
+      if (!Number.isInteger(maxRolls) || maxRolls < 1 || maxRolls > 50) {
+        return err("INVALID_INPUT", "max_rolls must be an integer in the valid range 1–50.");
+      }
+      const maxTransitions = args.max_transitions ?? 5;
+      if (!Number.isInteger(maxTransitions) || maxTransitions < 1 || maxTransitions > 20) {
+        return err("INVALID_INPUT", "max_transitions must be an integer in the valid range 1–20.");
+      }
       const parts: string[] = [];
       const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
       for (const s of recent) parts.push(s.entry);
@@ -8424,10 +8489,28 @@ Options: yes, cancel`);
       const significantRollTool = (t: string) =>
         t === "fate_roll" || t === "ironsworn_move" || t === "ironsworn_progress_test" || t === "forged_action_roll" ||
         (t.includes("roll") && !t.includes("table"));
-      const significantRolls = novel.audit_log.filter((e) => significantRollTool(e.tool) && e.args).slice(-5);
+      const rollVisible = (e: any) => {
+        const badge = getBadge();
+        return badge === "game_master" || badge === "none" || e.badge !== "game_master";
+      };
+      const rollDetail = (e: any) => {
+        let parsed: any = {};
+        try { parsed = typeof e.args === "string" ? JSON.parse(e.args) : (e.args ?? {}); } catch { parsed = {}; } // non-JSON audit args carry no roll detail
+        const entityId = parsed.entity_id ?? parsed.attacker ?? parsed.target ?? parsed.target_id ?? null;
+        const dice = parsed.dice ?? parsed.notation ?? parsed.roll ?? null;
+        const outcome = parsed.outcome ?? parsed.result ?? parsed.total ?? parsed.damage ?? null;
+        return { tool: e.tool, entity: entityId ? String(entityId) : undefined, dice: dice !== null ? String(dice) : undefined, outcome: outcome !== null ? String(outcome) : undefined, parsed };
+      };
+      const significantRolls = novel.audit_log.filter((e) => significantRollTool(e.tool) && e.args).filter(rollVisible).slice(-maxRolls);
+      const rollDetails = significantRolls.map(rollDetail);
       if (significantRolls.length > 0) {
-        recap += `\nsignificant_rolls: ${significantRolls.map((e) => `${e.tool}`).join(", ")}`;
+        recap += `\nsignificant_rolls: ${rollDetails.map((r) => [r.tool, r.entity, r.dice, r.outcome].filter(Boolean).join(" ")).join("; ")}`;
       }
+      // REQ-072e — configurable scene-transition window.
+      const sceneTransitions = novel.scene_history.slice(-maxTransitions).map((h) => ({
+        timestamp: h.timestamp, description: h.description, location: h.location ?? null,
+      }));
+      recap += `\nscene_transitions: ${JSON.stringify(sceneTransitions)}`;
       const initIdx = novel.audit_log.findIndex((e) => e.tool === "init_combat");
       const endCount = novel.audit_log.filter((e) => e.tool === "end_combat").length;
       const advCount = novel.audit_log.filter((e) => e.tool === "advance_combat").length;
@@ -8529,6 +8612,27 @@ Options: yes, cancel`);
         recap += summary
           ? `\narchived_session: ${summary.session_id} (${summary.entry_count} entries, ${summary.timespan_start} → ${summary.timespan_end}; confrontations ${summary.confrontations}, significant_rolls ${summary.significant_rolls}, condition_changes ${summary.condition_changes}, roster_changes ${summary.roster_changes}, scene_transitions ${summary.scene_transitions})`
           : `\narchived_session: '${args.session_id}' not found in the audit archive.`;
+      }
+      // REQ-072g — Lonelog notation, distinct from the default markdown body.
+      if (args.format === "lonelog") {
+        const story = [
+          ...recent.map((s) => ({ type: s.type, entry: s.entry })),
+          ...discoveredRecap.map((s) => ({ type: s.type, entry: s.entry, discovered: s.discovered })),
+        ];
+        const lonelog = renderRecapLonelog({
+          orientation: narrative_orientation,
+          scenes: novel.scene_description
+            ? [{ description: novel.scene_description, location: novel.scene_location ?? undefined }]
+            : [],
+          transitions: sceneTransitions.map((t) => ({ description: t.description, location: t.location ?? undefined })),
+          story,
+          rolls: rollDetails.map((r) => ({ tool: r.tool, entity: r.entity, dice: r.dice, outcome: r.outcome })),
+          directive: novel.narrative_directive || undefined,
+        });
+        const notes = args.gm_notes && (getBadge() === "game_master" || getBadge() === "none")
+          ? `\n? gm_notes: ${args.gm_notes}`
+          : "";
+        return ok(`${lonelog}${notes}`);
       }
       return ok(recap);
     }
@@ -9046,6 +9150,10 @@ function redactNovelForPlayer(novel: any): any {
     }
   }
   if (Array.isArray(out.notes)) out.notes = out.notes.filter((n: any) => n?.badge_scope !== "game_master");
+  // REQ-032/REQ-096b — attendance snapshots are GM-only.
+  if (Array.isArray(out.scene_history)) {
+    out.scene_history = out.scene_history.map(({ characters_present_ids: _presence, ...entry }: any) => entry);
+  }
   if (Array.isArray(out.campaign_memory)) out.campaign_memory = out.campaign_memory.filter((m: any) => m?.badge_scope !== "game_master");
   if (out.npcs && typeof out.npcs === "object") {
     for (const npc of Object.values(out.npcs) as any[]) {
@@ -10710,7 +10818,12 @@ server.registerResource("scene-current", "scene://current", { title: "Current Sc
 server.registerResource("scene-history", "scene://history", { title: "Scene History" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "scene://history", text: "[]", mimeType: "application/json" }] };
-  return { contents: [{ uri: "scene://history", text: JSON.stringify(novel.scene_history), mimeType: "application/json" }] };
+  // REQ-032 — attendance snapshots are GM-only; strip them for other badges.
+  const badge = getBadge();
+  const history = badge === "game_master" || badge === "none"
+    ? novel.scene_history
+    : novel.scene_history.map(({ characters_present_ids: _presence, ...entry }) => entry);
+  return { contents: [{ uri: "scene://history", text: JSON.stringify(history), mimeType: "application/json" }] };
 });
 
 // Identity resource (REQ-476/REQ-480) — the compiled identity kernel for a

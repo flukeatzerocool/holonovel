@@ -323,6 +323,53 @@ async function main() {
     await kill(proc);
   }
 
+  // ── T390/T399: since-creation absence + deferred attribution ───────
+  {
+    let proc = await boot();
+    await call(proc, "manage_novel", { action: "create",  name: "narrative-since-creation" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create",  name: "Rogue" });
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: [] });
+    await call(proc, "manage_countdown", { action: "set",  name: "guard-trap", ticks: 3, on_scene_transition: true, scope: "Guard Room" });
+    await call(proc, "manage_scene", { action: "set",  description: "A cold courtyard", location: "Courtyard" });
+    // Rogue appears in an intervening scene after the countdown was created.
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_01"] });
+    await call(proc, "manage_scene", { action: "set",  description: "A narrow alley", location: "Alley" });
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: [] });
+    await call(proc, "manage_scene", { action: "set",  description: "The east road", location: "Road" });
+    // The trap fires while Rogue is absent.
+    await call(proc, "manage_scene", { action: "set",  description: "The road at dusk", location: "Road" });
+    await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_01"] });
+    await call(proc, "manage_scene", { action: "set",  description: "The guard room is wrecked", location: "Guard Room" });
+
+    await test("T390: an entity present since countdown creation does not discover", async () => {
+      await call(proc, "set_badge", { badge: "player" });
+      const b = await briefing(proc);
+      assertNotContains(b, '[discovered] Countdown "guard-trap"');
+      const recap = await call(proc, "manage_context", { action: "recap" });
+      assertNotContains(recap, "Meanwhile,");
+    });
+
+    await test("T399: an entity created after the fire discovers at resolution", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_staging", { action: "presence",  entity_ids: [] });
+      await call(proc, "manage_countdown", { action: "set",  name: "forge-trap", ticks: 1, on_scene_transition: true, scope: "Forge" });
+      await call(proc, "manage_scene", { action: "set",  description: "The long road", location: "Road" });
+      await call(proc, "manage_scene", { action: "set",  description: "The road at night", location: "Road" });
+      // Created after the fire; absent from every scene since creation.
+      await call(proc, "manage_character", { action: "create",  name: "Wizard" });
+      await call(proc, "manage_staging", { action: "presence",  entity_ids: ["character_02"] });
+      await call(proc, "manage_scene", { action: "set",  description: "The forge roars", location: "Forge" });
+      await call(proc, "set_badge", { badge: "player" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_02" });
+      const b = await briefing(proc);
+      assertContains(b, '[discovered] Countdown "forge-trap"');
+      assertContains(b, "source: discovered_consequence");
+    });
+
+    await kill(proc);
+  }
+
   // ── T690: discovered consequences are attributed per entity ───────
   {
     let proc = await boot();

@@ -24,9 +24,9 @@ const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarter
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
 const P_CONTEXT = "holonovel/src/index.ts:8540";
-const P_VISIBILITY = "holonovel/src/index.ts:8562";
-const P_KNOWLEDGE = "holonovel/src/index.ts:7266"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:9020";
+const P_VISIBILITY = "holonovel/src/index.ts:8666"; // visibility_check handler
+const P_KNOWLEDGE = "holonovel/src/index.ts:7316"; // knowledge_query handler
+const P_INTEGRITY = "holonovel/src/index.ts:9122"; // computeBundleIntegrity
 const P_RESTART = "holonovel/src/core/state.ts:2280";
 
 const NOVEL_NAME = "Torre Nosferatu";
