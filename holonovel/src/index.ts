@@ -56,6 +56,7 @@ import {
   RulesetToolSchema, RulesetPrompt, rulesetAnnotations,
 } from "./rulesets.js";
 import { conformanceReport, type ToolDefinition } from "./core/tdqs.js";
+import { ToolRegistry, bindMcp, type RegisteredTool, type ToolAnnotations } from "./tool-registry.js";
 import {
   ABILITY_NAMES, AbilityName, StatMethod, ClassLevel, CharacterBuildInput,
   CharacterRules, EquipmentItem,
@@ -184,6 +185,8 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
   manage_agent: MUTATING,
 };
 const _registerTool = server.registerTool.bind(server);
+// The tool registry is the definition site; MCP is one adapter over it.
+const toolRegistry = new ToolRegistry();
 // REQ-002 — the SDK returns an argument-schema violation as a tool result with
 // `isError: true` and an `MCP error -32602: Input validation error …` message.
 // Emit the standard `[ERROR] [INVALID_INPUT]` envelope for those; other tool
@@ -220,6 +223,13 @@ function ensureStructured(handler: any) {
     return result;
   };
 }
+// The SDK normalizes a raw parameter shape into a Zod object at registration.
+// The registry stores the same normalized form so introspection over the
+// registry matches what the MCP adapter advertises.
+function normalizeToolSchema(schema: any): any {
+  if (!schema || typeof schema !== "object" || "_zod" in schema || "_def" in schema) return schema;
+  return z.object(schema);
+}
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
@@ -235,8 +245,23 @@ server.registerTool = ((name: string, config: any, handler: any) => {
       if (novel) bumpPacing(novel);
     }
   };
-  return _registerTool(name, { ...config, annotations, outputSchema: config.outputSchema ?? OUTPUT_SCHEMA }, paced as any);
+  toolRegistry.define(name, {
+    ...config,
+    annotations,
+    inputSchema: normalizeToolSchema(config.inputSchema),
+    outputSchema: normalizeToolSchema(config.outputSchema ?? OUTPUT_SCHEMA),
+  }, paced as any);
 }) as unknown as typeof server.registerTool;
+
+// Registry view in the shape the MCP SDK exposes, so introspection and
+// cross-tool dispatch read one source rather than the SDK's private map.
+function registeredToolMap(): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const tool of toolRegistry.list()) {
+    out[tool.name] = { ...tool.config, name: tool.name, handler: tool.handler };
+  }
+  return out;
+}
 
 // REQ-137a/REQ-137b — gate classification. The DECISIONS.md gate table records
 // un-gated / GM-only / Player for every registered tool; these sets mirror it
@@ -506,8 +531,19 @@ function vowSuggestionMinChars(): number { return configInt("TTRPG_VOW_SUGGESTIO
 // close and never persist across restart. REQ-030 is unchanged — this is a
 // single-connection push channel, not multi-connection badge synchronization.
 const subscribedTopics = new Set<string>();
+// REQ-433 — local listeners let an in-process façade consume the same event
+// echoes the MCP notification channel carries. One delivery per consumer.
+type EventListener = (topic: string, payload: Record<string, unknown>) => void;
+const eventListeners = new Set<EventListener>();
+let transportConnected = false;
 function emitEvent(topic: string, payload: Record<string, unknown>): void {
   if (!subscribedTopics.has(topic)) return;
+  for (const listener of eventListeners) {
+    try {
+      listener(topic, payload);
+    } catch { /* a listener error never affects a tool result */ }
+  }
+  if (!transportConnected) return;
   try {
     void (server.server as any).notification({ method: "notifications/holonovel/event", params: { topic, ...payload } });
   } catch { /* notification delivery is best-effort — never affects tool results */ }
@@ -1057,7 +1093,7 @@ const packagePrompts = new Map<string, PackagePromptEntry>();
 const packagePromptErrors: Array<{ slug: string; reason: string }> = [];
 
 function registrationFingerprint(): string {
-  const tools = (server as any)._registeredTools ?? {};
+  const tools = registeredToolMap();
   const prompts = (server as any)._registeredPrompts ?? {};
   return crypto.createHash("sha1")
     .update([...Object.keys(tools)].sort().join(","))
@@ -1082,7 +1118,7 @@ function isOptionalShape(schema: any, key: string): boolean {
   return !!def.innerType || !!field.isOptional?.();
 }
 function computeToolMetrics() {
-  const tools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const tools: Record<string, any> = registeredToolMap();
   let bytes = 0;
   const counts: Record<string, number> = {};
   const requiredCounts: Record<string, number> = {};
@@ -1109,7 +1145,7 @@ function computeToolMetrics() {
 // action-discriminator surface: tools that carry an `action`/`mode`/`kind`
 // discriminator parameter are reported with their per-action contracts.
 function schemaSurfaceMetrics() {
-  const tools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const tools: Record<string, any> = registeredToolMap();
   const nestedCount: Record<string, number> = {};
   const discriminators: Record<string, { param: string; type: string }> = {};
   for (const [name, tool] of Object.entries(tools)) {
@@ -1135,7 +1171,7 @@ function schemaSurfaceMetrics() {
 // title length. Mirrors scripts/tool-definitions-lint.ts so definition drift is
 // visible at runtime as well as at build time.
 function hostToolQuality() {
-  const tools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const tools: Record<string, any> = registeredToolMap();
   // REQ-430 — ruleset-derived tools are validated separately by
   // rulesets.toolQualityCounts(); this check covers host tools only.
   const hostNames = Object.keys(TOOL_ANNOTATIONS).filter((n) => n in tools);
@@ -1207,7 +1243,7 @@ function zodToJsonSchema(schema: any, depth = 0): any {
 }
 
 function registeredToolDefinitions(): ToolDefinition[] {
-  const tools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const tools: Record<string, any> = registeredToolMap();
   const hidden = hiddenAliasNames(surfaceRegistry());
   return Object.entries(tools).filter(([name]) => !hidden.has(name)).map(([name, tool]) => ({
     name,
@@ -1531,9 +1567,7 @@ function groupDirectory(): GroupDirectoryEntry[] {
 }
 function liveSurfaceActions(): Set<string> {
   const live = new Set<string>();
-  for (const [name, tool] of Object.entries(
-    ((server as unknown as { _registeredTools?: Record<string, unknown> })._registeredTools ?? {}),
-  )) {
+  for (const [name, tool] of Object.entries(registeredToolMap())) {
     const action = (tool as { inputSchema?: { shape?: Record<string, any> } })?.inputSchema?.shape?.action;
     const values =
       action?._def?.values ?? action?._def?.innerType?._def?.values ?? action?._def?.type?._def?.values;
@@ -1596,6 +1630,29 @@ function surfaceGuard(name: string, args: Record<string, unknown>): string | nul
   return refusal;
 }
 
+type GuardRefusal = { content: { type: "text"; text: string }[]; isError: true };
+
+// REQ-573/575/576/581 — one refusal path shared by the MCP request handler and
+// the in-process façade. Returns a refusal envelope or null to proceed.
+function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefusal | null {
+  const toolName = typeof name === "string" ? name : "";
+  const registered = toolRegistry.names();
+  if (toolName && registered.length > 0 && !registered.includes(toolName)) {
+    selectionTelemetry.unknown_tool_calls++;
+  }
+  if (toolName === "manage_session" && callArgs?.action === "discover") {
+    discoveryPendingCall = true;
+  } else if (discoveryPendingCall && toolName !== "manage_session") {
+    selectionTelemetry.discovery_to_call++;
+    discoveryPendingCall = false;
+  }
+  const retired = retiredAliasRefusal(surfaceRegistry(), toolName, callArgs);
+  if (retired) return { content: [{ type: "text", text: retired }], isError: true };
+  const refusal = surfaceGuard(toolName, callArgs);
+  if (refusal) return { content: [{ type: "text", text: refusal }], isError: true };
+  return null;
+}
+
 function installSurfaceGuards(): void {
   const low = (server as unknown as { server?: any }).server;
   const original = low?._requestHandlers?.get?.("tools/call");
@@ -1604,24 +1661,8 @@ function installSurfaceGuards(): void {
     return;
   }
   low.setRequestHandler(CallToolRequestSchema, async (req: any, extra: any) => {
-    const name = req?.params?.name;
-    const callArgs = req?.params?.arguments ?? {};
-    const registered = Object.keys((server as unknown as { _registeredTools?: Record<string, unknown> })._registeredTools ?? {});
-    if (typeof name === "string" && registered.length > 0 && !registered.includes(name)) {
-      selectionTelemetry.unknown_tool_calls++;
-    }
-    if (name === "manage_session" && callArgs?.action === "discover") {
-      discoveryPendingCall = true;
-    } else if (discoveryPendingCall && name !== "manage_session") {
-      selectionTelemetry.discovery_to_call++;
-      discoveryPendingCall = false;
-    }
-    const retired = retiredAliasRefusal(surfaceRegistry(), req?.params?.name, req?.params?.arguments ?? {});
-    if (retired) return { content: [{ type: "text", text: retired }], isError: true };
-    const refusal = surfaceGuard(req?.params?.name, req?.params?.arguments ?? {});
-    if (refusal) {
-      return { content: [{ type: "text", text: refusal }], isError: true };
-    }
+    const refusal = guardToolCall(req?.params?.name, req?.params?.arguments ?? {});
+    if (refusal) return refusal;
     return original(req, extra);
   });
 }
@@ -3140,7 +3181,7 @@ server.registerTool("manage_history", {
 async function reassignToolCategory(tool_name: string, category: string | null | undefined) {
   requireGM();
   const novel = requireNovel();
-  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const registeredTools: Record<string, any> = registeredToolMap();
   if (!(tool_name in registeredTools)) {
     const valid = Object.keys(registeredTools).join(", ");
     return err("NOT_FOUND", `Tool '${tool_name}' not found. Valid: ${valid}`);
@@ -3166,7 +3207,7 @@ async function toolDiscovery(query?: string, detail: "summary" | "schema" = "sum
 
   if (query) {
     const q = query.toLowerCase();
-    const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+    const registeredTools: Record<string, any> = registeredToolMap();
     const toolNames = Object.keys(registeredTools).filter(t => {
       if (t === "set_badge" || t === "respond_decision" || t === "manage_history") return true;
       if (!isGM && isGMTool(t)) return false;
@@ -3218,7 +3259,7 @@ async function toolDiscovery(query?: string, detail: "summary" | "schema" = "sum
   // Player badge always reflects builder-assigned categories.
   const overrides: Record<string, string> = novel?.help_category_overrides ?? {};
   const overriddenTools = new Set(Object.keys(overrides));
-  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const registeredTools: Record<string, any> = registeredToolMap();
   let result = "## Holonovel MCP Server\n\n### Tool Categories\n\n";
   for (const [cat, tools] of Object.entries(builderCategories)) {
     let displayTools = [...tools];
@@ -4990,7 +5031,7 @@ server.registerTool("manage_causality", {
     action: z.enum(MANAGE_WORLD_SCHEMA_ACTIONS).describe("causal_propose, causal_admit, causal_reject, causal_list, causal_state, causal_ingress."),
   },
 }, async (args: any, extra: any) => {
-  const target = (server as any)._registeredTools?.["manage_world"];
+  const target = toolRegistry.get("manage_world");
   if (!target?.handler) return err("STATE_CONFLICT", "manage_world handler unavailable.");
   return target.handler(args, extra);
 });
@@ -5733,7 +5774,7 @@ server.registerTool("manage_staging", {
     action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy, cast, or next_speaker."),
   },
 }, async (args: any, extra: any) => {
-  const target = (server as any)._registeredTools?.["manage_scene"];
+  const target = toolRegistry.get("manage_scene");
   if (!target?.handler) return err("STATE_CONFLICT", "manage_scene handler unavailable.");
   return target.handler(args, extra);
 });
@@ -6195,7 +6236,7 @@ server.registerTool("manage_corpus", {
     action: z.enum(MANAGE_LORE_SCHEMA_ACTIONS).describe("corpus_register, corpus_list, corpus_get, corpus_route, corpus_grant, corpus_deny, corpus_access, corpus_consume, corpus_acquisitions."),
   },
 }, async (args: any, extra: any) => {
-  const target = (server as any)._registeredTools?.["manage_lore"];
+  const target = toolRegistry.get("manage_lore");
   if (!target?.handler) return err("STATE_CONFLICT", "manage_lore handler unavailable.");
   return target.handler(args, extra);
 });
@@ -6875,9 +6916,7 @@ server.registerTool("resolve_mechanic", {
 }, async (args: any) => {
   const action = String(args.action ?? "");
   const call = async (tool: string, mapped: Record<string, unknown>) => {
-    const handler = (server as unknown as {
-      _registeredTools?: Record<string, { handler?: (a: any, e: any) => Promise<any> }>;
-    })._registeredTools?.[tool]?.handler;
+    const handler = toolRegistry.get(tool)?.handler;
     if (typeof handler !== "function") {
       return err("INTERNAL_ERROR", `Resolution handler '${tool}' is unavailable.`);
     }
@@ -8546,7 +8585,7 @@ server.registerTool("manage_diagnostics", {
     action: z.enum(DIAGNOSTICS_ACTIONS).describe("health, context_report, compress, compact, subscribe, category, event, history, verify, replay, visibility_check, or visibility_audit."),
   },
 }, async (args: any, extra: any) => {
-  const target = (server as any)._registeredTools?.["manage_session"];
+  const target = toolRegistry.get("manage_session");
   if (!target?.handler) return err("STATE_CONFLICT", "Session handler unavailable.");
   return target.handler(args, extra);
 });
@@ -9724,7 +9763,7 @@ server.registerTool("manage_archive", {
     action: z.enum(MANAGE_NOVEL_SCHEMA_ACTIONS).describe("export, import, archive, unarchive, clone, branch, checkpoint_set, checkpoint_list, checkpoint_restore, checkpoint_remove."),
   },
 }, async (args: any, extra: any) => {
-  const target = (server as any)._registeredTools?.["manage_novel"];
+  const target = toolRegistry.get("manage_novel");
   if (!target?.handler) return err("STATE_CONFLICT", "manage_novel handler unavailable.");
   return target.handler(args, extra);
 });
@@ -10046,7 +10085,7 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
     // derived-surface freshness (read-only advisory).
     briefing_consistency: briefingConsistency(),
-    tool_count: (() => { const hidden = hiddenAliasNames(surfaceRegistry()); return Object.keys((server as any)._registeredTools ?? {}).filter((name) => !hidden.has(name)).length; })(),
+    tool_count: (() => { const hidden = hiddenAliasNames(surfaceRegistry()); return toolRegistry.names().filter((name) => !hidden.has(name)).length; })(),
     prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0) + packagePrompts.size,
     package_prompts: { installed: packagePrompts.size, errors: packagePromptErrors },
     resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
@@ -12360,7 +12399,7 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
 });
 
 server.prompt("run_workflow", "Map Intent to Tools", async () => {
-  const registeredTools: Record<string, any> = (server as any)._registeredTools ?? {};
+  const registeredTools: Record<string, any> = registeredToolMap();
   const toolNames = Object.keys(registeredTools).sort();
   const novel = state.activeNovel;
   const rulesetBound = !!novel?.ruleset;
@@ -12387,9 +12426,9 @@ server.registerTool("open_session", {
   },
 }, async (args: any) => {
   const parts: string[] = [];
-  const novelTool = (server as any)._registeredTools?.["manage_novel"];
-  const badgeTool = (server as any)._registeredTools?.["set_badge"];
-  const sessionTool = (server as any)._registeredTools?.["manage_session"];
+  const novelTool = toolRegistry.get("manage_novel");
+  const badgeTool = toolRegistry.get("set_badge");
+  const sessionTool = toolRegistry.get("manage_session");
   if (args.novel && novelTool?.handler) {
     parts.push(toolResultText(await novelTool.handler({ action: "resume", slug: args.novel }, undefined)));
   }
@@ -12408,8 +12447,8 @@ server.registerTool("close_session", {
   inputSchema: {},
 }, async () => {
   const parts: string[] = [];
-  const sessionTool = (server as any)._registeredTools?.["manage_session"];
-  const novelTool = (server as any)._registeredTools?.["manage_novel"];
+  const sessionTool = toolRegistry.get("manage_session");
+  const novelTool = toolRegistry.get("manage_novel");
   if (sessionTool?.handler) {
     parts.push(toolResultText(await sessionTool.handler({ action: "recap" }, undefined)));
   }
@@ -12433,13 +12472,116 @@ server.registerTool("take_turn", {
     entity_id: z.string().optional().describe("Acting entity id (take_turn)."),
   },
 }, async (args: any) => {
-  const run = (server as any)._registeredTools?.["run_command"];
+  const run = toolRegistry.get("run_command");
   if (!run?.handler) return err("STATE_CONFLICT", "Parser unavailable.");
   const resolved = await run.handler({ action: "resolve", intent: args.intent, entity_id: args.entity_id }, undefined);
   const suggested = await run.handler({ action: "suggest", intent: args.intent, entity_id: args.entity_id }, undefined);
   const handle = mintTurnHandle(args.intent);
   return raw(`[TURN] ${handle}\n\nIntent resolution:\n${toolResultText(resolved)}\n\nSuggested next actions:\n${toolResultText(suggested)}`);
 });
+
+// Bind the tool registry to the MCP adapter. Every tool above is defined; this
+// registers them with the SDK in insertion order, before the transport starts.
+bindMcp(server, toolRegistry, _registerTool);
+export { toolRegistry };
+
+// ── In-process engine façade ───────────────────────────────────────
+// REQ-032/REQ-040a/REQ-054 — the façade drives the same registered handlers
+// through the same guard path as the MCP adapter. It adds no state authority
+// and no transport; resources, prompts, and `tools/list` stay adapter concerns.
+
+export interface EngineToolMeta {
+  name: string;
+  title?: string;
+  description?: string;
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  annotations: ToolAnnotations;
+}
+
+export type EngineEventListener = (event: { topic: string; [key: string]: unknown }) => void;
+
+export interface Engine {
+  tools: {
+    list(): EngineToolMeta[];
+    get(name: string): EngineToolMeta | undefined;
+    call(name: string, args?: Record<string, unknown>): Promise<any>;
+  };
+  events: {
+    subscribe(topics: string[], listener?: EngineEventListener): void;
+    unsubscribe(topics?: string[]): void;
+  };
+  close(): void;
+}
+
+function engineToolMeta(tool: RegisteredTool): EngineToolMeta {
+  return {
+    name: tool.name,
+    title: tool.config.title,
+    description: tool.config.description,
+    inputSchema: tool.config.inputSchema,
+    outputSchema: tool.config.outputSchema,
+    annotations: tool.config.annotations,
+  };
+}
+
+/** One engine per process. `close()` clears this façade's subscriptions only;
+ *  the shared Novel state and the MCP adapter stay live. */
+export function createEngine(): Engine {
+  const listeners = new Set<EngineEventListener>();
+  const dispatch: EventListener = (topic, payload) => {
+    for (const listener of listeners) {
+      try {
+        listener({ topic, ...payload });
+      } catch { /* a listener error never affects a tool result */ }
+    }
+  };
+  eventListeners.add(dispatch);
+  return {
+    tools: {
+      list: () => toolRegistry.list().map(engineToolMeta),
+      get: (name: string) => {
+        const tool = toolRegistry.get(name);
+        return tool ? engineToolMeta(tool) : undefined;
+      },
+      call: async (name: string, args: Record<string, unknown> = {}) => {
+        const refusal = guardToolCall(name, args);
+        if (refusal) return refusal;
+        const tool = toolRegistry.get(name);
+        if (!tool) {
+          return { content: [{ type: "text", text: `[ERROR] [INTERNAL_ERROR] Tool '${name}' is not registered.` }], isError: true };
+        }
+        try {
+          return await tool.handler(args, { badge: getBadge() });
+        } catch (e: any) {
+          // The MCP SDK turns a thrown tool error into an error result; the
+          // façade mirrors that shape so callers see one envelope contract.
+          return { content: [{ type: "text", text: String(e?.message ?? e) }], isError: true };
+        }
+      },
+    },
+    events: {
+      subscribe(topics: string[], listener?: EngineEventListener) {
+        subscribedTopics.clear();
+        for (const topic of topics) subscribedTopics.add(topic);
+        if (listener) listeners.add(listener);
+      },
+      unsubscribe(topics?: string[]) {
+        if (!topics) {
+          listeners.clear();
+          subscribedTopics.clear();
+          return;
+        }
+        for (const topic of topics) subscribedTopics.delete(topic);
+      },
+    },
+    close() {
+      listeners.clear();
+      subscribedTopics.clear();
+      eventListeners.delete(dispatch);
+    },
+  };
+}
 
 // ── Transport ──────────────────────────────────────────────────────
 
@@ -12570,10 +12712,15 @@ async function main() {
   installSurfaceGuards();
   installPackagePromptSurface();
   await server.connect(transport);
+  transportConnected = true;
   await warmCatalogCache();
 }
 
-main().catch((e) => {
-  console.error("Fatal error:", e);
-  process.exit(1);
-});
+// The executable entry and every harness keep autostart. The library façade
+// (`engine.ts`) sets HOLONOVEL_NO_AUTOSTART before importing this module.
+if (process.env.HOLONOVEL_NO_AUTOSTART !== "1") {
+  main().catch((e) => {
+    console.error("Fatal error:", e);
+    process.exit(1);
+  });
+}

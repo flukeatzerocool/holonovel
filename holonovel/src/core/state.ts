@@ -1448,7 +1448,9 @@ export class StateManager {
       corpus_consumption: data.corpus_consumption ?? [],
     };
     // REQ-092e/092g — retain unknown top-level fields across a load-and-save.
-    const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields"]);
+    // Write-time envelope stamps are not Novel fields; treat them as reserved
+    // so they never re-enter state through `future_fields` and shift the digest.
+  const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "_checksum"]);
     const extras: Record<string, unknown> = {};
     for (const key of Object.keys(data ?? {})) {
       if (blocked.has(key) || Object.prototype.hasOwnProperty.call(novel, key)) continue;
@@ -1733,7 +1735,9 @@ export class StateManager {
     // mutating call after start/resume, or a new TTRPG_SESSION_ID), emit a
     // `[session-boundary]` marker entry and open a new session record.
     const sessionId = process.env.TTRPG_SESSION_ID ?? `session-${novel.metadata.session_count + 1}`;
+    let boundaryOpened = false;
     if (novel.active_session_id !== sessionId) {
+      boundaryOpened = true;
       const prev = novel.active_session_id;
       const now = new Date().toISOString();
       const prevSession = prev ? novel.metadata.sessions.find((s) => s.session_id === prev) : undefined;
@@ -1777,6 +1781,14 @@ export class StateManager {
       cur.entry_count++;
       if (tool === "advance_combat") cur.combat_rounds++;
       if (tool === "set_scene_state") cur.scene_transitions++;
+    }
+    // REQ-237/REQ-603 — `active_session_id` is persisted Novel state, but many
+    // handlers audit after their save. Persist the boundary now so verify does
+    // not report divergence between the live state and the last save. A Novel
+    // loaded from a non-canonical filename has no canonical primary yet; its
+    // boundary lands on the next real save rather than creating a second file.
+    if (boundaryOpened && fs.existsSync(path.join(this.stateDir, "novels", `${novel.slug}.json`))) {
+      this.saveNovel(novel);
     }
   }
 
@@ -2725,7 +2737,9 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
   };
   // REQ-092e/092g — retain unknown top-level fields as inert data so a newer
   // format version survives a load-and-save. Prototype keys are never copied.
-  const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields"]);
+  // Write-time envelope stamps are not Novel fields; treat them as reserved
+  // so they never re-enter state through `future_fields` and shift the digest.
+  const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "_checksum"]);
   const extras: Record<string, unknown> = {};
   for (const key of Object.keys(data ?? {})) {
     if (blocked.has(key) || Object.prototype.hasOwnProperty.call(out, key)) continue;

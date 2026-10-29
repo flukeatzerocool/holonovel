@@ -742,6 +742,18 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 <!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved). -->
 
+- **State-hash bookkeeping exclusions — scheduled 2026-10-29:** the E3 restart
+  gate showed that the canonical hash covers `last_mutation_at` (wall clock) and
+  `active_session_id` (session identity), so two identical seeded processes
+  cannot hash equally and a REQ-237 boundary written after a save makes
+  `verify` report divergence (`holonovel/src/core/state-hash.ts:10-19`;
+  `holonovel/src/core/state.ts:1735-1790`). Predicate: the projection is the
+  full persisted Novel minus the REQ-601 exclusion list, while both fields
+  change without a story mutation. Interim workarounds are masking in two
+  harnesses and a canonical-primary guard in `audit()`. Tracked in ROADMAP.md;
+  the fix amends the exclusion list and removes the workarounds. (REQ-092a,
+  REQ-237, REQ-601, REQ-602, REQ-603)
+
 - **`manage_session` rename — scheduled 2026-10-25:** the external TDQS
   capture grades naming consistency 4/5 and names the
   `manage_session`/`open_session`/`close_session` collision
