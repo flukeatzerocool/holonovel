@@ -22,6 +22,8 @@ import { stateHash, projectState, canonicalJson } from "../../src/core/state-has
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import type { TierResult } from "./eval-schema.js";
 
+// Predicate anchors: line numbers are advisory; refresh them whenever the
+// cited file shifts, or cite a nearby stable symbol instead.
 const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarterArtifact
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";

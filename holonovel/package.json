@@ -82,6 +82,7 @@
     "test:memory-recall": "tsx scripts/test-memory-recall.ts",
     "test:adventure": "tsx scripts/test-adventure.ts",
     "test:artifact-registry": "tsx scripts/test-artifact-registry.ts",
+    "test:hazard": "tsx scripts/test-hazard.ts",
     "test:g7": "tsx scripts/test-g7.ts",
     "test:tool-definitions": "tsx scripts/test-tool-definitions.ts",
     "test:world-provider": "tsx scripts/test-world-provider.ts",

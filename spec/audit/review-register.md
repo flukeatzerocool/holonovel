@@ -812,6 +812,13 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+- **Generic hazard-model implementation drift (2026-10-31):** the reference
+  server still reads `annotations.trap = "snuff=Dread;avoid=0"` and hardcodes
+  the candle/match/wax names, while REQ-622–REQ-622c define annotation-bound
+  survival resources. Scheduled on ROADMAP; the resource mapping needs a design
+  decision before the code changes. (REQ-622; predicate
+  `holonovel/src/index.ts:3936`)
+
 
 ## Closed-P3 (recorded, no action)
 

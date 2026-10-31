@@ -183,6 +183,7 @@ async function main() {
     writeFileSync(join(ADV_DIR, "tampered.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${"0".repeat(64)}\n---\n${body}`);
     writeFileSync(join(ADV_DIR, "badsig.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${hash}\nsignature: ${"0".repeat(64)}\n---\n${body}`);
     writeFileSync(join(ADV_DIR, "unsigned.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\ncontent_hash: ${hash}\n---\n${body}`);
+    writeFileSync(join(ADV_DIR, "sig-no-hash.md"), `---\ncreator: Ada Example\nlicense: CC BY 4.0\nsignature: ${sig}\n---\n${body}`);
     writeFileSync(join(ADV_DIR, "plain.md"), body);
     // Appendix K places no line cap on the block; a block longer than 40 lines
     // must still parse (regression guard for the fixed line scan).
@@ -266,6 +267,9 @@ async function main() {
       assertContains(badsig, "signature");
       const unsigned = await call(proc, "manage_adventure", { action: "load", slug: "unsigned" });
       assertContains(unsigned, "loaded");
+      const sigNoHash = await call(proc, "manage_adventure", { action: "load", slug: "sig-no-hash" });
+      assertContains(sigNoHash, "STATE_CONFLICT");
+      assertContains(sigNoHash, "content_hash");
       await kill(proc);
     });
 

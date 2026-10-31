@@ -81,7 +81,10 @@ export function resolveWithin(base: string, candidate: string): string | null {
   const root = path.resolve(base);
   const target = path.resolve(root, candidate);
   const rel = path.relative(root, target);
-  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  // Reject only a true parent escape. A file merely named `..notes.md` is a
+  // legitimate relative path; `path.isAbsolute` catches drive-letter/rooted
+  // results on every platform.
+  if (!rel || rel === ".." || rel.startsWith(".." + path.sep) || path.isAbsolute(rel)) return null;
   return target;
 }
 

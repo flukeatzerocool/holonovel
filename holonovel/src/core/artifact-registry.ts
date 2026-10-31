@@ -103,7 +103,9 @@ function scanNovels(dir: string): ArtifactEntry[] {
       creator: typeof provenance?.creator === "string" ? provenance.creator : null,
       attribution: typeof provenance?.attribution === "string" ? provenance.attribution : null,
       license: typeof provenance?.license === "string" ? provenance.license : null,
-      integrity: novelChecksumValid(data) ? "verified" : "unverified",
+      // A save with no checksum carries no integrity claim; report `absent`
+      // rather than claiming it "verified" (matches adventure/ruleset entries).
+      integrity: typeof data?._checksum === "string" ? (novelChecksumValid(data) ? "verified" : "unverified") : "absent",
       location,
     });
   }

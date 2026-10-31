@@ -65,6 +65,9 @@ async function main() {
     const okHandler = withForbiddenAudit(async () => ({ content: [{ type: "text", text: "ok\n[FORBIDDEN] quoted in prose" }] }) as any, "x");
     await okHandler({}, { badge: "game_master" });
     assert(audited === 0, `unexpected boundary audit (${audited}) for a quoted marker`);
+    const okFirstLine = withForbiddenAudit(async () => ({ content: [{ type: "text", text: "[FORBIDDEN] appears first but this is a success" }], structuredContent: { status: "OK" } }) as any, "x");
+    await okFirstLine({}, { badge: "game_master" });
+    assert(audited === 0, `unexpected boundary audit (${audited}) for a first-line marker on an OK envelope`);
     const denied = withForbiddenAudit(async () => ({ content: [{ type: "text", text: "[ERROR] [FORBIDDEN] nope" }], structuredContent: { category: "FORBIDDEN" } }) as any, "x");
     await denied({}, { badge: "player" });
     assert(audited === 1, `expected exactly one boundary audit, got ${audited}`);

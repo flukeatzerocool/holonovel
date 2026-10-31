@@ -209,6 +209,46 @@ async function main(): Promise<void> {
       }
     });
 
+    await test("REQ-548b: a JSON-Schema input is rejected, not silently wrapped", async () => {
+      let threw = false;
+      try {
+        index.normalizeToolSchema({ type: "object", properties: { a: { type: "string" } } });
+      } catch {
+        threw = true;
+      }
+      assert(threw, "a JSON Schema object was silently wrapped as a Zod shape");
+    });
+
+    await test("REQ-433: event consumers keep independent subscriptions", async () => {
+      const { EventHub } = await import(pathToFileURL(join(ROOT, "src", "core", "event-hub.ts")).href);
+      const hub = new EventHub();
+      const gotA: string[] = [];
+      const gotB: string[] = [];
+      hub.add("a", ["scene_transition"], (topic: string) => gotA.push(topic));
+      hub.add("b", ["countdown_fire"], (topic: string) => gotB.push(topic));
+      hub.dispatch("scene_transition", {});
+      hub.dispatch("countdown_fire", {});
+      assert(JSON.stringify(gotA) === JSON.stringify(["scene_transition"]), `consumer a got ${gotA.join(",")}`);
+      assert(JSON.stringify(gotB) === JSON.stringify(["countdown_fire"]), `consumer b got ${gotB.join(",")}`);
+      hub.remove("a");
+      hub.dispatch("scene_transition", {});
+      assert(gotA.length === 1, "a removed consumer still received an event");
+      hub.subscribe("b", ["scene_transition"]);
+      hub.dispatch("scene_transition", {});
+      assert(gotB.includes("scene_transition"), "b did not receive after re-subscribe");
+    });
+
+    await test("REQ-433: closing one engine leaves another engine's subscription live", async () => {
+      const other = await createEngine();
+      other.events.subscribe(["scene_transition"], () => {});
+      other.close();
+      const seen: string[] = [];
+      engine.events.subscribe(["scene_transition"], (event: any) => seen.push(event.topic));
+      await engine.tools.call("manage_scene", { action: "set", beat: "event-isolation-probe" });
+      engine.events.unsubscribe(["scene_transition"]);
+      assert(seen.includes("scene_transition"), `live engine received no scene_transition (${seen.length} events)`);
+    });
+
     await test("importing the library does not start a transport", async () => {
       await skipAutostartCheck();
     });

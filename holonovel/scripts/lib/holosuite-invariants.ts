@@ -21,7 +21,8 @@ import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per invariant class, so a finding cites the predicate it
-// rests on rather than a gate message.
+// rests on rather than a gate message. Line numbers are advisory: refresh them
+// whenever the cited file shifts, or cite a nearby stable symbol instead.
 const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
 const P_GATING = "holonovel/src/core/server.ts:22"; // requireGM
 const P_UNDO = "holonovel/src/index.ts:3080"; // undo/redo handler

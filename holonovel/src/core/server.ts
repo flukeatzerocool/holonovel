@@ -60,7 +60,10 @@ export function withForbiddenAudit(
       // success payload that merely quotes `[FORBIDDEN]` must not be audited.
       const firstLine = text.split("\n").find((line) => line.trim().length > 0) ?? "";
       const category = (result as any)?.structuredContent?.category;
-      if (category === "FORBIDDEN" || /^\s*(\[ERROR\]\s*)?\[FORBIDDEN\]/.test(firstLine)) {
+      const status = (result as any)?.structuredContent?.status;
+      // A refusal marker on an OK envelope is quoted content, not a refusal.
+      const markedRefusal = /^\s*(\[ERROR\]\s*)?\[FORBIDDEN\]/.test(firstLine) && status !== "OK";
+      if (category === "FORBIDDEN" || markedRefusal) {
         _state.auditForbidden(ctx.badge, toolName, args);
       }
       return result;

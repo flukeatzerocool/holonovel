@@ -12,7 +12,16 @@ export type AdventureProvenance = {
   signature?: string;
 };
 
-const ADVENTURE_PROVENANCE_KEYS = new Set(["creator", "attribution", "license", "content_hash", "signature"]);
+export const ADVENTURE_PROVENANCE_KEYS = new Set(["creator", "attribution", "license", "content_hash", "signature"]);
+
+/** Constant-time string comparison for HMAC values; length mismatch is a
+ *  mismatch and never reaches `timingSafeEqual` (which throws on it). */
+export function hmacMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 export function parseAdventureProvenance(content: string): { provenance: AdventureProvenance | null; body: string } {
   const lines = content.split("\n");
@@ -46,11 +55,14 @@ export function verifyAdventureProvenance(provenance: AdventureProvenance, body:
     if (actual !== provenance.content_hash) failures.push(`content_hash: expected ${provenance.content_hash}, got ${actual}`);
   }
   if (provenance.signature) {
+    // REQ-617 — a signature attests a content hash; without one there is
+    // nothing to attest, so the block is refused rather than verified over "".
+    if (!provenance.content_hash) failures.push("signature: a signature requires a content_hash");
     const key = process.env.TTRPG_ARTIFACT_VERIFY_KEY;
     if (!key) warnings.push("[signature-unverified] module is signed but no verification key is configured");
     else {
       const want = crypto.createHmac("sha256", key).update(provenance.content_hash ?? "").digest("hex");
-      if (provenance.signature !== want) failures.push("signature: HMAC does not verify");
+      if (!hmacMatches(provenance.signature, want)) failures.push("signature: HMAC does not verify");
     }
   }
   return { failures, warnings };

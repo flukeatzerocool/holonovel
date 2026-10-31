@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-31 — Code-review remediation: hazard draw, adapter events, artifact admission
+
+- Fixed hazard draws (REQ-622b): prior-check accounting now parses the
+  persisted audit `args` JSON string (it always read zero), and the count is
+  folded into the hashed key so repeated checks in a room actually vary. Added
+  `test:hazard`.
+- Artifact admission (REQ-620/REQ-621): removal refuses while any loaded Novel
+  holds the adventure, not only the active one; a checksum-less save reports
+  `absent` instead of `verified`; `list` scans the registry once.
+- Event subscriptions are per consumer (REQ-433): the MCP channel and each
+  engine façade own their topic sets, so subscribing, unsubscribing, or closing
+  one never clears another.
+- Pacing (REQ-336): the counter advances on completed calls only (not thrown
+  errors); the session follows a rename and is dropped on end/archive/remove.
+- Sharing (REQ-096m) refuses a module whose declared license is outside
+  Appendix U and flags an unattributed module; a provenance signature without a
+  content hash refuses (REQ-617). Embedded provenance values are sanitized
+  before write, and loading a module clears a stale generated adventure.
+- Hardened path containment (`..name` files), timing-safe HMAC comparison, the
+  forbidden-audit first-line heuristic, and JSON-Schema tool inputs.
+- Scheduled the generic hazard-model server alignment (REQ-622–REQ-622c) on
+  ROADMAP and the review register.
+
 ## 2026-10-31 — Spec review remediation: hazard model, REQ atomicity, vocabulary
 
 - Generalized the room-hazard contract (REQ-622/REQ-622a, new REQ-622b/REQ-622c):
