@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-30 — Holosuite coverage run: deterministic refresh and Understudies delta
+
+- Refreshed the five deterministic Holosuite tiers to the post-engine surface:
+  T1 proves pacing counts tool calls but not briefing renders and fires
+  autonomy once per window (REQ-336a, REQ-351b); T3 adds artifact source
+  admission, share-format and bounded-recap refusals, the provenance-absent
+  warning, and a tampered-share integrity refusal (REQ-621, REQ-096m, REQ-616,
+  REQ-072e, REQ-617); T2 asserts recap orientation/contract, distinct room
+  prose, and the absence of design-key, sin-label, disposition-label, and
+  counter-ratio leakage (REQ-070b, REQ-077, REQ-279, REQ-326a). Coverage is now
+  38 assertion-derived REQs at 190 assertions, determinism-identical.
+- Extended the shared MCP harness client with `getPrompt()` so a tier can
+  render `badge_briefing`; no existing call changed.
+- Added `observedSurface()` to the playtest library: the Understudies
+  transcript's exercised tool/action surface, prefix histogram, and defect
+  count, self-tested in `test-playtest`.
+- Recorded one bounded Understudies campaign (36 turns, Torre, no ruleset) and
+  a coverage report. The empty-`## World` load is fixed (the existing world is
+  preserved with a `[world-preserved]` warning; T741/REQ-090); the raw-JSON
+  classifier is Closed-P3.
+- Fixed the stale `context_report` predicate anchor (`index.ts:8488` →
+  `:8687`).
+
 ## 2026-10-30 — Torre Nosferatu voice pass and narrator-state separation
 
 - Reworked the starter Novel's prose into a single standing voice — "The

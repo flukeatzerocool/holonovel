@@ -292,6 +292,31 @@ export const GM_LANES = ["gating_leak", "world_population_failure", "coupling_fa
 export const JUDGMENT_LENSES = ["wrong_tool"] as const;
 export const JUDGMENT_GM_LANES = ["world_population_failure", "coupling_failure"] as const;
 
+export interface ObservedSurface {
+  tools: string[];
+  actions: string[];
+  prefixes: Record<string, number>;
+  defect_count: number;
+}
+
+/** Derive the exercised tool/action surface from a playtest transcript. */
+export function observedSurface(records: any[]): ObservedSurface {
+  const tools = new Set<string>();
+  const actions = new Set<string>();
+  const prefixes: Record<string, number> = {};
+  let defect_count = 0;
+  for (const r of records) {
+    if (!r || typeof r.tool !== "string") continue;
+    tools.add(r.tool);
+    const action = r.args && typeof r.args.action === "string" ? r.args.action : null;
+    if (action) actions.add(`${r.tool}:${action}`);
+    const p = typeof r.prefix === "string" ? r.prefix : "[?]";
+    prefixes[p] = (prefixes[p] ?? 0) + 1;
+    if (r.error_class === "defect") defect_count++;
+  }
+  return { tools: [...tools].sort(), actions: [...actions].sort(), prefixes, defect_count };
+}
+
 export interface LensFinding { t: number; tool: string; detail: string; }
 
 /** Contracts the stochastic Understudies campaign exercises, for traceability. */

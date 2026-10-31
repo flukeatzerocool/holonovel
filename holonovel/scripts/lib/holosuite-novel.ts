@@ -26,10 +26,21 @@ const P_HASH = "holonovel/src/core/state-hash.ts:50";
 const P_CONTEXT = "holonovel/src/index.ts:8540";
 const P_VISIBILITY = "holonovel/src/index.ts:8666"; // visibility_check handler
 const P_KNOWLEDGE = "holonovel/src/index.ts:7316"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:9122"; // computeBundleIntegrity
+const P_INTEGRITY = "holonovel/src/index.ts:9131"; // computeBundleIntegrity
 const P_RESTART = "holonovel/src/core/state.ts:2280";
+const P_NARRATOR = "holonovel/src/index.ts:8529"; // recap orientation + contract
 
 const NOVEL_NAME = "Torre Nosferatu";
+// Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the
+// sin labels, and state-machine disposition labels must never reach prose.
+const PROSE_FORBIDDEN = [
+  "PRIVATE DESIGN KEY",
+  "The Seven Sins",
+  "sin-pride", "sin-greed", "sin-lust", "sin-envy",
+  "sin-gluttony", "sin-wrath", "sin-sloth",
+  "friendly:", "hostile:", "wary:", "suspicious:", "neutral:",
+];
+const COUNTER_RATIO = /\b\d+\s*\/\s*\d+\b/;
 const SLUG = "torre-nosferatu";
 const OPPOSITE: Record<string, string> = {
   north: "south", south: "north", east: "west", west: "east",
@@ -174,6 +185,13 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       step++;
       record(`structure_${label}`, actual === expected, `${label}: ${actual} (expected ${expected})`, step, [req], P_STRUCTURE);
     }
+
+    step++;
+    const roomDescriptions = Object.values(novel.world?.rooms ?? {}).map((r) => String(r.description ?? ""));
+    const emptyRooms = roomDescriptions.filter((d) => d.trim().length === 0).length;
+    const uniqueRooms = new Set(roomDescriptions).size;
+    const proseLeaks = PROSE_FORBIDDEN.filter((t) => roomDescriptions.some((d) => d.includes(t)));
+    record("room_descriptions_present_and_distinct", emptyRooms === 0 && uniqueRooms === roomDescriptions.length && proseLeaks.length === 0, `${uniqueRooms}/${roomDescriptions.length} distinct, ${emptyRooms} empty, ${proseLeaks.length} design-key leaks`, step, ["REQ-565", "REQ-326a"], P_STRUCTURE);
 
     step++;
     const candleClock = Object.values(novel.countdowns ?? {}).find((cd) => cd.name === "The Candle");
@@ -324,6 +342,11 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     const replay = await client.call("manage_diagnostics", { action: "replay" });
     record("replay_reads_event", !replay.isError && replay.text.includes("holosuite novel tier probe"), replay.text.split("\n")[0] ?? "", step, ["REQ-604"], P_HASH);
 
+    step++;
+    const gmRecap = await client.call("manage_context", { action: "recap" });
+    const gmRecapLeaks = PROSE_FORBIDDEN.filter((t) => gmRecap.text.includes(t));
+    record("recap_is_prose_only", gmRecap.text.includes("narration_contract") && gmRecap.text.includes("narrative_orientation") && gmRecapLeaks.length === 0 && !COUNTER_RATIO.test(gmRecap.text), gmRecapLeaks.length ? `leaked: ${gmRecapLeaks.join(", ")}` : COUNTER_RATIO.test(gmRecap.text) ? "counter ratio in recap" : "orientation and contract are prose-only", step, ["REQ-279", "REQ-070b"], P_NARRATOR);
+
     // --- Player-badge redaction --------------------------------------------
     await client.call("set_badge", { badge: "player" });
     const gmSecret = (novel.secrets ?? []).find((s) => s.badge_scope === "game_master");
@@ -339,6 +362,10 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     step++;
     const playerVerify = await client.call("manage_diagnostics", { action: "verify" });
     record("player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_HASH);
+    step++;
+    const playerRecap = await client.call("manage_context", { action: "recap" });
+    const playerRecapLeaks = PROSE_FORBIDDEN.filter((t) => playerRecap.text.includes(t));
+    record("player_recap_hides_design_key", playerRecapLeaks.length === 0, playerRecapLeaks.length ? `leaked: ${playerRecapLeaks.join(", ")}` : "no design-key or label leak", step, ["REQ-077", "REQ-326a"], P_NARRATOR);
     await client.call("set_badge", { badge: "game_master" });
 
     // --- Bundle integrity ---------------------------------------------------
