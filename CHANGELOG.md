@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-31 — First-run experience: `open_session` opens the seeded starter
+
+- `open_session` with no `novel` and no active Novel now resumes the only Novel
+  on the server (REQ-577). A fresh install seeds `torre-nosferatu` but activates
+  nothing, so the documented first call previously failed with
+  `[STATE_CONFLICT]`; it now returns the resume recap. Two or more Novels with
+  none active still refuse, naming the available slugs; an explicit `novel` is
+  unchanged.
+- The handshake carries `instructions` naming the session path (`open_session`
+  → `take_turn` → `close_session`), so a client that never opens a prompt still
+  learns the first call.
+- `requireNovel`'s refusal names the real tools (`open_session`,
+  `manage_novel (action: resume | create)`) instead of the nonexistent
+  `create_novel` / `resume_novel`, and lists the Novels that exist.
+- No-ruleset guidance points at `manage_artifact (action: install, kind:
+  ruleset)` — something an installed server can do — and keeps the
+  `build-ruleset` pointer for repository builders.
+- `README.md` and `holonovel/README.md` state that the starter is seeded and
+  opened by `open_session` (not "opened" at start), show the standard
+  `mcpServers` client shape, and note that a container deploy keeps campaign
+  data inside the container unless `TTRPG_DATA_DIR` is a mounted volume.
+- The tool-definitions artifact and the recorded surface budgets are
+  regenerated (full 27,165 tokens; standard 23,567 of a 24,449 cap).
+
 ## 2026-10-31 — Generic hazard model: annotation-bound survival resources
 
 - Rooms carry structured `annotations.encounter` (`spill`, `resource`) and

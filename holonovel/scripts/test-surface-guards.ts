@@ -76,8 +76,28 @@ async function boot(profile: string): Promise<ChildProcess> {
   await new Promise((resolve) => setTimeout(resolve, 250));
   return proc;
 }
-async function call(proc: ChildProcess, name: string, args: Record<string, unknown>): Promise<string> {
-  const response = await send(proc, { method: "tools/call", params: { name, arguments: args } });
+// Boot a second server into its own data directory (first-run checks). Safe
+// because `attach`'s shared buffer is only read while a call is in flight, and
+// the caller's primary process is idle between assertions.
+async function bootAt(dataDir: string, extraEnv: Record<string, string> = {}): Promise<ChildProcess> {
+  const proc = spawn("npx", ["tsx", SERVER], {
+    env: { ...process.env, TTRPG_DATA_DIR: dataDir, ...extraEnv },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  attach(proc);
+  await send(proc, {
+    method: "initialize",
+    params: {
+      protocolVersion: "2024-11-05",
+      capabilities: {},
+      clientInfo: { name: "surface-guards-first-run", version: "1.0.0" },
+    },
+  });
+  proc.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return proc;
+}
+async function call(proc: ChildProcess, name: string, args: Record<string, unknown>): Promise<string> {  const response = await send(proc, { method: "tools/call", params: { name, arguments: args } });
   const content = response?.result?.content ?? [];
   return content.map((part: any) => part?.text ?? "").join("\n");
 }
@@ -138,6 +158,54 @@ async function run(): Promise<void> {
       const forbidden = await call(proc, "manage_combat", { action: "init" });
       assert(forbidden.includes("[FORBIDDEN]"), `open_session did not switch to Player: ${forbidden.slice(0, 160)}`);
       await call(proc, "open_session", { badge: "game_master" });
+    });
+
+    // REQ-577 — a fresh install seeds the starter but activates nothing, so the
+    // documented first call (no arguments) must still open a session.
+    await test("T670: open_session with no arguments opens the only Novel on a fresh install", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "holonovel-first-run-"));
+      const p = await bootAt(dir);
+      try {
+        const recap = await call(p, "open_session", {});
+        assert(!recap.includes("[STATE_CONFLICT]"), `fresh install refused to open: ${recap.slice(0, 200)}`);
+        assert(recap.includes("torre-nosferatu"), `recap did not name the seeded Novel: ${recap.slice(0, 200)}`);
+      } finally {
+        p.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    await test("T670: open_session with no Novel refuses naming the create path", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "holonovel-no-novel-"));
+      const p = await bootAt(dir, { TTRPG_STARTER_NOVEL: "off" });
+      try {
+        const text = await call(p, "open_session", {});
+        assert(text.includes("[STATE_CONFLICT]"), `expected STATE_CONFLICT: ${text.slice(0, 200)}`);
+        assert(text.includes("manage_novel (action: create)"), `did not name the create path: ${text.slice(0, 200)}`);
+      } finally {
+        p.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    await test("T670: two Novels and no active Novel refuses listing the slugs", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "holonovel-many-novels-"));
+      const first = await bootAt(dir, { TTRPG_STARTER_NOVEL: "off" });
+      await call(first, "manage_novel", { action: "create", name: "Alpha" });
+      await call(first, "manage_novel", { action: "create", name: "Beta" });
+      first.kill();
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const p = await bootAt(dir, { TTRPG_STARTER_NOVEL: "off" });
+      try {
+        const text = await call(p, "open_session", {});
+        assert(text.includes("[STATE_CONFLICT]"), `expected STATE_CONFLICT: ${text.slice(0, 200)}`);
+        assert(text.includes("alpha") && text.includes("beta"), `refusal did not list the slugs: ${text.slice(0, 200)}`);
+        const named = await call(p, "open_session", { novel: "alpha" });
+        assert(!named.includes("[STATE_CONFLICT]"), `explicit slug refused: ${named.slice(0, 200)}`);
+      } finally {
+        p.kill();
+        rmSync(dir, { recursive: true, force: true });
+      }
     });
 
     await test("T670: close_session returns recap and context", async () => {

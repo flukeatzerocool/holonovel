@@ -962,7 +962,14 @@ export class StateManager {
 
   requireNovel(): NovelState {
     const novel = this.activeNovel;
-    if (!novel) throw new Error("[STATE_CONFLICT] No active Novel. Corrective action: create_novel or resume_novel first.");
+    if (!novel) {
+      const slugs = [...this.novels.keys()].sort();
+      const action = slugs.length > 0
+        ? "call open_session (it resumes the only Novel), or manage_novel (action: resume | create)"
+        : "create one with manage_novel (action: create)";
+      const available = slugs.length > 0 ? ` Available: ${slugs.join(", ")}.` : "";
+      throw new Error(`[STATE_CONFLICT] No active Novel. Corrective action: ${action}.${available}`);
+    }
     return novel;
   }
 
