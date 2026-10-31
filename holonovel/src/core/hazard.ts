@@ -2,6 +2,7 @@
 // Pure: no I/O and no engine state, so the prior-check accounting and the roll
 // are unit-testable without a Novel. REQ-622b (trap hazard resolution).
 import { createRng } from "./rng.js";
+import type { EncounterAnnotation, TrapAnnotation } from "../world/model.js";
 
 /** The audit fields the hazard accounting reads. `args` is the serialized
  *  argument object `StateManager.audit` persists (a JSON string). */
@@ -58,4 +59,110 @@ export function hazardRoll(
     h = Math.imul(h, 16777619);
   }
   return createRng(h >>> 0).roll(faces);
+}
+
+// REQ-622 — hazard annotations are structured objects. Legacy `key=value`
+// strings (written before the structured model) are coerced so existing Novels
+// keep playing; anything else is ignored with a warning and never blocks entry.
+// `legacyResource` is the caller's pre-change resource inference (the first
+// countdown carrying an exit world effect), used only for legacy strings.
+export interface ParsedHazard {
+  encounter?: EncounterAnnotation;
+  trap?: TrapAnnotation;
+}
+
+export interface HazardParseResult {
+  hazard: ParsedHazard;
+  warnings: string[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function nonNegativeInt(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && Number.isInteger(value);
+}
+
+function positiveInt(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 1 && Number.isInteger(value);
+}
+
+function named(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function optionalWaxCost(value: unknown): number | undefined {
+  return nonNegativeInt(value) ? value : undefined;
+}
+
+function legacyField(text: string, key: string): string | null {
+  const m = text.match(new RegExp(`${key}\\s*=\\s*([A-Za-z0-9 _-]+)`, "i"));
+  return m ? m[1].trim() : null;
+}
+
+export function parseRoomHazard(
+  raw: unknown,
+  room: string,
+  opts: { legacyResource?: string } = {},
+): HazardParseResult {
+  const hazard: ParsedHazard = {};
+  const warnings: string[] = [];
+  if (!isRecord(raw)) return { hazard, warnings };
+
+  const legacyResource = opts.legacyResource?.trim() || "";
+
+  if (raw.encounter !== undefined) {
+    if (isRecord(raw.encounter)) {
+      const enc = raw.encounter;
+      if (nonNegativeInt(enc.spill) && named(enc.resource)) {
+        hazard.encounter = { spill: enc.spill, resource: enc.resource.trim(), ...(optionalWaxCost(enc.avoid) !== undefined ? { avoid: optionalWaxCost(enc.avoid) } : {}) };
+      } else {
+        warnings.push(`room '${room}': encounter annotation needs an integer 'spill' and a non-empty 'resource'`);
+      }
+    } else if (typeof raw.encounter === "string") {
+      const spill = legacyField(raw.encounter, "spill");
+      if (spill !== null && /^\d+$/.test(spill)) {
+        hazard.encounter = { spill: Number(spill), resource: legacyResource, ...(legacyField(raw.encounter, "avoid") !== null ? { avoid: Number(legacyField(raw.encounter, "avoid")) } : {}) };
+        warnings.push(`room '${room}': legacy encounter annotation coerced; rebuild the content to migrate`);
+      } else {
+        warnings.push(`room '${room}': encounter annotation is malformed and was ignored`);
+      }
+    } else {
+      warnings.push(`room '${room}': encounter annotation is malformed and was ignored`);
+    }
+  }
+
+  if (raw.trap !== undefined) {
+    if (isRecord(raw.trap)) {
+      const trap = raw.trap;
+      if (positiveInt(trap.faces) && named(trap.snuff) && named(trap.resource)) {
+        hazard.trap = {
+          snuff: trap.snuff.trim(),
+          faces: trap.faces,
+          resource: trap.resource.trim(),
+          ...(optionalWaxCost(trap.avoid) !== undefined ? { avoid: optionalWaxCost(trap.avoid) } : {}),
+        };
+      } else {
+        warnings.push(`room '${room}': trap annotation needs a positive integer 'faces', a 'snuff' countdown, and a 'resource'`);
+      }
+    } else if (typeof raw.trap === "string") {
+      const snuff = legacyField(raw.trap, "snuff");
+      const avoid = legacyField(raw.trap, "avoid");
+      if (snuff !== null) {
+        hazard.trap = { snuff, faces: 8, resource: legacyResource, ...(avoid !== null && /^\d+$/.test(avoid) ? { avoid: Number(avoid) } : {}) };
+        warnings.push(`room '${room}': legacy trap annotation coerced; rebuild the content to migrate`);
+      } else {
+        warnings.push(`room '${room}': trap annotation is malformed and was ignored`);
+      }
+    } else {
+      warnings.push(`room '${room}': trap annotation is malformed and was ignored`);
+    }
+  }
+
+  if ((hazard.encounter && !hazard.encounter.resource) || (hazard.trap && !hazard.trap.resource)) {
+    warnings.push(`room '${room}': hazard annotation names no survival resource; the hazard is inert`);
+  }
+
+  return { hazard, warnings };
 }

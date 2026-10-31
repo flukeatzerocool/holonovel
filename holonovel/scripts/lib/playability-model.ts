@@ -28,11 +28,24 @@ export interface Finding {
   anchor: string;
 }
 
+export interface HazardEncounter {
+  spill: number;
+  resource: string;
+  avoid?: number;
+}
+
+export interface HazardTrap {
+  snuff: string;
+  faces: number;
+  resource: string;
+  avoid?: number;
+}
+
 export interface Room {
   name: string;
   exits: Map<string, string>;
   doorRefs: Map<string, string>;
-  annotations: Record<string, string>;
+  annotations: { encounter?: HazardEncounter; trap?: HazardTrap };
 }
 
 export interface Thing {
@@ -45,6 +58,7 @@ export interface Thing {
   lockable: boolean;
   locked: boolean;
   key: string | null;
+  bundle_of: string | null;
 }
 
 export interface Countdown {
@@ -54,6 +68,7 @@ export interface Countdown {
   direction: "increment" | "decrement";
   on_scene_transition: boolean;
   triggers: string[];
+  survival: { bundle_increment?: number; per_use_decrement?: number; last_light_ticks?: number } | null;
   world_effect: { type: string; target?: string; direction?: string; destination?: string; property?: string } | null;
 }
 
@@ -143,8 +158,27 @@ export function buildWorldModel(novel: NovelShape, goalOverride?: string): World
     for (const [dir, door] of Object.entries(asRecord(room.doorRefs))) {
       doorRefs.set(lower(dir), lower(door));
     }
-    const annotations: Record<string, string> = {};
-    for (const [key, value] of Object.entries(asRecord(room.annotations))) annotations[lower(key)] = String(value);
+    // REQ-622 — structured hazard annotations; legacy strings are ignored here
+    // (the engine coerces them at read time).
+    const annotations: Room["annotations"] = {};
+    const rawAnnotations = asRecord(room.annotations);
+    const enc = asRecord(rawAnnotations.encounter);
+    if (typeof enc.spill === "number") {
+      annotations.encounter = {
+        spill: enc.spill,
+        resource: String(enc.resource ?? ""),
+        ...(typeof enc.avoid === "number" ? { avoid: enc.avoid } : {}),
+      };
+    }
+    const trap = asRecord(rawAnnotations.trap);
+    if (typeof trap.snuff === "string" && typeof trap.faces === "number") {
+      annotations.trap = {
+        snuff: trap.snuff,
+        faces: trap.faces,
+        resource: String(trap.resource ?? ""),
+        ...(typeof trap.avoid === "number" ? { avoid: trap.avoid } : {}),
+      };
+    }
     rooms.set(lower(name), { name, exits, doorRefs, annotations });
   }
 
@@ -161,6 +195,7 @@ export function buildWorldModel(novel: NovelShape, goalOverride?: string): World
       lockable: thing.lockable === true,
       locked: thing.locked === true,
       key: thing.key == null ? null : lower(thing.key),
+      bundle_of: lower(asRecord(thing.annotations).bundle_of) || null,
     });
   }
 
@@ -286,6 +321,15 @@ export function countdowns(model: WorldModel): Countdown[] {
       direction: cd.direction === "increment" ? "increment" : "decrement",
       on_scene_transition: cd.on_scene_transition === true,
       triggers: Array.isArray(cd.triggers) ? cd.triggers.map(String) : [],
+      // REQ-622c — survival-resource parameters (bundle/per-use/last-light).
+      survival: (() => {
+        const s = asRecord(cd.survival);
+        const out: { bundle_increment?: number; per_use_decrement?: number; last_light_ticks?: number } = {};
+        if (typeof s.bundle_increment === "number") out.bundle_increment = s.bundle_increment;
+        if (typeof s.per_use_decrement === "number") out.per_use_decrement = s.per_use_decrement;
+        if (typeof s.last_light_ticks === "number") out.last_light_ticks = s.last_light_ticks;
+        return out;
+      })(),
       world_effect: effect
         ? {
             type: String(effect.type ?? ""),
@@ -335,7 +379,7 @@ export function countdownFindings(model: WorldModel): Finding[] {
         novel,
         pointer,
         detail: `countdown '${cd.name}' has total ${cd.total} (< 1)`,
-        anchor: `${ANCHOR}:323`,
+        anchor: `${ANCHOR}:376`,
       });
       continue;
     }
@@ -345,7 +389,7 @@ export function countdownFindings(model: WorldModel): Finding[] {
         novel,
         pointer,
         detail: `countdown '${cd.name}' world_effect target '${cd.world_effect.target}' does not resolve`,
-        anchor: `${ANCHOR}:305`,
+        anchor: `${ANCHOR}:349`,
       });
     }
   }
@@ -355,14 +399,24 @@ export function countdownFindings(model: WorldModel): Finding[] {
 /** Refill things keyed by room lower-name for one gating clock. */
 function refillsFor(model: WorldModel, countdown: Countdown): Map<string, { thing: string; delta: number }[]> {
   const byRoom = new Map<string, { thing: string; delta: number }[]>();
+  const add = (thingId: string, location: string | null, delta: number) => {
+    if (!location || delta === 0) return;
+    const list = byRoom.get(location) ?? [];
+    list.push({ thing: thingId, delta });
+    byRoom.set(location, list);
+  };
+  // REQ-622c — annotation-bound bundles declare the increment on the resource.
+  const increment = countdown.survival?.bundle_increment ?? 0;
+  for (const [id, thing] of model.things) {
+    if (thing.bundle_of && thing.bundle_of === countdown.name.toLowerCase()) add(id, thing.location, increment);
+  }
+  // Legacy trigger-bound refills (a countdown without a survival annotation).
   for (const trigger of countdown.triggers) {
     const parsed = triggerDelta(trigger);
     if (!parsed || parsed.kind !== "thing_take" || parsed.delta === 0) continue;
     const thing = model.things.get(parsed.target);
-    if (!thing || !thing.location) continue;
-    const list = byRoom.get(thing.location) ?? [];
-    list.push({ thing: parsed.target, delta: parsed.delta });
-    byRoom.set(thing.location, list);
+    if (!thing) continue;
+    add(parsed.target, thing.location, parsed.delta);
   }
   return byRoom;
 }
@@ -396,7 +450,7 @@ export function economyFindings(model: WorldModel, path: WinningPath): Finding[]
         novel,
         pointer: `/countdowns/${cd.name}`,
         detail: `countdown '${cd.name}' expires after ${collapseAt} of ${path.transitions} transitions on the winning path`,
-        anchor: `${ANCHOR}:372`,
+        anchor: `${ANCHOR}:426`,
       });
     }
   }
@@ -427,12 +481,13 @@ export function balanceReport(model: WorldModel, path: WinningPath): BalanceRepo
   const dreadCd = countdowns(model).find((cd) => cd.name.toLowerCase() === "dread");
   let dread = dreadCd?.ticks ?? 0;
   const matchCd = countdowns(model).find((cd) => cd.name.toLowerCase() === "matches");
+  const matchIncrement = matchCd?.survival?.bundle_increment ?? 2;
   const matchRooms = new Map<string, number>();
-  for (const trigger of matchCd?.triggers ?? []) {
-    const parsed = triggerDelta(trigger);
-    if (!parsed || parsed.kind !== "thing_take") continue;
-    const thing = model.things.get(parsed.target);
-    if (thing?.location) matchRooms.set(thing.location, (matchRooms.get(thing.location) ?? 0) + Math.abs(parsed.delta));
+  // REQ-622c — match bundles are annotation-bound things, not take triggers.
+  for (const thing of model.things.values()) {
+    if (thing.bundle_of === "matches" && thing.location) {
+      matchRooms.set(thing.location, (matchRooms.get(thing.location) ?? 0) + matchIncrement);
+    }
   }
   let ticks = gating.ticks;
   let low = ticks;
@@ -440,18 +495,15 @@ export function balanceReport(model: WorldModel, path: WinningPath): BalanceRepo
     const room = path.visited[i];
     if (i > 0) ticks -= 1;
     const annotations = model.rooms.get(room)?.annotations ?? {};
-    const encounter = /spill=(\d+)/i.exec(annotations.encounter ?? "");
-    if (encounter) spill += Number(encounter[1]);
+    const encounter = annotations.encounter;
+    if (encounter) spill += encounter.spill;
     if (annotations.trap) {
-      if (/avoid=([1-9]\d*)/i.test(annotations.trap)) detourTraps += 1;
+      if ((annotations.trap.avoid ?? 0) > 0) detourTraps += 1;
       trapTicks.push(dread);
     }
     if (matchRooms.has(room)) matchBundles += 1;
     for (const refill of refills.get(room) ?? []) ticks = Math.min(gating.total, ticks + refill.delta);
-    if (annotations.encounter) {
-      const n = Number(/spill=(\d+)/i.exec(annotations.encounter ?? "")?.[1] ?? 0);
-      ticks -= n;
-    }
+    if (encounter) ticks -= encounter.spill;
     if (matchCd && matchRooms.has(room)) {
       // matches are counted, not wax; handled above
     }
@@ -459,7 +511,7 @@ export function balanceReport(model: WorldModel, path: WinningPath): BalanceRepo
     if (/entry landing$/i.test(room) && (dreadCd?.direction ?? "increment") === "increment") dread += 1;
   }
   const expectedSnuffs = trapTicks.reduce((sum, value) => sum + value, 0) / 8;
-  const remainingMatches = Math.max(0, matchBundles * 2 - expectedSnuffs);
+  const remainingMatches = Math.max(0, matchBundles * matchIncrement - expectedSnuffs);
   return { remainingWax: ticks, remainingMatches, lowWater: low, spill, expectedSnuffs, matchBundles, detourTraps };
 }
 
@@ -509,7 +561,7 @@ export function staticFindings(model: WorldModel, path: WinningPath | null, enco
         novel,
         pointer: "/world/rooms",
         detail: `no path from '${model.start ?? "(no start)"}' to ${[...model.goals].join(", ") || "(no goal)"}`,
-        anchor: `${ANCHOR}:197`,
+        anchor: `${ANCHOR}:232`,
       });
     }
   }
@@ -526,7 +578,7 @@ export function staticFindings(model: WorldModel, path: WinningPath | null, enco
         novel,
         pointer: `/encounters/${encounter.at_room}`,
         detail: `encounter at '${encounter.at_room}' names unknown participant(s): ${missing.join(", ")}`,
-        anchor: `${ANCHOR}:434`,
+        anchor: `${ANCHOR}:575`,
       });
     }
   }
@@ -549,7 +601,7 @@ function softLock(model: WorldModel): Finding | null {
         novel,
         pointer: `/world/things/${keyName}`,
         detail: `key '${keyName}' is only reachable behind '${doorName}', which it opens`,
-        anchor: `${ANCHOR}:473`,
+        anchor: `${ANCHOR}:616`,
       };
     }
   }
@@ -576,6 +628,10 @@ function reachableWithDoorClosed(model: WorldModel, closedDoor: string): Set<str
 
 function refillThingsOnPath(model: WorldModel, path: WinningPath): string[] {
   const candidates = new Set<string>();
+  // REQ-622c — annotation-bound bundles.
+  for (const [id, thing] of model.things) {
+    if (thing.bundle_of) candidates.add(id);
+  }
   for (const cd of countdowns(model)) {
     for (const trigger of cd.triggers) {
       const parsed = triggerDelta(trigger);

@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 107793,
+  "tools_list_bytes": 108483,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 107793,
-        "tokens": 26949
+        "bytes": 108483,
+        "tokens": 27121
       },
       "standard": {
         "tools": 37,
-        "bytes": 93400,
-        "tokens": 23350
+        "bytes": 94090,
+        "tokens": 23523
       },
       "small": {
         "tools": 6,
@@ -844,7 +844,7 @@
         "remove",
         "list"
       ],
-      "param_count": 9,
+      "param_count": 10,
       "required": [
         "action"
       ],
@@ -853,6 +853,7 @@
         "name": "Countdown name (set/advance/remove).",
         "on_scene_transition": "When true, advance on each scene transition (set).",
         "scope": "Optional scope name (set).",
+        "survival": "Survival-resource parameters applied when a room hazard names this countdown (set; REQ-622c).",
         "ticks": "Starting ticks (set).",
         "total": "Optional capacity for decrement refills (set; defaults to ticks).",
         "triggers": "Optional world-model triggers (set).",
@@ -870,9 +871,9 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 10,
+        "paramCount": 11,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 10,
+        "paramsWithDescriptions": 11,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -883,7 +884,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2861,
+        "definitionBytes": 3551,
         "descriptionBytes": 629
       },
       "category": "",

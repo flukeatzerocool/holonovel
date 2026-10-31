@@ -12,7 +12,7 @@
  * Exit codes: 0 = pass, 1 = one or more assertions failed, 2 = fatal.
  *
  * Usage: tsx scripts/test-starter-novel.ts [--help]
- * REQ-565, REQ-566, REQ-622, REQ-622a.
+ * REQ-565, REQ-566, REQ-622, REQ-622a, REQ-622b, REQ-622c.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -154,16 +154,25 @@ async function main(): Promise<void> {
       const candleClock = novel!.countdowns.get("The Candle");
       assert(candleClock?.ticks === 30, "the Candle starts at 30 wax");
       assert(candleClock?.total === 100, "the Candle capacity is 100");
-      assert((candleClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+10$/.test(t)).length === 7, "seven wax refill triggers are wired");
+      assert(candleClock?.survival?.bundle_increment === 10, "the Candle declares a ten-tick bundle increment");
+      assert(candleClock?.survival?.per_use_decrement === 1, "the Candle declares a one-tick per-use decrement");
+      assert(candleClock?.survival?.last_light_ticks === 3, "the Candle declares a three-tick last light");
+      assert(candleClock?.survival?.light_thing === "your candle", "the Candle binds its light thing");
+      assert(candleClock?.survival?.unit_countdown === "Matches", "the Candle binds its relight units");
+      const waxBundles = [...world.things.values()].filter((t) => t.annotations?.bundle_of === "The Candle");
+      assert(waxBundles.length === 7, "seven wax bundles are annotation-bound");
       const matchesClock = novel!.countdowns.get("Matches");
       assert(matchesClock?.ticks === 0 && matchesClock?.direction === "increment", "matches start at zero");
-      assert((matchesClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+2$/.test(t)).length === 3, "three two-match bundles are wired");
+      assert(matchesClock?.survival?.bundle_increment === 2, "a match bundle adds two");
+      const matchBundles = [...world.things.values()].filter((t) => t.annotations?.bundle_of === "Matches");
+      assert(matchBundles.length === 3, "three match bundles are annotation-bound");
       const bundles = [...world.things.values()].filter((t) => /^Matches \(/.test(t.name));
       assert(bundles.length === 3 && bundles.every((t) => /Two matches/.test(t.description ?? "")), "three bundles carry two matches");
-      const hazardRooms = [...world.rooms.values()].filter((r) => (r.annotations as any)?.trap || (r.annotations as any)?.encounter);
+      const hazardRooms = [...world.rooms.values()].filter((r) => r.annotations?.trap || r.annotations?.encounter);
       assert(hazardRooms.length === 12, "twelve hazard rooms are annotated");
-      assert([...world.rooms.values()].filter((r) => (r.annotations as any)?.encounter).length === 6, "six encounter rooms spill wax");
-      assert([...world.rooms.values()].filter((r) => (r.annotations as any)?.trap).length === 6, "six trap rooms resolve snuff checks");
+      assert([...world.rooms.values()].filter((r) => r.annotations?.encounter).length === 6, "six encounter rooms spill wax");
+      assert([...world.rooms.values()].filter((r) => r.annotations?.trap).length === 6, "six trap rooms resolve snuff checks");
+      assert(hazardRooms.every((r) => (r.annotations.trap ? r.annotations.trap.resource === "The Candle" && r.annotations.trap.faces === 8 : true)), "trap annotations carry structured resource and faces");
       assert([...novel!.npcs.values()].filter((n) => n.disposition === "friendly").length === 1, "only Petr starts friendly");
       assert([...novel!.npcs.values()].filter((n) => n.disposition === "wary").length >= 3, "the survivors start cold");
       const sensory = [...world.things.values()].filter((t) => t.noise || t.scent);
@@ -219,7 +228,7 @@ async function main(): Promise<void> {
       assert(trap.text.startsWith("[OK]"), `go north failed: ${trap.text.split("\n")[0]}`);
       let state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
       assert(state.countdowns["The Candle"].ticks === 49, `candle should be 49, got ${state.countdowns["The Candle"].ticks}`);
-      assert(state.countdowns["Last Light"]?.ticks === 3, "a no-match snuff starts a three-tick last light");
+      assert(state.countdowns["The Candle — last light"]?.ticks === 3, "a no-match snuff starts a three-tick last light");
       assert(state.world.things["your candle"].lit === false, "a no-match snuff extinguishes the candle");
       assert(state.countdowns["Matches"].ticks === 0, "no match is spent without one");
 
@@ -230,7 +239,7 @@ async function main(): Promise<void> {
       const resumed = await c.call("manage_novel", { action: "resume", slug: SLUG });
       assert(!resumed.isError, `restart resume failed: ${resumed.text}`);
       state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
-      assert(state.countdowns["The Candle"].ticks === 49 && state.countdowns["Last Light"]?.ticks === 3, "hazard state survives restart");
+      assert(state.countdowns["The Candle"].ticks === 49 && state.countdowns["The Candle — last light"]?.ticks === 3, "hazard state survives restart");
 
       const exit = await c.call("run_command", { action: "execute", command: "go south" });
       assert(exit.text.startsWith("[OK]"), "leave the trap");
@@ -239,7 +248,7 @@ async function main(): Promise<void> {
       const back = await c.call("run_command", { action: "execute", command: "go west" });
       assert(back.text.startsWith("[OK]"), "return to the connector");
       state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
-      assert(!state.countdowns["Last Light"], "last light expires after three transitions");
+      assert(!state.countdowns["The Candle — last light"], "last light expires after three transitions");
       assert(!state.world.rooms["first floor — antechamber"].exits?.out, "last light seals the exit");
     } finally {
       await c.close();
@@ -281,7 +290,163 @@ async function main(): Promise<void> {
       state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
       assert(state.countdowns["Matches"].ticks === 1, "a relight spends one match");
       assert(state.world.things["your candle"].lit === true, "a match relights the candle");
-      assert(!state.countdowns["Last Light"], "a relight cancels last light");
+      assert(!state.countdowns["The Candle — last light"], "a relight cancels last light");
+    } finally {
+      await c.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await test("T742/REQ-622c: a unit buys last light at wax-out", async () => {
+    const dir = freshDir();
+    const s = new StateManager(dir);
+    s.seedStarterNovel();
+    s.hydrateNovelsFromDisk();
+    const seeded = s.novels.get(SLUG);
+    assert(seeded, "starter hydrated");
+    seeded!.countdowns.get("The Candle")!.ticks = 1;
+    seeded!.countdowns.get("Dread")!.ticks = 0;
+    seeded!.countdowns.get("Matches")!.ticks = 2;
+    s.saveNovel(seeded!);
+
+    const c = await bootServer({ serverDir: SERVER_DIR, dataDir: dir, env: { TTRPG_BADGE: "game_master", TTRPG_STARTER_NOVEL: "off", TTRPG_SEED: "1" } });
+    try {
+      const resume = await c.call("manage_novel", { action: "resume", slug: SLUG });
+      assert(!resume.isError, `resume failed: ${resume.text}`);
+      const advanced = await c.call("manage_countdown", { action: "advance", name: "The Candle" });
+      assert(!advanced.isError, `advance failed: ${advanced.text}`);
+      const state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
+      assert(!state.countdowns["The Candle"], "the expiring resource is consumed");
+      assert(state.countdowns["The Candle — last light"]?.ticks === 3, "a unit buys the declared last light");
+      assert(state.countdowns["Matches"].ticks === 1, "the reprieve spends one unit");
+    } finally {
+      await c.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await test("T741/REQ-622: a malformed annotation warns and permits entry", async () => {
+    const dir = freshDir();
+    const s = new StateManager(dir);
+    s.seedStarterNovel();
+    s.hydrateNovelsFromDisk();
+    const seeded = s.novels.get(SLUG);
+    assert(seeded, "starter hydrated");
+    seeded!.scene_location = "Sixth Floor — Connector 4";
+    const main = seeded!.entities.get("character_01");
+    assert(main, "active entity present");
+    main!.current_room = "Sixth Floor — Connector 4";
+    const warren = seeded!.world.rooms.get("sixth floor — beast warren");
+    assert(warren, "warren present");
+    (warren as any).annotations = { trap: { snuff: 5 } };
+    seeded!.countdowns.get("The Candle")!.ticks = 50;
+    seeded!.countdowns.get("Dread")!.ticks = 0;
+    s.saveNovel(seeded!);
+
+    const c = await bootServer({ serverDir: SERVER_DIR, dataDir: dir, env: { TTRPG_BADGE: "game_master", TTRPG_STARTER_NOVEL: "off", TTRPG_SEED: "1" } });
+    try {
+      const resume = await c.call("manage_novel", { action: "resume", slug: SLUG });
+      assert(!resume.isError, `resume failed: ${resume.text}`);
+      const entered = await c.call("run_command", { action: "execute", command: "go east" });
+      assert(entered.text.startsWith("[OK]"), `entry must not be blocked: ${entered.text.split("\n")[0]}`);
+      assert(/\[WARNING\] room 'Sixth Floor — Beast Warren': trap annotation/.test(entered.text), `warning expected: ${entered.text}`);
+      const state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
+      assert(state.entities.character_01.current_room?.toLowerCase() === "sixth floor — beast warren", "the move landed");
+    } finally {
+      await c.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await test("T741/REQ-622a: an encounter subtracts its declared spill", async () => {
+    const dir = freshDir();
+    const s = new StateManager(dir);
+    s.seedStarterNovel();
+    s.hydrateNovelsFromDisk();
+    const seeded = s.novels.get(SLUG);
+    assert(seeded, "starter hydrated");
+    seeded!.scene_location = "Sixth Floor — Connector 4";
+    const main = seeded!.entities.get("character_01");
+    assert(main, "active entity present");
+    main!.current_room = "Sixth Floor — Connector 4";
+    seeded!.countdowns.get("The Candle")!.ticks = 50;
+    seeded!.countdowns.get("Dread")!.ticks = 0;
+    s.saveNovel(seeded!);
+
+    const c = await bootServer({ serverDir: SERVER_DIR, dataDir: dir, env: { TTRPG_BADGE: "game_master", TTRPG_STARTER_NOVEL: "off", TTRPG_SEED: "1" } });
+    try {
+      const resume = await c.call("manage_novel", { action: "resume", slug: SLUG });
+      assert(!resume.isError, `resume failed: ${resume.text}`);
+      const entered = await c.call("run_command", { action: "execute", command: "go east" });
+      assert(entered.text.startsWith("[OK]"), `entry failed: ${entered.text.split("\n")[0]}`);
+      const state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
+      // One scene-transition tick (REQ-353) plus the declared spill of 1.
+      assert(state.countdowns["The Candle"].ticks === 48, `wax should be 48, got ${state.countdowns["The Candle"].ticks}`);
+      const spill = (state.audit_log ?? []).find((e: any) => e.tool === "hazard_spill");
+      assert(spill, "the spill is audited");
+      const args = JSON.parse(spill.args);
+      assert(args.resource === "The Candle" && args.spill === 1, `spill names the resource: ${spill.args}`);
+    } finally {
+      await c.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  await test("T742/REQ-622c: the Player badge sees units without a tick total", async () => {
+    const c = await bootServer({ serverDir: SERVER_DIR, env: { TTRPG_BADGE: "player" } });
+    try {
+      const resume = await c.call("manage_novel", { action: "resume", slug: SLUG });
+      assert(!resume.isError, `resume failed: ${resume.text}`);
+      // The seeded Novel persists badge "none" and an opening decision; clear
+      // both before switching to the Player badge.
+      await c.call("respond_decision", { decision: "present_choices", option: "cancel" });
+      const badge = await c.call("set_badge", { badge: "player" });
+      assert(!badge.isError, `badge switch failed: ${badge.text}`);
+      const list = await c.call("manage_countdown", { action: "list" });
+      assert(!list.isError, `list failed: ${list.text}`);
+      const rows = JSON.parse(list.text);
+      assert(Array.isArray(rows) && rows.length > 0, "the player sees active countdowns");
+      assert(rows.every((r: any) => !("total" in r)), "the player list omits tick totals");
+      assert(rows.every((r: any) => typeof r.ticks === "number"), "the player list reports remaining units");
+    } finally {
+      await c.close();
+    }
+  });
+
+  await test("T742/REQ-622b: climbing into a hazard room resolves the hazard", async () => {
+    const dir = freshDir();
+    const s = new StateManager(dir);
+    s.seedStarterNovel();
+    s.hydrateNovelsFromDisk();
+    const seeded = s.novels.get(SLUG);
+    assert(seeded, "starter hydrated");
+    seeded!.scene_location = "Sixth Floor — Connector 4";
+    const main = seeded!.entities.get("character_01");
+    assert(main, "active entity present");
+    main!.current_room = "Sixth Floor — Connector 4";
+    seeded!.countdowns.get("The Candle")!.ticks = 50;
+    seeded!.countdowns.get("Dread")!.ticks = 8;
+    seeded!.countdowns.get("Matches")!.ticks = 0;
+    seeded!.world.things.set("iron ladder", {
+      name: "Iron Ladder", description: "An iron ladder bolted into the shaft.", kind: "thing",
+      location: "Sixth Floor — Connector 4", locationType: "room",
+      portable: false, openable: false, open: false, lockable: false, locked: false,
+      lit: false, switchable: false, switched_on: false, enterable: false, vehiclePassengers: [],
+      wearable: false, worn_by: null, readable: false, read_text: null, edible: false,
+      drinkable: false, climbable: true, transparent: false, noise: null, scent: null, annotations: {},
+    } as any);
+    seeded!.world.rooms.get("sixth floor — connector 4")!.exits.set("up", "Sixth Floor — Trap Hall");
+    s.saveNovel(seeded!);
+
+    const c = await bootServer({ serverDir: SERVER_DIR, dataDir: dir, env: { TTRPG_BADGE: "game_master", TTRPG_STARTER_NOVEL: "off", TTRPG_SEED: "1" } });
+    try {
+      const resume = await c.call("manage_novel", { action: "resume", slug: SLUG });
+      assert(!resume.isError, `resume failed: ${resume.text}`);
+      const climbed = await c.call("run_command", { action: "execute", command: "climb iron ladder" });
+      assert(climbed.text.startsWith("[OK]"), `climb failed: ${climbed.text.split("\n")[0]}`);
+      const state = JSON.parse(readFileSync(join(c.dataDir, "novels", `${SLUG}.json`), "utf-8"));
+      assert(state.countdowns["The Candle — last light"]?.ticks === 3, "the trap fired on the climb entry path");
+      assert(state.world.things["your candle"].lit === false, "the climb snuff extinguished the light");
     } finally {
       await c.close();
       rmSync(dir, { recursive: true, force: true });

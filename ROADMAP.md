@@ -6,13 +6,12 @@
   Update this file when planning a release.
 -->
 
-## Implement the generic hazard model (REQ-622–REQ-622c)
+## Materialize adventure-module hazard annotations (REQ-079a, REQ-622)
 
-- The reference server still implements the Torre-specific candle/wax/match
-  mechanic with name-based lookups, while §5.10 defines annotation-bound
-  survival resources. Align `holonovel/src/index.ts`, migrate the starter
-  artifact's room/countdown annotations, and re-baseline the hazard tests.
-  (REQ-622, REQ-622a, REQ-622b, REQ-622c)
+- `manage_world (action: convert)` and `manage_adventure (action: load)` count
+  `@encounter`/`@trap` annotations but never write the target room's structured
+  hazard field, so the §5.10 materialization sentence is unimplemented. Emit
+  the annotation from `convertSource` and extend the adventure-load test.
 
 ## Not planned — compact tool surface
 

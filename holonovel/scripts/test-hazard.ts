@@ -14,7 +14,7 @@
  */
 import { strict as assert } from "node:assert";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
-import { countPriorHazardChecks, hazardRoll, parseAuditArgs } from "../src/core/hazard.js";
+import { countPriorHazardChecks, hazardRoll, parseAuditArgs, parseRoomHazard } from "../src/core/hazard.js";
 import type { AuditLike } from "../src/core/hazard.js";
 installHarnessGuard();
 
@@ -66,6 +66,42 @@ test("REQ-622b: the draw stays within the declared face count", () => {
     const roll = hazardRoll(priorChecks(n), "seed-1", "Trap Hall", 6);
     assert.ok(roll >= 1 && roll <= 6, `roll ${roll} outside 1..6`);
   }
+});
+
+test("REQ-622: a well-formed structured annotation parses", () => {
+  const { hazard, warnings } = parseRoomHazard({
+    encounter: { spill: 2, resource: "The Candle" },
+    trap: { snuff: "Dread", faces: 6, resource: "The Candle" },
+  }, "Trap Hall");
+  assert.deepEqual(hazard.encounter, { spill: 2, resource: "The Candle" });
+  assert.deepEqual(hazard.trap, { snuff: "Dread", faces: 6, resource: "The Candle" });
+  assert.equal(warnings.length, 0);
+});
+
+test("REQ-622: malformed annotations warn and are dropped", () => {
+  const { hazard, warnings } = parseRoomHazard({ trap: { snuff: 5 }, encounter: { resource: "The Candle" } }, "Trap Hall");
+  assert.equal(hazard.trap, undefined);
+  assert.equal(hazard.encounter, undefined);
+  assert.equal(warnings.length, 2);
+  assert.ok(warnings.every((w) => w.includes("Trap Hall")));
+});
+
+test("REQ-622: legacy string annotations coerce with a warning", () => {
+  const { hazard, warnings } = parseRoomHazard(
+    { trap: "snuff=Dread;avoid=2", encounter: "spill=1" },
+    "Trap Hall",
+    { legacyResource: "The Candle" },
+  );
+  assert.deepEqual(hazard.trap, { snuff: "Dread", faces: 8, resource: "The Candle", avoid: 2 });
+  assert.deepEqual(hazard.encounter, { spill: 1, resource: "The Candle" });
+  assert.equal(warnings.length, 2);
+  assert.ok(warnings.every((w) => w.includes("legacy")));
+});
+
+test("REQ-622: an unknown resource name is not a parse error", () => {
+  const { hazard, warnings } = parseRoomHazard({ encounter: { spill: 1, resource: "Missing" } }, "Trap Hall");
+  assert.deepEqual(hazard.encounter, { spill: 1, resource: "Missing" });
+  assert.equal(warnings.length, 0);
 });
 
 if (failed === 0) harnessComplete();

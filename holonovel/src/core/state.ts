@@ -174,6 +174,17 @@ export interface LoreEntry {
   world_target?: string;
 }
 
+// REQ-622c — survival-resource annotation. The declared parameters live on the
+// countdown itself; `light_thing` names the world thing whose `lit` flag is the
+// resource's light, and `unit_countdown` names the clock spent per relight.
+export interface SurvivalResource {
+  bundle_increment?: number;
+  per_use_decrement?: number;
+  last_light_ticks?: number;
+  light_thing?: string;
+  unit_countdown?: string;
+}
+
 export interface Countdown {
   name: string;
   ticks: number;
@@ -190,6 +201,8 @@ export interface Countdown {
   triggers?: string[];
   // REQ-368 — countdown-world effect coupling: applied when the countdown fires.
   world_effect?: { type: "describe" | "property" | "exit"; target: string; direction?: string; destination?: string; property?: string; value?: string };
+  // REQ-622c — survival-resource annotation (hazard rooms draw this down).
+  survival?: SurvivalResource;
   // REQ-340a — ledger index at creation; discovery eligibility scans scenes
   // recorded at or after this index. Absent for legacy countdowns (index 0).
   created_scene_index?: number;

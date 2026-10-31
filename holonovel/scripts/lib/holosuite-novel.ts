@@ -27,12 +27,12 @@ import type { TierResult } from "./eval-schema.js";
 const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarterArtifact
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
-const P_CONTEXT = "holonovel/src/index.ts:8836";
+const P_CONTEXT = "holonovel/src/index.ts:8898";
 const P_VISIBILITY = "holonovel/src/index.ts:8875"; // visibility_check handler
-const P_KNOWLEDGE = "holonovel/src/index.ts:7490"; // knowledge_query handler
+const P_KNOWLEDGE = "holonovel/src/index.ts:7551"; // knowledge_query handler
 const P_INTEGRITY = "holonovel/src/index.ts:9407"; // computeBundleIntegrity
-const P_RESTART = "holonovel/src/core/state.ts:2280";
-const P_NARRATOR = "holonovel/src/index.ts:8693"; // recap orientation + contract
+const P_RESTART = "holonovel/src/core/state.ts:2293";
+const P_NARRATOR = "holonovel/src/index.ts:8754"; // recap orientation + contract
 
 const NOVEL_NAME = "Torre Nosferatu";
 // Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the
@@ -200,9 +200,10 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     record("room_descriptions_present_and_distinct", emptyRooms === 0 && uniqueRooms === roomDescriptions.length && proseLeaks.length === 0, `${uniqueRooms}/${roomDescriptions.length} distinct, ${emptyRooms} empty, ${proseLeaks.length} design-key leaks`, step, ["REQ-565", "REQ-326a"], P_STRUCTURE);
 
     step++;
-    const candleClock = Object.values(novel.countdowns ?? {}).find((cd) => cd.name === "The Candle");
-    const refills = (candleClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+10$/.test(t)).length;
-    record("candle_starts_partial", candleClock?.ticks === 30 && candleClock?.total === 100 && refills === 7, `Candle ${candleClock?.ticks}/${candleClock?.total}, ${refills} refill triggers`, step, ["REQ-565"], P_STRUCTURE);
+    const candleClock = Object.values(novel.countdowns ?? {}).find((cd) => cd.name === "The Candle") as any;
+    // REQ-622c — bundles are annotation-bound things, not take triggers.
+    const refills = Object.values(novel.world?.things ?? {}).filter((t: any) => t.annotations?.bundle_of === "The Candle").length;
+    record("candle_starts_partial", candleClock?.ticks === 30 && candleClock?.total === 100 && refills === 7, `Candle ${candleClock?.ticks}/${candleClock?.total}, ${refills} annotated bundles`, step, ["REQ-565"], P_STRUCTURE);
 
     step++;
     const hazardRooms = Object.values(novel.world?.rooms ?? {}).filter((r) => r.annotations?.trap || r.annotations?.encounter);

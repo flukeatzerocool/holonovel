@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-31 — Generic hazard model: annotation-bound survival resources
+
+- Rooms carry structured `annotations.encounter` (`spill`, `resource`) and
+  `annotations.trap` (`snuff`, `faces`, `resource`) objects instead of
+  `key=value` strings. Malformed annotations warn and never block entry; legacy
+  strings coerce at read time so existing Novels keep playing (REQ-622).
+- Survival parameters live on the resource countdown as a `survival`
+  annotation — bundle increment, per-use decrement, last-light ticks, light
+  thing, and unit countdown (REQ-622c). `manage_countdown (action: set)` accepts
+  them, and the tool-definitions artifact is regenerated.
+- The resolver no longer hardcodes candle/match/wax names: an encounter debits
+  its named resource (REQ-622a), a trap sizes its seeded check by `faces`
+  against the `snuff` clock (REQ-622b), and a unit relights the light or buys
+  the declared last light at expiry. Bundles are `annotations.bundle_of` things
+  that advance the resource by its declared increment. Traps now resolve on the
+  `climb` entry path too.
+- The starter Novel migrates its 12 hazard rooms to the structured shape and
+  its ten bundles to `bundle_of`, dropping the `on_thing_take` refill triggers.
+  `content/torre-nosferatu.json` is rebuilt (REQ-566).
+- Behavior change: the last-light clock is named `<resource> — last light`, and
+  a unit at expiry buys last light instead of the world effect firing (REQ-622c).
+
 ## 2026-10-31 — Publication tooling: remote identity and early confirmation refusal
 
 - Step 9 compares the deploy clone's origin with the publication remote by
