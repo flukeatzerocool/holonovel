@@ -62,7 +62,10 @@ function textOf(result: unknown): string {
 function isFailure(result: unknown, tool = ""): boolean {
   if ((result as { isError?: boolean })?.isError === true) return true;
   const text = textOf(result);
-  if (text.startsWith("[ERROR]") || text.includes("[ERROR] [")) return true;
+  // A denial is a failure unless the step explicitly expects it; the derived
+  // script has no expected-denial step, so continue-on-denial would hide a
+  // broken step (CR-38).
+  if (/^\[(ERROR|STATE_CONFLICT|FORBIDDEN|RULE_VIOLATION|INVALID_INPUT|NEED_INPUT|NOT_FOUND)\]/.test(text.trim())) return true;
   return tool === "run_command" && text.startsWith("[WARNING]");
 }
 

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-10-31 — Script review remediation: gate integrity, update safety, harness robustness
+
+- Validators now fail instead of silently skipping: a missing structural
+  anchor, duplicate REQ header, or absent base-capability section is an error;
+  the Appendix U parity check errors under `--sdd-strict`; the coverage
+  ratchet reads the committed `HEAD` baseline so regenerating the register
+  cannot admit a new gap, and dangling PASSIVE/§8 detection uses the real
+  heading. `check-registers` fails on a missing input.
+- Spec-delta classification is extracted into a pure module and the numeric
+  REQ family is preserved, so a state-model or tool-surface edit is classified
+  major again; the self-test now exercises a real delta.
+- Update and release safety: a failed rebuild is no longer recorded as applied;
+  registry emitters are restricted to a trusted root; git is invoked without a
+  shell; `--server` is slug-validated; registry, version, and Spec Update
+  writes are atomic and validate patterns before writing; the deploy clone is
+  guarded against self/foreign remotes; pipeline snapshots, delta class,
+  push-count, and tags fail closed; assemble refuses missing or duplicate
+  appendices.
+- Harness robustness: the MCP client rejects on child exit, times out, drains
+  stderr, and decodes multi-byte frames; both pattern-buffer drivers reject
+  denial envelopes, assert an observable restart, and install the fail-loud
+  guard; the mutation catch rate excludes oracle-seeded tautological mutants;
+  the adversarial tier fingerprints every persisted Novel; playability fails
+  loud on a corrupt manifest and on denials.
+- Test integrity: test RPC helpers throw on protocol errors, empty-state
+  payloads are asserted rather than coerced to `[]`, temp data dirs are
+  removed, T351 queries a real character entity, and the update workflow uses
+  the trusted-emitter root explicitly.
+
 ## 2026-10-31 — Code-review remediation: hazard draw, adapter events, artifact admission
 
 - Fixed hazard draws (REQ-622b): prior-check accounting now parses the

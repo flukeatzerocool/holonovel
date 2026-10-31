@@ -17,6 +17,9 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, rmSync, mkdirSync, mkdtempSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+
+installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const SPEC_PATH = join(import.meta.dirname!, "..", "..", "holonovel.md");
@@ -102,9 +105,12 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 // ── Assertions ─────────────────────────────────────────────────────
 
+// Refuse every defect and denial prefix, not only the three original ones, so
+// an INVALID_INPUT or NOT_FOUND response cannot pass as OK (CR-35).
+const ERROR_PREFIXES = ["[ERROR]", "[STATE_CONFLICT]", "[FORBIDDEN]", "[RULE_VIOLATION]", "[INVALID_INPUT]", "[NEED_INPUT]", "[NOT_FOUND]"];
 function assertOK(response: string) {
-  if (response.includes("[ERROR]") || response.includes("[STATE_CONFLICT]") || response.includes("[FORBIDDEN]"))
-    throw new Error(`Expected OK, got error: ${response.substring(0, 300)}`);
+  const hit = ERROR_PREFIXES.find((p) => response.includes(p));
+  if (hit) throw new Error(`Expected OK, got ${hit}: ${response.substring(0, 300)}`);
 }
 
 function assertContains(response: string, substr: string) {
@@ -793,6 +799,7 @@ async function main() {
   }
 
   console.log("\nPASS: All blocking sub-workflows passed.");
+  harnessComplete();
   process.exit(0);
 }
 

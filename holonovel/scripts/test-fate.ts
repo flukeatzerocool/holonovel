@@ -5,7 +5,7 @@
 // Exit codes: 0 = pass, 1 = one or more assertions failed.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -174,7 +174,8 @@ async function main() {
 
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
+  rmSync(DATA_DIR, { recursive: true, force: true });
   process.exit(failed > 0 ? 1 : 0);
 }
 
-main().catch((e) => { console.error("Harness fatal error:", e); process.exit(2); });
+main().catch((e) => { rmSync(DATA_DIR, { recursive: true, force: true }); console.error("Harness fatal error:", e); process.exit(2); });

@@ -162,6 +162,12 @@ if (!server) {
 }
 
 const serverName = server;
+// The name is interpolated into the printed/invoked command and into the
+// server directory path; accept only the slug shape (CR-17).
+if (!/^[a-z0-9-]+$/.test(serverName)) {
+  console.error(`Invalid --server '${serverName}': expected a lowercase slug ([a-z0-9-]+).`);
+  process.exit(1);
+}
 const serverDir = serverDirArg ?? join(root, serverName);
 const stored = loadStored();
 const previous = stored[serverName];
@@ -406,16 +412,15 @@ if ((scopeByFingerprint || checkOnly) && previous) {
   console.log(`Invoking: ${updateCommand}`);
 }
 
-// Save current fingerprints (normal mode only — --check never writes)
-if (!checkOnly) {
-  reconcile(currentHash, currentFingerprints);
-}
-
 // Auto-invoke only when explicitly enabled and running outside a session.
+// Reconcile AFTER a successful invocation: invokeUpdate exits 1 on failure, so
+// a failed rebuild can never be recorded as applied (CR-1).
 if (updateCommand && invokeEnabled && !checkOnly) {
   invokeUpdate(updateCommand);
+  reconcile(currentHash, currentFingerprints);
   console.log("\nFingerprints saved. Update workflow invoked.");
 } else {
+  if (!checkOnly) reconcile(currentHash, currentFingerprints);
   console.log("\nFingerprints saved. Next: run the printed `opencode run` command to perform the actual update.");
 }
 process.exit(0);

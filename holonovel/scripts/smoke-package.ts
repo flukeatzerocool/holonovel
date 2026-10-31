@@ -285,7 +285,7 @@ async function main(): Promise<void> {
       assert.equal(library.status, 0, `library import exited ${library.status}: ${library.stderr}`);
     });
 
-    if (usedOfflineFallback) console.error("  WARN offline fallback was used; dependency resolution was not exercised");
+    assert.equal(usedOfflineFallback, false, "offline node_modules fallback was used; dependency resolution was not exercised");
   } finally {
     rpc.close();
     rmSync(TEMP, { recursive: true, force: true });

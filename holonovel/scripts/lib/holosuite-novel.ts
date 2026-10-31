@@ -28,11 +28,11 @@ const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarter
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
 const P_CONTEXT = "holonovel/src/index.ts:8836";
-const P_VISIBILITY = "holonovel/src/index.ts:8858"; // visibility_check handler
+const P_VISIBILITY = "holonovel/src/index.ts:8875"; // visibility_check handler
 const P_KNOWLEDGE = "holonovel/src/index.ts:7490"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:9370"; // computeBundleIntegrity
+const P_INTEGRITY = "holonovel/src/index.ts:9407"; // computeBundleIntegrity
 const P_RESTART = "holonovel/src/core/state.ts:2280";
-const P_NARRATOR = "holonovel/src/index.ts:8675"; // recap orientation + contract
+const P_NARRATOR = "holonovel/src/index.ts:8693"; // recap orientation + contract
 
 const NOVEL_NAME = "Torre Nosferatu";
 // Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the
@@ -53,8 +53,10 @@ const OPPOSITE: Record<string, string> = {
 
 interface Room {
   name?: string;
+  description?: string;
   exits?: Record<string, string>;
   doorRefs?: Record<string, string>;
+  annotations?: Record<string, unknown>;
 }
 interface Thing {
   name?: string;
@@ -381,15 +383,20 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     // --- Player-badge redaction --------------------------------------------
     await client.call("set_badge", { badge: "player" });
     const gmSecret = (novel.secrets ?? []).find((s) => s.badge_scope === "game_master");
+    const hasGmSecret = typeof gmSecret?.content === "string" && gmSecret.content.length > 0;
+    step++;
+    // The redaction assertions are only meaningful with a real GM secret; a
+    // missing fixture must fail rather than degrade to vacuous passes (CR-34b).
+    record("gm_secret_fixture_present", hasGmSecret, hasGmSecret ? "GM secret fixture present" : "no GM-scoped secret in the fixture", step, ["REQ-542"], P_KNOWLEDGE);
     step++;
     const knowledge = await client.call("manage_belief", { action: "knowledge_query" });
-    const leaksSecret = gmSecret?.content ? knowledge.text.includes(gmSecret.content) : false;
-    record("knowledge_query_hides_gm_secrets", !leaksSecret, leaksSecret ? "knowledge query leaked a GM secret" : "no GM secret content returned", step, ["REQ-542"], P_KNOWLEDGE);
+    const leaksSecret = hasGmSecret ? knowledge.text.includes(gmSecret!.content) : false;
+    record("knowledge_query_hides_gm_secrets", hasGmSecret && !leaksSecret, !hasGmSecret ? "no GM secret fixture" : leaksSecret ? "knowledge query leaked a GM secret" : "no GM secret content returned", step, ["REQ-542"], P_KNOWLEDGE);
     step++;
-    const visibility = gmSecret?.content
-      ? await client.call("manage_diagnostics", { action: "visibility_check", text: `The truth: ${gmSecret.content}` })
+    const visibility = hasGmSecret
+      ? await client.call("manage_diagnostics", { action: "visibility_check", text: `The truth: ${gmSecret!.content}` })
       : await client.call("manage_diagnostics", { action: "visibility_check", text: "probe" });
-    record("visibility_redacts_gm_secret", visibility.text.includes("[visibility]") && (!gmSecret?.content || !visibility.text.includes(gmSecret.content)), visibility.text.split("\n")[0] ?? visibility.text.slice(0, 80), step, ["REQ-599"], P_VISIBILITY);
+    record("visibility_redacts_gm_secret", hasGmSecret && visibility.text.includes("[visibility]") && !visibility.text.includes(gmSecret!.content), visibility.text.split("\n")[0] ?? visibility.text.slice(0, 80), step, ["REQ-599"], P_VISIBILITY);
     step++;
     const playerVerify = await client.call("manage_diagnostics", { action: "verify" });
     record("player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_HASH);

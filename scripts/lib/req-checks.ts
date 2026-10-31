@@ -265,7 +265,9 @@ export function checkBaseCapabilityDefaults(text: string): string[] {
   const issues: string[] = [];
   const start = text.indexOf("### 5.21");
   const end = text.indexOf("### 5.24");
-  if (start === -1 || end === -1 || end < start) return issues;
+  if (start === -1 || end === -1 || end < start) {
+    return ["ERROR: cannot locate §5.21–§5.24 headings for the base-capability default scan"];
+  }
   const region = text.slice(start, end);
 
   // Values owned by the Appendix O.11 tuning table. A §5.21–§5.23 REQ body that

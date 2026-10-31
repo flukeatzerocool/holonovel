@@ -45,7 +45,7 @@ const DATA_SECTIONS = [
 function extractSection(text: string, heading: string): string {
   const lines = text.split("\n");
   const startIdx = lines.findIndex((l) => l.startsWith(heading));
-  if (startIdx < 0) return "";
+  if (startIdx < 0) throw new Error(`contract-fingerprint: required section heading not found: ${heading}`);
   const level = (heading.match(/^#+/) ?? [""])[0].length;
   const out: string[] = [lines[startIdx]];
   for (let i = startIdx + 1; i < lines.length; i++) {

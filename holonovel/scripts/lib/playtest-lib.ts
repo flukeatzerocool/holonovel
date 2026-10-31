@@ -12,6 +12,8 @@ import type { EvalEvent } from "./eval-schema.js";
 export const DEFECT_PREFIXES = new Set(["[ERROR]", "[RULE_VIOLATION]", "[STATE_CONFLICT]"]);
 /** Prefixes that indicate an expected refusal/handoff, not a defect. */
 export const DENIAL_PREFIXES = new Set(["[FORBIDDEN]", "[INVALID_INPUT]", "[NEED_INPUT]", "[NOT_FOUND]"]);
+/** Prefixes that indicate success (or a non-terminal warning). */
+export const OK_PREFIXES = new Set(["[OK]", "[WARNING]", "[PARTIAL]"]);
 /** Terminal dispositions accepted by spec/audit/review-register.md. */
 export const REGISTER_DISPOSITIONS = new Set(["Resolved", "Scheduled-roadmap", "Closed-P3", "Deferred-by-user"]);
 /** Tools whose calls may legitimately change the room set. */
@@ -23,21 +25,34 @@ export const WORLD_TOOLS = new Set(["manage_world", "manage_adventure", "run_com
  * is returned, so classification keys on the code (`[NOT_FOUND]`,
  * `[STATE_CONFLICT]`), not the generic outer `[ERROR]`.
  */
+const KNOWN_PREFIXES = new Set([...DEFECT_PREFIXES, ...DENIAL_PREFIXES, ...OK_PREFIXES]);
+
 export function prefix(text: string): string {
   const firstLine = text.split("\n").find((l) => l.trim().length > 0) ?? "";
   const leading = firstLine.match(/^\s*((?:\[[A-Z_]+\]\s*)+)/);
   if (leading) {
     const tokens = leading[1].match(/\[[A-Z_]+\]/g) ?? [];
+    const known = tokens.filter((t) => KNOWN_PREFIXES.has(t));
+    // A compound envelope keys on its most specific known code; an unknown
+    // token is returned as-is so errorClass can flag it (CR-33).
+    if (known.length) return known[known.length - 1]!;
     if (tokens.length) return tokens[tokens.length - 1]!;
   }
-  const any = text.match(/\[(OK|WARNING|ERROR|PARTIAL|NEED_INPUT|FORBIDDEN|NOT_FOUND|RULE_VIOLATION|STATE_CONFLICT|INVALID_INPUT|[A-Z_]+)\]/);
-  return any ? any[0] : (text.startsWith("[") ? text.slice(0, 24) : "[?]");
+  const any = text.match(/\[[A-Z_]+\]/g) ?? [];
+  const known = any.find((t) => KNOWN_PREFIXES.has(t));
+  if (known) return known;
+  if (any.length) return any[0]!;
+  return text.startsWith("[") ? text.slice(0, 24) : "[?]";
 }
 
 /** Classify a result prefix as a defect, an expected denial, or ok. */
 export function errorClass(p: string): "defect" | "denial" | "ok" {
   if (DEFECT_PREFIXES.has(p)) return "defect";
   if (DENIAL_PREFIXES.has(p)) return "denial";
+  if (OK_PREFIXES.has(p) || p === "[?]") return "ok";
+  // Any other bracketed uppercase token is not a recognized envelope: treat it
+  // as a defect rather than a silent success (CR-33).
+  if (/^\[[A-Z_]+\]$/.test(p)) return "defect";
   return "ok";
 }
 

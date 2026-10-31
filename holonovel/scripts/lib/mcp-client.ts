@@ -11,6 +11,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { StringDecoder } from "node:string_decoder";
 
 export interface CallResult {
   text: string;
@@ -30,7 +31,10 @@ export interface McpClient {
 
 interface Pending {
   resolve: (v: unknown) => void;
+  reject: (e: Error) => void;
 }
+
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export async function bootServer(opts: { serverDir: string; dataDir?: string; seed?: number; env?: Record<string, string> }): Promise<McpClient> {
   const ownsDataDir = opts.dataDir === undefined;
@@ -49,8 +53,18 @@ export async function bootServer(opts: { serverDir: string; dataDir?: string; se
   let msgId = 0;
   const pending = new Map<number, Pending>();
   let buffer = "";
+  let stderrTail = "";
+  const decoder = new StringDecoder("utf8");
+  // Reject every in-flight request when the child dies, so a crashed server
+  // cannot leave an await pending forever (CR-2).
+  const settleAll = (err: Error): void => {
+    for (const p of pending.values()) p.reject(err);
+    pending.clear();
+  };
   proc.stdout!.on("data", (d: Buffer) => {
-    buffer += d.toString();
+    // Decode across chunk boundaries so a split multi-byte character is not
+    // corrupted into an unparseable line.
+    buffer += decoder.write(d);
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
@@ -67,16 +81,28 @@ export async function bootServer(opts: { serverDir: string; dataDir?: string; se
       }
     }
   });
+  // Drain stderr; an unread pipe fills and blocks the child.
+  proc.stderr!.on("data", (d: Buffer) => { stderrTail = (stderrTail + d.toString()).slice(-8000); });
+  proc.on("exit", (code, signal) => settleAll(new Error(`server exited (${code ?? signal}) before responding; stderr: ${stderrTail.slice(-500)}`)));
+  proc.on("error", (err) => settleAll(err));
 
   function send(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const id = ++msgId;
-      pending.set(id, { resolve });
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error(`MCP ${method} timed out after ${REQUEST_TIMEOUT_MS}ms; stderr: ${stderrTail.slice(-500)}`));
+      }, REQUEST_TIMEOUT_MS);
+      pending.set(id, {
+        resolve: (v) => { clearTimeout(timer); resolve(v); },
+        reject: (e) => { clearTimeout(timer); reject(e); },
+      });
       proc.stdin!.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n");
     });
   }
 
-  await send("initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "holosuite", version: "1" } });
+  const init = (await send("initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "holosuite", version: "1" } })) as { error?: { message?: string } };
+  if (init.error) throw new Error(`initialize failed: ${init.error.message ?? "unknown error"}`);
   proc.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
   await new Promise((r) => setTimeout(r, 250));
 
@@ -108,7 +134,9 @@ export async function bootServer(opts: { serverDir: string; dataDir?: string; se
   async function getPrompt(name: string, args?: Record<string, string>): Promise<string> {
     const raw = (await send("prompts/get", { name, arguments: args ?? {} })) as {
       result?: { messages?: Array<{ content?: { text?: string } }> };
+      error?: { message?: string };
     };
+    if (raw.error) throw new Error(`prompts/get ${name} failed: ${raw.error.message ?? "unknown error"}`);
     return (raw.result?.messages ?? []).map((m) => m.content?.text ?? "").join("\n");
   }
 

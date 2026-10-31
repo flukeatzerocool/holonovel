@@ -430,10 +430,17 @@ async function main() {
       if (intent.status !== "resolved") throw new Error(`resolve_intent status: ${intent.status}`);
     });
 
-    await test("T351/T356/T307: entity presence — NPC appears in knowledge surface", async () => {
-      await call(proc, "manage_npc", { action: "create",  name: "PresenceNPC", description: "Present.", disposition: "neutral" });
-      const k = await call(proc, "manage_lore", { action: "knowledge",  entity_id: "presencenpc" });
-      assertContains(k, "presencenpc");
+    await test("T351/T356/T307: entity presence — created entity appears in knowledge surface", async () => {
+      // NPCs live in novel.npcs, not novel.entities; querying an NPC's slug
+      // returns a NOT_FOUND whose text still contains the slug. Use a real
+      // character entity and assert the knowledge payload, not the echo (CR-3).
+      const created = await call(proc, "manage_character", { action: "create", name: "PresenceEntity", description: "Present." });
+      const idMatch = created.match(/Entity id ([a-z0-9_]+)/i);
+      if (!idMatch) throw new Error(`create did not return an entity id: ${created.substring(0, 200)}`);
+      const k = await call(proc, "manage_lore", { action: "knowledge", entity_id: idMatch[1] });
+      if (k.includes("[NOT_FOUND]")) throw new Error(`entity ${idMatch[1]} missing from knowledge surface: ${k}`);
+      const known = JSON.parse(k);
+      if (!Array.isArray(known)) throw new Error(`knowledge did not return an array: ${k.substring(0, 200)}`);
     });
 
     await kill(proc);

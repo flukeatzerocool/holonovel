@@ -10,8 +10,8 @@
 // `emitter`/`emitter_args` (the rebuild invocation), `base_content_hash` and
 // `supplements` (REQ-557). No filesystem side effects beyond the exported calls.
 
-import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, realpathSync, unlinkSync } from "node:fs";
+import { join, sep } from "node:path";
 import { CORE_TOOL_GROUPS } from "../../holonovel/src/rulesets.js";
 
 export interface RecipeSource {
@@ -35,17 +35,39 @@ export function registryFile(dataDir: string): string {
 }
 
 export function loadRegistry(dataDir: string): Record<string, RegistryEntry> {
+  const file = registryFile(dataDir);
+  // A missing registry is a fresh install; a present-but-unparseable one is
+  // corruption and must not be silently replaced by an empty map (CR-18).
+  if (!existsSync(file)) return {};
+  let raw: string;
   try {
-    return JSON.parse(readFileSync(registryFile(dataDir), "utf-8"));
-  } catch {
-    // Missing or unreadable registry → empty map; intake recreates it.
-    return {};
+    raw = readFileSync(file, "utf-8");
+  } catch (e) {
+    throw new Error(`Cannot read ruleset registry ${file}: ${(e as Error).message}`);
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`Corrupt ruleset registry ${file}: ${(e as Error).message}`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Corrupt ruleset registry ${file}: expected a JSON object`);
+  }
+  return parsed as Record<string, RegistryEntry>;
 }
 
 export function saveRegistry(dataDir: string, entries: Record<string, RegistryEntry>): void {
   mkdirSync(dataDir, { recursive: true });
-  writeFileSync(registryFile(dataDir), JSON.stringify(entries, null, 2) + "\n", "utf-8");
+  const file = registryFile(dataDir);
+  const tmp = `${file}.tmp-${process.pid}`;
+  try {
+    writeFileSync(tmp, JSON.stringify(entries, null, 2) + "\n", "utf-8");
+    renameSync(tmp, file);
+  } catch (e) {
+    try { unlinkSync(tmp); } catch { /* tmp may not exist; original untouched */ }
+    throw e;
+  }
 }
 
 // REQ-579 — a package whose tools predate the surface contract needs a rebuild
@@ -114,7 +136,25 @@ export function resolveEmitter(
     candidates.push(join(join(src, ".."), "build", "build-package.mjs"));
     candidates.push(join(src, "build-package.mjs"));
   }
-  const emitter = candidates.find((c) => existsSync(c));
+  // Only execute an emitter that resolves under the repo's per-slug build
+  // directory (or an operator-configured trusted root). The registry lives in
+  // a writable data dir, so an unconstrained path is a code-execution vector
+  // (CR-16).
+  const trustedRoots = [join(root, "scripts", "ruleset-builds", slug)];
+  if (process.env.HOLONOVEL_TRUSTED_EMITTER_ROOT) trustedRoots.push(process.env.HOLONOVEL_TRUSTED_EMITTER_ROOT);
+  const isTrusted = (candidate: string): boolean => {
+    try {
+      const real = realpathSync(candidate);
+      return trustedRoots.some((rootDir) => {
+        let realRoot: string;
+        try { realRoot = realpathSync(rootDir); } catch { return false; }
+        return real === realRoot || real.startsWith(realRoot + sep);
+      });
+    } catch {
+      return false;
+    }
+  };
+  const emitter = candidates.find((c) => existsSync(c) && isTrusted(c));
   if (!emitter) return null;
   const isRepoEmitter = emitter === repoEmitter;
   const args = entry?.emitter_args

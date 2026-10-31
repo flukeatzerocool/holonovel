@@ -43,8 +43,12 @@ function readFile(filePath: string): string {
   return text;
 }
 
-function parseAppendices(text: string): { header: string; blocks: Map<string, string> } {
+function parseAppendices(text: string, label: string): { header: string; blocks: Map<string, string> } {
   const blocks = new Map<string, string>();
+  const setBlock = (letter: string, body: string): void => {
+    if (blocks.has(letter)) throw new Error(`${label}: duplicate Appendix ${letter}`);
+    blocks.set(letter, body);
+  };
   const parts = text.split("\n\n---\n\n");
 
   let header = "";
@@ -56,7 +60,7 @@ function parseAppendices(text: string): { header: string; blocks: Map<string, st
       header = parts[0].slice(0, headerEnd + 2); // "# Appendices\n\n"
       const block = parts[0].slice(headerEnd + 2); // "## Appendix A: ..."
       const m = block.match(/^## Appendix ([A-Z]):/);
-      if (m) blocks.set(m[1], block);
+      if (m) setBlock(m[1], block);
     } else {
       header = parts[0];
     }
@@ -65,7 +69,7 @@ function parseAppendices(text: string): { header: string; blocks: Map<string, st
 
   for (let i = restIdx; i < parts.length; i++) {
     const m = parts[i].match(/^## Appendix ([A-Z]):/);
-    if (m) blocks.set(m[1], parts[i]);
+    if (m) setBlock(m[1], parts[i]);
   }
 
   return { header, blocks };
@@ -83,16 +87,29 @@ function assemble(): { content: string; report: string[] } {
   }
 
   // Appendices — interleaved from three source files
-  const { header: refHeader, blocks: refBlocks } = parseAppendices(readFile(APPENDIX_REF));
+  const { header: refHeader, blocks: refBlocks } = parseAppendices(readFile(APPENDIX_REF), APPENDIX_REF);
   report.push(`  ${APPENDIX_REF} (${refBlocks.size} appendices)`);
-  const { blocks: fixBlocks } = parseAppendices(readFile(APPENDIX_FIX));
+  const { blocks: fixBlocks } = parseAppendices(readFile(APPENDIX_FIX), APPENDIX_FIX);
   report.push(`  ${APPENDIX_FIX} (${fixBlocks.size} appendices)`);
-  const { blocks: licBlocks } = parseAppendices(readFile(APPENDIX_LIC));
+  const { blocks: licBlocks } = parseAppendices(readFile(APPENDIX_LIC), APPENDIX_LIC);
   report.push(`  ${APPENDIX_LIC} (${licBlocks.size} appendices)`);
-  const { blocks: runBlocks } = parseAppendices(readFile(APPENDIX_RUN));
+  const { blocks: runBlocks } = parseAppendices(readFile(APPENDIX_RUN), APPENDIX_RUN);
   report.push(`  ${APPENDIX_RUN} (${runBlocks.size} appendices)`);
 
-  const allBlocks = new Map([...refBlocks, ...fixBlocks, ...licBlocks, ...runBlocks]);
+  // A malformed or duplicated heading must fail assembly rather than silently
+  // dropping content from the assembled spec (CR-21).
+  const allBlocks = new Map<string, string>();
+  for (const [label, blocks] of [[APPENDIX_REF, refBlocks], [APPENDIX_FIX, fixBlocks], [APPENDIX_LIC, licBlocks], [APPENDIX_RUN, runBlocks]] as const) {
+    for (const [letter, block] of blocks) {
+      if (allBlocks.has(letter)) throw new Error(`Appendix ${letter} is defined by more than one source file (${label})`);
+      allBlocks.set(letter, block);
+    }
+  }
+  const missing = [...APPENDIX_ORDER].filter((letter) => !allBlocks.has(letter));
+  if (missing.length > 0) throw new Error(`Missing appendices: ${missing.join(", ")}`);
+  const extras = [...allBlocks.keys()].filter((letter) => !APPENDIX_ORDER.includes(letter));
+  if (extras.length > 0) throw new Error(`Unexpected appendix letters: ${extras.join(", ")}`);
+
   const ordered: string[] = [];
   for (const letter of APPENDIX_ORDER) {
     const block = allBlocks.get(letter);

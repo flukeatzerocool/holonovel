@@ -72,13 +72,17 @@ function checkFile(file: string): void {
   const content = readFileSync(file, "utf-8");
 
   for (const line of content.split("\n")) {
-    const uses = line.match(/^\s*-?\s*uses:\s*(\S+)\s*$/);
+    const uses = line.match(/^\s*-?\s*uses:\s*(\S+)/);
     if (uses) {
       const ref = uses[1]!;
       const name = ref.split("@")[0]!;
       const min = MIN_ACTION_MAJOR[name];
       const major = min === undefined ? null : actionMajor(ref);
-      if (min !== undefined && major !== null && major < min) {
+      if (min !== undefined && major === null) {
+        issues.push(
+          `${rel}: ${ref} is not a major-version pin; use ${name}@v${min}+ (Node 24 runtime)`,
+        );
+      } else if (min !== undefined && major !== null && major < min) {
         issues.push(
           `${rel}: ${ref} is below the required major; use ${name}@v${min}+ (Node 24 runtime)`,
         );

@@ -119,6 +119,7 @@ async function boot(): Promise<ChildProcess> {
 }
 async function call(proc: ChildProcess, name: string, args: Record<string, unknown> = {}): Promise<string> {
   const resp = await send(proc, { method: "tools/call", params: { name, arguments: args } });
+  if (resp.error) throw new Error(`${name}: ${resp.error.message ?? JSON.stringify(resp.error)}`);
   const content = resp.result?.content ?? [];
   return content.map((c: any) => c?.text ?? "").join("\n");
 }

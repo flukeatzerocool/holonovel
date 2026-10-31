@@ -605,7 +605,8 @@ async function main() {
 
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
+  rmSync(DATA_DIR, { recursive: true, force: true });
   process.exit(failed > 0 ? 1 : 0);
 }
 
-main().catch((e) => { console.error("Harness fatal error:", e); process.exit(2); });
+main().catch((e) => { rmSync(DATA_DIR, { recursive: true, force: true }); console.error("Harness fatal error:", e); process.exit(2); });

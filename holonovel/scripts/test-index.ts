@@ -16,7 +16,7 @@ let msgId = 0; const pending = new Map(); let buffer = "";
 function send(proc: any, msg: any): Promise<any> { return new Promise((r) => { const id = ++msgId; pending.set(id, r); proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n"); }); }
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
 async function boot() { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "index", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
-async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
+async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); if (r.error) throw new Error(`${name}: ${r.error.message ?? JSON.stringify(r.error)}`); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;
@@ -27,7 +27,7 @@ function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
 async function lore(p: any, key: string, content: string, badge_scope = "shared", triggers: string[] = []) { return call(p, "manage_lore", { action: "set", key, content, badge_scope, triggers }); }
 async function build(p: any) { return call(p, "manage_knowledge", { action: "index_build" }); }
-async function search(p: any, query: string, limit = 5): Promise<any[]> { const t = await call(p, "manage_knowledge", { action: "index_search", query, limit }); try { return JSON.parse(t); } catch { return []; } }
+async function search(p: any, query: string, limit = 5): Promise<any[]> { const t = await call(p, "manage_knowledge", { action: "index_search", query, limit }); if (/^\[OK\] No /.test(t.trim())) return []; try { return JSON.parse(t); } catch { throw new Error(`search results were not JSON: ${t.slice(0, 200)}`); } }
 
 async function main() {
   // ── T594: offline build (REQ-504) ────────────────────────────────────

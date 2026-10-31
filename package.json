@@ -65,7 +65,8 @@
     "spec-delta": "npx tsx scripts/spec-delta.ts",
     "check-performance-record": "npx tsx scripts/check-performance-record.ts",
     "check-tdqs-scoreboard": "npx tsx scripts/check-tdqs-scoreboard.ts",
-    "gates": "npx tsx scripts/run-gates.ts"
+    "gates": "npx tsx scripts/run-gates.ts",
+    "typecheck:scripts": "npx tsc -p holonovel/tsconfig.scripts.json --noEmit"
   },
   "keywords": [],
   "author": "",

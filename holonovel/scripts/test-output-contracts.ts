@@ -26,7 +26,7 @@ async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIP
 async function bootApps(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: { extensions: { "io.modelcontextprotocol/ui": {} } }, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function callRaw(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); return r.result ?? {}; }
 async function readRaw(proc: any, uri: string) { const r = await send(proc, { method: "resources/read", params: { uri } }); return r.result ?? {}; }
-async function call(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
+async function call(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); if (r.error) throw new Error(`${name}: ${r.error.message ?? JSON.stringify(r.error)}`); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function proto(proc: any, method: string, params: any) {
   const r = await send(proc, { method, params });
   if (r.result?.contents) return r.result.contents.map((x: any) => x.text ?? "").join("\n");

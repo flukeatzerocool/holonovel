@@ -45,6 +45,7 @@ async function boot(env: any = {}): Promise<any> {
 }
 async function raw(proc: any, name: string, args: any = {}): Promise<any> {
   const r = await send(proc, { method: "tools/call", params: { name, arguments: args } });
+  if (r.error) throw new Error(`${name}: ${r.error.message ?? JSON.stringify(r.error)}`);
   return r.result ?? {};
 }
 async function call(proc: any, name: string, args: any = {}): Promise<string> {

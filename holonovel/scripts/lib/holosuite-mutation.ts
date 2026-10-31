@@ -77,22 +77,38 @@ function evidence(): Evidence {
   return { tx, oracle };
 }
 
-interface Mutant { id: string; lens: string; detail: string; caught: () => boolean; }
+interface Mutant {
+  id: string;
+  lens: string;
+  detail: string;
+  caught: () => boolean;
+  /**
+   * `false` when the mutant seeds the oracle field that the lens re-emits
+   * verbatim — the lens is then caught by construction and proves nothing.
+   * These are reported separately and excluded from the catch rate (CR-32).
+   */
+  derived: boolean;
+}
+
+// Lenses whose signal computeLenses reads from the seeded oracle rather than
+// deriving from the transcript. Their mutants are tautological until the lens
+// derives the signal itself.
+const ORACLE_DERIVED = new Set(["hallucinated_tool", "unrecovered_error", "state_divergence", "gating_leak", "unreachable_goal"]);
 
 /** Deterministic mutant set: nine lens mutants plus three invariant mutants. */
 const MUTANTS: Mutant[] = [
-  ...LENSES.filter((l) => l !== "wrong_tool").map((lens) => ({ id: lens, lens, detail: `oracle detects a seeded ${lens}`, caught: () => computeLenses(evidence().tx, evidence().oracle)[lens]!.length > 0 })),
-  { id: "gating_leak", lens: "gating_leak", detail: "oracle detects a narrated unearned success", caught: () => computeLenses(evidence().tx, evidence().oracle).gating_leak!.length > 0 },
-  { id: "unreachable_goal", lens: "unreachable_goal", detail: "oracle detects an unreachable escape target", caught: () => computeLenses(evidence().tx, evidence().oracle).unreachable_goal!.length > 0 },
-  { id: "fingerprint_drift", lens: "determinism", detail: "fingerprintStable flags a read-only mutation", caught: () => !fingerprintStable("a", "b").ok },
-  { id: "missed_mutation", lens: "determinism", detail: "fingerprintChanged flags a no-op mutation", caught: () => !fingerprintChanged("a", "a").ok },
-  { id: "unrecognized_envelope", lens: "determinism", detail: "envelopeRecognized flags a bare result", caught: () => !envelopeRecognized("garbage result", false).ok },
+  ...LENSES.filter((l) => l !== "wrong_tool").map((lens) => ({ id: lens, lens, detail: `oracle detects a seeded ${lens}`, caught: () => computeLenses(evidence().tx, evidence().oracle)[lens]!.length > 0, derived: !ORACLE_DERIVED.has(lens) })),
+  { id: "gating_leak", lens: "gating_leak", detail: "oracle detects a narrated unearned success", caught: () => computeLenses(evidence().tx, evidence().oracle).gating_leak!.length > 0, derived: false },
+  { id: "unreachable_goal", lens: "unreachable_goal", detail: "oracle detects an unreachable escape target", caught: () => computeLenses(evidence().tx, evidence().oracle).unreachable_goal!.length > 0, derived: false },
+  { id: "fingerprint_drift", lens: "determinism", detail: "fingerprintStable flags a read-only mutation", caught: () => !fingerprintStable("a", "b").ok, derived: true },
+  { id: "missed_mutation", lens: "determinism", detail: "fingerprintChanged flags a no-op mutation", caught: () => !fingerprintChanged("a", "a").ok, derived: true },
+  { id: "unrecognized_envelope", lens: "determinism", detail: "envelopeRecognized flags a bare result", caught: () => !envelopeRecognized("garbage result", false).ok, derived: true },
 ];
 
 /** Run the method audit and return the catch rate (report-only, never fails). */
 export async function runMutationAudit(): Promise<TierResult> {
   const prior = process.env[MUTANT_ENV];
-  const results: { id: string; lens: string; caught: boolean }[] = [];
+  const results: { id: string; lens: string; caught: boolean; derived: boolean }[] = [];
   for (const m of MUTANTS) {
     process.env[MUTANT_ENV] = m.id;
     let caught = false;
@@ -102,13 +118,17 @@ export async function runMutationAudit(): Promise<TierResult> {
       // A mutant whose predicate throws is not caught — record it as a miss.
       caught = false;
     }
-    results.push({ id: m.id, lens: m.lens, caught });
+    results.push({ id: m.id, lens: m.lens, caught, derived: m.derived });
   }
   if (prior === undefined) delete process.env[MUTANT_ENV];
   else process.env[MUTANT_ENV] = prior;
 
-  const caught = results.filter((r) => r.caught).length;
-  const seeded = results.length;
+  // The published catch rate counts only transcript/fixture-derived mutants;
+  // oracle-seeded mutants are reported separately (CR-32).
+  const derived = results.filter((r) => r.derived);
+  const tautological = results.filter((r) => !r.derived).map((r) => r.id);
+  const caught = derived.filter((r) => r.caught).length;
+  const seeded = derived.length;
   const catchRate = seeded ? Number((caught / seeded).toFixed(4)) : 1;
   return {
     tier: "mutation",
@@ -120,7 +140,8 @@ export async function runMutationAudit(): Promise<TierResult> {
       catch_rate: catchRate,
       seeded,
       caught,
-      missed: results.filter((r) => !r.caught).map((r) => r.id),
+      missed: derived.filter((r) => !r.caught).map((r) => r.id),
+      oracle_derived: tautological,
       mutants: results,
     },
   };
