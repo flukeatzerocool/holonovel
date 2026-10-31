@@ -315,7 +315,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-346 | Narrative coherence attestation (Part a1) (3 sub-parts) | 5.12 Narrative Architecture | C | T396, T403 | implemented |
 | REQ-347 | Voice feedback codex capture (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T397 | implemented |
 | REQ-348 | Faction-NPC goal coordination (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T398 | implemented |
-| REQ-349 | Consequence-to-knowledge coupling (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T399, T690 | implemented |
+| REQ-349 | Consequence-to-knowledge coupling (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T399, T690 | implemented |
 | REQ-350 | Background lore triggering (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T400 | implemented |
 | REQ-351 | Pacing-triggered autonomy (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T401 | implemented |
 | REQ-352 | Codex adventure beat sequences (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T402 | implemented |
@@ -571,11 +571,11 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-613 | Portable data directory | 5.9 Novel Persistence and Transport | C | T731 | — |
 | REQ-614 | Published package integrity | 5.9 Novel Persistence and Transport | C | T732 | — |
 | REQ-615 | Novel provenance record | 5.7 Determinism, Safety, and Performance | C | T733, S6 | — |
-| REQ-616 | Adventure module provenance | 5.7 Determinism, Safety, and Performance | C | T734 | — |
+| REQ-616 | Adventure module provenance (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T734 | — |
 | REQ-617 | Adventure provenance verification | 5.7 Determinism, Safety, and Performance | C | T735 | — |
 | REQ-618 | Ruleset package creator attribution | 5.7 Determinism, Safety, and Performance | C | T736 | — |
 | REQ-619 | Reference package provenance emission | 5.7 Determinism, Safety, and Performance | E | T737 | — |
 | REQ-620 | Local artifact registry | 5.7 Determinism, Safety, and Performance | C | T738, S6 | — |
-| REQ-621 | Artifact admission (1 sub-part) | 5.7 Determinism, Safety, and Performance | C | T739 | — |
-| REQ-622 | Hazard resolution (1 sub-part) | 5.10 World-Model Layer | C | T741, T742 | — |
+| REQ-621 | Artifact admission (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T739 | — |
+| REQ-622 | Room hazard annotations (3 sub-parts) | 5.10 World-Model Layer | C | T741, T742 | — |
 

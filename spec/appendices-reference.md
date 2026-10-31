@@ -986,6 +986,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-349a | Consequence-to-knowledge coupling (Part a) | 2026-08-11 |
 | REQ-349b | Consequence-to-knowledge coupling (Part b) | 2026-08-11 |
 | REQ-349c | Consequence-to-knowledge coupling (Part c) | 2026-08-11 |
+| REQ-349d | Per-entity discovery attribution | 2026-10-31 |
 | REQ-341a | Player-facing spatial surface (Part a) | 2026-08-11 |
 | REQ-341b | Player-facing spatial surface (Part b) | 2026-08-11 |
 | REQ-341c | Player-facing spatial surface (Part c) | 2026-08-11 |
@@ -1363,6 +1364,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-610 | Per-turn budget allocator | 2026-10-24 |
 | REQ-615 | Novel provenance record | 2026-10-29 |
 | REQ-616 | Adventure module provenance | 2026-10-29 |
+| REQ-616a | Provenance surfacing | 2026-10-31 |
+| REQ-616b | Provenance round-trip | 2026-10-31 |
 | REQ-617 | Adventure provenance verification | 2026-10-29 |
 | REQ-618 | Ruleset package creator attribution | 2026-10-29 |
 | REQ-619 | Reference package provenance emission | 2026-10-29 |
@@ -1370,8 +1373,13 @@ date-stamps matching CHANGELOG entries.
 | REQ-621 | Artifact admission | 2026-10-29 |
 | REQ-096m | Novel sharing | 2026-10-29 |
 | REQ-621a | Novel pack admission | 2026-10-29 |
-| REQ-622 | Hazard resolution | 2026-10-30 |
-| REQ-622a | Match resource | 2026-10-30 |
+| REQ-621b | Artifact removal | 2026-10-31 |
+| REQ-621c | Artifact operation authorization and audit | 2026-10-31 |
+| REQ-621d | Artifact path containment | 2026-10-31 |
+| REQ-622 | Room hazard annotations | 2026-10-30 |
+| REQ-622a | Encounter hazard resolution | 2026-10-30 |
+| REQ-622b | Trap hazard resolution | 2026-10-31 |
+| REQ-622c | Survivable resource countdown | 2026-10-31 |
 
 ---
 
@@ -2033,15 +2041,15 @@ diet.
 | T731 | Automated | Portable data directory: resolve with `TTRPG_DATA_DIR` set and assert it wins; with an existing legacy `<install>/.holonovel-state` and assert it is used and not migrated; with Linux, macOS, and Windows environments and assert the user-data path; assert the default never resolves inside the package root; assert an absent directory is created owner-only and a creation failure propagates. | REQ-613 |
 | T732 | Automated | Published package integrity: pack the server, assert the tarball contains the specification, surface registry, disambiguation record, starter Novel, launcher, compiled entry points, and source; assert build-only inputs and harnesses are absent; install in isolation, exercise `initialize`, `tools/list`, `resources/read spec://build`, `spec_health`, and starter seeding; assert no state is written under the installed package and importing the package root does not start a server. | REQ-614 |
 | T733 | Automated | Novel provenance: set a creator, attribution, and license, assert `manage_novel (action: info)` reports them, export and import into a new Novel and assert all three survive, assert two exports of unchanged state hash identically, and assert a tampered payload is refused under `strict`. | REQ-615 |
-| T734 | Automated | Adventure provenance round-trip: a module with a provenance block lists its creator and license from `manage_adventure (action: list)` and `adventures://`; embed it in a Novel export and import into a new Novel, and assert the provenance survives; a module without a block loads unaffected. | REQ-616 |
+| T734 | Automated | Adventure provenance round-trip: a module with a provenance block lists its creator and license from `manage_adventure (action: list)` and `adventures://`; embed it in a Novel export and import into a new Novel, and assert the provenance survives; a module without a block loads unaffected. | REQ-616, REQ-616a, REQ-616b |
 | T735 | Automated | Adventure provenance verification: a module whose declared content hash does not match its body is refused `[STATE_CONFLICT]` naming expected and received; a signed module verifies under `TTRPG_ARTIFACT_VERIFY_KEY`; a bad signature is refused; a signature with no configured key warns `[signature-unverified]`; a module with no block warns `[provenance-absent]`. | REQ-617 |
 | T736 | Automated | Ruleset creator attribution: a package whose manifest carries creator and attribution lists both from `manage_ruleset (action: list)` and records both in the install audit entry; a package without either field loads unchanged. | REQ-618 |
 | T737 | Automated | Reference package provenance emission: re-emitting the `swse` package from its committed provenance record yields a manifest carrying the recorded creator and attribution; an emitter with no provenance record omits both. | REQ-619 |
 | T738 | Automated | Local artifact registry: two isolated installations holding the same Novel, adventure, and ruleset artifacts report equal registry listings; `list` filters by kind and is deterministic across repeated calls; a corrupted artifact reports a non-verified integrity state rather than being omitted; each kind's catalog lists an installed artifact; `spec_health` reports a count per kind. | REQ-620 |
-| T739 | Automated | Artifact admission: installing from the exchange inbox admits a Novel pack, adventure module, and ruleset package, each verified by content hash and provenance; a tampered copy is refused `[STATE_CONFLICT]` naming the slug; a duplicate Novel slug is admitted under a `-N` suffix; a ruleset-bound pack without its ruleset is refused before any write; an embedded adventure is materialized and loadable; remove deletes an artifact and refuses while a Novel depends on it; install and remove each record a security-event audit entry; a traversal source is refused without a read. | REQ-621 |
+| T739 | Automated | Artifact admission: installing from the exchange inbox admits a Novel pack, adventure module, and ruleset package, each verified by content hash and provenance; a tampered copy is refused `[STATE_CONFLICT]` naming the slug; a duplicate Novel slug is admitted under a `-N` suffix; a ruleset-bound pack without its ruleset is refused before any write; an embedded adventure is materialized and loadable; remove deletes an artifact and refuses while a Novel depends on it; install and remove each record a security-event audit entry; a traversal source is refused without a read. | REQ-621, REQ-621b, REQ-621c, REQ-621d |
 | T740 | Automated | Novel sharing: a `share` export with `TTRPG_EXPORT_EMBED_ADVENTURES` unset embeds adventure content and forces full scope; `share` with markdown or a non-full scope is refused `[INVALID_INPUT]`; a shared bundle materializes its embedded adventure in a fresh installation and the copy loads it; a tampered embedded adventure blocks import. | REQ-096m |
-| T741 | Automated | Hazard resolution: an encounter room's `spill` subtracts its wax from the active candle and fires the world effect at zero; a trap room resolves a seeded check against the named countdown's ticks and extinguishes the active candle on success; a malformed hazard annotation is ignored without a crash. | REQ-622 |
-| T742 | Automated | Match resource: taking a bundle adds two matches; a snuffed candle spends one match to relight with no wax loss; a snuff with no match starts a three-tick last-light countdown whose expiry fires the candle's world effect; zero wax with a match applies the same countdown; the Player badge sees remaining wax and matches without a tick total. | REQ-622a |
+| T741 | Automated | Room hazard annotations: a well-formed `annotations.encounter` and `annotations.trap` are readable from the room; an encounter subtracts its declared `spill` from the bound resource countdown and fires the resource's world effect at zero; a malformed annotation is ignored with a warning without blocking entry. | REQ-622, REQ-622a |
+| T742 | Automated | Survival resource: a trap resolves a seeded check against the `snuff` countdown's ticks and extinguishes the resource on success; a bundle adds its declared increment; an extinguish with a unit relights without loss; an extinguish without a unit starts the declared last-light countdown; the Player badge sees remaining units without a tick total. | REQ-622b, REQ-622c |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -3240,6 +3248,10 @@ names (REQ-020) but SHALL annotate the mapping in RULESET_MODEL.md.
 structured confrontation — modeled by the server as Novel-scoped conflict state
 per REQ-043, and summarized in `manage_context (action: recap)` under the
 `confrontations_completed` and `confrontation_pending` fields per REQ-175.
+
+**Common-noun allowlist.** A build artifact listing the generic nouns exempt
+from narrator-visibility redaction (REQ-599b). The builder records the list in
+DECISIONS.md (4); `spec_health` reports its entry count.
 
 **Borrowed-mechanics attribution.** The following mechanics are adapted from
 published roleplaying and interactive-fiction systems and retained in the base

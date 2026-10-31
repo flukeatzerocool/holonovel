@@ -283,3 +283,16 @@ readability.
 heuristics below the contract-bearing threshold, and the Appendix M
 default/procedural violations they previously masked are now mechanically
 gated. No contract-bearing rewrite was made in this batch.
+
+## Batch 7 — spec-review remediation delta (2026-10-31)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 231 warnings**.
+The 8-warning net increase over Batch 6 comes from the SR-1…SR-14 remediation
+(hazard-model REQ split, REQ-621/REQ-616 atomicity splits, and per-entity
+discovery attribution), which added REQ bodies whose prose triggers the same
+lexical families — sentence length, readability, and conjunction density. No
+new lexical rule was introduced.
+
+**Disposition: all 231 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding; the SR-1…SR-14 findings were resolved structurally in
+this batch.
