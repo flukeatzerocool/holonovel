@@ -5,18 +5,29 @@
  * Compares the assembled spec to the last-published revision and classifies
  * the change as none/patch/editorial/minor/major, reporting requirements
  * added/removed/modified. `--base <ref>` classifies against the given git ref
- * instead of `origin/main` (useful on an unpushed branch). Exit codes: 0 =
- * classified (in/out of sync), 1 = unknown server.
+ * instead of `origin/main` (useful on an unpushed branch). `--root <dir>`
+ * reads the spec and DECISIONS from another checkout (used by the hermetic
+ * self-test fixture). Exit codes: 0 = classified (in/out of sync), 1 = unknown
+ * server or missing --root directory.
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { extractH2Headings, changedReqBodies } from "./lib/parse-spec.js";
 import { classifyDelta } from "./lib/spec-delta-classify.js";
 import { SERVERS } from "./lib/servers.js";
 
-const root = join(import.meta.dirname, "..");
+// --root points the classifier at a fixture repository (hermetic self-test);
+// the default is the checkout this script lives in.
+const rootArg = process.argv.includes("--root")
+  ? process.argv[process.argv.indexOf("--root") + 1]
+  : null;
+if (process.argv.includes("--root") && (!rootArg || !existsSync(rootArg))) {
+  console.error(`--root requires an existing directory (got '${rootArg ?? ""}')`);
+  process.exit(1);
+}
+const root = rootArg ? resolve(rootArg) : join(import.meta.dirname, "..");
 
 const SPEC_PATH = join(root, "holonovel.md");
 

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-31 — Publish pipeline: full-history checkout, CI dependency order, hermetic delta fixture
+
+- `publish.yml`'s `verify` job now checks out with `fetch-depth: 0`. The
+  `spec-delta --base` self-test derives its comparison ref from `holonovel.md`
+  history; on the default depth-1 clone there is no ancestor, so the test fell
+  back to `HEAD`, classified `none`, and failed both delta assertions — the
+  `verify` job failed and the `publish` job (`needs: verify`) was skipped, so
+  2026.10.31 never reached npm or the MCP Registry (runs 41223178013 and
+  41234740196).
+- `ci.yml` installs the server dependencies before `npm run check`. The full
+  gate boots the server for `check-tool-definitions-sync`; without
+  `holonovel/node_modules` it died with `ERR_MODULE_NOT_FOUND`. The defect was
+  masked until the MCP client began rejecting on child exit (6f6d3e2) instead
+  of draining the event loop and exiting 0.
+- `scripts/test-spec-tooling.ts` drives `spec-delta --base` against a hermetic
+  two-commit fixture repository (`spec-delta --root`), so the assertion holds
+  at any clone depth and no longer depends on this repo's history.
+- `check-workflows` gains two rules via `scripts/lib/workflow-hygiene.ts`: a job
+  that runs a gate must check out with `fetch-depth: 0`, and must install
+  `holonovel` dependencies before the gate. Both are self-tested in
+  `test-script-tooling`.
+
 ## 2026-10-31 — Holosuite predicate anchors refreshed after the first-run change
 
 - The four gating Holosuite tiers (conformance, invariants, novel, adversarial)

@@ -31,6 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # test:spec-tooling derives its comparison ref from holonovel.md's
+          # history; a default depth-1 checkout has no ancestor and the
+          # self-test fails on a delta it cannot see (2026-10-31 recurrence).
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 24

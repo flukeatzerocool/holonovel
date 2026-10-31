@@ -12,6 +12,7 @@
  */
 import { contentIssues, shellIssues } from "./lib/script-discipline.js";
 import { isReqHeaderRegex, topLevelHelpers, duplicateHelperPairs } from "./lib/script-quality.js";
+import { jobHygiene } from "./lib/workflow-hygiene.js";
 
 let passed = 0;
 let failed = 0;
@@ -121,6 +122,50 @@ exit 0
   const pairs = duplicateHelperPairs(defs);
   check(pairs.length === 1 && pairs[0].name === "doThing", "identical cross-file helper flagged as duplicate");
   check(pairs.every((p) => p.a.file !== p.b.file), "same-file helper not flagged");
+
+  // ── Workflow hygiene: gate jobs need history and server deps ────────────
+  const cleanJob = `  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Install server dependencies
+        working-directory: holonovel
+        run: npm ci
+      - name: Fast gate
+        run: npm run check:fast`;
+  check(jobHygiene("ci.yml", "verify", cleanJob).length === 0, "hygienic gate job reports no issues");
+
+  const shallowJob = cleanJob.replace("          fetch-depth: 0\n", "");
+  check(has(jobHygiene("ci.yml", "verify", shallowJob), "fetch-depth: 0"), "shallow gate checkout flagged");
+
+  const lateDepsJob = `  gates:
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Full gate
+        run: npm run check
+      - name: Install server dependencies
+        working-directory: holonovel
+        run: npm ci`;
+  check(has(jobHygiene("ci.yml", "gates", lateDepsJob), "before installing server dependencies"), "gate before server deps flagged");
+
+  const noGateJob = `  release:
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: npm run build`;
+  check(jobHygiene("release.yml", "release", noGateJob).length === 0, "job without a gate is not flagged");
+
+  const commentOnlyJob = `  docs:
+    steps:
+      - uses: actions/checkout@v5
+      - name: note
+        run: echo "npm run check is documented elsewhere"`;
+  check(jobHygiene("docs.yml", "docs", commentOnlyJob).length === 0, "a gate mention in a non-gate command is not flagged");
 
   console.log(`\nscript-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
