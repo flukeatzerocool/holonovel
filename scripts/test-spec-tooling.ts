@@ -18,6 +18,7 @@ import { parseRecordedBudgets } from "./lib/surface-record.js";
 import { hasUnfilledVerification, hasFingerprintDelta, isLegacyDeltaExempt, isPlaceholderVerification, renderFingerprintDelta } from "./lib/spec-update.js";
 import { hashFile } from "./lib/hash.js";
 import { classifyDelta, reqFamily } from "./lib/spec-delta-classify.js";
+import { sameRemote } from "./lib/remote-url.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -87,6 +88,17 @@ function main(): void {
   check(classifyDelta(shape(["999"])) === "minor", "an unrelated REQ edit classifies minor");
   check(classifyDelta(shape(["999"], true)) === "editorial", "an editorial disposition classifies editorial");
   check(classifyDelta(shape([])) === "patch", "an empty delta classifies patch");
+
+  // F1 (2026-10-31) — remote identity ignores spelling. The first pair is the
+  // exact mismatch that aborted a real deploy (REQ-418).
+  check(sameRemote("git@git.gay:flukeatzerocool/Holonovel.git", "ssh://git@git.gay/flukeatzerocool/Holonovel.git"), "remote identity: scp and ssh:// forms of one remote match");
+  check(sameRemote("git@github.com:x/y.git", "https://github.com/x/y"), "remote identity: https and scp forms match");
+  check(sameRemote("ssh://git@host:22/g/p.git", "ssh://git@host/g/p"), "remote identity: default ssh port is ignored");
+  check(sameRemote("https://host/g/p/", "https://host/g/p.git"), "remote identity: trailing slash and .git suffix are ignored");
+  check(!sameRemote("git@host:a/b.git", "git@host:a/c.git"), "remote identity: different paths differ");
+  check(!sameRemote("git@host:a/b.git", "git@other:a/b.git"), "remote identity: different hosts differ");
+  check(!sameRemote("ssh://git@host:2222/g/p", "ssh://git@host/g/p"), "remote identity: non-default port differs");
+  check(!sameRemote("", "git@host:a/b.git"), "remote identity: an empty side never matches");
 
   // F3 — the dedicated-evidence report renders with a parseable count.
   const dedicated = run(["scripts/compare-spec-code.ts", "--dedicated"]);
@@ -308,6 +320,8 @@ function main(): void {
   const pipeline = readFileSync(join(root, "scripts", "push-pipeline.sh"), "utf-8");
   check(/^git add -A -- \.$/m.test(pipeline), "pipeline stages the tracked surface with git add -A");
   check(/^git reset -q -- \.holonovel-state\/wiki/m.test(pipeline), "pipeline resets the wiki mirror pages out of the index");
+  check(!/"\$DEPLOY_REMOTE"\s*!=\s*"\$WORKSPACE_REMOTE"/.test(pipeline), "pipeline compares remotes by identity, not raw text (REQ-418)");
+  check(/lib\/remote-url\.ts/.test(pipeline), "pipeline uses the shared remote-identity helper");
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

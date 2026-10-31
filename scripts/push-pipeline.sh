@@ -7,7 +7,19 @@
 # propagation + typecheck + version sync), hash update, fingerprint, commit,
 # and push.
 # Exit codes: 0 = pipeline completed (or dry-run/--no-push stopped cleanly);
-# 1 = any build, gate, push, or deploy failure.
+# 1 = any build, gate, push, or deploy failure, including a run refused for
+# want of --yes on non-interactive stdin (refused before any file changes).
+#
+# NOTE: step 9 compares the deploy clone's origin with the publication remote by
+# identity, not by URL spelling (scripts/lib/remote-url.ts). One repository is
+# legitimately spelled git@host:path or ssh://git@host/path; a raw string
+# compare aborted a real deploy on 2026-10-31 after main, tag, mirror, and wiki
+# had already been pushed (REQ-418).
+#
+# NOTE: a run that cannot answer the confirmation prompt is refused before it
+# changes anything. Previously the check sat after step 5, so a non-interactive
+# run without --yes paid for the full gate pass and the harness suite, rewrote
+# DECISIONS.md, then failed with a dirty tree (recurrence 2026-10-31).
 #
 # NOTE: step 5 syncs only the "**Spec hash:**" line in DECISIONS.md. The
 # human-readable "### Holonovel Spec Update — <date>" narrative entry (delta
@@ -143,6 +155,17 @@ else
   RED=''
   NC=''
 fi
+
+# Refuse a run that cannot answer the confirmation prompt, before any work.
+# The prompt is the last gate; reaching it and failing there would have spent
+# the full gate pass and left generated edits behind (recurrence 2026-10-31).
+# The check is repeated at the prompt as a safety net against step reordering.
+if ! $SKIP_CONFIRM && [[ ! -t 0 ]]; then
+  echo -e "${RED}Non-interactive stdin and no --yes — refusing to guess. Re-run with --yes.${NC}" >&2
+  echo -e "${YELLOW}Nothing was changed.${NC}" >&2
+  exit 1
+fi
+
 # Canonical server list — single source of truth in scripts/lib/servers.json.
 # Fail closed: an empty or unreadable list would silently skip the pending-update
 # gate (REQ-394), the hash sync, and deploy verification (REQ-418), so a missing
@@ -747,7 +770,18 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
   fi
   WORKSPACE_REMOTE=$(git remote get-url origin 2>/dev/null || true)
   DEPLOY_REMOTE=$(git -C "$DEPLOY_DIR" remote get-url origin 2>/dev/null || true)
-  if [[ -z "$DEPLOY_REMOTE" || ( -n "$WORKSPACE_REMOTE" && "$DEPLOY_REMOTE" != "$WORKSPACE_REMOTE" ) ]]; then
+  # Compare remote identity, not URL spelling (scripts/lib/remote-url.ts): the
+  # same repository is legitimately spelled git@host:path or ssh://git@host/path,
+  # and a raw string compare aborted the 2026-10-31 deploy (REQ-418). Fail closed
+  # when either side is empty, or when the helper itself errors.
+  REMOTE_MATCHES=false
+  if [[ -n "$DEPLOY_REMOTE" && -n "$WORKSPACE_REMOTE" ]] && \
+    "${TSX[@]}" --input-type=module -e \
+      'import { sameRemote } from "./scripts/lib/remote-url.ts"; process.exit(sameRemote(process.argv[1], process.argv[2]) ? 0 : 1)' \
+      "$WORKSPACE_REMOTE" "$DEPLOY_REMOTE"; then
+    REMOTE_MATCHES=true
+  fi
+  if ! $REMOTE_MATCHES; then
     echo -e "${RED}Deploy FAILED — deploy clone origin '${DEPLOY_REMOTE:-<none>}' does not match the publication remote '${WORKSPACE_REMOTE:-<none>}' (REQ-418).${NC}"
     exit 1
   fi
