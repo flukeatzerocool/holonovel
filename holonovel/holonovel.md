@@ -499,7 +499,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–621 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
-| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
+| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597, 622 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
 | 5.13   | Holodeck Coupling Model                                | 369–371, 374–376 |
@@ -3946,6 +3946,12 @@ The server SHALL provide a read-only visibility query over `run_command (action:
 **REQ-597 — Audibility query.**
 The server SHALL provide a read-only audibility query over `run_command (action: audibility)` accepting a source actor and a target, reporting whether sound from the target's room reaches the source's room. Sound SHALL cross the same room and one open exit, and a closed door SHALL suppress it, reusing the REQ-319b adjacency rule. The query SHALL NOT mutate state or take an undo snapshot, and the Player badge SHALL query only the active entity's point of view. *Acceptance criterion:* a target one open exit away is audible and becomes inaudible when the door closes. _Check:_ T703.
 
+**REQ-622 — Hazard resolution.**
+A world-model room MAY declare hazard annotations: `annotations.encounter` with `spill=<n>` wax and `annotations.trap` with `snuff=<countdown>`, where the named countdown's ticks set the snuff chance out of eight. Entering an encounter room SHALL subtract N from the active candle and fire its world effect at zero. Entering a trap room SHALL resolve a seeded check against the named countdown's ticks; a successful check SHALL extinguish the active candle. *Acceptance criterion:* an encounter spills N wax and fires at zero; a trap resolves a seeded check and extinguishes the active candle on success. _Check:_ T741.
+
+**REQ-622a — Match resource.**
+Matches SHALL be a shared Novel countdown that increments by two when a match bundle is taken and decrements on each use. A snuffed candle SHALL spend one match to relight without wax loss; when no match remains, the server SHALL start a three-tick last-light countdown whose expiry fires the candle's world effect. When the candle reaches zero wax with a match in hand, the same last-light countdown applies. The Player badge SHALL see remaining wax and matches without a tick total. *Acceptance criterion:* taking a bundle adds two matches; a snuff with a match relights without wax loss; a snuff without a match starts a three-tick countdown; the Player briefing names no tick total. _Check:_ T742.
+
 ### 5.11 Ruleset-Free Build Mode
 
 **REQ-218a — Ruleset-free build (Part a).**
@@ -6408,6 +6414,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-367 | I6, I16 | World-model property contracts |
 | REQ-596 | I17, I6 | Visibility query |
 | REQ-597 | I17 | Audibility query |
+| REQ-622 | I17 | Hazard resolution and match resource |
 | REQ-368 | S32 | Countdown-world effect coupling |
 | REQ-369 | S32, S33 | Holodeck archetype taxonomy |
 | REQ-370 | — (validated by `npm run validate`) | Coupling derivation |
@@ -6784,6 +6791,7 @@ only; it does not require every sub-workflow to appear as a row.
 | REQ-367 | I6, I16 | World-model property contracts |
 | REQ-596 | I17, I6 | Visibility query |
 | REQ-597 | I17 | Audibility query |
+| REQ-622 | I17 | Hazard resolution and match resource |
 | REQ-368 | S32 | Countdown-world effect coupling |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Pattern Buffer sub-workflow fails, THE
@@ -10281,6 +10289,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-621 | Artifact admission | 2026-10-29 |
 | REQ-096m | Novel sharing | 2026-10-29 |
 | REQ-621a | Novel pack admission | 2026-10-29 |
+| REQ-622 | Hazard resolution | 2026-10-30 |
+| REQ-622a | Match resource | 2026-10-30 |
 
 ---
 
@@ -10949,6 +10959,8 @@ diet.
 | T738 | Automated | Local artifact registry: two isolated installations holding the same Novel, adventure, and ruleset artifacts report equal registry listings; `list` filters by kind and is deterministic across repeated calls; a corrupted artifact reports a non-verified integrity state rather than being omitted; each kind's catalog lists an installed artifact; `spec_health` reports a count per kind. | REQ-620 |
 | T739 | Automated | Artifact admission: installing from the exchange inbox admits a Novel pack, adventure module, and ruleset package, each verified by content hash and provenance; a tampered copy is refused `[STATE_CONFLICT]` naming the slug; a duplicate Novel slug is admitted under a `-N` suffix; a ruleset-bound pack without its ruleset is refused before any write; an embedded adventure is materialized and loadable; remove deletes an artifact and refuses while a Novel depends on it; install and remove each record a security-event audit entry; a traversal source is refused without a read. | REQ-621 |
 | T740 | Automated | Novel sharing: a `share` export with `TTRPG_EXPORT_EMBED_ADVENTURES` unset embeds adventure content and forces full scope; `share` with markdown or a non-full scope is refused `[INVALID_INPUT]`; a shared bundle materializes its embedded adventure in a fresh installation and the copy loads it; a tampered embedded adventure blocks import. | REQ-096m |
+| T741 | Automated | Hazard resolution: an encounter room's `spill` subtracts its wax from the active candle and fires the world effect at zero; a trap room resolves a seeded check against the named countdown's ticks and extinguishes the active candle on success; a malformed hazard annotation is ignored without a crash. | REQ-622 |
+| T742 | Automated | Match resource: taking a bundle adds two matches; a snuffed candle spends one match to relight with no wax loss; a snuff with no match starts a three-tick last-light countdown whose expiry fires the candle's world effect; zero wax with a match applies the same countdown; the Player badge sees remaining wax and matches without a tick total. | REQ-622a |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

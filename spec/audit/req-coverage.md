@@ -577,4 +577,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-619 | Reference package provenance emission | 5.7 Determinism, Safety, and Performance | E | T737 | — |
 | REQ-620 | Local artifact registry | 5.7 Determinism, Safety, and Performance | C | T738, S6 | — |
 | REQ-621 | Artifact admission (1 sub-part) | 5.7 Determinism, Safety, and Performance | C | T739 | — |
+| REQ-622 | Hazard resolution (1 sub-part) | 5.10 World-Model Layer | C | T741, T742 | — |
 

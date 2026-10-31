@@ -9,7 +9,8 @@
 //
 // REQ citations: REQ-565 (starter Novel), REQ-200 (world-model reachability),
 // REQ-073c2 / REQ-329a (countdown direction and trigger deltas), REQ-090 /
-// REQ-091 (adventure/encounter content). Exit codes: n/a (library).
+// REQ-091 (adventure/encounter content), REQ-622/REQ-622a (hazard balance).
+// Exit codes: n/a (library).
 
 export type FindingClass =
   | "unreachable_goal"
@@ -31,6 +32,7 @@ export interface Room {
   name: string;
   exits: Map<string, string>;
   doorRefs: Map<string, string>;
+  annotations: Record<string, string>;
 }
 
 export interface Thing {
@@ -141,7 +143,9 @@ export function buildWorldModel(novel: NovelShape, goalOverride?: string): World
     for (const [dir, door] of Object.entries(asRecord(room.doorRefs))) {
       doorRefs.set(lower(dir), lower(door));
     }
-    rooms.set(lower(name), { name, exits, doorRefs });
+    const annotations: Record<string, string> = {};
+    for (const [key, value] of Object.entries(asRecord(room.annotations))) annotations[lower(key)] = String(value);
+    rooms.set(lower(name), { name, exits, doorRefs, annotations });
   }
 
   for (const [id, raw] of Object.entries(asRecord(novel.world?.things))) {
@@ -397,6 +401,66 @@ export function economyFindings(model: WorldModel, path: WinningPath): Finding[]
     }
   }
   return findings;
+}
+
+export interface BalanceReport {
+  remainingWax: number;
+  remainingMatches: number;
+  lowWater: number;
+  spill: number;
+  expectedSnuffs: number;
+  matchBundles: number;
+  detourTraps: number;
+}
+
+/** REQ-622/REQ-622a — report the deterministic hazard balance of a winning
+ *  path under the gamble-all policy: encounter spills, expected trap snuffs,
+ *  match bundles, and the resulting wax/match end state. Report-only. */
+export function balanceReport(model: WorldModel, path: WinningPath): BalanceReport | null {
+  const gating = gatingCountdowns(model)[0];
+  if (!gating) return null;
+  const refills = refillsFor(model, gating);
+  const trapTicks: number[] = [];
+  let spill = 0;
+  let matchBundles = 0;
+  let detourTraps = 0;
+  const dreadCd = countdowns(model).find((cd) => cd.name.toLowerCase() === "dread");
+  let dread = dreadCd?.ticks ?? 0;
+  const matchCd = countdowns(model).find((cd) => cd.name.toLowerCase() === "matches");
+  const matchRooms = new Map<string, number>();
+  for (const trigger of matchCd?.triggers ?? []) {
+    const parsed = triggerDelta(trigger);
+    if (!parsed || parsed.kind !== "thing_take") continue;
+    const thing = model.things.get(parsed.target);
+    if (thing?.location) matchRooms.set(thing.location, (matchRooms.get(thing.location) ?? 0) + Math.abs(parsed.delta));
+  }
+  let ticks = gating.ticks;
+  let low = ticks;
+  for (let i = 0; i < path.visited.length; i += 1) {
+    const room = path.visited[i];
+    if (i > 0) ticks -= 1;
+    const annotations = model.rooms.get(room)?.annotations ?? {};
+    const encounter = /spill=(\d+)/i.exec(annotations.encounter ?? "");
+    if (encounter) spill += Number(encounter[1]);
+    if (annotations.trap) {
+      if (/avoid=([1-9]\d*)/i.test(annotations.trap)) detourTraps += 1;
+      trapTicks.push(dread);
+    }
+    if (matchRooms.has(room)) matchBundles += 1;
+    for (const refill of refills.get(room) ?? []) ticks = Math.min(gating.total, ticks + refill.delta);
+    if (annotations.encounter) {
+      const n = Number(/spill=(\d+)/i.exec(annotations.encounter ?? "")?.[1] ?? 0);
+      ticks -= n;
+    }
+    if (matchCd && matchRooms.has(room)) {
+      // matches are counted, not wax; handled above
+    }
+    low = Math.min(low, ticks);
+    if (/entry landing$/i.test(room) && (dreadCd?.direction ?? "increment") === "increment") dread += 1;
+  }
+  const expectedSnuffs = trapTicks.reduce((sum, value) => sum + value, 0) / 8;
+  const remainingMatches = Math.max(0, matchBundles * 2 - expectedSnuffs);
+  return { remainingWax: ticks, remainingMatches, lowWater: low, spill, expectedSnuffs, matchBundles, detourTraps };
 }
 
 export function findStructuralPath(model: WorldModel): WinningPath | null {

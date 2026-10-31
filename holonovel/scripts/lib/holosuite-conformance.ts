@@ -33,7 +33,7 @@ const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "o
 // rests on rather than a gate message.
 const PREDICATE_TOOLS = "holonovel/src/index.ts:149"; // TOOL_ANNOTATIONS map
 const PREDICATE_RESOURCES = "holonovel/src/index.ts:9012"; // first registerResource
-const PREDICATE_PROMPTS = "holonovel/src/index.ts:12340"; // first server.prompt
+const PREDICATE_PROMPTS = "holonovel/src/index.ts:12634"; // first server.prompt
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");

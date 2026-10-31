@@ -36,7 +36,7 @@
           "The new one woke on the top floor tonight. One candle. Easy to outlast.",
           "Spent a match to keep my own stub alive rather than share it. Correct."
         ],
-        "directive": "Stay near the wax cache. Trade light only for a gain — never a fair swap he does not win. Trail the player if they carry wax; withdraw toward his stash if they come near it. He never attacks: he refuses and counts.",
+        "directive": "Stay near the wax cache. Trade light only for a gain — never a fair swap he does not win. Trail the player if they carry wax; withdraw toward his stash if they come near it. He never attacks: he refuses and counts. An alliance costs one match or five wax and requires a friendly disposition.",
         "auto_play": true,
         "identity_core": [
           "Keeps the tower's floors in order",
@@ -65,7 +65,7 @@
       "id": "npc_mv4m163y",
       "name": "Sister Marta",
       "description": "The archivist. Knowledge — trades lore and information, never light. Voice: measured and archival, always quoting a scrap she has read; corrects names and dates.",
-      "disposition": "neutral",
+      "disposition": "wary",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
@@ -76,7 +76,7 @@
           "The new arrival reads like a solicitor — wants information before light. I have the former to spare.",
           "The tower's regions contradict each other. I collect the disagreement; it is the only map that holds."
         ],
-        "directive": "Trade knowledge, never light. Ask for pages and give floor-layout or key-whereabouts hints in return; offer safe-passage information for a page. Roam the fourth floor and below; never the Spire. She will not spend wax to help, but she will point.",
+        "directive": "Trade knowledge, never light. Ask for pages and give floor-layout or key-whereabouts hints in return; offer safe-passage information for a page. Roam the fourth floor and below; never the Spire. She will not spend wax to help, but she will point. An alliance costs one match or five wax and requires a friendly disposition.",
         "auto_play": true,
         "identity_core": [
           "Shelters the lost",
@@ -116,7 +116,7 @@
           "He is nearer tonight than the candle says. I could tell them how near. That is worth a match or two.",
           "I have not lit the candle since the bite. I carry it only so they think I am like them."
         ],
-        "directive": "Offer knowledge of the way for a price in wax or matches — and never light her candle; she sees without it and lets that unnerve the player. Bound to Orlok: she can point toward him and reads his distance, and she does not flee the dark. Her presence unsettles rather than attacks.",
+        "directive": "Offer knowledge of the way for a price in wax or matches — and never light her candle; she sees without it and lets that unnerve the player. Bound to Orlok: she can point toward him and reads his distance, and she does not flee the dark. Her presence unsettles rather than attacks. An alliance costs one match and requires at least a friendly disposition.",
         "auto_play": true
       },
       "location": "Fifth Floor — Social Hall",
@@ -149,7 +149,7 @@
           "I gave half my wax to a stranger on the fifth landing. They did not thank me. It was still right.",
           "If I die down here, I hope it is while someone else's candle is lit."
         ],
-        "directive": "Offer shared light and company; follow the player and slow them. Never exploits. Gives wax freely if asked, at the cost of his own candle. At high Dread he grows frightened but stays. He is the warm pole made flesh.",
+        "directive": "Offer shared light and company; follow the player and slow them. Never exploits. Gives wax freely if asked, at the cost of his own candle. At high Dread he grows frightened but stays. He is the warm pole made flesh. He may give at most two wax once, from his own candle.",
         "auto_play": true
       },
       "location": "Second Floor — Social Hall",
@@ -171,7 +171,7 @@
       "id": "npc_mv4m18a8",
       "name": "Nadja",
       "description": "The rival. Winsome, transactional, always one landing ahead. Voice: quick and amused; makes even a threat sound like a deal being offered.",
-      "disposition": "neutral",
+      "disposition": "wary",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
@@ -182,7 +182,7 @@
           "One landing ahead, as always. Let them follow my crumbs — it costs nothing and keeps them slow.",
           "If I reach the door first I will leave it ajar. For a price, of course."
         ],
-        "directive": "Race the player to the exit. Trades fair but always wins the terms. She may carry a floor key — per the key-carry guardrail she stays on a searchable floor and leaves a lore trail. In a borrowed win she reaches the door first and leaves it ajar only if her disposition is warm. Never shares light without a deal.",
+        "directive": "Race the player to the exit. Trades fair but always wins the terms. She may carry a floor key — per the key-carry guardrail she stays on a searchable floor and leaves a lore trail. In a borrowed win she reaches the door first and leaves it ajar only if her disposition is warm. Never shares light without a deal. An alliance costs one match or five wax and requires a friendly disposition; she never allies on words alone.",
         "auto_play": true
       },
       "location": "Sixth Floor — Social Hall",
@@ -290,6 +290,19 @@
         "target": "First Floor — Antechamber",
         "value": "The tower's weather darkens and warms toward Orlok; strangers grow warier and he presses nearer. The Antechamber's dust hangs still — he is almost at the door."
       }
+    },
+    "Matches": {
+      "name": "Matches",
+      "ticks": 0,
+      "total": 99,
+      "type": "narrative",
+      "scope": "shared",
+      "direction": "increment",
+      "triggers": [
+        "on_thing_take(matches (sixth))+2",
+        "on_thing_take(matches (fourth))+2",
+        "on_thing_take(matches (second))+2"
+      ]
     }
   },
   "lore": {
@@ -1124,7 +1137,9 @@
           "south": "Sixth Floor — Connector 4"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "trap": "snuff=Dread;avoid=2"
+        }
       },
       "sixth floor — beast warren": {
         "name": "Sixth Floor — Beast Warren",
@@ -1134,7 +1149,9 @@
           "south": "Sixth Floor — Connector 5"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "encounter": "spill=1"
+        }
       },
       "sixth floor — connector 1": {
         "name": "Sixth Floor — Connector 1",
@@ -1161,7 +1178,8 @@
         "description": "A corridor that doubles back. No sconce is lit. Two candles would make two circles here; one makes a single small room that moves with you.",
         "exits": {
           "north": "Sixth Floor — Key Room",
-          "east": "Sixth Floor — Trap Hall"
+          "east": "Sixth Floor — Trap Hall",
+          "south": "Sixth Floor — Dust Passage"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1171,7 +1189,8 @@
         "description": "A cramped turn. Low on the stone, at knee height, someone has scratched a warning with a nail: WE WENT ROUND. IT STILL TOOK HER. Beneath it, a row of small tally marks.",
         "exits": {
           "north": "Sixth Floor — Trap Hall",
-          "east": "Sixth Floor — Beast Warren"
+          "east": "Sixth Floor — Beast Warren",
+          "west": "Sixth Floor — Collapsed Landing"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1246,7 +1265,9 @@
           "south": "Fifth Floor — Connector 4"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "trap": "snuff=Dread;avoid=0"
+        }
       },
       "fifth floor — beast warren": {
         "name": "Fifth Floor — Beast Warren",
@@ -1256,7 +1277,9 @@
           "south": "Fifth Floor — Connector 5"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "encounter": "spill=1"
+        }
       },
       "fifth floor — connector 1": {
         "name": "Fifth Floor — Connector 1",
@@ -1368,7 +1391,9 @@
           "south": "Fourth Floor — Connector 4"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "trap": "snuff=Dread;avoid=2"
+        }
       },
       "fourth floor — beast warren": {
         "name": "Fourth Floor — Beast Warren",
@@ -1378,7 +1403,9 @@
           "south": "Fourth Floor — Connector 5"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "encounter": "spill=2"
+        }
       },
       "fourth floor — connector 1": {
         "name": "Fourth Floor — Connector 1",
@@ -1405,7 +1432,8 @@
         "description": "A corridor that doubles back. No sconce is lit. The air is dry and still, and your flame stands straight up, as if it is being watched.",
         "exits": {
           "north": "Fourth Floor — Key Room",
-          "east": "Fourth Floor — Trap Hall"
+          "east": "Fourth Floor — Trap Hall",
+          "south": "Fourth Floor — Bone Passage"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1415,7 +1443,8 @@
         "description": "A cramped turn, the ceiling too near. The stone is cold. A row of small marks is scratched at eye height, too regular to be damage.",
         "exits": {
           "north": "Fourth Floor — Trap Hall",
-          "east": "Fourth Floor — Beast Warren"
+          "east": "Fourth Floor — Beast Warren",
+          "west": "Fourth Floor — Fallen Landing"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1490,7 +1519,9 @@
           "south": "Third Floor — Connector 4"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "trap": "snuff=Dread;avoid=0"
+        }
       },
       "third floor — beast warren": {
         "name": "Third Floor — Beast Warren",
@@ -1500,7 +1531,9 @@
           "south": "Third Floor — Connector 5"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "encounter": "spill=2"
+        }
       },
       "third floor — connector 1": {
         "name": "Third Floor — Connector 1",
@@ -1612,7 +1645,9 @@
           "south": "Second Floor — Connector 4"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "trap": "snuff=Dread;avoid=2"
+        }
       },
       "second floor — beast warren": {
         "name": "Second Floor — Beast Warren",
@@ -1622,7 +1657,9 @@
           "south": "Second Floor — Connector 5"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "encounter": "spill=3"
+        }
       },
       "second floor — connector 1": {
         "name": "Second Floor — Connector 1",
@@ -1649,7 +1686,8 @@
         "description": "A corridor that doubles back. No sconce is lit. The dust lies in a soft even blanket, just beginning to be disturbed by your feet.",
         "exits": {
           "north": "Second Floor — Key Room",
-          "east": "Second Floor — Trap Hall"
+          "east": "Second Floor — Trap Hall",
+          "south": "Second Floor — Dust Passage"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1659,7 +1697,8 @@
         "description": "A cramped turn with a shelf of paper gone to mush. Whatever was written there is not readable now. One scrap has stayed dry near the back.",
         "exits": {
           "north": "Second Floor — Trap Hall",
-          "east": "Second Floor — Beast Warren"
+          "east": "Second Floor — Beast Warren",
+          "west": "Second Floor — Sunken Landing"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1724,7 +1763,9 @@
           "south": "First Floor — Connector 4"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "trap": "snuff=Dread;avoid=0"
+        }
       },
       "first floor — beast warren": {
         "name": "First Floor — Beast Warren",
@@ -1734,7 +1775,9 @@
           "south": "First Floor — Connector 5"
         },
         "doorRefs": {},
-        "annotations": {}
+        "annotations": {
+          "encounter": "spill=3"
+        }
       },
       "first floor — connector 1": {
         "name": "First Floor — Connector 1",
@@ -1801,6 +1844,96 @@
         "description": "Outside. Cold air, the tower wall at your back, and a dark that belongs to the world — not to him. The candle flame stands straight up now, no longer leaning, no longer watched.",
         "exits": {
           "in": "First Floor — Antechamber"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "sixth floor — dust passage": {
+        "name": "Sixth Floor — Dust Passage",
+        "description": "A service passage behind the trap hall, narrow and furred with dust. The walls are scratched at shoulder height, as if something counted its way along them.",
+        "exits": {
+          "north": "Sixth Floor — Connector 3",
+          "east": "Sixth Floor — Narrow Turn"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "sixth floor — narrow turn": {
+        "name": "Sixth Floor — Narrow Turn",
+        "description": "The passage pinches to a shoulder's width and turns. A cold draft comes from the far side, carrying the smell of old stone and dry paper.",
+        "exits": {
+          "west": "Sixth Floor — Dust Passage",
+          "south": "Sixth Floor — Collapsed Landing"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "sixth floor — collapsed landing": {
+        "name": "Sixth Floor — Collapsed Landing",
+        "description": "A landing half fallen in, its stones stepped down like a broken stair. The way east is clear if you watch your feet.",
+        "exits": {
+          "north": "Sixth Floor — Narrow Turn",
+          "east": "Sixth Floor — Connector 4"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "fourth floor — bone passage": {
+        "name": "Fourth Floor — Bone Passage",
+        "description": "A servants' passage behind the laboratory wall, its floor gritty with chalk and splintered glass. A row of specimen labels has been pasted over the plaster.",
+        "exits": {
+          "north": "Fourth Floor — Connector 3",
+          "east": "Fourth Floor — Cold Turn"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "fourth floor — cold turn": {
+        "name": "Fourth Floor — Cold Turn",
+        "description": "The passage narrows and turns beside a cold flue. Something has been scrubbed from the wall, but the scrubbing left a shape.",
+        "exits": {
+          "west": "Fourth Floor — Bone Passage",
+          "south": "Fourth Floor — Fallen Landing"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "fourth floor — fallen landing": {
+        "name": "Fourth Floor — Fallen Landing",
+        "description": "A landing under a fallen beam, the way ahead low and awkward. The beam is chalked with a date that has been crossed out twice.",
+        "exits": {
+          "north": "Fourth Floor — Cold Turn",
+          "east": "Fourth Floor — Connector 4"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "second floor — dust passage": {
+        "name": "Second Floor — Dust Passage",
+        "description": "A service passage behind the sleeping hall, its air thick and warm. Dust lies in the seams of the boards, undisturbed except for one long track.",
+        "exits": {
+          "north": "Second Floor — Connector 3",
+          "east": "Second Floor — Quiet Turn"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "second floor — quiet turn": {
+        "name": "Second Floor — Quiet Turn",
+        "description": "The passage turns beside a sealed door. No sound comes through it, not even the tower's breathing.",
+        "exits": {
+          "west": "Second Floor — Dust Passage",
+          "south": "Second Floor — Sunken Landing"
+        },
+        "doorRefs": {},
+        "annotations": {}
+      },
+      "second floor — sunken landing": {
+        "name": "Second Floor — Sunken Landing",
+        "description": "A landing sunk a hand's depth into the floor, its stones soft with damp. The way east is clear if you step where the dust has already been broken.",
+        "exits": {
+          "north": "Second Floor — Quiet Turn",
+          "east": "Second Floor — Connector 4"
         },
         "doorRefs": {},
         "annotations": {}
@@ -1999,7 +2132,7 @@
       },
       "matches (sixth)": {
         "name": "Matches (Sixth)",
-        "description": "Six matches bound with waxed thread. A snuff is survivable only while one of these remains.",
+        "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
         "kind": "thing",
         "location": "Sixth Floor — Connector 2",
         "locationType": "room",
@@ -2496,35 +2629,9 @@
         "transparent": false,
         "annotations": {}
       },
-      "matches (fifth)": {
-        "name": "Matches (Fifth)",
-        "description": "Six matches bound with waxed thread.",
-        "kind": "thing",
-        "location": "Fifth Floor — Connector 2",
-        "locationType": "room",
-        "portable": true,
-        "openable": false,
-        "open": false,
-        "lockable": false,
-        "locked": false,
-        "lit": false,
-        "switchable": false,
-        "switched_on": false,
-        "enterable": false,
-        "vehiclePassengers": [],
-        "wearable": false,
-        "worn_by": null,
-        "readable": false,
-        "read_text": null,
-        "edible": false,
-        "drinkable": false,
-        "climbable": false,
-        "transparent": false,
-        "annotations": {}
-      },
       "matches (fourth)": {
         "name": "Matches (Fourth)",
-        "description": "Six matches bound with waxed thread.",
+        "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
         "kind": "thing",
         "location": "Fourth Floor — Connector 2",
         "locationType": "room",
@@ -2548,63 +2655,11 @@
         "transparent": false,
         "annotations": {}
       },
-      "matches (third)": {
-        "name": "Matches (Third)",
-        "description": "Six matches bound with waxed thread.",
-        "kind": "thing",
-        "location": "Third Floor — Connector 2",
-        "locationType": "room",
-        "portable": true,
-        "openable": false,
-        "open": false,
-        "lockable": false,
-        "locked": false,
-        "lit": false,
-        "switchable": false,
-        "switched_on": false,
-        "enterable": false,
-        "vehiclePassengers": [],
-        "wearable": false,
-        "worn_by": null,
-        "readable": false,
-        "read_text": null,
-        "edible": false,
-        "drinkable": false,
-        "climbable": false,
-        "transparent": false,
-        "annotations": {}
-      },
       "matches (second)": {
         "name": "Matches (Second)",
-        "description": "Six matches bound with waxed thread.",
+        "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
         "kind": "thing",
         "location": "Second Floor — Connector 2",
-        "locationType": "room",
-        "portable": true,
-        "openable": false,
-        "open": false,
-        "lockable": false,
-        "locked": false,
-        "lit": false,
-        "switchable": false,
-        "switched_on": false,
-        "enterable": false,
-        "vehiclePassengers": [],
-        "wearable": false,
-        "worn_by": null,
-        "readable": false,
-        "read_text": null,
-        "edible": false,
-        "drinkable": false,
-        "climbable": false,
-        "transparent": false,
-        "annotations": {}
-      },
-      "matches (first)": {
-        "name": "Matches (First)",
-        "description": "Six matches bound with waxed thread.",
-        "kind": "thing",
-        "location": "First Floor — Connector 2",
         "locationType": "room",
         "portable": true,
         "openable": false,

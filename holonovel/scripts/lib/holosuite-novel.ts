@@ -9,13 +9,15 @@
 //
 // REQ citations: REQ-565 (starter Novel), REQ-601 (state hash), REQ-603/604
 // (verify/replay), REQ-606 (context ledger), REQ-599/600 (visibility),
-// REQ-542 (knowledge query), REQ-096j (bundle integrity).
+// REQ-542 (knowledge query), REQ-096j (bundle integrity),
+// REQ-622/REQ-622a (hazard/match balance).
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer, type McpClient } from "./mcp-client.js";
 import { readPersistedNovel } from "./eval-state.js";
+import { buildWorldModel, findWinningPath, loadNovel, balanceReport } from "./playability-model.js";
 import { stateHash, projectState, canonicalJson } from "../../src/core/state-hash.js";
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import type { TierResult } from "./eval-schema.js";
@@ -23,12 +25,12 @@ import type { TierResult } from "./eval-schema.js";
 const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarterArtifact
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
-const P_CONTEXT = "holonovel/src/index.ts:8540";
-const P_VISIBILITY = "holonovel/src/index.ts:8666"; // visibility_check handler
-const P_KNOWLEDGE = "holonovel/src/index.ts:7316"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:9131"; // computeBundleIntegrity
+const P_CONTEXT = "holonovel/src/index.ts:8836";
+const P_VISIBILITY = "holonovel/src/index.ts:8858"; // visibility_check handler
+const P_KNOWLEDGE = "holonovel/src/index.ts:7490"; // knowledge_query handler
+const P_INTEGRITY = "holonovel/src/index.ts:9370"; // computeBundleIntegrity
 const P_RESTART = "holonovel/src/core/state.ts:2280";
-const P_NARRATOR = "holonovel/src/index.ts:8529"; // recap orientation + contract
+const P_NARRATOR = "holonovel/src/index.ts:8675"; // recap orientation + contract
 
 const NOVEL_NAME = "Torre Nosferatu";
 // Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the
@@ -174,12 +176,12 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
 
     // --- Structure ----------------------------------------------------------
     const counts: Array<[string, number, number, string]> = [
-      ["rooms", Object.keys(novel.world?.rooms ?? {}).length, 85, "REQ-565"],
-      ["things", Object.keys(novel.world?.things ?? {}).length, 35, "REQ-565"],
+      ["rooms", Object.keys(novel.world?.rooms ?? {}).length, 94, "REQ-565"],
+      ["things", Object.keys(novel.world?.things ?? {}).length, 32, "REQ-565"],
       ["npcs", Object.keys(novel.npcs ?? {}).length, 6, "REQ-565"],
       ["lore", Object.keys(novel.lore ?? {}).length, 17, "REQ-565"],
       ["secrets", (novel.secrets ?? []).length, 3, "REQ-565"],
-      ["countdowns", Object.keys(novel.countdowns ?? {}).length, 2, "REQ-565"],
+      ["countdowns", Object.keys(novel.countdowns ?? {}).length, 3, "REQ-565"],
     ];
     for (const [label, actual, expected, req] of counts) {
       step++;
@@ -197,6 +199,23 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     const candleClock = Object.values(novel.countdowns ?? {}).find((cd) => cd.name === "The Candle");
     const refills = (candleClock?.triggers ?? []).filter((t) => /^on_thing_take\(.+\)\+10$/.test(t)).length;
     record("candle_starts_partial", candleClock?.ticks === 30 && candleClock?.total === 100 && refills === 7, `Candle ${candleClock?.ticks}/${candleClock?.total}, ${refills} refill triggers`, step, ["REQ-565"], P_STRUCTURE);
+
+    step++;
+    const hazardRooms = Object.values(novel.world?.rooms ?? {}).filter((r) => r.annotations?.trap || r.annotations?.encounter);
+    record("hazard_annotations", hazardRooms.length === 12, `${hazardRooms.length} hazard rooms annotated`, step, ["REQ-622"], P_STRUCTURE);
+
+    step++;
+    const balanceModel = buildWorldModel(loadNovel(novel));
+    const winning = findWinningPath(balanceModel);
+    const balance = winning ? balanceReport(balanceModel, winning) : null;
+    record(
+      "balance_band",
+      !!balance && balance.remainingWax >= 2 && balance.remainingWax <= 8 && balance.remainingMatches >= 0 && balance.remainingMatches <= 4,
+      balance ? `wax ${balance.remainingWax} (low ${balance.lowWater}), matches ${balance.remainingMatches.toFixed(2)}` : "no winning path",
+      step,
+      ["REQ-622", "REQ-622a"],
+      P_STRUCTURE,
+    );
 
     step++;
     const dangling = Object.entries(novel.world?.rooms ?? {}).flatMap(([id, room]) =>
@@ -255,6 +274,16 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       const keyRoom = `${prefix} — Key Room`;
 
       if (floor !== "Seventh") {
+        if (floor === "Sixth" || floor === "Fourth" || floor === "Second") {
+          step++;
+          const matchRoom = `${prefix} — Connector 2`;
+          const walkedMatch = await walk(client, rooms, at, matchRoom);
+          record(`walk_${floor.toLowerCase()}_matches`, walkedMatch.ok, walkedMatch.detail, step, ["REQ-565", "REQ-622a"], P_LOCK);
+          at = walkedMatch.at;
+          step++;
+          const tookMatch = await take(client, `Matches (${floor})`);
+          record(`take_${floor.toLowerCase()}_matches`, tookMatch.startsWith("[OK]"), tookMatch.split("\n")[0] ?? "", step, ["REQ-565", "REQ-622a"], P_LOCK);
+        }
         step++;
         const walked = await walk(client, rooms, at, keyRoom);
         record(`walk_${floor.toLowerCase()}_key_room`, walked.ok, walked.detail, step, ["REQ-565"], P_LOCK);
