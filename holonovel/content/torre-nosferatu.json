@@ -51,13 +51,11 @@
       "direction": "increment",
       "name": "Matches",
       "scope": "shared",
+      "survival": {
+        "bundle_increment": 2
+      },
       "ticks": 0,
       "total": 99,
-      "triggers": [
-        "on_thing_take(matches (sixth))+2",
-        "on_thing_take(matches (fourth))+2",
-        "on_thing_take(matches (second))+2"
-      ],
       "type": "narrative"
     },
     "The Candle": {
@@ -65,17 +63,15 @@
       "name": "The Candle",
       "on_scene_transition": true,
       "scope": "shared",
+      "survival": {
+        "bundle_increment": 10,
+        "last_light_ticks": 3,
+        "light_thing": "your candle",
+        "per_use_decrement": 1,
+        "unit_countdown": "Matches"
+      },
       "ticks": 30,
       "total": 100,
-      "triggers": [
-        "on_thing_take(wax stub)+10",
-        "on_thing_take(sixth floor wax)+10",
-        "on_thing_take(fifth floor wax)+10",
-        "on_thing_take(fourth floor wax)+10",
-        "on_thing_take(third floor wax)+10",
-        "on_thing_take(second floor wax)+10",
-        "on_thing_take(first floor wax)+10"
-      ],
       "type": "narrative",
       "world_effect": {
         "direction": "out",
@@ -831,13 +827,11 @@
             "direction": "increment",
             "name": "Matches",
             "scope": "shared",
+            "survival": {
+              "bundle_increment": 2
+            },
             "ticks": 0,
             "total": 99,
-            "triggers": [
-              "on_thing_take(matches (sixth))+2",
-              "on_thing_take(matches (fourth))+2",
-              "on_thing_take(matches (second))+2"
-            ],
             "type": "narrative"
           },
           "The Candle": {
@@ -845,17 +839,15 @@
             "name": "The Candle",
             "on_scene_transition": true,
             "scope": "shared",
+            "survival": {
+              "bundle_increment": 10,
+              "last_light_ticks": 3,
+              "light_thing": "your candle",
+              "per_use_decrement": 1,
+              "unit_countdown": "Matches"
+            },
             "ticks": 30,
             "total": 100,
-            "triggers": [
-              "on_thing_take(wax stub)+10",
-              "on_thing_take(sixth floor wax)+10",
-              "on_thing_take(fifth floor wax)+10",
-              "on_thing_take(fourth floor wax)+10",
-              "on_thing_take(third floor wax)+10",
-              "on_thing_take(second floor wax)+10",
-              "on_thing_take(first floor wax)+10"
-            ],
             "type": "narrative",
             "world_effect": {
               "direction": "out",
@@ -1770,7 +1762,10 @@
             },
             "fifth floor — beast warren": {
               "annotations": {
-                "encounter": "spill=1"
+                "encounter": {
+                  "resource": "The Candle",
+                  "spill": 1
+                }
               },
               "description": "Doorways laced floor to lintel with webbing. The webbing is soft, not dusty; it flexes when the light touches it, and closes again where it is torn. Spiders hang in the strands like dark fruit.",
               "doorRefs": {},
@@ -1874,7 +1869,12 @@
             },
             "fifth floor — trap hall": {
               "annotations": {
-                "trap": "snuff=Dread;avoid=0"
+                "trap": {
+                  "avoid": 0,
+                  "faces": 8,
+                  "resource": "The Candle",
+                  "snuff": "Dread"
+                }
               },
               "description": "A bed the size of a small room, hung in silk. The sheets are knotted into a pattern no body makes in sleep. The silk is dark in places that are not shadows, and it moves very slightly, as if breathing.",
               "doorRefs": {},
@@ -1908,7 +1908,10 @@
             },
             "first floor — beast warren": {
               "annotations": {
-                "encounter": "spill=3"
+                "encounter": {
+                  "resource": "The Candle",
+                  "spill": 3
+                }
               },
               "description": "Every creature the tower holds is gathered here, thickest near the exit — a pale bulk, wolves, rats, spiders hanging in ropes, shapes without names. They do not attack. They stand in the way and watch the candles.",
               "doorRefs": {},
@@ -2000,7 +2003,12 @@
             },
             "first floor — trap hall": {
               "annotations": {
-                "trap": "snuff=Dread;avoid=0"
+                "trap": {
+                  "avoid": 0,
+                  "faces": 8,
+                  "resource": "The Candle",
+                  "snuff": "Dread"
+                }
               },
               "description": "The floor is a cracked ruin of flagstones, the cracks running in long faults from wall to wall. The faults are widest at the centre and narrow toward the east wall, where the stones still key into their neighbours.",
               "doorRefs": {},
@@ -2022,7 +2030,10 @@
             },
             "fourth floor — beast warren": {
               "annotations": {
-                "encounter": "spill=2"
+                "encounter": {
+                  "resource": "The Candle",
+                  "spill": 2
+                }
               },
               "description": "Cages stand open, and the wolves stand outside them — thin, grey, pacing the bars they no longer need. They do not look at you. They look at each other, and at the empty cages.",
               "doorRefs": {},
@@ -2158,7 +2169,12 @@
             },
             "fourth floor — trap hall": {
               "annotations": {
-                "trap": "snuff=Dread;avoid=2"
+                "trap": {
+                  "avoid": 2,
+                  "faces": 8,
+                  "resource": "The Candle",
+                  "snuff": "Dread"
+                }
               },
               "description": "A case of glass and acid, its seams weeping a thin line that hisses where it touches the floor. The cracks in the glass run in one direction. Where they stop, the acid has spent itself.",
               "doorRefs": {},
@@ -2180,7 +2196,10 @@
             },
             "second floor — beast warren": {
               "annotations": {
-                "encounter": "spill=3"
+                "encounter": {
+                  "resource": "The Candle",
+                  "spill": 3
+                }
               },
               "description": "It lies against the far wall in the dark, half-asleep: a soft pale mass the size of a cart, with a mouth that opens and closes like slow breathing. It has no eyes. It turns toward heat, and toward light.",
               "doorRefs": {},
@@ -2316,7 +2335,12 @@
             },
             "second floor — trap hall": {
               "annotations": {
-                "trap": "snuff=Dread;avoid=2"
+                "trap": {
+                  "avoid": 2,
+                  "faces": 8,
+                  "resource": "The Candle",
+                  "snuff": "Dread"
+                }
               },
               "description": "The floor is covered in dust, and the dust lies in a soft blanket — except where it dips, in a wide oval at the centre, too smooth to be natural. The edge stands in little ridges.",
               "doorRefs": {},
@@ -2459,7 +2483,10 @@
             },
             "sixth floor — beast warren": {
               "annotations": {
-                "encounter": "spill=1"
+                "encounter": {
+                  "resource": "The Candle",
+                  "spill": 1
+                }
               },
               "description": "Rats move in a brown tide, each dragging something bright — a coin, a ring, a candle stub carried like a trophy. They gnaw through coin and match alike. They are not afraid of the light.",
               "doorRefs": {},
@@ -2595,7 +2622,12 @@
             },
             "sixth floor — trap hall": {
               "annotations": {
-                "trap": "snuff=Dread;avoid=2"
+                "trap": {
+                  "avoid": 2,
+                  "faces": 8,
+                  "resource": "The Candle",
+                  "snuff": "Dread"
+                }
               },
               "description": "The floor is not a floor. Coins and plate are heaped over a sag in the boards, and where the heap meets the wall a hairline crack runs joint to joint. Dust sifts through it in a thin, steady trickle.",
               "doorRefs": {},
@@ -2617,7 +2649,10 @@
             },
             "third floor — beast warren": {
               "annotations": {
-                "encounter": "spill=2"
+                "encounter": {
+                  "resource": "The Candle",
+                  "spill": 2
+                }
               },
               "description": "Old straw, old troughs, and shades moving through the walls like smoke through a grate — thin, hungry, not quite shaped. They gather toward the light, and where they press close the flame leans and thins.",
               "doorRefs": {},
@@ -2721,7 +2756,12 @@
             },
             "third floor — trap hall": {
               "annotations": {
-                "trap": "snuff=Dread;avoid=0"
+                "trap": {
+                  "avoid": 0,
+                  "faces": 8,
+                  "resource": "The Candle",
+                  "snuff": "Dread"
+                }
               },
               "description": "A long table stripped to bone-white wood. Beneath it the floor is a puzzle of boards that no longer lie flat. The centre boards gape, and something under them shifts when the air moves.",
               "doorRefs": {},
@@ -2797,7 +2837,9 @@
               "worn_by": null
             },
             "fifth floor wax": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "Pooled wax under a sconce — the fifth floor's guaranteed refill.",
               "drinkable": false,
@@ -2849,7 +2891,9 @@
               "worn_by": null
             },
             "first floor wax": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "Pooled wax — the first floor's guaranteed refill.",
               "drinkable": false,
@@ -2928,7 +2972,9 @@
               "worn_by": null
             },
             "fourth floor wax": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "Pooled, re-hardened wax — the fourth floor's guaranteed refill.",
               "drinkable": false,
@@ -2954,7 +3000,9 @@
               "worn_by": null
             },
             "matches (fourth)": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "Matches"
+              },
               "climbable": false,
               "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
               "drinkable": false,
@@ -2980,7 +3028,9 @@
               "worn_by": null
             },
             "matches (second)": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "Matches"
+              },
               "climbable": false,
               "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
               "drinkable": false,
@@ -3006,7 +3056,9 @@
               "worn_by": null
             },
             "matches (sixth)": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "Matches"
+              },
               "climbable": false,
               "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
               "drinkable": false,
@@ -3267,7 +3319,9 @@
               "worn_by": null
             },
             "second floor wax": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "Pooled wax — the second floor's guaranteed refill.",
               "drinkable": false,
@@ -3403,7 +3457,9 @@
               "worn_by": null
             },
             "sixth floor wax": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "Pooled, re-hardened wax under a sconce — the sixth floor's guaranteed refill.",
               "drinkable": false,
@@ -3509,7 +3565,9 @@
               "worn_by": null
             },
             "third floor wax": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "Pooled wax — the third floor's guaranteed refill.",
               "drinkable": false,
@@ -3535,7 +3593,9 @@
               "worn_by": null
             },
             "wax stub": {
-              "annotations": {},
+              "annotations": {
+                "bundle_of": "The Candle"
+              },
               "climbable": false,
               "description": "A stub of candle-wax pressed into the stone. It will buy back a little light.",
               "drinkable": false,
@@ -3831,7 +3891,10 @@
       },
       "fifth floor — beast warren": {
         "annotations": {
-          "encounter": "spill=1"
+          "encounter": {
+            "resource": "The Candle",
+            "spill": 1
+          }
         },
         "description": "Doorways laced floor to lintel with webbing. The webbing is soft, not dusty; it flexes when the light touches it, and closes again where it is torn. Spiders hang in the strands like dark fruit.",
         "doorRefs": {},
@@ -3935,7 +3998,12 @@
       },
       "fifth floor — trap hall": {
         "annotations": {
-          "trap": "snuff=Dread;avoid=0"
+          "trap": {
+            "avoid": 0,
+            "faces": 8,
+            "resource": "The Candle",
+            "snuff": "Dread"
+          }
         },
         "description": "A bed the size of a small room, hung in silk. The sheets are knotted into a pattern no body makes in sleep. The silk is dark in places that are not shadows, and it moves very slightly, as if breathing.",
         "doorRefs": {},
@@ -3969,7 +4037,10 @@
       },
       "first floor — beast warren": {
         "annotations": {
-          "encounter": "spill=3"
+          "encounter": {
+            "resource": "The Candle",
+            "spill": 3
+          }
         },
         "description": "Every creature the tower holds is gathered here, thickest near the exit — a pale bulk, wolves, rats, spiders hanging in ropes, shapes without names. They do not attack. They stand in the way and watch the candles.",
         "doorRefs": {},
@@ -4061,7 +4132,12 @@
       },
       "first floor — trap hall": {
         "annotations": {
-          "trap": "snuff=Dread;avoid=0"
+          "trap": {
+            "avoid": 0,
+            "faces": 8,
+            "resource": "The Candle",
+            "snuff": "Dread"
+          }
         },
         "description": "The floor is a cracked ruin of flagstones, the cracks running in long faults from wall to wall. The faults are widest at the centre and narrow toward the east wall, where the stones still key into their neighbours.",
         "doorRefs": {},
@@ -4083,7 +4159,10 @@
       },
       "fourth floor — beast warren": {
         "annotations": {
-          "encounter": "spill=2"
+          "encounter": {
+            "resource": "The Candle",
+            "spill": 2
+          }
         },
         "description": "Cages stand open, and the wolves stand outside them — thin, grey, pacing the bars they no longer need. They do not look at you. They look at each other, and at the empty cages.",
         "doorRefs": {},
@@ -4219,7 +4298,12 @@
       },
       "fourth floor — trap hall": {
         "annotations": {
-          "trap": "snuff=Dread;avoid=2"
+          "trap": {
+            "avoid": 2,
+            "faces": 8,
+            "resource": "The Candle",
+            "snuff": "Dread"
+          }
         },
         "description": "A case of glass and acid, its seams weeping a thin line that hisses where it touches the floor. The cracks in the glass run in one direction. Where they stop, the acid has spent itself.",
         "doorRefs": {},
@@ -4241,7 +4325,10 @@
       },
       "second floor — beast warren": {
         "annotations": {
-          "encounter": "spill=3"
+          "encounter": {
+            "resource": "The Candle",
+            "spill": 3
+          }
         },
         "description": "It lies against the far wall in the dark, half-asleep: a soft pale mass the size of a cart, with a mouth that opens and closes like slow breathing. It has no eyes. It turns toward heat, and toward light.",
         "doorRefs": {},
@@ -4377,7 +4464,12 @@
       },
       "second floor — trap hall": {
         "annotations": {
-          "trap": "snuff=Dread;avoid=2"
+          "trap": {
+            "avoid": 2,
+            "faces": 8,
+            "resource": "The Candle",
+            "snuff": "Dread"
+          }
         },
         "description": "The floor is covered in dust, and the dust lies in a soft blanket — except where it dips, in a wide oval at the centre, too smooth to be natural. The edge stands in little ridges.",
         "doorRefs": {},
@@ -4520,7 +4612,10 @@
       },
       "sixth floor — beast warren": {
         "annotations": {
-          "encounter": "spill=1"
+          "encounter": {
+            "resource": "The Candle",
+            "spill": 1
+          }
         },
         "description": "Rats move in a brown tide, each dragging something bright — a coin, a ring, a candle stub carried like a trophy. They gnaw through coin and match alike. They are not afraid of the light.",
         "doorRefs": {},
@@ -4656,7 +4751,12 @@
       },
       "sixth floor — trap hall": {
         "annotations": {
-          "trap": "snuff=Dread;avoid=2"
+          "trap": {
+            "avoid": 2,
+            "faces": 8,
+            "resource": "The Candle",
+            "snuff": "Dread"
+          }
         },
         "description": "The floor is not a floor. Coins and plate are heaped over a sag in the boards, and where the heap meets the wall a hairline crack runs joint to joint. Dust sifts through it in a thin, steady trickle.",
         "doorRefs": {},
@@ -4678,7 +4778,10 @@
       },
       "third floor — beast warren": {
         "annotations": {
-          "encounter": "spill=2"
+          "encounter": {
+            "resource": "The Candle",
+            "spill": 2
+          }
         },
         "description": "Old straw, old troughs, and shades moving through the walls like smoke through a grate — thin, hungry, not quite shaped. They gather toward the light, and where they press close the flame leans and thins.",
         "doorRefs": {},
@@ -4782,7 +4885,12 @@
       },
       "third floor — trap hall": {
         "annotations": {
-          "trap": "snuff=Dread;avoid=0"
+          "trap": {
+            "avoid": 0,
+            "faces": 8,
+            "resource": "The Candle",
+            "snuff": "Dread"
+          }
         },
         "description": "A long table stripped to bone-white wood. Beneath it the floor is a puzzle of boards that no longer lie flat. The centre boards gape, and something under them shifts when the air moves.",
         "doorRefs": {},
@@ -4858,7 +4966,9 @@
         "worn_by": null
       },
       "fifth floor wax": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "Pooled wax under a sconce — the fifth floor's guaranteed refill.",
         "drinkable": false,
@@ -4910,7 +5020,9 @@
         "worn_by": null
       },
       "first floor wax": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "Pooled wax — the first floor's guaranteed refill.",
         "drinkable": false,
@@ -4989,7 +5101,9 @@
         "worn_by": null
       },
       "fourth floor wax": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "Pooled, re-hardened wax — the fourth floor's guaranteed refill.",
         "drinkable": false,
@@ -5015,7 +5129,9 @@
         "worn_by": null
       },
       "matches (fourth)": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "Matches"
+        },
         "climbable": false,
         "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
         "drinkable": false,
@@ -5041,7 +5157,9 @@
         "worn_by": null
       },
       "matches (second)": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "Matches"
+        },
         "climbable": false,
         "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
         "drinkable": false,
@@ -5067,7 +5185,9 @@
         "worn_by": null
       },
       "matches (sixth)": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "Matches"
+        },
         "climbable": false,
         "description": "Two matches bound with waxed thread. A snuff is survivable only while one of these remains.",
         "drinkable": false,
@@ -5328,7 +5448,9 @@
         "worn_by": null
       },
       "second floor wax": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "Pooled wax — the second floor's guaranteed refill.",
         "drinkable": false,
@@ -5464,7 +5586,9 @@
         "worn_by": null
       },
       "sixth floor wax": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "Pooled, re-hardened wax under a sconce — the sixth floor's guaranteed refill.",
         "drinkable": false,
@@ -5570,7 +5694,9 @@
         "worn_by": null
       },
       "third floor wax": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "Pooled wax — the third floor's guaranteed refill.",
         "drinkable": false,
@@ -5596,7 +5722,9 @@
         "worn_by": null
       },
       "wax stub": {
-        "annotations": {},
+        "annotations": {
+          "bundle_of": "The Candle"
+        },
         "climbable": false,
         "description": "A stub of candle-wax pressed into the stone. It will buy back a little light.",
         "drinkable": false,

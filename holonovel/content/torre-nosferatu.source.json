@@ -254,20 +254,18 @@
       "scope": "shared",
       "direction": "decrement",
       "on_scene_transition": true,
-      "triggers": [
-        "on_thing_take(wax stub)+10",
-        "on_thing_take(sixth floor wax)+10",
-        "on_thing_take(fifth floor wax)+10",
-        "on_thing_take(fourth floor wax)+10",
-        "on_thing_take(third floor wax)+10",
-        "on_thing_take(second floor wax)+10",
-        "on_thing_take(first floor wax)+10"
-      ],
       "world_effect": {
         "type": "exit",
         "target": "First Floor — Antechamber",
         "direction": "out",
         "value": "Wax-out: the flame gutters out and the tower seals the threshold behind you. Orlok takes the way out."
+      },
+      "survival": {
+        "bundle_increment": 10,
+        "per_use_decrement": 1,
+        "last_light_ticks": 3,
+        "light_thing": "your candle",
+        "unit_countdown": "Matches"
       }
     },
     "Dread": {
@@ -298,11 +296,9 @@
       "type": "narrative",
       "scope": "shared",
       "direction": "increment",
-      "triggers": [
-        "on_thing_take(matches (sixth))+2",
-        "on_thing_take(matches (fourth))+2",
-        "on_thing_take(matches (second))+2"
-      ]
+      "survival": {
+        "bundle_increment": 2
+      }
     }
   },
   "lore": {
@@ -1138,7 +1134,12 @@
         },
         "doorRefs": {},
         "annotations": {
-          "trap": "snuff=Dread;avoid=2"
+          "trap": {
+            "snuff": "Dread",
+            "faces": 8,
+            "resource": "The Candle",
+            "avoid": 2
+          }
         }
       },
       "sixth floor — beast warren": {
@@ -1150,7 +1151,10 @@
         },
         "doorRefs": {},
         "annotations": {
-          "encounter": "spill=1"
+          "encounter": {
+            "spill": 1,
+            "resource": "The Candle"
+          }
         }
       },
       "sixth floor — connector 1": {
@@ -1266,7 +1270,12 @@
         },
         "doorRefs": {},
         "annotations": {
-          "trap": "snuff=Dread;avoid=0"
+          "trap": {
+            "snuff": "Dread",
+            "faces": 8,
+            "resource": "The Candle",
+            "avoid": 0
+          }
         }
       },
       "fifth floor — beast warren": {
@@ -1278,7 +1287,10 @@
         },
         "doorRefs": {},
         "annotations": {
-          "encounter": "spill=1"
+          "encounter": {
+            "spill": 1,
+            "resource": "The Candle"
+          }
         }
       },
       "fifth floor — connector 1": {
@@ -1392,7 +1404,12 @@
         },
         "doorRefs": {},
         "annotations": {
-          "trap": "snuff=Dread;avoid=2"
+          "trap": {
+            "snuff": "Dread",
+            "faces": 8,
+            "resource": "The Candle",
+            "avoid": 2
+          }
         }
       },
       "fourth floor — beast warren": {
@@ -1404,7 +1421,10 @@
         },
         "doorRefs": {},
         "annotations": {
-          "encounter": "spill=2"
+          "encounter": {
+            "spill": 2,
+            "resource": "The Candle"
+          }
         }
       },
       "fourth floor — connector 1": {
@@ -1520,7 +1540,12 @@
         },
         "doorRefs": {},
         "annotations": {
-          "trap": "snuff=Dread;avoid=0"
+          "trap": {
+            "snuff": "Dread",
+            "faces": 8,
+            "resource": "The Candle",
+            "avoid": 0
+          }
         }
       },
       "third floor — beast warren": {
@@ -1532,7 +1557,10 @@
         },
         "doorRefs": {},
         "annotations": {
-          "encounter": "spill=2"
+          "encounter": {
+            "spill": 2,
+            "resource": "The Candle"
+          }
         }
       },
       "third floor — connector 1": {
@@ -1646,7 +1674,12 @@
         },
         "doorRefs": {},
         "annotations": {
-          "trap": "snuff=Dread;avoid=2"
+          "trap": {
+            "snuff": "Dread",
+            "faces": 8,
+            "resource": "The Candle",
+            "avoid": 2
+          }
         }
       },
       "second floor — beast warren": {
@@ -1658,7 +1691,10 @@
         },
         "doorRefs": {},
         "annotations": {
-          "encounter": "spill=3"
+          "encounter": {
+            "spill": 3,
+            "resource": "The Candle"
+          }
         }
       },
       "second floor — connector 1": {
@@ -1764,7 +1800,12 @@
         },
         "doorRefs": {},
         "annotations": {
-          "trap": "snuff=Dread;avoid=0"
+          "trap": {
+            "snuff": "Dread",
+            "faces": 8,
+            "resource": "The Candle",
+            "avoid": 0
+          }
         }
       },
       "first floor — beast warren": {
@@ -1776,7 +1817,10 @@
         },
         "doorRefs": {},
         "annotations": {
-          "encounter": "spill=3"
+          "encounter": {
+            "spill": 3,
+            "resource": "The Candle"
+          }
         }
       },
       "first floor — connector 1": {
@@ -2049,7 +2093,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "sixth floor key": {
         "name": "Sixth Floor Key",
@@ -2128,7 +2174,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "matches (sixth)": {
         "name": "Matches (Sixth)",
@@ -2154,7 +2202,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "Matches"
+        }
       },
       "page — the count waits": {
         "name": "Page — The Count Waits",
@@ -2259,7 +2309,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "page — the bitten": {
         "name": "Page — The Bitten",
@@ -2364,7 +2416,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "page — the borrowed door": {
         "name": "Page — The Borrowed Door",
@@ -2469,7 +2523,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "second floor key": {
         "name": "Second Floor Key",
@@ -2548,7 +2604,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "first floor key": {
         "name": "First Floor Key",
@@ -2627,7 +2685,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "The Candle"
+        }
       },
       "matches (fourth)": {
         "name": "Matches (Fourth)",
@@ -2653,7 +2713,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "Matches"
+        }
       },
       "matches (second)": {
         "name": "Matches (Second)",
@@ -2679,7 +2741,9 @@
         "drinkable": false,
         "climbable": false,
         "transparent": false,
-        "annotations": {}
+        "annotations": {
+          "bundle_of": "Matches"
+        }
       },
       "page — the weather": {
         "name": "Page — The Weather",

@@ -149,6 +149,40 @@ export function oppositeDirection(dir: Direction): Direction {
   return pairs[dir] ?? dir;
 }
 
+// REQ-622 — hazard annotations. `encounter` spills the declared count from the
+// named survival resource; `trap` resolves a seeded check sized by `faces`
+// against the `snuff` countdown's remaining ticks. `avoid` is a non-normative
+// starter field (the wax cost of detouring) consumed by the balance report.
+export interface EncounterAnnotation {
+  spill: number;
+  resource: string;
+  avoid?: number;
+}
+
+export interface TrapAnnotation {
+  snuff: string;
+  faces: number;
+  resource: string;
+  avoid?: number;
+}
+
+export interface RoomAnnotations {
+  encounter?: EncounterAnnotation;
+  trap?: TrapAnnotation;
+  npc?: string;
+  lore?: string;
+}
+
+// REQ-622c — a thing carrying `bundle_of` is a bundle of the named resource;
+// taking it advances that countdown by its declared bundle increment.
+export interface ThingAnnotations {
+  bundle_of?: string;
+  encounter?: string;
+  trap?: string;
+  npc?: string;
+  lore?: string;
+}
+
 export interface WorldThing {
   name: string;
   description: string;
@@ -186,7 +220,7 @@ export interface WorldThing {
   scent: string | null;
   key?: string;
   // Annotations
-  annotations: { encounter?: string; trap?: string; npc?: string; lore?: string };
+  annotations: ThingAnnotations;
 }
 
 export interface WorldRoom {
@@ -194,7 +228,7 @@ export interface WorldRoom {
   description: string;
   exits: Map<string, string>; // direction -> target room name
   doorRefs: Map<string, string>; // direction -> door thing name
-  annotations: { encounter?: string; trap?: string; npc?: string; lore?: string };
+  annotations: RoomAnnotations;
 }
 
 export interface WorldModel {

@@ -31,7 +31,7 @@ import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, Countdown, DIF
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
-import { hazardRoll as hazardDraw } from "./core/hazard.js";
+import { hazardRoll as hazardDraw, parseRoomHazard } from "./core/hazard.js";
 import { EventHub } from "./core/event-hub.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
@@ -3826,16 +3826,10 @@ function composeNpcMemorySection(novel: NovelState, npc: any): string {
 // --- World-Model Tools ---
 
 
-// REQ-622 — hazard annotations on rooms: `encounter` spills wax on entry;
-// `trap` resolves a seeded snuff check against the named countdown's ticks.
-// REQ-622a — matches are a shared countdown: one relights a snuffed candle,
-// and a match re-arms the gating clock for three turns when wax runs out.
-function hazardValue(annotation: string | undefined, key: string): string | null {
-  if (!annotation) return null;
-  const m = annotation.match(new RegExp(`${key}\\s*=\\s*([A-Za-z0-9 _-]+)`, "i"));
-  return m ? m[1].trim() : null;
-}
-
+// REQ-622 / REQ-622a–c — generic hazard model. Rooms carry structured
+// `encounter` / `trap` annotations; the survival parameters (bundle increment,
+// per-use decrement, last-light ticks) live on the resource countdown. No
+// content names are hardcoded here.
 function findCountdownByName(novel: NovelState, name: string): [string, Countdown] | null {
   const want = name.toLowerCase();
   for (const [key, cd] of novel.countdowns.entries()) {
@@ -3844,105 +3838,166 @@ function findCountdownByName(novel: NovelState, name: string): [string, Countdow
   return null;
 }
 
-function spendMatch(novel: NovelState): boolean {
-  const found = findCountdownByName(novel, "Matches");
-  if (!found || found[1].ticks <= 0) return false;
-  found[1].ticks -= 1;
-  audit("match_spend", { remaining: found[1].ticks });
-  return true;
+function resourceCountdown(novel: NovelState, name: string): Countdown | null {
+  return findCountdownByName(novel, name)?.[1] ?? null;
 }
 
-function findCandleThing(novel: NovelState): WorldThing | undefined {
-  return [...novel.world.things.values()].find((t) => /your candle/i.test(t.name));
-}
-
-function findGatingCountdown(novel: NovelState): [string, Countdown] | null {
-  for (const [key, cd] of novel.countdowns.entries()) {
-    if (cd.world_effect?.type === "exit") return [key, cd];
+// Pre-change resource inference, retained only to coerce legacy string
+// annotations written before the structured model (REQ-622 compatibility shim).
+function legacyHazardResource(novel: NovelState): string | undefined {
+  for (const cd of novel.countdowns.values()) {
+    if (cd.world_effect?.type === "exit") return cd.name;
   }
-  return null;
+  return undefined;
+}
+
+function lightThingOf(novel: NovelState, resource: Countdown): WorldThing | undefined {
+  const want = resource.survival?.light_thing;
+  if (!want) return undefined;
+  const lower = want.toLowerCase();
+  return [...novel.world.things.values()].find((t) => t.name.toLowerCase() === lower);
+}
+
+function lastLightName(resourceName: string): string {
+  return `${resourceName} — last light`;
 }
 
 // Deterministic across restarts: the seed, the room, and the number of prior
 // hazard checks in this room (persisted in the audit log) select the draw.
 // The audit log stores `args` as a JSON string, so the pure helper parses it.
-function hazardRoll(novel: NovelState, roomName: string): number {
-  return hazardDraw(novel.audit_log, process.env.TTRPG_SEED ?? "0", roomName);
+function hazardRoll(novel: NovelState, roomName: string, faces = 8): number {
+  return hazardDraw(novel.audit_log, process.env.TTRPG_SEED ?? "0", roomName, faces);
 }
 
-function startLastLight(novel: NovelState, effect?: Countdown["world_effect"]): void {
-  const existing = findCountdownByName(novel, "Last Light");
+function startLastLight(novel: NovelState, resourceName: string, resource: Countdown, reason: string): void {
+  const name = lastLightName(resourceName);
+  const ticks = Math.max(1, resource.survival?.last_light_ticks ?? 3);
+  const existing = novel.countdowns.get(name);
   if (existing) {
-    existing[1].ticks = 3;
+    existing.ticks = ticks;
     return;
   }
-  novel.countdowns.set("Last Light", {
-    name: "Last Light",
-    ticks: 3,
-    total: 3,
+  novel.countdowns.set(name, {
+    name,
+    ticks,
+    total: ticks,
     type: "narrative",
     scope: "shared",
     direction: "decrement",
     on_scene_transition: true,
     triggers: [],
-    world_effect: effect ?? findGatingCountdown(novel)?.[1].world_effect,
+    world_effect: resource.world_effect,
   });
-  audit("last_light_start", { ticks: 3 });
+  audit("last_light_start", { resource: resourceName, ticks, reason });
 }
 
-function snuffActiveCandle(novel: NovelState): void {
-  const candle = findCandleThing(novel);
-  if (candle && !candle.lit) {
-    startLastLight(novel);
-    return;
-  }
-  if (candle) candle.lit = false;
-  if (spendMatch(novel)) {
-    if (candle) candle.lit = true;
-    audit("match_relight", {});
-    return;
-  }
-  startLastLight(novel);
+function spendUnit(novel: NovelState, resource: Countdown): string | null {
+  const unitName = resource.survival?.unit_countdown;
+  if (!unitName) return null;
+  const unit = resourceCountdown(novel, unitName);
+  if (!unit || unit.ticks <= 0) return null;
+  unit.ticks -= 1;
+  audit("unit_spend", { resource: resource.name, unit: unitName, remaining: unit.ticks });
+  return unitName;
 }
 
-function spendMatchForLastLight(novel: NovelState, name: string, cd: Countdown): boolean {
-  if (!spendMatch(novel)) return false;
-  const effect = cd.world_effect;
+// REQ-622b/c — a successful trap check extinguishes the resource. The light
+// goes out but the resource's ticks are preserved; an available unit relights
+// it without loss, and no unit starts the declared last-light countdown.
+function extinguishResource(novel: NovelState, resourceName: string): void {
+  const resource = resourceCountdown(novel, resourceName);
+  if (!resource) {
+    audit("hazard_unbound", { resource: resourceName });
+    return;
+  }
+  const thing = lightThingOf(novel, resource);
+  if (!thing) {
+    audit("hazard_unbound_light", { resource: resourceName });
+    return;
+  }
+  if (!thing.lit) {
+    startLastLight(novel, resourceName, resource, "already-extinguished");
+    return;
+  }
+  thing.lit = false;
+  if (resource.survival?.unit_countdown) {
+    const unit = spendUnit(novel, resource);
+    if (!unit) {
+      startLastLight(novel, resourceName, resource, "no-unit");
+      return;
+    }
+    thing.lit = true;
+    novel.countdowns.delete(lastLightName(resourceName));
+    audit("resource_relight", { resource: resourceName, unit });
+    return;
+  }
+  audit("resource_extinguish", { resource: resourceName });
+}
+
+// REQ-622c — a survival resource at its expiry threshold with a unit in hand
+// spends one and buys its declared last light instead of firing the effect.
+function expireSurvivalWithUnit(novel: NovelState, name: string, cd: Countdown): boolean {
+  if (!cd.survival?.unit_countdown) return false;
+  const unit = spendUnit(novel, cd);
+  if (!unit) return false;
   novel.countdowns.delete(name);
-  startLastLight(novel, effect);
-  audit("match_last_light", { from: name });
+  startLastLight(novel, cd.name, cd, "unit-reprieve");
+  audit("countdown_extended", { countdown: name, unit });
   return true;
 }
 
 function expireCountdown(novel: NovelState, name: string, cd: Countdown): void {
-  if (cd.world_effect?.type === "exit" && spendMatchForLastLight(novel, name, cd)) return;
+  if (expireSurvivalWithUnit(novel, name, cd)) return;
   fireCountdown(novel, name, cd);
 }
 
-function resolveRoomHazard(novel: NovelState, roomName: string): void {
+function enterRoomHazards(novel: NovelState, roomName: string): string[] {
   const room = novel.world.rooms.get(roomName.toLowerCase());
-  if (!room) return;
-  const annotations = (room as any).annotations ?? {};
-  const spill = hazardValue(annotations.encounter, "spill");
-  if (spill !== null) {
-    const gating = findGatingCountdown(novel);
-    const n = Number(spill);
-    if (gating && Number.isFinite(n) && n > 0) {
-      const [gname, gcd] = gating;
-      gcd.ticks = Math.max(0, gcd.ticks - n);
-      audit("hazard_spill", { room: roomName, spill: n, ticks: gcd.ticks });
-      if (gcd.ticks <= 0) expireCountdown(novel, gname, gcd);
+  if (!room) return [];
+  const { hazard, warnings } = parseRoomHazard(room.annotations, room.name, { legacyResource: legacyHazardResource(novel) });
+  const out = warnings.map((w) => `[WARNING] ${w}`);
+
+  if (hazard.encounter?.resource) {
+    const resource = resourceCountdown(novel, hazard.encounter.resource);
+    if (!resource) {
+      out.push(`[WARNING] room '${room.name}': encounter resource '${hazard.encounter.resource}' is not an active countdown`);
+    } else if (hazard.encounter.spill > 0) {
+      resource.ticks = Math.max(0, resource.ticks - hazard.encounter.spill);
+      audit("hazard_spill", { room: room.name, spill: hazard.encounter.spill, resource: resource.name, ticks: resource.ticks });
+      if (resource.ticks <= 0) expireCountdown(novel, resource.name, resource);
     }
   }
-  const snuff = hazardValue(annotations.trap, "snuff");
-  if (snuff !== null) {
-    const cd = findCountdownByName(novel, snuff)?.[1];
-    const chance = cd ? Math.max(0, Math.min(8, cd.ticks)) : 0;
-    const roll = hazardRoll(novel, roomName);
-    const snuffed = roll <= chance;
-    audit("hazard_check", { room: roomName, roll, chance, snuffed });
-    if (snuffed) snuffActiveCandle(novel);
+
+  if (hazard.trap?.resource) {
+    const resource = resourceCountdown(novel, hazard.trap.resource);
+    const snuffClock = resourceCountdown(novel, hazard.trap.snuff);
+    if (!resource) {
+      out.push(`[WARNING] room '${room.name}': trap resource '${hazard.trap.resource}' is not an active countdown`);
+    } else if (!snuffClock) {
+      out.push(`[WARNING] room '${room.name}': trap snuff countdown '${hazard.trap.snuff}' is not active`);
+    } else {
+      const faces = Math.max(1, hazard.trap.faces);
+      const chance = Math.max(0, Math.min(faces, snuffClock.ticks));
+      const roll = hazardRoll(novel, room.name, faces);
+      const snuffed = roll <= chance;
+      audit("hazard_check", { room: room.name, roll, chance, faces, snuffed, resource: resource.name });
+      if (snuffed) extinguishResource(novel, resource.name);
+    }
   }
+
+  return out;
+}
+
+// REQ-622c — a bundle is a thing whose `bundle_of` annotation names a resource;
+// taking it advances that countdown by the resource's declared increment.
+function advanceSurvivalBundle(novel: NovelState, thing: WorldThing | undefined): void {
+  const target = thing?.annotations?.bundle_of;
+  if (!target) return;
+  const resource = resourceCountdown(novel, target);
+  const increment = resource?.survival?.bundle_increment;
+  if (!resource || !increment || increment <= 0) return;
+  resource.ticks = Math.min(resource.total, resource.ticks + increment);
+  audit("bundle_advance", { resource: resource.name, increment, ticks: resource.ticks, thing: thing!.name });
 }
 
 // REQ-329 — countdown-world coupling: advance any countdown whose mechanical
@@ -4234,11 +4289,11 @@ server.registerTool("run_command", {
       vehicle.locationType = "room";
       entity.current_room = target;
       advanceWorldTriggeredCountdowns(novel, `room_enter:${String(target).toLowerCase()}`);
-      resolveRoomHazard(novel, String(target));
+      const hazardWarnings = enterRoomHazards(novel, String(target));
       state.saveNovel(novel);
       audit("command", { command, vehicle_moved_to: target });
       lastCommand = command;
-      return raw(`[OK] The ${vehicle.name} moves ${dir}.`);
+      return raw(`[OK] The ${vehicle.name} moves ${dir}.${hazardWarnings.length ? `\n${hazardWarnings.join("\n")}` : ""}`);
     }
   }
 
@@ -4247,6 +4302,7 @@ server.registerTool("run_command", {
   const result = dispatchCommand(command, ctx);
 
   // Apply side effects
+  const hazardWarnings: string[] = [];
   if (result.prefix === "OK") {
     const goResult = resolveGoMovement(command, ctx);
     if (goResult.newRoom && entity && goResult.result.prefix === "OK") {
@@ -4275,7 +4331,7 @@ server.registerTool("run_command", {
       // REQ-125/REQ-353 — a parser move is a scene transition: tick on_scene_transition clocks.
       advanceSceneTransitionCountdowns(novel);
       // REQ-622 — hazard rooms resolve after the transition tick, before discoveries.
-      resolveRoomHazard(novel, goResult.newRoom);
+      hazardWarnings.push(...enterRoomHazards(novel, goResult.newRoom));
       // Persist the move even when the room was already explored and no
       // countdown/hazard fired; a revisit must not live only in memory.
       state.saveNovel(novel);
@@ -4297,8 +4353,11 @@ server.registerTool("run_command", {
         targetThing.locationType = null;
         state.saveNovel(novel);
         audit("command", { command, took: targetThing.name });
+        // REQ-622c — a bundle advances its resource by the declared increment.
+        advanceSurvivalBundle(novel, targetThing);
         // REQ-329 — countdown on_thing_take triggers; REQ-330 — explored things.
         advanceWorldTriggeredCountdowns(novel, `thing_take:${targetThing.name.toLowerCase()}`);
+        state.saveNovel(novel);
         recordExplorationKnowledge(novel, entity, "thing", targetThing.name.toLowerCase());
       }
     } else if (verb === "drop" && tokens.length > 1) {
@@ -4386,6 +4445,8 @@ server.registerTool("run_command", {
           const movers = movePartyTo(novel, entity, up);
           novel.scene_location = up;
           advanceWorldTriggeredCountdowns(novel, `room_enter:${up.toLowerCase()}`);
+          // REQ-622a/b — entering by climbing resolves hazards like any entry.
+          hazardWarnings.push(...enterRoomHazards(novel, up));
           audit("command", { command, climbed_to: up, party: [...movers.keys()] });
         }
         state.saveNovel(novel);
@@ -4406,18 +4467,21 @@ server.registerTool("run_command", {
     } else if (verb === "light" || verb === "extinguish") {
       const thing = targetThing(tokens.slice(1));
       if (thing) {
-        const relight = verb === "light" && !thing.lit && /candle/i.test(thing.name);
-        if (relight && !findCountdownByName(novel, "The Candle")) {
+        // REQ-622c — relighting a survival resource's light spends one unit;
+        // the generic binding is the resource's `light_thing` annotation.
+        const resource = [...novel.countdowns.values()].find((cd) => cd.survival?.light_thing?.toLowerCase() === thing.name.toLowerCase());
+        if (verb === "light" && resource && !thing.lit) {
+          const unit = spendUnit(novel, resource);
+          if (!unit) {
+            state.saveNovel(novel);
+            return raw(`[WARNING] No unit remains to relight the ${thing.name}.`);
+          }
+          thing.lit = true;
+          novel.countdowns.delete(lastLightName(resource.name));
+          lastReferencedThing = thing.name;
           state.saveNovel(novel);
-          return raw("[WARNING] The wick is dry — a match only buys last light now.");
-        }
-        if (relight && !spendMatch(novel)) {
-          state.saveNovel(novel);
-          return raw("[WARNING] You have no match to relight the candle.");
-        }
-        if (relight) {
-          const lastLight = findCountdownByName(novel, "Last Light");
-          if (lastLight) novel.countdowns.delete(lastLight[0]);
+          audit("command", { command, lit: thing.name, on: true, unit });
+          return raw(`[OK] You relight the ${thing.name}.`);
         }
         thing.lit = verb === "light";
         if (thing.switchable) thing.switched_on = verb === "light";
@@ -4449,6 +4513,9 @@ server.registerTool("run_command", {
   let text = `${prefix}${code} ${result.text}`;
   if (result.correctiveAction) {
     text += `\nCorrective action: ${result.correctiveAction}`;
+  }
+  if (hazardWarnings.length > 0) {
+    text += `\n${hazardWarnings.join("\n")}`;
   }
   return raw(text);
 });
@@ -5507,7 +5574,10 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
   for (const [name, cd] of [...novel.countdowns.entries()]) {
     if (cd.type === "round") continue;
     if (!cd.on_scene_transition) continue;
-    cd.ticks -= effective;
+    // REQ-622c — a survival resource's declared per-use decrement scales the
+    // scene-transition tick (default 1 preserves REQ-353 behavior).
+    const perUse = Math.max(0, cd.survival?.per_use_decrement ?? 1);
+    cd.ticks -= effective * perUse;
     if (cd.ticks <= 0) expireCountdown(novel, name, cd);
   }
 }
@@ -6076,6 +6146,13 @@ server.registerTool("manage_countdown", {
       property: z.string().optional().describe("Optional property (for property effects)."),
       value: z.string().optional().describe("Optional value (for property effects)."),
     }).optional().describe("Optional world-model effect applied when the countdown fires (set)."),
+    survival: z.object({
+      bundle_increment: z.number().min(0).optional().describe("Ticks a bundle adds when taken (REQ-622c)."),
+      per_use_decrement: z.number().min(0).optional().describe("Ticks one scene-transition use subtracts (REQ-622c)."),
+      last_light_ticks: z.number().min(1).optional().describe("Length of the last-light countdown (REQ-622c)."),
+      light_thing: z.string().optional().describe("Thing whose lit state is the resource's light (REQ-622c)."),
+      unit_countdown: z.string().optional().describe("Countdown spent per relight (REQ-622c)."),
+    }).optional().describe("Survival-resource parameters applied when a room hazard names this countdown (set; REQ-622c)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -6083,7 +6160,7 @@ server.registerTool("manage_countdown", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect } = args;
+      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect, survival } = args;
       // REQ-129b1 — countdown cardinality applies to new countdowns only.
       if (!novel.countdowns.has(name)) {
         const cdRefusal = capGuard("countdowns", novel.countdowns.size);
@@ -6101,6 +6178,7 @@ server.registerTool("manage_countdown", {
         on_scene_transition: on_scene_transition ?? existingCd?.on_scene_transition,
         triggers: triggers ?? existingCd?.triggers,
         world_effect: world_effect ?? existingCd?.world_effect,
+        survival: survival ?? existingCd?.survival,
         created_scene_index: existingCd?.created_scene_index ?? novel.scene_history.length,
       });
       state.recordMutation(novel, "set_countdown", "countdown");
@@ -6117,7 +6195,7 @@ server.registerTool("manage_countdown", {
       const dir = cd.direction === "increment" ? 1 : -1;
       cd.ticks = Math.max(0, Math.min(cd.total, cd.ticks + dir));
       if ((dir > 0 && cd.ticks >= cd.total) || (dir < 0 && cd.ticks <= 0)) {
-        if (cd.world_effect?.type === "exit" && spendMatchForLastLight(novel, args.name, cd)) {
+        if (expireSurvivalWithUnit(novel, args.name, cd)) {
           state.saveNovel(novel);
           return ok(`Countdown '${args.name}' extended by last light.`);
         }
@@ -11985,6 +12063,7 @@ function materializeCodexEntry(
         on_scene_transition: content.on_scene_transition ?? ((content.type ?? "narrative") === "narrative"),
         triggers: content.triggers,
         world_effect: content.world_effect, codex_source: provenance,
+        survival: content.survival,
       });
       return name;
     }

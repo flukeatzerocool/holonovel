@@ -11,6 +11,15 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Generic hazard-model implementation drift (resolved 2026-10-31):** the
+  reference server read `annotations.trap = "snuff=Dread;avoid=0"` and hardcoded
+  the candle/match/wax names. Rooms now carry structured `encounter`/`trap`
+  annotations naming a survival resource; the resource's own `survival`
+  annotation declares the bundle increment, per-use decrement, last-light
+  ticks, and the light/unit bindings. Legacy string annotations coerce with a
+  `[WARNING]`. (REQ-622, REQ-622a–c; predicate
+  `holonovel/src/core/hazard.ts:104`; exercised by T741/T742.)
+
 - **Adventure load with an empty `## World` section replaces the Novel world —
   resolved 2026-10-30:** `manage_adventure (action: load)` now keeps the
   existing world when the module's World section converts to zero rooms,
@@ -830,12 +839,12 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Generic hazard-model implementation drift (2026-10-31):** the reference
-  server still reads `annotations.trap = "snuff=Dread;avoid=0"` and hardcodes
-  the candle/match/wax names, while REQ-622–REQ-622c define annotation-bound
-  survival resources. Scheduled on ROADMAP; the resource mapping needs a design
-  decision before the code changes. (REQ-622; predicate
-  `holonovel/src/index.ts:3936`)
+- **Adventure-module hazard annotations are counted, not materialized
+  (2026-10-31):** `convertSource` recognizes `@encounter`/`@trap` and
+  increments the annotation counts but never writes the target room's
+  `annotations.encounter` / `annotations.trap`, so the §5.10 materialization
+  sentence is unimplemented. Scheduled on ROADMAP. (REQ-079a, REQ-622;
+  predicate `holonovel/src/world/model.ts:335`)
 
 
 ## Closed-P3 (recorded, no action)
