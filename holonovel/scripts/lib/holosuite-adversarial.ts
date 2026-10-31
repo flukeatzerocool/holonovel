@@ -25,13 +25,13 @@ import type { TierResult } from "./eval-schema.js";
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
-const P_VALIDATION = "holonovel/src/index.ts:4449"; // manage_world action enum
+const P_VALIDATION = "holonovel/src/index.ts:4673"; // manage_world action enum
 const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
 const P_DIAGNOSTICS = "holonovel/src/index.ts:8597"; // verify/replay handler
 const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
-const P_ARTIFACT = "holonovel/src/index.ts:10341"; // inboxSourcePath admission
+const P_ARTIFACT = "holonovel/src/index.ts:10500"; // inboxSourcePath admission
 const P_SHARE = "holonovel/src/index.ts:9546"; // share format guard
-const P_RECAP = "holonovel/src/index.ts:8487"; // recap bounds guard
+const P_RECAP = "holonovel/src/index.ts:8737"; // recap bounds guard
 const P_PROVENANCE = "holonovel/src/index.ts:9128"; // provenance-absent warning
 const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:9741"; // strict integrity refusal
 const NOVEL_NAME = "Holosuite Adversarial";

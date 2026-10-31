@@ -25,10 +25,10 @@ import type { TierResult } from "./eval-schema.js";
 // whenever the cited file shifts, or cite a nearby stable symbol instead.
 const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
 const P_GATING = "holonovel/src/core/server.ts:22"; // requireGM
-const P_UNDO = "holonovel/src/index.ts:3080"; // undo/redo handler
+const P_UNDO = "holonovel/src/index.ts:3252"; // undo/redo handler
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
 const P_RESTART = "holonovel/src/core/state.ts:2293"; // atomic persist
-const P_PACING = "holonovel/src/index.ts:599"; // pacing session mirror
+const P_PACING = "holonovel/src/index.ts:604"; // pacing session mirror
 const NOVEL_NAME = "Holosuite Invariants";
 
 /** Deterministic PRNG (mulberry32) — no wall-clock, reproducible per seed. */
@@ -78,7 +78,7 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     const verifyTwo = await client.call("manage_diagnostics", { action: "verify" });
     record("verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], "holonovel/src/core/state-hash.ts:50");
     const replayOne = await client.call("manage_diagnostics", { action: "replay" });
-    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8268"); // replayInspection
+    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8543"); // replayInspection
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
     record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8898");

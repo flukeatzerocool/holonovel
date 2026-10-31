@@ -28,11 +28,11 @@ const P_STRUCTURE = "holonovel/scripts/lib/starter-novel.ts:54"; // buildStarter
 const P_LOCK = "holonovel/src/world/parser.ts:332";
 const P_HASH = "holonovel/src/core/state-hash.ts:50";
 const P_CONTEXT = "holonovel/src/index.ts:8898";
-const P_VISIBILITY = "holonovel/src/index.ts:8875"; // visibility_check handler
-const P_KNOWLEDGE = "holonovel/src/index.ts:7551"; // knowledge_query handler
-const P_INTEGRITY = "holonovel/src/index.ts:9407"; // computeBundleIntegrity
+const P_VISIBILITY = "holonovel/src/index.ts:8958"; // visibility_check handler
+const P_KNOWLEDGE = "holonovel/src/index.ts:7591"; // knowledge_query handler
+const P_INTEGRITY = "holonovel/src/index.ts:9490"; // computeBundleIntegrity
 const P_RESTART = "holonovel/src/core/state.ts:2293";
-const P_NARRATOR = "holonovel/src/index.ts:8754"; // recap orientation + contract
+const P_NARRATOR = "holonovel/src/index.ts:8776"; // recap orientation + contract
 
 const NOVEL_NAME = "Torre Nosferatu";
 // Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the

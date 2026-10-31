@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-31 — Holosuite predicate anchors refreshed after the first-run change
+
+- The four gating Holosuite tiers (conformance, invariants, novel, adversarial)
+  cited `holonovel/src/index.ts` predicates that drifted onto comments and
+  closing delimiters when the first-run change renumbered the file. The
+  plausibility resolver rejected them as `predicate_unresolved`, failing
+  `test:holosuite-*` and blocking the push pipeline.
+- Repointed eleven predicate anchors to the current line of the symbol each
+  names (TOOL_ANNOTATIONS, manage_history, pacingSessions, replayInspection,
+  recap orientation, knowledge_query, visibility_check, computeBundleIntegrity,
+  the manage_world action enum, the recap max_rolls guard, and inboxSourcePath).
+  No behavior change; the tiers keep their existing assertions.
+
 ## 2026-10-31 — First-run experience: `open_session` opens the seeded starter
 
 - `open_session` with no `novel` and no active Novel now resumes the only Novel
