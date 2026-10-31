@@ -39,15 +39,42 @@ function runCode(args: string[]): { code: number; out: string } {
   }
 }
 
+function gitOut(args: string[]): string | null {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf-8" }).trim();
+  } catch {
+    // Missing ref or shallow history: the walk in specBaseRef() skips the
+    // revision and, if nothing qualifies, the test base stays at HEAD, so the
+    // assertions fail loudly instead of passing on a phantom delta.
+    return null;
+  }
+}
+
+// The comparison ref must be one whose assembled spec actually differs from the
+// working copy. HEAD~1 is not reliable: after a scripts-only commit the spec is
+// byte-identical and the delta is legitimately empty (recurrence: 6f6d3e2).
+// Walk back to the newest ancestor whose holonovel.md blob differs from HEAD's.
+function specBaseRef(): string {
+  const head = gitOut(["rev-parse", "HEAD:holonovel.md"]);
+  for (const rev of (gitOut(["rev-list", "HEAD", "--", "holonovel.md"]) ?? "").split("\n")) {
+    if (!rev) continue;
+    const candidate = `${rev}^`;
+    const blob = gitOut(["rev-parse", `${candidate}:holonovel.md`]);
+    if (blob && blob !== head) return candidate;
+  }
+  return "HEAD";
+}
+
 function main(): void {
   // REQ-098/F5 — spec-delta --base classifies against the given ref. Compare
-  // to HEAD~1 (a ref whose spec differs) so a test that ignored --base and
-  // diffed against its default would not silently pass.
-  const delta = run(["scripts/spec-delta.ts", "--base", "HEAD~1", "--report-only"]);
+  // to a ref whose spec differs so a test that ignored --base and diffed
+  // against its default would not silently pass.
+  const specBase = specBaseRef();
+  const delta = run(["scripts/spec-delta.ts", "--base", specBase, "--report-only"]);
   const deltaJson = JSON.parse(delta.slice(delta.indexOf("{")));
   check(["none", "patch", "editorial", "minor", "major"].includes(deltaJson.classification), "spec-delta --base emits a valid classification");
-  check(deltaJson.classification !== "none", "spec-delta --base HEAD~1 detects the real delta");
-  check(deltaJson.requirements_changed.modified.length > 0, "spec-delta --base HEAD~1 reports modified REQs");
+  check(deltaJson.classification !== "none", `spec-delta --base ${specBase} detects the real delta`);
+  check(deltaJson.requirements_changed.modified.length > 0, `spec-delta --base ${specBase} reports modified REQs`);
   check(typeof deltaJson.current_hash === "string" && deltaJson.current_hash.length === 64, "spec-delta --base emits a SHA-256 current_hash");
 
   // CR-4 — REQ family extraction keeps the numeric prefix and the major
