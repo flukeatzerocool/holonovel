@@ -8,6 +8,16 @@
 
 **Recorded surface budgets:** full 26,949 tokens; standard 23,350; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
+### Rebuild evidence — 2026-10-31
+
+- **Update-deferred:** holonovel 2026-10-31 — the §6.7 rebuild for the
+  unpublished range `origin/main..e089a22` was performed across the 21
+  implementation commits already in the tree; evidence: `npm run test:all`
+  54/54 PASS (114.6s) at `e089a22`, and the fingerprint delta reports all five
+  components advanced (source, config, lockfile, extraction, surfaces). The
+  recorded baseline still names `ef12f8d0` because publication never completed;
+  deploy verification remains step 9b (REQ-418).
+
 ### Recap and discovery remediation — 2026-10-29
 
 - **D3 — deferred discovery attribution (REQ-340a).** A location-linked
