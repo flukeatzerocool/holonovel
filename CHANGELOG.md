@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-31 — Test fix: spec-delta self-test derives its base ref
+
+- The `spec-delta --base` self-test no longer hardcodes `HEAD~1`. After a
+  scripts-only commit the assembled spec is byte-identical to its parent, so
+  the delta is legitimately empty and the gate failed even though
+  `spec-delta` behaved correctly (recurrence: `6f6d3e2`). The test now walks
+  back to the newest ancestor whose `holonovel.md` blob differs from `HEAD`,
+  preserving the intent — prove `--base` is honored, not ignored — without
+  depending on commit order.
+
 ## 2026-10-31 — Script review remediation: gate integrity, update safety, harness robustness
 
 - Validators now fail instead of silently skipping: a missing structural
