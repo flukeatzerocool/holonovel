@@ -120,7 +120,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.29",
+  version: "2026.10.30",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -948,6 +948,14 @@ function composeClearedFacts(novel: NovelState, role: NarrativeRole): ClearedFac
   };
 }
 
+// REQ-598 — narrator-facing contract. The tool surface hands the host raw
+// state (counters, exits, inventory); this contract keeps that state out of
+// the prose and out of unvisited-place spoilers.
+const NARRATION_CONTRACT_SHORT =
+  "Prose only: never state counters, dials, resource numbers, dispositions, inventory or exit lists, or tool output in the narration; name no floor, room, or destination the character has not entered or been told about, and no authorial theme; keep any permitted numeric status on a separate line after the prose.";
+const NARRATION_CONTRACT =
+  `${NARRATION_CONTRACT_SHORT} Tool output lines beginning "You can see:" and "Exits:" are UI state, not narration.`;
+
 // REQ-598 — the narrator prompt. `badge_briefing` stays the human-badge
 // briefing (REQ-220/286); this surface is role-scoped.
 function composeNarrationClearance(novel: NovelState, role: NarrativeRole): string {
@@ -994,6 +1002,21 @@ function composeNarrationClearance(novel: NovelState, role: NarrativeRole): stri
     lines.push(`- Name the speaker for this turn before their dialogue.`);
     lines.push(`- Never speak for the player character or decide the player's actions.`);
     lines.push(`- Render each NPC from its voice and voice examples; keep voices distinct.`);
+  }
+  lines.push(`### Narration contract`);
+  lines.push(NARRATION_CONTRACT);
+  if (novel.narrative_directive) {
+    lines.push(`### Narrative directive`);
+    lines.push(novel.narrative_directive);
+  }
+  // REQ-598 — active narrative-voice profiles are standing directives; the
+  // profile description must reach the narrator, not just its name.
+  const voiceProfiles = effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom);
+  if (voiceProfiles.length > 0) {
+    lines.push(`### Narrative voices`);
+    for (const v of voiceProfiles.slice(0, 3)) {
+      lines.push(`- ${v.name}${v.description ? ` — ${String(v.description).slice(0, 320)}` : ""}`);
+    }
   }
   lines.push(`### Narration instruction`);
   lines.push(`Narrate only from the cleared facts above. Do not state, hint at, or imply anything absent from them. Before emitting prose for a Player or Observer audience, call manage_diagnostics (action: visibility_check, text: "<draft>") and use the returned text.`);
@@ -2489,6 +2512,10 @@ const APPENDIX_J_ANTI_SLOP: Array<{ scope: string; severity: string; pattern: st
   { scope: "GM", severity: "Soft", pattern: "Motif repetition", forbidden: "Reusing the same adjective or descriptive template", correct: "Varying sensory register between responses" },
   { scope: "GM", severity: "Hard", pattern: "Constraint forgetting", forbidden: "Narrating in contradiction of established scene state", correct: "Checking active scene state and conditions before narrating" },
   { scope: "Both", severity: "Soft", pattern: "Meta-commentary leakage", forbidden: "Breaking character with out-of-character commentary", correct: "Staying in the narrative register; reserving OOC for explicit markers" },
+  { scope: "GM", severity: "Hard", pattern: "State and counter leakage", forbidden: "Stating counters, dials, tick totals, resource numbers, dispositions, inventory lists, exit lists, or tool output in narrative prose", correct: "Rendering state as sensory consequence — the flame shortens, the cold deepens — and keeping any permitted numeric status on a separate line" },
+  { scope: "GM", severity: "Hard", pattern: "Unrevealed place naming", forbidden: "Naming a floor, room, or destination the character has not entered or been told about", correct: "Describing only what the character can perceive or has learned; let the map reveal itself on arrival" },
+  { scope: "GM", severity: "Hard", pattern: "Theme labeling", forbidden: "Naming an authorial theme or allegory (a sin, a virtue, an act label) in the fiction", correct: "Rendering the concrete detail and letting the reader infer the theme" },
+  { scope: "GM", severity: "Soft", pattern: "Voice homogeneity", forbidden: "Giving every NPC the same clipped, aphoristic cadence", correct: "Distinguishing speakers by syntax, diction, and what each refuses to say" },
 ];
 function antiSlopFor(badge: string): string {
   const rows = APPENDIX_J_ANTI_SLOP.filter((r) => r.scope === "Both" || r.scope === (badge === "game_master" ? "GM" : "Player"));
@@ -5089,20 +5116,18 @@ server.registerTool("manage_causality", {
 
 // --- Narrative (GM) ---
 
-// REQ-335/337/353 — derive a scene description from world-model state when
+// REQ-326 — derive a prose scene description from world-model state when
 // `location` resolves to a room and no explicit description is supplied.
+// Present entities and exits stay structured state (surfaced by `look` and
+// the briefing); appending an item catalog to the description makes the
+// narrator read the catalog aloud.
 function deriveSceneDescription(location: string | undefined, novel: NovelState): string | null {
   if (!location) return null;
   const room = [...novel.world.rooms.entries()].find(([, r]) =>
     location.toLowerCase().startsWith(r.name.toLowerCase()) || r.name.toLowerCase().startsWith(location.toLowerCase()));
   if (!room) return null;
   const r = room[1];
-  const things = [...novel.world.things.values()].filter((t) => t.location && t.location.toLowerCase() === r.name.toLowerCase() && t.locationType === "room");
-  const npcs = [...novel.npcs.values()].filter((n) => n.location && n.location.toLowerCase() === r.name.toLowerCase());
-  const parts: string[] = [r.description || r.name];
-  if (npcs.length) parts.push(`Visible: ${npcs.map((n) => n.name).join(", ")}.`);
-  if (things.length) parts.push(`Here: ${things.map((t) => t.name).join(", ")}.`);
-  return parts.join(" ");
+  return r.description || r.name;
 }
 
 // REQ-335/337 — record a beat transition into story_beats when the beat changes.
@@ -8468,15 +8493,32 @@ Options: yes, cancel`);
       const parts: string[] = [];
       const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
       for (const s of recent) parts.push(s.entry);
+      // REQ-279c — dispositions are an input, but the recap is prose: render
+      // the relationship, not the state-machine label.
+      const dispositionProse: Record<string, string> = {
+        friendly: "is glad of your company",
+        wary: "watches you",
+        suspicious: "does not trust you",
+        hostile: "means you no good",
+        neutral: "",
+      };
       for (const [, npc] of novel.npcs) {
-        if (npc.disposition && npc.disposition !== "neutral") parts.push(`${npc.name} is ${npc.disposition}`);
+        const phrase = dispositionProse[npc.disposition ?? "neutral"] ?? "";
+        if (phrase) parts.push(`${npc.name} ${phrase}`);
       }
-      if (novel.narrative_directive) parts.push(`the current focus is: ${novel.narrative_directive}`);
-      for (const [name, cd] of novel.countdowns) {
-        if (cd.ticks > 0) parts.push(`the ${name} completes in ${cd.ticks} more tick${cd.ticks === 1 ? "" : "s"}`);
+      // REQ-279b — orientation is prose, not a status readout. Render active
+      // clocks as sensory condition (no name, tick total, or tier); the
+      // narrator contract carries the full prohibition separately.
+      for (const [, cd] of novel.countdowns) {
+        if (cd.ticks <= 0) continue;
+        const ratio = cd.total ? Math.min(1, Math.max(0, cd.ticks / cd.total)) : 0;
+        const phrase = cd.direction === "decrement"
+          ? (ratio >= 0.5 ? "the light is more than half spent" : "the light is nearly out")
+          : (ratio >= 0.5 ? "something is very near" : "something is drawing nearer");
+        if (!parts.includes(phrase)) parts.push(phrase);
       }
       for (const v of novel.vows) {
-        if (v.state === "active") parts.push(`the vow to ${v.name} has ${v.milestones} milestones done`);
+        if (v.state === "active") parts.push(`the vow to ${v.name} is still unkept`);
       }
       // REQ-340b — discovered consequences orient the recap as "Meanwhile, ...".
       const discoveredRecap = novel.story_journal.filter((s) => s.type === "consequence" && s.discovered).slice(-3);
@@ -8485,6 +8527,7 @@ Options: yes, cancel`);
         ? parts.join("; ") + "."
         : "[No narrative history yet — your story begins here.]";
       let recap = `narrative_orientation: ${narrative_orientation}`;
+      recap += `\nnarration_contract: ${NARRATION_CONTRACT_SHORT}`;
       recap += `\nconnections: ${novel.connection_counter ?? 0}`;
       const significantRollTool = (t: string) =>
         t === "fate_roll" || t === "ironsworn_move" || t === "ironsworn_progress_test" || t === "forged_action_roll" ||
@@ -12571,6 +12614,16 @@ You are in the story. Confine tool use and responses to the current Novel. To st
   // narrative voice. Ruleset-free builds provide a ruleset-agnostic sample.
   briefing += `\n\n### Narrative tone\n${composeNarrativeTone(promptInputsFor(novel))}`;
 
+  // REQ-081/598 — the Novel's standing narrative directive and the narrator
+  // contract must reach the GM even when the host drives tools directly and
+  // never fetches the `narrate` prompt.
+  if (orientationBadge === "game_master") {
+    if (novel.narrative_directive) {
+      briefing += `\n\n### Narrative directive\n${novel.narrative_directive}`;
+    }
+    briefing += `\n\n### Narration contract\n${NARRATION_CONTRACT}`;
+  }
+
   // REQ-159/265 — active synthesis and Ruleset Wisdom content, gated by module
   // toggle, per-item activation, and badge scope. Rendered with provenance tag,
   // confidence, and source. No empty section when nothing is active (REQ-265b).
@@ -12588,7 +12641,7 @@ You are in the story. Confine tool use and responses to the current Novel. To st
     renderItems("Supplementary guidance", effectiveWisdomItems("supplementary_guidance").filter(badgeCanSeeWisdom), (i) => i.content);
     renderItems("Lore templates", effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom), (i) => i.content);
     renderItems("Voice examples", effectiveWisdomItems("voice_examples").filter(badgeCanSeeWisdom), (i) => i.content);
-    renderItems("Narrative voices", effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom), (i) => i.name);
+    renderItems("Narrative voices", effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom), (i) => i.description ? `${i.name} — ${String(i.description).slice(0, 240)}` : i.name);
     renderItems("Action patterns", effectiveWisdomItems("action_patterns").filter(badgeCanSeeWisdom), (i) => i.intent);
     if (novel.adventure_set || novel.adventure_slug) {
       renderItems("Adventure advice", effectiveWisdomItems("adventure_advice").filter(badgeCanSeeWisdom), (i) => i.content);
