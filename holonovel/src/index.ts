@@ -31,6 +31,8 @@ import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, Countdown, DIF
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
+import { hazardRoll as hazardDraw } from "./core/hazard.js";
+import { EventHub } from "./core/event-hub.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, revertFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
@@ -53,7 +55,7 @@ import {
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom } from "./world/parser.js";
 import {
-  RulesetManager, rollDice, computeContentHash,
+  RulesetManager, rollDice, computeContentHash, APPENDIX_U_LICENSES,
   RulesetToolSchema, RulesetPrompt, rulesetAnnotations,
 } from "./rulesets.js";
 import { conformanceReport, type ToolDefinition } from "./core/tdqs.js";
@@ -69,7 +71,7 @@ import { createRng, sessionRoll, rollNotationWithRng, type Rng } from "./core/rn
 import { deriveAnchor } from "./core/anchors.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
 import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
-import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, type AdventureProvenance } from "./core/adventure-provenance.js";
+import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, ADVENTURE_PROVENANCE_KEYS, type AdventureProvenance } from "./core/adventure-provenance.js";
 import { resolveInboxDir, resolveWithin, isSafeSlug } from "./core/data-dir.js";
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -232,8 +234,16 @@ function ensureStructured(handler: any) {
 // The SDK normalizes a raw parameter shape into a Zod object at registration.
 // The registry stores the same normalized form so introspection over the
 // registry matches what the MCP adapter advertises.
-function normalizeToolSchema(schema: any): any {
+export function normalizeToolSchema(schema: any): any {
   if (!schema || typeof schema !== "object" || "_zod" in schema || "_def" in schema) return schema;
+  // A JSON Schema object (or a bare JSON-Schema map) is not a Zod raw shape;
+  // wrapping it would advertise a schema the SDK cannot validate against.
+  const looksJsonSchema = typeof schema.$schema === "string"
+    || typeof schema.type === "string"
+    || (schema.properties && typeof schema.properties === "object" && !("_def" in schema.properties));
+  if (looksJsonSchema) {
+    throw new Error("Tool schema must be a Zod raw shape or Zod schema; a JSON Schema object is not supported.");
+  }
   return z.object(schema);
 }
 server.registerTool = ((name: string, config: any, handler: any) => {
@@ -241,15 +251,14 @@ server.registerTool = ((name: string, config: any, handler: any) => {
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
   const audited = withForbiddenAudit(ensureStructured(handler), name) as any;
   // REQ-336 — every completed tool call advances the session pacing counter,
-  // mutating or not. The count is not persisted per call; only a firing
-  // autonomy cycle writes it (see triggerPacingAutonomy).
+  // mutating or not. A refusal envelope still completes; a thrown error does
+  // not. The count is not persisted per call; only a firing autonomy cycle
+  // writes it (see triggerPacingAutonomy).
   const paced = async (args: any, ctx: any) => {
-    try {
-      return await audited(args, ctx);
-    } finally {
-      const novel = state.activeNovel;
-      if (novel) bumpPacing(novel);
-    }
+    const result = await audited(args, ctx);
+    const novel = state.activeNovel;
+    if (novel) bumpPacing(novel);
+    return result;
   };
   toolRegistry.define(name, {
     ...config,
@@ -536,23 +545,21 @@ function vowSuggestionMinChars(): number { return configInt("TTRPG_VOW_SUGGESTIO
 // server-to-client notifications; subscriptions are dropped on connection
 // close and never persist across restart. REQ-030 is unchanged — this is a
 // single-connection push channel, not multi-connection badge synchronization.
-const subscribedTopics = new Set<string>();
-// REQ-433 — local listeners let an in-process façade consume the same event
-// echoes the MCP notification channel carries. One delivery per consumer.
+// REQ-433 — per-consumer event subscriptions. The MCP notification channel and
+// each in-process façade hold their own topic set, so subscribing or closing
+// one consumer never clears another's subscriptions.
 type EventListener = (topic: string, payload: Record<string, unknown>) => void;
-const eventListeners = new Set<EventListener>();
+const eventHub = new EventHub();
 let transportConnected = false;
-function emitEvent(topic: string, payload: Record<string, unknown>): void {
-  if (!subscribedTopics.has(topic)) return;
-  for (const listener of eventListeners) {
-    try {
-      listener(topic, payload);
-    } catch { /* a listener error never affects a tool result */ }
-  }
+let engineSequence = 0;
+eventHub.add("mcp", [], (topic, payload) => {
   if (!transportConnected) return;
   try {
     void (server.server as any).notification({ method: "notifications/holonovel/event", params: { topic, ...payload } });
   } catch { /* notification delivery is best-effort — never affects tool results */ }
+});
+function emitEvent(topic: string, payload: Record<string, unknown>): void {
+  eventHub.dispatch(topic, payload);
 }
 function notifyForBadge(topic: string, payload: Record<string, unknown>, badge: Badge | undefined, gmOnly: boolean): void {
   // REQ-433b — Player-badge connections receive no GM-only notification content.
@@ -603,6 +610,22 @@ function pacingSession(novel: NovelState): PacingSession {
 // Called by the tool-registry wrapper after every completed tool call.
 function bumpPacing(novel: NovelState): void {
   pacingSession(novel).count++;
+}
+
+// Drop the in-memory pacing session when a Novel leaves its slug: end,
+// archive, or artifact removal. Prevents a stale counter from being inherited
+// by a later Novel that reuses the slug.
+function forgetPacingSession(slug: string): void {
+  pacingSessions.delete(slug);
+}
+
+// Rename keeps the same Novel, so its pacing session moves with it; only the
+// stale map key is dropped.
+function renamePacingSession(oldSlug: string, newSlug: string): void {
+  const session = pacingSessions.get(oldSlug);
+  if (!session) return;
+  pacingSessions.delete(oldSlug);
+  pacingSessions.set(newSlug, session);
 }
 
 // REQ-336 — pacing signal fires when the tool-call counter exceeds the window.
@@ -3058,6 +3081,7 @@ server.registerTool("respond_decision", {
     const slug = state.activeNovel!.slug;
     const result = state.endNovel(novel, opt === "yes" ? "yes" : "cancel");
     if (result.removed) {
+      forgetPacingSession(slug);
       novel.pending_workflow = null;
       return ok(`Novel '${slug}' ended.`);
     }
@@ -3841,15 +3865,9 @@ function findGatingCountdown(novel: NovelState): [string, Countdown] | null {
 
 // Deterministic across restarts: the seed, the room, and the number of prior
 // hazard checks in this room (persisted in the audit log) select the draw.
+// The audit log stores `args` as a JSON string, so the pure helper parses it.
 function hazardRoll(novel: NovelState, roomName: string): number {
-  let h = 2166136261;
-  const key = `${process.env.TTRPG_SEED ?? "0"}:${roomName.toLowerCase()}`;
-  for (let i = 0; i < key.length; i += 1) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const prior = novel.audit_log.filter((a) => a.tool === "hazard_check" && (a.args as any)?.room?.toLowerCase() === roomName.toLowerCase()).length;
-  return createRng((h ^ prior) >>> 0).roll(8);
+  return hazardDraw(novel.audit_log, process.env.TTRPG_SEED ?? "0", roomName);
 }
 
 function startLastLight(novel: NovelState, effect?: Countdown["world_effect"]): void {
@@ -8848,8 +8866,7 @@ Options: yes, cancel`);
       const topics = args.topics ?? [];
       const unknown = topics.filter((t: string) => !VALID_TOPICS.includes(t));
       if (unknown.length > 0) return err("INVALID_INPUT", `Unknown topic(s): ${unknown.join(", ")}. Valid topics: ${VALID_TOPICS.join(", ")}.`);
-      subscribedTopics.clear();
-      for (const t of topics) subscribedTopics.add(t);
+      eventHub.subscribe("mcp", topics);
       return ok(`Subscribed to notification topics: ${topics.join(", ") || "(none)"}. Subscriptions are session-scoped and drop on disconnect.`);
     }
     // REQ-599 — draft visibility scan, audience-keyed. The server never
@@ -9147,6 +9164,7 @@ server.registerTool("manage_adventure", {
         // REQ-090 — a World section that yields no rooms must not silently
         // erase a playable Novel world. Keep the existing model and warn.
         if (result.rooms === 0 && novel.world.rooms.size > 0) {
+          novel.generated_adventure = null;
           novel.adventure_slug = args.slug;
           novel.adventure_set = true;
           state.saveNovel(novel);
@@ -9154,6 +9172,7 @@ server.registerTool("manage_adventure", {
           return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
         }
         novel.world = world;
+        novel.generated_adventure = null;
         novel.adventure_slug = args.slug;
         novel.adventure_set = true;
         state.saveNovel(novel);
@@ -9163,6 +9182,7 @@ server.registerTool("manage_adventure", {
         const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
         return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
       }
+      novel.generated_adventure = null;
       novel.adventure_slug = args.slug;
       novel.adventure_set = true;
       state.saveNovel(novel);
@@ -9282,6 +9302,21 @@ function embeddedAdventureContent(novel: NovelState, force = false): { slug: str
   } catch { return null; /* module not present on disk — nothing to embed */ }
 }
 
+// REQ-096m — serialize a module's provenance block from untrusted bundle data.
+// Only known fields survive; every value must be a non-empty single-line string
+// so a crafted value cannot break the fenced block.
+function buildEmbeddedProvenanceBlock(provenance: Record<string, unknown>): string {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(provenance)) {
+    if (!ADVENTURE_PROVENANCE_KEYS.has(key)) continue;
+    if (typeof value !== "string" || value.trim().length === 0 || /[\r\n]/.test(value)) {
+      throw new Error(`embedded adventure provenance field '${key}' must be a non-empty single-line string`);
+    }
+    lines.push(`${key}: ${value.trim()}`);
+  }
+  return lines.length ? `---\n${lines.join("\n")}\n---\n` : "";
+}
+
 // REQ-096m/REQ-621a — materialize an adventure block carried by a shared Novel
 // bundle so the recipient can load it. Verifies the embedded content hash,
 // writes into the data-directory adventure install target (the first directory
@@ -9318,12 +9353,14 @@ function materializeEmbeddedAdventure(adventure: any): { slug: string; warnings:
     }
   }
   const provenance = adventure.provenance && typeof adventure.provenance === "object" ? adventure.provenance : null;
-  const block = provenance
-    ? `---\n${Object.entries(provenance).filter(([, v]) => typeof v === "string" && v).map(([k, v]) => `${k}: ${v}`).join("\n")}\n---\n`
-    : "";
+  const block = provenance ? buildEmbeddedProvenanceBlock(provenance) : "";
+  const contents = block + body;
+  if (block && !parseAdventureProvenance(contents).provenance) {
+    throw new Error("embedded adventure provenance did not round-trip; refusing to materialize");
+  }
   fs.mkdirSync(dir, { recursive: true });
   const tmp = `${target}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, block + body);
+  fs.writeFileSync(tmp, contents);
   fs.renameSync(tmp, target);
   return { slug, warnings };
 }
@@ -9547,6 +9584,18 @@ Options: yes, cancel`);
         if (args.scope !== undefined && args.scope !== "full") return err("INVALID_INPUT", `share requires full scope; '${args.scope}' cannot be shared as a playable Novel.`);
       }
       const novel = requireNovel();
+      // REQ-096h/i1 — embed adventure content when configured or shared.
+      const embedded = embeddedAdventureContent(novel, args.share === true);
+      // REQ-096m — a share redistributes the module, so a declared license
+      // must be one Appendix U marks redistributable; an unattributed module
+      // shares but is flagged in the audit log.
+      if (args.share === true && embedded) {
+        const license = embedded.provenance?.license ?? null;
+        if (license && !APPENDIX_U_LICENSES.has(license)) {
+          return err("STATE_CONFLICT", `Cannot share: adventure module '${embedded.slug}' declares license '${license}', which is not a redistributable Appendix U license.`);
+        }
+        if (!license) audit("export_license_unattributed", { slug: embedded.slug }, "[license-unattributed]");
+      }
       const exportScope = args.share === true ? "full" : (args.scope ?? "full");
       // REQ-448 — security-event audit: Novel exports are recorded and tagged.
       audit("export_novel", { slug: novel.slug, format: args.format ?? "json", scope: exportScope, ...(args.share === true ? { share: true } : {}) });
@@ -9566,8 +9615,6 @@ Options: yes, cancel`);
         return raw(md);
       }
       const full = exportNovelJSON(novel);
-      // REQ-096h/i1 — embed adventure content when configured or shared.
-      const embedded = embeddedAdventureContent(novel, args.share === true);
       const data: any = {
         format_version: 2,
         manifest: {
@@ -9758,6 +9805,7 @@ Options: yes, cancel`);
       // the file.
       state.renameNovel(novel, newSlug);
       if (newSlug !== oldSlug) {
+        renamePacingSession(oldSlug, newSlug);
         const oldFile = path.join(DATA_DIR, "novels", `${oldSlug}.json`);
         if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
         // REQ-256a — rename the backup chain (`.bak.N` + legacy `.bak`) to match
@@ -9799,6 +9847,7 @@ Options: yes, cancel`);
       requireGM();
       if (state.activeNovelId === args.slug) state.activeNovelId = null;
       state.archiveNovel(args.slug);
+      forgetPacingSession(args.slug);
       audit("archive_novel", { slug: args.slug });
       return ok(`Novel '${args.slug}' archived (read-only).`);
     }
@@ -10307,8 +10356,11 @@ function artifactDependencyError(kind: ArtifactKind, slug: string): string | nul
     }
   }
   if (kind === "adventure") {
-    const active = state.activeNovel;
-    if (active?.adventure_slug === slug) return `Novel '${active.slug}' has adventure '${slug}' loaded.`;
+    // REQ-621 — any loaded Novel bound to the module blocks removal, not only
+    // the active one; hydrated Novels are all in `state.novels`.
+    for (const novel of state.novels.values()) {
+      if (novel.adventure_slug === slug) return `Novel '${novel.slug}' has adventure '${slug}' loaded.`;
+    }
   }
   if (kind === "novel") {
     if (state.activeNovel?.slug === slug) return `Novel '${slug}' is active.`;
@@ -10329,14 +10381,17 @@ server.registerTool("manage_artifact", {
 }, async (args: any) => {
   switch (args.action) {
     case "list": {
-      let entries = artifactRegistry();
+      // REQ-620 — one registry scan; the kind/integrity filters narrow the
+      // rendered list, while counts report the whole registry.
+      const registry = artifactRegistry();
+      let entries = registry;
       if (args.kind) entries = entries.filter((e) => e.kind === args.kind);
       if (args.integrity) entries = entries.filter((e) => e.integrity === args.integrity);
       // REQ-032 — absolute install paths are GM/Editor-only; a Player sees the
       // catalog but not the server filesystem layout.
       const showLocation = isGmView();
       return raw(JSON.stringify({
-        counts: registryCounts(artifactRegistry()),
+        counts: registryCounts(registry),
         artifacts: entries.map((e) => ({
           kind: e.kind, slug: e.slug, title: e.title, version: e.version,
           content_hash: e.content_hash, creator: e.creator, attribution: e.attribution,
@@ -10524,6 +10579,7 @@ server.registerTool("manage_artifact", {
         }
         state.novels.delete(slug);
         state.forgetNovelPath(slug);
+        forgetPacingSession(slug);
         if (state.activeNovel?.slug === slug) state.activeNovelId = null;
       }
       audit("remove_artifact", { kind, slug });
@@ -13313,6 +13369,7 @@ function engineToolMeta(tool: RegisteredTool): EngineToolMeta {
  *  the shared Novel state and the MCP adapter stay live. */
 export function createEngine(): Engine {
   const listeners = new Set<EngineEventListener>();
+  const engineId = `engine-${++engineSequence}`;
   const dispatch: EventListener = (topic, payload) => {
     for (const listener of listeners) {
       try {
@@ -13320,7 +13377,7 @@ export function createEngine(): Engine {
       } catch { /* a listener error never affects a tool result */ }
     }
   };
-  eventListeners.add(dispatch);
+  eventHub.add(engineId, [], dispatch);
   return {
     tools: {
       list: () => toolRegistry.list().map(engineToolMeta),
@@ -13346,23 +13403,21 @@ export function createEngine(): Engine {
     },
     events: {
       subscribe(topics: string[], listener?: EngineEventListener) {
-        subscribedTopics.clear();
-        for (const topic of topics) subscribedTopics.add(topic);
+        eventHub.subscribe(engineId, topics);
         if (listener) listeners.add(listener);
       },
       unsubscribe(topics?: string[]) {
         if (!topics) {
           listeners.clear();
-          subscribedTopics.clear();
+          eventHub.unsubscribe(engineId);
           return;
         }
-        for (const topic of topics) subscribedTopics.delete(topic);
+        eventHub.unsubscribe(engineId, topics);
       },
     },
     close() {
       listeners.clear();
-      subscribedTopics.clear();
-      eventListeners.delete(dispatch);
+      eventHub.remove(engineId);
     },
   };
 }

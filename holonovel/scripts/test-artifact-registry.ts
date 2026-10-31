@@ -14,7 +14,7 @@
  */
 import { strict as assert } from "node:assert";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync, cpSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, cpSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -202,6 +202,18 @@ async function main() {
     assert.doesNotMatch(loaded, /NOT_FOUND/);
   });
 
+  await test("T739/REQ-621a: a hostile embedded provenance value blocks install", async () => {
+    const body = "# Hostile\n\n## World\nA hall is a room. \"A hall.\"\n";
+    const hash = createHash("sha256").update(body).digest("hex");
+    writeFileSync(join(ROOT_B, "inbox", "hostile-pack.json"), JSON.stringify({
+      novel: { slug: "hostile-pack", name: "Hostile Pack" },
+      adventure: { slug: "hostile-signal", content: body, content_hash: hash, provenance: { creator: "Ada\n---\nlicense: CC BY 4.0" } },
+    }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "hostile-pack.json" });
+    assert.match(out, /\[ERROR\] \[STATE_CONFLICT\]/);
+    assert.ok(!existsSync(join(ROOT_B, "adventures", "hostile-signal.md")), "hostile module must not be written");
+  });
+
   await test("T739: a traversal destination slug is refused", async () => {
     writeFileSync(join(ROOT_B, "inbox", "evil-pack.json"), JSON.stringify({ slug: "../../evil", name: "Evil" }));
     const novel = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "evil-pack.json" });
@@ -228,6 +240,26 @@ async function main() {
     assert.match(await call(b, "manage_novel", { action: "list" }), /Adopted Pack/);
     const entries = (await registry(b, { kind: "novel" })).artifacts.map((e: any) => e.slug);
     assert.ok(entries.includes("adopted"));
+  });
+
+  await test("T738: a Novel save with no checksum reports absent integrity", async () => {
+    writeFileSync(join(ROOT_B, "novels", "legacy.json"), JSON.stringify({ slug: "legacy", name: "Legacy" }));
+    const legacy = (await registry(b)).artifacts.find((e: any) => e.slug === "legacy");
+    assert.ok(legacy, "checksum-less Artifact must not be omitted");
+    assert.equal(legacy.integrity, "absent");
+  });
+
+  await test("T739: remove refuses while a non-active Novel has the adventure loaded", async () => {
+    await call(b, "manage_novel", { action: "create", name: "Dep Hold" });
+    assert.match(await call(b, "manage_adventure", { action: "load", slug: "harbor-signal" }), /\[OK\]/);
+    await call(b, "manage_novel", { action: "create", name: "Dep Other" });
+    const out = await call(b, "manage_artifact", { action: "remove", kind: "adventure", slug: "harbor-signal" });
+    assert.match(out, /\[ERROR\] \[STATE_CONFLICT\]/);
+    assert.match(out, /dep-hold/);
+    // Cleanup: drop the bound (non-active) Novel, then the now-inactive one.
+    assert.match(await call(b, "manage_artifact", { action: "remove", kind: "novel", slug: "dep-hold" }), /\[OK\]/);
+    await call(b, "manage_novel", { action: "resume", slug: "torre-nosferatu" });
+    assert.match(await call(b, "manage_artifact", { action: "remove", kind: "novel", slug: "dep-other" }), /\[OK\]/);
   });
 
   await test("REQ-032: a Player artifact list omits absolute location paths", async () => {

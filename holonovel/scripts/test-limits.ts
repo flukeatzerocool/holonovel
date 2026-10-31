@@ -4,7 +4,8 @@
 // T101/T160 against live server processes booted with per-test configuration.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, readFileSync, readdirSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, readdirSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -264,6 +265,25 @@ async function main() {
         await kill(proc2);
         rmSync(fresh, { recursive: true, force: true });
       }
+    });
+    await test("T740/REQ-096m: share refuses a non-Appendix-U module license", async () => {
+      mkdirSync(join(DATA_DIR, "adventures"), { recursive: true });
+      const moduleBody = "# Rights Reserved\n\n## World\nA hall is a room. \"A hall.\"\n";
+      const hash = createHash("sha256").update(moduleBody).digest("hex");
+      writeFileSync(join(DATA_DIR, "adventures", "rights-reserved.md"), `---\ncreator: Restricted\nlicense: All Rights Reserved\ncontent_hash: ${hash}\n---\n${moduleBody}`);
+      assertContains(await call(proc, "manage_adventure", { action: "load", slug: "rights-reserved" }), "loaded");
+      const out = await call(proc, "manage_archive", { action: "export", format: "json", share: true });
+      assertContains(out, "STATE_CONFLICT");
+      assertContains(out, "license");
+    });
+    await test("T740/REQ-096m: an unattributed module shares with an audit warning", async () => {
+      const moduleBody = "# Unlicensed\n\n## World\nA hall is a room. \"A hall.\"\n";
+      const hash = createHash("sha256").update(moduleBody).digest("hex");
+      writeFileSync(join(DATA_DIR, "adventures", "unlicensed.md"), `---\ncreator: Unknown\ncontent_hash: ${hash}\n---\n${moduleBody}`);
+      assertContains(await call(proc, "manage_adventure", { action: "load", slug: "unlicensed" }), "loaded");
+      const out = await call(proc, "manage_archive", { action: "export", format: "json", share: true });
+      assertContains(out, "adventures_embedded");
+      assertContains(await readResource(proc, "audit://novel"), "license-unattributed");
     });
     await kill(proc);
   }

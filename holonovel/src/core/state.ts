@@ -1476,15 +1476,7 @@ export class StateManager {
       corpus_consumption: data.corpus_consumption ?? [],
     };
     // REQ-092e/092g — retain unknown top-level fields across a load-and-save.
-    // Write-time envelope stamps are not Novel fields; treat them as reserved
-    // so they never re-enter state through `future_fields` and shift the digest.
-  const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "_checksum"]);
-    const extras: Record<string, unknown> = {};
-    for (const key of Object.keys(data ?? {})) {
-      if (blocked.has(key) || Object.prototype.hasOwnProperty.call(novel, key)) continue;
-      extras[key] = data[key];
-    }
-    (novel as any).future_fields = extras;
+    (novel as any).future_fields = captureFutureFields(data, novel);
     migrateStateDigestProjection(novel);
     return novel;
   }
@@ -2666,6 +2658,20 @@ function estimateJsonBytes(value: unknown): number {
   }
 }
 
+// REQ-092e/092g — unknown top-level fields are retained as inert data so a
+// newer format survives a load-and-save. Prototype keys and write-time envelope
+// stamps are reserved: they must never re-enter state through `future_fields`
+// and shift the digest. Shared by both load paths so they cannot drift.
+const RESERVED_FUTURE_FIELDS = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "_checksum"]);
+function captureFutureFields(data: any, known: object): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  for (const key of Object.keys(data ?? {})) {
+    if (RESERVED_FUTURE_FIELDS.has(key) || Object.prototype.hasOwnProperty.call(known, key)) continue;
+    extras[key] = data[key];
+  }
+  return extras;
+}
+
 // REQ-601/REQ-602 — re-derive digests recorded under an older projection so a
 // pre-version-2 Novel loads clean instead of reporting divergence. Historical
 // event hashes are never recomputed; an absent version marks them version 1.
@@ -2791,15 +2797,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
   };
   // REQ-092e/092g — retain unknown top-level fields as inert data so a newer
   // format version survives a load-and-save. Prototype keys are never copied.
-  // Write-time envelope stamps are not Novel fields; treat them as reserved
-  // so they never re-enter state through `future_fields` and shift the digest.
-  const blocked = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "_checksum"]);
-  const extras: Record<string, unknown> = {};
-  for (const key of Object.keys(data ?? {})) {
-    if (blocked.has(key) || Object.prototype.hasOwnProperty.call(out, key)) continue;
-    extras[key] = data[key];
-  }
-  out.future_fields = extras;
+  out.future_fields = captureFutureFields(data, out);
   migrateStateDigestProjection(out as NovelState);
   return out as NovelState;
 }

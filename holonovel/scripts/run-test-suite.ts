@@ -41,6 +41,7 @@ const TESTS = [
   "test:memory-recall",
   "test:adventure",
   "test:artifact-registry",
+  "test:hazard",
   "test:g7",
   "test:tool-definitions",
   "test:world-provider",

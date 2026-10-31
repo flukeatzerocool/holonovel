@@ -6,6 +6,14 @@
   Update this file when planning a release.
 -->
 
+## Implement the generic hazard model (REQ-622–REQ-622c)
+
+- The reference server still implements the Torre-specific candle/wax/match
+  mechanic with name-based lookups, while §5.10 defines annotation-bound
+  survival resources. Align `holonovel/src/index.ts`, migrate the starter
+  artifact's room/countdown annotations, and re-baseline the hazard tests.
+  (REQ-622, REQ-622a, REQ-622b, REQ-622c)
+
 ## Not planned — compact tool surface
 
 - The default `tools/list` exposes 37 tools; the 2026-10-25 TDQS capture graded

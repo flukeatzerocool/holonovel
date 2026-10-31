@@ -7,6 +7,12 @@
 //
 // REQ citations: REQ-565 (starter Novel), REQ-200 (world-model reachability),
 // REQ-073c2 / REQ-329a (countdown direction and trigger deltas).
+//
+// Import strictness: the shipped artifact's title-case exit targets do not
+// resolve against lowercase room keys, so a failed strict import is retried
+// non-strict. This is an accepted, documented fallback: the gate reads the
+// packaged form rather than rewriting content. Remove it once the starter
+// artifact is emitted with normalized references.
 // Exit codes: 0 = run completed, 1 = engine/tool failure, 2 = fatal.
 
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";

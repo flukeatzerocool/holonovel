@@ -579,7 +579,9 @@ export class RulesetManager {
     const verifyKey = process.env.TTRPG_ARTIFACT_VERIFY_KEY;
     if (manifest.signature && verifyKey) {
       const want = computeManifestSignature(manifest, verifyKey);
-      if (manifest.signature !== want) {
+      const provided = Buffer.from(manifest.signature, "utf8");
+      const expected = Buffer.from(want, "utf8");
+      if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
         throw new Error(`[INVALID_INPUT] manifest signature does not verify. Expected ${want}, received ${manifest.signature}.`);
       }
     }

@@ -729,6 +729,25 @@ async function main() {
     await kill(resumed);
   }
 
+  {
+    const proc = await boot({ TTRPG_PACING_WINDOW: "3" });
+    await call(proc, "manage_novel", { action: "create", name: "paced" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    for (let i = 0; i < 4; i += 1) await call(proc, "manage_diagnostics", { action: "health" });
+    const before = await promptText(proc, "badge_briefing");
+    const signal = before.match(/\[pacing\] Scene stabilized — (\d+) actions since last transition/);
+    await test("REQ-336: rename carries the pacing session to the new slug", async () => {
+      if (!signal || Number(signal[1]) <= 3) throw new Error(`pacing signal missing before rename: ${signal?.[1] ?? before.slice(0, 160)}`);
+      await call(proc, "manage_novel", { action: "rename", new_slug: "paced-renamed" });
+      const after = await promptText(proc, "badge_briefing");
+      const moved = after.match(/\[pacing\] Scene stabilized — (\d+) actions since last transition/);
+      if (!moved || Number(moved[1]) < Number(signal[1])) {
+        throw new Error(`pacing count was lost on rename: ${signal[1]} -> ${moved?.[1] ?? "absent"}`);
+      }
+    });
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
