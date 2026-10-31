@@ -5,7 +5,7 @@
 // encounter batch generation with a single undo target.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { createHash, createHmac } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -241,6 +241,19 @@ async function main() {
       const importOut = await call(proc, "manage_archive", { action: "import", data: JSON.stringify(shared), mode: "replace" });
       assertContains(importOut, "STATE_CONFLICT");
       assertContains(importOut, "hash mismatch");
+    });
+
+    await test("T741/REQ-090: an empty World section preserves the existing world", async () => {
+      writeFileSync(join(ADV_DIR, "flatworld.md"), "# Flat World\n\n## Premise\nA prose-only World section.\n\n## World\nNo room definitions here.\n");
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_novel", { action: "create", name: "f1-world" });
+      const created = await call(proc, "manage_world", { action: "create_room", name: "Keep Hall", description: "A hall that must survive." });
+      assertNotContains(created, "ERROR");
+      const loaded = await call(proc, "manage_adventure", { action: "load", slug: "flatworld" });
+      assertContains(loaded, "world-preserved");
+      assertContains(loaded, "existing world model was kept");
+      const persisted = JSON.parse(readFileSync(join(PROV_DATA, "novels", "f1-world.json"), "utf-8"));
+      if (!persisted.world?.rooms?.["keep hall"]) throw new Error("existing room was lost");
     });
 
     await test("T735/REQ-617: adventure hash and signature mismatches are refused", async () => {

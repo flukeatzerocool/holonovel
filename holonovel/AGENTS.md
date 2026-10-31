@@ -154,8 +154,13 @@ integrity gates alongside them: per-REQ coverage is derived from assertion
 events (declared-but-unasserted REQs fail), every finding predicate resolves
 against the source tree, provenance pins `git_sha`/`spec_hash`, and
 `--check-determinism` proves a repeat run matches. The pure evidence helpers
-are self-tested by `test:holosuite-evidence`. The playtest harness is the
-Holosuite's stochastic tier (Understudies, `plans/2026-10-02-holosuite`).
+are self-tested by `test:holosuite-evidence`. The tiers also assert pacing
+counts tool calls but not briefing renders, artifact source admission, shared
+Novel integrity, recap bounds, provenance-absent warnings, and the Torre
+prose/state-separation contract. The playtest harness is the Holosuite's
+stochastic tier (Understudies, `plans/2026-10-02-holosuite`); its transcript
+exercised surface is derived by `observedSurface()` on the shared playtest
+library, used to compare live play against the deterministic coverage.
 
 Tests live in `scripts/test-*.ts` and run as tsx harnesses via `npm run test:all`.
 There are no conventional `*.test.ts` files or a `test/` directory, so registry

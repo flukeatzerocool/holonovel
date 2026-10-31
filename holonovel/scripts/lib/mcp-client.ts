@@ -24,6 +24,7 @@ export interface McpClient {
   listTools(): Promise<Array<{ name: string; title?: string; description?: string; inputSchema?: unknown; annotations?: Record<string, boolean> }>>;
   listResources(): Promise<unknown[]>;
   listPrompts(): Promise<unknown[]>;
+  getPrompt(name: string, args?: Record<string, string>): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -104,6 +105,13 @@ export async function bootServer(opts: { serverDir: string; dataDir?: string; se
     return raw.result?.prompts ?? [];
   }
 
+  async function getPrompt(name: string, args?: Record<string, string>): Promise<string> {
+    const raw = (await send("prompts/get", { name, arguments: args ?? {} })) as {
+      result?: { messages?: Array<{ content?: { text?: string } }> };
+    };
+    return (raw.result?.messages ?? []).map((m) => m.content?.text ?? "").join("\n");
+  }
+
   async function close(): Promise<void> {
     try {
       proc.kill("SIGKILL");
@@ -120,5 +128,5 @@ export async function bootServer(opts: { serverDir: string; dataDir?: string; se
     }
   }
 
-  return { dataDir, call, listTools, listResources, listPrompts, close };
+  return { dataDir, call, listTools, listResources, listPrompts, getPrompt, close };
 }

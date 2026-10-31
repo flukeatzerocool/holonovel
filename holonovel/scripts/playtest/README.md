@@ -157,6 +157,19 @@ checks that the oracle catches each, and prints the catch rate. It is excluded
 from `--tier=all` and from every gate. A persona campaign is not treated as
 evidence unless its accompanying catch rate is published.
 
+### Understudies data contract
+
+A campaign is data, not a gate. The transcript is the primary record; the
+oracle and report are derived views. To compare live play against the
+deterministic coverage, pass the transcript records to `observedSurface()`
+(`lib/playtest-lib.ts`): it returns the sorted unique tool names, sorted unique
+`tool:action` pairs, a prefix histogram, and the defect-class count. Record the
+delta in the increment's coverage report; a behavior that play exercises but no
+tier asserts becomes either a new deterministic assertion or a dispositioned
+non-goal. Raw-JSON results (list/read actions) currently classify as `[?]` in
+the histogram — they are not defects, but they are not envelope-classified
+either.
+
 ## Related
 
 - `driver.md` — the external-driver turn protocol.

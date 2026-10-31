@@ -70,9 +70,9 @@ Exit codes: 0 = pass, 1 = failure/finding, 2 = fatal.`;
 /** REQ contracts each tier asserts, used to validate coverage honesty. */
 const TIER_REQS: Record<string, string[]> = {
   conformance: ["REQ-001", "REQ-002", "REQ-020", "REQ-022", "REQ-023", "REQ-024", "REQ-170", "REQ-450", "REQ-570", "REQ-581", "REQ-598"],
-  invariants: ["REQ-001", "REQ-002", "REQ-032", "REQ-041", "REQ-050", "REQ-603", "REQ-604", "REQ-606"],
-  novel: ["REQ-089", "REQ-096j", "REQ-284", "REQ-542", "REQ-565", "REQ-599", "REQ-601", "REQ-602", "REQ-603", "REQ-604", "REQ-606"],
-  adversarial: ["REQ-001", "REQ-002", "REQ-032", "REQ-041", "REQ-054", "REQ-603"],
+  invariants: ["REQ-001", "REQ-002", "REQ-032", "REQ-041", "REQ-050", "REQ-336a", "REQ-351b", "REQ-603", "REQ-604", "REQ-606"],
+  novel: ["REQ-070b", "REQ-077", "REQ-089", "REQ-096j", "REQ-279", "REQ-284", "REQ-326a", "REQ-542", "REQ-565", "REQ-599", "REQ-601", "REQ-602", "REQ-603", "REQ-604", "REQ-606"],
+  adversarial: ["REQ-001", "REQ-002", "REQ-032", "REQ-041", "REQ-054", "REQ-072e", "REQ-096m", "REQ-603", "REQ-616", "REQ-617", "REQ-621"],
   differential: ["REQ-050", "REQ-055", "REQ-089", "REQ-601"],
   mutation: ["REQ-050", "REQ-141m"],
 };

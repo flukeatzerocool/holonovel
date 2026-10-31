@@ -11,6 +11,15 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Adventure load with an empty `## World` section replaces the Novel world —
+  resolved 2026-10-30:** `manage_adventure (action: load)` now keeps the
+  existing world when the module's World section converts to zero rooms,
+  emits `[WARNING] [world-preserved]`, and audits `preserved: true`
+  (`holonovel/src/index.ts:8998`). Regression test T741/REQ-090 creates a room,
+  loads a prose-only World module, and asserts the room survives. Demonstrated
+  2026-10-30 by the Holosuite Understudies run (85 rooms / 35 things → 0 / 0);
+  ROADMAP entry removed on ship. (REQ-090; predicate
+  `holonovel/src/index.ts:8998`)
 - **Compact default tool surface — resolved 2026-10-29:** the 2026-10-25 TDQS
   capture graded tool-count appropriateness 2/5 at 36 tools, and a compact
   default was worth about +0.225 overall. Closed as a product decision: keep
@@ -803,10 +812,16 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-<!-- AH-1/AH-2/AH-3 resolved 2026-10-05 (see Resolved); no open scheduled items. -->
 
 ## Closed-P3 (recorded, no action)
 
+- **Raw-JSON list results unclassified by the playtest prefix harness
+  (2026-10-30):** `manage_artifact (action: list)` and `manage_belief (action:
+  knowledge_query)` return bare JSON; `prefix()` classifies them `[?]` (and
+  some list results `[]`). `error_class` stays `ok`, so no defect is counted;
+  the effect is a distorted prefix histogram. Record and close; promote a list
+  action into a deterministic tier before treating its prefix as a contract.
+  (predicate `holonovel/scripts/lib/playtest-lib.ts:26`)
 - **Install footprint and optional registry metadata — closed 2026-10-26:** the
   93-package / ~72 MB installed dependency tree is inherited from
   `@modelcontextprotocol/sdk` (express, hono, jose, ajv); no demonstrated

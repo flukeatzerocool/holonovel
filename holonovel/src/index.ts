@@ -8995,6 +8995,15 @@ server.registerTool("manage_adventure", {
       const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
       if (worldMatch) {
         const { world, result } = convertSource(worldMatch[1], novel.world);
+        // REQ-090 — a World section that yields no rooms must not silently
+        // erase a playable Novel world. Keep the existing model and warn.
+        if (result.rooms === 0 && novel.world.rooms.size > 0) {
+          novel.adventure_slug = args.slug;
+          novel.adventure_set = true;
+          state.saveNovel(novel);
+          audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null });
+          return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
+        }
         novel.world = world;
         novel.adventure_slug = args.slug;
         novel.adventure_set = true;

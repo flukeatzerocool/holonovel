@@ -13,7 +13,7 @@
 // REQ citations: none — informational evaluation-harness support (exercises the
 // REQ-001/REQ-002 response and error contracts).
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
@@ -29,6 +29,11 @@ const P_VALIDATION = "holonovel/src/index.ts:4449"; // manage_world action enum
 const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
 const P_DIAGNOSTICS = "holonovel/src/index.ts:8597"; // verify/replay handler
 const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
+const P_ARTIFACT = "holonovel/src/index.ts:10212"; // inboxSourcePath admission
+const P_SHARE = "holonovel/src/index.ts:9397"; // share format guard
+const P_RECAP = "holonovel/src/index.ts:8487"; // recap bounds guard
+const P_PROVENANCE = "holonovel/src/index.ts:8979"; // provenance-absent warning
+const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:9547"; // strict integrity refusal
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {
@@ -85,7 +90,47 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
     await client.call("manage_novel", { action: "create", name: NOVEL_NAME });
     await client.call("set_badge", { badge: "game_master" });
 
+    // Admission/interchange probes run before the malformed-input battery: the
+    // oversized-name probe can leave the active Novel unsaveable (ENAMETOOLONG),
+    // which would make every later mutation fail for the wrong reason.
     let step = 0;
+
+    step++;
+    const traversal = await client.call("manage_artifact", { action: "install", kind: "novel", source: "../../etc/passwd" });
+    record("artifact_source_traversal_refused", /^\[ERROR\]/m.test(traversal.text) && /outside the exchange inbox/i.test(traversal.text), "inbox-relative source refused", step, ["REQ-621"], P_ARTIFACT);
+
+    step++;
+    const shareMarkdown = await client.call("manage_archive", { action: "export", format: "markdown", share: true });
+    record("share_requires_json", /^\[ERROR\]/m.test(shareMarkdown.text) && /share requires format 'json'/i.test(shareMarkdown.text), "share requires json", step, ["REQ-096m"], P_SHARE);
+
+    step++;
+    const recapZero = await client.call("manage_context", { action: "recap", max_rolls: 0 });
+    record("recap_bounds_rejected", /^\[ERROR\]/m.test(recapZero.text) && /max_rolls/.test(recapZero.text), "max_rolls out of range rejected", step, ["REQ-072e"], P_RECAP);
+
+    step++;
+    mkdirSync(join(dataDir, "adventures"), { recursive: true });
+    writeFileSync(join(dataDir, "adventures", "plain.md"), "# Plain\n\n## Premise\nA plain module with no provenance.\n");
+    const provenanceAbsent = await client.call("manage_adventure", { action: "load", slug: "plain" });
+    record("provenance_absent_warns", !/^\[ERROR\]/m.test(provenanceAbsent.text) && /provenance-absent/.test(provenanceAbsent.text), "module without provenance loads with a warning", step, ["REQ-617"], P_PROVENANCE);
+
+    step++;
+    const exported = await client.call("manage_archive", { action: "export", format: "json", share: true });
+    let bundle: { novel?: Record<string, unknown>; integrity?: Record<string, unknown> } | null = null;
+    try {
+      bundle = JSON.parse(exported.text) as typeof bundle;
+    } catch {
+      bundle = null; // A parse failure is reported by the assertion below.
+    }
+    const portable = !!bundle && typeof bundle.integrity?.payload_hash === "string" && !!bundle.novel;
+    record("share_exports_portable_bundle", portable, portable ? "share bundle carries novel payload and integrity envelope" : "share export was not portable", step, ["REQ-096m"], P_SHARE);
+
+    step++;
+    const preTamper = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    if (bundle?.novel) bundle.novel.name = "Tampered Bundle";
+    const tampered = await client.call("manage_archive", { action: "import", data: JSON.stringify(bundle ?? {}), mode: "replace", strict: true });
+    const postTamper = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    record("tampered_share_refused", /^\[ERROR\]/m.test(tampered.text) && preTamper === postTamper, "tampered share refused before any write", step, ["REQ-096m", "REQ-616"], P_IMPORT_INTEGRITY);
+
     for (const probe of PROBES) {
       step++;
       const res = await client.call(probe.tool, probe.args);

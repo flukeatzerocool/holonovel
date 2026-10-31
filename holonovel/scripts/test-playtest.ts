@@ -5,7 +5,7 @@
 // fingerprint stability, Mothership Health/Wounds reading).
 
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
-import { prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, isReachable, authoredAdventureHash, partyRooms, entityCounts, stateDelta, validateFinding, REGISTER_DISPOSITIONS, LENSES, GM_LANES, toEvalEvents, computeLenses } from "./lib/playtest-lib.js";
+import { prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, isReachable, authoredAdventureHash, partyRooms, entityCounts, stateDelta, validateFinding, REGISTER_DISPOSITIONS, LENSES, GM_LANES, toEvalEvents, computeLenses, observedSurface } from "./lib/playtest-lib.js";
 
 installHarnessGuard();
 
@@ -239,6 +239,22 @@ test("computeLenses: repeat with unchanged fingerprint and no delta is loop", ()
   const l = computeLenses(tx, { mission: {} });
   eq(l.loop!.length, 1, "one loop finding");
   eq(l.loop![0]!.t, 2, "second turn");
+});
+
+test("observedSurface: unique sorted tools/actions, prefix histogram, defect count", () => {
+  const records = [
+    { tool: "run_command", args: { action: "execute" }, prefix: "[OK]", error_class: "ok" },
+    { tool: "manage_novel", args: { action: "resume" }, prefix: "[OK]", error_class: "ok" },
+    { tool: "run_command", args: { action: "execute" }, prefix: "[OK]", error_class: "ok" },
+    { tool: "manage_artifact", args: { action: "install" }, prefix: "[ERROR]", error_class: "defect" },
+    { tool: "manage_diagnostics", args: {}, prefix: "[OK]", error_class: "ok" },
+    { tool: "manage_diagnostics", args: { action: "verify" }, prefix: "[FORBIDDEN]", error_class: "denial" },
+  ];
+  const surface = observedSurface(records);
+  eq(surface.tools, ["manage_artifact", "manage_diagnostics", "manage_novel", "run_command"], "tools");
+  eq(surface.actions, ["manage_artifact:install", "manage_diagnostics:verify", "manage_novel:resume", "run_command:execute"], "actions");
+  eq(surface.prefixes, { "[OK]": 4, "[ERROR]": 1, "[FORBIDDEN]": 1 }, "prefix histogram");
+  eq(surface.defect_count, 1, "defect count");
 });
 
 harnessComplete();

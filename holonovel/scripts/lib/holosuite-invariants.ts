@@ -27,6 +27,7 @@ const P_GATING = "holonovel/src/core/server.ts:22"; // requireGM
 const P_UNDO = "holonovel/src/index.ts:3080"; // undo/redo handler
 const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
 const P_RESTART = "holonovel/src/core/state.ts:2280"; // atomic persist
+const P_PACING = "holonovel/src/index.ts:597"; // pacing session mirror
 const NOVEL_NAME = "Holosuite Invariants";
 
 /** Deterministic PRNG (mulberry32) — no wall-clock, reproducible per seed. */
@@ -79,7 +80,7 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8268"); // replayInspection
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
-    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8488");
+    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8687");
     const postDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record("diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], "holonovel/src/core/state-hash.ts:50");
 
@@ -121,6 +122,43 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
       });
     } finally {
       await rebooted.close();
+    }
+
+    // --- Invariant: pacing counts tool calls, never briefing renders -------
+    const paced = await bootServer({ serverDir: opts.serverDir, dataDir, seed, env: { TTRPG_PACING_WINDOW: "3" } });
+    try {
+      const active = readPersistedNovel(dataDir, NOVEL_NAME);
+      await paced.call("manage_novel", { action: "resume", slug: String(active.slug ?? "") });
+      await paced.call("set_badge", { badge: "game_master" });
+      await paced.call("manage_scene", { action: "set", beat: "setup" });
+      for (let i = 0; i < 4; i++) await paced.call("manage_diagnostics", { action: "health" });
+
+      const pacingLine = /\[pacing\] Scene stabilized — (\d+) actions since last transition/;
+      const briefOne = await paced.getPrompt("badge_briefing");
+      const briefTwo = await paced.getPrompt("badge_briefing");
+      const m1 = briefOne.match(pacingLine);
+      const m2 = briefTwo.match(pacingLine);
+      record("briefing_does_not_advance_pacing", Boolean(m1) && m1![1] === m2?.[1], m1 ? `signal ${m1[1]} actions, repeat ${m2?.[1] ?? "absent"}` : "no pacing signal", step + 3, ["REQ-336a"], P_PACING);
+
+      await paced.call("manage_diagnostics", { action: "health" });
+      const m3 = (await paced.getPrompt("badge_briefing")).match(pacingLine);
+      record("tool_call_advances_pacing_once", Boolean(m2) && Boolean(m3) && Number(m3![1]) === Number(m2![1]) + 1, m2 && m3 ? `${m2[1]} -> ${m3[1]}` : "signal missing", step + 4, ["REQ-336a"], P_PACING);
+
+      const autonomyCount = (): number => {
+        const n = readPersistedNovel(dataDir, NOVEL_NAME);
+        return (Array.isArray(n.audit_log) ? (n.audit_log as Array<{ tool?: string }>) : []).filter((e) => e?.tool === "pacing-autonomy").length;
+      };
+      // Force a persist so the audit record written by the briefing is observable.
+      const flush = (): Promise<unknown> => paced.call("manage_note", { action: "set", key: "pacing-probe", content: "probe" });
+      await flush();
+      const firedBefore = autonomyCount();
+      for (let i = 0; i < 4; i++) await paced.call("manage_diagnostics", { action: "health" });
+      const m4 = (await paced.getPrompt("badge_briefing")).match(pacingLine);
+      await flush();
+      const firedAfter = autonomyCount();
+      record("pacing_autonomy_fires_once", firedBefore >= 1 && firedAfter === firedBefore && Boolean(m4) && Boolean(m3) && Number(m4![1]) > Number(m3![1]), `${firedBefore} autonomy record(s), ${firedAfter} after re-fire; signal ${m3?.[1]} -> ${m4?.[1]}`, step + 5, ["REQ-351b"], P_PACING);
+    } finally {
+      await paced.close();
     }
   } catch (e) {
     ctx.failed++;
