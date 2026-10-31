@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-31 — Publication tooling: remote identity and early confirmation refusal
+
+- Step 9 compares the deploy clone's origin with the publication remote by
+  identity, not URL spelling. `scripts/lib/remote-url.ts` normalises scheme,
+  user, default port, `.git` suffix, and trailing slash, so the scp
+  (`git@host:path`) and `ssh://` spellings of one repository match. A real
+  deploy aborted on 2026-10-31 after main, tag, mirror, and wiki had already
+  been pushed; either side empty still fails closed (REQ-418).
+- A non-interactive run without `--yes` is refused before any file change. The
+  check previously sat after step 5, so such a run spent the full gate pass and
+  the 54-command harness suite, rewrote `holonovel/DECISIONS.md`, then exited 1
+  with a dirty tree; the retry then had to reconcile it.
+
 ## 2026-10-31 — Test fix: spec-delta self-test derives its base ref
 
 - The `spec-delta --base` self-test no longer hardcodes `HEAD~1`. After a

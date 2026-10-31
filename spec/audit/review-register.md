@@ -810,6 +810,24 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `manage_diagnostics` (REQ-581). Canonical surface unchanged at 37 tools;
   compatibility declarations 50 → 54. T674/T675 cover the tombstone.
 
+- **Deploy remote-identity guard (resolved 2026-10-31):** step 9 compared the
+  deploy clone's origin against the publication remote as raw strings, so the
+  scp (`git@host:path`) and URL (`ssh://git@host/path`) spellings of one
+  repository were read as different remotes and a real deploy aborted after
+  main, tag, mirror, and wiki had already been pushed. The comparison now runs
+  through `scripts/lib/remote-url.ts` (`sameRemote`), which normalises scheme,
+  user, default port, `.git` suffix, and trailing slash; an empty side still
+  fails closed. (REQ-418; predicate `scripts/push-pipeline.sh:777`; exercised by
+  `test:spec-tooling`)
+
+- **Non-interactive confirmation refusal (resolved 2026-10-31):** the `--yes` /
+  TTY check sat after step 5, so a non-interactive run without `--yes` paid for
+  the full gate pass and the 54-command harness suite, rewrote
+  `holonovel/DECISIONS.md`, then exited 1 with a dirty tree that blocked the
+  retry. The refusal now runs before any file change
+  (`scripts/push-pipeline.sh:159`); the prompt keeps its own check at `:548` as
+  a safety net against step reordering.
+
 ## Scheduled-roadmap
 
 - **Generic hazard-model implementation drift (2026-10-31):** the reference
@@ -1082,6 +1100,17 @@ pass and completion-oracle green. Fix evidence: regression tests in
   Holonovel defect depends on the result; the P3 triage bar is a demonstrated
   failure, not an open-ended audit. Record and close; reopen if a competitor
   capability is observed that Holonovel lacks and cannot cover.
+
+- **Publication-retry misclassification — withdrawn (2026-10-31):** an earlier
+  finding from the same session claimed that once an aborted run advances the
+  fingerprint baseline, a retry sees `changedCount 0` against a `major`
+  delta class, is blocked as a silent-stale publication by
+  `scripts/update-server.ts:279`, and then overwrites the recorded delta via
+  `writeNoneDelta`. Both claims are false: `scripts/update-server.ts:219` exits
+  earlier when `storedHash === currentHash`. Verified live on 2026-10-31 — the
+  retry printed "Spec unchanged — no update needed", exit 0, baseline
+  unchanged. No code change; the baseline restoration performed during the
+  remediation was unnecessary and harmless.
 
 ## Deferred-by-user
 
