@@ -32,60 +32,80 @@ const target = (() => {
   const current = rootPkg.version as string;
   return changelogDate && changelogDate > current ? changelogDate : current;
 })();
+const version = target;
+
+interface Edit { path: string; pattern: RegExp; replacement: string; label: string }
+const edits: Edit[] = [
+  {
+    path: join(root, "holonovel", "AGENTS.md"),
+    pattern: /^(# AGENTS\.md — .+?\(v).+(\))/m,
+    replacement: `$1${version}$2`,
+    label: "holonovel/AGENTS.md header",
+  },
+  {
+    path: join(root, "holonovel", "DECISIONS.md"),
+    pattern: /^(\| Spec version \| ).+?( \|)/m,
+    replacement: `$1${version}$2`,
+    label: "holonovel/DECISIONS.md spec version",
+  },
+  {
+    path: join(root, "holonovel", "src", "index.ts"),
+    pattern: /^(  version: ").+(",$)/m,
+    replacement: `$1${version}$2`,
+    label: "holonovel/src/index.ts McpServer version",
+  },
+];
+
+// Validate every target and pattern BEFORE writing anything, so a stale
+// pattern cannot leave the tree half-bumped (CR-27).
+let ok = true;
+for (const e of edits) {
+  if (!readFileSync(e.path, "utf-8").match(e.pattern)) {
+    console.error(`  FAIL  ${e.label}: pattern not found`);
+    ok = false;
+  }
+}
+const jsonTargets = [
+  join(root, "holonovel", "package.json"),
+  join(root, "holonovel", "package-lock.json"),
+  join(root, "holonovel", "server.json"),
+];
+for (const p of jsonTargets) {
+  try { JSON.parse(readFileSync(p, "utf-8")); }
+  catch { console.error(`  FAIL  ${p}: unreadable JSON`); ok = false; }
+}
+if (!ok) {
+  console.error("\nVersion bump FAILED (no files written).");
+  process.exit(1);
+}
+
+// ── Apply ──
 if (target !== rootPkg.version) {
   rootPkg.version = target;
   writeFileSync(rootPkgPath, JSON.stringify(rootPkg, null, 2) + "\n");
   console.log(`  OK   package.json (root): → ${target}`);
 }
-const version = target;
 
-function replaceInFile(filePath: string, pattern: RegExp, replacement: string, label: string): boolean {
-  const content = readFileSync(filePath, "utf-8");
-  if (!content.match(pattern)) {
-    console.error(`  FAIL  ${label}: pattern not found`);
-    return false;
+const holonovelPkgPath = join(root, "holonovel", "package.json");
+const holonovelPkg = JSON.parse(readFileSync(holonovelPkgPath, "utf-8"));
+if (holonovelPkg.version !== version) {
+  holonovelPkg.version = version;
+  writeFileSync(holonovelPkgPath, JSON.stringify(holonovelPkg, null, 2) + "\n");
+  console.log(`  OK   holonovel/package.json: → ${version}`);
+} else {
+  console.log(`  OK   holonovel/package.json: already ${version}`);
+}
+
+for (const e of edits) {
+  const content = readFileSync(e.path, "utf-8");
+  const updated = content.replace(e.pattern, e.replacement);
+  if (updated === content) {
+    console.log(`  OK   ${e.label}: already ${version}`);
+    continue;
   }
-  const updated = content.replace(pattern, replacement);
-  writeFileSync(filePath, updated);
-  console.log(`  OK   ${label}: → ${version}`);
-  return true;
+  writeFileSync(e.path, updated);
+  console.log(`  OK   ${e.label}: → ${version}`);
 }
-
-function bumpPkgVersion(serverDir: string, label: string): boolean {
-  const pkgPath = join(root, serverDir, "package.json");
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-  pkg.version = version;
-  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-  console.log(`  OK   ${label}: → ${version}`);
-  return true;
-}
-
-let ok = true;
-
-// ── holonovel ──
-
-ok = bumpPkgVersion("holonovel", "holonovel/package.json") && ok;
-
-ok = replaceInFile(
-  join(root, "holonovel", "AGENTS.md"),
-  /^(# AGENTS\.md — .+?\(v).+(\))/m,
-  `$1${version}$2`,
-  "holonovel/AGENTS.md header"
-) && ok;
-
-ok = replaceInFile(
-  join(root, "holonovel", "DECISIONS.md"),
-  /^(\| Spec version \| ).+?( \|)/m,
-  `$1${version}$2`,
-  "holonovel/DECISIONS.md spec version"
-) && ok;
-
-ok = replaceInFile(
-  join(root, "holonovel", "src", "index.ts"),
-  /^(  version: ").+(",$)/m,
-  `$1${version}$2`,
-  "holonovel/src/index.ts McpServer version"
-) && ok;
 
 // Sync the lockfile's embedded version fields (root and packages[""] entry)
 // so the REQ-313 lockfile fingerprint stays consistent with package.json.
@@ -120,11 +140,6 @@ if (serverChanged) {
   console.log(`  OK   holonovel/server.json: → ${canonical}`);
 } else {
   console.log(`  OK   holonovel/server.json: already ${canonical}`);
-}
-
-if (!ok) {
-  console.error("\nVersion bump FAILED.");
-  process.exit(1);
 }
 
 console.log(`\nAll version references bumped to ${version}.`);

@@ -76,12 +76,15 @@ function shippedNovels(): Target[] {
 }
 
 function loadManifest(): ManifestEntry[] {
+  const raw = readFileSync(MANIFEST_PATH, "utf-8");
+  let parsed: { novels?: ManifestEntry[] };
   try {
-    const parsed = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8")) as { novels?: ManifestEntry[] };
-    return parsed.novels ?? [];
-  } catch {
-    return [];
+    parsed = JSON.parse(raw) as { novels?: ManifestEntry[] };
+  } catch (e) {
+    throw new Error(`playability manifest is not valid JSON: ${(e as Error).message}`);
   }
+  if (!Array.isArray(parsed?.novels)) throw new Error("playability manifest is missing a novels array");
+  return parsed.novels;
 }
 
 function fixtureTargets(manifest: ManifestEntry[], only: string | null): Target[] {

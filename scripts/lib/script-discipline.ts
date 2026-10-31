@@ -72,7 +72,7 @@ export function contentIssues(rel: string, content: string, isLib: boolean): str
     issues.push(`${rel}: path resolution — use import.meta.dirname`);
   }
 
-  for (const m of content.matchAll(/catch\s*\{\s*\}/g)) {
+  for (const m of content.matchAll(/catch\s*(?:\([^)]*\))?\s*\{\s*\}/g)) {
     issues.push(`${rel}: empty catch block without a comment explaining why it is safe`);
   }
 
@@ -96,7 +96,7 @@ export function shellIssues(rel: string, content: string): string[] {
     issues.push(`${rel}: missing header comment`);
   }
 
-  if (!content.includes("set -euo pipefail")) {
+  if (!/^\s*set -euo pipefail\s*$/m.test(content)) {
     issues.push(`${rel}: missing 'set -euo pipefail'`);
   }
 

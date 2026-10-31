@@ -83,17 +83,31 @@ interface Artifact {
 
 // ── MCP client (boot + tools/list) ─────────────────────────────────────
 let msgId = 0;
-const pending = new Map<number, (m: any) => void>();
+interface Pending { resolve: (m: any) => void; reject: (e: Error) => void }
+const pending = new Map<number, Pending>();
 let buffer = "";
-function send(proc: ChildProcess, msg: any): Promise<any> {
-  return new Promise((resolve) => {
+let stderrTail = "";
+function settleAll(err: Error): void {
+  for (const p of pending.values()) p.reject(err);
+  pending.clear();
+}
+function send(proc: ChildProcess, msg: any, timeoutMs = 30000): Promise<any> {
+  return new Promise((resolve, reject) => {
     const id = ++msgId;
-    pending.set(id, resolve);
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`MCP request timed out after ${timeoutMs}ms; stderr: ${stderrTail.slice(-500)}`));
+    }, timeoutMs);
+    pending.set(id, {
+      resolve: (m: any) => { clearTimeout(timer); resolve(m); },
+      reject: (e: Error) => { clearTimeout(timer); reject(e); },
+    });
     proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n");
   });
 }
 function attach(proc: ChildProcess): void {
   buffer = "";
+  stderrTail = "";
   proc.stdout!.on("data", (data: Buffer) => {
     buffer += data.toString();
     const lines = buffer.split("\n");
@@ -102,9 +116,13 @@ function attach(proc: ChildProcess): void {
       if (!line.trim()) continue;
       let m: any;
       try { m = JSON.parse(line); } catch { continue; /* non-JSON diagnostic line */ }
-      if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); }
+      if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!.resolve(m); pending.delete(m.id); }
     }
   });
+  // Drain stderr so a chatty server cannot fill the pipe and deadlock (CR-24).
+  proc.stderr!.on("data", (data: Buffer) => { stderrTail = (stderrTail + data.toString()).slice(-8000); });
+  proc.on("exit", (code, signal) => settleAll(new Error(`server exited (${code ?? signal}) before responding; stderr: ${stderrTail.slice(-500)}`)));
+  proc.on("error", (err) => settleAll(err));
 }
 async function boot(): Promise<ChildProcess> {
   const proc = spawn("npx", ["tsx", SERVER_SCRIPT], {
@@ -200,22 +218,23 @@ function buildArtifact(tools: any[], registry: SurfaceRegistryLike, hiddenAliase
 }
 
 function parseHiddenAliases(healthText: string): HiddenAlias[] {
+  let health: any;
   try {
-    const health = JSON.parse(healthText);
-    const aliases = health?.tool_surface?.compatibility?.aliases;
-    if (!Array.isArray(aliases)) return [];
-    return aliases.map((alias: any) => ({
-      name: String(alias.name),
-      kind: alias.kind === "action" ? "action" : "tool",
-      replacement: String(alias.replacement),
-      retired: alias.retired === true,
-      ...(Array.isArray(alias.actions) ? { action_enum: alias.actions.map(String) } : {}),
-    }));
-  } catch {
-    // A malformed health payload is a generator defect, not a silent empty
-    // alias list; fail closed so the artifact cannot hide a missing alias.
-    return [];
+    health = JSON.parse(healthText);
+  } catch (e) {
+    throw new Error(`malformed health payload: ${(e as Error).message}; body: ${healthText.slice(0, 200)}`);
   }
+  const aliases = health?.tool_surface?.compatibility?.aliases;
+  // A missing aliases array is a generator defect, not a silent empty list;
+  // fail closed so the artifact cannot hide a retired alias (CR-24).
+  if (!Array.isArray(aliases)) throw new Error("health payload is missing tool_surface.compatibility.aliases");
+  return aliases.map((alias: any) => ({
+    name: String(alias.name),
+    kind: alias.kind === "action" ? "action" : "tool",
+    replacement: String(alias.replacement),
+    retired: alias.retired === true,
+    ...(Array.isArray(alias.actions) ? { action_enum: alias.actions.map(String) } : {}),
+  }));
 }
 
 function serialize(a: Artifact): string {
@@ -248,6 +267,9 @@ async function main(): Promise<void> {
       method: "tools/call",
       params: { name: "manage_diagnostics", arguments: { action: "health" } },
     });
+  } catch (e) {
+    console.error(`FATAL: ${(e as Error).message}`);
+    process.exit(2);
   } finally {
     try { proc.kill("SIGKILL"); } catch { /* already exited — killing twice is a no-op */ }
   }

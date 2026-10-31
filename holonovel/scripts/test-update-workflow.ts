@@ -216,7 +216,7 @@ writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", pack
     writeFileSync(registryPath, JSON.stringify(seeded, null, 2) + "\n");
 
     test("T689/REQ-395c: dry run plans a stale package and writes nothing", () => {
-      const dry = runScript("update.ts", ["--packages-only"], { TTRPG_DATA_DIR: RECONCILE_DIR });
+      const dry = runScript("update.ts", ["--packages-only"], { TTRPG_DATA_DIR: RECONCILE_DIR, HOLONOVEL_TRUSTED_EMITTER_ROOT: RECONCILE_DIR });
       if (dry.status !== 0) throw new Error(`update dry run failed: ${dry.stdout} ${dry.stderr}`);
       assertContains(dry.stdout, "emitted: planned");
       assertContains(dry.stdout, "no recorded emitter");
@@ -225,7 +225,7 @@ writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", pack
     });
 
     test("T689/REQ-395c: apply rebuilds through the recorded emitter and defers the unresolvable slug", () => {
-      const run = runScript("update.ts", ["--packages-only", "--apply"], { TTRPG_DATA_DIR: RECONCILE_DIR });
+      const run = runScript("update.ts", ["--packages-only", "--apply"], { TTRPG_DATA_DIR: RECONCILE_DIR, HOLONOVEL_TRUSTED_EMITTER_ROOT: RECONCILE_DIR });
       if (run.status !== 0) throw new Error(`update apply failed: ${run.stdout} ${run.stderr}`);
       assertContains(run.stdout, "emitted: updated");
       assertContains(run.stdout, "stale: deferred");

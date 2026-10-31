@@ -17,7 +17,7 @@ let msgId = 0; const pending = new Map(); let buffer = "";
 function send(proc: any, msg: any): Promise<any> { return new Promise((r) => { const id = ++msgId; pending.set(id, r); proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n"); }); }
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
 async function boot(extraEnv: Record<string, string> = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...extraEnv }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "corpus", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
-async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
+async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); if (r.error) throw new Error(`${name}: ${r.error.message ?? JSON.stringify(r.error)}`); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 const corpus = (p: any, args: any) => { const out: any = { action: `corpus_${args.action}` }; for (const [k, v] of Object.entries(args)) if (k !== "action") out[`corpus_${k}`] = v; return call(p, "manage_corpus", out); };
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
@@ -28,7 +28,7 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
 async function register(p: any, args: any): Promise<string> { const r = await corpus(p, { action: "register", ...args }); const m = r.match(/document (doc-\d+)/); if (!m) throw new Error("register failed: " + r.slice(0, 160)); return m[1]; }
-async function acquisitions(p: any, entity_id?: string): Promise<any[]> { const t = await corpus(p, { action: "acquisitions", entity_id }); try { return JSON.parse(t); } catch { return []; } }
+async function acquisitions(p: any, entity_id?: string): Promise<any[]> { const t = await corpus(p, { action: "acquisitions", entity_id }); if (/^\[OK\] No /.test(t.trim())) return []; try { return JSON.parse(t); } catch { throw new Error(`acquisitions were not JSON: ${t.slice(0, 200)}`); } }
 
 async function main() {
   // ── T586: cold registration (REQ-496) ────────────────────────────────

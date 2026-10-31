@@ -33,12 +33,13 @@ function main(): void {
   handleHelp(process.argv, USAGE);
   const strict = parseFlag(process.argv, "--strict");
   const all: string[] = [];
-  if (!existsSync(REVIEW)) all.push("spec/audit/review-register.md is missing");
+  let missingInput = false;
+  if (!existsSync(REVIEW)) { all.push("spec/audit/review-register.md is missing"); missingInput = true; }
   else {
     const roadmap = existsSync(ROADMAP) ? readFileSync(ROADMAP, "utf-8") : "";
     all.push(...checkReviewFindings(parseFindings(readFileSync(REVIEW, "utf-8")), roadmap));
   }
-  if (!existsSync(PROOFREAD)) all.push("spec/audit/proofread-register.md is missing");
+  if (!existsSync(PROOFREAD)) { all.push("spec/audit/proofread-register.md is missing"); missingInput = true; }
   else all.push(...checkProofreadDispositions(readFileSync(PROOFREAD, "utf-8")));
 
   const info = all.filter((i) => i.startsWith("INFO:"));
@@ -50,7 +51,7 @@ function main(): void {
   }
   for (const issue of issues) console.log(`  ${strict ? "FAIL" : "WARN"}: ${issue}`);
   console.log(`\n${issues.length} register finding(s) (report-only${strict ? ", --strict" : ""}).`);
-  process.exit(strict ? 1 : 0);
+  process.exit(strict || missingInput ? 1 : 0);
 }
 
 main();

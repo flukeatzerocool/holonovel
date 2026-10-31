@@ -123,7 +123,7 @@ if (asJson) {
 const ROADMAP_PATH = join(import.meta.dirname, "..", "ROADMAP.md");
 const roadmap = existsSync(ROADMAP_PATH) ? readFileSync(ROADMAP_PATH, "utf-8") : "";
 const orphanConflicts = checkMode
-  ? loadBaselineEntries().filter((b) => b.disposition === "known-conflict" && !roadmap.includes(b.action))
+  ? loadBaselineEntries().filter((b) => b.disposition === "known-conflict" && !roadmap.includes(`${b.tool} (action: ${b.action})`))
   : [];
 
 if (checkMode && (unbaselined.length > 0 || orphanConflicts.length > 0)) {

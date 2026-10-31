@@ -101,7 +101,7 @@ export function checkManifest(pkg: unknown): ManifestReport {
     issues.push(issue("field:dependencies", "dependencies must be an object"));
   } else {
     for (const [name, range] of Object.entries(pkg.dependencies)) {
-      if (typeof range !== "string" || /^[~^]/.test(range) || range.includes("*")) {
+      if (typeof range !== "string" || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(range)) {
         issues.push(issue(`dependency:${name}`, `${name} must be pinned to an exact version (got ${String(range)})`));
       }
     }

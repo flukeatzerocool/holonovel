@@ -20,11 +20,11 @@
  * Exit codes: 0 = entry present / written / already recorded; 1 = missing entry
  * under --check, or a required input was absent.
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { handleHelp, parseFlag, parseValueFlag } from "./lib/args.js";
+import { handleHelp, parseFlag, parseValueFlag, rejectUnknown } from "./lib/args.js";
 import { SERVERS } from "./lib/servers.js";
 import {
   entryFor,
@@ -163,6 +163,18 @@ const dryRun = parseFlag(process.argv, "--dry-run");
 const verification = parseValueFlag(process.argv, "--verification");
 const deltaRecordPath = parseValueFlag(process.argv, "--delta-record") ?? DEFAULT_DELTA_RECORD;
 handleHelp(process.argv, USAGE);
+rejectUnknown(process.argv.slice(2), new Set(["--check", "--dry-run", "--verification", "--delta-record", "--help", "-h"]), USAGE);
+
+function writeAtomic(filePath: string, content: string): void {
+  const tmp = `${filePath}.tmp-${process.pid}`;
+  try {
+    writeFileSync(tmp, content);
+    renameSync(tmp, filePath);
+  } catch (e) {
+    try { unlinkSync(tmp); } catch { /* tmp may not exist; original untouched */ }
+    throw e;
+  }
+}
 
 if (!existsSync(SPEC_PATH)) {
   console.error(`FAIL: assembled spec not found at ${SPEC_PATH} — run npm run assemble first.`);
@@ -213,7 +225,7 @@ for (const server of SERVERS) {
     process.stdout.write(entry + "\n");
     continue;
   }
-  writeFileSync(decisionsPath, insertEntry(decisions, entry));
+  writeAtomic(decisionsPath, insertEntry(decisions, entry));
   console.log(`  OK   ${server}: Spec Update entry inserted (delta ${report.classification}, hash ${specHash.slice(0, 8)}…)`);
   console.log(`       Fill the Verification line before publication (Appendix V.4).`);
 }

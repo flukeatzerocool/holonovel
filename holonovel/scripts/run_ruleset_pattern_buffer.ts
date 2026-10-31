@@ -24,6 +24,9 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, rmSync, mkdirSync, mkdtempSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
 import { tmpdir } from "node:os";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+
+installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const SPEC_PATH = join(import.meta.dirname!, "..", "..", "holonovel.md");
@@ -156,9 +159,10 @@ const RS = (resume?: string, env?: Record<string, string>): RestartAction => ({ 
 
 // ── Assertions ─────────────────────────────────────────────────────
 
+const ERROR_PREFIXES = ["[ERROR]", "[STATE_CONFLICT]", "[FORBIDDEN]", "[RULE_VIOLATION]", "[INVALID_INPUT]", "[NEED_INPUT]", "[NOT_FOUND]"];
 function assertOK(r: string, label = "") {
-  if (r.includes("[ERROR]") || r.includes("[STATE_CONFLICT]") || r.includes("[FORBIDDEN]") || r.includes("[NOT_FOUND]"))
-    throw new Error(`${label}expected OK, got: ${r.substring(0, 300)}`);
+  const hit = ERROR_PREFIXES.find((p) => r.includes(p));
+  if (hit) throw new Error(`${label}expected OK, got ${hit}: ${r.substring(0, 300)}`);
 }
 function assertContains(r: string, sub: string, label = "") {
   if (!r.toLowerCase().includes(sub.toLowerCase()))
@@ -300,7 +304,7 @@ const S17_STEPS: PBStep[] = [
   { label: "switch to second novel", action: T("manage_novel", { action: "create", name: "pb-life-other" }), assert: assertOK },
   { label: "switch back (resume)", action: T("manage_novel", { action: "resume", slug: "pb-lifecycle" }), assert: assertOK },
   { label: "persisted room survives switch", action: R("world://map"), assert: (r) => assertContains(r, "Life Room", "persist ") },
-  { label: "end novel", action: T("manage_novel", { action: "end" }), assert: assertOK },
+  { label: "end novel", action: T("manage_novel", { action: "end" }), assert: (r) => assertContains(r, "NEED_INPUT", "end-prompt ") },
   { label: "confirm end", action: T("respond_decision", { decision: "end novel", option: "yes" }), assert: (r) => assertContains(r, "ended", "end ") },
   { label: "resume ended novel → blocked", action: T("manage_novel", { action: "resume", slug: "pb-lifecycle" }), assert: (r) => assertError(r, "ended-resume ") },
 ];
@@ -656,12 +660,24 @@ let proc: ChildProcess | null = null;
 let currentEnv: Record<string, string> = {};
 
 async function bootServer(envOverrides: Record<string, string> = {}): Promise<ChildProcess> {
-  if (proc) { try { proc.kill(); } catch { /* already gone */ } proc = null; }
+  if (proc) {
+    const old = proc;
+    try { old.kill(); } catch { /* already gone */ }
+    // Wait for the old process to exit before a restart reuses the data dir.
+    if (old.exitCode === null && old.signalCode === null) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 2000);
+        old.once("exit", () => { clearTimeout(timer); resolve(); });
+      });
+    }
+    proc = null;
+  }
   currentEnv = { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...envOverrides };
   const p = spawn("npx", ["tsx", SERVER_SCRIPT], {
     env: currentEnv,
     stdio: ["pipe", "pipe", "pipe"],
   });
+  p.on("error", (e) => { console.error("Server error:", e); process.exit(2); });
   attach(p);
   proc = p;
   await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "holonovel-ruleset-pattern-buffer", version: "1.0.0" } } });
@@ -710,7 +726,9 @@ async function main() {
           const env: Record<string, string> = { ...(step.action.env ?? {}) };
           if (step.action.resume) env.TTRPG_NOVEL = step.action.resume;
           proc = await bootServer(env);
-          response = "[restarted]";
+          // The restart must be observable: a literal "[restarted]" can never
+          // fail. Probe health instead, so a broken reboot fails the step.
+          response = await doAction(proc!, T("manage_diagnostics", { action: "health" }));
         } else if (step.action.kind === "file") {
           response = doFileAction(step.action);
         } else {
@@ -773,6 +791,7 @@ async function main() {
     process.exit(1);
   }
   console.error("PASS: all executed blocking sub-workflows passed.");
+  harnessComplete();
   process.exit(0);
 }
 

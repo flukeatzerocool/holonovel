@@ -194,8 +194,14 @@ snapshot_state() {
   STATE_SNAPSHOT="$(mktemp -d)"
   BEFORE_UNTRACKED="$STATE_SNAPSHOT/untracked-before"
   BEFORE_IGNORED="$STATE_SNAPSHOT/ignored-before"
-  git ls-files --others --exclude-standard > "$BEFORE_UNTRACKED" 2>/dev/null || true
-  git ls-files --others --ignored --exclude-standard > "$BEFORE_IGNORED" 2>/dev/null || true
+  if ! git ls-files --others --exclude-standard > "$BEFORE_UNTRACKED" 2>/dev/null; then
+    echo -e "${RED}  Failed to snapshot untracked files — aborting before restore.${NC}" >&2
+    exit 1
+  fi
+  if ! git ls-files --others --ignored --exclude-standard > "$BEFORE_IGNORED" 2>/dev/null; then
+    echo -e "${RED}  Failed to snapshot ignored files — aborting.${NC}" >&2
+    exit 1
+  fi
   for f in .holonovel-state/pipeline-fingerprints.json .holonovel-state/build-order-fingerprint.json holonovel/.holonovel-state/build-order-fingerprint.json; do
     if [[ -f "$f" ]]; then cp "$f" "$STATE_SNAPSHOT/$(basename "$f")"; fi
   done
@@ -383,7 +389,7 @@ classify_delta() {
     cat "$DELTA_ERR" >&2
     return 1
   fi
-  node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{'),j=s.lastIndexOf('}');try{const c=JSON.parse(s.slice(i,j+1)).classification;console.log(c==='none'?'patch':c)}catch{process.exit(1)}})" <<<"$out"
+  node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const i=s.indexOf('{'),j=s.lastIndexOf('}');try{const c=JSON.parse(s.slice(i,j+1)).classification;if(!['none','patch','editorial','minor','major'].includes(c)){console.error('invalid delta classification: '+c);process.exit(1)}console.log(c==='none'?'patch':c)}catch(e){console.error(String(e&&e.message||e));process.exit(1)}})" <<<"$out"
 }
 
 echo -e "${GREEN}=== 3. Spec hash + delta report ===${NC}"
@@ -597,7 +603,10 @@ fi
 # loudly on the non-fast-forward rather than corrupting anything.
 PENDING_PUSH=0
 if git rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
-  PENDING_PUSH=$(git rev-list --count origin/main..main 2>/dev/null || echo 0)
+  if ! PENDING_PUSH=$(git rev-list --count origin/main..main 2>/dev/null); then
+    echo -e "${RED}  Cannot compute pending push count against origin/main — aborting.${NC}" >&2
+    exit 1
+  fi
 else
   PENDING_PUSH=1
 fi
@@ -612,7 +621,15 @@ if [[ "$PENDING_PUSH" -gt 0 ]]; then
   if git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null | grep -q "refs/tags/$TAG"; then
     echo -e "${YELLOW}  Tag $TAG already on remote — version unchanged, leaving it pinned.${NC}"
   else
-    git tag -f "$TAG"
+    if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+      if [[ "$(git rev-list -n1 "$TAG")" != "$(git rev-parse HEAD)" ]]; then
+        echo -e "${RED}  Local tag $TAG already points elsewhere — aborting instead of retargeting.${NC}" >&2
+        exit 1
+      fi
+      echo -e "${YELLOW}  Local tag $TAG already points at HEAD — reusing it.${NC}"
+    else
+      git tag "$TAG"
+    fi
     echo -e "${GREEN}  Tagging $TAG at HEAD${NC}"
     TAG_TO_PUSH="$TAG"
     PUSH_REFS+=("$TAG")
@@ -718,6 +735,20 @@ if [[ -d "$DEPLOY_DIR/.git" ]]; then
   DEPLOY_BRANCH=$(git -C "$DEPLOY_DIR" symbolic-ref --short -q HEAD || true)
   if [[ "$DEPLOY_BRANCH" != "main" ]]; then
     echo -e "${RED}Deploy FAILED — deploy clone is on '${DEPLOY_BRANCH:-detached HEAD}', not main (REQ-418).${NC}"
+    exit 1
+  fi
+  # Refuse a deploy dir that is the workspace itself (or an unrelated clone):
+  # the reset/clean below would destroy the wrong tree.
+  REPO_REAL=$(cd "$(dirname "$0")/.." && pwd -P)
+  DEPLOY_REAL=$(cd "$DEPLOY_DIR" && pwd -P)
+  if [[ "$DEPLOY_REAL" == "$REPO_REAL" ]]; then
+    echo -e "${RED}Deploy FAILED — HOLONOVEL_DEPLOY_DIR resolves to the workspace root (REQ-418).${NC}"
+    exit 1
+  fi
+  WORKSPACE_REMOTE=$(git remote get-url origin 2>/dev/null || true)
+  DEPLOY_REMOTE=$(git -C "$DEPLOY_DIR" remote get-url origin 2>/dev/null || true)
+  if [[ -z "$DEPLOY_REMOTE" || ( -n "$WORKSPACE_REMOTE" && "$DEPLOY_REMOTE" != "$WORKSPACE_REMOTE" ) ]]; then
+    echo -e "${RED}Deploy FAILED — deploy clone origin '${DEPLOY_REMOTE:-<none>}' does not match the publication remote '${WORKSPACE_REMOTE:-<none>}' (REQ-418).${NC}"
     exit 1
   fi
   # Deploy clone is a git-pull-only mirror: discard any uncommitted working-tree

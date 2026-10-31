@@ -10,13 +10,14 @@
  * Exit codes: 0 = pass, 1 = assertion failure, 2 = fatal.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from "./lib/parse-spec.js";
 import { parseRecordedBudgets } from "./lib/surface-record.js";
 import { hasUnfilledVerification, hasFingerprintDelta, isLegacyDeltaExempt, isPlaceholderVerification, renderFingerprintDelta } from "./lib/spec-update.js";
 import { hashFile } from "./lib/hash.js";
+import { classifyDelta, reqFamily } from "./lib/spec-delta-classify.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -39,11 +40,26 @@ function runCode(args: string[]): { code: number; out: string } {
 }
 
 function main(): void {
-  // REQ-098/F5 — spec-delta --base classifies against the given ref.
-  const delta = run(["scripts/spec-delta.ts", "--base", "HEAD", "--report-only"]);
+  // REQ-098/F5 — spec-delta --base classifies against the given ref. Compare
+  // to HEAD~1 (a ref whose spec differs) so a test that ignored --base and
+  // diffed against its default would not silently pass.
+  const delta = run(["scripts/spec-delta.ts", "--base", "HEAD~1", "--report-only"]);
   const deltaJson = JSON.parse(delta.slice(delta.indexOf("{")));
   check(["none", "patch", "editorial", "minor", "major"].includes(deltaJson.classification), "spec-delta --base emits a valid classification");
+  check(deltaJson.classification !== "none", "spec-delta --base HEAD~1 detects the real delta");
+  check(deltaJson.requirements_changed.modified.length > 0, "spec-delta --base HEAD~1 reports modified REQs");
   check(typeof deltaJson.current_hash === "string" && deltaJson.current_hash.length === 64, "spec-delta --base emits a SHA-256 current_hash");
+
+  // CR-4 — REQ family extraction keeps the numeric prefix and the major
+  // triggers fire for a state-model REQ edit.
+  check(reqFamily("030") === "030", "reqFamily keeps a bare numeric id");
+  check(reqFamily("395c") === "395", "reqFamily strips a letter suffix");
+  const shape = (modified: string[], editorial = false) => ({ added: [], removed: [], modified, sectionsChanged: [], editorial });
+  check(classifyDelta(shape(["030"])) === "major", "a state-model REQ edit classifies major");
+  check(classifyDelta(shape(["104"])) === "major", "a tool-surface REQ edit classifies major");
+  check(classifyDelta(shape(["999"])) === "minor", "an unrelated REQ edit classifies minor");
+  check(classifyDelta(shape(["999"], true)) === "editorial", "an editorial disposition classifies editorial");
+  check(classifyDelta(shape([])) === "patch", "an empty delta classifies patch");
 
   // F3 — the dedicated-evidence report renders with a parseable count.
   const dedicated = run(["scripts/compare-spec-code.ts", "--dedicated"]);
@@ -259,6 +275,12 @@ function main(): void {
   } finally {
     rmSync(stageDir, { recursive: true, force: true });
   }
+
+  // The pipeline's own staging commands — a regression in the script's
+  // add/reset pair is otherwise undetectable from the git-semantics fixture.
+  const pipeline = readFileSync(join(root, "scripts", "push-pipeline.sh"), "utf-8");
+  check(/^git add -A -- \.$/m.test(pipeline), "pipeline stages the tracked surface with git add -A");
+  check(/^git reset -q -- \.holonovel-state\/wiki/m.test(pipeline), "pipeline resets the wiki mirror pages out of the index");
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

@@ -11,8 +11,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { extractH2Headings, changedReqBodies } from "./lib/parse-spec.js";
+import { classifyDelta } from "./lib/spec-delta-classify.js";
 import { SERVERS } from "./lib/servers.js";
 
 const root = join(import.meta.dirname, "..");
@@ -25,6 +26,11 @@ const server = process.argv.includes("--server")
 const baseRef = process.argv.includes("--base")
   ? process.argv[process.argv.indexOf("--base") + 1]
   : null;
+
+if (baseRef && !/^[A-Za-z0-9._/~^:-]+$/.test(baseRef)) {
+  console.error(`Invalid --base ref: ${baseRef}`);
+  process.exit(1);
+}
 
 if (!SERVERS.includes(server)) {
   console.error(`Usage: npm run spec-delta -- --server <${SERVERS.join("|")}>`);
@@ -67,35 +73,44 @@ const report: DeltaReport = {
   raw_diff_lines: 0,
 };
 
+// Run git without a shell so a ref or path can never be interpreted as a
+// command fragment (CR-17).
+function gitOut(args: string[], maxBuffer = 64 * 1024 * 1024): string | null {
+  try {
+    return execFileSync("git", args, {
+      cwd: root,
+      encoding: "utf-8",
+      timeout: 10000,
+      maxBuffer,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    return null;
+  }
+}
+
 function lastPublishedSpec(baseRef: string | null): string | null {
-  const cmds = baseRef
-    ? [`git show ${baseRef}:holonovel.md`]
-    : [
-        `git show origin/main:holonovel.md`,
-        `git show $(git rev-list -n 1 HEAD -- holonovel.md):holonovel.md`,
-      ];
-  for (const cmd of cmds) {
-    try {
-      const out = execSync(cmd, { cwd: root, encoding: "utf-8", timeout: 10000, maxBuffer: 64 * 1024 * 1024 });
-      if (out.trim()) return out;
-    } catch { /* try next */ }
+  const refs = baseRef ? [baseRef] : ["origin/main", "HEAD"];
+  for (const ref of refs) {
+    const out = gitOut(["show", `${ref}:holonovel.md`]);
+    if (out && out.trim()) return out;
+  }
+  if (!baseRef) {
+    const rev = gitOut(["rev-list", "-n", "1", "HEAD", "--", "holonovel.md"])?.trim();
+    if (rev) {
+      const out = gitOut(["show", `${rev}:holonovel.md`]);
+      if (out && out.trim()) return out;
+    }
   }
   return null;
 }
 
 function lastPublishedStoredHash(baseRef: string | null): string | null {
-  const cmds = baseRef
-    ? [`git show ${baseRef}:holonovel/DECISIONS.md`]
-    : [
-        `git show origin/main:holonovel/DECISIONS.md`,
-        `git show HEAD:holonovel/DECISIONS.md`,
-      ];
-  for (const cmd of cmds) {
-    try {
-      const out = execSync(cmd, { cwd: root, encoding: "utf-8", timeout: 10000 });
-      const m = out.match(/\*\*Spec hash:\*\*\s*([a-f0-9]+)/m);
-      if (m) return m[1];
-    } catch { /* try next */ }
+  const refs = baseRef ? [baseRef] : ["origin/main", "HEAD"];
+  for (const ref of refs) {
+    const out = gitOut(["show", `${ref}:holonovel/DECISIONS.md`], 1024 * 1024);
+    const m = out?.match(/\*\*Spec hash:\*\*\s*([a-f0-9]+)/m);
+    if (m) return m[1];
   }
   return null;
 }
@@ -122,28 +137,19 @@ if (!report.in_sync) {
   report.spec_modified = true;
 
   let specModified = false;
-  try {
-    const diff = execSync(
-      `git diff $(cat .git/refs/heads/main 2>/dev/null || echo HEAD) -- holonovel.md 2>/dev/null || git diff HEAD -- holonovel.md`,
-      { cwd: root, encoding: "utf-8" }
-    );
-    if (diff.trim()) {
-      specModified = true;
-      report.raw_diff_lines = diff.split("\n").length;
-    }
-  } catch { /* not a git repo or no diff */ }
+  const baseRev = gitOut(["rev-parse", "main"])?.trim() ?? "HEAD";
+  const diff = gitOut(["diff", baseRev, "--", "holonovel.md"]) ?? gitOut(["diff", "HEAD", "--", "holonovel.md"]);
+  if (diff && diff.trim()) {
+    specModified = true;
+    report.raw_diff_lines = diff.split("\n").length;
+  }
 
   if (!specModified) {
-    try {
-      const staged = execSync(
-        `git diff --cached -- holonovel.md`,
-        { cwd: root, encoding: "utf-8" }
-      );
-      if (staged.trim()) {
-        specModified = true;
-        report.raw_diff_lines = staged.split("\n").length;
-      }
-    } catch { /* no staged changes */ }
+    const staged = gitOut(["diff", "--cached", "--", "holonovel.md"]);
+    if (staged && staged.trim()) {
+      specModified = true;
+      report.raw_diff_lines = staged.split("\n").length;
+    }
   }
 
   const currentSpec = readFileSync(SPEC_PATH, "utf-8");
@@ -165,43 +171,13 @@ if (!report.in_sync) {
     report.sections_changed = currentSections.filter(s => !storedSections.includes(s));
   }
 
-  const hasNewReqs = report.requirements_changed.added.length > 0;
-  const hasRemovedReqs = report.requirements_changed.removed.length > 0;
-  const hasModifiedReqs = report.requirements_changed.modified.length > 0;
-  const hasNewSections = report.sections_changed.length > 0;
-
-  const numeric = (id: string) => id.replace(/[a-z0-9]+$/, "");
-  const changedIds = [
-    ...report.requirements_changed.added,
-    ...report.requirements_changed.removed,
-    ...report.requirements_changed.modified,
-  ].map(numeric);
-
-  const stateModelReqs = [
-    "030", "031", "032", "040", "041", "042", "043", "044",
-    "055", "065", "074", "075", "076", "077", "083", "088",
-    "092", "093",
-  ];
-  const toolSurfaceReqs = [
-    "020", "021", "022", "023", "024", "025", "042", "056",
-    "057", "058", "060", "061", "066", "067", "073", "079",
-    "081", "082", "084", "086", "087", "089", "090", "091",
-    "098", "104",
-  ];
-
-  const stateModelChanged = changedIds.some(id => stateModelReqs.includes(id));
-  const toolSurfaceChanged = changedIds.some(id => toolSurfaceReqs.includes(id));
-  const hasMajorTrigger = hasNewSections || stateModelChanged || toolSurfaceChanged;
-
-  if (hasModifiedReqs && !hasNewReqs && !hasRemovedReqs && !hasNewSections && hasEditorialDisposition(decisions, report.requirements_changed.modified)) {
-    report.classification = "editorial";
-  } else if (!hasNewReqs && !hasRemovedReqs && !hasModifiedReqs && !hasNewSections) {
-    report.classification = "patch";
-  } else if (!hasMajorTrigger) {
-    report.classification = "minor";
-  } else {
-    report.classification = "major";
-  }
+  report.classification = classifyDelta({
+    added: report.requirements_changed.added,
+    removed: report.requirements_changed.removed,
+    modified: report.requirements_changed.modified,
+    sectionsChanged: report.sections_changed,
+    editorial: hasEditorialDisposition(decisions, report.requirements_changed.modified),
+  });
 }
 
 const reportOnly = process.argv.includes("--report-only");

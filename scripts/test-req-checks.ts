@@ -6,7 +6,7 @@
 
 import { checkNewBucketB } from "./lib/req-checks.js";
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity } from "./lib/req-checks.js";
-import { extractReferenceProse, extractActionBindings } from "./lib/parse-spec.js";
+import { extractReferenceProse, extractActionBindings, findDuplicateReqIds } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
 
@@ -63,9 +63,15 @@ test("truncated lower-case lead clause detected", () => {
   }
 });
 
-test("REQ ID grammar rejects bare-digit suffix", () => {
+test("REQ ID grammar accepts canonical 3-digit IDs", () => {
   const issues = checkReqIdGrammar("Refer to REQ-903 without more. Also REQ-001.");
   if (issues.length !== 0) throw new Error(`unexpected grammar issues: ${JSON.stringify(issues)}`);
+});
+
+test("REQ ID grammar rejects 4-digit and malformed suffixes", () => {
+  const issues = checkReqIdGrammar("Use REQ-9001 and REQ-1234a.");
+  if (!issues.some((i) => i.includes("REQ-9001"))) throw new Error(`expected REQ-9001 flag; got: ${JSON.stringify(issues)}`);
+  if (!issues.some((i) => i.includes("REQ-1234a"))) throw new Error(`expected REQ-1234a flag; got: ${JSON.stringify(issues)}`);
 });
 
 test("DECISIONS.md (0) citation is flagged", () => {
@@ -521,6 +527,31 @@ test("license parity: a README miss fails", () => {
   fx.readmeSources = fx.readmeSources.slice(1);
   const issues = checkLicenseSourceParity(fx);
   if (!issues.some((i) => i.includes("missing from footer"))) throw new Error(`expected README failure; got ${JSON.stringify(issues)}`);
+});
+
+test("base-capability scan errors when its section anchors are missing", () => {
+  const issues = checkBaseCapabilityDefaults("## Nothing here");
+  if (!issues.some((i) => i.includes("cannot locate §5.21"))) {
+    throw new Error(`expected a missing-anchor error; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("duplicate REQ headers are detected", () => {
+  const text = [
+    "**REQ-901 — First title.**",
+    "Body one. _Check:_ T1.",
+    "",
+    "**REQ-901 — Second title.**",
+    "Body two. _Check:_ T2.",
+  ].join("\n");
+  const dupes = findDuplicateReqIds(text);
+  if (!dupes.includes("REQ-901")) throw new Error(`expected REQ-901 duplicate; got ${JSON.stringify(dupes)}`);
+});
+
+test("unique REQ headers produce no duplicate finding", () => {
+  const text = "**REQ-902 — A.**\nBody. _Check:_ T1.\n\n**REQ-903 — B.**\nBody. _Check:_ T2.";
+  const dupes = findDuplicateReqIds(text);
+  if (dupes.length !== 0) throw new Error(`unexpected duplicates: ${JSON.stringify(dupes)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

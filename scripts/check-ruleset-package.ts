@@ -38,7 +38,12 @@ if (!existsSync(toolsPath)) {
 
 let tools: RulesetToolSchema[];
 try {
-  tools = JSON.parse(readFileSync(toolsPath, "utf-8")) as RulesetToolSchema[];
+  const parsed = JSON.parse(readFileSync(toolsPath, "utf-8"));
+  if (!Array.isArray(parsed)) {
+    console.error(`FATAL: tools.json must be a JSON array of tool schemas`);
+    process.exit(2);
+  }
+  tools = parsed as RulesetToolSchema[];
 } catch (e) {
   console.error(`FATAL: tools.json is not valid JSON: ${(e as Error).message}`);
   process.exit(2);

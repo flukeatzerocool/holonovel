@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { classifyResult, fingerprintOf } from "./eval-oracle.js";
-import { readPersistedNovel } from "./eval-state.js";
+import { persistedNovels } from "./eval-state.js";
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import type { TierResult } from "./eval-schema.js";
 
@@ -29,11 +29,11 @@ const P_VALIDATION = "holonovel/src/index.ts:4449"; // manage_world action enum
 const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
 const P_DIAGNOSTICS = "holonovel/src/index.ts:8597"; // verify/replay handler
 const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
-const P_ARTIFACT = "holonovel/src/index.ts:10212"; // inboxSourcePath admission
+const P_ARTIFACT = "holonovel/src/index.ts:10341"; // inboxSourcePath admission
 const P_SHARE = "holonovel/src/index.ts:9546"; // share format guard
 const P_RECAP = "holonovel/src/index.ts:8487"; // recap bounds guard
 const P_PROVENANCE = "holonovel/src/index.ts:9128"; // provenance-absent warning
-const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:9694"; // strict integrity refusal
+const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:9741"; // strict integrity refusal
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {
@@ -115,9 +115,10 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
 
     step++;
     const exported = await client.call("manage_archive", { action: "export", format: "json", share: true });
-    let bundle: { novel?: Record<string, unknown>; integrity?: Record<string, unknown> } | null = null;
+    interface ShareBundle { novel?: Record<string, unknown>; integrity?: Record<string, unknown> }
+    let bundle: ShareBundle | null = null;
     try {
-      bundle = JSON.parse(exported.text) as typeof bundle;
+      bundle = JSON.parse(exported.text) as ShareBundle;
     } catch {
       bundle = null; // A parse failure is reported by the assertion below.
     }
@@ -125,11 +126,16 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
     record("share_exports_portable_bundle", portable, portable ? "share bundle carries novel payload and integrity envelope" : "share export was not portable", step, ["REQ-096m"], P_SHARE);
 
     step++;
-    const preTamper = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    // Fingerprint every persisted Novel, not a fixed slug: earlier probes may
+    // have switched the active Novel, and a stale-slug hash makes the mutation
+    // assertion vacuous (CR-34).
+    const allFingerprint = (): string =>
+      persistedNovels(dataDir).map((n) => fingerprintOf(n)).sort().join("|");
+    const preTamper = allFingerprint();
     if (bundle?.novel) bundle.novel.name = "Tampered Bundle";
     const tampered = await client.call("manage_archive", { action: "import", data: JSON.stringify(bundle ?? {}), mode: "replace", strict: true });
-    const postTamper = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
-    record("tampered_share_refused", /^\[ERROR\]/m.test(tampered.text) && preTamper === postTamper, "tampered share refused before any write", step, ["REQ-096m", "REQ-616"], P_IMPORT_INTEGRITY);
+    const postTamper = allFingerprint();
+    record("tampered_share_refused", !!bundle?.novel && /^\[ERROR\]/m.test(tampered.text) && preTamper === postTamper, "tampered share refused before any write", step, ["REQ-096m", "REQ-616"], P_IMPORT_INTEGRITY);
 
     for (const probe of PROBES) {
       step++;
@@ -145,11 +151,11 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
     }
 
     // --- Read-only injection probes never move the fingerprint --------------
-    const before = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    const before = allFingerprint();
     for (const cmd of ["look; rm -rf /", "$(cat /etc/passwd)", "{{__proto__}}", "{{{"]) {
       await client.call("run_command", { action: "execute", command: cmd });
     }
-    const after = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
+    const after = allFingerprint();
     step++;
     record("read_only_no_mutation", before === after, before === after ? "fingerprint unchanged" : `${before.slice(0, 8)} -> ${after.slice(0, 8)}`, step, ["REQ-041"], P_READONLY);
 

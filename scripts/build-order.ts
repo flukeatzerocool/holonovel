@@ -217,7 +217,9 @@ if (holoSrcChanged || holoScriptsChanged || !existsSync(join(root, "holonovel", 
 // Step 2: Check spec. The gate suite consumes holonovel/src, holonovel/scripts,
 // the server package files, and the hooks, so any of those changing must re-run
 // it even when spec/ and scripts/ are untouched.
-const fullCheckRan = specChanged || scriptsChanged || holoSrcChanged || holoScriptsChanged || holoPkgChanged || hooksChanged;
+const worldChanged = changed("holonovel_world_hash");
+const vendorChanged = changed("holonovel_vendor_hash");
+const fullCheckRan = specChanged || scriptsChanged || holoSrcChanged || holoScriptsChanged || holoPkgChanged || hooksChanged || worldChanged || vendorChanged;
 if (fullCheckRan) {
   steps.push({ label: "2. Check spec", fn: () => runChecked("2. Check spec", "npm run check") });
 } else {

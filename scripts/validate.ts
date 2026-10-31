@@ -8,10 +8,12 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   readSpec,
   extractReqBodies,
   extractReqHeaders,
+  findDuplicateReqIds,
   extractReqBodiesWithSentences,
   extractTerminology,
   extractNarrativeProse,
@@ -155,8 +157,8 @@ function findReqCitations(text: string): Set<string> {
 }
 
 function findTestCitations(text: string): Set<string> {
-  const gatesStart = text.indexOf("## 8. Verification Gates");
-  const gatesEnd = text.indexOf("## 9. Artifacts");
+  const gatesStart = /^## 8\./m.exec(text)?.index ?? -1;
+  const gatesEnd = /^## 9\./m.exec(text)?.index ?? -1;
   let combined: string;
   if (gatesStart !== -1 && gatesEnd !== -1) combined = text.slice(0, gatesStart) + text.slice(gatesEnd);
   else combined = text;
@@ -529,7 +531,7 @@ function consolidateProofreading(text: string, reqs: Map<string, ReqBodyEntry>, 
   }
 
   // ── Per-REQ checks (single loop) ──
-  const passiveRe = /\b(is|are|was|were|been|being)\s+(\w+(?:ed|en|t)|built|made|found|known|seen|taken|given)\b/gi;
+  const passiveRe = /\b(is|are|was|were|been|being)\s+(\w+(?:ed|en|t)|built|made|found|known|seen|taken|given)\b/i;
   const dnRe = /\b(not\s+fail|not\s+omit|never\s+not|not\s+absent|not\s+missing)\b/gi;
   const initialPronounRe = /^(It|This|That|These|Those)\s/i;
   const pronounDensityRe = /\b(it|they|them|this|that|these|those)\b/gi;
@@ -915,18 +917,18 @@ function checkCoverageCompleteness(text: string): string[] {
 function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, string>): string[] {
   const issues: string[] = [];
   const coverageStart = text.indexOf("**REQ Pattern Buffer coverage map.**");
-  if (coverageStart === -1) { issues.push("REQ Pattern Buffer coverage map not found in §6.6"); return issues; }
+  if (coverageStart === -1) { issues.push("ERROR: REQ Pattern Buffer coverage map not found in §6.6"); return issues; }
   const coverageEnd = text.indexOf("**Fingerprint-driven Pattern Buffer scoping.**", coverageStart);
-  if (coverageEnd === -1) { issues.push("REQ Pattern Buffer coverage map table not found"); return issues; }
+  if (coverageEnd === -1) { issues.push("ERROR: REQ Pattern Buffer coverage map table not found"); return issues; }
   const mapSection = text.slice(coverageStart, coverageEnd);
   const mapReqs = new Set<string>();
   for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z0-9]*)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
-  if (mapReqs.size === 0) { issues.push("REQ Pattern Buffer coverage map contains no REQ entries"); return issues; }
+  if (mapReqs.size === 0) { issues.push("ERROR: REQ Pattern Buffer coverage map contains no REQ entries"); return issues; }
 
   const sectionMapStart = text.indexOf("| §       | Title");
-  if (sectionMapStart === -1) { issues.push("§5 section map not found"); return issues; }
+  if (sectionMapStart === -1) { issues.push("ERROR: §5 section map not found"); return issues; }
   const sectionMapEnd = text.indexOf("\n### 5.1", sectionMapStart);
-  if (sectionMapEnd === -1) { issues.push("§5.1 heading not found after section map"); return issues; }
+  if (sectionMapEnd === -1) { issues.push("ERROR: §5.1 heading not found after section map"); return issues; }
   const sectionMap = text.slice(sectionMapStart, sectionMapEnd);
   const coveredSections = ["5.5", "5.6", "5.7", "5.8", "5.10", "5.12", "5.13"];
   const familyIds = new Set<string>();
@@ -962,25 +964,25 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   // carries at least one map row transitively via its covered-section REQs;
   // no separate enumeration — merged stubs (S10/S11) and non-covered sections
   // (§5.3 lookups) are intentionally out of scope for the row requirement.
-  if (familyIds.size === 0) issues.push("Could not extract covered-section REQs from section map");
+  if (familyIds.size === 0) issues.push("ERROR: Could not extract covered-section REQs from section map");
   return issues;
 }
 
 function checkSection52CoverageMap(text: string, reqIndex: Map<string, string>): string[] {
   const issues: string[] = [];
   const coverageStart = text.indexOf("#### §5.2 REQ coverage map");
-  if (coverageStart === -1) { issues.push("§5.2 REQ coverage map not found"); return issues; }
+  if (coverageStart === -1) { issues.push("ERROR: §5.2 REQ coverage map not found"); return issues; }
   const coverageEnd = text.indexOf("### 5.3", coverageStart);
-  if (coverageEnd === -1) { issues.push("§5.2 coverage map table terminator (§5.3) not found"); return issues; }
+  if (coverageEnd === -1) { issues.push("ERROR: §5.2 coverage map table terminator (§5.3) not found"); return issues; }
   const mapSection = text.slice(coverageStart, coverageEnd);
   const mapReqs = new Set<string>();
   for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z0-9]*)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
-  if (mapReqs.size === 0) { issues.push("§5.2 REQ coverage map contains no REQ entries"); return issues; }
+  if (mapReqs.size === 0) { issues.push("ERROR: §5.2 REQ coverage map contains no REQ entries"); return issues; }
 
   const sectionMapStart = text.indexOf("| §       | Title");
-  if (sectionMapStart === -1) { issues.push("§5 section map not found"); return issues; }
+  if (sectionMapStart === -1) { issues.push("ERROR: §5 section map not found"); return issues; }
   const sectionMapEnd = text.indexOf("\n### 5.1", sectionMapStart);
-  if (sectionMapEnd === -1) { issues.push("§5.1 heading not found after section map"); return issues; }
+  if (sectionMapEnd === -1) { issues.push("ERROR: §5.1 heading not found after section map"); return issues; }
   const sectionMap = text.slice(sectionMapStart, sectionMapEnd);
   const familyIds = new Set<string>();
   for (const line of sectionMap.split("\n")) {
@@ -1004,7 +1006,7 @@ function checkSection52CoverageMap(text: string, reqIndex: Map<string, string>):
     const defined = reqIndex.has(r) || (r.length < 9 && reqKeys.some((k) => k.startsWith(r) && k.length > r.length));
     if (!defined) issues.push(`WARNING: ${r} in §5.2 coverage map but not in Appendix E`);
   }
-  if (familyIds.size === 0) issues.push("Could not extract §5.2 REQs from section map");
+  if (familyIds.size === 0) issues.push("ERROR: Could not extract §5.2 REQs from section map");
   return issues;
 }
 
@@ -1015,7 +1017,7 @@ function checkPatternBufferBlockingParity(text: string): string[] {
   const req141i = text.indexOf("**REQ-141i");
   const req141j = text.indexOf("**REQ-141j", req141i);
   if (listStart === -1 || listEnd === -1 || req141i === -1 || req141j === -1) {
-    issues.push("Could not locate §6.6 sub-workflow list or REQ-141i for blocking-parity check");
+    issues.push("ERROR: Could not locate §6.6 sub-workflow list or REQ-141i for blocking-parity check");
     return issues;
   }
   const proseBlocking = new Set<number>();
@@ -1026,7 +1028,7 @@ function checkPatternBufferBlockingParity(text: string): string[] {
   }
   const body = text.slice(req141i, req141j);
   const listM = body.match(/Failures in sub-workflows ([0-9][0-9, a-z]*) are blocking/);
-  if (!listM) { issues.push("Could not parse REQ-141i blocking list"); return issues; }
+  if (!listM) { issues.push("ERROR: Could not parse REQ-141i blocking list"); return issues; }
   const listBlocking = new Set<number>();
   for (const tok of listM[1].replace(/\s*and\s*/g, ",").split(",")) {
     const n = parseInt(tok.trim(), 10);
@@ -1182,6 +1184,9 @@ function checkCouplingCompleteness(text: string): string[] {
       issues.push(`ERROR: Coupling row "${row.pair}" has an unresolvable property token`);
       continue;
     }
+    // §7.7.1a pairs are unordered: the row arrow names the interaction, not
+    // the pattern rule's src→tgt direction, so validate the archetype set as a
+    // whole rather than side-by-side (CR-5 reviewed and closed as stale).
     const union = new Set([...srcArch, ...tgtArch]);
     const srcOk = rule.src.every((a) => union.has(a));
     const tgtOk = rule.tgt.some((a) => union.has(a));
@@ -1742,11 +1747,26 @@ function checkPlaceholderStubs(): string[] {
 // Return the set of base REQ IDs recorded in the committed coverage register.
 // Used by the G4 guard to distinguish a pre-existing gap (already triaged and
 // committed) from a REQ first introduced by the current change.
+// Read the committed baseline from HEAD, not the working tree: the freshness
+// gate forces the working register equal to the live audit, so a working-tree
+// read would let a same-change `--write-register` silently admit a new gap.
+function readCommittedRegisterText(): string {
+  const rel = "spec/audit/req-coverage.md";
+  try {
+    return execFileSync("git", ["show", `HEAD:${rel}`], {
+      cwd: path.resolve(__dirname, ".."),
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    // No git or HEAD (fresh/shallow checkout): fall back to the working file.
+    try { return fs.readFileSync(path.resolve(__dirname, "..", rel), "utf-8"); } catch { return ""; }
+  }
+}
+
 function readCommittedRegisterBReqs(): Set<string> {
   const reqs = new Set<string>();
-  const regPath = path.resolve(__dirname, "..", "spec", "audit", "req-coverage.md");
-  let content = "";
-  try { content = fs.readFileSync(regPath, "utf-8"); } catch { return reqs; }
+  const content = readCommittedRegisterText();
   for (const line of content.split("\n")) {
     const m = line.match(/^\|\s*(REQ-\d{3})\s*\|[^|]*\|[^|]*\|\s*([A-E])\s*\|/);
     if (m && m[2] === "B") reqs.add(m[1]);
@@ -1756,9 +1776,7 @@ function readCommittedRegisterBReqs(): Set<string> {
 
 function readCommittedRegisterReqs(): Set<string> {
   const reqs = new Set<string>();
-  const regPath = path.resolve(__dirname, "..", "spec", "audit", "req-coverage.md");
-  let content = "";
-  try { content = fs.readFileSync(regPath, "utf-8"); } catch { return reqs; }
+  const content = readCommittedRegisterText();
   for (const line of content.split("\n")) {
     const m = line.match(/^\|\s*(REQ-\d{3})\s*\|/);
     if (m) reqs.add(m[1]);
@@ -2190,6 +2208,12 @@ function main(): void {
   if (grammarIssues.length > 0) { for (const issue of grammarIssues) console.log(`ERROR: ${issue}`); errors += grammarIssues.length; }
   else console.log("PASS: All REQ IDs conform to REQ-NNN / REQ-NNNl / REQ-NNNlN grammar");
 
+  const duplicateReqIds = findDuplicateReqIds(text);
+  if (duplicateReqIds.length > 0) {
+    for (const id of duplicateReqIds) console.log(`ERROR: duplicate REQ header: ${id} — extractReqBodies keeps only the last body`);
+    errors += duplicateReqIds.length;
+  } else console.log("PASS: No duplicate REQ headers");
+
   const emptyBodyIssues = checkEmptyReqBodies(text);
   if (emptyBodyIssues.length > 0) { for (const issue of emptyBodyIssues) console.log(`ERROR: ${issue}`); errors += emptyBodyIssues.length; }
   else console.log("PASS: No REQ blocks with empty bodies");
@@ -2410,8 +2434,13 @@ function main(): void {
       }
     } else console.log("PASS: Appendix U, §11.4, vendor tree, and README agree");
   } catch (e: any) {
-    console.log(`WARNING: license-source parity check skipped: ${e?.message ?? e}`);
-    warnings++;
+    if (sddStrict) {
+      console.log(`ERROR: license-source parity check failed: ${e?.message ?? e}`);
+      errors++;
+    } else {
+      console.log(`WARNING: license-source parity check skipped: ${e?.message ?? e}`);
+      warnings++;
+    }
   }
 
   const appendixIssues = checkAppendixRange(text);

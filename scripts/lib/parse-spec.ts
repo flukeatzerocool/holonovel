@@ -59,6 +59,18 @@ export function extractReqHeaders(text: string): ReqHeader[] {
   return out;
 }
 
+// REQ IDs that appear under more than one header. `extractReqBodies` keys a Map
+// by id, so a duplicate silently drops the earlier body from every body check.
+export function findDuplicateReqIds(text: string): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const h of extractReqHeaders(text)) {
+    if (seen.has(h.id)) duplicates.add(h.id);
+    else seen.add(h.id);
+  }
+  return [...duplicates];
+}
+
 // REQ id, title, and parsed body in one pass — the shape the analysis scripts
 // (fmea, coverage tooling) build for each REQ.
 export function extractReqEntries(text: string): Map<string, { id: string; title: string; body: string }> {

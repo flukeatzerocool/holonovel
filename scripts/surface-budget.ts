@@ -150,8 +150,8 @@ const payload = {
 
 if (ARGV.includes("--write")) {
   writeFileSync(BASELINE, JSON.stringify(payload, null, 2) + "\n");
-  console.log(`surface-budget: wrote ${BASELINE}`);
-  process.exit(0);
+  console.log(`surface-budget: wrote ${BASELINE}${defects.length > 0 ? ` (${defects.length} defect(s))` : ""}`);
+  process.exit(defects.length > 0 ? 1 : 0);
 }
 
 // Freshness: the recorded baseline must match the committed footprint.
