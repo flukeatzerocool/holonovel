@@ -440,4 +440,4 @@ Holonovel is MIT-licensed. Built from:
 - Fate SRD (CC BY 3.0, Evil Hat Productions)
 - Ironsworn SRD (CC BY 4.0, Shawn Tomkin)
 
-[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-29.
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-10-30.

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-30 — Torre Nosferatu voice pass and narrator-state separation
+
+- Reworked the starter Novel's prose into a single standing voice — "The
+  Clinical Witness" (Stoker's documentary exactness, Poe's accumulating
+  obsession, the 1922 silhouette, the 2024 body): all 85 room descriptions are
+  now unique, the seven sin labels are removed from player-visible text, the
+  connectors no longer reuse one template, and the found pages are oblique
+  rather than rules exposition. (REQ-565)
+- The floor mapping is now a private GM design key; narration is forbidden to
+  name an unvisited floor or room, a sin, or an authorial theme. Each NPC
+  carries distinct voice examples so the GM renders syntax, not a shared
+  aphoristic cadence. (REQ-077)
+- The narrator contract now travels with the state surface: `badge_briefing`
+  and `narrate` carry the standing directive and a prose-only contract, and
+  `manage_context (action: recap)` emits `narration_contract` alongside a
+  prose-only `narrative_orientation` (counters, tick totals, and disposition
+  labels no longer appear there). (REQ-279, REQ-598)
+- Derived scene descriptions are prose-only again; present entities and exits
+  stay structured state instead of being appended to the description. Active
+  narrative-voice profiles now reach the narrator by description, not just by
+  name. (REQ-326a, REQ-226)
+- Appendix J gains four anti-slop classes — state and counter leakage,
+  unrevealed place naming, theme labeling, and voice homogeneity — and
+  `REQ-070b` is updated to scope them. (REQ-070b)
+
 ## 2026-10-29 — Novel sharing and portable pack admission
 
 - A Novel can now be shared as one portable file: export with `share: true`

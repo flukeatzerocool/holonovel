@@ -1,6 +1,6 @@
 {
   "name": "holonovel",
-  "version": "2026.10.29",
+  "version": "2026.10.30",
   "description": "Holonovel — a narrative simulation engine for tabletop RPG play. The MCP server is the reference adapter: rooms, parser commands, narrative state, and ruleset-free mechanics. Run it with npx holonovel; load ruleset packages alongside it without modifying the base.",
   "type": "module",
   "main": "./dist/index.js",

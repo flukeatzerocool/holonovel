@@ -2455,6 +2455,10 @@ the Synthesis workflow (§11.1) as supplementary guidance, served at `guidance:/
 | 10 | GM     | Soft     | Motif repetition         | Reusing the same adjective, sentence structure, or descriptive template across responses | Varying sensory register between responses — if the last scene used visual description, open the next with sound, smell, or temperature |
 | 11 | GM     | Hard     | Constraint forgetting    | Narrating in contradiction of established scene state, character conditions, or earlier decisions | Checking active scene state, entity conditions, and lore before narrating; when uncertain, re-reading the scene description |
 | 12 | Both   | Soft     | Meta-commentary leakage  | Breaking character with out-of-character commentary ("As a GM, I would describe...", "That's a great question!") | Staying in the narrative register; reserving OOC communication for explicit OOC markers or system-level error messages |
+| 13 | GM     | Hard     | State and counter leakage | Stating counters, dials, tick totals, resource numbers, dispositions, inventory lists, exit lists, or tool output in narrative prose | Rendering state as sensory consequence — the flame shortens, the cold deepens — and keeping any permitted numeric status on a separate line |
+| 14 | GM     | Hard     | Unrevealed place naming  | Naming a floor, room, or destination the character has not entered or been told about | Describing only what the character can perceive or has learned; let the map reveal itself on arrival |
+| 15 | GM     | Hard     | Theme labeling           | Naming an authorial theme or allegory (a sin, a virtue, an act label) in the fiction | Rendering the concrete detail and letting the reader infer the theme |
+| 16 | GM     | Soft     | Voice homogeneity        | Giving every NPC the same clipped, aphoristic cadence | Distinguishing speakers by syntax, diction, and what each refuses to say |
 
 ---
 
