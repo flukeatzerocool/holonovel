@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-31 — Spec review remediation: hazard model, REQ atomicity, vocabulary
+
+- Generalized the room-hazard contract (REQ-622/REQ-622a, new REQ-622b/REQ-622c):
+  a room annotation binds an encounter `spill` or trap `snuff` to a survival
+  resource countdown, with all tuning annotation-supplied. Removes the
+  starter-specific wax/candle/match vocabulary and fixed numbers from §5.10.
+- Registered "hazard annotation" and "survival resource" in §4; linked
+  `@encounter`/`@trap` to room `annotations` in REQ-079a; added hazard
+  `annotations` to the `room://` resource (REQ-202a).
+- Split REQ-621 into admission, removal, authorization-and-audit, and
+  path-containment (REQ-621b–d), and REQ-616 into declaration, surfacing, and
+  round-trip (REQ-616a–b), per Appendix M atomicity.
+- Defined the common-noun redaction allowlist (REQ-599b, Appendix S) and added
+  per-entity discovery attribution (REQ-349d) citing T690.
+- Added §5.34 to the §2 layer enumeration; tightened indefinite and vague REQ
+  prose; standardized REQ-376a/b modal strength to SHALL.
+- Regenerated Appendix E/F coverage, the coverage register, the proofread
+  register (231 accepted warnings), the data-format fingerprint, and the
+  starter artifact.
+
 ## 2026-10-30 — Torre Nosferatu hazard, match, wax, and alliance balance
 
 - Encoded Torre's survival-horror costs in the engine (REQ-622/REQ-622a):

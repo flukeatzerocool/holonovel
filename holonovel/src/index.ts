@@ -120,7 +120,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.30",
+  version: "2026.10.31",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the

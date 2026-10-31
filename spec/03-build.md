@@ -1589,7 +1589,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-367 | I6, I16 | World-model property contracts |
 | REQ-596 | I17, I6 | Visibility query |
 | REQ-597 | I17 | Audibility query |
-| REQ-622 | I17 | Hazard resolution and match resource |
+| REQ-622 | I17 | Hazard and survival-resource resolution |
 | REQ-368 | S32 | Countdown-world effect coupling |
 | REQ-369 | S32, S33 | Holodeck archetype taxonomy |
 | REQ-370 | — (validated by `npm run validate`) | Coupling derivation |
@@ -1918,10 +1918,10 @@ are selected for changed surfaces.
 | Narrative verbs                                    | 18                        |
 
 **REQ-376a — Holonovel Pattern Buffer traceability (Part a).**
-The builder must ensure at least one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the world-model error contracts of REQ-367 (World-model property contracts). The builder records a Holonovel sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a holonovel package version advance, the builder re-examines every sub-workflow mapped to it.
+The builder SHALL ensure at least one Holonovel Pattern Buffer sub-workflow exercises each requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13 (Holodeck), and the world-model error contracts of REQ-367 (World-model property contracts). The builder records a Holonovel sub-workflow-to-REQ mapping in DECISIONS.md (6) — one entry per covered REQ, naming the sub-workflow(s) that exercise it. When a REQ in these sections changes during a holonovel package version advance, the builder re-examines every sub-workflow mapped to it.
 
 **REQ-376b — Holonovel Pattern Buffer traceability (Part b).**
-Gaps — a REQ in the covered sections with no mapped sub-workflow — go into the log as process-compliance findings and must resolve before the holonovel package publishes. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T431.
+Gaps — a REQ in the covered sections with no mapped sub-workflow — go into the log as process-compliance findings and SHALL resolve before the holonovel package publishes. New REQs added to the covered sections during a spec revision require the builder to propose at least one new Holonovel Pattern Buffer sub-workflow exercising their contract; the proposal is a finding, not a blocker. _Check:_ T431.
 
 ### Holonovel REQ Pattern Buffer coverage map
 
@@ -1966,7 +1966,7 @@ only; it does not require every sub-workflow to appear as a row.
 | REQ-367 | I6, I16 | World-model property contracts |
 | REQ-596 | I17, I6 | Visibility query |
 | REQ-597 | I17 | Audibility query |
-| REQ-622 | I17 | Hazard resolution and match resource |
+| REQ-622 | I17 | Hazard and survival-resource resolution |
 | REQ-368 | S32 | Countdown-world effect coupling |
 
 **REQ-300 — Structured failure diagnostics.** WHEN any Pattern Buffer sub-workflow fails, THE

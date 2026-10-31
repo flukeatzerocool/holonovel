@@ -203,7 +203,8 @@ those four, the base-capability layer (§5.21–§5.23) holds the Fate, Ironswor
 Forged in the Dark resolution surfaces, and the epistemic/causal layer (§5.24–§5.33)
 holds the temporal event log and branching, belief and evidence, character identity,
 causal transition validation, knowledge corpus, semantic index, knowledge graph,
-durable agent tasks, perception ledger, and briefing consistency. The requirements
+durable agent tasks, perception ledger, and briefing consistency. The compression
+ladder and recall layer (§5.34) holds tiered narrative-memory summaries and recall. The requirements
 preamble's section map lists every subsection.
 Each
 requirement is one paragraph in §5. The manifest is the packing list for the DECISIONS.md
