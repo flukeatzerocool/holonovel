@@ -18,10 +18,10 @@ installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "wave1-"));
-let msgId = 0; const pending = new Map(); let buffer = "";
+let msgId = 0; const pending = new Map(); let buffer = ""; let lastInit: any = null;
 function send(proc: any, msg: any) { return new Promise((r) => { const id = ++msgId; pending.set(id, r); proc.stdin!.write(JSON.stringify({ ...msg, id, jsonrpc: "2.0" }) + "\n"); }); }
 function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) => { buffer += d.toString(); const ls = buffer.split("\n"); buffer = ls.pop() ?? ""; for (const l of ls) { if (!l.trim()) continue; try { const m = JSON.parse(l); if (m.id !== undefined && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); } } catch { /* non-JSON line */ } } }); }
-async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
+async function boot(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); lastInit = await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 // REQ-426c — boot with the MCP Apps extension negotiated (io.modelcontextprotocol/ui).
 async function bootApps(env: any = {}) { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: { extensions: { "io.modelcontextprotocol/ui": {} } }, clientInfo: { name: "wave1", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function callRaw(proc: any, name: string, args: any = {}) { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); return r.result ?? {}; }
@@ -158,6 +158,17 @@ function seedSecondRuleset(): void {
 }
 
 async function main() {
+  // ── REQ-577 composite session actions: the handshake names the entry point ──
+  await test("T670/REQ-577: initialize instructions name the session entry points", async () => {
+    const p = await boot();
+    const text = String(lastInit?.result?.instructions ?? "");
+    assertContains(text, "open_session", "T670 instructions name open_session");
+    assertContains(text, "take_turn", "T670 instructions name take_turn");
+    assertContains(text, "close_session", "T670 instructions name close_session");
+    if (text.length > 600) throw new Error(`instructions too long (${text.length} chars) — keep the handshake lean`);
+    await kill(p);
+  });
+
   // ── REQ-003 roll transparency + REQ-060 verbose + REQ-061/280 source ──
   await test("T210/T47/REQ-003 + REQ-060 + REQ-061/REQ-280: ruleset lookup full entry, source quoting, roll transparency", async () => {
     seedRuleset();

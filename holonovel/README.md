@@ -18,15 +18,23 @@ packages; each loads alongside the base and never modifies it.
 npx -y holonovel
 ```
 
-From a source checkout, run `npm install` and `npm run start`.
+A fresh install is playable without a rulebook: the server seeds **Torre
+Nosferatu**, a tutorial Novel, and `open_session` resumes it in one call. Set
+`TTRPG_STARTER_NOVEL=off` to start with an empty world instead.
+
+From a source checkout, run `npm install` and `npm run start` while developing;
+for a non-development run, `npm run build && node dist/index.js`.
 
 ## MCP client configuration
 
 ```json
-"holonovel": {
-  "type": "local",
-  "command": ["npx", "-y", "holonovel"],
-  "enabled": true
+{
+  "mcpServers": {
+    "holonovel": {
+      "command": "npx",
+      "args": ["-y", "holonovel"]
+    }
+  }
 }
 ```
 
@@ -40,7 +48,9 @@ operating system's user-data location: `~/.local/share/holonovel` on Linux,
 existing `.holonovel-state/` beside the server is honored for compatibility.
 
 Campaign data and installed packages live under the state directory, outside
-the server tree, so updating holonovel never touches them.
+the server tree, so updating holonovel never touches them. A container or hosted
+deploy keeps that directory inside the container — point `TTRPG_DATA_DIR` at a
+mounted volume to keep campaigns across restarts.
 
 ## Tool surface
 

@@ -93,7 +93,9 @@ src/library.ts          Package library entry: core and world namespaces plus
 
 - **manage_diagnostics** (action: health/context_report/compress/compact/subscribe/category/event/history/verify/replay/visibility_check/visibility_audit) — diagnostics and maintenance, including the per-section context ledger (REQ-606–REQ-608), state-hash verification, and read-only replay inspection (REQ-601–REQ-605); the retired `manage_session` action aliases return `[NOT_FOUND]` naming this tool, and the retired `manage_session` tool name returns `[NOT_FOUND]` naming `manage_context` (REQ-413/REQ-581)
 
-- **open_session** (novel?/badge?) — composite: resume, badge, recap (REQ-577)
+- **open_session** (novel?/badge?) — composite: resume, badge, recap (REQ-577);
+  with no slug and no active Novel it resumes the only Novel on the server (the
+  seeded starter on a fresh install) and refuses by slug when several exist
 - **close_session** (no params) — composite: recap and save context (REQ-577)
 - **take_turn** (intent/entity_id?) — composite: parser resolution, suggestions, and a turn handle (REQ-574/REQ-577)
 - **manage_belief** (action: list/get/evidence/admit/retract/conflicts/reconcile/knowledge_query/perception_record/perception_list/perception_for_entity/perception_for_event) — per-entity evidence, reconciled belief stances, one-entity knowledge queries, and the perception ledger (REQ-461–REQ-472, REQ-540–REQ-545)
@@ -112,6 +114,11 @@ registered at startup and after `manage_ruleset (action: install)`, and
 deregistered after `manage_ruleset (action: remove)`. `spec_health.prompt_count`
 and `prompt_health` include package prompts; collisions are reported under
 `spec_health.package_prompts.errors`.
+
+The `initialize` result also carries server `instructions` (REQ-577), the
+handshake-level session path (`open_session` → `take_turn` → `close_session`).
+Keep it to tool names and the first call: it is read by clients that never open
+a prompt, and it is not a substitute for the tool descriptions.
 
 **Tool annotations (REQ-450 / REQ-015).** Every host tool carries all four MCP
 mutation-class hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`,

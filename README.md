@@ -210,9 +210,9 @@ Your Holodeck.
 
 ### Install
 
-A fresh install is playable without a rulebook. On first start the server creates
-**Torre Nosferatu**, a tutorial Novel, and opens it; set `TTRPG_STARTER_NOVEL=off`
-to start with an empty world instead.
+A fresh install is playable without a rulebook. On first start the server seeds
+**Torre Nosferatu**, a tutorial Novel, and `open_session` resumes it in one call;
+set `TTRPG_STARTER_NOVEL=off` to start with an empty world instead.
 
 The base server runs the Holodeck. Rooms, objects, exits, and containment form a
 real state graph, while scenes, NPCs, lore, and a story journal layer on top, so
@@ -226,20 +226,27 @@ npx -y holonovel
 Add to your MCP client:
 
 ```json
-"holonovel": {
-  "type": "local",
-  "command": ["npx", "-y", "holonovel"],
-  "enabled": true
+{
+  "mcpServers": {
+    "holonovel": {
+      "command": "npx",
+      "args": ["-y", "holonovel"]
+    }
+  }
 }
 ```
 
-From a source checkout, run `cd holonovel && npm install && npm run start`, then
-point the client at `npx tsx src/index.ts` in that directory.
+Clients with their own configuration shape (for example a `type` plus a command
+array) take the same command and arguments. From a source checkout, run
+`cd holonovel && npm install && npm run start`, then point the client at
+`npx tsx src/index.ts` in that directory.
 
 Campaign data defaults to the operating system's user-data directory:
 `~/.local/share/holonovel` on Linux, `~/Library/Application Support/holonovel`
 on macOS, or `%LOCALAPPDATA%\holonovel` on Windows. Set `TTRPG_DATA_DIR` to
-override it. An existing `.holonovel-state/` beside the server is preserved.
+override it. An existing `.holonovel-state/` beside the server is preserved. A
+container or hosted deploy keeps that directory inside the container, so point
+`TTRPG_DATA_DIR` at a mounted volume to keep campaigns across restarts.
 
 Setup details and first-run checks: [Getting Started
 guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Getting-Started).

@@ -123,6 +123,11 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 const server = new McpServer({
   name: "holonovel",
   version: "2026.10.31",
+}, {
+  // REQ-577 — the handshake carries the session-start path: a client that never
+  // opens a prompt still learns the first call. Tool names only; no paths,
+  // counters, or parameters beyond the action needed to start.
+  instructions: "Holonovel runs a persistent tabletop world: scenes, characters, and objects live on the server and survive restarts. Start with the intro prompt, then call open_session — with no arguments it resumes the only Novel on the server, which on a fresh install is the seeded tutorial. Play with take_turn. End with close_session. Tools are grouped by category; manage_context (action: discover) lists them.",
 });
 
 // REQ-426c — MCP Apps capability negotiation: the server declares the
@@ -10227,7 +10232,7 @@ server.registerTool("manage_ruleset", {
       if (rulesets.installedSlugs().length > 0) {
         return ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`);
       }
-      return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, run \`build-ruleset <slug>=<path>\` (see the spec, Appendix V).`);
+      return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, install a package with manage_artifact (action: install, kind: ruleset); builders working from the repository can emit one with build-ruleset (spec Appendix V).`);
     }
     case "install": {
       requireGM();
@@ -10938,7 +10943,7 @@ function buildSpecHealth(): Record<string, unknown> {
     ruleset_hash: rulesets.installedSlugs().length > 0 ? rulesets.installedSlugs().join(",") : "ruleset-free",
     ruleset_guidance: rulesets.installedSlugs().length > 0
       ? `Installed: ${rulesets.installedSlugs().join(", ")}.`
-      : "No rulesets installed — run `build-ruleset <slug>=<path>` to add one (spec Appendix V).",
+      : "No rulesets installed — install a package with manage_artifact (action: install, kind: ruleset); the base server is playable without one.",
     active_ruleset: isGM ? (novel?.ruleset ?? null) : undefined,
     rulesets_installed: rulesets.installedSlugs().length,
     rulesets_hydrated: rulesets.installedSlugs().filter((s) => rulesets.isHydrated(s)).length,
@@ -13338,7 +13343,7 @@ server.prompt("run_workflow", "Map Intent to Tools", async () => {
 // manage_story (action: record).
 server.registerTool("open_session", {
   title: "Open Play Session",
-  description: "Open a play session by resuming a Novel, activating a badge, and returning a recap. novel selects the slug and badge the seat; both are optional and fall back to the active Novel and current badge. resume closes the current session window, switches the active Novel, and increments its session count; a badge change persists, is audited, and re-filters tools/list immediately; neither deletes prior Novel state. Session and badge changes are not undoable via manage_history. Use when: starting or resuming a session, especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn.",
+  description: "Open a play session by resuming a Novel, activating a badge, and returning a recap. novel selects the slug and badge the seat; both are optional and fall back to the active Novel and current badge. With no novel and no active Novel, it resumes the only Novel on the server (on a fresh install, the seeded starter), and refuses naming the available slugs when several exist. resume closes the current session window, switches the active Novel, and increments its session count; a badge change persists, is audited, and re-filters tools/list immediately; neither deletes prior Novel state. Session and badge changes are not undoable via manage_history. Use when: starting or resuming a session, especially after a restart. Do NOT use when: creating a Novel — use manage_novel (action: create); running a turn — use take_turn.",
   inputSchema: {
     novel: z.string().optional().describe("Novel slug to resume (open_session)."),
     badge: z.enum(["player", "game_master", "observer", "none"]).optional().describe("Badge to activate (open_session)."),
@@ -13348,8 +13353,23 @@ server.registerTool("open_session", {
   const novelTool = toolRegistry.get("manage_novel");
   const badgeTool = toolRegistry.get("set_badge");
   const sessionTool = toolRegistry.get("manage_context");
-  if (args.novel && novelTool?.rawHandler) {
-    parts.push(toolResultText(await novelTool.rawHandler({ action: "resume", slug: args.novel }, undefined)));
+  // REQ-577 — resume in one result. A fresh install seeds the starter Novel but
+  // activates nothing, so the documented first call (no arguments) must still
+  // open a session: with no slug and no active Novel, resume the only Novel on
+  // the server. More than one is ambiguous and is refused by slug.
+  let resumeSlug: string | undefined = args.novel;
+  if (!resumeSlug && !state.activeNovel) {
+    const slugs = [...state.novels.keys()].sort();
+    if (slugs.length === 1) {
+      resumeSlug = slugs[0];
+    } else if (slugs.length === 0) {
+      return err("STATE_CONFLICT", "No Novel exists yet. Corrective action: create one with manage_novel (action: create).");
+    } else {
+      return err("STATE_CONFLICT", `No active Novel and ${slugs.length} Novels exist: ${slugs.join(", ")}. Corrective action: pass novel to open_session, or resume one with manage_novel (action: resume).`);
+    }
+  }
+  if (resumeSlug && novelTool?.rawHandler) {
+    parts.push(toolResultText(await novelTool.rawHandler({ action: "resume", slug: resumeSlug }, undefined)));
   }
   if (args.badge && badgeTool?.rawHandler) {
     parts.push(toolResultText(await badgeTool.rawHandler({ badge: args.badge }, undefined)));
