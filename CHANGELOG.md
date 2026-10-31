@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-30 — Torre Nosferatu hazard, match, wax, and alliance balance
+
+- Encoded Torre's survival-horror costs in the engine (REQ-622/REQ-622a):
+  Beast Warrens spill annotated wax on entry (depth ramp 1,1,2,2,3,3), Trap
+  Halls resolve a seeded `Dread/8` snuff check, a snuffed candle spends a match
+  to relight, and out-of-wax light burns three more turns before the exit
+  seals. Three Trap Halls gain a three-room safe detour (+2 wax); three remain
+  forced gambles.
+- Cut the match faucet from six six-match bundles to three two-match bundles
+  (6 matches total) and made matches double as alliance currency. Survivors
+  start cold (only Petr friendly); an alliance now costs a match or five wax
+  and a friendly disposition. The measured golden path now ends at 4 wax and
+  ~3.4 matches (was 62/11 in the live run).
+- Added `balanceReport()` to the playability model and a `balance_band`
+  Holosuite assertion (wax 2–8, matches 0–4); added T741/T742 for hazard
+  resolution and the match resource; updated the starter/Holosuite structure
+  counts to 94 rooms, 32 things, and 3 countdowns.
+- Fixed a persistence gap: a parser `go` into an already-explored room with no
+  countdown or hazard trigger lived only in memory; the move now saves.
+- Spec: added REQ-622/REQ-622a, Appendix E manifest rows, T741/T742 catalogue
+  rows, the §5.10 map entry, and the §6.6/Holonovel Pattern Buffer coverage
+  rows; regenerated the coverage register and assembled spec.
+
+
 ## 2026-10-30 — Holosuite coverage run: deterministic refresh and Understudies delta
 
 - Refreshed the five deterministic Holosuite tiers to the post-engine surface:

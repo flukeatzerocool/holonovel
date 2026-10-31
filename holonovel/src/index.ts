@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, Countdown, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -3801,6 +3801,132 @@ function composeNpcMemorySection(novel: NovelState, npc: any): string {
 
 // --- World-Model Tools ---
 
+
+// REQ-622 — hazard annotations on rooms: `encounter` spills wax on entry;
+// `trap` resolves a seeded snuff check against the named countdown's ticks.
+// REQ-622a — matches are a shared countdown: one relights a snuffed candle,
+// and a match re-arms the gating clock for three turns when wax runs out.
+function hazardValue(annotation: string | undefined, key: string): string | null {
+  if (!annotation) return null;
+  const m = annotation.match(new RegExp(`${key}\\s*=\\s*([A-Za-z0-9 _-]+)`, "i"));
+  return m ? m[1].trim() : null;
+}
+
+function findCountdownByName(novel: NovelState, name: string): [string, Countdown] | null {
+  const want = name.toLowerCase();
+  for (const [key, cd] of novel.countdowns.entries()) {
+    if (key.toLowerCase() === want || cd.name.toLowerCase() === want) return [key, cd];
+  }
+  return null;
+}
+
+function spendMatch(novel: NovelState): boolean {
+  const found = findCountdownByName(novel, "Matches");
+  if (!found || found[1].ticks <= 0) return false;
+  found[1].ticks -= 1;
+  audit("match_spend", { remaining: found[1].ticks });
+  return true;
+}
+
+function findCandleThing(novel: NovelState): WorldThing | undefined {
+  return [...novel.world.things.values()].find((t) => /your candle/i.test(t.name));
+}
+
+function findGatingCountdown(novel: NovelState): [string, Countdown] | null {
+  for (const [key, cd] of novel.countdowns.entries()) {
+    if (cd.world_effect?.type === "exit") return [key, cd];
+  }
+  return null;
+}
+
+// Deterministic across restarts: the seed, the room, and the number of prior
+// hazard checks in this room (persisted in the audit log) select the draw.
+function hazardRoll(novel: NovelState, roomName: string): number {
+  let h = 2166136261;
+  const key = `${process.env.TTRPG_SEED ?? "0"}:${roomName.toLowerCase()}`;
+  for (let i = 0; i < key.length; i += 1) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const prior = novel.audit_log.filter((a) => a.tool === "hazard_check" && (a.args as any)?.room?.toLowerCase() === roomName.toLowerCase()).length;
+  return createRng((h ^ prior) >>> 0).roll(8);
+}
+
+function startLastLight(novel: NovelState, effect?: Countdown["world_effect"]): void {
+  const existing = findCountdownByName(novel, "Last Light");
+  if (existing) {
+    existing[1].ticks = 3;
+    return;
+  }
+  novel.countdowns.set("Last Light", {
+    name: "Last Light",
+    ticks: 3,
+    total: 3,
+    type: "narrative",
+    scope: "shared",
+    direction: "decrement",
+    on_scene_transition: true,
+    triggers: [],
+    world_effect: effect ?? findGatingCountdown(novel)?.[1].world_effect,
+  });
+  audit("last_light_start", { ticks: 3 });
+}
+
+function snuffActiveCandle(novel: NovelState): void {
+  const candle = findCandleThing(novel);
+  if (candle && !candle.lit) {
+    startLastLight(novel);
+    return;
+  }
+  if (candle) candle.lit = false;
+  if (spendMatch(novel)) {
+    if (candle) candle.lit = true;
+    audit("match_relight", {});
+    return;
+  }
+  startLastLight(novel);
+}
+
+function spendMatchForLastLight(novel: NovelState, name: string, cd: Countdown): boolean {
+  if (!spendMatch(novel)) return false;
+  const effect = cd.world_effect;
+  novel.countdowns.delete(name);
+  startLastLight(novel, effect);
+  audit("match_last_light", { from: name });
+  return true;
+}
+
+function expireCountdown(novel: NovelState, name: string, cd: Countdown): void {
+  if (cd.world_effect?.type === "exit" && spendMatchForLastLight(novel, name, cd)) return;
+  fireCountdown(novel, name, cd);
+}
+
+function resolveRoomHazard(novel: NovelState, roomName: string): void {
+  const room = novel.world.rooms.get(roomName.toLowerCase());
+  if (!room) return;
+  const annotations = (room as any).annotations ?? {};
+  const spill = hazardValue(annotations.encounter, "spill");
+  if (spill !== null) {
+    const gating = findGatingCountdown(novel);
+    const n = Number(spill);
+    if (gating && Number.isFinite(n) && n > 0) {
+      const [gname, gcd] = gating;
+      gcd.ticks = Math.max(0, gcd.ticks - n);
+      audit("hazard_spill", { room: roomName, spill: n, ticks: gcd.ticks });
+      if (gcd.ticks <= 0) expireCountdown(novel, gname, gcd);
+    }
+  }
+  const snuff = hazardValue(annotations.trap, "snuff");
+  if (snuff !== null) {
+    const cd = findCountdownByName(novel, snuff)?.[1];
+    const chance = cd ? Math.max(0, Math.min(8, cd.ticks)) : 0;
+    const roll = hazardRoll(novel, roomName);
+    const snuffed = roll <= chance;
+    audit("hazard_check", { room: roomName, roll, chance, snuffed });
+    if (snuffed) snuffActiveCandle(novel);
+  }
+}
+
 // REQ-329 — countdown-world coupling: advance any countdown whose mechanical
 // trigger matches the given world-model event (`on_room_enter(<id>)`,
 // `on_thing_take(<id>)`, `on_door_open(<ref>)`). Mechanical — fires regardless
@@ -3819,7 +3945,7 @@ function advanceWorldTriggeredCountdowns(novel: NovelState, event: string): void
       cd.ticks = Math.max(0, Math.min(cd.total, cd.ticks + delta));
       audit("countdown_world_trigger", { name, event, ticks: cd.ticks, delta });
       if ((dir < 0 && cd.ticks <= 0) || (dir > 0 && cd.ticks >= cd.total)) {
-        fireCountdown(novel, name, cd);
+        expireCountdown(novel, name, cd);
       }
       state.saveNovel(novel);
       break;
@@ -4090,6 +4216,7 @@ server.registerTool("run_command", {
       vehicle.locationType = "room";
       entity.current_room = target;
       advanceWorldTriggeredCountdowns(novel, `room_enter:${String(target).toLowerCase()}`);
+      resolveRoomHazard(novel, String(target));
       state.saveNovel(novel);
       audit("command", { command, vehicle_moved_to: target });
       lastCommand = command;
@@ -4129,6 +4256,11 @@ server.registerTool("run_command", {
       advanceWorldTriggeredCountdowns(novel, `room_enter:${goResult.newRoom.toLowerCase()}`);
       // REQ-125/REQ-353 — a parser move is a scene transition: tick on_scene_transition clocks.
       advanceSceneTransitionCountdowns(novel);
+      // REQ-622 — hazard rooms resolve after the transition tick, before discoveries.
+      resolveRoomHazard(novel, goResult.newRoom);
+      // Persist the move even when the room was already explored and no
+      // countdown/hazard fired; a revisit must not live only in memory.
+      state.saveNovel(novel);
       // REQ-340a — reaching a countdown's linked location resolves discovery.
       resolvePendingDiscoveries(novel);
       for (const [, m] of movers) recordExplorationKnowledge(novel, m, "room", goResult.newRoom.toLowerCase());
@@ -4256,6 +4388,19 @@ server.registerTool("run_command", {
     } else if (verb === "light" || verb === "extinguish") {
       const thing = targetThing(tokens.slice(1));
       if (thing) {
+        const relight = verb === "light" && !thing.lit && /candle/i.test(thing.name);
+        if (relight && !findCountdownByName(novel, "The Candle")) {
+          state.saveNovel(novel);
+          return raw("[WARNING] The wick is dry — a match only buys last light now.");
+        }
+        if (relight && !spendMatch(novel)) {
+          state.saveNovel(novel);
+          return raw("[WARNING] You have no match to relight the candle.");
+        }
+        if (relight) {
+          const lastLight = findCountdownByName(novel, "Last Light");
+          if (lastLight) novel.countdowns.delete(lastLight[0]);
+        }
         thing.lit = verb === "light";
         if (thing.switchable) thing.switched_on = verb === "light";
         lastReferencedThing = thing.name;
@@ -5345,7 +5490,7 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
     if (cd.type === "round") continue;
     if (!cd.on_scene_transition) continue;
     cd.ticks -= effective;
-    if (cd.ticks <= 0) fireCountdown(novel, name, cd);
+    if (cd.ticks <= 0) expireCountdown(novel, name, cd);
   }
 }
 
@@ -5954,6 +6099,10 @@ server.registerTool("manage_countdown", {
       const dir = cd.direction === "increment" ? 1 : -1;
       cd.ticks = Math.max(0, Math.min(cd.total, cd.ticks + dir));
       if ((dir > 0 && cd.ticks >= cd.total) || (dir < 0 && cd.ticks <= 0)) {
+        if (cd.world_effect?.type === "exit" && spendMatchForLastLight(novel, args.name, cd)) {
+          state.saveNovel(novel);
+          return ok(`Countdown '${args.name}' extended by last light.`);
+        }
         novel.countdowns.delete(args.name);
         if ((cd as any).world_effect) {
           const eff = (cd as any).world_effect;

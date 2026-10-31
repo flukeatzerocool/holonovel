@@ -15,7 +15,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–621 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
-| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597 |
+| 5.10   | World-Model Layer                                       | 195–202, 222, 283, 284, 309, 316–320, 325–327, 367, 368, 431, 596–597, 622 |
 | 5.11   | Ruleset-Free Build Mode                                 | 218, 219 |
 | 5.12   | Narrative Architecture                                  | 335–353, 355–366 |
 | 5.13   | Holodeck Coupling Model                                | 369–371, 374–376 |
@@ -3461,6 +3461,12 @@ The server SHALL provide a read-only visibility query over `run_command (action:
 
 **REQ-597 — Audibility query.**
 The server SHALL provide a read-only audibility query over `run_command (action: audibility)` accepting a source actor and a target, reporting whether sound from the target's room reaches the source's room. Sound SHALL cross the same room and one open exit, and a closed door SHALL suppress it, reusing the REQ-319b adjacency rule. The query SHALL NOT mutate state or take an undo snapshot, and the Player badge SHALL query only the active entity's point of view. *Acceptance criterion:* a target one open exit away is audible and becomes inaudible when the door closes. _Check:_ T703.
+
+**REQ-622 — Hazard resolution.**
+A world-model room MAY declare hazard annotations: `annotations.encounter` with `spill=<n>` wax and `annotations.trap` with `snuff=<countdown>`, where the named countdown's ticks set the snuff chance out of eight. Entering an encounter room SHALL subtract N from the active candle and fire its world effect at zero. Entering a trap room SHALL resolve a seeded check against the named countdown's ticks; a successful check SHALL extinguish the active candle. *Acceptance criterion:* an encounter spills N wax and fires at zero; a trap resolves a seeded check and extinguishes the active candle on success. _Check:_ T741.
+
+**REQ-622a — Match resource.**
+Matches SHALL be a shared Novel countdown that increments by two when a match bundle is taken and decrements on each use. A snuffed candle SHALL spend one match to relight without wax loss; when no match remains, the server SHALL start a three-tick last-light countdown whose expiry fires the candle's world effect. When the candle reaches zero wax with a match in hand, the same last-light countdown applies. The Player badge SHALL see remaining wax and matches without a tick total. *Acceptance criterion:* taking a bundle adds two matches; a snuff with a match relights without wax loss; a snuff without a match starts a three-tick countdown; the Player briefing names no tick total. _Check:_ T742.
 
 ### 5.11 Ruleset-Free Build Mode
 

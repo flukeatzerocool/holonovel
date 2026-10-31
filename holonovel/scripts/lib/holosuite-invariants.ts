@@ -80,7 +80,7 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], "holonovel/src/index.ts:8268"); // replayInspection
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
-    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8687");
+    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], "holonovel/src/index.ts:8836");
     const postDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record("diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], "holonovel/src/core/state-hash.ts:50");
 

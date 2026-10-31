@@ -30,10 +30,10 @@ const P_PROTOCOL = "holonovel/src/index.ts:1"; // tool registry dispatch
 const P_DIAGNOSTICS = "holonovel/src/index.ts:8597"; // verify/replay handler
 const P_READONLY = "holonovel/src/core/state.ts:1703"; // snapshot handler
 const P_ARTIFACT = "holonovel/src/index.ts:10212"; // inboxSourcePath admission
-const P_SHARE = "holonovel/src/index.ts:9397"; // share format guard
+const P_SHARE = "holonovel/src/index.ts:9546"; // share format guard
 const P_RECAP = "holonovel/src/index.ts:8487"; // recap bounds guard
-const P_PROVENANCE = "holonovel/src/index.ts:8979"; // provenance-absent warning
-const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:9547"; // strict integrity refusal
+const P_PROVENANCE = "holonovel/src/index.ts:9128"; // provenance-absent warning
+const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:9694"; // strict integrity refusal
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {
