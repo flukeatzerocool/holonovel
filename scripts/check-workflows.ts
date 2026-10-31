@@ -18,6 +18,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleHelp } from "./lib/args.js";
+import { jobHygiene } from "./lib/workflow-hygiene.js";
 
 const USAGE = `Usage: npx tsx scripts/check-workflows.ts [--help]
 
@@ -122,6 +123,27 @@ function checkFile(file: string): void {
       issues.push(`${rel}: the 'publish' job must declare needs: verify`);
     }
   }
+
+  // Every job that runs a gate must check out full history and install the
+  // server dependencies before the gate boots the server (workflow-hygiene).
+  for (const jobName of jobNames(content)) {
+    const block = jobBlock(content, jobName);
+    if (block) issues.push(...jobHygiene(rel, jobName, block));
+  }
+}
+
+/** Top-level job names from the `jobs:` section, in file order. */
+function jobNames(content: string): string[] {
+  const names: string[] = [];
+  const lines = content.split("\n");
+  const start = lines.findIndex((line) => /^jobs:\s*$/.test(line));
+  if (start < 0) return names;
+  for (const line of lines.slice(start + 1)) {
+    if (/^\S/.test(line)) break; // next top-level key ends the section
+    const m = /^  ([A-Za-z0-9_-]+):\s*$/.exec(line);
+    if (m) names.push(m[1]!);
+  }
+  return names;
 }
 
 function jobBlock(content: string, name: string): string | null {
