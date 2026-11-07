@@ -26,16 +26,15 @@
 that run's recovery path is recorded in `docs/publish-pipeline.md` and the
 legacy engine is deleted.
 
-## Materialize adventure-module hazard annotations (REQ-079a, REQ-622)
+## Materialize adventure-module `@npc` and `@lore` annotations (REQ-079a)
 
-- `manage_world (action: convert)` and `manage_adventure (action: load)` count
-  `@encounter`/`@trap` annotations but never write the target room's structured
-  hazard field, so the §5.10 materialization sentence is unimplemented. Emit
-  the annotation from `convertSource` and extend the adventure-load test.
+- The loader reports `@npc`/`@lore` directives as guidance content: no Novel NPC
+  is created at the named room and no lore entry is triggered, while Appendix K
+  and T244 state both. Add the linkage where hazard annotations now materialize
+  (`linkAnnotations`) and extend the adventure-load test.
 
-**Trigger:** the next hazard-model increment; closes when a converted module's
-target room carries `annotations.encounter`/`annotations.trap` and the
-adventure-load test asserts it.
+**Trigger:** the next adventure-content increment; closes when loading a module
+creates the named Novel NPC and lore entry and the load test asserts both.
 
 ## Non-goals
 

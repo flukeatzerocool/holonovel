@@ -4,6 +4,7 @@ export {
   oppositeDirection,
   createEmptyWorldModel,
   convertSource,
+  linkAnnotations,
   worldMap,
   worldKinds,
   BASE_PARSER_COMMANDS,

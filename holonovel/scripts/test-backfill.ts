@@ -370,6 +370,18 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
+    await test("T244/REQ-079a: convert materializes annotation clauses and warns on prose-only directives", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "bf2-hazard" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-hazard" });
+      const src = `The Hall is a room. "A hall."\n@encounter(The Hall) spill=3 resource="The Candle" — Golems.\n@trap(The Hall) DC 13 Perception — prose only.\n`;
+      const conv = await call(proc, "manage_world", { action: "convert",  source: src });
+      assertContains(conv, "[OK] World model populated");
+      assertContains(conv, "encounters: 1");
+      assertContains(conv, "traps: 0");
+      assertContains(conv, "annotation not materialized");
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
+    });
+
     await test("T245/T202: world resources render map and kind contracts", async () => {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });
       const map = await readResource(proc, "world://map");

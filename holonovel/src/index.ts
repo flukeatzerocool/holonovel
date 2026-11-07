@@ -50,7 +50,7 @@ import { DEFAULT_WISDOM, verifyCitation, withWisdomKeys } from "./core/wisdom.js
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   WORLD_MODEL_KINDS,
-  createEmptyWorldModel, convertSource, worldMap, worldKinds, verbCatalog,
+  createEmptyWorldModel, convertSource, linkAnnotations, worldMap, worldKinds, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection,
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom } from "./world/parser.js";
@@ -9242,6 +9242,14 @@ server.registerTool("manage_adventure", {
         ...(provenance ? { provenance } : {}),
       };
       const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
+      // REQ-079a/REQ-622 — annotations anywhere in the module materialize room
+      // hazards on the world that actually survives the load.
+      const hazardNote = (linked: ReturnType<typeof linkAnnotations>): string => {
+        const counts = linked.counts;
+        let note = `\n\nLinked annotations — encounters: ${counts.encounters}, NPCs: ${counts.npcs}, traps: ${counts.traps}, lore: ${counts.lore}.`;
+        for (const warning of linked.warnings) note += `\n[WARNING] ${warning.message}`;
+        return note;
+      };
       if (worldMatch) {
         const { world, result } = convertSource(worldMatch[1], novel.world);
         // REQ-090 — a World section that yields no rooms must not silently
@@ -9250,27 +9258,31 @@ server.registerTool("manage_adventure", {
           novel.generated_adventure = null;
           novel.adventure_slug = args.slug;
           novel.adventure_set = true;
+          const linked = linkAnnotations(content, novel.world);
           state.saveNovel(novel);
           audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null });
-          return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
+          return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}${hazardNote(linked)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
         }
         novel.world = world;
         novel.generated_adventure = null;
         novel.adventure_slug = args.slug;
         novel.adventure_set = true;
+        // The World block was already linked by convertSource; scan the rest.
+        const linked = linkAnnotations(content.replace(worldMatch[0], ""), world);
         state.saveNovel(novel);
         audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null });
         const synthVoice = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
         const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
         const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
-        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${hazardNote(linked)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
       }
       novel.generated_adventure = null;
       novel.adventure_slug = args.slug;
       novel.adventure_set = true;
+      const linkedNoWorld = linkAnnotations(content, novel.world);
       state.saveNovel(novel);
       audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, creator: provenance?.creator ?? null });
-      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${hazardNote(linkedNoWorld)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
     }
     case "list": {
       const files = adventureFiles();

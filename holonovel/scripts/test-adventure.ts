@@ -257,6 +257,36 @@ async function main() {
       if (!persisted.world?.rooms?.["keep hall"]) throw new Error("existing room was lost");
     });
 
+    await test("REQ-079a/REQ-622: adventure annotations materialize room hazards", async () => {
+      writeFileSync(join(ADV_DIR, "hazard-module.md"), `# Hazard Module
+
+## World
+The Vault is a room. "A cold vault."
+The Trap Hall is a room. "Stale air."
+
+## Encounters
+@encounter(The Vault) spill=2 resource="The Candle" — Two golems animate.
+
+## Traps
+@trap(Trap Hall) snuff="Dread" faces=6 resource="The Candle" — Darts.
+@trap(The Vault) DC 13 Perception — prose-only annotation.
+`);
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_novel", { action: "create", name: "h1-hazard" });
+      const loaded = await call(proc, "manage_adventure", { action: "load", slug: "hazard-module" });
+      assertContains(loaded, "loaded");
+      assertContains(loaded, "encounters: 1");
+      assertContains(loaded, "traps: 1");
+      assertContains(loaded, "annotation not materialized");
+      const persisted = JSON.parse(readFileSync(join(PROV_DATA, "novels", "h1-hazard.json"), "utf-8"));
+      const vault = persisted.world?.rooms?.["the vault"];
+      const trapHall = persisted.world?.rooms?.["the trap hall"];
+      if (vault?.annotations?.encounter?.spill !== 2) throw new Error(`encounter not materialized: ${JSON.stringify(vault?.annotations)}`);
+      if (vault.annotations.encounter.resource !== "The Candle") throw new Error("encounter resource lost");
+      if (trapHall?.annotations?.trap?.faces !== 6) throw new Error(`trap not materialized: ${JSON.stringify(trapHall?.annotations)}`);
+      if (trapHall.annotations.trap.snuff !== "Dread") throw new Error("trap snuff lost");
+    });
+
     await test("T735/REQ-617: adventure hash and signature mismatches are refused", async () => {
       const tampered = await call(proc, "manage_adventure", { action: "load", slug: "tampered" });
       assertContains(tampered, "STATE_CONFLICT");

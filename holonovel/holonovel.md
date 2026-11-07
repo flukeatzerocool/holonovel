@@ -11458,20 +11458,35 @@ the section is one assertion. Supported assertion patterns:
 ### TTRPG annotation format
 
 Annotation directives reference world-model objects by name. Each directive
-occupies one line:
+occupies one line and is read wherever it appears in the module, not only
+inside `## World`:
 
 ```
-@encounter(<Room Name>) <Description of the encounter>
-@trap(<Room Name>) <Mechanics: DC, save type, damage>
+@encounter(<Room Name>) spill=<n> resource="<Countdown>" [avoid=<n>] — <Description>
+@trap(<Room Name>) snuff="<Countdown>" faces=<n> resource="<Countdown>" [avoid=<n>] — <Mechanics>
 @npc(<Name>, <Room Name>) <Stat block summary>
 @lore(<Object or Room Name>) <Lore content>
 ```
 
+The `@encounter` and `@trap` clause carries the room hazard annotation REQ-622
+defines: `spill` is the count removed from the named survival resource,
+`snuff` names the countdown whose remaining ticks are the trap's difficulty,
+`faces` is the trap's die size, and `resource` names the active Novel countdown
+the hazard draws down. Quote a value that contains spaces. The optional `avoid`
+is the wax cost of detouring, used by the balance report. Prose after the
+clause — separated by an em dash or `--` — is guidance only.
+
 An `@npc` annotation creates a Novel-scoped NPC at the named room's location.
 An `@lore` annotation creates a Novel-scoped lore entry triggered when the
-player enters or examines the named object. `@encounter` and `@trap` annotations
-are inert reference data — the GM invokes them as encounters and checks at
-runtime.
+player enters or examines the named object.
+
+A well-formed `@encounter` or `@trap` directive materializes the target room's
+`annotations.encounter` or `annotations.trap`, and the hazard fires when the
+player enters the room (REQ-622a, REQ-622b). The room is resolved by name,
+ignoring a leading "The". A directive whose clause omits a required parameter,
+names an unknown room, or carries an unacceptable value is ignored with
+`[WARNING]` and does not block the load (REQ-622). The named resource need not
+exist at load time; the hazard reads it at entry.
 
 An unrecognized annotation category SHALL be treated as guidance content —
 indexed for search but not mechanically linked.
@@ -11525,19 +11540,16 @@ It is closed and locked.
 The Serpent Crown is in the Throne Room. "A golden crown set with emerald eyes."
 
 ## Encounters — *Keeper only*
-@encounter(Hall of Statues) Two stone golems animate when the crown is touched.
+@encounter(Hall of Statues) spill=2 resource="The Candle" — Two stone golems animate when the crown is touched.
 
 ## NPCs
-@npc(Serpent King Ghost, Throne Room) AC 15, HP 45. Incorporeal. Appears when
-the crown is taken.
+@npc(Serpent King Ghost, Throne Room) AC 15, HP 45. Incorporeal. Appears when the crown is taken.
 
 ## Traps — *Keeper only*
-@trap(Entrance Chamber) Poison dart trap: DC 13 Perception to spot, DC 15 Dex
-save or 2d6 poison damage.
+@trap(Entrance Chamber) snuff="Dread" faces=8 resource="The Candle" — Poison dart trap: DC 13 Perception to spot, DC 15 Dex save or 2d6 poison damage.
 
 ## Lore
-@lore(Entrance Chamber) The murals depict the Serpent King conquering seven
-nations. A faded inscription reads: "Only the worthy may wear the crown."
+@lore(Entrance Chamber) The murals depict the Serpent King conquering seven nations. A faded inscription reads: "Only the worthy may wear the crown."
 ```
 
 ### Scene-world coupling example

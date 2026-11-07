@@ -11,6 +11,17 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Adventure-module hazard annotations were counted, never materialized
+  (resolved 2026-11-07):** `convertSource` swallowed `@encounter`/`@trap`
+  directives, left `annotations.encounter`/`.trap` empty, and reported a zeroed
+  linked-annotation count; the load read only the `## World` block, so directives
+  under `## Encounters`/`## Traps` were never seen. Directives now carry a
+  `key=value` clause (Appendix K), materialize on the world that survives the
+  load in all three load branches, and warn `annotation not materialized` when
+  malformed instead of staying silent. (REQ-079a, REQ-622; predicate
+  `holonovel/src/world/model.ts:applyAnnotationLine`; exercised by the new
+  adventure-load and convert assertions.)
+
 - **Generic hazard-model implementation drift (resolved 2026-10-31):** the
   reference server read `annotations.trap = "snuff=Dread;avoid=0"` and hardcoded
   the candle/match/wax names. Rooms now carry structured `encounter`/`trap`
@@ -839,15 +850,20 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Adventure-module hazard annotations are counted, not materialized
-  (2026-10-31):** `convertSource` recognizes `@encounter`/`@trap` and
-  increments the annotation counts but never writes the target room's
-  `annotations.encounter` / `annotations.trap`, so the §5.10 materialization
-  sentence is unimplemented. Scheduled on ROADMAP. (REQ-079a, REQ-622;
-  predicate `holonovel/src/world/model.ts:335`)
+- **Adventure-module `@npc`/`@lore` annotations are reported, not linked
+  (2026-11-07):** the loader indexes those directives as guidance content and
+  creates neither the named Novel NPC nor the triggered lore entry, while
+  Appendix K and T244 state both. Scheduled on ROADMAP. (REQ-079a; predicate
+  `holonovel/src/world/model.ts:applyAnnotationLine`)
 
 
 ## Closed-P3 (recorded, no action)
+
+- **T244's ruleset-search assertion for annotations is unexercised
+  (2026-11-07):** the spec row requires `@encounter`/`@trap` annotations to be
+  retrievable via `manage_ruleset (action: search)`; the linked-count half is now
+  reachable, but no harness exercises search retrievability and no gate consumes
+  the row. Record and close until that surface is specced.
 
 - **Raw-JSON list results unclassified by the playtest prefix harness
   (2026-10-30):** `manage_artifact (action: list)` and `manage_belief (action:

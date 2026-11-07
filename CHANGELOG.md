@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-07 — Adventure-module hazard annotations materialize on load
+
+- `manage_world (action: convert)` and `manage_adventure (action: load)` now write
+  `annotations.encounter`/`annotations.trap` from a module's `@encounter`/`@trap`
+  directives (REQ-079a, REQ-622). The directive carries the REQ-622 fields as a
+  `key=value` clause before optional prose (`spill=2 resource="The Candle"`), and
+  the reported linked-annotation counts are real instead of a zeroed counter.
+- Annotations are read wherever they appear in the module, not only inside
+  `## World`; a directive that omits a required parameter, names an unknown room,
+  or carries an invalid value warns `annotation not materialized` and never blocks
+  the load (REQ-622). `@` lines are atomic in the assertion splitter, so clause
+  prose is no longer truncated at its first sentence and warned as unrecognized.
+- Appendix K documents the clause, states that a materialized hazard fires on
+  room entry, stops calling the annotations inert reference data, and carries the
+  clause in its format example so T244's linked-count assertion is reachable.
+- `@npc`/`@lore` linkage remains unimplemented: the converter reports those
+  directives as guidance content instead of claiming a link that does not exist,
+  and the follow-up is scheduled on ROADMAP.
+
 ## 2026-11-07 — Workflow convergence: status, staging guards, and atomic commits
 
 - `npm run status` reports upstream, unpushed commits and their oldest age, the

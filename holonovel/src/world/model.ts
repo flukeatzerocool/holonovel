@@ -318,6 +318,12 @@ function splitStatements(source: string): string[] {
   for (const line of raw) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) continue;
+    // REQ-079a — an annotation directive occupies one line. Splitting it on
+    // sentence periods would sever a parameter clause from the prose after it.
+    if (trimmed.startsWith("@")) {
+      statements.push(trimmed);
+      continue;
+    }
     let current = "";
     let inQuote = false;
     let skipNextSpace = false;
@@ -351,11 +357,168 @@ function splitStatements(source: string): string[] {
   return statements;
 }
 
+// ── TTRPG annotations (REQ-079a, REQ-622) ────────────────────────
+// A directive links module content to a named world-model object. `@encounter`
+// and `@trap` carry a parameter clause — the REQ-622 field values — before an
+// optional prose tail. Anything that does not parse is ignored with a warning
+// and never blocks the load (REQ-622 malformed rule).
+
+export interface AnnotationWarning {
+  line: number;
+  pattern: string;
+  message: string;
+}
+
+export interface AnnotationCounts {
+  encounters: number;
+  npcs: number;
+  traps: number;
+  lore: number;
+}
+
+const ANNOTATION_CATEGORY_KEYS: Record<string, readonly string[]> = {
+  encounter: ["spill", "resource", "avoid"],
+  trap: ["snuff", "faces", "resource", "avoid"],
+};
+
+export interface ParsedAnnotationClause {
+  params: Record<string, string>;
+  prose: string;
+  error?: string;
+}
+
+const CLAUSE_TOKEN = /([A-Za-z_][\w-]*)\s*=\s*("([^"]*)"|'([^']*)'|[^\s]+)/g;
+
+export function parseAnnotationClause(content: string): ParsedAnnotationClause {
+  const trimmed = content.trim();
+  if (!trimmed) return { params: {}, prose: "", error: "missing parameter clause" };
+  const separator = trimmed.match(/\s+(?:—|--)\s+/);
+  const head = separator && separator.index !== undefined ? trimmed.slice(0, separator.index).trim() : trimmed;
+  const prose = separator && separator.index !== undefined ? trimmed.slice(separator.index + separator[0].length).trim() : "";
+  const matches = [...head.matchAll(CLAUSE_TOKEN)];
+  if (matches.length === 0) return { params: {}, prose: trimmed, error: `missing parameter clause ('${head}')` };
+  const params: Record<string, string> = {};
+  for (const match of matches) params[match[1].toLowerCase()] = match[3] ?? match[4] ?? match[2];
+  const leftover = head.replace(CLAUSE_TOKEN, "").replace(/[\s,;]+/g, "");
+  if (leftover) return { params, prose: trimmed, error: `unexpected text '${leftover}' in the parameter clause` };
+  return { params, prose };
+}
+
+function nonNegativeInteger(value: string | undefined): number | null {
+  if (value === undefined || !/^\d+$/.test(value.trim())) return null;
+  const n = Number(value.trim());
+  return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+
+function positiveInteger(value: string | undefined): number | null {
+  if (value === undefined || !/^\d+$/.test(value.trim())) return null;
+  const n = Number(value.trim());
+  return Number.isSafeInteger(n) && n >= 1 ? n : null;
+}
+
+/** Annotations name objects the way prose does ("Entrance Chamber"), while
+ *  declarations often carry a leading article ("The Entrance Chamber is a
+ *  room."). Compare on the article-free lowercase form. */
+function annotationName(name: string): string {
+  return name.trim().toLowerCase().replace(/^the\s+/, "");
+}
+
+function applyAnnotationLine(
+  text: string,
+  world: WorldModel,
+  line: number,
+): { counted?: keyof AnnotationCounts; warning?: AnnotationWarning } {
+  const match = text.match(/^@(\w+)\((.+?)\)(?:\s+(.+))?$/);
+  const warn = (message: string) => ({ warning: { line, pattern: text, message } });
+  if (!match) return warn("Unrecognized annotation directive — ignored.");
+
+  const category = match[1].toLowerCase();
+  const target = match[2].trim();
+  const content = match[3];
+
+  if (category === "npc" || category === "lore") {
+    // REQ-079a lists these as linked annotations, but their mechanical linkage
+    // is not implemented; report that accurately instead of claiming a link.
+    return warn(`TTRPG annotation '@${category}' is guidance content — mechanical linkage is not implemented.`);
+  }
+  if (category !== "encounter" && category !== "trap") {
+    return warn(`Unrecognized annotation category '@${category}' — indexed as guidance only.`);
+  }
+
+  const wanted = annotationName(target);
+  const room = [...world.rooms.values()].find((candidate) => annotationName(candidate.name) === wanted);
+  if (!room) {
+    return warn(`TTRPG annotation '@${category}' targets unknown room '${target}' — annotation not materialized.`);
+  }
+
+  const parsed = parseAnnotationClause(content ?? "");
+  if (parsed.error) {
+    return warn(`TTRPG annotation '@${category}(${target})': ${parsed.error} — annotation not materialized.`);
+  }
+  for (const key of Object.keys(parsed.params)) {
+    if (!ANNOTATION_CATEGORY_KEYS[category].includes(key)) {
+      return warn(`TTRPG annotation '@${category}(${target})': unknown parameter '${key}' — annotation not materialized.`);
+    }
+  }
+
+  const resource = parsed.params.resource?.trim();
+  if (!resource) {
+    return warn(`TTRPG annotation '@${category}(${target})': 'resource' is required — annotation not materialized.`);
+  }
+  // `avoid` is a non-normative starter field; an invalid value is dropped
+  // rather than rejecting an otherwise well-formed hazard.
+  const parsedAvoid = parsed.params.avoid === undefined ? undefined : nonNegativeInteger(parsed.params.avoid);
+  const avoid = parsedAvoid === null ? undefined : parsedAvoid;
+
+  if (category === "encounter") {
+    const spill = nonNegativeInteger(parsed.params.spill);
+    if (spill === null) {
+      return warn(`TTRPG annotation '@encounter(${target})': 'spill' must be a non-negative integer — annotation not materialized.`);
+    }
+    room.annotations.encounter = { spill, resource, ...(avoid !== undefined ? { avoid } : {}) };
+    return { counted: "encounters" };
+  }
+
+  const snuff = parsed.params.snuff?.trim();
+  if (!snuff) {
+    return warn(`TTRPG annotation '@trap(${target})': 'snuff' is required — annotation not materialized.`);
+  }
+  const faces = positiveInteger(parsed.params.faces);
+  if (faces === null) {
+    return warn(`TTRPG annotation '@trap(${target})': 'faces' must be a positive integer — annotation not materialized.`);
+  }
+  room.annotations.trap = { snuff, faces, resource, ...(avoid !== undefined ? { avoid } : {}) };
+  return { counted: "traps" };
+}
+
+/** Link every annotation directive in `source` to `world` (REQ-079a). Returns
+ *  the materialization counts and the warnings for ignored directives. */
+export function linkAnnotations(
+  source: string,
+  world: WorldModel,
+): { counts: AnnotationCounts; warnings: AnnotationWarning[] } {
+  const counts: AnnotationCounts = { encounters: 0, npcs: 0, traps: 0, lore: 0 };
+  const warnings: AnnotationWarning[] = [];
+  const lines = source.split("\n");
+  for (let index = 0; index < lines.length; index++) {
+    const text = lines[index].trim();
+    if (!text.startsWith("@")) continue;
+    const applied = applyAnnotationLine(text, world, index + 1);
+    if (applied.counted) counts[applied.counted] += 1;
+    if (applied.warning) warnings.push(applied.warning);
+  }
+  return { counts, warnings };
+}
+
 export function convertSource(source: string, existingWorld: WorldModel): { world: WorldModel; result: ConvertResult } {
   const warnings: { line: number; pattern: string; message: string }[] = [];
   const world = createEmptyWorldModel();
   const statements = splitStatements(source);
   const statementLines: { line: number; text: string }[] = statements.map((text, i) => ({ line: i + 1, text }));
+  // REQ-079a — annotations are materialized after every room is known, so a
+  // directive may precede the room it targets.
+  const pendingAnnotations: { line: number; text: string }[] = [];
+  const annotationCounts = { encounters: 0, npcs: 0, traps: 0, lore: 0 };
 
   // Pass 1: collect room names and declarations
   let currentThing: string | null = null;
@@ -365,20 +528,10 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
     const text = stmt.text;
     const lnum = stmt.line;
 
-    // TTRPG annotations (attached to current room/thing)
+    // TTRPG annotations (REQ-079a) — collected now, materialized after the loop
     if (text.startsWith("@")) {
-      const annotationMatch = text.match(/^@(\w+)\((.+?)\)(?:\s+(.+))?$/);
-      if (annotationMatch) {
-        const [, category, target, content] = annotationMatch;
-        // Attach to world-model objects
-        if (category === "npc") {
-          if (!world.rooms.has(target)) {
-            // Check if it names a room or if we should create a generic annotation
-          }
-          warnings.push({ line: lnum, pattern: text, message: `TTRPG annotation '@${category}' — resolved as linked annotation.` });
-        }
-        continue;
-      }
+      pendingAnnotations.push({ line: lnum, text });
+      continue;
     }
 
     // Room declaration: "<Name> is a room." or "<Name> is a room. "Description.""
@@ -756,8 +909,16 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
     warnings.push({ line: lnum, pattern: text, message: `Unrecognized assertion pattern.` });
   }
 
+  // Materialize the collected annotations now that every room is known
+  // (REQ-079a/REQ-622): a well-formed clause writes the structured field, a
+  // malformed one warns without blocking the conversion.
+  for (const pending of pendingAnnotations) {
+    const applied = applyAnnotationLine(pending.text, world, pending.line);
+    if (applied.counted) annotationCounts[applied.counted] += 1;
+    if (applied.warning) warnings.push(applied.warning);
+  }
+
   // Finalize: count all objects
-  const annotationCounts = { encounters: 0, npcs: 0, traps: 0, lore: 0 };
   let exitCount = 0;
   for (const [, room] of world.rooms) {
     exitCount += room.exits.size;
