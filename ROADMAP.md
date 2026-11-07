@@ -6,6 +6,20 @@
   Update this file when planning a release.
 -->
 
+## Workflow convergence with Infobroker
+
+- Adopt `npm run status`, a `commit-msg` hook, the roadmap admission rule, and
+  the Agent Operating Routine so the same habits work in both repos.
+- Harden the publish path with Infobroker's stage guards (secret scan,
+  deny-list, leftover check, identity guard, partial-range rehearsal) and
+  enforce atomic commits: one spec increment stays one commit; non-spec
+  sessions split by concern.
+- Pin CI actions and remove gate steps already covered by `npm run check`.
+
+**Trigger:** the first session after the workflow-convergence plan is approved;
+closes when `check:fast`, `check`, and `status` pass, the publish guards and
+split mode are tested, and the roadmap gate is green.
+
 ## Rehearse the `next` publication engine on a real publish
 
 - The step registry is the default engine, but the harness only proves control
