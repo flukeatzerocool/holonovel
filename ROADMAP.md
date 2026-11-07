@@ -6,6 +6,16 @@
   Update this file when planning a release.
 -->
 
+## Rehearse the `next` publication engine on a real publish
+
+- The step registry is the default engine, but the harness only proves control
+  flow against a scratch remote. The first real publish must record which
+  recovery path it used (preflight rejection, deploy reset, tag reuse, resume),
+  or state that none was needed, in `docs/publish-pipeline.md`.
+- Delete the `scripts/push-pipeline-legacy.sh` engine and the deprecated
+  `HOLONOVEL_PIPELINE_GATES` bridge in the hooks once that run completes
+  without touching the recovery column.
+
 ## Materialize adventure-module hazard annotations (REQ-079a, REQ-622)
 
 - `manage_world (action: convert)` and `manage_adventure (action: load)` count

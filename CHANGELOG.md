@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026-11-06 — Two loops, one cadence: durable session artifacts and a resumable publication pipeline
+
+- Increment artifacts are tracked under `docs/plans/<date>-<slug>/` (`plan.md`,
+  `tasks.md`, `aar.md`), and `check-loop-artifacts` gates the contract: every
+  increment declares a done bar and ends in a `LOOP PAUSED` / `LOOP OPEN`
+  token. The previous `plans/` directories stay untracked, so legacy artifacts
+  cannot retroactively block a commit. `docs/plans/README.md` records the seven
+  loop steps and the rule that an AAR finding is a dated action or an explicit
+  record-and-close, never a prose recommendation.
+- `npm run session:close` closes a session in one command: it derives the
+  commit subject from the top CHANGELOG heading (stripping the `## ` marker,
+  which ends the two-form drift and the midnight date mismatch), checks the
+  increment's AAR, runs the fast suite, stages, records the gate run, and
+  commits. The two records can no longer disagree.
+- `scripts/loop-audit.ts` measures both loops and writes
+  `spec/audit/loop-audit.md`; `--check` scores a trailing 14-day window rather
+  than all history, so it is a no-new-debt gate. Baseline at 2026-11-06: 672
+  commits, 107 sessions, 28 subject/date drifts (4.2%), 33 pushes, median 2
+  commits per push.
+- `run-gates` gains `--timing` (per-gate duration and status into
+  `.holonovel-state/gate-timing.json`), `--record`/`--recorded` (the run
+  manifest), and `--list --format=md`. `npm run check` and `check:fast` pass
+  `--timing`, so gate cost is measured rather than assumed.
+- Gate layering replaces the `HOLONOVEL_PIPELINE_GATES` / `_STRICT`
+  environment markers with `.holonovel-state/gate-run.json`, keyed on the index
+  tree plus a hash of unstaged and untracked content. `pre-commit` runs the
+  fast suite only; `pre-push` runs only what is left, and a failed or partial
+  run leaves no manifest, so the hooks fall back to the full set. A legacy
+  bridge keeps the old engine working until it is deleted.
+- The AGENTS.md gate table is generated from `scripts/lib/gate-manifest.ts`
+  and checked by `check-gate-table`; the table had drifted to 12 documented
+  rows against 32 gate entries.
+- The publication pipeline is decomposed. `scripts/publish/preflight.ts`
+  checks branch, staged and untracked surface, deploy-clone branch, remote
+  identity, and confirmation availability **before any file write** — the
+  2026-10-31 failure aborted at step 9 after main, tag, mirror, and wiki had
+  been pushed. `scripts/publish/steps.ts` is an ordered, resumable step
+  registry driven by `scripts/publish/run.ts` (`--from`, `--only`, `--stage`,
+  `--resume`), with outcomes in `.holonovel-state/publish-run.json`.
+  `scripts/push-pipeline.sh` is a thin driver; `push-pipeline-legacy.sh` is the
+  backout path; `docs/publish-pipeline.md` turns the nine in-script `# NOTE:`
+  post-mortems into a failure ledger naming the guarding test and the manual
+  recovery.
+- `scripts/test-push-pipeline.ts` exercises the pipeline hermetically against a
+  scratch repository, bare remote, and deploy clone: local-only commit, derived
+  subject, idempotent re-run, full push and deploy, preflight rejection, and
+  resume after a failed push (11 cases). It passed twice before the `next`
+  engine became the default. It found the `## ` subject drift and a run-record
+  staging hazard before either reached a remote.
+- `scripts/gate-cost-report.ts` reads the timing log and downgrades gates with
+  no findings across 20 consecutive runs to advisory by writing
+  `spec/audit/gate-retirement.json`; `scripts/weekly.ts` runs the full gate, the
+  pipeline harness, the loop audit, the gate-cost report, the register check,
+  and the marker check in one fixed weekly slot and writes
+  `spec/audit/weekly-<date>.md`. `docs/workflow-cadence.md` records the
+  per-session, weekly, and monthly cadence, push on demand with a cost bound,
+  and the WIP limits.
+
 ## 2026-10-31 — Publish pipeline: full-history checkout, CI dependency order, hermetic delta fixture
 
 - `publish.yml`'s `verify` job now checks out with `fetch-depth: 0`. The

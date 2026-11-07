@@ -7,83 +7,57 @@
  * `&&` chain. Fast mode runs in parallel and buffers each gate's output so a
  * failure is attributed to its gate instead of interleaving with its siblings.
  *
- * Usage: npx tsx scripts/run-gates.ts --full|--fast [--list]
+ * `--timing` records one row per gate into `.holonovel-state/gate-timing.json`
+ * (local only, never committed) so gate cost and zero-finding runs are
+ * measurable rather than folklore. `--list --format=md` emits the gate table
+ * consumed by AGENTS.md; `--list` alone keeps the plain form.
+ *
+ * Usage: npx tsx scripts/run-gates.ts --full|--fast [--timing] [--list [--format plain|md]]
  * Exit codes: 0 = all gates passed, 1 = a gate failed, 2 = fatal.
  */
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { handleHelp, parseFlag } from "./lib/args.js";
+import { handleHelp, parseFlag, parseValueFlag, rejectUnknown } from "./lib/args.js";
+import { gateRunMatches, readGateRun, writeGateRun } from "./lib/gate-run-manifest.js";
 
 const ROOT = join(import.meta.dirname, "..");
+const TIMING_PATH = join(ROOT, ".holonovel-state", "gate-timing.json");
+const TIMING_CAP = 4000;
 
-const USAGE = `Usage: npx tsx scripts/run-gates.ts --full|--fast [--list]
+const USAGE = `Usage: npx tsx scripts/run-gates.ts --full|--fast [--timing] [--list [--format plain|md]]
 
-  --full   Run every gate sequentially, stopping at the first failure.
-  --fast   Run the fast subset in parallel (structural checks, no proofreading).
-  --list   Print the gate manifest and exit.
-  --help   Show this message.
+  --full     Run every gate sequentially, stopping at the first failure.
+  --fast     Run the fast subset in parallel (structural checks, no proofreading).
+  --timing   Append per-gate timings to .holonovel-state/gate-timing.json.
+  --record   Write the run manifest the git hooks read (.holonovel-state/gate-run.json).
+  --recorded Print the suite that already passed on this exact tree:
+             "full", "fast", "full+publish", "fast+publish", or "none".
+  --list     Print the gate manifest and exit.
+  --format   With --list: "plain" (default) or "md" (Markdown table).
+  --help     Show this message.
 `;
 
 type Mode = "fast" | "full";
+type Status = "pass" | "fail" | "advisory-fail";
 
-interface Gate {
-  name: string;
-  fast: string[] | null;
-  full: string[];
-}
+import { GATES, renderMarkdownTable, type Gate } from "./lib/gate-manifest.js";
 
-const npm = (script: string, ...extra: string[]): string[] =>
-  extra.length > 0 ? ["npm", "run", script, "--", ...extra] : ["npm", "run", script];
-
-const GATES: Gate[] = [
-  { name: "lint", fast: npm("lint"), full: npm("lint") },
-  { name: "validate", fast: npm("validate:fast"), full: npm("validate:sdd") },
-  { name: "test:validators", fast: npm("test:validators"), full: npm("test:validators") },
-  { name: "test:spec-tooling", fast: npm("test:spec-tooling"), full: npm("test:spec-tooling") },
-  { name: "test:script-tooling", fast: npm("test:script-tooling"), full: npm("test:script-tooling") },
-  { name: "test:ruleset-gates", fast: npm("test:ruleset-gates"), full: npm("test:ruleset-gates") },
-  { name: "test:world-provider", fast: npm("test:world-provider"), full: npm("test:world-provider") },
-  { name: "check-world-provider", fast: npm("check-world-provider"), full: npm("check-world-provider") },
-  { name: "validate-readme", fast: npm("validate-readme"), full: npm("validate-readme") },
-  { name: "check-script-discipline", fast: npm("check-script-discipline"), full: npm("check-script-discipline") },
-  { name: "check-script-quality", fast: npm("check-script-quality"), full: npm("check-script-quality") },
-  { name: "check-workflows", fast: npm("check-workflows"), full: npm("check-workflows") },
-  { name: "check-traceability", fast: npm("check-traceability"), full: npm("check-traceability") },
-  { name: "check-markers", fast: npm("check-markers"), full: npm("check-markers") },
-  { name: "check-registers", fast: npm("check-registers"), full: npm("check-registers:strict") },
-  { name: "check-fingerprint-sync", fast: npm("check-fingerprint-sync"), full: npm("check-fingerprint-sync") },
-  { name: "check-tool-definitions-sync", fast: npm("check-tool-definitions-sync"), full: npm("check-tool-definitions-sync") },
-  { name: "tool-definitions-lint", fast: npm("tool-definitions-lint"), full: npm("tool-definitions-lint") },
-  { name: "check-tool-surface", fast: npm("check-tool-surface"), full: npm("check-tool-surface") },
-  { name: "surface-budget", fast: npm("surface-budget"), full: npm("surface-budget") },
-  { name: "surface-replay", fast: npm("surface-replay"), full: npm("surface-replay") },
-  { name: "check-performance-record", fast: npm("check-performance-record"), full: npm("check-performance-record") },
-  { name: "check-tdqs-scoreboard", fast: npm("check-tdqs-scoreboard"), full: npm("check-tdqs-scoreboard") },
-  { name: "tool-citation-check", fast: npm("tool-citation-check"), full: npm("tool-citation-check") },
-  {
-    name: "check-reference-server-cleanliness",
-    fast: npm("check-reference-server-cleanliness"),
-    full: npm("check-reference-server-cleanliness"),
-  },
-  { name: "check-starter-freshness", fast: npm("check-starter-freshness"), full: npm("check-starter-freshness") },
-  // Full-gate only: spawns a child per shipped Novel, too slow for check:fast.
-  { name: "playability", fast: null, full: npm("check-playability") },
-  { name: "check-package-manifest", fast: npm("check-package-manifest"), full: npm("check-package-manifest") },
-  { name: "test:package-manifest", fast: npm("test:package-manifest"), full: npm("test:package-manifest") },
-  { name: "check:conformance", fast: npm("check:conformance"), full: npm("check:conformance") },
-  {
-    name: "action-conflicts",
-    fast: npm("action-conflicts", "--check"),
-    full: npm("action-conflicts", "--check"),
-  },
-  { name: "typecheck", fast: npm("typecheck"), full: npm("typecheck") },
-];
 
 interface Result {
   code: number | null;
   stdout: string;
   stderr: string;
   error?: Error;
+}
+
+interface TimingRecord {
+  at: string;
+  mode: Mode;
+  head: string;
+  gate: string;
+  ms: number;
+  status: Status;
 }
 
 function runGate(gate: Gate, mode: Mode, capture: boolean): Promise<Result> {
@@ -105,8 +79,42 @@ function runGate(gate: Gate, mode: Mode, capture: boolean): Promise<Result> {
   });
 }
 
-function finish(mode: Mode, failed: number): never {
+function shortHead(): string {
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      cwd: ROOT,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    // A repo without commits (or without git) still records timings; the head
+    // is informational, so an empty value is safe.
+    return "";
+  }
+}
+
+function writeTiming(records: TimingRecord[]): void {
+  let prior: TimingRecord[] = [];
+  if (existsSync(TIMING_PATH)) {
+    try {
+      const parsed = JSON.parse(readFileSync(TIMING_PATH, "utf-8")) as { records?: TimingRecord[] };
+      prior = Array.isArray(parsed.records) ? parsed.records : [];
+    } catch {
+      // A corrupt timing file is disposable local state: start a fresh one
+      // rather than failing a gate run over telemetry.
+      prior = [];
+    }
+  }
+  const merged = [...prior, ...records].slice(-TIMING_CAP);
+  mkdirSync(join(ROOT, ".holonovel-state"), { recursive: true });
+  writeFileSync(TIMING_PATH, `${JSON.stringify({ schema_version: 1, records: merged }, null, 2)}\n`);
+}
+
+function finish(mode: Mode, failed: number, record: boolean, startedAt: string): never {
   const label = mode === "fast" ? "check:fast" : "check";
+  if (record) {
+    writeGateRun(mode, startedAt, new Date().toISOString(), failed > 0 ? "fail" : "pass");
+  }
   if (failed > 0) {
     console.error(`\n${label}: FAIL`);
     process.exit(1);
@@ -115,27 +123,53 @@ function finish(mode: Mode, failed: number): never {
   process.exit(0);
 }
 
+function listGates(format: string): void {
+  if (format === "md") {
+    console.log(renderMarkdownTable());
+    return;
+  }
+  if (format !== "plain") {
+    console.error(`run-gates: unknown --format value: ${format}`);
+    process.exit(1);
+  }
+  for (const gate of GATES) {
+    const modes = [gate.fast ? "fast" : null, "full"].filter(Boolean).join(",");
+    console.log(`${gate.name}${modes ? ` (${modes})` : ""}`);
+  }
+}
+
 async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
+  const argv = process.argv.slice(2).flatMap((arg) => {
+    // Accept --flag=value as well as --flag value (npm pass-through makes both
+    // forms common); parseValueFlag only understands the space form.
+    const equals = arg.match(/^(--[a-z-]+)=(.+)$/i);
+    return equals ? [equals[1], equals[2]] : [arg];
+  });
   handleHelp(argv, USAGE);
 
   const fast = parseFlag(argv, "--fast");
   const full = parseFlag(argv, "--full");
   const list = parseFlag(argv, "--list");
-  const known = new Set(["--fast", "--full", "--list"]);
-  for (const arg of argv) {
-    if (!known.has(arg)) {
-      console.error(`run-gates: unknown flag: ${arg}`);
-      process.stderr.write(USAGE);
-      process.exit(1);
-    }
+  const timing = parseFlag(argv, "--timing");
+  const recordRun = parseFlag(argv, "--record");
+  const recorded = parseFlag(argv, "--recorded");
+  const format = parseValueFlag(argv, "--format") ?? "plain";
+  rejectUnknown(argv, new Set(["--fast", "--full", "--list", "--timing", "--record", "--recorded", "--format", "--help", "-h"]), USAGE);
+  if (format !== "plain" && format !== "md") {
+    console.error(`run-gates: unknown --format value: ${format}`);
+    process.stderr.write(USAGE);
+    process.exit(1);
   }
 
   if (list) {
-    for (const gate of GATES) {
-      const modes = [gate.fast ? "fast" : null, "full"].filter(Boolean).join(",");
-      console.log(`${gate.name}${modes ? ` (${modes})` : ""}`);
-    }
+    listGates(format);
+    process.exit(0);
+  }
+
+  if (recorded) {
+    const matched = gateRunMatches("full") ? "full" : gateRunMatches("fast") ? "fast" : "none";
+    const run = matched === "none" ? null : readGateRun();
+    console.log(run && run.publish ? `${matched}+publish` : matched);
     process.exit(0);
   }
 
@@ -146,34 +180,62 @@ async function main(): Promise<void> {
   }
 
   const mode: Mode = fast ? "fast" : "full";
+  const startedAt = new Date().toISOString();
+  const head = shortHead();
+  const records: TimingRecord[] = [];
+  const record = (gate: Gate, ms: number, status: Status): void => {
+    records.push({ at: new Date().toISOString(), mode, head, gate: gate.name, ms: Math.round(ms), status });
+  };
 
   if (mode === "full") {
     for (const gate of GATES) {
       console.log(`\n=== ${gate.name} ===`);
+      const started = performance.now();
       const result = await runGate(gate, mode, false);
+      const ms = performance.now() - started;
       if (result.error) {
         console.error(`gate ${gate.name} could not start: ${result.error.message}`);
+        if (timing) writeTiming(records);
         process.exit(2);
       }
-      if (result.code !== 0) {
+      const passed = result.code === 0;
+      record(gate, ms, passed ? "pass" : gate.advisory ? "advisory-fail" : "fail");
+      if (!passed && gate.advisory) {
+        console.error(`\nADVISORY FAIL (does not block): ${gate.name}`);
+        continue;
+      }
+      if (!passed) {
         console.error(`\nGATE FAILED: ${gate.name}`);
-        finish(mode, 1);
+        if (timing) writeTiming(records);
+        finish(mode, 1, recordRun, startedAt);
       }
     }
-    finish(mode, 0);
+    if (timing) writeTiming(records);
+    finish(mode, 0, recordRun, startedAt);
   }
 
   const fastGates = GATES.filter((gate) => gate.fast !== null);
-  const results = await Promise.all(fastGates.map((gate) => runGate(gate, mode, true)));
+  const resultPairs = await Promise.all(
+    fastGates.map(async (gate) => {
+      const gateStart = performance.now();
+      const result = await runGate(gate, mode, true);
+      return { gate, result, ms: performance.now() - gateStart };
+    }),
+  );
   let failed = 0;
-  for (let i = 0; i < fastGates.length; i++) {
-    const gate = fastGates[i];
-    const result = results[i];
+  for (const { gate, result, ms } of resultPairs) {
     if (result.error) {
       console.error(`gate ${gate.name} could not start: ${result.error.message}`);
+      if (timing) writeTiming(records);
       process.exit(2);
     }
-    if (result.code !== 0) {
+    const passed = result.code === 0;
+    record(gate, ms, passed ? "pass" : gate.advisory ? "advisory-fail" : "fail");
+    if (!passed && gate.advisory) {
+      console.error(`\n=== ${gate.name}: ADVISORY FAIL (does not block) ===`);
+      continue;
+    }
+    if (!passed) {
       failed++;
       console.error(`\n=== ${gate.name}: FAILED ===`);
       if (result.stdout.trim()) console.error(result.stdout.trimEnd());
@@ -182,8 +244,9 @@ async function main(): Promise<void> {
       console.log(`PASS ${gate.name}`);
     }
   }
+  if (timing) writeTiming(records);
   console.log(`\n${fastGates.length - failed} passed, ${failed} failed`);
-  finish(mode, failed);
+  finish(mode, failed, recordRun, startedAt);
 }
 
 void main();

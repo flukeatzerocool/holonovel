@@ -5,10 +5,11 @@
 # gate, spec/server sync, the check suite, or the implementation-coverage
 # strict gate fails. Exit codes: 0 = all gates pass, 1 = a gate failed.
 #
-# The strict gate is skipped when the push pipeline has already run it this run
-# (HOLONOVEL_PIPELINE_STRICT=1) — the pipeline runs it once at step 4d and the
-# marker suppresses the per-push repeat (origin + mirror). A direct push, which
-# never sets the marker, still runs it here.
+# Skipping is decided by the recorded gate run (.holonovel-state/gate-run.json),
+# not by an environment variable. `full` means the check suite already ran on
+# this tree; `+publish` means the publication gates (pending-update,
+# propagation, server harnesses) ran too. Either way a failed run records
+# nothing, so a direct push always runs the full set.
 set -euo pipefail
 
 if ! command -v node >/dev/null 2>&1; then
@@ -18,17 +19,43 @@ fi
 
 echo "Running pre-push checks..."
 
-# When invoked by scripts/push-pipeline.sh, HOLONOVEL_PIPELINE_GATES names the
-# gate pass that actually ran (full = build-order's check, fast = the docs-only
-# fallback), so version sync, the pending-update gate (REQ-394), spec
-# propagation, and the check suite are skipped here. An absent marker runs the
-# full set — including a pipeline run whose build-order never ran a gate.
-if [[ "${HOLONOVEL_PIPELINE_GATES:-}" == "full" || "${HOLONOVEL_PIPELINE_GATES:-}" == "fast" ]]; then
-    echo "  (push pipeline ran the ${HOLONOVEL_PIPELINE_GATES} gate set — skipping its covered steps)"
-else
-    echo "  version sync..."
-    npx tsx scripts/version-check.ts
+log_hook_event() {
+    mkdir -p .holonovel-state
+    printf '{"at":"%s","event":"pre-push","action":"%s","suite":"%s"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "${2:-}" >> .holonovel-state/hook-events.jsonl
+}
 
+recorded=$(npx tsx scripts/run-gates.ts --recorded)
+
+# Deprecated bridge: the legacy engine (scripts/push-pipeline-legacy.sh) still
+# exports HOLONOVEL_PIPELINE_GATES. The run manifest supersedes it for the
+# step-registry engine; remove this block when the legacy engine is deleted.
+if [ -n "${HOLONOVEL_PIPELINE_GATES:-}" ]; then
+    recorded="${HOLONOVEL_PIPELINE_GATES}+publish"
+fi
+
+if [ "$recorded" = "none" ]; then
+    log_hook_event ran "full"
+else
+    log_hook_event skipped "$recorded"
+fi
+
+suite_ran=false
+publish_ran=false
+# Only a full check lets pre-push skip the full check: a fast pass is a subset.
+case "$recorded" in
+    full*) suite_ran=true ;;
+esac
+case "$recorded" in
+    *+publish) publish_ran=true ;;
+esac
+
+echo "  version sync..."
+npx tsx scripts/version-check.ts
+
+if [ "$publish_ran" = true ]; then
+    echo "  (publication gates already ran on this tree — skipping pending-update, propagation, and harnesses)"
+else
     echo "  pending-update gate..."
     spec_hash=$(npx tsx scripts/spec-hash.ts)
     # Capture stdout (JSON) separately from stderr (the human summary): merging
@@ -77,32 +104,36 @@ else
         exit 1
     fi
 
-    echo "  spec checks (lint, validate, audit, scan)..."
-    npm run check
+    if [ "$suite_ran" = true ]; then
+        echo "  (check suite already ran on this tree — skipping)"
+    else
+        echo "  spec checks (lint, validate, audit, scan)..."
+        npm run check
 
-    echo "  server tool-definition + security harnesses..."
-    (cd holonovel && npm run test:tool-definitions && npm run test:security) || {
-        echo ""
-        echo "BLOCKED: server tool-definition/security harnesses failed."
-        echo "Fix the tool surface or annotations, then re-run."
-        echo ""
-        exit 1
-    }
+        echo "  server tool-definition + security harnesses..."
+        (cd holonovel && npm run test:tool-definitions && npm run test:security) || {
+            echo ""
+            echo "BLOCKED: server tool-definition/security harnesses failed."
+            echo "Fix the tool surface or annotations, then re-run."
+            echo ""
+            exit 1
+        }
 
-    echo "  holosuite evidence + deterministic tiers (evidence + conformance + invariants + novel + adversarial + differential)..."
-    (cd holonovel && npm run test:holosuite-evidence && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential) || {
-        echo ""
-        echo "BLOCKED: holosuite deterministic tiers failed."
-        echo "Fix the registry/annotations or the invariant/adversarial/differential breach, then re-run."
-        echo ""
-        exit 1
-    }
+        echo "  holosuite evidence + deterministic tiers (evidence + conformance + invariants + novel + adversarial + differential)..."
+        (cd holonovel && npm run test:holosuite-evidence && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential) || {
+            echo ""
+            echo "BLOCKED: holosuite deterministic tiers failed."
+            echo "Fix the registry/annotations or the invariant/adversarial/differential breach, then re-run."
+            echo ""
+            exit 1
+        }
+    fi
 fi
 
-echo "  implementation-coverage strict gate..."
-if [[ "${HOLONOVEL_PIPELINE_STRICT:-0}" == "1" ]]; then
-    echo "  (push pipeline already ran validate:sdd --impl-audit=strict — skipping)"
+if [ "$suite_ran" = true ]; then
+    echo "  implementation-coverage strict gate: covered by the recorded check suite"
 else
+    echo "  implementation-coverage strict gate..."
     npm run validate:sdd -- --impl-audit=strict || {
         echo ""
         echo "BLOCKED: implementation-coverage strict gate failed — bucket-A (gap) REQs present."

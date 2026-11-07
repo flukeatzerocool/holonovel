@@ -43,6 +43,9 @@ README.md               Project orientation; see HTML comment at top for
                           README design conventions
 docs/engine-contract.md Non-normative engine contract (state authority, turns,
                           determinism, event stream, save format, adapter seam)
+docs/workflow-cadence.md  Per-session, weekly, and monthly workflow ritual
+docs/publish-pipeline.md  Publication failure ledger: symptom, fix, guard, recovery
+docs/plans/               Tracked increment artifacts (plan/tasks/AAR) per session
 CHANGELOG.md            Revision history (date-headed, bulleted)
 AGENTS.md               This file — AI maintainer orientation
 package.json            Task runner (lint, validate, typecheck)
@@ -78,6 +81,27 @@ scripts/lib/ruleset-registry.ts  Shared source-registry schema/load/save, instal
                           scan, staleness predicate, and emitter resolution (REQ-421)
 scripts/ruleset-builds/swse/  SWSE package rebuild: authored character_creation
                           source + build-package.mjs (REQ-399a, REQ-395a)
+scripts/loop-audit.ts     Measures the session and publication loops; writes
+                          spec/audit/loop-audit.md; --check is a trailing-window gate
+scripts/check-loop-artifacts.ts  Gate: docs/plans increments carry plan/tasks/AAR
+                          and a LOOP terminal token
+scripts/session-close.ts  Close a session: derive the subject from the CHANGELOG
+                          heading, check the AAR, run fast gates, commit
+scripts/lib/loop-artifacts.ts   Shared increment discovery/validation
+scripts/lib/gate-manifest.ts    The single gate manifest (runner, doc table, cost)
+scripts/lib/gate-run-manifest.ts  Run manifest keyed on tree + content hash; the
+                          hooks read it instead of environment markers
+scripts/lib/hook-events.ts      Local hook invocation log for the loop audit
+scripts/gate-cost-report.ts     Per-gate cost and automatic retirement candidates
+scripts/weekly.ts         Weekly sweep: full gate, pipeline harness, loop audit,
+                          gate cost, registers, markers → spec/audit/weekly-<date>.md
+scripts/check-gate-table.ts     Gate: AGENTS.md gate table equals the manifest
+scripts/test-push-pipeline.ts   Hermetic publication-pipeline harness (scratch
+                          repo, bare remote, deploy clone)
+scripts/publish/preflight.ts    Publication preconditions, before any file write
+scripts/publish/steps.ts        Ordered, resumable publication step registry
+scripts/publish/run.ts          Pipeline driver (--from/--only/--stage/--resume)
+scripts/push-pipeline-legacy.sh Backout path for the previous pipeline engine
 holonovel/scripts/generate-world-provider.ts  Emit the world-model provider
                           document from schema constants (REQ-200, REQ-202a);
                           `--check` is a freshness gate
@@ -251,22 +275,47 @@ buffers each parallel gate's output and prints per-gate `PASS` lines; full mode
 runs sequentially and stops at the first failure. Both modes gate
 `action-conflicts` with `--check` and run root `typecheck` (`scripts/**/*.ts`).
 
-This runs:
+This runs (the table is generated from the gate manifest):
 
-| Command                    | What it checks                                    |
-|----------------------------|---------------------------------------------------|
-| `npm run lint`             | markdownlint style rules (`.markdownlint.json`)   |
-| `npm run validate:fast`    | Structural checks in one pass: REQ integrity, shape, violations, ambiguity, cross-refs, assumptions, REQ-family `_Check:` coverage, the REQ-body content scan (procedural / worked-example / unbounded-threshold — all enforced as errors), and the implementation-coverage audit (REQ → `holonovel/src` citation + exercised tests; buckets A/B/C/D + §5.12 dispositions). Proofreading skipped |
-| `npm run test:validators`  | Validator self-tests (`scripts/test-req-checks.ts`) — guards the REQ-integrity checks against regression |
-| `npm run validate-readme`  | README guardrail (design comment, headings, tool names, voice, links, comparison table) |
-| `npm run check-traceability` | DECISIONS.md drift check (Deferred/Waived entries vs. registered tools/resources) |
-| `npm run check-script-discipline` | Script standards (shebang, header, role token, exit codes, shared server list, `import.meta.dirname`, no empty catch) across `scripts/` and `holonovel/scripts/` TS **and `.mjs`** plus shell entry points |
-| `npm run check-script-quality` | Script quality — C1 reachability, C2 duplicate-helper, C3 repeated-parse, C4 REQ-header-shape shared-parser-bypass, all hard gates; a finding is suppressed only by a reviewed exception in `spec/audit/script-quality-baseline.json` |
-| `npm run test:script-tooling` | Self-tests (`scripts/test-script-tooling.ts`) for the discipline and quality detectors — guards both gates against regression |
-| `npm run check-markers` | `@spec:` marker freshness — README (and wiki with `--include-wiki`) values must equal the spec-derived values (`cross-property-couple.ts --check`) |
-| `npm run check-registers` | Review/proofread register structure — terminal dispositions, Scheduled-roadmap↔ROADMAP traceability, proofread disposition tokens (report-only; `check-registers:strict` gates in `check`) |
-| `npm run check-package-manifest` | Published-package manifest (REQ-614): metadata, export types, files allowlist, exact pins, Node 22+, no install scripts |
-| `npm run test:package-manifest` | Self-tests for the manifest gate |
+<!-- gate-manifest:start — generated by `npm run gates -- --list --format=md`; do not edit by hand -->
+| Gate | fast | full | What it checks |
+|---|---|---|---|
+| `lint` | yes | yes | Markdown style rules on the assembled spec and README |
+| `validate` | yes | yes | REQ integrity, shape, ambiguity, cross-references, coverage audit |
+| `test:validators` | yes | yes | Self-tests for the REQ validator checks |
+| `test:spec-tooling` | yes | yes | Self-tests for spec-delta and assembly tooling |
+| `test:script-tooling` | yes | yes | Self-tests for the script discipline and quality detectors |
+| `test:ruleset-gates` | yes | yes | Self-tests for the ruleset package gates |
+| `test:world-provider` | yes | yes | Gate the world://kinds provider payload |
+| `check-world-provider` | yes | yes | Generated world-provider document freshness |
+| `validate-readme` | yes | yes | README structure, voice, links, and comparison table |
+| `check-script-discipline` | yes | yes | Script shebang, role header, exit codes, path and shell rules |
+| `check-script-quality` | yes | yes | Reachability, duplicate helpers, repeated parses, parser bypass |
+| `check-workflows` | yes | yes | CI workflow hygiene rules |
+| `check-traceability` | yes | yes | DECISIONS.md register drift against registered tools |
+| `check-markers` | yes | yes | README @spec: marker freshness |
+| `check-registers` | yes | yes | Review and proofread register structure and dispositions |
+| `check-fingerprint-sync` | yes | yes | Committed contract fingerprints match the spec |
+| `check-tool-definitions-sync` | yes | yes | Generated tool definitions match their source |
+| `tool-definitions-lint` | yes | yes | Tool description quality rules |
+| `check-tool-surface` | yes | yes | Tool surface counts match the documented surface |
+| `surface-budget` | yes | yes | Tool surface stays inside the declared budget |
+| `surface-replay` | yes | yes | Recorded surface replays still resolve |
+| `check-performance-record` | yes | yes | Performance record freshness |
+| `check-tdqs-scoreboard` | yes | yes | TDQS scoreboard consistency |
+| `tool-citation-check` | yes | yes | Tool citations resolve to spec identifiers |
+| `check-reference-server-cleanliness` | yes | yes | Reference server stays inside the content boundary |
+| `check-starter-freshness` | yes | yes | Starter Novel artifacts are current |
+| `playability` | no | yes | Headless playability run for every shipped Novel |
+| `check-package-manifest` | yes | yes | Published package manifest assertions |
+| `test:package-manifest` | yes | yes | Self-tests for the package manifest gate |
+| `check:conformance` | yes | yes | Spec-to-code bundle dependence |
+| `action-conflicts` | yes | yes | Action contract conflicts across tools |
+| `check-gate-table` | yes | yes | AGENTS.md gate table matches the manifest |
+| `check-loop-artifacts` | yes | yes | Increment plan/tasks/AAR contract under docs/plans |
+| `test:pipeline` | no | yes | Hermetic publication-pipeline harness |
+| `typecheck` | yes | yes | TypeScript type checking |
+<!-- gate-manifest:end -->
 
 Also available separately:
 

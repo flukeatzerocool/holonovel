@@ -1,6 +1,6 @@
 {
   "name": "holonovel-spec",
-  "version": "2026.10.31",
+  "version": "2026.11.06",
   "description": "Build specification for TTRPG MCP game servers with convergence-loop quality enforcement and job-gated pre-build configuration.",
   "main": "index.js",
   "scripts": {
@@ -46,8 +46,8 @@
     "test:ruleset-gates": "npx tsx holonovel/scripts/test-ruleset-gates.ts",
     "tool-citation-check": "npx tsx scripts/tool-citation-check.ts",
     "check:conformance": "npx tsx scripts/compare-spec-code.ts --gate",
-    "check": "npm run gates -- --full",
-    "check:fast": "npm run gates -- --fast",
+    "check": "npm run gates -- --full --timing",
+    "check:fast": "npm run gates -- --fast --timing",
     "test:validators": "npx tsx scripts/test-req-checks.ts",
     "test:spec-tooling": "npx tsx scripts/test-spec-tooling.ts",
     "check:full": "npm run check && npm run detect-dupes",
@@ -66,6 +66,13 @@
     "check-performance-record": "npx tsx scripts/check-performance-record.ts",
     "check-tdqs-scoreboard": "npx tsx scripts/check-tdqs-scoreboard.ts",
     "gates": "npx tsx scripts/run-gates.ts",
+    "check-gate-table": "npx tsx scripts/check-gate-table.ts",
+    "check-loop-artifacts": "npx tsx scripts/check-loop-artifacts.ts",
+    "loop-audit": "npx tsx scripts/loop-audit.ts",
+    "session:close": "npx tsx scripts/session-close.ts",
+    "test:pipeline": "npx tsx scripts/test-push-pipeline.ts",
+    "gate-cost": "npx tsx scripts/gate-cost-report.ts",
+    "weekly": "npx tsx scripts/weekly.ts",
     "typecheck:scripts": "npx tsc -p holonovel/tsconfig.scripts.json --noEmit"
   },
   "keywords": [],

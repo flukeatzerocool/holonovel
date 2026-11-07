@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # pre-commit — run the fast structural gates before commit. [gate]
 #
-# Role: git pre-commit gate. Blocks the commit (exit 1) when assembly, version
-# sync, delta reporting, the guarded-rule-change check, fingerprint sync, lint,
-# or the README guardrail fails. Exit codes: 0 = all pass, 1 = a gate failed.
+# Role: git pre-commit gate. Blocks the commit (exit 1) when assembly, the fast
+# gate suite, or the guarded-rule-change check fails. Exit codes: 0 = all pass,
+# 1 = a gate failed.
+#
+# The gate pass is recorded in .holonovel-state/gate-run.json keyed by HEAD and
+# the working-tree signature. A commit that follows a matching pass skips the
+# suite instead of running it twice; a failed or partial run writes nothing, so
+# the hook falls back to the full set. This replaces the old
+# HOLONOVEL_PIPELINE_GATES environment marker, which was process-local and left
+# no trace after the fact.
 set -euo pipefail
 
 if ! command -v node >/dev/null 2>&1; then
@@ -12,21 +19,40 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 echo "Running pre-commit checks..."
-# When invoked by scripts/push-pipeline.sh, HOLONOVEL_PIPELINE_GATES names the
-# gate pass that actually ran (full = build-order's check, fast = the docs-only
-# fallback), so only the guarded-rule-change check (unique to this hook) still
-# needs to run. An absent marker — including a failed build-order that never
-# wrote its run record — runs the full set.
-if [[ "${HOLONOVEL_PIPELINE_GATES:-}" == "full" || "${HOLONOVEL_PIPELINE_GATES:-}" == "fast" ]]; then
-    echo "  (push pipeline ran the ${HOLONOVEL_PIPELINE_GATES} gate set — running the unique guarded-rule-change check)"
-else
-    npm run assemble
-    npx tsx scripts/version-check.ts
-    npx tsx scripts/spec-delta.ts --report-only
-    npm run check-fingerprint-sync
-    npm run check-tool-definitions-sync
-    npm run tool-definitions-lint
-    npm run tool-citation-check
-    npm run lint && npm run validate-readme
+
+# Local, gitignored telemetry: the loop audit reads it to measure hook skips
+# instead of assuming bypass behaviour.
+log_hook_event() {
+    mkdir -p .holonovel-state
+    printf '{"at":"%s","event":"pre-commit","action":"%s","suite":"%s"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "${2:-}" >> .holonovel-state/hook-events.jsonl
+}
+
+recorded=$(npx tsx scripts/run-gates.ts --recorded)
+
+# Deprecated bridge for the legacy engine; see .githooks/pre-push.
+if [ -n "${HOLONOVEL_PIPELINE_GATES:-}" ]; then
+    recorded="${HOLONOVEL_PIPELINE_GATES}"
 fi
+
+case "$recorded" in
+    fast*|full*)
+        log_hook_event skipped "$recorded"
+        echo "  (gate suite '${recorded}' already passed on this exact tree — skipping its covered steps)"
+        ;;
+    *)
+        log_hook_event ran "fast"
+        echo "  assembly..."
+        npm run assemble
+        echo "  fast gate suite..."
+        npx tsx scripts/run-gates.ts --fast --record || {
+            echo ""
+            echo "BLOCKED: the fast gate suite failed — see the gate output above."
+            echo ""
+            exit 1
+        }
+        ;;
+esac
+
+echo "  guarded-rule-change check..."
 npx tsx scripts/check-guarded-rule-change.ts

@@ -323,13 +323,16 @@ function main(): void {
     rmSync(stageDir, { recursive: true, force: true });
   }
 
-  // The pipeline's own staging commands — a regression in the script's
-  // add/reset pair is otherwise undetectable from the git-semantics fixture.
+  // The pipeline's own staging and remote-identity calls. The implementation
+  // moved from the shell script to the step registry; the assertions follow it
+  // so a regression in either surface stays detectable.
   const pipeline = readFileSync(join(root, "scripts", "push-pipeline.sh"), "utf-8");
-  check(/^git add -A -- \.$/m.test(pipeline), "pipeline stages the tracked surface with git add -A");
-  check(/^git reset -q -- \.holonovel-state\/wiki/m.test(pipeline), "pipeline resets the wiki mirror pages out of the index");
+  const steps = readFileSync(join(root, "scripts", "publish", "steps.ts"), "utf-8");
+  const preflight = readFileSync(join(root, "scripts", "publish", "preflight.ts"), "utf-8");
+  check(/git", \["add", "-A", "--", "\."\]/.test(steps), "pipeline stages the tracked surface with git add -A");
+  check(/git", \["reset", "-q", "--", "\.holonovel-state\/wiki"\]/.test(steps), "pipeline resets the wiki mirror pages out of the index");
   check(!/"\$DEPLOY_REMOTE"\s*!=\s*"\$WORKSPACE_REMOTE"/.test(pipeline), "pipeline compares remotes by identity, not raw text (REQ-418)");
-  check(/lib\/remote-url\.ts/.test(pipeline), "pipeline uses the shared remote-identity helper");
+  check(/remote-url\.(ts|js)/.test(preflight), "pipeline uses the shared remote-identity helper");
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

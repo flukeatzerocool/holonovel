@@ -122,7 +122,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.10.31",
+  version: "2026.11.06",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
