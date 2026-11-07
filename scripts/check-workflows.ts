@@ -8,7 +8,8 @@
  * workflow reading MCP Registry state through the eventually-consistent
  * `?search=` listing endpoint — or embedding its own presence probe instead of
  * the shared freshness script — which produced the spurious-republish failure
- * (REQ-428).
+ * (REQ-428). The two Node-runtime actions must be pinned to a full commit SHA
+ * with a `# vN` comment; a mutable major ref is a regression.
  *
  * Usage: npx tsx scripts/check-workflows.ts [--help]
  *
@@ -18,7 +19,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleHelp } from "./lib/args.js";
-import { jobHygiene } from "./lib/workflow-hygiene.js";
+import { jobHygiene, parseActionPin } from "./lib/workflow-hygiene.js";
 
 const USAGE = `Usage: npx tsx scripts/check-workflows.ts [--help]
 
@@ -37,6 +38,10 @@ const MIN_ACTION_MAJOR: Record<string, number> = {
   "actions/checkout": 5,
   "actions/setup-node": 5,
 };
+
+// The Node-runtime actions must be immutable: a 40-hex SHA plus a `# vN`
+// comment. A mutable `@vN` ref is a regression.
+const PIN_REQUIRED = new Set(["actions/checkout", "actions/setup-node"]);
 
 // The publish workflow must read MCP Registry presence through
 // scripts/check-registry-publish.ts (deterministic per-server versions
@@ -73,20 +78,30 @@ function checkFile(file: string): void {
   const content = readFileSync(file, "utf-8");
 
   for (const line of content.split("\n")) {
-    const uses = line.match(/^\s*-?\s*uses:\s*(\S+)/);
-    if (uses) {
-      const ref = uses[1]!;
-      const name = ref.split("@")[0]!;
-      const min = MIN_ACTION_MAJOR[name];
-      const major = min === undefined ? null : actionMajor(ref);
-      if (min !== undefined && major === null) {
-        issues.push(
-          `${rel}: ${ref} is not a major-version pin; use ${name}@v${min}+ (Node 24 runtime)`,
-        );
-      } else if (min !== undefined && major !== null && major < min) {
-        issues.push(
-          `${rel}: ${ref} is below the required major; use ${name}@v${min}+ (Node 24 runtime)`,
-        );
+    const pin = parseActionPin(line);
+    if (pin) {
+      const min = MIN_ACTION_MAJOR[pin.name];
+      if (PIN_REQUIRED.has(pin.name)) {
+        if (!pin.sha) {
+          issues.push(
+            `${rel}: ${pin.ref} must be pinned to a full commit SHA with a '# vN' comment (Node 24 runtime)`,
+          );
+        } else if (pin.major === null) {
+          issues.push(
+            `${rel}: ${pin.ref} has no '# vN' version comment; a SHA pin cannot be checked for the Node-24 runtime`,
+          );
+        } else if (min !== undefined && pin.major < min) {
+          issues.push(
+            `${rel}: ${pin.ref} is below the required major; use a v${min}+ SHA with a '# vN' comment`,
+          );
+        }
+      } else if (min !== undefined) {
+        const major = pin.major ?? actionMajor(pin.ref);
+        if (major === null) {
+          issues.push(`${rel}: ${pin.ref} is not a version pin; use ${pin.name}@v${min}+`);
+        } else if (major < min) {
+          issues.push(`${rel}: ${pin.ref} is below the required major; use ${pin.name}@v${min}+`);
+        }
       }
     }
 

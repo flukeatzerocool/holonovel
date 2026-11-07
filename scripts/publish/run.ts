@@ -35,6 +35,7 @@ const USAGE = `Usage: npx tsx scripts/publish/run.ts [flags]
   --allow-stale-base      Classify the delta against a possibly stale origin.
   --full-tests            Always run the server harness suite.
   --auto-update           Execute the §6.7 update command.
+  --allow-secrets         Warn, do not block, on a staged secret-pattern match.
   --from <step>           Start at a step (inclusive).
   --only <step>           Run exactly one step.
   --stage <stage>         Run one stage: repo|tag|release|docs|deploy.
@@ -93,7 +94,7 @@ function main(): void {
     new Set([
       "--dry-run", "--yes", "-y", "--no-push", "--allow-pending", "--allow-untracked",
       "--allow-missing-deploy", "--allow-stale-base", "--full-tests", "--auto-update",
-      "--from", "--only", "--stage", "--resume", "--help", "-h",
+      "--allow-secrets", "--from", "--only", "--stage", "--resume", "--help", "-h",
     ]),
     USAGE,
   );
@@ -108,6 +109,7 @@ function main(): void {
     allowStaleBase: parseFlag(argv, "--allow-stale-base"),
     fullTests: parseFlag(argv, "--full-tests"),
     autoUpdate: parseFlag(argv, "--auto-update"),
+    allowSecrets: parseFlag(argv, "--allow-secrets"),
   };
 
   const from = parseValueFlag(argv, "--from");
@@ -146,6 +148,7 @@ function main(): void {
       delta: {},
       base: "origin/main",
       checkRan: false,
+      suiteRan: false,
       contractChanged: false,
       needTests: false,
       suite: "fast",

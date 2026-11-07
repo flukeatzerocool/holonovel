@@ -10,6 +10,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeGateRun } from "../lib/gate-run-manifest.js";
+import { collectStagedGuards } from "../lib/publish-guards.js";
 import { runPreflight } from "./preflight.js";
 
 export type Stage = "repo" | "tag" | "release" | "docs" | "deploy";
@@ -25,6 +26,7 @@ export interface Flags {
   allowStaleBase: boolean;
   fullTests: boolean;
   autoUpdate: boolean;
+  allowSecrets: boolean;
 }
 
 export interface Ctx {
@@ -41,6 +43,7 @@ export interface Ctx {
     delta: Record<string, string>;
     base: string;
     checkRan: boolean;
+    suiteRan: boolean;
     contractChanged: boolean;
     needTests: boolean;
     suite: "fast" | "full";
@@ -134,6 +137,39 @@ function classifyDelta(ctx: Ctx, server: string): string {
   }
 }
 
+// A bounded run (`--from`, `--only`, `--stage`) can reach a step before the
+// step that normally computes its state. Recompute the value rather than
+// passing an empty string: a silent empty hash is worse than a loud failure.
+function ensureBase(ctx: Ctx): string {
+  if (ctx.state.base !== "origin/main") return ctx.state.base;
+  if (tryGit(ctx, ["rev-parse", "--verify", "--quiet", "origin/main"]) !== null) return ctx.state.base;
+  ctx.state.base = "HEAD";
+  return ctx.state.base;
+}
+
+function ensureSpecHash(ctx: Ctx): string {
+  if (ctx.state.specHash) return ctx.state.specHash;
+  if (ctx.stub) {
+    ctx.state.specHash = "stub";
+    return ctx.state.specHash;
+  }
+  ctx.state.specHash = out(ctx, "npx", ["tsx", "scripts/spec-hash.ts"]);
+  return ctx.state.specHash;
+}
+
+function ensureDelta(ctx: Ctx, server: string): string {
+  const cached = ctx.state.delta[server];
+  if (cached) return cached;
+  if (ctx.stub) {
+    ctx.state.delta[server] = "patch";
+    return "patch";
+  }
+  ensureBase(ctx);
+  const classification = classifyDelta(ctx, server);
+  ctx.state.delta[server] = classification;
+  return classification;
+}
+
 function serverPaths(ctx: Ctx): string[] {
   const paths: string[] = [];
   for (const server of ctx.servers) {
@@ -219,6 +255,7 @@ export const STEPS: Step[] = [
           stdio: "inherit",
         });
       }
+      ctx.state.suiteRan = true;
       return "pass";
     },
   },
@@ -261,16 +298,18 @@ export const STEPS: Step[] = [
       }
       const env: NodeJS.ProcessEnv = ctx.flags.autoUpdate ? { HOLONOVEL_INVOKE_UPDATE: "1" } : {};
       for (const server of ctx.servers) {
+        const specHash = ensureSpecHash(ctx);
+        const deltaClass = ensureDelta(ctx, server);
         const args = [
           "tsx",
           "scripts/update-server.ts",
           "--server",
           server,
           "--spec-hash",
-          ctx.state.specHash ?? "",
+          specHash,
           "--scope-by-fingerprint",
           "--delta-class",
-          ctx.state.delta[server],
+          deltaClass,
         ];
         if (ctx.flags.allowPending) args.push("--allow-pending");
         const status = sh(ctx, "npx", args, ctx.root, env);
@@ -291,6 +330,8 @@ export const STEPS: Step[] = [
         return "skip";
       }
       const paths = serverPaths(ctx);
+      ensureBase(ctx);
+      const deltas = ctx.servers.map((server) => ensureDelta(ctx, server));
       const serverChanged =
         (tryGit(ctx, ["diff", "--name-only", ctx.state.base, "--", ...paths]) ?? "") !== "" ||
         (tryGit(ctx, ["ls-files", "--others", "--exclude-standard", "--", ...paths]) ?? "") !== "";
@@ -298,7 +339,7 @@ export const STEPS: Step[] = [
         ctx.flags.fullTests ||
         ctx.state.contractChanged ||
         serverChanged ||
-        ctx.servers.some((server) => ["minor", "major"].includes(ctx.state.delta[server]));
+        deltas.some((delta) => ["minor", "major"].includes(delta));
       if (!ctx.state.needTests) {
         ctx.log("  skipped: patch/editorial delta, no contract or server-source change (§6.7 G0-only)");
         return "skip";
@@ -315,10 +356,10 @@ export const STEPS: Step[] = [
         ctx.log("  [stub] spec-update record skipped");
         return "pass";
       }
-      const harness = ctx.state.needTests ? "ran" : "skipped (§6.7 G0)";
+      const harness = ctx.state.needTests ? "ran" : "skipped (§6.7 G0 or not run in this bounded range)";
       ctx.state.verification =
         `Gates: ${ctx.state.suite} check suite passed; server harness suite ${harness}; ` +
-        `spec SHA ${ctx.state.specHash}; deploy verification is the deploy stage (REQ-418).`;
+        `spec SHA ${ensureSpecHash(ctx)}; deploy verification is the deploy stage (REQ-418).`;
       must(
         sh(ctx, "npx", ["tsx", "scripts/spec-update-record.ts", "--verification", ctx.state.verification]) === 0,
         "Spec Update record generation failed",
@@ -345,6 +386,18 @@ export const STEPS: Step[] = [
     run(ctx) {
       must(sh(ctx, "git", ["add", "-A", "--", "."]) === 0, "git add failed");
       spawnSync("git", ["reset", "-q", "--", ".holonovel-state/wiki"], { cwd: ctx.root, stdio: "inherit" });
+      const guards = collectStagedGuards(ctx.root);
+      const secretProblems = guards.problems.filter((problem) => problem.startsWith("secret-pattern match:"));
+      const hardProblems = guards.problems.filter((problem) => !problem.startsWith("secret-pattern match:"));
+      if (ctx.flags.allowSecrets) {
+        for (const problem of secretProblems) {
+          ctx.log(`  WARNING: ${problem} (allowed by --allow-secrets)`);
+        }
+      } else {
+        hardProblems.push(...secretProblems);
+      }
+      for (const problem of hardProblems) ctx.log(`  BLOCKED: ${problem}`);
+      must(hardProblems.length === 0, "staging guards failed — refusing to commit");
       sh(ctx, "git", ["diff", "--cached", "--stat"]);
       return "pass";
     },
@@ -378,7 +431,10 @@ export const STEPS: Step[] = [
       must(status === 0, "git commit failed");
       ctx.state.didCommit = true;
       // Record the pass against the committed tree so pre-push can trust it.
-      writeGateRun(ctx.state.suite, new Date().toISOString(), new Date().toISOString(), "pass", true);
+      // A bounded run that skipped the gate suite must not record a pass.
+      if (ctx.state.suiteRan) {
+        writeGateRun(ctx.state.suite, new Date().toISOString(), new Date().toISOString(), "pass", true);
+      }
       return "pass";
     },
   },
@@ -567,6 +623,7 @@ export const STEPS: Step[] = [
         return "pass";
       }
       for (const server of ctx.servers) {
+        const specHash = ensureSpecHash(ctx);
         const status = sh(ctx, "npx", [
           "tsx",
           "scripts/update-server.ts",
@@ -575,7 +632,7 @@ export const STEPS: Step[] = [
           "--server-dir",
           join(ctx.deployDir, server),
           "--spec-hash",
-          ctx.state.specHash ?? "",
+          specHash,
           "--verify-deployed",
         ]);
         must(status === 0, `deploy verification failed for ${server} (REQ-418)`);

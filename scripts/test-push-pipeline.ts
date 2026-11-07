@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { handleHelp, rejectUnknown } from "./lib/args.js";
 import { readServers } from "./lib/servers.js";
+import { deniedPaths, leftovers, scanAddedLines } from "./lib/publish-guards.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const TSX = join(ROOT, "node_modules", ".bin", "tsx");
@@ -154,6 +155,96 @@ function main(): void {
     git(work, ["remote", "set-url", "origin", join(base, "remote.git")]);
     const resumed = runPipeline(work, ["--yes", "--only", "push_repo"], deploy);
     check("resume after a failed push succeeds", resumed.status === 0, resumed.output.split("\n").slice(-3).join(" | "));
+    // Case 5 — staging guards: secret, deny-list, identity.
+    check(
+      "deny-list matches a private key path",
+      deniedPaths(["secrets/id_rsa", "src/a.ts"]).length === 1,
+    );
+    check("leftover check reports the untracked path", leftovers("M  a.ts\n?? b.ts\n").length === 1);
+    const secretLine = `token = sk-${"A".repeat(24)}`;
+    const secretFindings = scanAddedLines(`+++ b/leak.txt\n@@ -0,0 +1 @@\n+${secretLine}\n`);
+    check(
+      "secret scan reports the added line",
+      secretFindings.length === 1 && secretFindings[0]!.line === 1,
+    );
+
+    writeFileSync(join(work, "leak.txt"), `${secretLine}\n`);
+    const secretRun = runPipeline(work, ["--only", "stage"], deploy);
+    check(
+      "a staged secret blocks the stage step",
+      secretRun.status === 1 &&
+        secretRun.output.includes("secret-pattern match") &&
+        !secretRun.output.includes("A".repeat(24)),
+      secretRun.output.split("\n").slice(-3).join(" | "),
+    );
+    git(work, ["reset", "-q"]);
+    rmSync(join(work, "leak.txt"), { force: true });
+
+    mkdirSync(join(work, "secrets"), { recursive: true });
+    writeFileSync(join(work, "secrets", "id_rsa"), "not a real key\n");
+    const deniedRun = runPipeline(work, ["--only", "stage"], deploy);
+    check(
+      "a deny-listed path blocks the stage step",
+      deniedRun.status === 1 && deniedRun.output.includes("deny-listed"),
+      deniedRun.output.split("\n").slice(-3).join(" | "),
+    );
+    git(work, ["reset", "-q"]);
+    rmSync(join(work, "secrets"), { recursive: true, force: true });
+
+    git(work, ["config", "user.name", ""]);
+    git(work, ["config", "user.email", ""]);
+    const noIdentity = runPipeline(work, ["--only", "preflight", "--no-push"], deploy);
+    check(
+      "preflight refuses a missing git identity",
+      noIdentity.status === 1 && noIdentity.output.includes("user.name"),
+      noIdentity.output.split("\n").slice(-3).join(" | "),
+    );
+    git(work, ["config", "user.name", "Harness"]);
+    git(work, ["config", "user.email", "harness@example.invalid"]);
+
+    writeFileSync(join(work, "staged.md"), "staged\n");
+    git(work, ["add", "staged.md"]);
+    const stagedPreflight = runPipeline(work, ["--only", "preflight", "--no-push"], deploy);
+    check(
+      "preflight rejects a staged change in a bounded run",
+      stagedPreflight.status === 1 && stagedPreflight.output.includes("staged changes"),
+      stagedPreflight.output.split("\n").slice(-3).join(" | "),
+    );
+    git(work, ["reset", "-q"]);
+    rmSync(join(work, "staged.md"), { force: true });
+
+    // Case 6 — partial ranges: repo stage commits without pushing, `--from
+    // stage` resumes at stage, and `--stage deploy` lands without a new commit.
+    const pushedBefore = git(work, ["rev-parse", "origin/main"]);
+    writeFileSync(join(work, "RANGE.md"), "range\n");
+    const repoStage = runPipeline(work, ["--yes", "--allow-untracked", "--stage", "repo", "--no-push"], deploy);
+    check(
+      "--stage repo commits without a push",
+      repoStage.status === 0 && git(work, ["rev-parse", "origin/main"]) === pushedBefore,
+      repoStage.output.split("\n").slice(-3).join(" | "),
+    );
+
+    writeFileSync(join(work, "FROM.md"), "from\n");
+    const fromStage = runPipeline(work, ["--yes", "--allow-untracked", "--from", "stage", "--no-push"], deploy);
+    check(
+      "--from stage resumes at the stage step",
+      fromStage.status === 0 && fromStage.output.includes("=== stage"),
+      fromStage.output.split("\n").slice(-3).join(" | "),
+    );
+
+    const deployOnly = runPipeline(work, ["--yes", "--stage", "deploy"], deploy);
+    check(
+      "--stage deploy lands the deploy clone without a commit",
+      deployOnly.status === 0 && deployOnly.output.includes("deploy=true"),
+      deployOnly.output.split("\n").slice(-3).join(" | "),
+    );
+
+    const cleanCommit = runPipeline(work, ["--only", "commit"], deploy);
+    check(
+      "--only commit on a clean index is a no-op",
+      cleanCommit.status === 0 && cleanCommit.output.includes("nothing new to commit"),
+      cleanCommit.output.split("\n").slice(-3).join(" | "),
+    );
   } finally {
     if (keep) {
       console.log(`\nscratch kept at ${base}`);

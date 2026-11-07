@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { sameRemote } from "../lib/remote-url.js";
+import { identityMissing } from "../lib/publish-guards.js";
 
 export interface PreflightOptions {
   root: string;
@@ -48,6 +49,12 @@ export function runPreflight(options: PreflightOptions): PreflightResult {
   const branch = tryGit(root, ["symbolic-ref", "--short", "-q", "HEAD"]) ?? "";
   if (branch !== "main") {
     problems.push(`refusing to publish from '${branch || "detached HEAD"}': switch to main first`);
+  }
+
+  const identityName = tryGit(root, ["config", "user.name"]) ?? "";
+  const identityEmail = tryGit(root, ["config", "user.email"]) ?? "";
+  if (identityMissing(identityName, identityEmail)) {
+    problems.push("git user.name/user.email not configured — set them before publishing");
   }
 
   const staged = tryGit(root, ["diff", "--cached", "--name-only"]) ?? "";

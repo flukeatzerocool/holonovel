@@ -30,6 +30,39 @@ function isGateLine(line: string): boolean {
 const SERVER_DIR = /^\s+working-directory:\s*["']?holonovel["']?\s*$/;
 const NPM_CI = /^\s+run:\s*npm ci\b/;
 
+export interface ActionPin {
+  name: string;
+  ref: string;
+  sha: boolean;
+  major: number | null;
+}
+
+/**
+ * Parse one `uses:` line. A pinned action is either `owner/name@vN` (mutable
+ * major) or `owner/name@<40-hex> # vN.x.y` (immutable). The version comment is
+ * the only place a SHA pin names its major, so a SHA without one is unpinned
+ * for the Node-runtime rule.
+ */
+export function parseActionPin(line: string): ActionPin | null {
+  const uses = /^\s*-?\s*uses:\s*(\S+)/.exec(line);
+  if (!uses) return null;
+  const ref = uses[1]!;
+  const at = ref.lastIndexOf("@");
+  if (at <= 0) return null;
+  const name = ref.slice(0, at);
+  const version = ref.slice(at + 1);
+  const sha = /^[0-9a-f]{40}$/.test(version);
+  const comment = /#\s*v(\d+)(?:\.\d+)*/.exec(line);
+  const major = sha
+    ? comment
+      ? Number(comment[1])
+      : null
+    : /^v?(\d+)/.test(version)
+      ? Number(version.replace(/^v/, "").split(".")[0])
+      : null;
+  return { name, ref, sha, major };
+}
+
 /**
  * Check one job block (the YAML lines from the job header up to the next job).
  * Returns human-readable findings; an empty array means the job is clean.

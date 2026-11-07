@@ -37,6 +37,7 @@ Usage: ./scripts/push-pipeline.sh [options]
   --allow-stale-base      Classify the delta against a possibly stale origin.
   --full-tests            Always run the server harness suite.
   --auto-update           Execute the §6.7 update command.
+  --allow-secrets         Warn, do not block, on a staged secret-pattern match.
   --from <step>           Start at a step (inclusive).
   --only <step>           Run exactly one step.
   --stage <stage>         Run one stage: repo|tag|release|docs|deploy.
@@ -56,7 +57,7 @@ while [[ $# -gt 0 ]]; do
         --engine=*) ENGINE="${1#--engine=}" ;;
         --engine) shift; ENGINE="${1:-}" ;;
         --legacy) ENGINE="legacy" ;;
-        --dry-run|--yes|-y|--no-push|--allow-pending|--allow-untracked|--allow-missing-deploy|--allow-stale-base|--full-tests|--auto-update|--resume)
+        --dry-run|--yes|-y|--no-push|--allow-pending|--allow-untracked|--allow-missing-deploy|--allow-stale-base|--full-tests|--auto-update|--allow-secrets|--resume)
             ARGS+=("$1") ;;
         --from|--only|--stage)
             if [[ $# -lt 2 ]]; then

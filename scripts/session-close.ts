@@ -7,27 +7,40 @@
  * midnight date mismatch cannot recur), verifies the increment's AAR, runs the
  * fast gate suite, stages, records the gate run for the hooks, and commits.
  *
- * Usage: npx tsx scripts/session-close.ts [--date YYYY-MM-DD] [--increment <name>] [--dry-run]
+ * A spec increment stays one commit. A non-spec session is split by concern
+ * (`pipeline → server → config → misc → docs`), with docs last. The driver
+ * runs the fast suite once on the final tree, typechecks each code-bearing
+ * commit in a detached worktree, and asserts the final HEAD tree equals the
+ * tree the suite passed on.
+ *
+ * Usage: npx tsx scripts/session-close.ts [--date YYYY-MM-DD] [--increment <name>]
+ *        [--dry-run] [--split | --single]
  * Exit codes: 0 = committed (or nothing to commit); 1 = contract or gate
  * failure; 2 = fatal error.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleHelp, parseFlag, parseValueFlag, rejectUnknown } from "./lib/args.js";
+import { isSpecIncrement, planCommits, type CommitPlan } from "./lib/commit-plan.js";
 import { writeGateRun } from "./lib/gate-run-manifest.js";
 import { INCREMENTS_DIR, listIncrements, validateIncrements } from "./lib/loop-artifacts.js";
+import { collectStagedGuards } from "./lib/publish-guards.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const CHANGELOG = join(ROOT, "CHANGELOG.md");
 const DECISIONS = join(ROOT, "holonovel", "DECISIONS.md");
 
-const USAGE = `Usage: npx tsx scripts/session-close.ts [--date YYYY-MM-DD] [--increment <name>] [--dry-run]
+const USAGE = `Usage: npx tsx scripts/session-close.ts [--date YYYY-MM-DD] [--increment <name>]
+       [--dry-run] [--split | --single]
 
   --date        Session date (default: local today). Must match the top
                 CHANGELOG heading.
   --increment   Only validate this docs/plans increment (default: all).
-  --dry-run     Print the commit that would be made; change nothing.
+  --dry-run     Print the commit (and, for a split, the series); change nothing.
+  --split       Split a non-spec session by concern. Refused for a spec increment.
+  --single      Commit the whole staged tree as one commit.
   --help        Show this message.
 `;
 
@@ -67,16 +80,164 @@ function topEntry(text: string): Entry | null {
 }
 
 function git(args: string[]): string {
-  return execFileSync("git", args, { cwd: ROOT, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  return execFileSync("git", args, {
+    cwd: ROOT,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  }).trim();
+}
+
+function tryGit(args: string[]): string | null {
+  try {
+    return git(args);
+  } catch {
+    return null;
+  }
+}
+
+/** NUL-separated `git diff --cached --name-only` output. */
+function stagedPaths(): string[] {
+  return execFileSync("git", ["diff", "--cached", "--name-only", "-z"], {
+    cwd: ROOT,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  })
+    .split("\0")
+    .filter(Boolean);
+}
+
+/** The paths `git add -A` would stage, without mutating the index. */
+function workingPaths(): string[] {
+  const changed = execFileSync("git", ["diff", "--name-only", "-z", "HEAD"], {
+    cwd: ROOT,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  })
+    .split("\0")
+    .filter(Boolean);
+  const untracked = execFileSync("git", ["ls-files", "--others", "--exclude-standard", "-z"], {
+    cwd: ROOT,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  })
+    .split("\0")
+    .filter(Boolean);
+  return [...new Set([...changed, ...untracked])];
+}
+
+function needsTypecheck(paths: string[]): boolean {
+  return paths.some(
+    (path) => path.startsWith("scripts/") || path.startsWith("holonovel/src/") || path.startsWith("holonovel/scripts/"),
+  );
+}
+
+/** Typecheck one committed tree in a throwaway worktree. */
+function typecheckCommit(verifyDir: string): void {
+  rmSync(verifyDir, { recursive: true, force: true });
+  execFileSync("git", ["worktree", "add", "-q", "--detach", verifyDir, "HEAD"], {
+    cwd: ROOT,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  for (const modules of ["node_modules", join("holonovel", "node_modules")]) {
+    try {
+      symlinkSync(join(ROOT, modules), join(verifyDir, modules), "dir");
+    } catch {
+      // The link already exists (a repeated bucket) or the dependency tree is
+      // absent; the typecheck below reports the real failure.
+    }
+  }
+  const result = spawnSync("npm", ["run", "typecheck"], {
+    cwd: verifyDir,
+    stdio: "inherit",
+    shell: false,
+  });
+  execFileSync("git", ["worktree", "remove", "--force", verifyDir], {
+    cwd: ROOT,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.status !== 0) {
+    throw new Error("per-commit typecheck failed");
+  }
+}
+
+/**
+ * Apply the series. `finalTree` is the index tree the fast suite passed on.
+ * On any failure the history and index are rewound to `preHead`; the working
+ * tree keeps every change.
+ */
+function commitSeries(plan: CommitPlan, message: string): void {
+  const preHead = tryGit(["rev-parse", "HEAD"]);
+  const finalTree = git(["write-tree"]);
+  const verifyDir = mkdtempSync(join(tmpdir(), "session-close-typecheck-"));
+  try {
+    execFileSync("git", ["reset", "-q"], { cwd: ROOT, stdio: "inherit" });
+    for (let index = 0; index < plan.entries.length; index++) {
+      const entry = plan.entries[index];
+      const last = index === plan.entries.length - 1;
+      if (entry.paths.length === 0) continue;
+      execFileSync("git", ["add", "-A", "--", ...entry.paths], { cwd: ROOT, stdio: "inherit" });
+      if (git(["diff", "--cached", "--name-only"]) === "") continue;
+
+      if (last) {
+        const commit = spawnSync("git", ["commit", "-F", "-"], {
+          cwd: ROOT,
+          input: message,
+          encoding: "utf-8",
+          stdio: ["pipe", "inherit", "inherit"],
+        });
+        if (commit.status !== 0) throw new Error("final commit failed");
+      } else {
+        const commit = spawnSync("git", ["commit", "--no-verify", "-m", entry.subject], {
+          cwd: ROOT,
+          encoding: "utf-8",
+          stdio: ["inherit", "inherit", "inherit"],
+        });
+        if (commit.status !== 0) throw new Error(`commit failed: ${entry.subject}`);
+      }
+
+      if (!last && needsTypecheck(entry.paths)) {
+        typecheckCommit(verifyDir);
+      }
+    }
+
+    if (git(["status", "--porcelain"]) !== "") {
+      throw new Error("paths left uncommitted after the series");
+    }
+    const headTree = git(["rev-parse", "HEAD^{tree}"]);
+    if (headTree !== finalTree) {
+      throw new Error(`final tree ${headTree} does not match the gated tree ${finalTree}`);
+    }
+  } catch (error) {
+    if (preHead) {
+      try {
+        execFileSync("git", ["reset", "--soft", preHead], { cwd: ROOT, stdio: "ignore" });
+      } catch {
+        // The soft reset is best-effort; the original failure is the report.
+      }
+    }
+    rmSync(verifyDir, { recursive: true, force: true });
+    throw error;
+  }
+  rmSync(verifyDir, { recursive: true, force: true });
 }
 
 function main(): void {
   const argv = process.argv.slice(2);
   handleHelp(argv, USAGE);
-  rejectUnknown(argv, new Set(["--date", "--increment", "--dry-run", "--help", "-h"]), USAGE);
+  rejectUnknown(
+    argv,
+    new Set(["--date", "--increment", "--dry-run", "--split", "--single", "--help", "-h"]),
+    USAGE,
+  );
   const date = parseValueFlag(argv, "--date") ?? localToday();
   const increment = parseValueFlag(argv, "--increment");
   const dryRun = parseFlag(argv, "--dry-run");
+  const forceSplit = parseFlag(argv, "--split");
+  const forceSingle = parseFlag(argv, "--single");
+  if (forceSplit && forceSingle) {
+    console.error("session-close: --split and --single are mutually exclusive");
+    process.exit(1);
+  }
 
   if (!existsSync(CHANGELOG)) {
     console.error("session-close: CHANGELOG.md not found");
@@ -124,9 +285,22 @@ function main(): void {
 
   const subject = `${entry.date} — ${entry.title}`;
   const message = entry.body ? `${subject}\n\n${entry.body}\n` : `${subject}\n`;
+  const preview = planCommits(workingPaths(), entry.date, entry.title);
+  if (forceSplit && preview.mode === "single") {
+    console.error("session-close: a spec increment stays one commit; --split is refused");
+    process.exit(1);
+  }
+  const mode = forceSingle ? "single" : forceSplit ? "split" : preview.mode;
 
   if (dryRun) {
-    console.log(`session-close (dry run): would commit as:\n\n${message}`);
+    console.log(`session-close (dry run): mode=${mode}`);
+    console.log(`\n${message}`);
+    if (mode === "split") {
+      console.log("Series:");
+      for (const plannedEntry of preview.entries) {
+        console.log(`  ${plannedEntry.subject} (${plannedEntry.paths.length} path(s))`);
+      }
+    }
     process.exit(0);
   }
 
@@ -146,8 +320,14 @@ function main(): void {
   }
 
   execFileSync("git", ["add", "-A"], { cwd: ROOT, stdio: "inherit" });
-  const staged = git(["diff", "--cached", "--name-only"]);
-  if (!staged) {
+  const guards = collectStagedGuards(ROOT);
+  if (guards.problems.length > 0) {
+    for (const problem of guards.problems) console.error(`session-close: BLOCKED: ${problem}`);
+    console.error("session-close: staging guards failed — nothing committed");
+    process.exit(1);
+  }
+  const paths = stagedPaths();
+  if (paths.length === 0) {
     console.log("session-close: nothing to commit");
     process.exit(0);
   }
@@ -156,18 +336,30 @@ function main(): void {
   // skips work that already ran on this exact tree.
   writeGateRun("fast", startedAt, finishedAt, "pass");
 
-  const commit = spawnSync("git", ["commit", "-F", "-"], {
-    cwd: ROOT,
-    input: message,
-    encoding: "utf-8",
-    stdio: ["pipe", "inherit", "inherit"],
-  });
-  if (commit.status !== 0) {
-    console.error("session-close: git commit failed");
+  if (mode === "single") {
+    const commit = spawnSync("git", ["commit", "-F", "-"], {
+      cwd: ROOT,
+      input: message,
+      encoding: "utf-8",
+      stdio: ["pipe", "inherit", "inherit"],
+    });
+    if (commit.status !== 0) {
+      console.error("session-close: git commit failed");
+      process.exit(1);
+    }
+    console.log(`session-close: committed ${git(["log", "-1", "--format=%h %s"])}`);
+    return;
+  }
+
+  const splitPlan = planCommits(paths, entry.date, entry.title);
+  try {
+    commitSeries(splitPlan, message);
+  } catch (error) {
+    console.error(`session-close: split commit series failed — ${(error as Error).message}`);
     process.exit(1);
   }
-  const head = git(["log", "-1", "--format=%h %s"]);
-  console.log(`session-close: committed ${head}`);
+  console.log("session-close: committed series");
+  console.log(git(["log", "--format=%h %s", "-n", String(splitPlan.entries.length)]));
 }
 
 try {

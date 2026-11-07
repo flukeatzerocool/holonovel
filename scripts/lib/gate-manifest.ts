@@ -54,6 +54,18 @@ const RAW_GATES: Gate[] = [
     full: npm("test:script-tooling"),
   },
   {
+    name: "test:workflows",
+    description: "Self-tests for the CI workflow pin and job-hygiene detectors",
+    fast: npm("test:workflows"),
+    full: npm("test:workflows"),
+  },
+  {
+    name: "test:commit-plan",
+    description: "Self-tests for the session commit planner and subject hook",
+    fast: npm("test:commit-plan"),
+    full: npm("test:commit-plan"),
+  },
+  {
     name: "test:ruleset-gates",
     description: "Self-tests for the ruleset package gates",
     fast: npm("test:ruleset-gates"),

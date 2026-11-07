@@ -596,13 +596,11 @@ if $HAS_COMMIT; then
     if [[ "$(printf '%s\n' "$COMMIT_MSG" | sed -n '1p')" != "## $COMMIT_DATE"* ]]; then
       echo -e "${YELLOW}  WARNING: top CHANGELOG entry is not dated $COMMIT_DATE — add today's entry.${NC}"
     fi
-    printf '%s\n' "$COMMIT_MSG" > "$STATE_SNAPSHOT/commit-message.txt"
+    printf '%s\n' "$COMMIT_MSG" | sed '1s/^## //' > "$STATE_SNAPSHOT/commit-message.txt"
     git commit -F "$STATE_SNAPSHOT/commit-message.txt"
   else
     echo -e "${YELLOW}  WARNING: no dated CHANGELOG entry found — using the mechanical message.${NC}"
-    git commit -m "Push pipeline $COMMIT_DATE
-
-  Build-order: spec assembled, checked, propagated to server, server
+    git commit -m "$COMMIT_DATE — Push pipeline" -m "Build-order: spec assembled, checked, propagated to server, server
   typechecked, versions synced. Spec-delta confirms sync. Stored spec hashes
   updated in DECISIONS.md."
   fi
