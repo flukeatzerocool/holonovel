@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-07 — Refresh Holosuite predicate anchors
+
+- Re-pointed every `file:line` predicate anchor in the Holosuite tiers
+  (`holosuite-invariants`, `holosuite-adversarial`, `holosuite-novel`,
+  `holosuite-conformance`, `holosuite-differential`) at the symbol its comment
+  names. Three anchors had landed on an empty line, a lone closing brace, and a
+  comment, so `test:holosuite-invariants` and `test:holosuite-adversarial`
+  failed with P1 `predicate_unresolved` findings; twelve more resolved by
+  accident while citing unrelated code.
+- `holosuite-conformance` now cites `buildRecord` for the tool-definitions
+  artifact and `err()` for the negative-probe envelope instead of a shebang.
+- No behavior change: the resolver's existence/range/plausibility contract and
+  every assertion are unchanged; the anchors are evidence citations only.
+
 ## 2026-11-07 — Materialize lore visibility (REQ-083d–REQ-083f)
 
 - Lore entries now carry `visibility` (`gm_only` | `shared` |
