@@ -91,7 +91,14 @@ export function migrateNovelData(data: any): any {
   if (data.lore) {
     out.lore = Object.fromEntries(
       Object.entries(data.lore).map(([k, v]: [string, any]) => [
-        k, { ...v, badge_scope: v.badge_scope ?? v.hat_scope ?? "game_master" },
+        k, {
+          ...v,
+          badge_scope: v.badge_scope ?? v.hat_scope ?? "game_master",
+          // REQ-083f — a legacy entry without visibility follows the gm_only
+          // rule; known_by starts empty until a reveal records an entity.
+          visibility: v.visibility ?? "gm_only",
+          known_by: Array.isArray(v.known_by) ? v.known_by : [],
+        },
       ]),
     );
   }
@@ -157,6 +164,11 @@ location?: string;
   codex_source?: { id: string; kind: string; imported_at: string; codex_modified_at: string };
 }
 
+// REQ-083d — read-access value for a lore entry. `badge_scope` remains the
+// briefing presentation priority (REQ-083e); `visibility` gates Player read
+// access.
+export type LoreVisibility = "gm_only" | "shared" | "player_discovered";
+
 export interface LoreEntry {
   key: string;
   content: string;
@@ -167,6 +179,11 @@ export interface LoreEntry {
   sticky_remaining: number;
   enabled: boolean;
   group?: string;
+  // REQ-083d — gm_only (default), shared, or player_discovered. Entries with
+  // no field follow the gm_only backward-compatibility rule (REQ-083f).
+  visibility: LoreVisibility;
+  // REQ-083f — entity ids that learned the entry via manage_lore (reveal).
+  known_by: string[];
   // REQ-333 — provenance for promoted story journal entries.
   source?: string;
   // REQ-328 — lore-world coupling: world-model target that triggers the entry

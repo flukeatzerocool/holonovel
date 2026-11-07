@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,165 tokens; standard 23,567; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,228 tokens; standard 23,630; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,26 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Lore visibility read gate — 2026-11-07
+
+- **D1 — `visibility` gates lore read access; `badge_scope` remains
+  presentation priority.** A single read gate avoids two overlapping access
+  checks; REQ-350 background matching still uses `badge_scope` for
+  presentation. (REQ-083d, REQ-083e)
+- **D2 — A new entry without `visibility` is `gm_only`; legacy entries migrate
+  to `gm_only`.** REQ-083f's backward-compatibility rule governs persisted
+  entries with no field. Pre-existing shared-scope lore must be re-scoped with
+  `manage_lore (action: update, visibility="shared")` or `reveal`. (REQ-083d,
+  REQ-083f)
+- **D3 — The presence gate applies to Player and Observer surfaces; the GM
+  sees all lore.** REQ-083d scopes exclusion to Player, the GM must narrate
+  GM-only material, and REQ-366 defines Observer as non-GM. (REQ-083f,
+  REQ-366)
+- **D4 — `known_by` records reveal recipients.** `manage_lore (action: reveal)`
+  on a lore key sets `player_discovered` and appends the entity; reveal on a
+  secret key keeps its existing branch and perception record. (REQ-083d,
+  REQ-083f, REQ-308b)
 
 ### Publication engine retirement — 2026-11-07
 

@@ -825,6 +825,23 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
   return out;
 }
 
+// REQ-083d/083e — `visibility` gates lore read access; `badge_scope` remains
+// the briefing presentation priority. The GM and Editor badges see every
+// entry; Player and Observer see shared and player-discovered entries
+// (REQ-366 keeps Observer out of GM-only surfaces).
+function loreVisible(entry: LoreEntry, badge: Badge): boolean {
+  if (badge === "game_master" || badge === "none") return true;
+  return entry.visibility === "shared" || entry.visibility === "player_discovered";
+}
+
+// REQ-083f — gm_only/player_discovered entries fire only when a knowing entity
+// attends the scene; shared entries fire on keyword match regardless.
+function lorePresenceSatisfied(novel: NovelState, entry: LoreEntry): boolean {
+  if (entry.visibility === "shared") return true;
+  const present = new Set(novel.characters_present_ids ?? []);
+  return (entry.known_by ?? []).some((id) => present.has(id));
+}
+
 // REQ-286 — knowledge_state section: revealed secrets, participant relationships,
 // presence-scoped lore, background knowledge, discovered consequences. Badge-filtered.
 function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): string {
@@ -847,7 +864,16 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
 
   // Presence-scoped shared lore (REQ-286/308): lore triggered while entity present.
   for (const [, entry] of novel.lore) {
-    if (!entry.enabled || entry.badge_scope !== "shared") continue;
+    if (!entry.enabled || entry.visibility !== "shared") continue;
+    const triggered = entry.triggers.some((t) => novel.scene_description.toLowerCase().includes(t.toLowerCase()));
+    if (triggered && present) lines.push(`Lore: [${entry.key}] ${entry.content}`);
+  }
+
+  // REQ-083d/083f — discovered lore is per-entity knowledge. It renders only
+  // for an entity recorded by reveal, and only while that entity attends.
+  for (const [, entry] of novel.lore) {
+    if (!entry.enabled || entry.visibility !== "player_discovered") continue;
+    if (!(entry.known_by ?? []).includes(activeId)) continue;
     const triggered = entry.triggers.some((t) => novel.scene_description.toLowerCase().includes(t.toLowerCase()));
     if (triggered && present) lines.push(`Lore: [${entry.key}] ${entry.content}`);
   }
@@ -872,7 +898,7 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
     // REQ-350 — background lore triggering: match background tokens against shared lore triggers.
     const bgTokens = background.toLowerCase().split(/\s+/).filter((t: string) => t.length > 3);
     for (const [, entry] of novel.lore) {
-      if (!entry.enabled || entry.badge_scope !== "shared") continue;
+      if (!entry.enabled || entry.visibility !== "shared") continue;
       const matched = entry.triggers.find((t: string) => bgTokens.some((bt: string) => bt.includes(t.toLowerCase()) || t.toLowerCase().includes(bt)));
       if (matched) lines.push(`[background-relevant] ${entry.key} (matched "${matched}")`);
     }
@@ -956,7 +982,7 @@ function composeClearedFacts(novel: NovelState, role: NarrativeRole): ClearedFac
   if (isGM) {
     for (const s of novel.secrets) gm_only.push(`Secret: ${s.key} — ${s.content}`);
     for (const [, entry] of novel.lore) {
-      if (entry.enabled && entry.badge_scope === "game_master") gm_only.push(`Lore: [${entry.key}] ${entry.content}`);
+      if (entry.enabled && entry.visibility !== "shared") gm_only.push(`Lore: [${entry.key}] ${entry.content}`);
     }
     for (const note of novel.notes) {
       if (note.badge_scope === "game_master") gm_only.push(`Note: [${note.key}] ${note.content}`);
@@ -1081,9 +1107,15 @@ function collectVisibilityTargets(novel: NovelState): VisibilityTarget[] {
     targets.push({ kind: "secret content", phrase: s.content, key: false });
   }
   for (const [, entry] of novel.lore) {
-    if (!entry.enabled || entry.badge_scope !== "game_master") continue;
-    targets.push({ kind: "GM-only lore key", phrase: entry.key, key: true });
-    targets.push({ kind: "GM-only lore content", phrase: entry.content, key: false });
+    if (!entry.enabled) continue;
+    // REQ-083d/083f — GM-only lore is always a leak target; player-discovered
+    // lore is a target for an entity that did not learn it.
+    const gmOnly = entry.visibility === "gm_only";
+    const undiscovered = entry.visibility === "player_discovered" && !(activeId && entry.known_by.includes(activeId));
+    if (!gmOnly && !undiscovered) continue;
+    const kind = gmOnly ? "GM-only lore" : "undiscovered lore";
+    targets.push({ kind: `${kind} key`, phrase: entry.key, key: true });
+    targets.push({ kind: `${kind} content`, phrase: entry.content, key: false });
   }
   for (const note of novel.notes) {
     if (note.badge_scope !== "game_master") continue;
@@ -2462,6 +2494,10 @@ function materializeAnnotations(
       content: directive.content,
       triggers: [wanted],
       badge_scope: "shared",
+      // REQ-083d — module lore is player-facing content; state the read gate
+      // explicitly rather than relying on the gm_only default.
+      visibility: "shared",
+      known_by: [],
       priority: 0,
       sticky: 0,
       sticky_remaining: 0,
@@ -6158,6 +6194,7 @@ server.registerTool("manage_npc", {
             if (novel.lore.has(key)) continue;
             novel.lore.set(key, {
               key, content: e.content, triggers: keys, badge_scope: "game_master",
+              visibility: "gm_only", known_by: [],
               priority: 0, sticky: 0, sticky_remaining: 0, enabled: true, group: `imported:${data.name}`,
             });
           }
@@ -6360,6 +6397,7 @@ const MANAGE_LORE_SCHEMA = {
     content: z.string().optional().describe("Lore content (set/update)."),
     triggers: z.array(z.string()).optional().describe("Optional recall triggers (set/update)."),
     badge_scope: z.enum(["game_master", "shared"]).optional().describe("game_master or shared (set/update)."),
+    visibility: z.enum(["gm_only", "shared", "player_discovered"]).optional().describe("gm_only (default), shared, or player_discovered — Player read access (set/update; reveal sets player_discovered)."),
     priority: z.number().optional().describe("Optional priority (set/update)."),
     sticky: z.number().optional().describe("Optional sticky weight (set/update)."),
     group: z.string().nullable().optional().describe("Group name, or null to clear (set/update/group)."),
@@ -6390,7 +6428,7 @@ const CORPUS_PARAMS = {
 server.registerTool("manage_lore", {
   _meta: { deprecated: true, replacement: "manage_corpus" },
   title: "Lore Management",
-  description: "Manage the active Novel's lore entries — durable world facts every caller recalls. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a dry-run; merge overwrites colliding keys and keeps entries not in the import, and replace clears first. Triggers fire when scene text contains them; sticky counts scenes an entry stays active after its last match. Lore mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling what an entity knows. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference documents — use manage_corpus; storing scratch notes — use manage_note.",
+  description: "Manage the active Novel's lore entries — durable facts every caller recalls. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible facts. import defaults to dry-run; merge overwrites colliding keys and keeps entries not in the import; replace clears first. Triggers fire on scene-text match; sticky counts scenes an entry stays active after its last match. visibility gates Player read access (gm_only default, shared, player_discovered). Mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling knowledge. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference documents — use manage_corpus; storing scratch notes — use manage_note.",
   inputSchema: MANAGE_LORE_SCHEMA,
 }, async (args: any) => {
   // REQ-581 — retired on manage_lore, but manage_corpus delegates to this
@@ -6401,7 +6439,7 @@ server.registerTool("manage_lore", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const { key, content, triggers, badge_scope, priority, sticky, group, world_target } = args;
+      const { key, content, triggers, badge_scope, priority, sticky, group, world_target, visibility } = args;
       const existingLore = novel.lore.get(key);
       const entry: LoreEntry = {
         key,
@@ -6414,6 +6452,9 @@ server.registerTool("manage_lore", {
         enabled: existingLore?.enabled ?? true,
         group: group ?? existingLore?.group,
         world_target: world_target ?? existingLore?.world_target,
+        // REQ-083d — a new entry without visibility defaults to gm_only.
+        visibility: visibility ?? existingLore?.visibility ?? "gm_only",
+        known_by: existingLore?.known_by ?? [],
       };
       // REQ-129b1 — lore cardinality applies to new entries; updates upsert.
       if (!novel.lore.has(key)) {
@@ -6430,12 +6471,13 @@ server.registerTool("manage_lore", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const { key, content, triggers, badge_scope, priority, sticky, group } = args;
+      const { key, content, triggers, badge_scope, priority, sticky, group, visibility } = args;
       const entry = novel.lore.get(key);
       if (!entry) return err("NOT_FOUND", `Lore entry '${key}' not found.`);
       if (content !== undefined) entry.content = content;
       if (triggers !== undefined) entry.triggers = triggers;
       if (badge_scope !== undefined) entry.badge_scope = badge_scope;
+      if (visibility !== undefined) entry.visibility = visibility;
       if (priority !== undefined) entry.priority = priority;
       if (sticky !== undefined) { entry.sticky = sticky; entry.sticky_remaining = sticky; }
       if (group !== undefined) { if (group === null) delete entry.group; else entry.group = group; }
@@ -6485,11 +6527,12 @@ server.registerTool("manage_lore", {
       const novel = requireNovel();
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
-      // REQ-445 — error-value disclosure control: GM-only lore is invisible to
-      // the Player/observer badge; the listing carries no GM-only content.
-      const visible = [...novel.lore.values()].filter((e) => isGM || e.badge_scope !== "game_master");
+      // REQ-445/REQ-083d — read access follows visibility; a GM-only entry is
+      // invisible to the Player/observer badge and the listing carries no
+      // GM-only content.
+      const visible = [...novel.lore.values()].filter((e) => loreVisible(e, badge));
       if (wantsDetail(args.detail)) {
-        const rows = visible.map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, enabled: e.enabled });
+        const rows = visible.map((e) => isGM ? e : { key: e.key, content: e.content, badge_scope: e.badge_scope, visibility: e.visibility, enabled: e.enabled });
         return raw(JSON.stringify(rows, null, 2));
       }
       return raw(JSON.stringify(summaryEntries("lore", visible), null, 2));
@@ -6497,10 +6540,11 @@ server.registerTool("manage_lore", {
     case "get": {
       const novel = requireNovel();
       const entry = novel.lore.get(args.key);
-      // REQ-445 — a GM-only entry is indistinguishable from an absent one under
-      // the Player/observer badge: the miss response reveals no existence.
+      // REQ-445/REQ-083d — an unreadable entry is indistinguishable from an
+      // absent one under the Player/observer badge: the miss reveals no
+      // existence.
       const badge = getBadge();
-      if (!entry || (entry.badge_scope === "game_master" && (badge === "player" || badge === "observer"))) {
+      if (!entry || !loreVisible(entry, badge)) {
         return err("NOT_FOUND", `Lore entry '${args.key}' not found.`);
       }
       return raw(JSON.stringify(entry, null, 2));
@@ -6521,7 +6565,8 @@ server.registerTool("manage_lore", {
       }
       return raw(JSON.stringify(entries.map(e => ({
         key: e.key, content: e.content, triggers: e.triggers,
-        badge_scope: e.badge_scope, priority: e.priority, sticky: e.sticky,
+        badge_scope: e.badge_scope, visibility: e.visibility, known_by: e.known_by,
+        priority: e.priority, sticky: e.sticky,
         enabled: e.enabled, group: e.group,
       })), null, 2));
     }
@@ -6539,7 +6584,11 @@ server.registerTool("manage_lore", {
         for (const e of parsed) {
           novel.lore.set(e.key, {
             key: e.key, content: e.content, triggers: e.triggers ?? [],
-            badge_scope: e.badge_scope ?? "game_master", priority: e.priority ?? 0,
+            badge_scope: e.badge_scope ?? "game_master",
+            // REQ-083d/083f — an imported entry without visibility is gm_only.
+            visibility: e.visibility ?? "gm_only",
+            known_by: Array.isArray(e.known_by) ? e.known_by : [],
+            priority: e.priority ?? 0,
             sticky: e.sticky ?? 0, sticky_remaining: e.sticky ?? 0,
             enabled: e.enabled ?? true, group: e.group,
           });
@@ -6562,7 +6611,17 @@ server.registerTool("manage_lore", {
       requireGM();
       const novel = requireNovel();
       const secret = novel.secrets.find(s => s.key === args.key);
-      if (!secret) return err("NOT_FOUND", `Secret '${args.key}' not found.`);
+      if (!secret) {
+        // REQ-083d/083f — reveal on a lore key marks the entry player-discovered
+        // and records the recipient as a knower for the presence gate.
+        const loreEntry = novel.lore.get(args.key);
+        if (!loreEntry) return err("NOT_FOUND", `Secret or lore entry '${args.key}' not found.`);
+        if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+        loreEntry.visibility = "player_discovered";
+        if (!loreEntry.known_by.includes(args.entity_id)) loreEntry.known_by.push(args.entity_id);
+        state.saveNovel(novel);
+        return ok(`Lore entry '${args.key}' revealed to '${args.entity_id}'.`);
+      }
       if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
       if (!secret.known_by.includes(args.entity_id)) secret.known_by.push(args.entity_id);
       // REQ-595 — an explicit reveal is a `told` perception for the recipient.
@@ -7495,6 +7554,7 @@ server.registerTool("manage_story", {
         key: targetKey, content: entry.entry,
         triggers: (entry.entry.match(/[A-Z][a-z]+/g) ?? []).slice(0, 5).map((w: string) => w.toLowerCase()),
         badge_scope: "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true,
+        visibility: "gm_only", known_by: [],
         source: `story_journal:${args.index}`,
       });
       state.recordMutation(novel, "promote_story_to_lore", "journal");
@@ -8251,7 +8311,7 @@ const handleCorpusActions = async (args: any) => {
 function gatherIndexSources(novel: NovelState): IndexSourceItem[] {
   const items: IndexSourceItem[] = [];
   for (const [key, l] of novel.lore) {
-    items.push({ id: `lore:${key}`, type: "lore", text: `${key} ${l.content} ${(l.triggers ?? []).join(" ")}`, scope: l.badge_scope === "game_master" ? "game_master" : "shared" });
+    items.push({ id: `lore:${key}`, type: "lore", text: `${key} ${l.content} ${(l.triggers ?? []).join(" ")}`, scope: l.visibility === "gm_only" ? "game_master" : "shared" });
   }
   for (const d of novel.corpus_documents) {
     items.push({ id: `corpus:${d.id}`, type: "corpus", text: `${d.title} ${d.body}`, scope: d.access_public ? "shared" : "game_master" });
@@ -8274,7 +8334,7 @@ function gatherGraphSources(novel: NovelState): GraphSourceSet {
   return {
     characters: [...novel.entities.values()].map((e) => ({ id: e.id, name: e.name, current_room: e.current_room })),
     npcs: [...novel.npcs.values()].map((n) => ({ id: n.id, name: n.name, location: n.location, room_id: n.room_id })),
-    lore: [...novel.lore.entries()].map(([key, l]) => ({ key, scope: l.badge_scope === "game_master" ? "game_master" : "shared" })),
+    lore: [...novel.lore.entries()].map(([key, l]) => ({ key, scope: l.visibility === "gm_only" ? "game_master" : "shared" })),
     factions: novel.factions.map((f) => ({ id: f.id, name: f.name, territory: f.territory })),
     rooms: [...novel.world.rooms.entries()].map(([id, r]) => ({ id, name: r.name })),
     relationships: novel.relationships.map((r) => ({ entity_a: r.entity_a, entity_b: r.entity_b, type: r.type })),
@@ -9306,7 +9366,7 @@ server.registerTool("manage_adventure", {
       const npc: any = { id: npcId, name: monster, description: `Encountered during: ${ctx}`, disposition: "hostile", location: ctx, conditions: [], condition_rounds: {} };
       novel.npcs.set(npcId, npc);
       const loreKey = `complication_${slugifyPremise(ctx)}`;
-      novel.lore.set(loreKey, { key: loreKey, content: complication, triggers: [ctx], badge_scope: "game_master", priority: 0, sticky: 0, sticky_remaining: 0, enabled: true });
+      novel.lore.set(loreKey, { key: loreKey, content: complication, triggers: [ctx], badge_scope: "game_master", visibility: "gm_only", known_by: [], priority: 0, sticky: 0, sticky_remaining: 0, enabled: true });
       state.saveNovel(novel);
       audit("generate_encounter", { context: ctx, npc_id: npcId, lore_key: loreKey });
       return ok(`Encounter generated (atomic batch, single undo target):\n\n**Scene:** ${sceneDesc}\n\n**NPC:** ${monster} (${npcId}, hostile)\n\n**Complication:** ${complication}\n\nUndo rolls back the scene, NPC, and lore entry together.`);
@@ -9634,7 +9694,8 @@ function redactNovelForPlayer(novel: any): any {
   for (const key of PLAYER_OMITTED_KEYS) delete out[key];
   if (out.lore && typeof out.lore === "object") {
     for (const key of Object.keys(out.lore)) {
-      if (out.lore[key]?.badge_scope === "game_master") delete out.lore[key];
+      // REQ-083d — the player-safe bundle carries only player-readable lore.
+      if ((out.lore[key]?.visibility ?? "gm_only") === "gm_only") delete out.lore[key];
     }
   }
   if (Array.isArray(out.notes)) out.notes = out.notes.filter((n: any) => n?.badge_scope !== "game_master");
@@ -11508,20 +11569,25 @@ server.registerResource("npc-voice", new ResourceTemplate("npc://{id}/voice_exam
 server.registerResource("lore-active", "lore://active", { title: "Active Lore" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "lore://active", text: "{}", mimeType: "application/json" }] };
-  const active = Object.fromEntries([...novel.lore.entries()].filter(([, l]) => l.enabled));
+  // REQ-083d — active lore honors the badge read gate.
+  const badge = getBadge();
+  const active = Object.fromEntries([...novel.lore.entries()].filter(([, l]) => l.enabled && loreVisible(l, badge)));
   return { contents: [{ uri: "lore://active", text: JSON.stringify(active), mimeType: "application/json" }] };
 });
 
 server.registerResource("lore-single", new ResourceTemplate("lore://{key}", { list: () => {
   const novel = state.activeNovel;
   if (!novel) return { resources: [] };
-  return { resources: [...novel.lore.keys()].map(k => ({ uri: `lore://${k}`, name: k })) };
+  // REQ-083d — the resource list does not reveal unreadable keys.
+  const badge = getBadge();
+  return { resources: [...novel.lore.entries()].filter(([, l]) => loreVisible(l, badge)).map(([k]) => ({ uri: `lore://${k}`, name: k })) };
 } }), { title: "Lore Entry" }, async (uri) => {
   const novel = state.activeNovel;
   const key = resourceKey(uri);
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const entry = novel.lore.get(key);
-  if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
+  // REQ-083d — an unreadable entry is indistinguishable from an absent one.
+  if (!entry || !loreVisible(entry, getBadge())) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   // REQ-425a/c — the lore entry honors the output format catalog (markdown
   // default, json, html).
   const fmt = resourceFormat(uri);
@@ -11680,7 +11746,7 @@ function buildNovelGraph(novel: NovelState, projection: string | undefined): Rec
   return {
     entities: [...novel.entities.values()].map(e => ({ id: e.id, name: e.name })),
     npcs: [...novel.npcs.values()].map(n => ({ id: n.id, name: n.name, disposition: n.disposition, location: n.location })),
-    lore_connections: [...novel.lore.values()].filter(l => l.enabled).map(l => ({ key: l.key })),
+    lore_connections: [...novel.lore.values()].filter(l => l.enabled && loreVisible(l, novel.badge)).map(l => ({ key: l.key })),
     secrets: revealedSecrets.map(s => ({ key: s.key, known_by: s.known_by })),
     factions: novel.factions.map(f => ({ id: f.id, name: f.name })),
   };
@@ -12168,6 +12234,8 @@ function materializeCodexEntry(
       novel.lore.set(key, {
         key, content: content.content ?? "", triggers: content.triggers ?? [],
         badge_scope: content.badge_scope ?? "game_master",
+        visibility: content.visibility ?? "gm_only",
+        known_by: Array.isArray(content.known_by) ? content.known_by : [],
         priority: content.priority ?? 0, sticky: 0, sticky_remaining: 0,
         enabled: true, codex_source: provenance,
       });
@@ -13239,11 +13307,15 @@ Commit every narratable change to state in the same turn you narrate it — scen
 You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel. Narrate from an omniscient perspective — you see all entity percepts, presence markers, and knowledge, but never GM-only surfaces (secrets, faction clocks, countdown positions, GM context).`;
     }
 
-    // Triggered lore
+    // Triggered lore. REQ-083d/083f — the GM sees every entry; Observer
+    // honors the non-GM read gate and the presence gate.
     const sceneText = novel.scene_description.toLowerCase();
     const triggered: string[] = [];
+    const loreIsGM = badge === "game_master";
     for (const [, entry] of novel.lore) {
       if (!entry.enabled) continue;
+      if (!loreIsGM && !loreVisible(entry, badge)) continue;
+      if (!loreIsGM && !lorePresenceSatisfied(novel, entry)) continue;
       for (const trigger of entry.triggers) {
         if (sceneText.includes(trigger.toLowerCase())) {
           triggered.push(`[${entry.key}] ${entry.content}`);

@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 108659,
+  "tools_list_bytes": 108910,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 108659,
-        "tokens": 27165
+        "bytes": 108910,
+        "tokens": 27228
       },
       "standard": {
         "tools": 37,
-        "bytes": 94266,
-        "tokens": 23567
+        "bytes": 94517,
+        "tokens": 23630
       },
       "small": {
         "tools": 6,
@@ -1185,8 +1185,8 @@
     {
       "name": "manage_lore",
       "title": "Lore Management",
-      "description": "Manage the active Novel's lore entries — durable world facts every caller recalls. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible knowledge. import defaults to a dry-run; merge overwrites colliding keys and keeps entries not in the import, and replace clears first. Triggers fire when scene text contains them; sticky counts scenes an entry stays active after its last match. Lore mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling what an entity knows. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference documents — use manage_corpus; storing scratch notes — use manage_note.",
-      "description_bytes": 960,
+      "description": "Manage the active Novel's lore entries — durable facts every caller recalls. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible facts. import defaults to dry-run; merge overwrites colliding keys and keeps entries not in the import; replace clears first. Triggers fire on scene-text match; sticky counts scenes an entry stays active after its last match. visibility gates Player read access (gm_only default, shared, player_discovered). Mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling knowledge. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference documents — use manage_corpus; storing scratch notes — use manage_note.",
+      "description_bytes": 1000,
       "action_enum": [
         "set",
         "update",
@@ -1203,7 +1203,7 @@
         "secret_list",
         "knowledge"
       ],
-      "param_count": 13,
+      "param_count": 14,
       "required": [
         "action"
       ],
@@ -1220,6 +1220,7 @@
         "priority": "Optional priority (set/update).",
         "sticky": "Optional sticky weight (set/update).",
         "triggers": "Optional recall triggers (set/update).",
+        "visibility": "gm_only (default), shared, or player_discovered — Player read access (set/update; reveal sets player_discovered).",
         "world_target": "Optional world-model target reference (set/set_secret)."
       },
       "output_fields": {
@@ -1233,10 +1234,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 14,
+        "paramCount": 15,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 14,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 15,
+        "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -1246,8 +1247,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3208,
-        "descriptionBytes": 960
+        "definitionBytes": 3459,
+        "descriptionBytes": 1000
       },
       "category": "",
       "gate": ""

@@ -11,6 +11,16 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+- **Lore `visibility` is specified and now implemented (resolved 2026-11-07):**
+  `LoreEntry` now carries `visibility` (`gm_only`/`shared`/`player_discovered`)
+  and `known_by`; `manage_lore` accepts `visibility`, reveal marks a lore entry
+  `player_discovered`, and read gating plus the REQ-083f presence gate cover
+  `badge_briefing`, `lore://active`, `lore://{key}`, `graph://novel`, list/get,
+  narrator clearance, player-safe export, campaign memory, and the draft scan.
+  T342 exercises the lifecycle, read gate, reveal, and presence gate; the
+  ROADMAP entry is removed. (REQ-083d–REQ-083f; predicate
+  `holonovel/src/core/state.ts:LoreEntry`.)
+
 - **Adventure-module hazard annotations were counted, never materialized
   (resolved 2026-11-07):** `convertSource` swallowed `@encounter`/`@trap`
   directives, left `annotations.encounter`/`.trap` empty, and reported a zeroed
@@ -861,12 +871,7 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Lore `visibility` is specified but absent (2026-11-07):** `LoreEntry`
-  carries `badge_scope` only, and `manage_lore (action: set/update)` accepts no
-  `visibility` parameter, while REQ-083d–REQ-083f state the
-  `gm_only`/`shared`/`player_discovered` field and presence-gated trigger
-  matching. Scheduled on ROADMAP. (REQ-083d; predicate
-  `holonovel/src/core/state.ts:LoreEntry`)
+_Nothing scheduled._
 
 
 ## Closed-P3 (recorded, no action)

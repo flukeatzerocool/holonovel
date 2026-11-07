@@ -319,7 +319,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_novel", { action: "create",  name: "player bundle" });
       await call(proc, "manage_lore", { action: "set",  key: "gm-secret", content: "the butler did it", badge_scope: "game_master" });
-      await call(proc, "manage_lore", { action: "set",  key: "shared-fact", content: "the town is walled", badge_scope: "shared" });
+      await call(proc, "manage_lore", { action: "set",  key: "shared-fact", content: "the town is walled", badge_scope: "shared", visibility: "shared" });
       await call(proc, "manage_note", { action: "set",  key: "gm-note", content: "hidden plan" });
       await call(proc, "manage_npc", { action: "create",  name: "Spymaster", mind: { private_journal: ["secret thought"] } });
       const playerBundle = JSON.parse(await call(proc, "manage_archive", { action: "export",  format: "json", scope: "player" }));

@@ -102,7 +102,7 @@ export function deriveCampaignTier(novel: NovelState, maxFacts: number, derivedA
   const facts: { text: string; ref: string; key: string }[] = [];
   for (const [key, lore] of novel.lore) {
     if (!lore.enabled) continue;
-    if (!gm && lore.badge_scope === "game_master") continue;
+    if (!gm && (lore.visibility ?? "gm_only") === "gm_only") continue;
     facts.push({ text: `lore ${key}: ${lore.content}`, ref: `lore:${key}`, key });
   }
   for (const faction of novel.factions) facts.push({ text: `faction ${faction.name}: ${faction.goals.join("; ")}`.trim(), ref: `faction:${faction.name}`, key: faction.name });

@@ -1279,6 +1279,72 @@ async function main() {
     await kill(p);
   });
 
+  // ── T342/REQ-083 — dynamic lore lifecycle + visibility read gate ──
+  await test("T342/REQ-083: dynamic lore lifecycle and visibility read gate", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t342-lore" });
+    await call(p, "set_badge", { badge: "game_master" });
+
+    // REQ-083a — trigger, disable, re-enable, remove.
+    await call(p, "manage_lore", { action: "set", key: "tavern_secret", content: "The barkeep is a retired assassin", triggers: ["tavern", "barkeep"] });
+    await call(p, "manage_scene", { action: "set", description: "The tavern is quiet" });
+    let brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "tavern_secret", "T342 lore set triggers");
+    await call(p, "manage_lore", { action: "toggle", key: "tavern_secret" });
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertNotContains(brief, "tavern_secret", "T342 toggle off removes lore");
+    await call(p, "manage_lore", { action: "toggle", key: "tavern_secret" });
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "tavern_secret", "T342 toggle on restores lore");
+    await call(p, "manage_lore", { action: "remove", key: "tavern_secret" });
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertNotContains(brief, "tavern_secret", "T342 remove clears lore");
+
+    // REQ-083d/083e — visibility gates Player read access; badge_scope does not.
+    await call(p, "manage_lore", { action: "set", key: "shared_fact", content: "The town is walled", triggers: ["town"], badge_scope: "game_master", visibility: "shared" });
+    const gmOnly = await call(p, "manage_lore", { action: "set", key: "gm_secret", content: "The mayor is a doppelganger", triggers: ["mayor"] });
+    assertContains(gmOnly, "created", "T342 default visibility is gm_only");
+
+    const created = await call(p, "manage_character", { action: "create", name: "Rogue" });
+    const id = (created.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1];
+    if (!id) throw new Error("T342 entity id missing: " + created);
+    await call(p, "manage_staging", { action: "presence", entity_ids: [id] });
+    await call(p, "manage_scene", { action: "set", description: "Inside the town walls, the mayor waits" });
+
+    await call(p, "set_badge", { badge: "player" });
+    const list = await call(p, "manage_lore", { action: "list" });
+    assertContains(list, "shared_fact", "T342 player list includes shared");
+    assertNotContains(list, "gm_secret", "T342 player list hides gm_only");
+    const get = await call(p, "manage_lore", { action: "get", key: "gm_secret" });
+    assertContains(get, "[NOT_FOUND]", "T342 player get hides gm_only");
+    const active = await proto(p, "resources/read", { uri: "lore://active" });
+    assertContains(active, "shared_fact", "T342 lore://active includes shared");
+    assertNotContains(active, "gm_secret", "T342 lore://active hides gm_only");
+    const graph = await proto(p, "resources/read", { uri: "graph://novel" });
+    assertContains(graph, "shared_fact", "T342 graph://novel includes shared");
+    assertNotContains(graph, "gm_secret", "T342 graph://novel hides gm_only");
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "shared_fact", "T342 player briefing includes shared");
+    assertNotContains(brief, "gm_secret", "T342 player briefing hides gm_only");
+
+    // REQ-083d/083f — reveal marks player_discovered and records the knower;
+    // the presence gate hides it when no knower attends.
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_lore", { action: "set", key: "well_secret", content: "The well leads to the undercity", triggers: ["well"] });
+    const revealed = await call(p, "manage_lore", { action: "reveal", key: "well_secret", entity_id: id });
+    assertContains(revealed, "revealed", "T342 reveal marks lore player_discovered");
+    await call(p, "manage_scene", { action: "set", description: "At the old well" });
+    await call(p, "set_badge", { badge: "player" });
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "well_secret", "T342 discovered lore fires with the knower present");
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_staging", { action: "presence", entity_ids: [] });
+    await call(p, "set_badge", { badge: "player" });
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertNotContains(brief, "well_secret", "T342 presence gate hides discovered lore without a knower");
+    await kill(p);
+  });
+
   await test("T307/REQ-231 + T322/REQ-263: per-module toggle and auto-trigger reporting", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w9e" });

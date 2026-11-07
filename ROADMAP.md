@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Materialize lore `visibility` (REQ-083d–REQ-083f)
-
-- Lore entries carry `badge_scope` but no `visibility` field, and `manage_lore`
-  accepts no `visibility` parameter, so REQ-083d's
-  `gm_only`/`shared`/`player_discovered` contract and REQ-083f's presence-gated
-  trigger matching are unimplemented. Add the field and parameter, route
-  read-access filtering through it, and extend T342.
-
-**Trigger:** the next lore or badge-filtering increment; closes when a
-`manage_lore (action: set)` entry with no `visibility` field is invisible to the
-Player badge, a `shared` entry is visible, and T342 asserts both.
-
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

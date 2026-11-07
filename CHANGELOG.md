@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-07 — Materialize lore visibility (REQ-083d–REQ-083f)
+
+- Lore entries now carry `visibility` (`gm_only` | `shared` |
+  `player_discovered`) and `known_by`. `manage_lore (action: set|update)`
+  accepts `visibility`; a new entry without it defaults to `gm_only`, and
+  `manage_lore (action: reveal)` on a lore key marks the entry
+  `player_discovered` and records the recipient for the presence gate.
+- Player read access follows `visibility` rather than `badge_scope`:
+  `badge_briefing`, `lore://active`, `lore://{key}`, `graph://novel`,
+  `manage_lore (action: list|get)`, narrator clearance, player-safe export,
+  campaign memory, the semantic index, and the REQ-599 draft scan now agree.
+  `badge_scope` remains the briefing presentation priority (REQ-083e).
+- REQ-083f trigger matching honors `characters_present` for `gm_only` and
+  `player_discovered` entries on Player and Observer surfaces; the GM badge
+  sees every entry. Appendix L carries both fields through export/import.
+- Behavior change: entries persisted without `visibility` migrate to
+  `gm_only`, so previously shared-scope lore becomes GM-only until re-scoped
+  with `manage_lore (action: update, visibility="shared")` or `reveal`
+  (REQ-083f backward compatibility).
+- New T342 assertions cover the lifecycle, the three named surfaces, reveal,
+  and the presence gate; the coverage register now binds T342 to REQ-083 and
+  REQ-307. Tool surface tokens re-baselined (full 27,228; standard 23,630).
+
 ## 2026-11-07 — Retire the legacy publication engine
 
 - `scripts/push-pipeline-legacy.sh` and the `--engine`/`--legacy`/`PUSH_ENGINE`
