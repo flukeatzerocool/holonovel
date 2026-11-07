@@ -603,6 +603,21 @@ dated entries below record changes to this list.
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## Staging guards and atomic session commits, 2026-11-07
+
+- **Shared staging guards.** The publish path and `npm run session:close` apply
+  the same post-staging guards: a secret scan (reported as `path:line [kind]`,
+  never by value), a deny-list for runtime/build artifacts and credentials, a
+  fail-closed leftover check, and a git-identity check before any write.
+  `--allow-secrets` is a publish-path-only override; session close has none.
+- **Split-commit gate ownership.** A spec increment stays one commit. A
+  non-spec session splits by concern (`pipeline → server → config → misc →
+  docs`, docs last). The driver runs the fast suite once on the exact final
+  tree, typechecks each code-bearing commit in a detached worktree, and asserts
+  the final `HEAD^{tree}` equals the gated tree. Intermediate commits bypass
+  client hooks because the driver owns that gate; the final commit runs the
+  hooks normally. A failed series soft-resets to the pre-series HEAD.
+
 ## Update job — deployed user-data reconciliation (REQ-556), 2026-10-03
 
 Ran the §6.7 user-data reconciliation against the deployed instance at

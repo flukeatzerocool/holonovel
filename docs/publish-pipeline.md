@@ -21,13 +21,31 @@ engine; `--engine=next|legacy` overrides per run.
 | 2026-10-31 | Ship: `publish.yml` checked out at depth 1, so `spec-delta --base` had no ancestor and the verify job failed | full-history checkout; hermetic fixture for the delta self-test | `check-workflows` rule + `test-spec-tooling` repository fixture | re-run the mirror CI with a full checkout |
 | 2026-10-31 | CI installed server dependencies after `npm run check`, so the tool-definition gate died on `ERR_MODULE_NOT_FOUND` | install server dependencies before the gate | `check-workflows` dependency-order rule | re-run CI |
 
+## Staging guards
+
+`git add -A` is whole-tree, so the pipeline and `session:close` apply the same
+four guards after staging. A guard failure stops before the commit.
+
+| Guard | Failure it prevents | Test |
+|---|---|---|
+| Secret scan | An API key or private key enters history in a staged addition; matches are reported as `path:line [kind]`, never by value | `test:pipeline` (staged secret case) |
+| Deny-list | `node_modules/`, `dist/`, `.holonovel-state/`, local config, `.env*`, SQLite/key files, or an SSH key is committed | `test:pipeline` (deny-list case) |
+| Leftover check | A path stays unstaged or untracked after `git add -A`, so the commit silently under-ships the tree | `test:pipeline` (unit case) |
+| Identity guard | A commit is attempted with no `user.name`/`user.email` (fails in preflight before any write) | `test:pipeline` (missing-identity case) |
+
+`--allow-secrets` downgrades only the secret match to a warning on the publish
+path; `session:close` has no override.
+
 ## Rehearsal status
 
 The manual recovery column is the SRE requirement: an owner must have *executed*
 the fallback once, not merely believed it would work. Status as of 2026-11-07:
 
 - Rehearsed in the hermetic harness: preflight rejection, deploy-tree reset,
-  tag reuse, resume after a failed step, idempotent re-run.
+  tag reuse, resume after a failed step, idempotent re-run, the staging guards,
+  and partial ranges (`--stage repo`, `--from stage`, `--stage deploy`,
+  `--only commit`). A bounded run passes or fails loudly; it never exits 0
+  after skipping state it needed.
 - **Not yet rehearsed against a real remote:** the REQ-418 remote-identity
   recovery and the registry waiter. These are exercised only by a real publish;
   the first live run after adoption must record the recovery path it used, or

@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-07 — Workflow convergence: status, staging guards, and atomic commits
+
+- `npm run status` reports upstream, unpushed commits and their oldest age, the
+  last publish run, version against the latest tag, and the open roadmap count;
+  informational, and every unavailable source degrades instead of failing.
+- `.githooks/commit-msg` enforces the dated subject form, the 120-character
+  limit, and no trailing period; the legacy engine now strips the CHANGELOG
+  marker and date-stamps its fallback so the backout path still commits.
+- The Agent Operating Routine maps "commit", "push", "plan/build", and
+  "status" to the existing commands and fixes the split limits.
+- The publish path and `session:close` share four staging guards: secret scan
+  (path:line only, never the value), deny-list, fail-closed leftover check, and
+  git identity. `--allow-secrets` is publish-only.
+- The pipeline harness rehearses the guards and partial ranges (`--stage repo`,
+  `--from stage`, `--stage deploy`, `--only commit`); bounded runs recompute
+  required state or fail loudly, and a bounded commit no longer records a gate
+  pass it did not run.
+- CI pins `actions/checkout` and `actions/setup-node` to full SHAs with version
+  comments, `check-workflows` enforces that form, and `test:workflows` covers
+  the parser; the duplicate `Typecheck` step is gone from `ci.yml`.
+- `session:close` now keeps a spec increment atomic and splits a non-spec
+  session by concern (`pipeline → server → config → misc → docs`). It runs the
+  fast suite on the exact final tree, typechecks each code-bearing commit in a
+  worktree, and soft-resets the series if the final tree hash differs.
+- Baseline fix: CalVer advanced to `2026.11.07` (REQ-107a) and the README spec
+  markers were refreshed before the feature work.
+
 ## 2026-11-07 — Roadmap hygiene: scheduled work only
 
 - `ROADMAP.md` is now a to-do list. The two `Not planned` sections were

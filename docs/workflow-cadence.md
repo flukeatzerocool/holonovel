@@ -16,7 +16,9 @@ questions → research → plan → execute → AAR → fix if necessary → com
    `review-register.md` row, or an explicit record-and-close. A prose
    recommendation with no owner is not a finding.
 4. Close with `npm run session:close`. It derives the commit subject from the
-   CHANGELOG heading, verifies the AAR, runs the fast suite, and commits.
+   CHANGELOG heading, verifies the AAR, runs the fast suite, and commits. A spec
+   increment stays one commit; a non-spec session is split by concern with
+   docs/CHANGELOG last. `--single` is the explicit opt-out.
 
 **Push on demand, not on a schedule.** The obligation is a cost bound: a push
 must be resumable (`.holonovel-state/publish-run.json`, `--from`/`--only`/

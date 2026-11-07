@@ -185,6 +185,29 @@ push; until then `.wiki.git` does not exist and the push warns.
   All run in a single pass. Shape violations and spec violations are ERRORS
   under --sdd-strict; proofreading checks are WARNINGS.
 
+## Agent Operating Routine
+
+The maintainer's habits are fixed; the routine maps ordinary requests to the
+commands that already exist, so an agent does not choose a different path each
+session. These mappings are the standing agreement.
+
+- **"commit"** — run `npm run session:close`. It derives the subject from the
+  top CHANGELOG heading, verifies the increment's AAR, runs the fast suite, and
+  commits. A spec increment stays one commit; a non-spec session is split by
+  concern (`pipeline → server → config → misc → docs`, docs last). Report the
+  commit list. Stop and report rather than commit a failing tree.
+- **"push" / "commit and push" / "ship"** — run `./scripts/push-pipeline.sh`.
+  A bare "push" is explicit authorization to publish; a bare "commit" is not.
+- **"plan" / "build"** — run `npm run status` and `npm run check:fast` first
+  and report the baseline. A red baseline is fixed first, as its own commit,
+  never folded into the feature work.
+- **"status" / "what's left"** — `npm run status`.
+- **Split limits** — a spec increment is one commit. A non-spec session splits
+  by concern; keep the series at five commits or fewer (print the planned
+  grouping above that) and under roughly 300 changed lines per commit unless
+  the change is genuinely atomic. `--single` is an explicit opt-out, not the
+  default.
+
 ## Script discipline
 
 All scripts in this repository — the spec tooling in `scripts/`, the server
@@ -254,8 +277,8 @@ harness is a gate role; it must be wired into a `package.json` script
   swallow them. (Shebang, header, `set -euo pipefail`, exit codes, and the
   color-on-TTY guard are mechanically enforced; the flag parser and `--help`
   remain conventions.) CI additionally runs `shellcheck -S warning` over
-  `scripts/push-pipeline.sh` and the two git hooks; it is not a local
-  prerequisite.
+  `scripts/push-pipeline.sh` and the three git hooks (`pre-commit`,
+  `pre-push`, `commit-msg`); it is not a local prerequisite.
 
 ## Gates
 
@@ -293,6 +316,8 @@ This runs (the table is generated from the gate manifest):
 | `test:validators` | yes | yes | Self-tests for the REQ validator checks |
 | `test:spec-tooling` | yes | yes | Self-tests for spec-delta and assembly tooling |
 | `test:script-tooling` | yes | yes | Self-tests for the script discipline and quality detectors |
+| `test:workflows` | yes | yes | Self-tests for the CI workflow pin and job-hygiene detectors |
+| `test:commit-plan` | yes | yes | Self-tests for the session commit planner and subject hook |
 | `test:ruleset-gates` | yes | yes | Self-tests for the ruleset package gates |
 | `test:world-provider` | yes | yes | Gate the world://kinds provider payload |
 | `check-world-provider` | yes | yes | Generated world-provider document freshness |
