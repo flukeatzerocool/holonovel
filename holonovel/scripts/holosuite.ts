@@ -40,7 +40,7 @@ import { runNovel } from "./lib/holosuite-novel.js";
 import { runMutationAudit } from "./lib/holosuite-mutation.js";
 import { appendEvent, canonicalJson, summarize, type EvalFinding, type EvalProvenance, type TierResult } from "./lib/eval-schema.js";
 import { deriveCoverage, validateCoverage } from "./lib/eval-coverage.js";
-import { resolvePredicate } from "./lib/eval-predicate.js";
+import { anchor, resolvePredicate } from "./lib/eval-predicate.js";
 import { gitDirty, gitSha, specContentHash } from "./lib/eval-provenance.js";
 import { extractReqHeaders, readSpec } from "../../scripts/lib/parse-spec.js";
 
@@ -77,8 +77,8 @@ const TIER_REQS: Record<string, string[]> = {
   mutation: ["REQ-050", "REQ-141m"],
 };
 
-const P_TIER_REQS = "holonovel/scripts/holosuite.ts:71"; // TIER_REQS declaration
-const P_DETERMINISM = "holonovel/scripts/holosuite.ts:244"; // reportDigest (determinism comparison)
+const P_TIER_REQS = anchor("holonovel/scripts/holosuite.ts", 71, "TIER_REQS");
+const P_DETERMINISM = anchor("holonovel/scripts/holosuite.ts", 244, "reportDigest");
 
 interface Args {
   tier: Tier;

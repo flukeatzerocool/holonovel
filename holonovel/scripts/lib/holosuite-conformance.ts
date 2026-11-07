@@ -18,6 +18,7 @@ import { bootServer } from "./mcp-client.js";
 import { classifyResult } from "./eval-oracle.js";
 import { canonicalJson } from "./eval-schema.js";
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import { anchor } from "./eval-predicate.js";
 import type { TierResult } from "./eval-schema.js";
 
 interface ArtifactTool {
@@ -31,9 +32,9 @@ interface ArtifactTool {
 const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const PREDICATE_TOOLS = "holonovel/src/index.ts:157"; // TOOL_ANNOTATIONS map
-const PREDICATE_RESOURCES = "holonovel/src/index.ts:9487"; // first registerResource
-const PREDICATE_PROMPTS = "holonovel/src/index.ts:12962"; // first server.prompt
+const PREDICATE_TOOLS = anchor("holonovel/src/index.ts", 157, "TOOL_ANNOTATIONS");
+const PREDICATE_RESOURCES = anchor("holonovel/src/index.ts", 9487, "registerResource");
+const PREDICATE_PROMPTS = anchor("holonovel/src/index.ts", 12962, "prompt");
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");
@@ -41,7 +42,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
   const assert = assertionRecorder(ctx, "conformance");
 
   if (!existsSync(artifactPath)) {
-    assert("artifact_missing", false, `committed tool-definitions.json not found at ${artifactPath}`, 0, ["REQ-450"], "holonovel/scripts/generate-tool-definitions.ts:146");
+    assert("artifact_missing", false, `committed tool-definitions.json not found at ${artifactPath}`, 0, ["REQ-450"], anchor("holonovel/scripts/generate-tool-definitions.ts", 146, "buildRecord"));
     return { tier: "conformance", passed: ctx.passed, failed: ctx.failed, findings: ctx.findings, events: ctx.events };
   }
   const artifact = JSON.parse(readFileSync(artifactPath, "utf-8")) as { tools?: ArtifactTool[] };
@@ -166,7 +167,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
         `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`,
         step,
         ["REQ-570"],
-        "holonovel/src/index.ts:1604", // surfaceProfile
+        anchor("holonovel/src/index.ts", 1604, "surfaceProfile"),
       );
     } finally {
       await scoped.close();
@@ -188,7 +189,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       classified.prefix === "[?]" ? `negative probe returned unclassified output: ${probe.text.slice(0, 80)}` : `negative probe returned ${classified.prefix}`,
       step,
       ["REQ-001", "REQ-002"],
-      "holonovel/src/index.ts:2398", // err() envelope constructor
+      anchor("holonovel/src/index.ts", 2398, "err"),
     );
   } finally {
     await client.close();

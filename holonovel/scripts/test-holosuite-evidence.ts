@@ -40,25 +40,25 @@ function assert(cond: unknown, message: string): void {
 const ROOT = mkdtempSync(join(tmpdir(), "holosuite-evidence-"));
 try {
   const source = join(ROOT, "ok.ts");
-  writeFileSync(source, "const a = 1;\nexport function f() {}\n}\n// comment\n");
+  writeFileSync(source, "const a = 1;\nexport function f() {}\n}\n// comment\nconst foobar = 1;\n");
 
   test("recordAssertion emits one event and counts a pass", () => {
     const ctx = { findings: [], events: [], passed: 0, failed: 0 };
-    const ok = recordAssertion(ctx, "t", { name: "check", ok: true, detail: "fine", step: 1, req: ["REQ-001"], predicate: "ok.ts:2" });
+    const ok = recordAssertion(ctx, "t", { name: "check", ok: true, detail: "fine", step: 1, req: ["REQ-001"], predicate: "ok.ts:2#f" });
     assert(ok, "expected the assertion to return true");
     assert(ctx.passed === 1 && ctx.failed === 0, "expected one pass and no failure");
     assert(ctx.events.length === 1, "expected one event");
     const event = ctx.events[0] as { tool: string; req_ids: string[]; predicate?: string; is_error: boolean };
     assert(event.tool === "assertion", "event tool should be 'assertion'");
     assert(event.req_ids.join(",") === "REQ-001", "event should carry the REQ ids");
-    assert(event.predicate === "ok.ts:2", "event should carry the predicate");
+    assert(event.predicate === "ok.ts:2#f", "event should carry the predicate");
     assert(event.is_error === false, "passing event should not be an error");
     assert(ctx.findings.length === 0, "passing assertion should not emit a finding");
   });
 
   test("recordAssertion emits a finding with the requested severity on failure", () => {
     const ctx = { findings: [], events: [], passed: 0, failed: 0 };
-    const ok = recordAssertion(ctx, "t", { name: "bad", ok: false, detail: "broke", step: 2, req: ["REQ-002"], predicate: "ok.ts:1", severity: "P0" });
+    const ok = recordAssertion(ctx, "t", { name: "bad", ok: false, detail: "broke", step: 2, req: ["REQ-002"], predicate: "ok.ts:1#a", severity: "P0" });
     assert(!ok, "expected the assertion to return false");
     assert(ctx.failed === 1, "expected one failure");
     assert(ctx.findings.length === 1, "expected one finding");
@@ -68,22 +68,32 @@ try {
     assert(ctx.events[0]!.is_error === true, "failing event should be an error");
   });
 
-  test("parsePredicate accepts path:line and rejects malformed input", () => {
-    assert(parsePredicate("a/b.ts:12")?.line === 12, "should parse line 12");
-    assert(parsePredicate("a/b.ts") === null, "missing line should be rejected");
-    assert(parsePredicate("a/b.ts:0") === null, "line 0 should be rejected");
+  test("parsePredicate accepts path:line#symbol and rejects malformed input", () => {
+    assert(parsePredicate("a/b.ts:12#f")?.line === 12, "should parse line 12");
+    assert(parsePredicate("a/b.ts:12#f")?.symbol === "f", "should parse symbol f");
+    assert(parsePredicate("a/b.ts:12") === null, "missing symbol should be rejected");
+    assert(parsePredicate("a/b.ts#f") === null, "missing line should be rejected");
+    assert(parsePredicate("a/b.ts:0#f") === null, "line 0 should be rejected");
+    assert(parsePredicate("a/b.ts:12#not a symbol") === null, "malformed symbol should be rejected");
   });
 
-  test("resolvePredicate accepts a real code line", () => {
-    assert(resolvePredicate("ok.ts:2", ROOT).ok, "line 2 should resolve");
+  test("resolvePredicate accepts a real code line and its symbol", () => {
+    assert(resolvePredicate("ok.ts:2#f", ROOT).ok, "line 2 with symbol f should resolve");
   });
 
   test("resolvePredicate rejects missing, out-of-range, closing, and comment lines", () => {
-    assert(!resolvePredicate("missing.ts:1", ROOT).ok, "missing file should fail");
-    assert(!resolvePredicate("ok.ts:99", ROOT).ok, "past-EOF line should fail");
-    assert(!resolvePredicate("ok.ts:3", ROOT).ok, "closing brace should fail");
-    assert(!resolvePredicate("ok.ts:4", ROOT).ok, "comment-only line should fail");
-    assert(!resolvePredicate("../ok.ts:1", ROOT).ok, "escaping path should fail");
+    assert(!resolvePredicate("missing.ts:1#f", ROOT).ok, "missing file should fail");
+    assert(!resolvePredicate("ok.ts:99#f", ROOT).ok, "past-EOF line should fail");
+    assert(!resolvePredicate("ok.ts:3#f", ROOT).ok, "closing brace should fail");
+    assert(!resolvePredicate("ok.ts:4#f", ROOT).ok, "comment-only line should fail");
+    assert(!resolvePredicate("../ok.ts:1#f", ROOT).ok, "escaping path should fail");
+  });
+
+  test("resolvePredicate rejects a line that does not contain the symbol", () => {
+    assert(!resolvePredicate("ok.ts:1#f", ROOT).ok, "wrong line for the symbol should fail");
+    assert(!resolvePredicate("ok.ts:2#g", ROOT).ok, "wrong symbol for the line should fail");
+    assert(resolvePredicate("ok.ts:1#a", ROOT).ok, "line 1 does contain symbol a");
+    assert(!resolvePredicate("ok.ts:5#foo", ROOT).ok, "symbol must match a token, not a substring");
   });
 
   test("deriveCoverage counts assertion events only", () => {

@@ -20,20 +20,21 @@ import { bootServer } from "./mcp-client.js";
 import { classifyResult, fingerprintOf } from "./eval-oracle.js";
 import { persistedNovels } from "./eval-state.js";
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
+import { anchor } from "./eval-predicate.js";
 import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const P_ENVELOPE = "holonovel/src/world/parser.ts:26"; // dispatchCommand
-const P_VALIDATION = "holonovel/src/index.ts:4803"; // manage_world action enum
-const P_PROTOCOL = "holonovel/src/index.ts:1752"; // tool registry dispatch
-const P_DIAGNOSTICS = "holonovel/src/index.ts:9151"; // verify/replay handler
-const P_READONLY = "holonovel/src/core/state.ts:1739"; // snapshot handler
-const P_ARTIFACT = "holonovel/src/index.ts:10605"; // inboxSourcePath admission
-const P_SHARE = "holonovel/src/index.ts:9846"; // share format guard
-const P_RECAP = "holonovel/src/index.ts:8890"; // recap bounds guard
-const P_PROVENANCE = "holonovel/src/index.ts:9386"; // provenance-absent warning
-const P_IMPORT_INTEGRITY = "holonovel/src/index.ts:10005"; // strict integrity refusal
+const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 26, "dispatchCommand");
+const P_VALIDATION = anchor("holonovel/src/index.ts", 4803, "create_room");
+const P_PROTOCOL = anchor("holonovel/src/index.ts", 1752, "CallToolRequestSchema");
+const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 9151, "verify");
+const P_READONLY = anchor("holonovel/src/core/state.ts", 1739, "snapshot");
+const P_ARTIFACT = anchor("holonovel/src/index.ts", 10605, "inboxSourcePath");
+const P_SHARE = anchor("holonovel/src/index.ts", 9846, "share");
+const P_RECAP = anchor("holonovel/src/index.ts", 8890, "recap");
+const P_PROVENANCE = anchor("holonovel/src/index.ts", 9386, "provenance");
+const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 10005, "strictMode");
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {

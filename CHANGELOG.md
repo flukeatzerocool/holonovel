@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-07 — Enforce Holosuite predicate symbol identity
+
+- Predicate anchors are now `path:line#symbol`, and `resolvePredicate` rejects a
+  line that does not contain the symbol as an identifier token. This closes the
+  drift class where a stale line number landed on unrelated executable code and
+  the citation still resolved.
+- Every Holosuite anchor (`invariants`, `adversarial`, `novel`, `conformance`,
+  `differential`, and the runner's own `TIER_REQS`/`reportDigest`) now names its
+  symbol through the shared `anchor()` helper.
+- `test:holosuite-evidence` adds negative controls: a wrong line for the symbol,
+  a wrong symbol for the line, and a substring that is not a token all fail.
+
 ## 2026-11-07 — Refresh Holosuite predicate anchors
 
 - Re-pointed every `file:line` predicate anchor in the Holosuite tiers
