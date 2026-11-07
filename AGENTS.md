@@ -273,11 +273,15 @@ harness is a gate role; it must be wired into a `package.json` script
   detectors are self-tested by `test-script-tooling`.
 - Shell discipline: `set -euo pipefail`, a case-based flag parser, `--help`,
   color only on TTY. CI workflow steps rely on script exit codes and never
-  swallow them. (Shebang, header, `set -euo pipefail`, exit codes, and the
-  color-on-TTY guard are mechanically enforced; the flag parser and `--help`
-  remain conventions.) CI additionally runs `shellcheck -S warning` over
-  `scripts/push-pipeline.sh` and the three git hooks (`pre-commit`,
-  `pre-push`, `commit-msg`); it is not a local prerequisite.
+  swallow them. (Shebang, header, `set -euo pipefail`, exit codes, the
+  color-on-TTY guard, and unused color declarations are mechanically enforced;
+  the flag parser and `--help` remain conventions.) `check-script-discipline`
+  runs `shellcheck -S warning` over `scripts/push-pipeline.sh` and the three
+  git hooks (`pre-commit`, `pre-push`, `commit-msg`) whenever the tool is
+  installed, so a dead declaration fails locally before publication; a missing
+  `shellcheck` is a notice, not a failure, and stays out of the local
+  prerequisites. CI runs the same command unconditionally and remains the
+  authority.
 
 ## Gates
 

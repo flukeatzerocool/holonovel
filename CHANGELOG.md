@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-07 — Recover the shell-lint CI failure
+
+- `scripts/push-pipeline.sh` drops the `GREEN` color declaration the legacy
+  engine retirement left behind. `shellcheck -S warning` reported it as SC2034
+  and failed CI run 42409264303 after the uses moved into the step registry.
+- `check-script-discipline` now runs `shellcheck -S warning` over the shell
+  entry points whenever the tool is installed, against one discovered list
+  (`scripts/**/*.sh` plus every `.githooks` hook, now including `commit-msg`).
+  A missing `shellcheck` prints a notice and passes, so it stays a CI authority
+  rather than a new local prerequisite.
+- The same gate flags a color variable assigned an ANSI escape and never
+  referenced, so the SC2034 class (dead declaration after a refactor) is caught
+  by `check:fast` even on a machine without `shellcheck`.
+  `test-script-tooling` asserts both the finding and the clean case.
+
 ## 2026-11-07 — Enforce Holosuite predicate symbol identity
 
 - Predicate anchors are now `path:line#symbol`, and `resolvePredicate` rejects a
