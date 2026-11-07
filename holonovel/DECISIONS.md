@@ -8,6 +8,25 @@
 
 **Recorded surface budgets:** full 27,165 tokens; standard 23,567; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
+**Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
+
+## Non-goals
+
+Authoritative out-of-scope list. Each entry cites the governing requirement;
+dated entries below record changes to this list.
+
+- **Platform and delivery.** Hosted platform, multiplayer, discovery,
+  monetization, and a default HTTP/WebSocket transport are out of scope; the
+  single-user connection and no-runtime-network rules stay authoritative
+  (REQ-030, REQ-051). A domain-shaped transactional turn API and real-time or
+  rendered presentation are not planned. Revisit only with a concrete
+  requirement.
+- **Compact default tool surface.** A curated compact default remains rejected:
+  the tool-count dimension is 7.5% of the overall TDQS score, and the same
+  evaluator may read a compact default as incomplete. The full default stays;
+  improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
+  REQ-580)
+
 ### Rebuild evidence — 2026-10-31
 
 - **Update-deferred:** holonovel 2026-10-31 — the §6.7 rebuild for the

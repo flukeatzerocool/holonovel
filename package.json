@@ -21,6 +21,7 @@
     "check-script-quality": "npx tsx scripts/check-script-quality.ts",
     "test:script-tooling": "npx tsx scripts/test-script-tooling.ts",
     "check-workflows": "npx tsx scripts/check-workflows.ts",
+    "check-roadmap": "npx tsx scripts/check-roadmap.ts",
     "check-fingerprint-sync": "npx tsx scripts/check-fingerprint-sync.ts",
     "check-markers": "npx tsx scripts/cross-property-couple.ts --check",
     "spec-update-record": "npx tsx scripts/spec-update-record.ts",

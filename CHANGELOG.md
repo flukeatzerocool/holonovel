@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-07 — Roadmap hygiene: scheduled work only
+
+- `ROADMAP.md` is now a to-do list. The two `Not planned` sections were
+  standing facts, not work: the compact tool surface was already recorded as
+  the "Tool count decision", and the platform, multiplayer, monetization, and
+  transport boundary now lives in a stable `## Non-goals` list in
+  `holonovel/DECISIONS.md`. The roadmap's `## Non-goals` is a pointer only.
+  (REQ-030, REQ-051, REQ-429, REQ-554, REQ-580)
+- `npm run check-roadmap` enforces the whole contract — 1–3 bullets and a
+  `**Trigger:**` per work section; `## Non-goals` carries no bullets and must
+  resolve to the DECISIONS.md list; every entry there cites a governing REQ —
+  and is wired into both `check:fast` and `check`. The dry run surfaced two
+  missing `**Trigger:**` lines (publication-engine rehearsal, hazard
+  materialization), which now close on a named event; negative fixtures prove
+  the pointer and citation checks fail closed.
+- Trimmed "the roadmap admission rule" from the Infobroker convergence item,
+  since it ships here; `npm run status`, the `commit-msg` hook, the publish
+  guards, atomic commits, and CI pinning remain scheduled.
+
 ## 2026-11-06 — Two loops, one cadence: durable session artifacts and a resumable publication pipeline
 
 - Increment artifacts are tracked under `docs/plans/<date>-<slug>/` (`plan.md`,

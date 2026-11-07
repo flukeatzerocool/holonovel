@@ -96,6 +96,12 @@ const RAW_GATES: Gate[] = [
     full: npm("check-workflows"),
   },
   {
+    name: "check-roadmap",
+    description: "ROADMAP.md holds scheduled work only; the Non-goals pointer resolves",
+    fast: npm("check-roadmap"),
+    full: npm("check-roadmap"),
+  },
+  {
     name: "check-traceability",
     description: "DECISIONS.md register drift against registered tools",
     fast: npm("check-traceability"),
