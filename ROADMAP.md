@@ -12,20 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Rehearse the `next` publication engine on a real publish
-
-- The step registry is the default engine, but the harness only proves control
-  flow against a scratch remote. The first real publish must record which
-  recovery path it used (preflight rejection, deploy reset, tag reuse, resume),
-  or state that none was needed, in `docs/publish-pipeline.md`.
-- Delete the `scripts/push-pipeline-legacy.sh` engine and the deprecated
-  `HOLONOVEL_PIPELINE_GATES` bridge in the hooks once that run completes
-  without touching the recovery column.
-
-**Trigger:** the next real publish through the step-registry engine; closes when
-that run's recovery path is recorded in `docs/publish-pipeline.md` and the
-legacy engine is deleted.
-
 ## Materialize lore `visibility` (REQ-083d–REQ-083f)
 
 - Lore entries carry `badge_scope` but no `visibility` field, and `manage_lore`

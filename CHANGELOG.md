@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-07 — Retire the legacy publication engine
+
+- `scripts/push-pipeline-legacy.sh` and the `--engine`/`--legacy`/`PUSH_ENGINE`
+  selection are gone. `scripts/push-pipeline.sh` always delegates to the step
+  registry (`scripts/publish/run.ts`) and now owns the advisory
+  `push-pipeline.lock` that the legacy engine used to hold.
+- The deprecated `HOLONOVEL_PIPELINE_GATES` bridge left both git hooks; the
+  recorded gate-run manifest is the only skip signal.
+- The engine was retired before a live publish by maintainer decision. The
+  still-unrehearsed real-remote surfaces (REQ-418 remote-identity recovery and
+  the REQ-428 registry waiter) are recorded in `docs/publish-pipeline.md` and
+  `holonovel/DECISIONS.md`; the first live run must record its recovery path.
+  The ROADMAP rehearsal item is retired.
+
 ## 2026-11-07 — Adventure-module `@npc`/`@lore` annotations materialize
 
 - `manage_world (action: convert)` and `manage_adventure (action: load)` now

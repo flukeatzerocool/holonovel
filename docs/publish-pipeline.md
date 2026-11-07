@@ -4,10 +4,10 @@ Every entry below was a real publication failure. The rule this file exists to
 enforce: a failure produces a guarding test, not a comment. A `# NOTE:` in the
 script is not a regression test and not a rehearsal.
 
-`scripts/push-pipeline.sh` is the operator entry point. It delegates to
-`scripts/publish/run.ts` (step registry) or `scripts/push-pipeline-legacy.sh`
-(the previous monolith, kept as the backout path). `PUSH_ENGINE` selects the
-engine; `--engine=next|legacy` overrides per run.
+`scripts/push-pipeline.sh` is the operator entry point. It takes the advisory
+run lock and delegates to `scripts/publish/run.ts`, the ordered step registry.
+There is one engine: the previous monolith was deleted on 2026-11-07 (see
+"Engine history").
 
 | Date | Symptom | Fix | Guard | Manual recovery |
 |---|---|---|---|---|
@@ -47,14 +47,16 @@ the fallback once, not merely believed it would work. Status as of 2026-11-07:
   `--only commit`). A bounded run passes or fails loudly; it never exits 0
   after skipping state it needed.
 - **Not yet rehearsed against a real remote:** the REQ-418 remote-identity
-  recovery and the registry waiter. These are exercised only by a real publish;
-  the first live run after adoption must record the recovery path it used, or
-  state that it was not needed.
+  recovery and the REQ-428 registry waiter. The sole engine has not completed a
+  live publish yet. The first live run must record the recovery path it used, or
+  state that none was needed. The legacy backout engine was deleted before that
+  run by maintainer decision (see "Engine history"), so this evidence is owed
+  rather than optional.
 
-## Why the old engine is still present
+## Engine history
 
-The step registry is a direct port, but a publication path is only trustworthy
-after it has been exercised. `PUSH_ENGINE` now defaults to `next` because the
-hermetic harness passed twice (11/11 cases each run, 2026-11-07). The legacy
-engine stays as `PUSH_ENGINE=legacy` until one real publish completes without
-touching the recovery column.
+The legacy monolith (`scripts/push-pipeline-legacy.sh`) was the backout path
+after the step registry became the default. It was deleted on 2026-11-07 by
+maintainer decision, before the first live run of the sole engine. Backout is
+now `git revert` of the retirement commit; the recovery commands in the table
+above remain the operational fallback.

@@ -27,13 +27,6 @@ log_hook_event() {
 
 recorded=$(npx tsx scripts/run-gates.ts --recorded)
 
-# Deprecated bridge: the legacy engine (scripts/push-pipeline-legacy.sh) still
-# exports HOLONOVEL_PIPELINE_GATES. The run manifest supersedes it for the
-# step-registry engine; remove this block when the legacy engine is deleted.
-if [ -n "${HOLONOVEL_PIPELINE_GATES:-}" ]; then
-    recorded="${HOLONOVEL_PIPELINE_GATES}+publish"
-fi
-
 if [ "$recorded" = "none" ]; then
     log_hook_event ran "full"
 else

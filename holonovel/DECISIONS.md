@@ -27,6 +27,18 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Publication engine retirement — 2026-11-07
+
+- **Accepted tradeoff — no live rehearsal before retirement.** The step-registry
+  engine (`scripts/publish/run.ts`) is the sole publication path. Its REQ-418
+  remote-identity recovery and the REQ-428 registry waiter are exercised only by
+  a real publish. By maintainer decision the legacy backout engine
+  (`scripts/push-pipeline-legacy.sh`) and the deprecated
+  `HOLONOVEL_PIPELINE_GATES` hook bridge were deleted on 2026-11-07 without that
+  live run. Backout is `git revert` of the retirement commit, and the first live
+  run of the sole engine must record the recovery path it used in
+  `docs/publish-pipeline.md` (REQ-394, REQ-418, REQ-428).
+
 ### Rebuild evidence — 2026-10-31
 
 - **Update-deferred:** holonovel 2026-10-31 — the §6.7 rebuild for the

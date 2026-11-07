@@ -103,7 +103,6 @@ scripts/test-push-pipeline.ts   Hermetic publication-pipeline harness (scratch
 scripts/publish/preflight.ts    Publication preconditions, before any file write
 scripts/publish/steps.ts        Ordered, resumable publication step registry
 scripts/publish/run.ts          Pipeline driver (--from/--only/--stage/--resume)
-scripts/push-pipeline-legacy.sh Backout path for the previous pipeline engine
 holonovel/scripts/generate-world-provider.ts  Emit the world-model provider
                           document from schema constants (REQ-200, REQ-202a);
                           `--check` is a freshness gate

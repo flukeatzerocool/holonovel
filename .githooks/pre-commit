@@ -30,11 +30,6 @@ log_hook_event() {
 
 recorded=$(npx tsx scripts/run-gates.ts --recorded)
 
-# Deprecated bridge for the legacy engine; see .githooks/pre-push.
-if [ -n "${HOLONOVEL_PIPELINE_GATES:-}" ]; then
-    recorded="${HOLONOVEL_PIPELINE_GATES}"
-fi
-
 case "$recorded" in
     fast*|full*)
         log_hook_event skipped "$recorded"
