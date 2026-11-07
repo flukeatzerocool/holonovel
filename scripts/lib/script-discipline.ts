@@ -125,5 +125,19 @@ export function shellIssues(rel: string, content: string): string[] {
     issues.push(`${rel}: color without a TTY guard (add [[ -t 1 ]] or isatty)`);
   }
 
+  // A color variable assigned an ANSI escape and never referenced is shellcheck
+  // SC2034 — a declaration left behind by a refactor. Detect it here so the
+  // class is reachable without shellcheck installed: CI caught `GREEN` in
+  // push-pipeline.sh after its users moved into the step-registry driver.
+  const declaredColors = new Set<string>();
+  for (const m of content.matchAll(/([A-Za-z_][A-Za-z0-9_]*)=\$'(?:\\033|\\e|\\x1b)\[/g)) {
+    declaredColors.add(m[1]!);
+  }
+  for (const name of declaredColors) {
+    if (!new RegExp(`\\$\\{?${name}\\b`).test(content)) {
+      issues.push(`${rel}: color variable ${name} is assigned but never referenced (shellcheck SC2034)`);
+    }
+  }
+
   return issues;
 }

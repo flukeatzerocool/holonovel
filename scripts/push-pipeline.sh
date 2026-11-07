@@ -22,9 +22,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 
 if [[ -t 1 ]]; then
-    RED=$'\033[31m'; YELLOW=$'\033[33m'; GREEN=$'\033[32m'; NC=$'\033[0m'
+    RED=$'\033[31m'; YELLOW=$'\033[33m'; NC=$'\033[0m'
 else
-    RED=""; YELLOW=""; GREEN=""; NC=""
+    RED=""; YELLOW=""; NC=""
 fi
 
 usage() {

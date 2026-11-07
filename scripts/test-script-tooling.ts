@@ -102,6 +102,21 @@ exit 0
     "globally exported update-invocation switch detected"
   );
 
+  const colorFixture = `#!/usr/bin/env bash
+# demo.sh — bad fixture.
+set -euo pipefail
+if [[ -t 1 ]]; then
+    RED=$'\\033[31m'; GREEN=$'\\033[32m'; NC=$'\\033[0m'
+else
+    RED=""; GREEN=""; NC=""
+fi
+echo "\${RED}bad\${NC}"
+exit 0
+`;
+  const colorIssues = shellIssues("demo.sh", colorFixture);
+  check(has(colorIssues, "color variable GREEN is assigned but never referenced"), "unused color variable detected");
+  check(!has(colorIssues, "color variable RED"), "referenced color variable not flagged");
+
   // ── Quality: C4 REQ-header predicate ────────────────────────────────────
   check(isReqHeaderRegex("/\\*\\*(REQ-\\d{3}[a-z0-9]*\\s+—\\s+.+?)\\.\\*\\*/g"), "REQ-header regex recognized");
   check(!isReqHeaderRegex("/\\bREQ-(\\d{3}[a-z0-9]*)\\b/g"), "bare citation regex not flagged");
