@@ -5,6 +5,7 @@ export {
   createEmptyWorldModel,
   convertSource,
   linkAnnotations,
+  annotationName,
   worldMap,
   worldKinds,
   BASE_PARSER_COMMANDS,
@@ -17,6 +18,7 @@ export type {
   WorldModel,
   WorldRoom,
   WorldThing,
+  AnnotationDirective,
 } from "./model.js";
 export { dispatchCommand, resolveGoMovement } from "./parser.js";
 export type { ParserContext, ParserResult } from "./parser.js";

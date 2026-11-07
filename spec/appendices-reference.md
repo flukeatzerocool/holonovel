@@ -2535,9 +2535,20 @@ the hazard draws down. Quote a value that contains spaces. The optional `avoid`
 is the wax cost of detouring, used by the balance report. Prose after the
 clause — separated by an em dash or `--` — is guidance only.
 
-An `@npc` annotation creates a Novel-scoped NPC at the named room's location.
-An `@lore` annotation creates a Novel-scoped lore entry triggered when the
-player enters or examines the named object.
+An `@npc` annotation creates a Novel-scoped NPC at the named room's location;
+the prose after the clause becomes its description. The room is resolved by
+name, ignoring a leading "The". A name that duplicates an existing Novel NPC is
+skipped with a note (REQ-079d), a room that is not in the world model leaves a
+free-text location, and a group at its configured maximum is skipped with a
+warning (REQ-129b1).
+
+An `@lore` annotation creates a Novel-scoped lore entry whose key is the
+article-free target name and whose trigger keyword is that name. When the
+target resolves to a room or thing, the entry also carries `world_target` and
+fires on interaction (REQ-328); an unresolved target still creates the entry,
+with a warning, so module prose is not lost. A new entry is visible to both
+badges; a GM may restrict one with `manage_lore (action: update)`. A key that
+already exists is skipped with a note (REQ-079d).
 
 A well-formed `@encounter` or `@trap` directive materializes the target room's
 `annotations.encounter` or `annotations.trap`, and the hazard fires when the

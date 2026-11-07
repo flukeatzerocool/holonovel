@@ -382,6 +382,24 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
+    await test("T244/REQ-079a: convert materializes @npc and @lore into Novel state", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "bf2-annotations" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-annotations" });
+      const src = `The Hall is a room. "A hall."\n@npc(Hall Warden, The Hall) AC 12, HP 10.\n@lore(The Hall) The walls remember every oath.\n@npc(Second) broken directive.\n`;
+      const conv = await call(proc, "manage_world", { action: "convert",  source: src });
+      assertContains(conv, "[OK] World model populated");
+      assertContains(conv, "NPCs: 1");
+      assertContains(conv, "lore: 1");
+      assertContains(conv, "expected '<Name>, <Room Name>'");
+      const npcs = await call(proc, "manage_npc", { action: "list" });
+      assertContains(npcs, "Hall Warden");
+      const lore = await call(proc, "manage_lore", { action: "list" });
+      assertContains(lore, "hall");
+      const entry = await call(proc, "manage_lore", { action: "get", key: "hall" });
+      assertContains(entry, "walls remember");
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
+    });
+
     await test("T245/T202: world resources render map and kind contracts", async () => {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });
       const map = await readResource(proc, "world://map");

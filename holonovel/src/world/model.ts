@@ -303,6 +303,7 @@ export interface ConvertResult {
   exits: number;
   annotations: { encounters: number; npcs: number; traps: number; lore: number };
   warnings: { line: number; pattern: string; message: string }[];
+  directives: AnnotationDirective[];
 }
 
 // REQ-201 — the thing-kind grammar is derived from the declarable-kind list so
@@ -376,6 +377,18 @@ export interface AnnotationCounts {
   lore: number;
 }
 
+/** A directive that writes Novel state rather than world state (REQ-079a):
+ *  `@npc` and `@lore` are parsed here and materialized by the adapter, which
+ *  is the layer that owns the Novel. */
+export interface AnnotationDirective {
+  category: "npc" | "lore";
+  /** Raw parenthesized target: `Name, Room` for `@npc`; object/room for `@lore`. */
+  target: string;
+  /** Prose after the clause — guidance, stored but never mechanically parsed. */
+  content: string;
+  line: number;
+}
+
 const ANNOTATION_CATEGORY_KEYS: Record<string, readonly string[]> = {
   encounter: ["spill", "resource", "avoid"],
   trap: ["snuff", "faces", "resource", "avoid"],
@@ -419,7 +432,7 @@ function positiveInteger(value: string | undefined): number | null {
 /** Annotations name objects the way prose does ("Entrance Chamber"), while
  *  declarations often carry a leading article ("The Entrance Chamber is a
  *  room."). Compare on the article-free lowercase form. */
-function annotationName(name: string): string {
+export function annotationName(name: string): string {
   return name.trim().toLowerCase().replace(/^the\s+/, "");
 }
 
@@ -427,7 +440,7 @@ function applyAnnotationLine(
   text: string,
   world: WorldModel,
   line: number,
-): { counted?: keyof AnnotationCounts; warning?: AnnotationWarning } {
+): { counted?: keyof AnnotationCounts; warning?: AnnotationWarning; directive?: AnnotationDirective } {
   const match = text.match(/^@(\w+)\((.+?)\)(?:\s+(.+))?$/);
   const warn = (message: string) => ({ warning: { line, pattern: text, message } });
   if (!match) return warn("Unrecognized annotation directive — ignored.");
@@ -437,9 +450,17 @@ function applyAnnotationLine(
   const content = match[3];
 
   if (category === "npc" || category === "lore") {
-    // REQ-079a lists these as linked annotations, but their mechanical linkage
-    // is not implemented; report that accurately instead of claiming a link.
-    return warn(`TTRPG annotation '@${category}' is guidance content — mechanical linkage is not implemented.`);
+    // REQ-079a — these write Novel state, which the world layer cannot see.
+    // Syntax is validated here; the adapter materializes the directive.
+    if (category === "npc") {
+      const comma = target.indexOf(",");
+      if (comma <= 0 || !target.slice(comma + 1).trim()) {
+        return warn(`TTRPG annotation '@npc(${target})': expected '<Name>, <Room Name>' — annotation not materialized.`);
+      }
+    } else if (!target) {
+      return warn("TTRPG annotation '@lore': a target name is required — annotation not materialized.");
+    }
+    return { directive: { category, target, content: (content ?? "").trim(), line } };
   }
   if (category !== "encounter" && category !== "trap") {
     return warn(`Unrecognized annotation category '@${category}' — indexed as guidance only.`);
@@ -492,22 +513,25 @@ function applyAnnotationLine(
 }
 
 /** Link every annotation directive in `source` to `world` (REQ-079a). Returns
- *  the materialization counts and the warnings for ignored directives. */
+ *  the materialized hazard counts, the warnings for ignored directives, and the
+ *  `@npc`/`@lore` directives the adapter must materialize against the Novel. */
 export function linkAnnotations(
   source: string,
   world: WorldModel,
-): { counts: AnnotationCounts; warnings: AnnotationWarning[] } {
+): { counts: AnnotationCounts; warnings: AnnotationWarning[]; directives: AnnotationDirective[] } {
   const counts: AnnotationCounts = { encounters: 0, npcs: 0, traps: 0, lore: 0 };
   const warnings: AnnotationWarning[] = [];
+  const directives: AnnotationDirective[] = [];
   const lines = source.split("\n");
   for (let index = 0; index < lines.length; index++) {
     const text = lines[index].trim();
     if (!text.startsWith("@")) continue;
     const applied = applyAnnotationLine(text, world, index + 1);
     if (applied.counted) counts[applied.counted] += 1;
+    if (applied.directive) directives.push(applied.directive);
     if (applied.warning) warnings.push(applied.warning);
   }
-  return { counts, warnings };
+  return { counts, warnings, directives };
 }
 
 export function convertSource(source: string, existingWorld: WorldModel): { world: WorldModel; result: ConvertResult } {
@@ -519,6 +543,7 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
   // directive may precede the room it targets.
   const pendingAnnotations: { line: number; text: string }[] = [];
   const annotationCounts = { encounters: 0, npcs: 0, traps: 0, lore: 0 };
+  const annotationDirectives: AnnotationDirective[] = [];
 
   // Pass 1: collect room names and declarations
   let currentThing: string | null = null;
@@ -911,10 +936,12 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
 
   // Materialize the collected annotations now that every room is known
   // (REQ-079a/REQ-622): a well-formed clause writes the structured field, a
-  // malformed one warns without blocking the conversion.
+  // malformed one warns without blocking the conversion. `@npc`/`@lore`
+  // directives are returned for the adapter to materialize.
   for (const pending of pendingAnnotations) {
     const applied = applyAnnotationLine(pending.text, world, pending.line);
     if (applied.counted) annotationCounts[applied.counted] += 1;
+    if (applied.directive) annotationDirectives.push(applied.directive);
     if (applied.warning) warnings.push(applied.warning);
   }
 
@@ -935,6 +962,7 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       exits: exitCount,
       annotations: annotationCounts,
       warnings,
+      directives: annotationDirectives,
     },
   };
 }

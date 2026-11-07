@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, LoreEntry, Countdown, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -50,8 +50,8 @@ import { DEFAULT_WISDOM, verifyCitation, withWisdomKeys } from "./core/wisdom.js
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   WORLD_MODEL_KINDS,
-  createEmptyWorldModel, convertSource, linkAnnotations, worldMap, worldKinds, verbCatalog,
-  BASE_PARSER_COMMANDS, oppositeDirection,
+  createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, verbCatalog,
+  BASE_PARSER_COMMANDS, oppositeDirection, type AnnotationDirective,
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom } from "./world/parser.js";
 import {
@@ -2379,6 +2379,100 @@ function capGuard(group: string, current: number) {
     ? `${r.group} is disabled (configured maximum 0).`
     : `${r.group} at maximum (${r.current}/${r.max}).`;
   return err("STATE_CONFLICT", detail);
+}
+
+// REQ-079a — `@npc`/`@lore` materialization. The world layer parses the
+// directives because it owns room/thing resolution; this adapter layer owns
+// the Novel writes. A duplicate skips with a note (REQ-079d) and a group at
+// its maximum skips with a warning (REQ-129b1) — an annotation never blocks a
+// load, and the enclosing handler owns persistence and audit.
+function annotationKey(name: string): string {
+  return annotationName(name).replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "annotation";
+}
+
+function annotationNpcId(novel: NovelState, name: string): string {
+  const base = `npc_${annotationKey(name)}`;
+  if (!novel.npcs.has(base)) return base;
+  for (let suffix = 2; ; suffix++) {
+    const candidate = `${base}_${suffix}`;
+    if (!novel.npcs.has(candidate)) return candidate;
+  }
+}
+
+function materializeAnnotations(
+  novel: NovelState,
+  directives: AnnotationDirective[],
+  slug: string | null,
+): { counts: { npcs: number; lore: number }; warnings: string[] } {
+  const counts = { npcs: 0, lore: 0 };
+  const warnings: string[] = [];
+
+  for (const directive of directives) {
+    if (directive.category === "npc") {
+      const comma = directive.target.indexOf(",");
+      const name = directive.target.slice(0, comma).trim();
+      const roomName = directive.target.slice(comma + 1).trim();
+      const duplicate = [...novel.npcs.values()].some((npc) => annotationName(npc.name) === annotationName(name));
+      if (duplicate) {
+        warnings.push(`@npc(${directive.target}) skipped (duplicate) — a Novel NPC named '${name}' already exists.`);
+        continue;
+      }
+      const cap = capRefusal("npcs", novel.npcs.size);
+      if (cap) {
+        warnings.push(`@npc(${directive.target}) skipped — npcs at maximum (${cap.current}/${cap.max}).`);
+        continue;
+      }
+      const wanted = annotationName(roomName);
+      const roomEntry = [...novel.world.rooms.entries()].find(([, room]) => annotationName(room.name) === wanted);
+      const id = annotationNpcId(novel, name);
+      const npc: NpcState = {
+        id,
+        name,
+        ...(directive.content ? { description: directive.content } : {}),
+        location: roomEntry ? roomEntry[1].name : roomName,
+        ...(roomEntry ? { room_id: roomEntry[0] } : {}),
+        ...(slug ? { provenance: { source: `loaded:${slug}` } } : {}),
+        conditions: [],
+        condition_rounds: {},
+      };
+      novel.npcs.set(id, npc);
+      counts.npcs += 1;
+      continue;
+    }
+
+    const key = annotationKey(directive.target);
+    if (novel.lore.has(key)) {
+      warnings.push(`@lore(${directive.target}) skipped (duplicate) — lore entry '${key}' already exists.`);
+      continue;
+    }
+    const cap = capRefusal("lore", novel.lore.size);
+    if (cap) {
+      warnings.push(`@lore(${directive.target}) skipped — lore at maximum (${cap.current}/${cap.max}).`);
+      continue;
+    }
+    const wanted = annotationName(directive.target);
+    const roomEntry = [...novel.world.rooms.entries()].find(([, room]) => annotationName(room.name) === wanted);
+    const thingEntry = [...novel.world.things.entries()].find(([, thing]) => annotationName(thing.name) === wanted);
+    const worldTarget = roomEntry?.[0] ?? thingEntry?.[0];
+    if (!worldTarget) {
+      warnings.push(`@lore(${directive.target}) target is not in the world model — entry created without a world_target.`);
+    }
+    const entry: LoreEntry = {
+      key,
+      content: directive.content,
+      triggers: [wanted],
+      badge_scope: "shared",
+      priority: 0,
+      sticky: 0,
+      sticky_remaining: 0,
+      enabled: true,
+      ...(worldTarget ? { world_target: worldTarget } : {}),
+    };
+    novel.lore.set(key, entry);
+    counts.lore += 1;
+  }
+
+  return { counts, warnings };
 }
 
 // REQ-054 — input safety: all tool inputs are validated server-side (Zod);
@@ -4887,10 +4981,14 @@ server.registerTool("manage_world", {
       }
       const { world, result } = convertSource(args.source, novel.world);
       novel.world = world;
+      // REQ-079a — @npc/@lore directives write Novel state after the world is
+      // final, so a directive may name any room the source declares.
+      const linked = materializeAnnotations(novel, result.directives, null);
       state.saveNovel(novel);
-      audit("convert_source", { rooms: result.rooms, things: result.things, exits: result.exits });
+      audit("convert_source", { rooms: result.rooms, things: result.things, exits: result.exits, npcs: linked.counts.npcs, lore: linked.counts.lore });
       let msg = `[OK] World model populated: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.`;
-      msg += ` Linked annotations — encounters: ${result.annotations.encounters}, NPCs: ${result.annotations.npcs}, traps: ${result.annotations.traps}, lore: ${result.annotations.lore}.`;
+      msg += ` Linked annotations — encounters: ${result.annotations.encounters}, NPCs: ${linked.counts.npcs}, traps: ${result.annotations.traps}, lore: ${linked.counts.lore}.`;
+      for (const warning of linked.warnings) msg += `\n[WARNING] ${warning}`;
       if (result.warnings.length > 0) {
         msg += `\n\nWarnings:`;
         for (const w of result.warnings) msg += `\nLine ${w.line}: ${w.message}`;
@@ -9243,11 +9341,16 @@ server.registerTool("manage_adventure", {
       };
       const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
       // REQ-079a/REQ-622 — annotations anywhere in the module materialize room
-      // hazards on the world that actually survives the load.
-      const hazardNote = (linked: ReturnType<typeof linkAnnotations>): string => {
+      // hazards (world state) and Novel NPCs and lore entries (Novel state) on
+      // the world that actually survives the load.
+      const hazardNote = (
+        linked: ReturnType<typeof linkAnnotations>,
+        materialized: ReturnType<typeof materializeAnnotations>,
+      ): string => {
         const counts = linked.counts;
-        let note = `\n\nLinked annotations — encounters: ${counts.encounters}, NPCs: ${counts.npcs}, traps: ${counts.traps}, lore: ${counts.lore}.`;
+        let note = `\n\nLinked annotations — encounters: ${counts.encounters}, NPCs: ${materialized.counts.npcs}, traps: ${counts.traps}, lore: ${materialized.counts.lore}.`;
         for (const warning of linked.warnings) note += `\n[WARNING] ${warning.message}`;
+        for (const warning of materialized.warnings) note += `\n[WARNING] ${warning}`;
         return note;
       };
       if (worldMatch) {
@@ -9259,9 +9362,10 @@ server.registerTool("manage_adventure", {
           novel.adventure_slug = args.slug;
           novel.adventure_set = true;
           const linked = linkAnnotations(content, novel.world);
+          const materialized = materializeAnnotations(novel, linked.directives, args.slug);
           state.saveNovel(novel);
-          audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null });
-          return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}${hazardNote(linked)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
+          audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
+          return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}${hazardNote(linked, materialized)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
         }
         novel.world = world;
         novel.generated_adventure = null;
@@ -9269,20 +9373,24 @@ server.registerTool("manage_adventure", {
         novel.adventure_set = true;
         // The World block was already linked by convertSource; scan the rest.
         const linked = linkAnnotations(content.replace(worldMatch[0], ""), world);
+        // REQ-079a — NPCs and lore may be declared in either place; materialize
+        // both sets once, after the world is final.
+        const materialized = materializeAnnotations(novel, [...result.directives, ...linked.directives], args.slug);
         state.saveNovel(novel);
-        audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null });
+        audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
         const synthVoice = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
         const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
         const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
-        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${hazardNote(linked)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${hazardNote(linked, materialized)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
       }
       novel.generated_adventure = null;
       novel.adventure_slug = args.slug;
       novel.adventure_set = true;
       const linkedNoWorld = linkAnnotations(content, novel.world);
+      const materializedNoWorld = materializeAnnotations(novel, linkedNoWorld.directives, args.slug);
       state.saveNovel(novel);
-      audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, creator: provenance?.creator ?? null });
-      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${hazardNote(linkedNoWorld)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+      audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, creator: provenance?.creator ?? null, npcs: materializedNoWorld.counts.npcs, lore: materializedNoWorld.counts.lore });
+      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
     }
     case "list": {
       const files = adventureFiles();

@@ -848,13 +848,25 @@ pass and completion-oracle green. Fix evidence: regression tests in
   (`scripts/push-pipeline.sh:159`); the prompt keeps its own check at `:548` as
   a safety net against step reordering.
 
+- **Adventure-module `@npc`/`@lore` annotations materialize (resolved
+  2026-11-07):** the loader reported those directives as guidance content and
+  created neither the named Novel NPC nor the triggered lore entry, while
+  Appendix K and T244 state both. `linkAnnotations`/`convertSource` now return
+  deferred `AnnotationDirective`s, and `materializeAnnotations` writes the Novel
+  NPC (location, room coupling, provenance) and lore entry (article-free key,
+  trigger keyword, `world_target`) on the convert and adventure-load paths;
+  duplicates and caps skip with a note. (REQ-079a, REQ-079d; predicate
+  `holonovel/src/index.ts:materializeAnnotations`; exercised by
+  `test:adventure` and `test:backfill` T244)
+
 ## Scheduled-roadmap
 
-- **Adventure-module `@npc`/`@lore` annotations are reported, not linked
-  (2026-11-07):** the loader indexes those directives as guidance content and
-  creates neither the named Novel NPC nor the triggered lore entry, while
-  Appendix K and T244 state both. Scheduled on ROADMAP. (REQ-079a; predicate
-  `holonovel/src/world/model.ts:applyAnnotationLine`)
+- **Lore `visibility` is specified but absent (2026-11-07):** `LoreEntry`
+  carries `badge_scope` only, and `manage_lore (action: set/update)` accepts no
+  `visibility` parameter, while REQ-083d–REQ-083f state the
+  `gm_only`/`shared`/`player_discovered` field and presence-gated trigger
+  matching. Scheduled on ROADMAP. (REQ-083d; predicate
+  `holonovel/src/core/state.ts:LoreEntry`)
 
 
 ## Closed-P3 (recorded, no action)

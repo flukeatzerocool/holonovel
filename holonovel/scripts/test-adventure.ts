@@ -287,6 +287,73 @@ The Trap Hall is a room. "Stale air."
       if (trapHall.annotations.trap.snuff !== "Dread") throw new Error("trap snuff lost");
     });
 
+    await test("T244/REQ-079a: adventure @npc and @lore annotations create Novel state", async () => {
+      writeFileSync(join(ADV_DIR, "npc-lore-module.md"), `# NPC and Lore Module
+
+## World
+The Vault is a room. "A cold vault."
+The Trap Hall is a room. "Stale air."
+
+## NPCs
+@npc(Ghost of the Vault, The Vault) AC 15, HP 45. Incorporeal.
+@npc(Broken) no comma here.
+
+## Lore
+@lore(The Vault) The murals depict a serpent.
+`);
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_novel", { action: "create", name: "a1-annotations" });
+      const loaded = await call(proc, "manage_adventure", { action: "load", slug: "npc-lore-module" });
+      assertContains(loaded, "NPCs: 1");
+      assertContains(loaded, "lore: 1");
+      assertContains(loaded, "expected '<Name>, <Room Name>'");
+      const persisted = JSON.parse(readFileSync(join(PROV_DATA, "novels", "a1-annotations.json"), "utf-8"));
+      const npcs = Object.values(persisted.npcs ?? {}) as any[];
+      const ghost = npcs.find((npc) => npc.name === "Ghost of the Vault");
+      if (!ghost) throw new Error(`@npc not materialized: ${JSON.stringify(npcs)}`);
+      if (ghost.location !== "The Vault") throw new Error(`NPC location lost: ${ghost.location}`);
+      if (ghost.room_id !== "the vault") throw new Error(`NPC room_id lost: ${ghost.room_id}`);
+      if (!String(ghost.description ?? "").includes("AC 15")) throw new Error(`NPC description lost: ${ghost.description}`);
+      if (ghost.provenance?.source !== "loaded:npc-lore-module") throw new Error(`NPC provenance lost: ${JSON.stringify(ghost.provenance)}`);
+      const lore = persisted.lore?.["vault"];
+      if (!lore) throw new Error(`@lore not materialized: ${JSON.stringify(persisted.lore)}`);
+      if (lore.world_target !== "the vault") throw new Error(`lore world_target lost: ${lore.world_target}`);
+      if (!lore.triggers?.includes("vault")) throw new Error(`lore triggers lost: ${JSON.stringify(lore.triggers)}`);
+      if (lore.badge_scope !== "shared") throw new Error(`lore badge_scope: ${lore.badge_scope}`);
+      if (!String(lore.content ?? "").includes("murals")) throw new Error(`lore content lost: ${lore.content}`);
+    });
+
+    await test("T244/REQ-079a/REQ-079d: a repeated load skips duplicate NPCs and lore", async () => {
+      const reload = await call(proc, "manage_adventure", { action: "load", slug: "npc-lore-module" });
+      assertContains(reload, "NPCs: 0");
+      assertContains(reload, "lore: 0");
+      assertContains(reload, "skipped (duplicate)");
+      const persisted = JSON.parse(readFileSync(join(PROV_DATA, "novels", "a1-annotations.json"), "utf-8"));
+      if (Object.keys(persisted.npcs ?? {}).length !== 1) throw new Error(`duplicate NPC created: ${JSON.stringify(persisted.npcs)}`);
+      if (Object.keys(persisted.lore ?? {}).length !== 1) throw new Error(`duplicate lore created: ${JSON.stringify(persisted.lore)}`);
+    });
+
+    await test("T244/REQ-079a: unresolved annotation targets create state with free-text targets", async () => {
+      writeFileSync(join(ADV_DIR, "unresolved-module.md"), `# Unresolved Module
+
+@npc(Wanderer, Nowhere) A traveler with no room.
+@lore(Nonesuch) Legends speak of it.
+`);
+      await call(proc, "manage_novel", { action: "create", name: "a1-unresolved" });
+      const loaded = await call(proc, "manage_adventure", { action: "load", slug: "unresolved-module" });
+      assertContains(loaded, "NPCs: 1");
+      assertContains(loaded, "lore: 1");
+      assertContains(loaded, "not in the world model");
+      const persisted = JSON.parse(readFileSync(join(PROV_DATA, "novels", "a1-unresolved.json"), "utf-8"));
+      const wanderer = (Object.values(persisted.npcs ?? {}) as any[]).find((npc) => npc.name === "Wanderer");
+      if (!wanderer) throw new Error("@npc not materialized without a ## World section");
+      if (wanderer.location !== "Nowhere") throw new Error(`free-text location lost: ${wanderer.location}`);
+      if (wanderer.room_id !== undefined) throw new Error(`unresolved room got a room_id: ${wanderer.room_id}`);
+      const lore = persisted.lore?.["nonesuch"];
+      if (!lore) throw new Error("@lore not materialized without a ## World section");
+      if (lore.world_target !== undefined) throw new Error(`unresolved lore got a world_target: ${lore.world_target}`);
+    });
+
     await test("T735/REQ-617: adventure hash and signature mismatches are refused", async () => {
       const tampered = await call(proc, "manage_adventure", { action: "load", slug: "tampered" });
       assertContains(tampered, "STATE_CONFLICT");

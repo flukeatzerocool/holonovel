@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-11-07 — Adventure-module `@npc`/`@lore` annotations materialize
+
+- `manage_world (action: convert)` and `manage_adventure (action: load)` now
+  create the Novel NPC named by an `@npc(Name, Room)` directive and the lore
+  entry named by `@lore(Target)` (REQ-079a, REQ-079d). The NPC lands in the
+  named room (free-text location when the room is absent), carries the clause
+  prose as its description and `provenance.source = loaded:<slug>`, and the
+  lore entry gets an article-free key, the target name as its trigger keyword,
+  and `world_target` when the target resolves to a room or thing.
+- Duplicate names and keys skip with a note, a group at its configured maximum
+  skips with a warning (REQ-129b1), and a malformed `@npc` warns without
+  blocking the load. `linkAnnotations`/`convertSource` return deferred
+  `AnnotationDirective`s so the world layer stays pure; the reported counts now
+  come from what was actually written.
+- Appendix K documents the NPC/lore materialization, duplicate and cap
+  behavior, unresolved-target handling, and default visibility.
+
 ## 2026-11-07 — Adventure-module hazard annotations materialize on load
 
 - `manage_world (action: convert)` and `manage_adventure (action: load)` now write

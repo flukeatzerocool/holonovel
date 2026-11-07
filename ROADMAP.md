@@ -26,15 +26,17 @@
 that run's recovery path is recorded in `docs/publish-pipeline.md` and the
 legacy engine is deleted.
 
-## Materialize adventure-module `@npc` and `@lore` annotations (REQ-079a)
+## Materialize lore `visibility` (REQ-083d–REQ-083f)
 
-- The loader reports `@npc`/`@lore` directives as guidance content: no Novel NPC
-  is created at the named room and no lore entry is triggered, while Appendix K
-  and T244 state both. Add the linkage where hazard annotations now materialize
-  (`linkAnnotations`) and extend the adventure-load test.
+- Lore entries carry `badge_scope` but no `visibility` field, and `manage_lore`
+  accepts no `visibility` parameter, so REQ-083d's
+  `gm_only`/`shared`/`player_discovered` contract and REQ-083f's presence-gated
+  trigger matching are unimplemented. Add the field and parameter, route
+  read-access filtering through it, and extend T342.
 
-**Trigger:** the next adventure-content increment; closes when loading a module
-creates the named Novel NPC and lore entry and the load test asserts both.
+**Trigger:** the next lore or badge-filtering increment; closes when a
+`manage_lore (action: set)` entry with no `visibility` field is invisible to the
+Player badge, a `shared` entry is visible, and T342 asserts both.
 
 ## Non-goals
 
