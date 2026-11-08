@@ -10,14 +10,17 @@ Session 2026-11-08. Roadmap item: "Subjective memory store (GM-only)" —
   (`ROADMAP.md:23-25`): `check:fast` green, the new REQs cited in server source
   with passing tests, and the coverage register listing them as evidenced?
 
-## Baseline (measured this session)
+## Baseline (measured this session at `9b856c0`)
 
-- `npm run status` → version 2026.11.07, 2 unpushed commits, 5 open roadmap items.
-- `npm run check:fast` → **FAIL**: 35 passed, 1 failed. The only red gate is
-  `check-loop-artifacts`: `2026-11-08-license-compliance: missing aar.md`. That
-  directory is untracked (`git status` → `?? docs/plans/2026-11-08-license-compliance/`)
-  and belongs to a prior, unclosed session.
-- `typecheck` PASS; every other fast gate PASS.
+- `npm run status` → version 2026.11.08, 5 open roadmap items.
+- `npm run check:fast` → **PASS**: 36 passed, 0 failed, `check:fast: PASS`.
+  An earlier run in this session was red (`2026-11-08-license-compliance:
+  missing aar.md`); that increment closed at `1ec4b12`/`9b856c0`, and the run
+  above is the current baseline.
+- `typecheck` PASS; every fast gate PASS.
+- This plan's own increment directory carries a placeholder `aar.md` ending
+  `LOOP OPEN`, so `check-loop-artifacts` passes while the work is scheduled.
+  Execution replaces it with the real AAR.
 - Pre-existing spec drift, not introduced here and corrected in scope below:
   T425/T439 still say "38 groups" while §7.7 holds 40 (`spec/03-build.md:658`
   says 40), and `spec/build-phase-map.md:51` says "33 subsections" while §5 has
@@ -33,7 +36,7 @@ action, or state field names subjective memory.
 | No subjective-memory surface anywhere | `grep -rn "subjective" spec/ holonovel/src` → no match |
 | Closest structural precedent (append-only, per-entity, ordinal-bound, capped) | `spec/02-requirements.md:4306-4324` (§5.32/§5.33); `holonovel/src/core/perception.ts` |
 | Novel property-group table and archetype examples | `spec/04-runtime.md:253-286`, `:384-385` |
-| Existing §7.7 coupling rows (none for Ruling Ledger — precedent for a group with no row) | `spec/04-runtime.md:265`, `:587-596` |
+| Existing §7.7 coupling rows (none for Ruling Ledger — precedent for a group with no row) | `spec/04-runtime.md:252`, `:587-596` |
 | Property-group count statement | `spec/03-build.md:658` |
 | GM briefing composition and the section hook | `holonovel/src/index.ts:13044`, `:2185-2203` |
 | `spec_health` counts and storage-cap status | `holonovel/src/index.ts:11244-11253` |
@@ -55,12 +58,13 @@ action, or state field names subjective memory.
 3. Two §7.6 configs: a storage cap and a briefing-count cap.
 4. §5.19 guardrails (REQ-400, REQ-407) and briefing composition
    (REQ-109c3, REQ-109e) name the new surface.
-5. §4 glossary row; §5 section map row; Appendix A REQ index; Appendix T tests;
-   `spec/build-phase-map.md` subsection count 33 → 35.
+5. §4 glossary row; §5 section map row; Appendix E (Requirements Manifest);
+   Appendix F (Derived Test Catalogue); `spec/build-phase-map.md` subsection
+   count 33 → 35.
 6. Implementation: `holonovel/src/core/subjective.ts`, Novel field and
    persistence, `manage_belief (action: subjective_record|subjective_list)`,
    the `## Subjective Memory` GM briefing section, `spec_health` count,
-   Player-scope redaction.
+   Player-scope redaction, REQ citations in the module, handlers, and tests.
 7. Tests T743–T747 in `holonovel/scripts/test-belief.ts`.
 8. Registers and docs: ROADMAP item removed, DECISIONS entry, CHANGELOG,
    coverage register, tool definitions, surface baseline, `holonovel/AGENTS.md`.
@@ -80,16 +84,23 @@ action, or state field names subjective memory.
 - **D1 — A §7.7 property group, no new §7.7.1a row.** The store is Novel-tier
   state with an archetype per REQ-374a/b. This increment defines no
   cross-property effect, so no coupling row is honest; Ruling Ledger
-  (`spec/04-runtime.md:265`) is the precedent, and T439 requires archetype
-  usage rather than a row per group. Rejected: a synthetic
-  Subjective Memory → Lore row (it would assert knowledge promotion, which
-  chunk 3 explicitly withholds).
+  (`spec/04-runtime.md:252`) is the precedent. T439's literal clause is
+  archetype-level — "every property group's archetypes are used by ≥1 coupling
+  row" — and it passes because *Narrative-memory* is already coupled
+  (`spec/04-runtime.md:596`), not because each group needs a row. Rejected: a
+  synthetic Subjective Memory → Lore row (it would assert knowledge promotion,
+  which chunk 3 explicitly withholds).
 - **D2 — Append-only, ordinal-bound, undo-preserved.** Records leave the
-  snapshot and checkpoint payloads (`state.ts:2685`, `index.ts:10272-10275`) and
-  join `APPEND_ONLY_STATE_FIELDS` (`state.ts:2864`), mirroring perception.
-  Correction is a new record, never an edit. Rejected: mutable records restored
-  by undo — a memory would silently change when the player rewinds, while the
-  event log it cites does not.
+  snapshot payload (`state.ts:2677-2687`) and the checkpoint capture
+  (`index.ts:10272-10275`) and join `APPEND_ONLY_STATE_FIELDS`
+  (`state.ts:2860`), mirroring the event log and perception ledger. Correction
+  is a new record, never an edit. This is an explicit asymmetry: clone and
+  export carry the records (REQ-240a, REQ-334b) while snapshot and checkpoint
+  restore do not roll them back. Rejected: mutable records restored by undo — a
+  memory would silently change when the player rewinds, while the event log it
+  cites does not. Note that REQ-241a's blanket "includes all §7.7 property
+  groups" is already qualified in practice by the append-only logs; this plan
+  records that pre-existing gap in Open questions rather than widening it.
 - **D3 — Game Master only, both directions, for this increment.** Mutation
   requires the GM badge and every read refuses `[FORBIDDEN]` otherwise. Chunk 3
   opens the Player badge through the disclosure axis. Rejected: shipping a
@@ -112,8 +123,12 @@ action, or state field names subjective memory.
   `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records. The cap is classified
   Presentation — non-behavioral because it bounds output volume, not story
   state (precedent: `TTRPG_SEARCH_MAX_TOKENS`, `TTRPG_NOVEL_PREVIEW_CHARS`).
+  The nearer analog, `TTRPG_CAMPAIGN_MEMORY_MAX_FACTS` (`04-runtime.md:194`), is
+  Behavioral under P56 because a GM directive tunes it; no directive tunes this
+  cap, and adding one would need a §7.7.1a row the increment otherwise avoids.
   Rejected: recency-only selection (it discards the salience the field exists
-  to record) and a scored model (chunk 5 owns scoring).
+  to record), a scored model (chunk 5 owns scoring), and a P56-style directive
+  path (scope creep into a coupling row this increment does not need).
 - **D7 — The section covers entities present in the current scene and renders
   after `## Campaign Memory`, GM only.** Rejected: every entity's memory (the
   section would grow with the cast and leak absent NPC mental state into the
@@ -186,17 +201,16 @@ state. *Acceptance criterion:* recording a memory appends a record carrying its
 entity, ordinal, gist, claim, affect, salience, and origin. _Check:_ T743.
 
 **REQ-624 — Subjective memory recording.**
-`manage_belief (action: subjective_record)` SHALL record one subjective memory
-for an entity, accepting `subjective_entity`, `subjective_gist`,
-`subjective_subject`, `subjective_predicate`, `subjective_object`,
-`subjective_polarity`, `subjective_felt_then`, `subjective_salience`,
-`subjective_origin`, and `subjective_event_ordinal`. A missing entity, gist, or
-claim part SHALL return `[ERROR] [INVALID_INPUT]` with the valid values
-enumerated. The event ordinal SHALL default to the latest event-log ordinal and
-SHALL NOT exceed it. Mutation SHALL require the Game Master badge. *Acceptance
-criterion:* a well-formed record appends one entry, a malformed record is
-refused with valid origins enumerated, and a Player call is refused.
-_Check:_ T743, T744.
+`manage_belief (action: subjective_record)` SHALL record a subjective memory
+from the `subjective_entity`, `subjective_gist`, `subjective_subject`,
+`subjective_predicate`, and `subjective_object` parameters, carrying stance and
+provenance from `subjective_polarity`, `subjective_felt_then`,
+`subjective_salience`, `subjective_origin`, and `subjective_event_ordinal`. A
+missing entity, gist, or claim part SHALL return `[ERROR] [INVALID_INPUT]`
+enumerating valid values. The event ordinal SHALL default to the latest
+event-log ordinal and SHALL NOT exceed it. Mutation SHALL require the Game
+Master badge. *Acceptance criterion:* a well-formed record appends one entry, a
+malformed record is refused, and a Player call is refused. _Check:_ T743, T744.
 
 **REQ-625 — Subjective memory read and gating.**
 `manage_belief (action: subjective_list)` SHALL return the records for one
@@ -221,11 +235,13 @@ _Check:_ T745.
 **REQ-627 — Persistence and retention.**
 Subjective-memory records SHALL persist with the Novel, survive a restart, and
 travel with clone and export operations, bounded by
-`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. Under
-the Game Master badge, `spec_health` SHALL report `subjective_memory_count`, the
-total number of records across all entities. *Acceptance criterion:* a record
-survives an end-and-resume cycle, a cap overflow evicts the oldest record, and
-the health report carries the count. _Check:_ T746.
+`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. A
+checkpoint restore SHALL NOT remove a record appended after the checkpoint,
+mirroring the append-only event log. Under the Game Master badge, `spec_health`
+SHALL report `subjective_memory_count`, the total number of records across all
+entities. *Acceptance criterion:* a record survives an end-and-resume cycle, a
+cap overflow evicts the oldest record, and the health report carries the count.
+_Check:_ T746.
 
 **REQ-628 — Separation from recorded state.**
 Recording a subjective memory SHALL NOT create or alter a perception, an
@@ -240,31 +256,47 @@ leaves the memory unchanged. _Check:_ T747.
 1. **Spec section.** Insert `### 5.35 Subjective Memory` before
    `#### End of requirements` (`spec/02-requirements.md:4357`) with a preamble
    carrying the COF credit, then REQ-623–REQ-628 with the prose above.
-2. **Spec cross-references.** §5 map row (`spec/02-requirements.md:42`);
-   REQ-109c3 and REQ-109e name the section; §7.7 property row after Perception
-   Ledger (`spec/04-runtime.md:286`); the archetype example list (`:385`);
-   §7.6 configs after `TTRPG_PERCEPTION_MAX_ENTRIES` (`:214`); §5.19 REQ-400 and
-   REQ-407 name the surface; §4 glossary row
-   (`spec/01a-constitution.md:173`); counts 40 → 41 (`spec/03-build.md:658`,
-   T425 `:1843`, T439 `:1857`), which also corrects the stale 38; build-phase-map
-   33 → 35 (`spec/build-phase-map.md:51`), which also corrects the stale 33.
-3. **State.** New `holonovel/src/core/subjective.ts`; `NovelState.subjective_memory`
+2. **Spec cross-references.** Insert the §5 map row after the `5.34` row
+   (`spec/02-requirements.md:42`); REQ-109c3 and REQ-109e name the section; §7.7
+   property row after Perception Ledger (`spec/04-runtime.md:286`); the
+   archetype example list (`:385`); §7.6 configs after
+   `TTRPG_PERCEPTION_MAX_ENTRIES` (`:214`); §5.19 REQ-400 and REQ-407 name the
+   surface; §4 glossary row (`spec/01a-constitution.md:173`); counts 40 → 41
+   (`spec/03-build.md:658`, T425 `:1843`, T439 `:1857`), which also corrects the
+   stale 38; build-phase-map 33 → 35 (`spec/build-phase-map.md:51`), which also
+   corrects the stale 33; Appendix E rows (Requirements Manifest, carrying the
+   `2026-11-08` CalVer pin) and Appendix F rows (Derived Test Catalogue) for
+   T743–T747.
+3. **State.** New `holonovel/src/core/subjective.ts` with a header citing
+   REQ-623–REQ-628 (the `perception.ts:4` precedent); `NovelState.subjective_memory`
    plus init, migrate, `novelToJSON`, `novelToSnapshotJSON`, `APPEND_ONLY_STATE_FIELDS`;
    checkpoint capture deletes the field alongside the other append-only logs.
-4. **Actions.** `manage_belief` enum, parameters, and handlers beside the
-   perception block (`index.ts:8555-8610`); audit entries (`subjective_record`);
-   badge gating; tool description trimmed to the 1000-byte budget.
+4. **Sibling-contract check, then actions.** Grep `manage_belief` across
+   `spec/` and confirm no conflicting badge gate, error code, or enum semantics
+   in REQ-461–REQ-472, REQ-540–REQ-545, or REQ-594; record the result in this
+   plan. Then add the `manage_belief` enum entries, parameters, handlers beside
+   the perception block (`index.ts:8555-8610`), audit entry on
+   `subjective_record`, badge gating, and a tool description trimmed to the
+   1000-byte budget. Declare `manage_belief.subjective_record` and
+   `manage_belief.subjective_list` in `holonovel/tool-surface-registry.json`
+   with group, phases, entry, mutation class, preconditions, successors, and
+   edges (the registry gate rejects an unregistered action).
 5. **Briefing and health.** `composeSubjectiveMemorySection` beside
    `composeCampaignMemorySection` (`index.ts:2185`), rendered at `:13044`;
    `subjective_memory_count` and the storage-cap row at `:11244-11250`;
    `subjective_memory` added to `PLAYER_OMITTED_KEYS` (`index.ts:9685-9692`);
    the REQ-407 persistence line names the actions (`index.ts:13302`).
-6. **Tests.** T743–T747 in `holonovel/scripts/test-belief.ts`; run
-   `npm run test:belief` from `holonovel/`.
+6. **Tests and citations.** T743–T747 in `holonovel/scripts/test-belief.ts`,
+   named `T743/REQ-623: …` in the existing style; run `npm run test:belief` from
+   `holonovel/`. Cite REQ-623–REQ-628 per block in the module and handlers so
+   the coverage audit classifies them as evidenced (expected bucket C, with the
+   `_Check:_` IDs as their direct tests).
 7. **Registers and docs.** Remove the ROADMAP section; add a DECISIONS entry
    (append-only, GM-only, no coupling row); `holonovel/AGENTS.md:101` action
-   list; regenerate `tool-definitions.json`; `surface-budget --write`;
-   `validate -- --write-register`; CHANGELOG; plan/tasks/AAR.
+   list; regenerate `tool-definitions.json` with
+   `npx tsx holonovel/scripts/generate-tool-definitions.ts` (no `--check`);
+   `surface-budget --write`; `validate -- --write-register`; CHANGELOG;
+   plan/tasks/AAR.
 8. **Verify and close.** `npm run assemble && npm run check:fast` un-piped,
    `npm run build-order`, `HOLONOVEL_IMPL_STRICT=1 npm run validate`; then
    `npm run session:close` as one spec increment commit.
@@ -277,13 +309,14 @@ leaves the memory unchanged. _Check:_ T747.
 | `spec/04-runtime.md` | property row, archetype example, two §7.6 configs | M |
 | `spec/01a-constitution.md` | §4 glossary row | S |
 | `spec/03-build.md` | 40 → 41 group count | S |
-| `spec/appendices-reference.md` | REQ index, T743–T747, T425/T439 count correction | M |
+| `spec/appendices-reference.md` | Appendix E REQ rows, Appendix F T743–T747, T425/T439 count correction | M |
 | `spec/build-phase-map.md` | 33 → 35 subsections (content hash advances) | S |
 | `holonovel/src/core/subjective.ts` | new module | M |
 | `holonovel/src/core/state.ts` | field, init, migrate, serialize, snapshot, append-only | M |
 | `holonovel/src/index.ts` | schema, handlers, briefing, health, redaction, persist line | L |
 | `holonovel/scripts/test-belief.ts` | T743–T747 | M |
 | `holonovel/AGENTS.md` | `manage_belief` action list | S |
+| `holonovel/tool-surface-registry.json` | two action entries | S |
 | `holonovel/tool-definitions.json` | regenerated | S |
 | `spec/audit/tool-surface-baseline.json` | re-recorded footprint | S |
 | `spec/audit/req-coverage.md` | regenerated; REQ-623–628 evidenced | S |
@@ -299,27 +332,33 @@ leaves the memory unchanged. _Check:_ T747.
   with `npm run build-order`, not by hand.
 - `check-tool-definitions-sync` fails until `generate-tool-definitions.ts`
   runs.
+- `check-tool-surface` fails with `unregistered action:
+  manage_belief.subjective_record` until the registry entries land.
 - `surface-budget` fails until the baseline is re-recorded.
 - `action-conflicts` may flag `subjective_list` vs an existing read action;
   resolve by renaming the action, not by excluding it.
 
-## Done bar
+**Rollback cost:** 0 — a pure addition (new REQs, new module, new Novel field,
+two new actions). Removing the §5.35 section, the module, and the schema entries
+returns the tree to the current state; a Novel written with the field loads
+unchanged through the normalizer's empty default.
 
-`npm run check:fast` prints `check:fast: PASS` (35 + gates, 0 failed) on the
-un-piped command; `npm run build-order` reports 0 errors; `npm run test:belief`
-passes with T743–T747; `HOLONOVEL_IMPL_STRICT=1 npm run validate` passes with
-REQ-623–628 counted evidenced; the ROADMAP item is removed; the plan, tasks,
-and AAR exist and the AAR ends `LOOP PAUSED`.
+**Done bar:** `npm run check:fast` prints `check:fast: PASS` with 36 passed and
+0 failed on the un-piped command; `npm run build-order` reports 0 errors;
+`npm run test:belief` passes with T743–T747; `HOLONOVEL_IMPL_STRICT=1 npm run
+validate` passes with REQ-623–628 counted evidenced (bucket C, not A); the
+ROADMAP item is removed; the plan, tasks, and AAR exist and the AAR ends
+`LOOP PAUSED`.
 
 ## Open questions
 
-1. **Blocking:** `docs/plans/2026-11-08-license-compliance/` is untracked and
-   has no `aar.md`, so `check:fast` is red before any edit. Per the AGENTS
-   routine a red baseline is fixed first, as its own commit. That session's AAR
-   is not this plan's to write; the operator should either close it
-   (`npm run session:close` after writing its AAR) or delete the directory.
-2. Should `subjective_list` also surface through `manage_context (action: recap)`
+1. Should `subjective_list` also surface through `manage_context (action: recap)`
    for the GM? Proposed: no in chunk 1 — the briefing section is the narration
    path and recap already packs the campaign tier.
-3. Chunk 5 says it replaces "the minimal selection" — this plan deliberately
+2. Chunk 5 says it replaces "the minimal selection" — this plan deliberately
    ships a plain deterministic top-k so that replacement is a clean diff.
+3. Pre-existing, not introduced here: REQ-241a says a checkpoint "includes all
+   §7.7 property groups", yet the implementation excludes the append-only
+   `event_log` and `perception_ledger` (`index.ts:10272-10275`). Chunk 1 follows
+   that practice for subjective memory (D2). Correcting REQ-241a's wording is a
+   separate, gate-invisible change and is not folded into this increment.

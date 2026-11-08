@@ -3,28 +3,30 @@
 Baseline: `check:fast` PASS (36 gates), tree clean, 2 unpushed commits.
 Commit order and per-commit gates: see `plan.md` § Commit and gate order.
 
-## P1 — Remove from the working tree (Commit A)
+## P1 — Remove from the working tree (done)
 
-- [ ] T1 Delete `supplemental-md/thundercats-campaign.md` and
+- [x] T1 Delete `supplemental-md/thundercats-campaign.md` and
       `thundercats-adventures.md`.
-- [ ] T2 `.gitignore`: ignore `*.md` inside `supplemental-md/`, negate `.gitkeep`.
-- [ ] T3 `extract-thundercats.mjs` reads `TTRPG_SUPPLEMENT_DIR`, exits 1 when
-      unset.
-- [ ] T4 Sanitize naming/derived data in `authored/`, `deploy.mjs`,
-      `annotate-thundercats.mjs`, `build-package.mjs`, `provenance.json`,
-      `scripts/update.ts`, `spec/audit/*`, `DECISIONS.md`, the two `plans/` files.
-- [ ] T5 Resolve `swse/` per the open question.
-- [ ] T6 Gate: `npm run assemble && npm run check:fast`.
+- [x] T2 `.gitignore`: ignore `scripts/ruleset-builds/` wholesale.
+- [x] T3 ~~`extract-thundercats.mjs` reads `TTRPG_SUPPLEMENT_DIR`~~ — superseded:
+      the whole per-book pipeline is removed (user decision), so no in-repo
+      extractor remains.
+- [x] T4 Remove the dnd2024 supplement pipeline and its authored tools.
+- [x] T5 Remove `swse/` in full.
+- [x] T6 Gate: `npm run assemble && npm run check:fast` → PASS.
 
-## P2 — Purge from history (approval-gated, no commit)
+## P2 — Purge from history (done)
 
-- [ ] T7 `git bundle create ../holonovel-pre-purge.bundle --all`; tag
-      `pre-license-purge`.
-- [ ] T8 Resolve the rewrite tool: `git-filter-repo` installed, `npx`, or
-      `filter-branch` fallback.
-- [ ] T9 Rewrite with `--invert-paths` over the confirmed paths.
-- [ ] T10 Retag `v2026.11.07`; verify `git log --all -- <paths>` empty.
-- [ ] T11 Force-push origin + github; re-clone deployed; verify from the bundle.
+- [x] T7 `git bundle create /tmp/opencode/holonovel-pre-purge.bundle --all` (11 MB).
+- [x] T8 Rewrite tool resolved: `git-filter-repo` absent; used
+      `git filter-branch --index-filter` (recorded per plan step 7).
+- [x] T9 Rewrite with `--invert-paths` equivalent (`git rm -r --cached`) over
+      `scripts/ruleset-builds` — the whole path, covering dnd2024, swse, and the
+      historical robotech baseline.
+- [x] T10 Tags rewritten (`--tag-name-filter cat`); `git log main -- <path>`
+      empty; `git rev-list --objects --all | grep ruleset-builds` → 0.
+- [x] T11 Force-push origin + github; deployed re-cloned (`reset --hard`),
+      `.holonovel-state/` preserved.
 
 ## P3 — Registry and policy (Commit B)
 
@@ -32,9 +34,9 @@ Commit order and per-commit gates: see `plan.md` § Commit and gate order.
 - [ ] T13 Appendix U: "operator-supplied build input" class.
 - [ ] T14 `docs/licenses/build-inputs.json` classification manifest.
 - [ ] T15 `ATTRIBUTION.md` rows and terminal dispositions for G1–G5.
-- [ ] T16 `DECISIONS.md` single decision line.
-- [ ] T17 `spec/audit/review-register.md` rows for R1–R19 (check-registers,
-      check-traceability).
+- [ ] T16 `DECISIONS.md` single decision line. (Partial: content-boundary bullet
+      updated with P1; the register line is still open.)
+- [ ] T17 `spec/audit/review-register.md` rows for R1–R19.
 
 ## P4 — Gates (Commit C)
 
@@ -64,7 +66,8 @@ Commit order and per-commit gates: see `plan.md` § Commit and gate order.
 
 - [ ] T28 `NOTICE` in the tarball and in `holonovel/package.json` `files`.
 - [ ] T29 OGL 1.0a Section 15 policy recorded.
-- [ ] T30 `npm run version-bump`; CHANGELOG heading date equals the CalVer.
+- [ ] T30 `npm run version-bump` (done early for P1: 2026.11.08); CHANGELOG
+      heading date equals the CalVer.
 - [ ] T31 `npm run assemble`; `validate --sdd-strict` clean.
 - [ ] T32 Publish; verify 13 README rows and a clean wiki mirror.
 - [ ] T33 AAR with LOOP token; review-register update; `session:close`.

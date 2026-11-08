@@ -5,10 +5,8 @@ Ordered by dependency; each item's evidence is the command that proved it.
 
 ## Baseline (before the first edit)
 
-- [ ] `npm run status` → version, unpushed count, roadmap count recorded.
-- [ ] `npm run check:fast` → **currently FAIL** (`check-loop-artifacts`,
-      untracked `2026-11-08-license-compliance` without `aar.md`). Close that
-      increment first; re-run until `check:fast: PASS`.
+- [ ] `npm run status` → version 2026.11.08, 5 open roadmap items.
+- [ ] `npm run check:fast` → **PASS, 36 passed / 0 failed** at `9b856c0`.
 - [ ] `npm run assemble` → exit 0.
 - [ ] `cd holonovel && npm run test:belief` → record pass count.
 - [ ] `npm run check-roadmap` → OK.
@@ -30,7 +28,8 @@ Ordered by dependency; each item's evidence is the command that proved it.
 - [ ] §7.6 `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (Storage) and
       `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` (Presentation — non-behavioral).
 - [ ] §5.19 REQ-400 and REQ-407 name the surface.
-- [ ] §4 glossary row; Appendix A REQ index rows; Appendix T T743–T747 rows.
+- [ ] §4 glossary row; Appendix E (Requirements Manifest) rows for REQ-623–628
+      with the 2026-11-08 pin; Appendix F (Derived Test Catalogue) T743–T747.
 - [ ] Group count 40 → 41 (`spec/03-build.md:658`, T425, T439 — also fixes the
       stale 38).
 - [ ] `spec/build-phase-map.md` 33 → 35 subsections (also fixes the stale 33).
@@ -49,13 +48,21 @@ Ordered by dependency; each item's evidence is the command that proved it.
 
 ## S4 — Actions (plan Phase 4, D3/D4/D5)
 
+- [ ] Sibling-contract check: grep `manage_belief` in `spec/`; confirm no
+      conflicting badge gate, error code, or enum semantics in REQ-461–472,
+      REQ-540–545, REQ-594; record the result here.
+- [ ] Header citation in `subjective.ts` and per-block REQ-623–628 citations in
+      the handlers (the coverage audit reads source citations).
 - [ ] `manage_belief` enum gains `subjective_record`, `subjective_list`.
 - [ ] Ten `subjective_*` parameters with descriptions.
 - [ ] Handlers: record (default ordinal = latest, refuse ordinal > latest,
       cap eviction), list (entity or ordinal, badge gate, `[FORBIDDEN]`).
 - [ ] Audit entry on record; tool description trimmed under the 1000-byte budget.
-- Evidence: `npx tsc --noEmit` exit 0; manual call returns `[FORBIDDEN]` for
-      Player.
+- [ ] Declare `manage_belief.subjective_record` and
+      `manage_belief.subjective_list` in `holonovel/tool-surface-registry.json`
+      (group, phases, entry, mutation class, preconditions, successors, edges).
+- Evidence: `npx tsc --noEmit` exit 0; `npm run check-tool-surface` passes;
+      manual call returns `[FORBIDDEN]` for Player.
 
 ## S5 — Briefing, health, redaction (plan Phases 5, D6/D7/D8)
 
@@ -76,6 +83,7 @@ Ordered by dependency; each item's evidence is the command that proved it.
 - [ ] T746: end/resume persistence, cap eviction, `subjective_memory_count`.
 - [ ] T747: belief/evidence/perception/campaign-memory/event-log unchanged;
       reconcile leaves the memory unchanged.
+- [ ] Test names use the `T743/REQ-623: …` prefix (`test-belief.ts:37` style).
 - Evidence: `cd holonovel && npm run test:belief` → all pass.
 
 ## S7 — Registers and docs (plan Phase 7)
@@ -83,7 +91,8 @@ Ordered by dependency; each item's evidence is the command that proved it.
 - [ ] ROADMAP section removed.
 - [ ] `holonovel/DECISIONS.md` entry: append-only, GM-only, no coupling row.
 - [ ] `holonovel/AGENTS.md:101` action list updated.
-- [ ] `npm run check-tool-definitions-sync` regenerated.
+- [ ] `npx tsx holonovel/scripts/generate-tool-definitions.ts` (writes the
+      artifact; `npm run check-tool-definitions-sync` is the verification).
 - [ ] `npm run surface-budget -- --write`.
 - [ ] `npm run validate -- --write-register`; confirm REQ-623–628 evidenced.
 - [ ] CHANGELOG entry, dated 2026-11-08, matching the commit subject.

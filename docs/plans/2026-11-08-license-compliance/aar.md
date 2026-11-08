@@ -32,8 +32,37 @@
 
 ## Not yet done
 
-- P2 history purge (backup bundle, rewrite, force-push both remotes, re-clone).
 - P3 registry/policy, P4 gates, P5 attribution fields, P6 distribution and close.
+
+## History purge (P2, complete)
+
+- Backup: `/tmp/opencode/holonovel-pre-purge.bundle` (11 MB, `--all`).
+  Restore: `git fetch /tmp/opencode/holonovel-pre-purge.bundle 'refs/*:refs/restore/*'`.
+- `git-filter-repo` was absent, so the rewrite used
+  `git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch
+  scripts/ruleset-builds' --prune-empty --tag-name-filter cat --all`, covering
+  dnd2024, swse, and the historical `robotech/baseline.json` (3.4 MB).
+- Result: `git log main -- scripts/ruleset-builds` → 0;
+  `git rev-list --objects --all | grep ruleset-builds` → 0; `git fsck` clean;
+  25 tags rewritten.
+- Force-pushed `main` and all tags to `origin` (git.gay) and `github`; both now
+  report `9b856c0`.
+- Deployed instance reconciled with `git reset --hard origin/main`; its
+  `.holonovel-state/` (dnd2024, mothership, robotech, swse installs) preserved.
+- Fresh clone of the public GitHub remote: `scripts/ruleset-builds` absent,
+  history hits 0; the only remaining "ThunderCats" strings are title references
+  in `CHANGELOG.md`, this plan, and the review register — no book prose.
+- `TTRPG_DATA_DIR=<deployed state> npm run update -- --json` reports `swse`
+  `deferred` ("no recorded emitter or source") — the accepted outcome, not a
+  failure.
+
+## Follow-up found during P2
+
+- History still contains a 1,022-file `dnd5e/ruleset/` conversion tree and a
+  3.4 MB `robotech/baseline.json` predecessor. The SRD 5.1 text is openly
+  licensed (CC BY 4.0 + OGL), so this is a policy question, not a legal exposure;
+  it is not purged because it was outside the approved path list.
+- `.opencode/extract_swse.py` exists in history.
 
 ## Open
 
