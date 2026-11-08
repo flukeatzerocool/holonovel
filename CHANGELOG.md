@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-08 — Subjective memory disclosure axis and Player exposure
+
+- Adds a `disclosure` level (`open`, `guarded`, `secret`) to every
+  subjective-memory record; a record stored without one loads as `secret`, so
+  existing Novels keep their GM-only behavior (REQ-623, REQ-624).
+- Opens the Player badge to its own entity's memories: `subjective_list` is
+  scoped to the active entity, omits `secret` records, and returns
+  `[FORBIDDEN]` for another entity (REQ-625). The Player briefing renders
+  `open` records in full, `guarded` records as gist only, and omits `secret`
+  ones, while the Game Master section tags every non-`open` record (REQ-626,
+  REQ-634).
+- Adds `manage_belief (action: subjective_disclose)` to reclassify one record
+  without touching what it holds. The array stays append-only, so undo and a
+  checkpoint restore do not revert a level change (REQ-635).
+- Extends the draft visibility scan with memory text targets: a `secret`
+  record contributes its gist and claim, and a `guarded` record contributes its
+  claim and affect (REQ-599b). Player-scope export now carries the active
+  entity's visible records at their level instead of deleting the array
+  (REQ-096k, REQ-627).
+- Tests T753–T757 in `test-belief.ts`; T744/T745/T746 updated for the new read,
+  briefing, and persistence contracts. Tool count stays 37; `manage_belief`
+  gains one action and two parameters. Roadmap chunk 3 of 5 is retired.
+
 ## 2026-11-08 — Memory divergence verdicts
 
 - Adds §5.35 Divergence (REQ-629–REQ-633): a deterministic recorded-state truth

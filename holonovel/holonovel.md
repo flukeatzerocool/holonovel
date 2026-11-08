@@ -468,7 +468,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
 | Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
 | Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
-| Subjective Memory | The append-only per-entity record of what a character remembers — gist, structured claim, affect, salience, and origin, bound to an event-log ordinal (REQ-623–REQ-628). |
+| Subjective Memory | The append-only per-entity record of what a character remembers — gist, structured claim, affect, salience, origin, and a disclosure level (`open`, `guarded`, or `secret`), bound to an event-log ordinal (REQ-623–REQ-635). |
 | Witness provenance | The witness kind, producing sense, source, room, and confidence carried by a perception entry (REQ-594–REQ-595). |
 | Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
@@ -528,7 +528,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–633 |
+| 5.35   | Subjective Memory                                       | 623–635 |
 
 ### 5.1 Output and Error Contracts
 
@@ -1787,7 +1787,7 @@ Play the Novel." The **State surface layer** (sourced from the active badge per 
 The surface also reports active entity personality fields and voice examples, badge-filtered per REQ-077. The surface reports the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), and Novel setup metadata (REQ-089). The setup metadata includes a "Session zero not yet completed" reminder when `session_zero_completed` is false. The surface also reports a pointer to the intro prompt (REQ-063).
 
 **REQ-109c3 — Badge briefing composition (Part c3).**
-The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), subjective memory records selected per REQ-626 (GM only), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
+The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), subjective memory records selected per REQ-626 for the Game Master and per REQ-634 for the Player, world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
 
 **REQ-109d — Badge briefing composition (Part d).**
 Groups whose data source is empty SHALL include an explicit empty-state marker describing which category is empty. Markers preserve the expected briefing structure and prevent the caller from inferring non-existent content. The enumeration order above is the builder's required default section ordering for `badge_briefing`.
@@ -1929,7 +1929,7 @@ The server SHALL provide a `narrate` prompt assembled from the AI narrative role
 `manage_diagnostics (action: visibility_check, text, audience)` SHALL scan a draft for GM-only disclosure against the named audience, SHALL return the draft with each match replaced by `[redacted]` in `advisory` mode, and SHALL refuse with `[RULE_VIOLATION]` in `strict` mode. A Game Master or Editor audience SHALL NOT be scanned, and a draft with no match SHALL be returned unchanged. The refusal SHALL NOT echo the matched text. *Acceptance criterion:* a draft carrying a GM-only secret is redacted for a Player audience and returned unchanged for a Game Master audience. _Check:_ T709, T710.
 
 **REQ-599b — Draft visibility scan (Part b).**
-The match set SHALL be GM-only secret keys and content, GM-only lore and note keys and content, and NPC mind directives, excluding a secret already revealed to the active entity and suppressing keys that appear on the build's shipped common-noun allowlist, recorded in DECISIONS.md (4). `TTRPG_NARRATOR_VISIBILITY` SHALL accept `advisory` or `strict` and SHALL fall back to `advisory` on an unknown value. Paraphrase and implication detection are out of scope. *Acceptance criterion:* an ordinary entity name and a key present on the shipped allowlist are not redacted, a key absent from the allowlist is redacted, and an unknown visibility mode falls back to advisory. _Check:_ T709.
+The match set SHALL be GM-only secret keys and content, GM-only lore and note keys and content, NPC mind directives, and a `secret` memory's gist and claim, plus a `guarded` memory's claim when another entity owns it, excluding a revealed secret and suppressing keys on the shipped common-noun allowlist (DECISIONS.md 4). `TTRPG_NARRATOR_VISIBILITY` SHALL accept `advisory` or `strict` and SHALL fall back to `advisory` on an unknown value. Paraphrase and implication detection are out of scope. *Acceptance criterion:* an ordinary entity name and an allowlisted key are not redacted, a key absent from the allowlist is redacted, a quoted `secret` memory is redacted, and an unknown visibility mode falls back to advisory. _Check:_ T709, T757.
 
 **REQ-600 — Visibility audit.**
 `manage_diagnostics (action: visibility_audit, max_entries?)` SHALL report the most recent visibility-check and visibility-refused audit entries with timestamp, badge, audience, mode, and flag count, and SHALL NOT echo the matched secret text. The entries SHALL be recorded in the existing audit log (REQ-040) and SHALL introduce no new persisted property group. *Acceptance criterion:* after a flagged check, `visibility_audit` returns an entry naming the audience and flag count without the secret text. _Check:_ T711.
@@ -3567,7 +3567,7 @@ Adventure modules embedded inline SHALL include their prose content (all narrati
 **REQ-096j — Novel interchange (Part j).**
 The `manage_archive (action: export)` JSON payload SHALL include an `integrity` object with `algorithm`, `payload_hash`, `state_hash`, `audit_hash`, and `format_version`. `state_hash` SHALL be the canonical state hash (REQ-601). The three hashes and the `hmac-sha256` signature SHALL be derived per §7.9d. When `TTRPG_EXPORT_SIGNING_KEY` is set, the object also carries the signature over the three hashes. Markdown export carries no integrity object. *Acceptance criterion:* every JSON export carries the object; the same payload hashes identically across two exports; a changed payload changes `payload_hash`; `state_hash` equals the live canonical state hash. _Check:_ T691, T694.
 **REQ-096k — Novel interchange (Part k).**
-The `player` scope produces a player-safe JSON bundle without mutating the Novel. It omits the GM-only property groups classified in §7.7.1, plus audit, snapshot, and checkpoint bookkeeping, and redacts GM-only fields from shared tiers (REQ-075f, REQ-234, REQ-242, REQ-265). It filters belief and perception records to player entities and clears adventure-index premise, hooks, and generated adventures. `replace` imports of a player bundle surface `[WARNING] [player-scope-import]`; under `strict` they return `[ERROR] [STATE_CONFLICT]`. *Acceptance criterion:* the bundle carries no GM-only tier or lore, note, or NPC mind; `merge` imports it; `replace` warns. _Check:_ T693.
+The `player` scope produces a player-safe JSON bundle without mutating the Novel. It omits the GM-only property groups classified in §7.7.1, plus audit, snapshot, and checkpoint bookkeeping, and redacts GM-only fields from shared tiers (REQ-075f, REQ-234, REQ-242, REQ-265). It filters belief and perception records to player entities and clears adventure-index premise, hooks, and generated adventures. It omits `secret` memories and projects `guarded` ones without claim or affect. `replace` imports of a player bundle surface `[WARNING] [player-scope-import]`; under `strict` they return `[ERROR] [STATE_CONFLICT]`. *Acceptance criterion:* the bundle carries no GM-only tier or lore, note, or NPC mind; `merge` imports it; `replace` warns. _Check:_ T693.
 **REQ-096l — Novel interchange (Part l).**
 On import, the server SHALL verify `integrity` before reference validation or mutation. A missing envelope is accepted with `[WARNING] [integrity-absent]` in both modes. A hash or signature mismatch surfaces `[WARNING] [integrity-mismatch]` by default and returns `[ERROR] [STATE_CONFLICT]` when `strict` is true, with no mutation; a signed bundle imported without a configured key warns `[signature-unverified]`. `dry-run` reports integrity failures with `isError: false`. Hashes are recomputed from the parsed payload, not the raw input string. *Acceptance criterion:* a clean bundle verifies, a legacy bundle warns, and a tampered bundle refuses under `strict` without changing state. _Check:_ T691, T692.
 **REQ-096m — Novel sharing (Part m).**
@@ -4849,62 +4849,74 @@ The subjective-memory store holds what a character remembers rather than what
 happened: per-entity records bound to an event-log ordinal, each carrying a
 gist, a structured claim, the entity's affect at the time, a salience, and an
 origin. It stays separate from the objective record (REQ-455) and from belief
-(REQ-461–REQ-472) and never rewrites either. The memory-node vocabulary — gist,
-affect, salience, origin — is adapted from COF (Character Open File, Yann
-Souetre, <https://github.com/yannsouetre/cof>), CC BY 4.0; see Appendix U.
+(REQ-461–REQ-472) and never rewrites either. Each record also carries a
+disclosure level: `open` is quotable on the owning entity's Player surfaces,
+`guarded` may be alluded to while its claim and affect stay withheld, and
+`secret` shapes narration without ever being quoted. The memory-node
+vocabulary — gist, affect, salience, origin — is adapted from COF (Character
+Open File, Yann Souetre, <https://github.com/yannsouetre/cof>), CC BY 4.0; see
+Appendix U.
 
 **REQ-623 — Subjective memory record.**
 THE server SHALL maintain, for each player character and named NPC, an
 append-only subjective-memory store. Each record carries the owning entity, the
 contributing event-log ordinal, a gist, a structured claim (subject, predicate,
-object, and polarity), the entity's affect at the event, a 0..1 salience, and an
-origin (witnessed, told, inferred, or authored). A record SHALL hold what the
-entity remembers and SHALL NOT hold or rewrite objective state. *Acceptance
-criterion:* recording a memory appends a record carrying its entity, ordinal,
-gist, claim, affect, salience, and origin. _Check:_ T743.
+object, and polarity), the entity's affect at the event, a 0..1 salience, an
+origin (witnessed, told, inferred, or authored), and a disclosure level of
+`open`, `guarded`, or `secret`. A record that carries no disclosure level SHALL
+load as `secret`. A record SHALL hold what the entity remembers and SHALL NOT
+hold or rewrite objective state. *Acceptance criterion:* recording a memory
+appends a record carrying its entity, ordinal, gist, claim, affect, salience,
+origin, and disclosure. _Check:_ T743, T753.
 
 **REQ-624 — Subjective memory recording.**
 `manage_belief (action: subjective_record)` SHALL record a subjective memory
 from the `subjective_entity`, `subjective_gist`, `subjective_subject`,
-`subjective_predicate`, and `subjective_object` parameters, carrying stance and
-provenance from `subjective_polarity`, `subjective_felt_then`,
-`subjective_salience`, `subjective_origin`, and `subjective_event_ordinal`. A
-missing entity, gist, or claim triple SHALL return `[ERROR] [INVALID_INPUT]`
-enumerating valid values. The event ordinal SHALL default to the latest
+`subjective_predicate`, and `subjective_object` parameters, with stance and
+provenance from the remaining `subjective_*` parameters.
+`subjective_disclosure` SHALL set the disclosure level and SHALL default to
+`secret`. A missing entity, gist, claim triple, or unknown level SHALL return
+`[ERROR] [INVALID_INPUT]`. The event ordinal SHALL default to the latest
 event-log ordinal and SHALL NOT exceed it. Mutation SHALL require the Game
-Master badge. *Acceptance criterion:* a well-formed record appends one entry, a
-malformed record is refused, and a Player call is refused. _Check:_ T743, T744.
+Master badge. *Acceptance criterion:* a well-formed record appends one entry
+with its level; a malformed record or a Player call is refused. _Check:_ T743,
+T744, T753.
 
 **REQ-625 — Subjective memory read and gating.**
 `manage_belief (action: subjective_list)` SHALL return the records for one
-entity or one event ordinal in record order and SHALL NOT mutate state.
-Subjective-memory reads and writes SHALL be Game Master only: a Player or
-Observer read SHALL return `[FORBIDDEN]`, and a read SHALL NOT advance the
-event log. *Acceptance criterion:* a Game Master entity query returns only that
-entity's records; Player and Observer reads return `[FORBIDDEN]` and leave the
-cursor unchanged. _Check:_ T744.
+entity or one event ordinal in record order and SHALL NOT mutate state. A Game
+Master read returns every record. A Player read SHALL be scoped to the active
+entity, SHALL omit `secret` records, and SHALL return `[FORBIDDEN]` when the
+parameter names another entity; an Observer read SHALL return `[FORBIDDEN]`. A
+read SHALL NOT advance the event log. *Acceptance criterion:* a Player read of
+the active entity omits a `secret` record, a Player read of another entity
+returns `[FORBIDDEN]`, and an Observer read returns `[FORBIDDEN]`. _Check:_
+T744, T754.
 
 **REQ-626 — Deterministic briefing selection.**
 WHEN `badge_briefing` composes Game Master content, THE server SHALL render a
 `## Subjective Memory` section after `## Campaign Memory` covering entities
-present in the current scene. Records SHALL be selected by descending salience,
-then descending event ordinal, then ascending record identifier, and SHALL
-render at most `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records (§7.6). The
-section SHALL NOT render under the Player or Observer badge, and two renders of
-unchanged state SHALL be identical. *Acceptance criterion:* two renders of
-unchanged state return the same ordered section and a Player render omits it.
-_Check:_ T745.
+present in the current scene and tagging every non-`open` record with its
+disclosure level. Records SHALL be selected by descending salience, then
+descending event ordinal, then ascending record identifier, and SHALL render at
+most `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records (§7.6). The section SHALL
+NOT render under the Observer badge, and two renders of unchanged state SHALL
+be identical. *Acceptance criterion:* two renders of unchanged state return the
+same ordered section, a `secret` record renders tagged, and an Observer render
+omits the section. _Check:_ T745, T755.
 
 **REQ-627 — Persistence and retention.**
 Subjective-memory records SHALL persist with the Novel, survive a restart, and
 travel with clone and export operations, bounded by
-`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. A
-checkpoint restore SHALL NOT remove a record appended after the checkpoint,
-mirroring the append-only event log. Under the Game Master badge, `spec_health`
-SHALL report `subjective_memory_count`, the total number of records across all
-entities. *Acceptance criterion:* a record survives an end-and-resume cycle, a
+`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. The
+disclosure level SHALL travel with those records, and a reclassification SHALL
+survive undo, checkpoint restore, and a save-and-resume cycle. A checkpoint
+restore SHALL NOT remove a record appended after the checkpoint, mirroring the
+append-only event log. Under the Game Master badge, `spec_health` SHALL report
+`subjective_memory_count`, the total number of records across all entities.
+*Acceptance criterion:* a record and its level survive an end-and-resume cycle, a
 cap overflow evicts the oldest record, and the health report carries the count.
-_Check:_ T746.
+_Check:_ T746, T757.
 
 **REQ-628 — Separation from recorded state.**
 Recording a subjective memory SHALL NOT create or alter a perception, an
@@ -4969,6 +4981,29 @@ fail when any probe does not return its expected verdict. The harness SHALL
 report the verdict per probe, and a probe whose claim is unverifiable SHALL fail
 rather than pass. *Acceptance criterion:* the committed fixture runs and fails on a
 deliberately missed expected verdict. _Check:_ T752.
+
+**REQ-634 — Player-badge memory exposure.**
+WHEN `badge_briefing` composes Player-badge content, THE server SHALL render a
+`## Subjective Memory` section after `## Campaign Memory` covering the active
+entity's records only. An `open` record SHALL render its gist, claim, and
+affect; a `guarded` record SHALL render its gist only, with the claim and
+affect withheld; a `secret` record SHALL be absent. Selection and the render cap
+SHALL match REQ-626. With no active entity, or with no record the level makes
+visible, the section SHALL be absent. *Acceptance criterion:* a Player render
+carries an `open` record in full, a `guarded` record as gist only, and no
+`secret` record. _Check:_ T755.
+
+**REQ-635 — Memory reclassification.**
+`manage_belief (action: subjective_disclose)` SHALL set the disclosure level of
+one existing record from `subjective_record_id` and `subjective_disclosure`,
+leaving the gist, claim, affect, salience, ordinal, and identifier unchanged. An
+unknown identifier SHALL return `[ERROR] [NOT_FOUND]` and an unknown level
+`[ERROR] [INVALID_INPUT]`. The action SHALL be Game Master only and SHALL record
+one audit entry. Reclassification SHALL NOT create, remove, or rewrite a memory,
+and SHALL NOT be reverted by undo or a checkpoint restore (REQ-627).
+*Acceptance criterion:* reclassifying a record changes every Player surface at
+once, an unknown identifier is refused, and undo leaves the new level in place.
+_Check:_ T756.
 
 #### End of requirements
 
@@ -7417,7 +7452,7 @@ discarded by `manage_novel (action: end)`):
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
 | Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_belief (action: perception_record)`) | read-only (own entity, badge-filtered per REQ-545) |
-| Subjective Memory | Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief (action: subjective_record)`) | Game Master only |
+| Subjective Memory | Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief (action: subjective_record)`, disclosure set via `manage_belief (action: subjective_disclose)`) | read-only (own entity, disclosure-filtered per REQ-625 and REQ-634) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -10464,6 +10499,8 @@ date-stamps matching CHANGELOG entries.
 | REQ-631 | Game Master truth view | 2026-11-08 |
 | REQ-632 | Divergence marker in the briefing | 2026-11-08 |
 | REQ-633 | Subjective divergence probes | 2026-11-08 |
+| REQ-634 | Player-badge memory exposure | 2026-11-08 |
+| REQ-635 | Memory reclassification | 2026-11-08 |
 
 ---
 
@@ -11135,15 +11172,20 @@ diet.
 | T741 | Automated | Room hazard annotations: a well-formed `annotations.encounter` and `annotations.trap` are readable from the room; an encounter subtracts its declared `spill` from the bound resource countdown and fires the resource's world effect at zero; a malformed annotation is ignored with a warning without blocking entry. | REQ-622, REQ-622a |
 | T742 | Automated | Survival resource: a trap resolves a seeded check against the `snuff` countdown's ticks and extinguishes the resource on success; a bundle adds its declared increment; an extinguish with a unit relights without loss; an extinguish without a unit starts the declared last-light countdown; the Player badge sees remaining units without a tick total. | REQ-622b, REQ-622c |
 | T743 | Automated | Subjective memory record: recording a memory appends one entry carrying its entity, the contributing event-log ordinal (defaulting to the latest), a gist, a claim triple, the affect, a 0..1 salience, and an origin; the entry survives a save and reload. | REQ-623, REQ-624 |
-| T744 | Automated | Subjective memory gating: a Player or Observer `subjective_list` returns `[FORBIDDEN]` and leaves the event-log cursor unchanged; a Player `subjective_record` is refused; a Game Master entity query returns only that entity's records. | REQ-624, REQ-625 |
-| T745 | Automated | Deterministic briefing selection: two `badge_briefing` renders at one state return an identical `## Subjective Memory` section; records order by descending salience, then descending ordinal, then ascending id; the section honors `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`; a Player render omits the section. | REQ-626 |
-| T746 | Automated | Subjective memory persistence: a record survives an end-and-resume cycle; a cap overflow evicts the oldest record; a checkpoint restore preserves a record appended after capture; `spec_health` reports `subjective_memory_count` under the Game Master badge. | REQ-627 |
+| T744 | Automated | Subjective memory read gating: a Player `subjective_list` returns the active entity's non-`secret` records and returns `[FORBIDDEN]` for another entity; an Observer `subjective_list` returns `[FORBIDDEN]`; a Player `subjective_record` is refused; a Game Master entity query returns only that entity's records; a read leaves the event-log cursor unchanged. | REQ-624, REQ-625 |
+| T745 | Automated | Deterministic briefing selection: two `badge_briefing` renders at one state return an identical `## Subjective Memory` section; records order by descending salience, then descending ordinal, then ascending id; the section honors `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`; a non-`open` record renders tagged and an Observer render omits the section. | REQ-626 |
+| T746 | Automated | Subjective memory persistence: a record and its disclosure level survive an end-and-resume cycle; a cap overflow evicts the oldest record; a checkpoint restore preserves a record appended after capture and a reclassification survives the restore; `spec_health` reports `subjective_memory_count` under the Game Master badge. | REQ-627 |
 | T747 | Automated | Subjective memory separation: recording a memory leaves perceptions, evidence, belief stances, campaign-memory facts, and the event-log cursor unchanged, and a reconcile leaves the memory unchanged. | REQ-628 |
 | T748 | Automated | Truth projection: two derivations of unchanged state return equal fact sets; a recorded relationship change alters the projected facts; the event-log cursor is unchanged by a derivation. | REQ-629 |
 | T749 | Automated | Divergence verdicts: a memory whose claim matches recorded state reports confirmed; a claim with opposite polarity reports false outcome; a claim naming the wrong participant reports misattributed; a claim carried by two different facts reports conflated; a claim anchored to a different event reports displaced; a confirmed claim whose affect opposes recorded valence reports affect drift; an unresolvable claim reports unverifiable; two checks of unchanged state return identical verdicts and the event-log cursor is unchanged. | REQ-630 |
 | T750 | Automated | GM truth view: `manage_belief (action: subjective_verify)` returns a verdict, the recorded fact, and its source per record; the entity and event-ordinal filters narrow the result; a Player or Observer call returns `[FORBIDDEN]`; two calls return equal output and do not advance the event log. | REQ-631 |
 | T751 | Automated | Divergence marker: a divergent memory renders `[divergence: <verdict>]` in the `## Subjective Memory` briefing section; a confirmed memory renders without a marker; two renders of unchanged state are identical and selection is unchanged. | REQ-632 |
 | T752 | Automated | Divergence probes: the committed probe fixture is evaluated by the recall-probe harness, every probe returns its declared verdict, the harness reports the verdict per probe, and a deliberately missed expected verdict fails the run. | REQ-633 |
+| T753 | Automated | Disclosure default and validation: a `subjective_record` call without `subjective_disclosure` records `secret`; a stored record carrying no level loads as `secret`; an unknown level returns `[ERROR] [INVALID_INPUT]`; the recorded level is returned by `subjective_list`. | REQ-623, REQ-624 |
+| T754 | Automated | Player memory read scoping: a Player `subjective_list` with no entity returns the active entity's `open` and `guarded` records and omits `secret`; an explicit foreign entity id returns `[FORBIDDEN]`; an `event_ordinal` filter returns only the active entity's records; with no active entity the call returns `[ERROR] [STATE_CONFLICT]`. | REQ-625 |
+| T755 | Automated | Player briefing exposure: a Player `badge_briefing` renders an `open` record in full, a `guarded` record as gist without claim or affect, and no `secret` record; the Game Master render tags each non-`open` record; two renders of unchanged state are identical; an Observer render carries no section. | REQ-626, REQ-634 |
+| T756 | Automated | Memory reclassification: `manage_belief (action: subjective_disclose)` sets one record's level and every Player surface reflects it; the gist, claim, affect, salience, ordinal, and id are unchanged; an unknown identifier returns `[NOT_FOUND]` and an unknown level `[INVALID_INPUT]`; a Player call is refused; the action records one audit entry; undo leaves the new level in place. | REQ-635 |
+| T757 | Automated | Memory scan and player export: a Player-audience draft quoting a `secret` memory's gist or claim is redacted, and refused under `strict`; a `guarded` record's claim is redacted for a non-owning audience while an `open` record is untouched; a player-scope export carries `open` records, projects `guarded` records without claim or affect, and omits `secret` records. | REQ-599b, REQ-627 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

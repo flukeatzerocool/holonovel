@@ -7,7 +7,9 @@
 // and REQ-472 (badge gating). Subjective memory: REQ-623 (record), REQ-624
 // (recording action), REQ-625 (read and gating), REQ-626 (deterministic
 // briefing selection), REQ-627 (persistence and retention), and REQ-628
-// (separation from recorded state). Divergence: REQ-629 (truth projection),
+// (separation from recorded state). Disclosure and Player exposure: REQ-634
+// (Player-badge briefing exposure) and REQ-635 (reclassification), with the
+// draft-scan targets of REQ-599b. Divergence: REQ-629 (truth projection),
 // REQ-630 (verdicts), REQ-631 (GM truth view), and REQ-632 (briefing marker).
 
 import { spawn } from "node:child_process";
@@ -15,6 +17,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { normalizeSubjectiveRecord } from "../src/core/subjective.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
@@ -25,6 +28,12 @@ function attach(proc: any) { buffer = ""; proc.stdout!.on("data", (d: Buffer) =>
 async function boot() { const p = spawn("npx", ["tsx", SERVER_SCRIPT], { env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR }, stdio: ["pipe", "pipe", "pipe"] }); attach(p); await send(p, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "belief", version: "1" } } }); p.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n"); await new Promise((r) => setTimeout(r, 250)); return p; }
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); if (r.error) throw new Error(`${name}: ${r.error.message ?? JSON.stringify(r.error)}`); const c = r.result?.content ?? []; return c.map((x: any) => x?.text ?? "").join("\n"); }
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* already exited */ } await new Promise((r) => setTimeout(r, 100)); }
+async function resource(proc: any, uri: string): Promise<string> {
+  const r = await send(proc, { method: "resources/read", params: { uri } });
+  if (r.error) throw new Error(`${uri}: ${r.error.message ?? JSON.stringify(r.error)}`);
+  const c = r.result?.contents ?? [];
+  return c.map((x: any) => x?.text ?? "").join("\n");
+}
 
 let passed = 0; let failed = 0;
 async function test(name: string, fn: () => void | Promise<void>): Promise<void> {
@@ -289,15 +298,21 @@ async function main() {
     await kill(p2);
   });
 
-  // ── T744: badge gating (REQ-624, REQ-625) ────────────────────────────
-  await test("T744/REQ-625: subjective memory is Game Master only", async () => {
+  // ── T744: read scoping and badge gating (REQ-624, REQ-625) ────────────
+  await test("T744/REQ-625: Player reads own visible memories; foreign and Observer refused", async () => {
     const p = await boot(); await newNovel(p, "subj2");
     const id = await present(p, "Hero");
-    await memory(p, id, "a remembered shout");
+    const other = await present(p, "Rival");
+    await memory(p, id, "a remembered shout", { subjective_disclosure: "open" });
+    await memory(p, id, "a hidden betrayal");
     const before = await call(p, "manage_context", { action: "history" });
     await call(p, "set_badge", { badge: "player" });
-    const read = await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id });
-    assert(read.includes("[FORBIDDEN]"), "Player read was not refused: " + read.slice(0, 160));
+    await call(p, "manage_character", { action: "set_active", entity_id: id });
+    const read = await call(p, "manage_belief", { action: "subjective_list" });
+    assert(read.includes("a remembered shout"), "Player read dropped an open memory: " + read.slice(0, 200));
+    assert(!read.includes("a hidden betrayal"), "Player read leaked a secret memory: " + read.slice(0, 200));
+    const foreign = await call(p, "manage_belief", { action: "subjective_list", subjective_entity: other });
+    assert(foreign.includes("[FORBIDDEN]"), "Player read of another entity was not refused: " + foreign.slice(0, 160));
     const write = await memory(p, id, "a Player write");
     assert(write.includes("[FORBIDDEN]"), "Player write was not refused: " + write.slice(0, 160));
     await call(p, "set_badge", { badge: "observer" });
@@ -309,7 +324,7 @@ async function main() {
   });
 
   // ── T745: deterministic capped GM section (REQ-626) ──────────────────
-  await test("T745/REQ-626: GM section is deterministic, ordered, capped, GM-only", async () => {
+  await test("T745/REQ-626: GM section is deterministic, ordered, capped, disclosure-tagged", async () => {
     const p = await boot(); await newNovel(p, "subj3");
     const id = await present(p, "Hero");
     await call(p, "manage_diagnostics", { action: "event", text: "one" });
@@ -321,6 +336,7 @@ async function main() {
     const b2 = section(await prompt(p, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
     assert(b1.length > 0, "GM briefing has no Subjective Memory section");
     assert(b1 === b2, "two renders of unchanged state differ");
+    assert(b1.includes("[authored, secret]"), "a non-open record was not tagged with its disclosure level: " + b1);
     const low = b1.indexOf("low-salience memory");
     const high = b1.indexOf("high-salience memory");
     const second = b1.indexOf("second high memory");
@@ -329,7 +345,7 @@ async function main() {
     assert(high < second, "equal-salience tie-break should order by ascending record id: " + b1);
     await call(p, "set_badge", { badge: "player" });
     const player = section(await prompt(p, "badge_briefing", { badge: "player" }), "## Subjective Memory");
-    assert(player === "", "Player briefing leaked the subjective-memory section");
+    assert(player === "", "Player briefing rendered secret-only memories: " + player);
     await kill(p);
     // Cap: one record at most.
     process.env.TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX = "1";
@@ -508,6 +524,135 @@ async function main() {
     assert(!confirmedLine.includes("[divergence"), "a confirmed memory rendered a divergence marker: " + confirmedLine);
     assert(divergentLine.includes("[divergence: false outcome]"), "a divergent memory did not name its verdict: " + divergentLine);
     assert(b1.indexOf("kael-is-loyal") < b1.indexOf("kael-is-hostile"), "marker changed the salience order: " + b1);
+    await kill(p);
+  });
+
+  // ── T753: disclosure default and validation (REQ-623, REQ-624) ───────
+  await test("T753/REQ-623,REQ-624: disclosure defaults to secret, validates, and survives reload", async () => {
+    // REQ-623 — a stored record carrying no level loads as `secret`.
+    assert(normalizeSubjectiveRecord({ id: "sm-1" }).disclosure === "secret", "a record with no level did not load as secret");
+    assert(normalizeSubjectiveRecord({ id: "sm-2", disclosure: "bogus" }).disclosure === "secret", "an unknown stored level did not fall back to secret");
+    assert(normalizeSubjectiveRecord({ id: "sm-3", disclosure: "open" }).disclosure === "open", "a stored open level was lost");
+    const p = await boot(); await newNovel(p, "disc1");
+    const id = await present(p, "Hero");
+    await memory(p, id, "a quiet debt");
+    const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(recs.length === 1 && recs[0].disclosure === "secret", "the record-time default is not secret: " + JSON.stringify(recs[0]?.disclosure));
+    const bad = await memory(p, id, "a bad level", { subjective_disclosure: "loud" });
+    assert(bad.includes("[INVALID_INPUT]"), "an unknown disclosure was accepted: " + bad.slice(0, 160));
+    const good = await memory(p, id, "a shared victory", { subjective_disclosure: "open" });
+    assert(good.includes("[OK]"), "an explicit level was refused: " + good.slice(0, 160));
+    await kill(p);
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "disc1" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    const after = JSON.parse(await call(p2, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(after.some((r: any) => r.gist === "a quiet debt" && r.disclosure === "secret"), "the default level did not survive a reload");
+    assert(after.some((r: any) => r.gist === "a shared victory" && r.disclosure === "open"), "an explicit level did not survive a reload");
+    await kill(p2);
+  });
+
+  // ── T754: Player read scoping (REQ-625) ──────────────────────────────
+  await test("T754/REQ-625: Player read is scoped to the active entity and the ordinal filter stays inside it", async () => {
+    const p = await boot(); await newNovel(p, "disc2");
+    await call(p, "set_badge", { badge: "player" });
+    const noActive = await call(p, "manage_belief", { action: "subjective_list" });
+    assert(noActive.includes("[STATE_CONFLICT]"), "no active entity did not raise a state conflict: " + noActive.slice(0, 160));
+    await call(p, "set_badge", { badge: "game_master" });
+    const id = await present(p, "Hero");
+    const other = await present(p, "Rival");
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    await call(p, "manage_diagnostics", { action: "event", text: "two" });
+    await memory(p, id, "an open recollection", { subjective_disclosure: "open", subjective_event_ordinal: 1 });
+    await memory(p, id, "a guarded recollection", { subjective_disclosure: "guarded", subjective_event_ordinal: 2 });
+    await memory(p, id, "a secret recollection");
+    await memory(p, other, "a rival open memory", { subjective_disclosure: "open", subjective_event_ordinal: 1 });
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_character", { action: "set_active", entity_id: id });
+    const read = await call(p, "manage_belief", { action: "subjective_list" });
+    assert(read.includes("an open recollection") && read.includes("a guarded recollection"), "Player read dropped a visible memory: " + read.slice(0, 240));
+    assert(!read.includes("a secret recollection"), "Player read leaked a secret memory: " + read.slice(0, 240));
+    assert(!read.includes("a rival open memory"), "Player read leaked a foreign entity's memory: " + read.slice(0, 240));
+    const guarded = JSON.parse(read).find((r: any) => r.gist === "a guarded recollection");
+    assert(guarded && guarded.claim.subject === "" && guarded.felt_then === "", "the guarded projection was not stripped: " + JSON.stringify(guarded));
+    const byOrdinal = await call(p, "manage_belief", { action: "subjective_list", subjective_event_ordinal: 1 });
+    const rows = JSON.parse(byOrdinal);
+    assert(rows.length > 0 && rows.every((r: any) => r.entity_id === id && r.gist !== "a rival open memory"), "the ordinal filter escaped the active entity: " + byOrdinal.slice(0, 240));
+    await kill(p);
+  });
+
+  // ── T755: Player briefing exposure (REQ-626, REQ-634) ────────────────
+  await test("T755/REQ-626,REQ-634: Player briefing renders open in full, guarded as gist, secret absent", async () => {
+    const p = await boot(); await newNovel(p, "disc3");
+    const id = await present(p, "Hero");
+    await call(p, "manage_character", { action: "set_active", entity_id: id });
+    await memory(p, id, "the open bell", { subjective_disclosure: "open", subject: "the bell", predicate: "rang for", object: "the town", subjective_felt_then: "relief", subjective_origin: "witnessed" });
+    await memory(p, id, "the guarded door", { subjective_disclosure: "guarded", subject: "the door", predicate: "hides", object: "a cellar", subjective_felt_then: "dread" });
+    await memory(p, id, "the secret letter");
+    const gm = section(await prompt(p, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
+    assert(gm.includes("[witnessed]") && gm.includes(", secret]") && gm.includes(", guarded]"), "the GM section did not tag non-open records: " + gm);
+    await call(p, "set_badge", { badge: "player" });
+    const b1 = section(await prompt(p, "badge_briefing", { badge: "player" }), "## Subjective Memory");
+    const b2 = section(await prompt(p, "badge_briefing", { badge: "player" }), "## Subjective Memory");
+    assert(b1.length > 0 && b1 === b2, "the Player section is missing or unstable: " + b1);
+    assert(b1.includes("the open bell") && b1.includes("(felt relief)"), "an open record did not render in full: " + b1);
+    assert(b1.includes("the guarded door") && !b1.includes("the cellar") && !b1.includes("dread"), "a guarded record leaked its claim or affect: " + b1);
+    assert(!b1.includes("the secret letter"), "the Player section leaked a secret memory: " + b1);
+    await call(p, "set_badge", { badge: "observer" });
+    const obs = section(await prompt(p, "badge_briefing", { badge: "observer" }), "## Subjective Memory");
+    assert(obs === "", "the Observer briefing carried the section: " + obs);
+    await kill(p);
+  });
+
+  // ── T756: reclassification (REQ-635) ─────────────────────────────────
+  await test("T756/REQ-635: reclassification changes every Player surface and undo does not revert it", async () => {
+    const p = await boot(); await newNovel(p, "disc4");
+    const id = await present(p, "Hero");
+    await call(p, "manage_character", { action: "set_active", entity_id: id });
+    await memory(p, id, "the buried oath");
+    const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    const rid = recs[0].id;
+    const bad = await call(p, "manage_belief", { action: "subjective_disclose", subjective_record_id: rid, subjective_disclosure: "loud" });
+    assert(bad.includes("[INVALID_INPUT]"), "an unknown level was accepted: " + bad.slice(0, 160));
+    const missing = await call(p, "manage_belief", { action: "subjective_disclose", subjective_record_id: "sm-99", subjective_disclosure: "open" });
+    assert(missing.includes("[NOT_FOUND]"), "an unknown record id was not refused: " + missing.slice(0, 160));
+    const done = await call(p, "manage_belief", { action: "subjective_disclose", subjective_record_id: rid, subjective_disclosure: "open" });
+    assert(done.includes("[OK]"), "a valid reclassification was refused: " + done.slice(0, 160));
+    const after = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(after[0].disclosure === "open" && after[0].gist === "the buried oath" && after[0].id === rid, "reclassification changed more than the level: " + JSON.stringify(after[0]));
+    const audit = await resource(p, "audit://novel");
+    assert(audit.includes("subjective_disclose"), "the reclassification recorded no audit entry");
+    await call(p, "set_badge", { badge: "player" });
+    const read = await call(p, "manage_belief", { action: "subjective_list" });
+    assert(read.includes("the buried oath"), "the Player read did not reflect the new level: " + read.slice(0, 200));
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_history", { action: "undo" });
+    const afterUndo = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(afterUndo[0].disclosure === "open", "undo reverted the reclassification: " + JSON.stringify(afterUndo[0]?.disclosure));
+    await kill(p);
+  });
+
+  // ── T757: scan targets and player-scope export (REQ-599b, REQ-627) ───
+  await test("T757/REQ-599b,REQ-627: secret memory text is redacted; player export filters levels", async () => {
+    const p = await boot(); await newNovel(p, "disc5");
+    const id = await present(p, "Hero");
+    await call(p, "manage_character", { action: "set_active", entity_id: id });
+    await memory(p, id, "the vault code is nine seven", { subjective_disclosure: "secret", subject: "the vault", predicate: "opens with", object: "nine seven" });
+    await memory(p, id, "the market fair was loud", { subjective_disclosure: "open" });
+    await memory(p, id, "the cellar door is barred", { subjective_disclosure: "guarded", subject: "the cellar", predicate: "is", object: "barred" });
+    const leak = await call(p, "manage_diagnostics", { action: "visibility_check", audience: "player", text: "You recall the vault code is nine seven." });
+    assert(leak.includes("[redacted]") && !leak.includes("nine seven"), "secret memory text was not redacted: " + leak.slice(0, 240));
+    const owner = await call(p, "manage_diagnostics", { action: "visibility_check", audience: "player", text: "The cellar is barred, you remember." });
+    assert(owner.includes("[redacted]"), "a guarded claim was not redacted for its owner: " + owner.slice(0, 240));
+    const open = await call(p, "manage_diagnostics", { action: "visibility_check", audience: "player", text: "The market fair was loud." });
+    assert(!open.includes("[redacted]"), "an open memory was redacted: " + open.slice(0, 240));
+    const exported = await call(p, "manage_archive", { action: "export", scope: "player", format: "json" });
+    const data = JSON.parse(exported.slice(exported.indexOf("{")));
+    const mems = data.novel.subjective_memory ?? [];
+    assert(mems.length === 2, "the player export did not carry the two visible records: " + JSON.stringify(mems));
+    assert(!JSON.stringify(mems).includes("nine seven"), "the player export leaked a secret memory");
+    const guarded = mems.find((m: any) => m.gist === "the cellar door is barred");
+    assert(guarded && guarded.claim.subject === "" && guarded.felt_then === "", "the player export did not strip the guarded claim: " + JSON.stringify(guarded));
     await kill(p);
   });
 

@@ -554,7 +554,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-596 | Visibility query | 5.10 World-Model Layer | C | T701, T702 | — |
 | REQ-597 | Audibility query | 5.10 World-Model Layer | C | T703 | — |
 | REQ-598 | Narrator clearance | 5.5 Badges and Access | C | T707, T708, T729 | — |
-| REQ-599 | Draft visibility scan (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T709, T710 | — |
+| REQ-599 | Draft visibility scan (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T709, T710, T757 | — |
 | REQ-600 | Visibility audit | 5.5 Badges and Access | C | T711 | — |
 | REQ-601 | Canonical state hash | 5.24 Temporal Event Log and Branching | C | T712 | — |
 | REQ-602 | Per-event state hash | 5.24 Temporal Event Log and Branching | C | T713 | — |
@@ -578,15 +578,17 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-620 | Local artifact registry | 5.7 Determinism, Safety, and Performance | C | T738, S6 | — |
 | REQ-621 | Artifact admission (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T739 | — |
 | REQ-622 | Room hazard annotations (3 sub-parts) | 5.10 World-Model Layer | C | T741, T742 | — |
-| REQ-623 | Subjective memory record | 5.35 Subjective Memory | C | T743 | — |
-| REQ-624 | Subjective memory recording | 5.35 Subjective Memory | C | T743, T744 | — |
-| REQ-625 | Subjective memory read and gating | 5.35 Subjective Memory | C | T744 | — |
-| REQ-626 | Deterministic briefing selection | 5.35 Subjective Memory | C | T745 | — |
-| REQ-627 | Persistence and retention | 5.35 Subjective Memory | C | T746 | — |
+| REQ-623 | Subjective memory record | 5.35 Subjective Memory | C | T743, T753 | — |
+| REQ-624 | Subjective memory recording | 5.35 Subjective Memory | C | T743, T744, T753 | — |
+| REQ-625 | Subjective memory read and gating | 5.35 Subjective Memory | C | T744, T754 | — |
+| REQ-626 | Deterministic briefing selection | 5.35 Subjective Memory | C | T745, T755 | — |
+| REQ-627 | Persistence and retention | 5.35 Subjective Memory | C | T746, T757 | — |
 | REQ-628 | Separation from recorded state | 5.35 Subjective Memory | C | T747 | — |
 | REQ-629 | Recorded-state truth projection | 5.35 Subjective Memory | C | T748 | — |
 | REQ-630 | Divergence verdicts | 5.35 Subjective Memory | C | T749 | — |
 | REQ-631 | Game Master truth view | 5.35 Subjective Memory | C | T750 | — |
 | REQ-632 | Divergence marker in the briefing | 5.35 Subjective Memory | C | T751 | — |
 | REQ-633 | Subjective divergence probes | 5.35 Subjective Memory | C | T752 | — |
+| REQ-634 | Player-badge memory exposure | 5.35 Subjective Memory | C | T755 | — |
+| REQ-635 | Memory reclassification | 5.35 Subjective Memory | C | T756 | — |
 

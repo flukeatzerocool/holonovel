@@ -712,6 +712,23 @@
       "successors": [],
       "edges": []
     },
+    "manage_belief.subjective_disclose": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_belief.reconcile": {
       "group": "referee",
       "phases": [

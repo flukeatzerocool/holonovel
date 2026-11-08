@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 110301,
+  "tools_list_bytes": 110722,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 110301,
-        "tokens": 27576
+        "bytes": 110722,
+        "tokens": 27681
       },
       "standard": {
         "tools": 37,
-        "bytes": 95908,
-        "tokens": 23977
+        "bytes": 96329,
+        "tokens": 24083
       },
       "small": {
         "tools": 6,
@@ -334,8 +334,8 @@
     {
       "name": "manage_belief",
       "title": "Belief Management",
-      "description": "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances; retract requires the evidence_id from admit; perception and memory ledgers are append-only; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with provenance. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
-      "description_bytes": 979,
+      "description": "Manage per-entity evidence, belief stances, the perception ledger, the subjective-memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets with provenance. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+      "description_bytes": 997,
       "action_enum": [
         "list",
         "get",
@@ -351,9 +351,10 @@
         "perception_for_event",
         "subjective_record",
         "subjective_list",
-        "subjective_verify"
+        "subjective_verify",
+        "subjective_disclose"
       ],
-      "param_count": 32,
+      "param_count": 34,
       "required": [
         "action"
       ],
@@ -378,6 +379,7 @@
         "source_ordinal": "Contributing event-log ordinal (admit; default the latest event ordinal).",
         "status": "active, unresolved, or suppressed (admit; default active).",
         "subject": "Proposition subject (admit).",
+        "subjective_disclosure": "Who may see the memory: open (quotable), guarded (gist only), or secret (never quoted) (subjective_record; default secret; subjective_disclose; required).",
         "subjective_entity": "Entity that remembers (subjective_record; filter for subjective_list).",
         "subjective_event_ordinal": "Contributing event-log ordinal (subjective_record; defaults to the latest event).",
         "subjective_felt_then": "The entity's affect at the event (subjective_record).",
@@ -386,6 +388,7 @@
         "subjective_origin": "How the memory arose (subjective_record; default authored; REQ-623).",
         "subjective_polarity": "Claim polarity (subjective_record; default positive).",
         "subjective_predicate": "Claim predicate (subjective_record).",
+        "subjective_record_id": "Memory record id to reclassify, e.g. sm-3 (subjective_disclose).",
         "subjective_salience": "0..1 salience (subjective_record; default 0.5).",
         "subjective_subject": "Claim subject (subjective_record).",
         "topic": "Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets.",
@@ -402,10 +405,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 33,
+        "paramCount": 35,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 33,
-        "paramsWithEnums": 8,
+        "paramsWithDescriptions": 35,
+        "paramsWithEnums": 9,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -415,8 +418,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6080,
-        "descriptionBytes": 979
+        "definitionBytes": 6501,
+        "descriptionBytes": 997
       },
       "category": "",
       "gate": ""

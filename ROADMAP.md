@@ -12,17 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Disclosure axis and Player exposure
-
-- Add `open` / `guarded` / `secret` disclosure to subjective memory; secret
-  memories shape narration but are never quoted.
-- Open the surface to the Player badge for the active entity and extend the
-  draft visibility scan to secret memory keys.
-
-**Trigger:** shipped when a secret memory influences the GM briefing, is
-redacted from a Player draft, and a Player read of another entity returns
-`[FORBIDDEN]`.
-
 ## Psyche-depth identity facets
 
 - Extend identity facets with kind, awareness, false-but-held belief, valence,

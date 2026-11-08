@@ -43,7 +43,7 @@ import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
-import { nextSubjectiveId, MEMORY_ORIGINS, selectForBriefing, type SubjectiveMemoryRecord, type MemoryOrigin } from "./core/subjective.js";
+import { nextSubjectiveId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure } from "./core/subjective.js";
 // REQ-629–REQ-633 — divergence: what the Novel recorded, checked against a memory.
 import { projectTruthFacts, checkRecord, type DivergenceResult } from "./core/divergence.js";
 import {
@@ -1130,6 +1130,11 @@ function collectVisibilityTargets(novel: NovelState): VisibilityTarget[] {
     const directive = (npc as any)?.mind?.directive;
     if (typeof directive === "string" && directive.length > 0) targets.push({ kind: "NPC mind directive", phrase: directive, key: false });
   }
+  // REQ-599b — a `secret` memory is a leak target in full; a `guarded` memory
+  // withholds its gist from its owner but never its claim or affect.
+  for (const r of novel.subjective_memory ?? []) {
+    targets.push(...disclosureScanTargets(r, activeId ?? null));
+  }
   return targets;
 }
 
@@ -2206,13 +2211,34 @@ function composeCampaignMemorySection(novel: NovelState, badge: string): string 
   return `\n\n## Campaign Memory\n${blocks.join("\n")}`;
 }
 
-// REQ-626 — GM-only subjective-memory section. Selection is deterministic
-// (descending salience, then descending event ordinal, then ascending record
-// id), so two renders of unchanged state are identical; the Player and
-// Observer badges never see it.
+// REQ-626/REQ-634 — subjective-memory briefing section. Selection is
+// deterministic (descending salience, then descending event ordinal, then
+// ascending record id), so two renders of unchanged state are identical. The
+// Game Master sees every present entity's records, non-`open` ones tagged with
+// their disclosure level; the Player sees only the active entity's records,
+// with `guarded` rendered as gist and `secret` absent. The Observer badge
+// never sees the section.
 function composeSubjectiveMemorySection(novel: NovelState, badge: string): string {
   const isGM = badge === "game_master" || badge === "none";
-  if (!isGM) return "";
+  if (!isGM && badge !== "player") return "";
+  const max = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX", 5);
+  if (badge === "player") {
+    // REQ-634 — the Player section covers the active entity only and never
+    // depends on scene presence.
+    const activeId = state.getActiveEntity()?.id;
+    if (!activeId) return "";
+    const records = selectForBriefing(novel.subjective_memory ?? [], new Set([activeId]), max);
+    const lines = records
+      .map((r) => playerProjection(r))
+      .filter((r): r is SubjectiveMemoryRecord => r !== null)
+      .map((r) =>
+        r.disclosure === "open"
+          ? `- [${r.origin}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`
+          : `- [guarded] ${r.entity_id}: ${r.gist}`,
+      );
+    if (lines.length === 0) return "";
+    return `\n\n## Subjective Memory\n${lines.join("\n")}`;
+  }
   const present = new Set<string>(novel.characters_present_ids ?? []);
   const sceneLoc = (novel.scene_location ?? "").toLowerCase();
   if (sceneLoc) {
@@ -2223,14 +2249,16 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
     }
   }
   if (present.size === 0) return "";
-  const max = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX", 5);
   const records = selectForBriefing(novel.subjective_memory ?? [], present, max);
   if (records.length === 0) return "";
   // REQ-632 — the divergence marker derives from the same check as the truth
   // view; selection, order, and the render cap are untouched.
   const facts = projectTruthFacts(novel);
   const lines = records.map((r) => {
-    let line = `- [${r.origin}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
+    // REQ-626 — a non-open record carries its disclosure level so the narrator
+    // knows it may not be quoted.
+    const tag = r.disclosure === "open" ? r.origin : `${r.origin}, ${r.disclosure}`;
+    let line = `- [${tag}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
     const result = checkRecord(r, facts, novel);
     if (result.verdict !== "confirmed" && result.verdict !== "unverifiable") {
       line += ` [divergence: ${result.verdict.split("_").join(" ")}]`;
@@ -7755,9 +7783,9 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management",
-  description: "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances; retract requires the evidence_id from admit; perception and memory ledgers are append-only; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with provenance. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+  description: "Manage per-entity evidence, belief stances, the perception ledger, the subjective-memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets with provenance. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
   inputSchema: {
-    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list", "subjective_verify"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record, subjective_list, or subjective_verify (GM only). Knowledge: knowledge_query."),
+    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list", "subjective_verify", "subjective_disclose"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record, subjective_list, subjective_verify, or subjective_disclose. Knowledge: knowledge_query."),
     detail: z.boolean().optional().describe("Return full belief records instead of summary entries (list)."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
     subject: z.string().optional().describe("Proposition subject (admit)."),
@@ -7789,6 +7817,8 @@ server.registerTool("manage_belief", {
     subjective_salience: z.number().min(0).max(1).optional().describe("0..1 salience (subjective_record; default 0.5)."),
     subjective_origin: z.enum(["witnessed", "told", "inferred", "authored"]).optional().describe("How the memory arose (subjective_record; default authored; REQ-623)."),
     subjective_event_ordinal: z.number().optional().describe("Contributing event-log ordinal (subjective_record; defaults to the latest event)."),
+    subjective_disclosure: z.enum(["open", "guarded", "secret"]).optional().describe("Who may see the memory: open (quotable), guarded (gist only), or secret (never quoted) (subjective_record; default secret; subjective_disclose; required)."),
+    subjective_record_id: z.string().optional().describe("Memory record id to reclassify, e.g. sm-3 (subjective_disclose)."),
     topic: z.string().optional().describe("Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets."),
   },
 }, async (args: any) => {
@@ -8694,6 +8724,12 @@ const handleSubjectiveActions = async (args: any) => {
       if (polarity !== "positive" && polarity !== "negative") {
         return err("INVALID_INPUT", `Unknown polarity '${polarity}'. Valid polarities: positive, negative.`);
       }
+      // REQ-624 — the disclosure level defaults to secret and rejects an
+      // unknown value.
+      const disclosure = (args.disclosure ?? "secret") as MemoryDisclosure;
+      if (!MEMORY_DISCLOSURES.includes(disclosure)) {
+        return err("INVALID_INPUT", `Unknown disclosure '${disclosure}'. Valid levels: ${MEMORY_DISCLOSURES.join(", ")}.`);
+      }
       const latest = novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null;
       const ordinal = args.event_ordinal !== undefined ? args.event_ordinal : latest;
       // REQ-624 — a memory may not cite an event the Novel has not recorded.
@@ -8710,6 +8746,7 @@ const handleSubjectiveActions = async (args: any) => {
         felt_then: args.felt_then ?? "",
         salience: typeof args.salience === "number" ? Math.max(0, Math.min(1, args.salience)) : 0.5,
         origin,
+        disclosure,
         at: new Date().toISOString(),
       };
       novel.subjective_memory.push(record);
@@ -8717,19 +8754,60 @@ const handleSubjectiveActions = async (args: any) => {
       const cap = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES ?? "20000", 10);
       if (cap > 0 && novel.subjective_memory.length > cap) novel.subjective_memory = novel.subjective_memory.slice(novel.subjective_memory.length - cap);
       state.saveNovel(novel);
-      audit("subjective_record", { entity_id: record.entity_id, ordinal: record.event_ordinal, origin: record.origin });
+      audit("subjective_record", { entity_id: record.entity_id, ordinal: record.event_ordinal, origin: record.origin, disclosure: record.disclosure });
       return ok(`Memory ${record.id} recorded for '${record.entity_id}'.`);
     }
     case "list": {
-      // REQ-625 — Game Master only in this increment; the Player badge opens
-      // with the disclosure axis (roadmap chunk 3).
-      if (!gmRead()) return err("FORBIDDEN", "Subjective memory is Game Master only.");
+      // REQ-625 — the Game Master reads every record; the Player reads the
+      // active entity's non-secret records; the Observer is refused.
+      const badge = getBadge();
+      if (badge !== "game_master" && badge !== "none" && badge !== "player") {
+        return err("FORBIDDEN", "Subjective memory is not available under the Observer badge.", "Switch badges with `set_badge` to read subjective memory.");
+      }
       const novel = requireNovel();
       let records = novel.subjective_memory;
-      if (args.entity) records = records.filter((r) => r.entity_id === args.entity);
+      if (badge === "player") {
+        const activeId = state.getActiveEntity()?.id;
+        if (!activeId) {
+          return err("STATE_CONFLICT", "No active entity is set.", "Set an active entity with manage_character (action: set_active).");
+        }
+        if (args.entity && args.entity !== activeId) {
+          return err("FORBIDDEN", "A Player badge may read only the active entity's memories.", "Request the active entity with manage_belief (action: subjective_list).");
+        }
+        records = records.filter((r) => r.entity_id === activeId && r.disclosure !== "secret");
+      } else if (args.entity) {
+        records = records.filter((r) => r.entity_id === args.entity);
+      }
       if (args.event_ordinal !== undefined) records = records.filter((r) => r.event_ordinal === args.event_ordinal);
+      if (badge === "player") {
+        records = records
+          .map((r) => playerProjection(r))
+          .filter((r): r is SubjectiveMemoryRecord => r !== null);
+      }
       if (records.length === 0) return ok("No subjective memories recorded.");
       return raw(JSON.stringify(records, null, 2));
+    }
+    case "disclose": {
+      // REQ-635 — reclassify one record without touching what it holds. The
+      // array is append-only; a level change is a visibility edit, not a
+      // rewrite of the memory.
+      requireGM();
+      const novel = requireNovel();
+      const recordId = args.record_id;
+      const disclosure = args.disclosure as MemoryDisclosure | undefined;
+      if (typeof recordId !== "string" || recordId.length === 0) {
+        return err("INVALID_INPUT", "record_id is required for subjective_disclose.");
+      }
+      if (!disclosure || !MEMORY_DISCLOSURES.includes(disclosure)) {
+        return err("INVALID_INPUT", `Unknown disclosure '${disclosure ?? ""}'. Valid levels: ${MEMORY_DISCLOSURES.join(", ")}.`);
+      }
+      const record = novel.subjective_memory.find((r) => r.id === recordId);
+      if (!record) return err("NOT_FOUND", `No subjective memory with id '${recordId}'.`);
+      const previous = record.disclosure;
+      record.disclosure = disclosure;
+      state.saveNovel(novel);
+      audit("subjective_disclose", { record_id: recordId, from: previous, to: disclosure });
+      return ok(`Memory ${recordId} now reads as ${disclosure}.`);
     }
     case "verify": {
       // REQ-631 — the GM truth view: each record beside the recorded fact that
@@ -8749,6 +8827,7 @@ const handleSubjectiveActions = async (args: any) => {
           event_ordinal: record.event_ordinal,
           gist: record.gist,
           claim: record.claim,
+          disclosure: record.disclosure,
           verdict: result.verdict,
           reason: result.reason,
           truth: result.truth,
@@ -9832,13 +9911,20 @@ const PLAYER_OMITTED_KEYS = [
   "gm_context", "secrets", "pending_workflow", "constraint_overrides",
   "synthesis_activated", "synthesis_deactivated", "narrative_directive",
   "generated_adventure", "ruling_ledger", "compression_ladder",
-  // REQ-627 — subjective memory is Game Master only.
-  "subjective_memory",
 ];
 
 function redactNovelForPlayer(novel: any): any {
   const out: any = JSON.parse(JSON.stringify(novel ?? {}));
   for (const key of PLAYER_OMITTED_KEYS) delete out[key];
+  // REQ-096k/REQ-627 — the player bundle carries the active entity's memories
+  // at their disclosure level; a `secret` record, and every other entity's
+  // records, are absent. The live Novel is never touched.
+  if (Array.isArray(out.subjective_memory)) {
+    const activeId = state.getActiveEntity()?.id;
+    out.subjective_memory = (out.subjective_memory as any[])
+      .map((raw) => playerProjection(normalizeSubjectiveRecord(raw)))
+      .filter((r): r is SubjectiveMemoryRecord => r !== null && !!activeId && r.entity_id === activeId);
+  }
   if (out.lore && typeof out.lore === "object") {
     for (const key of Object.keys(out.lore)) {
       // REQ-083d — the player-safe bundle carries only player-readable lore.

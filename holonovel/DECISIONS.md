@@ -2,11 +2,11 @@
 
 **Spec hash:** 6f16945a25290e479cc9cb90706bb2bc8cb3f885ad2f1ea6982e442132614b03
 
-**Recorded tool budget:** 37 listed (239 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (240 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,576 tokens; standard 23,977; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,681 tokens; standard 24,083; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,46 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Subjective memory disclosure axis — 2026-11-08
+
+- **D1 — Disclosure is a record field whose load default is `secret`.** A
+  record written before the axis existed was GM-only, so defaulting it to
+  `guarded` or `open` would publish private content without a Game Master
+  action. The `secret` default is the only one that preserves the pre-existing
+  behavior for every stored Novel. (REQ-623)
+- **D2 — `guarded` withholds the claim and affect, not the gist.** The level
+  exists to make "may be alluded to, never quoted" enforceable: the owner sees
+  that the memory exists and what it is about, while the proposition and affect
+  that a narrator would quote are cleared by `playerProjection`. A two-level
+  axis would leave `guarded` with no behavior distinct from `secret` on the
+  Player surfaces. (REQ-625, REQ-634)
+- **D3 — Reclassification is `manage_belief (action: subjective_disclose)`.** The
+  claim, gist, affect, ordinal, and id stay immutable; only the visibility
+  attribute changes, mirroring `manage_lore (action: reveal)`. Write-once
+  disclosure would lock every legacy record at `secret` with no remedy, and
+  re-recording would duplicate one memory into two records. (REQ-635)
+- **D4 — The memory array is append-only, so a reclassification is not rolled
+  back.** `subjective_memory` remains in `APPEND_ONLY_STATE_FIELDS` and stays
+  out of the snapshot and checkpoint payloads, so undo and checkpoint restore
+  leave a new level in place — the same asymmetry the store has shipped with
+  since chunk 1. (REQ-627, REQ-635)
+- **D5 — Player-scope export filters the array instead of deleting it.**
+  `subjective_memory` left `PLAYER_OMITTED_KEYS`; `redactNovelForPlayer` now
+  carries the active entity's `open` records, projects `guarded` records without
+  claim or affect, and omits `secret` records. Keeping the wholesale omission
+  would make the export contradict the live Player read. (REQ-096k, REQ-627)
+- **D6 — Draft-scan memory targets are derived text.** A record has no key
+  field, so the roadmap's "secret memory keys" resolve to the quotable text: a
+  `secret` record contributes its gist and claim, and a `guarded` record
+  contributes its claim and affect (plus its gist when another entity owns it).
+  `open` records contribute nothing. (REQ-599b)
+- **D7 — Two adjacent surfaces stay closed, recorded here rather than
+  scheduled.** Observer-badge memory reads remain refused: the spectator
+  contract is GM-visibility read-only (REQ-135), and opening it is a separate
+  decision. The `narrate` prompt does not carry memory: the GM briefing is the
+  documented narration-shaping surface (REQ-598, REQ-626). (REQ-598, REQ-625,
+  REQ-634)
 
 ### Subjective memory divergence — 2026-11-08
 
