@@ -1522,7 +1522,7 @@ export class StateManager {
       supplementary_rulesets: data.supplementary_rulesets ?? [],
       agent_tasks: data.agent_tasks ?? [],
       perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
-      subjective_memory: (data.subjective_memory ?? []).map(normalizeSubjectiveRecord),
+      subjective_memory: (data.subjective_memory ?? []).map((raw: any, index: number) => normalizeSubjectiveRecord(raw, index)),
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2845,7 +2845,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     supplementary_rulesets: data.supplementary_rulesets ?? [],
     agent_tasks: data.agent_tasks ?? [],
     perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
-    subjective_memory: (data.subjective_memory ?? []).map(normalizeSubjectiveRecord),
+    subjective_memory: (data.subjective_memory ?? []).map((raw: any, index: number) => normalizeSubjectiveRecord(raw, index)),
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
@@ -2908,9 +2908,18 @@ export function applyNovelState(
   }
   const src = source as unknown as Record<string, unknown>;
   const dst = target as unknown as Record<string, unknown>;
+  // REQ-627/REQ-647 — the memory store is append-only and preserved on undo, so
+  // its folds must be preserved too: a fold outlives the eviction it recorded.
+  const liveFoldEntities = mode === "undo" ? target.compression_ladder?.entities : undefined;
   for (const key of Object.keys(src)) {
     if (preserve.has(key)) continue;
     dst[key] = src[key];
+  }
+  if (mode === "undo" && source.compression_ladder) {
+    target.compression_ladder = {
+      ...source.compression_ladder,
+      ...(liveFoldEntities ? { entities: liveFoldEntities } : {}),
+    };
   }
 }
 

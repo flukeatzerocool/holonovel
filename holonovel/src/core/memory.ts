@@ -121,15 +121,20 @@ export function deriveCampaignTier(novel: NovelState, maxFacts: number, derivedA
   }
   // REQ-647 — per-entity consolidation summaries folded from evicted memories.
   // GM-only: a summary carries gists at every disclosure level, so it never
-  // reaches a Player surface.
+  // reaches a Player surface. Summaries are reserved against the fact cap: the
+  // oldest campaign facts give way, never the record that preserved an evicted
+  // gist.
+  const memoryFacts: { text: string; ref: string; key: string }[] = [];
   if (gm) {
     for (const [entityId, summary] of Object.entries(novel.compression_ladder?.entities ?? {})) {
       if (!summary.text) continue;
       const body = summary.text.split("\n").map((line) => line.replace(/^- /, "")).join("; ");
-      facts.push({ text: `memory ${entityId}: ${body}`, ref: `memory:${entityId}`, key: entityId });
+      memoryFacts.push({ text: `memory ${entityId}: ${body}`, ref: `memory:${entityId}`, key: entityId });
     }
   }
-  const capped = maxFacts > 0 ? facts.slice(0, maxFacts) : facts;
+  const capped = maxFacts > 0
+    ? [...facts.slice(0, Math.max(0, maxFacts - memoryFacts.length)), ...memoryFacts].slice(0, maxFacts)
+    : [...facts, ...memoryFacts];
   const sourceOrdinals = new Set<number>();
   for (const event of novel.event_log) {
     if (!gm && event.source === "game_master") continue;

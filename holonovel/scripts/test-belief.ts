@@ -272,6 +272,8 @@ async function main() {
   await test("T743/REQ-623: record carries entity, ordinal, claim, affect, salience, origin", async () => {
     const p = await boot(); await newNovel(p, "subj1");
     const id = await present(p, "Hero");
+    const orphan = await memory(p, "Nobody", "an orphan memory");
+    assert(orphan.includes("[INVALID_INPUT]"), "an unresolved entity was accepted: " + orphan.slice(0, 160));
     await call(p, "manage_diagnostics", { action: "event", text: "The bridge collapses under the wagon." });
     const res = await memory(p, id, "the bridge gave way", {
       subject: "the bridge",
@@ -289,12 +291,16 @@ async function main() {
     assert(r.entity_id === id && r.gist === "the bridge gave way" && r.felt_then === "terror" && r.salience === 0.9 && r.origin === "witnessed", "fields wrong: " + JSON.stringify(r));
     assert(r.claim.subject === "the bridge" && r.claim.predicate === "collapsed under" && r.claim.object === "the wagon" && r.claim.polarity === "negative", "claim wrong: " + JSON.stringify(r.claim));
     assert(typeof r.event_ordinal === "number" && r.event_ordinal >= 1, "ordinal not bound: " + JSON.stringify(r.event_ordinal));
+    const byName = await memory(p, "Hero", "a name-resolved memory");
+    assert(byName.includes("[OK]"), "name resolution failed: " + byName.slice(0, 160));
+    const withName = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(withName.some((m: any) => m.gist === "a name-resolved memory" && m.entity_id === id), "name-resolved record not bound to the entity");
     await kill(p);
     const p2 = await boot();
     await call(p2, "manage_novel", { action: "resume", slug: "subj1" });
     await call(p2, "set_badge", { badge: "game_master" });
     const after = JSON.parse(await call(p2, "manage_belief", { action: "subjective_list", subjective_entity: id }));
-    assert(after.length === 1 && after[0].gist === "the bridge gave way", "memory did not survive a restart");
+    assert(after.some((m: any) => m.gist === "the bridge gave way"), "memory did not survive a restart");
     await kill(p2);
   });
 
@@ -384,6 +390,23 @@ async function main() {
     await kill(p2);
   });
 
+  // ── T746: branch drops memories of later events (REQ-458) ─────────────
+  await test("T746/REQ-458: a branch drops memories of events after the branch point", async () => {
+    const p = await boot(); await newNovel(p, "subj-branch");
+    const id = await present(p, "Hero");
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    await call(p, "manage_diagnostics", { action: "event", text: "two" });
+    await memory(p, id, "early memory", { subjective_event_ordinal: 1 });
+    await memory(p, id, "late memory", { subjective_event_ordinal: 2 });
+    const branched = await call(p, "manage_archive", { action: "branch", source_slug: "subj-branch", new_name: "subj-branch-copy", from_event: 1 });
+    assert(branched.includes("[OK]"), "branch refused: " + branched.slice(0, 200));
+    await call(p, "manage_novel", { action: "switch", slug: "subj-branch-copy" });
+    const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(recs.some((r: any) => r.gist === "early memory"), "the branch dropped a record at or before its point");
+    assert(!recs.some((r: any) => r.gist === "late memory"), "the branch kept a record from a future event: " + JSON.stringify(recs.map((r: any) => r.gist)));
+    await kill(p);
+  });
+
   // ── T747: separation from recorded state (REQ-628) ───────────────────
   await test("T747/REQ-628: recording a memory leaves belief, evidence, perception, and the event log alone", async () => {
     const p = await boot(); await newNovel(p, "subj5");
@@ -468,6 +491,22 @@ async function main() {
     assert(out === again, "recomputation of unchanged state differs");
     const infoAfter = await call(p, "manage_novel", { action: "info", slug: "div2" });
     assert(infoAfter.match(/"event_count":\s*(\d+)/)?.[1] === eventsBefore, "the divergence check advanced the event log");
+    await kill(p);
+  });
+
+  // ── T749: false outcome precedes displaced (REQ-630) ─────────────────
+  await test("T749/REQ-630: an opposite fact at the cited event is a false outcome, not a displacement", async () => {
+    const p = await boot(); await newNovel(p, "div-prec");
+    const hero = await present(p, "Hero");
+    await makeNpc(p, "Kael", "loyal");
+    await call(p, "manage_diagnostics", { action: "event", text: "Kael rescued Hero" });
+    await call(p, "manage_diagnostics", { action: "event", text: "Kael betrayed Hero" });
+    await memory(p, hero, "kael-rescued-at-two", {
+      subject: "Kael", predicate: "outcome", object: "Hero",
+      subjective_polarity: "positive", subjective_event_ordinal: 2,
+    });
+    const out = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(verdictOf(out, "kael-rescued-at-two") === "false_outcome", "expected false_outcome, got " + verdictOf(out, "kael-rescued-at-two") + ": " + out.slice(0, 300));
     await kill(p);
   });
 
@@ -596,6 +635,7 @@ async function main() {
     const b2 = section(await prompt(p, "badge_briefing", { badge: "player" }), "## Subjective Memory");
     assert(b1.length > 0 && b1 === b2, "the Player section is missing or unstable: " + b1);
     assert(b1.includes("the open bell") && b1.includes("(felt relief)"), "an open record did not render in full: " + b1);
+    assert(b1.includes("rang for the town"), "an open record did not render its claim: " + b1);
     assert(b1.includes("the guarded door") && !b1.includes("the cellar") && !b1.includes("dread"), "a guarded record leaked its claim or affect: " + b1);
     assert(!b1.includes("the secret letter"), "the Player section leaked a secret memory: " + b1);
     await call(p, "set_badge", { badge: "observer" });
@@ -638,6 +678,7 @@ async function main() {
     const id = await present(p, "Hero");
     await call(p, "manage_character", { action: "set_active", entity_id: id });
     await memory(p, id, "the vault code is nine seven", { subjective_disclosure: "secret", subject: "the vault", predicate: "opens with", object: "nine seven" });
+    await memory(p, id, "a sealed grief", { subjective_disclosure: "secret", subject: "the seal", predicate: "hides", object: "a name", subjective_felt_then: "a cold dread that will not lift" });
     await memory(p, id, "the market fair was loud", { subjective_disclosure: "open" });
     await memory(p, id, "the cellar door is barred", { subjective_disclosure: "guarded", subject: "the cellar", predicate: "is", object: "barred" });
     const leak = await call(p, "manage_diagnostics", { action: "visibility_check", audience: "player", text: "You recall the vault code is nine seven." });
@@ -646,6 +687,8 @@ async function main() {
     assert(owner.includes("[redacted]"), "a guarded claim was not redacted for its owner: " + owner.slice(0, 240));
     const open = await call(p, "manage_diagnostics", { action: "visibility_check", audience: "player", text: "The market fair was loud." });
     assert(!open.includes("[redacted]"), "an open memory was redacted: " + open.slice(0, 240));
+    const affectOnly = await call(p, "manage_diagnostics", { action: "visibility_check", audience: "player", text: "You feel a cold dread that will not lift." });
+    assert(!affectOnly.includes("[redacted]"), "a secret affect was redacted although it is not a scan target: " + affectOnly.slice(0, 240));
     const exported = await call(p, "manage_archive", { action: "export", scope: "player", format: "json" });
     const data = JSON.parse(exported.slice(exported.indexOf("{")));
     const mems = data.novel.subjective_memory ?? [];

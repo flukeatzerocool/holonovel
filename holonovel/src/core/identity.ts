@@ -125,11 +125,14 @@ export function emptyIdentity(characterId: string): IdentityState {
 export function normalizeFacetAttributes(raw?: Partial<PsycheAttributes>): PsycheAttributes {
   const kind = raw?.kind && KIND_INDEX.has(raw.kind) ? raw.kind : "fact";
   const awareness = raw?.awareness && FACET_AWARENESSES.includes(raw.awareness) ? raw.awareness : "yes";
+  const valence = typeof raw?.valence === "number" && Number.isFinite(raw.valence)
+    ? Math.max(VALENCE_MIN, Math.min(VALENCE_MAX, Math.round(raw.valence)))
+    : undefined;
   return {
     kind,
     awareness,
-    false_but_held: raw?.false_but_held === true,
-    valence: typeof raw?.valence === "number" ? raw.valence : undefined,
+    false_but_held: kind === "belief" && raw?.false_but_held === true,
+    valence,
     since: typeof raw?.since === "string" ? raw.since : undefined,
     until: typeof raw?.until === "string" ? raw.until : undefined,
     contradicts: Array.isArray(raw?.contradicts)
@@ -196,7 +199,7 @@ export function compileKernel(state: IdentityState): CompiledIdentityKernel {
     state.facets
       .filter((f) => f.stability === c && f.perspective !== "secret")
       .sort((a, b) => a.facet.localeCompare(b.facet) || a.revision - b.revision)
-      .map((f) => ({ ...f, contradicts: [...f.contradicts] }));
+      .map((f) => ({ ...f, contradicts: [...(f.contradicts ?? [])] }));
   const compiled = {
     character_id: state.character_id,
     identity_version: state.version,
@@ -226,7 +229,7 @@ export function applyFacet(state: IdentityState, candidate: IdentityCandidate, p
     .sort((a, b) => b.revision - a.revision)[0];
   if (prior) {
     state.history = state.history ?? [];
-    state.history.push({ ...prior, contradicts: [...prior.contradicts] });
+    state.history.push({ ...prior, contradicts: [...(prior.contradicts ?? [])] });
   }
   const history = state.history ?? [];
   const maxRevision = Math.max(
@@ -275,7 +278,7 @@ export function playerIdentityProjection(kernel: CompiledIdentityKernel): Compil
   const project = (group: IdentityFacet[]): IdentityFacet[] =>
     group
       .filter((f) => f.awareness === "yes")
-      .map((f) => ({ ...f, false_but_held: false, contradicts: [...f.contradicts] }));
+      .map((f) => ({ ...f, false_but_held: false, contradicts: [...(f.contradicts ?? [])] }));
   const structural = project(kernel.structural);
   const constitutional = project(kernel.constitutional);
   const core = project(kernel.core);
@@ -305,25 +308,27 @@ function inWindow(f: IdentityFacet, at: string | null): boolean {
   return true;
 }
 
-// REQ-636–642 — the deterministic "who they are" body. Stability class order
-// first (the kernel's grouping), then catalog order, then facet, then revision.
+// REQ-636–642 — the deterministic "who they are" body. Catalog order first,
+// with `fact` last across stability classes; stability class then facet then
+// revision break ties so two renders at one version are byte-identical.
 export function renderWhoTheyAre(kernel: CompiledIdentityKernel, opts: RenderOptions): string {
   const groups: IdentityFacet[][] = [kernel.structural, kernel.constitutional, kernel.core, kernel.developmental];
-  const rows: IdentityFacet[] = [];
-  for (const group of groups) {
-    const sorted = [...group].sort(
+  const classIndex = (f: IdentityFacet): number => Math.max(0, STABILITY_CLASSES.indexOf(f.stability));
+  const rows: IdentityFacet[] = groups
+    .flat()
+    .filter((f) => {
+      if (!inWindow(f, opts.at)) return false;
+      // REQ-637/643 — a facet the character does not know is never stated.
+      if (opts.badge === "player" && f.awareness !== "yes") return false;
+      return true;
+    })
+    .sort(
       (a, b) =>
         (KIND_INDEX.get(a.kind) ?? FACET_KINDS.length) - (KIND_INDEX.get(b.kind) ?? FACET_KINDS.length) ||
+        classIndex(a) - classIndex(b) ||
         a.facet.localeCompare(b.facet) ||
         a.revision - b.revision,
     );
-    for (const f of sorted) {
-      if (!inWindow(f, opts.at)) continue;
-      // REQ-637/643 — a facet the character does not know is never stated.
-      if (opts.badge === "player" && f.awareness !== "yes") continue;
-      rows.push(f);
-    }
-  }
 
   const lines = rows.map((f) => {
     const marks: string[] = [];

@@ -17,6 +17,9 @@ import { mkdtempSync, rmSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { affectValence } from "../src/core/divergence.js";
+import { assembleMemorySection, type SubjectiveMemoryRecord } from "../src/core/subjective.js";
+import { estimateTokens } from "../src/core/memory.js";
 
 installHarnessGuard();
 
@@ -134,9 +137,62 @@ function divergenceMisses(probes: DivergenceProbe[], verdicts: Map<string, strin
   return misses;
 }
 
+// REQ-648 — the recall floor lives in Appendix O.12; read it from the assembled
+// spec copy rather than hardcoding it, so a floor change cannot drift.
+function recallFloor(): number {
+  const candidates = [
+    join(import.meta.dirname!, "..", "holonovel.md"),
+    join(import.meta.dirname!, "..", "..", "spec", "appendices-reference.md"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      const text = readFileSync(candidate, "utf8");
+      const match = text.match(/Subjective recall floor[^\n|]*\|\s*([0-9.]+)/);
+      if (match) return Number(match[1]);
+    } catch { /* try the next spec copy */ }
+  }
+  throw new Error("Appendix O.12 subjective recall floor not found");
+}
+
 async function main() {
   console.log("=== Compression ladder and recall probes (REQ-590–593) ===\n");
   mkdirSync(DATA_DIR, { recursive: true });
+
+  await test("T749/REQ-630: affect classification matches whole tokens, not substrings", () => {
+    if (affectValence("unsafe") !== 0) throw new Error("'unsafe' classified as positive affect");
+    if (affectValence("wonder") !== 0) throw new Error("'wonder' classified as an outcome cue");
+    if (affectValence("relieved") !== 1) throw new Error("'relieved' not positive");
+    if (affectValence("terrified") !== -1) throw new Error("'terrified' not negative");
+  });
+
+  await test("T768/REQ-632,REQ-646: a marker suffix does not enter the budget cost", () => {
+    const rec: SubjectiveMemoryRecord = {
+      id: "sm-1", entity_id: "e", event_ordinal: 1, gist: "g",
+      claim: { subject: "s", predicate: "p", object: "o", polarity: "positive" },
+      felt_then: "", salience: 0.5, origin: "authored", disclosure: "open", at: "",
+    };
+    const base = "- [authored] e: g";
+    const suffix = " [divergence: false outcome] [evicted #1]";
+    const asm = assembleMemorySection([rec], () => ({ text: base, suffix }), {
+      maxRecords: 5, budgetTokens: estimateTokens(base), marker: (n) => `[truncated] ${n}`,
+    });
+    if (asm.lines[0] !== base + suffix) throw new Error("suffix not appended after admission: " + asm.lines[0]);
+    if (asm.tokens !== estimateTokens(base)) throw new Error("suffix changed the token cost");
+  });
+
+  await test("T767/REQ-645: the token budget is a ceiling, not a first-record bypass", () => {
+    const make = (id: string): SubjectiveMemoryRecord => ({
+      id, entity_id: "e", event_ordinal: 1, gist: "g",
+      claim: { subject: "s", predicate: "p", object: "o", polarity: "positive" },
+      felt_then: "", salience: 0.5, origin: "authored", disclosure: "open", at: "",
+    });
+    const asm = assembleMemorySection([make("sm-1"), make("sm-2")], () => ({
+      text: "- a memory line long enough to exceed one token",
+    }), { maxRecords: 5, budgetTokens: 1, marker: (n) => `[truncated] ${n} memories omitted at budget` });
+    if (asm.lines.some((l) => l.startsWith("- "))) throw new Error("a record was admitted over the budget: " + asm.lines.join(" | "));
+    if (!asm.lines.some((l) => l.includes("[truncated] 2"))) throw new Error("omitted count not reported");
+  });
+
 
   // ── Session 1: stable facts and the vault event ─────────────────────
   let proc = await boot({ TTRPG_SESSION_ID: "s1" });
@@ -523,9 +579,12 @@ async function main() {
     await call(p, "manage_character", { action: "set_active", entity_id: anna });
     const playerRecap = await call(p, "manage_context", { action: "recap", tier: "campaign" });
     assertNotContains(playerRecap, "forgotten errand");
-    // A re-fold after undo must not duplicate the folded line.
+    // A re-fold after undo must not duplicate the folded line, and the fold
+    // itself must survive the undo that reverted the surrounding state.
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_history", { action: "undo" });
+    const afterUndo = await call(p, "manage_context", { action: "recap", tier: "campaign" });
+    assertContains(afterUndo, "forgotten errand");
     await call(p, "manage_belief", {
       action: "subjective_record",
       subjective_entity: anna,
@@ -559,7 +618,7 @@ async function main() {
       console.log(`    subjective recall@budget (${badge}): ${(recall * 100).toFixed(0)}% (${applicable.length - misses.length}/${applicable.length})`);
       const requiredMiss = applicable.some((p) => p.required && misses.includes(p.id));
       if (requiredMiss) throw new Error(`required subjective probe missed (${badge}): ${misses.join(", ")}`);
-      if (recall < 0.9) throw new Error(`subjective recall ${recall.toFixed(2)} below the O.12 floor (${badge})`);
+      if (recall < recallFloor()) throw new Error(`subjective recall ${recall.toFixed(2)} below the O.12 floor ${recallFloor()} (${badge})`);
     }
     // The miss detector must fire on a withheld expectation.
     const withheld = new Map<string, string>();

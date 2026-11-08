@@ -3178,6 +3178,9 @@ mapping.
 | Affect valence, negative | afraid, terror, terrified, angry, furious, ashamed, grief, despair, bitter, guilty, alone |
 | Outcome opposition pairs | held/gave way, survived/died, opened/sealed, won/lost, rescued/abandoned, kept/broke, trusted/betrayed, welcomed/expelled |
 
+Affect terms and outcome pairs match on whole-word boundaries, never as
+substrings; a term outside these tables is not a cue.
+
 ---
 
 ## Appendix P: STRIDE Security Threat Model

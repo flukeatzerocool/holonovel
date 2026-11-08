@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 111732,
+  "tools_list_bytes": 111811,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 111732,
-        "tokens": 27933
+        "bytes": 111811,
+        "tokens": 27953
       },
       "standard": {
         "tools": 37,
-        "bytes": 97339,
-        "tokens": 24335
+        "bytes": 97418,
+        "tokens": 24355
       },
       "small": {
         "tools": 6,
@@ -380,8 +380,8 @@
         "status": "active, unresolved, or suppressed (admit; default active).",
         "subject": "Proposition subject (admit).",
         "subjective_disclosure": "Who may see the memory: open (quotable), guarded (gist only), or secret (never quoted) (subjective_record; default secret; subjective_disclose; required).",
-        "subjective_entity": "Entity that remembers (subjective_record; filter for subjective_list).",
-        "subjective_event_ordinal": "Contributing event-log ordinal (subjective_record; defaults to the latest event).",
+        "subjective_entity": "Entity that remembers, by id or name (subjective_record; filter for subjective_list).",
+        "subjective_event_ordinal": "Contributing event-log ordinal, a non-negative integer (subjective_record; defaults to the latest event).",
         "subjective_felt_then": "The entity's affect at the event (subjective_record).",
         "subjective_gist": "What the entity remembers, in its own terms (subjective_record).",
         "subjective_object": "Claim object (subjective_record).",
@@ -418,7 +418,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6501,
+        "definitionBytes": 6580,
         "descriptionBytes": 997
       },
       "category": "",

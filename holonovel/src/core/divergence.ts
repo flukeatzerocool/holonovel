@@ -84,8 +84,9 @@ const NEGATIVE_DISPOSITIONS = new Set(["hostile", "hostile.", "suspicious", "fea
 const AFFECT_POSITIVE = ["glad", "grateful", "relieved", "proud", "delighted", "hopeful", "fond", "warm", "safe"];
 const AFFECT_NEGATIVE = ["afraid", "terror", "terrified", "angry", "furious", "ashamed", "grief", "despair", "bitter", "guilty", "alone"];
 
-// Appendix O.13 — outcome opposition pairs, negative side first so the longer
-// phrase wins when a text contains both ("gave way" before "gave").
+// Appendix O.13 — outcome opposition pairs, negative side first so a multi-word
+// phrase wins when a text contains its parts. The table is exhaustive: a term
+// outside it is not an outcome cue.
 const OUTCOME_CUES: Array<{ term: string; polarity: FactPolarity }> = [
   { term: "gave way", polarity: "negative" },
   { term: "died", polarity: "negative" },
@@ -95,8 +96,6 @@ const OUTCOME_CUES: Array<{ term: string; polarity: FactPolarity }> = [
   { term: "broke", polarity: "negative" },
   { term: "betrayed", polarity: "negative" },
   { term: "expelled", polarity: "negative" },
-  { term: "attacked", polarity: "negative" },
-  { term: "threatened", polarity: "negative" },
   { term: "held", polarity: "positive" },
   { term: "survived", polarity: "positive" },
   { term: "opened", polarity: "positive" },
@@ -105,9 +104,14 @@ const OUTCOME_CUES: Array<{ term: string; polarity: FactPolarity }> = [
   { term: "kept", polarity: "positive" },
   { term: "trusted", polarity: "positive" },
   { term: "welcomed", polarity: "positive" },
-  { term: "protected", polarity: "positive" },
-  { term: "saved", polarity: "positive" },
 ];
+
+// Appendix O.13 — whole-token match, not substring: `unsafe` is not `safe` and
+// `wonder` is not `won`.
+function hasTerm(text: string, term: string): boolean {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`).test(text);
+}
 
 export function predicateFamily(predicate: string): string | null {
   return PREDICATE_FAMILIES[normalizeToken(predicate)] ?? null;
@@ -117,8 +121,8 @@ export function predicateFamily(predicate: string): string | null {
 export function affectValence(text: string): -1 | 0 | 1 {
   const t = normalizeToken(text);
   if (!t) return 0;
-  const positive = AFFECT_POSITIVE.some((w) => t.includes(w));
-  const negative = AFFECT_NEGATIVE.some((w) => t.includes(w));
+  const positive = AFFECT_POSITIVE.some((w) => hasTerm(t, w));
+  const negative = AFFECT_NEGATIVE.some((w) => hasTerm(t, w));
   if (positive && !negative) return 1;
   if (negative && !positive) return -1;
   return 0;
@@ -137,7 +141,7 @@ function dispositionValence(disposition: string): FactPolarity {
 
 // REQ-629 — every recorded name resolves to one canonical token, so a claim
 // naming "Kael", "kael", or the NPC id compares against the same fact.
-function buildAliases(novel: NovelState): Map<string, string> {
+export function buildAliases(novel: NovelState): Map<string, string> {
   const alias = new Map<string, string>();
   for (const [id, entity] of novel.entities ?? new Map()) {
     alias.set(normalizeToken(id), id);
@@ -153,7 +157,7 @@ function buildAliases(novel: NovelState): Map<string, string> {
 function outcomeCue(text: string): { term: string; polarity: FactPolarity } | null {
   const t = normalizeToken(text);
   for (const cue of OUTCOME_CUES) {
-    if (t.includes(cue.term)) return cue;
+    if (hasTerm(t, cue.term)) return cue;
   }
   return null;
 }
@@ -300,9 +304,15 @@ export function projectTruthFacts(novel: NovelState): TruthFact[] {
 }
 
 // REQ-630 — the recorded relational valence between the remembering entity and
-// the claim's object, used by the affect-drift check.
-function recordedValence(novel: NovelState, entityToken: string, objectToken: string): FactPolarity {
-  const alias = buildAliases(novel);
+// the claim's object, used by the affect-drift check. Accepts a prebuilt alias
+// map so a multi-record check does not rebuild it per record.
+function recordedValence(
+  novel: NovelState,
+  entityToken: string,
+  objectToken: string,
+  aliasIndex?: Map<string, string>,
+): FactPolarity {
+  const alias = aliasIndex ?? buildAliases(novel);
   const entity = alias.get(normalizeToken(entityToken)) ?? normalizeToken(entityToken);
   const object = alias.get(normalizeToken(objectToken)) ?? normalizeToken(objectToken);
   for (const rel of novel.relationships ?? []) {
@@ -326,8 +336,9 @@ export function checkRecord(
   record: SubjectiveMemoryRecord,
   facts: TruthFact[],
   novel: NovelState,
+  aliasIndex?: Map<string, string>,
 ): DivergenceResult {
-  const alias = buildAliases(novel);
+  const alias = aliasIndex ?? buildAliases(novel);
   const resolve = (token: string): string => alias.get(normalizeToken(token)) ?? normalizeToken(token);
   const base = { record_id: record.id };
 
@@ -350,32 +361,26 @@ export function checkRecord(
     record.event_ordinal !== null && f.anchor !== null && f.anchor !== record.event_ordinal;
 
   const samePolarity = question.filter((f) => f.polarity === polarity);
-  if (samePolarity.length > 0) {
-    const anchored = samePolarity.find((f) => !anchorMismatch(f));
-    if (anchored) {
-      const affect = affectValence(record.felt_then);
-      // The claim's subject is the target when its object is not a recorded
-      // entity (a disposition's object is a value, not a party).
-      const target = alias.has(normalizeToken(record.claim.object)) ? record.claim.object : record.claim.subject;
-      const recorded = recordedValence(novel, record.entity_id, target);
-      if (affect !== 0 && recorded !== "neutral" && ((affect === 1) !== (recorded === "positive"))) {
-        return {
-          ...base,
-          verdict: "affect_drift",
-          reason: `the claim holds but the remembered affect opposes the recorded ${recorded} valence`,
-          truth: anchored,
-        };
-      }
-      return { ...base, verdict: "confirmed", reason: "recorded state asserts the claim", truth: anchored };
+  const anchored = samePolarity.find((f) => !anchorMismatch(f));
+  if (anchored) {
+    const affect = affectValence(record.felt_then);
+    // The claim's subject is the target when its object is not a recorded
+    // entity (a disposition's object is a value, not a party).
+    const target = alias.has(normalizeToken(record.claim.object)) ? record.claim.object : record.claim.subject;
+    const recorded = recordedValence(novel, record.entity_id, target, alias);
+    if (affect !== 0 && recorded !== "neutral" && ((affect === 1) !== (recorded === "positive"))) {
+      return {
+        ...base,
+        verdict: "affect_drift",
+        reason: `the claim holds but the remembered affect opposes the recorded ${recorded} valence`,
+        truth: anchored,
+      };
     }
-    return {
-      ...base,
-      verdict: "displaced",
-      reason: "the claim holds at another event than the cited one",
-      truth: samePolarity[0],
-    };
+    return { ...base, verdict: "confirmed", reason: "recorded state asserts the claim", truth: anchored };
   }
 
+  // REQ-630 — false outcome precedes displaced: if recorded state asserts the
+  // opposite at any point, the memory is a false outcome, not a misplacement.
   const opposite = question.filter((f) => f.polarity !== polarity && f.polarity !== "neutral");
   if (opposite.length > 0) {
     return {
@@ -383,6 +388,15 @@ export function checkRecord(
       verdict: "false_outcome",
       reason: `recorded state asserts the opposite polarity (${opposite[0].polarity})`,
       truth: opposite[0],
+    };
+  }
+
+  if (samePolarity.length > 0) {
+    return {
+      ...base,
+      verdict: "displaced",
+      reason: "the claim holds at another event than the cited one",
+      truth: samePolarity[0],
     };
   }
 

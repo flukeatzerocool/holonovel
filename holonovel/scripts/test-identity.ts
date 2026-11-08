@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 import { resourceReader, promptReader } from "./lib/jsonrpc.js";
+import { normalizeFacetAttributes } from "../src/core/identity.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
@@ -222,7 +223,8 @@ async function main() {
     const v = await stage(p, cid, "val", "keeps her word", { kind: "value" });
     const f = await stage(p, cid, "fear", "burning out", { kind: "fear" });
     const plain = await stage(p, cid, "calling", "Wandering blade");
-    for (const id of [v, f, plain]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
+    const name = await stage(p, cid, "name", "Alice", { stability: "structural" });
+    for (const id of [v, f, plain, name]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
     const k = await snapshotIdentity(p, cid);
     const facet = (n: string) => kernelFacets(k).find((x: any) => x.facet === n);
     assert(facet("val").kind === "value" && facet("fear").kind === "fear", "kind not preserved in the kernel");
@@ -230,6 +232,7 @@ async function main() {
     const b = await briefing(p);
     assert(b.includes("- value: keeps her word") && b.includes("- fear: burning out"), "psyche kinds not rendered");
     assert(b.indexOf("- value:") < b.indexOf("- fear:"), "catalog order not applied");
+    assert(b.indexOf("- value:") < b.indexOf("- name:"), "catalog order did not keep the fact last across stability classes");
     assert(b.includes("- calling: Wandering blade"), "fact facet did not render as its key");
     await kill(p);
   });
@@ -281,6 +284,16 @@ async function main() {
     const refused = await call(p, "manage_identity", { action: "stage", character_id: cid, facet: "x", value: "y", kind: "value", valence: 10 });
     assert(refused.includes("INVALID_INPUT"), "valence on a value facet was not refused: " + refused.slice(0, 120));
     await kill(p);
+  });
+
+  // ── T761: load-time normalization (REQ-638, REQ-639) ─────────────────
+  await test("T761/REQ-638,REQ-639: load clamps valence and clears off-kind false belief", () => {
+    const clamped = normalizeFacetAttributes({ kind: "stance", valence: 400 });
+    assert(clamped.valence === 100, "valence not clamped on load: " + clamped.valence);
+    const cleared = normalizeFacetAttributes({ kind: "value", false_but_held: true });
+    assert(cleared.false_but_held === false, "off-kind false belief not cleared on load");
+    const kept = normalizeFacetAttributes({ kind: "belief", false_but_held: true });
+    assert(kept.false_but_held === true, "belief-kind false-but-held was cleared");
   });
 
   // ── T762: temporal bounds (REQ-640) ──────────────────────────────────

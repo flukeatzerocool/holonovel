@@ -213,8 +213,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
 | `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` | No | Maximum subjective-memory records retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
-| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` | No | Maximum subjective-memory records injected into the `## Subjective Memory` briefing section (default 5; REQ-626). Presentation — non-behavioral; it bounds output volume, not story state. |
-| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` | No | Token budget for the `## Subjective Memory` briefing section (default 800; REQ-645). Presentation — non-behavioral; it bounds output volume, not story state. |
+| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` | No | Maximum subjective-memory records injected into the `## Subjective Memory` briefing section (default 5; 0 = unlimited; REQ-626). Presentation — non-behavioral; it bounds output volume, not story state. |
+| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` | No | Token budget for the `## Subjective Memory` briefing section (default 800; 0 = unlimited; REQ-645). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX` | No | Maximum subjective-memory records retained per entity before score-ordered eviction (default 500; REQ-647). Storage. |
 | `TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX` | No | Maximum characters in one entity's consolidation summary, oldest folded lines dropped first (default 2000; REQ-647). Storage. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
@@ -357,6 +357,14 @@ interchange operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it
 wherever they include property-group state. It mutates only through
 `manage_staging (action: cast|next_speaker)` and does not couple to any
 property group.
+
+**Subjective memory.** Subjective-memory state (REQ-623–REQ-648) is Novel-tier
+state on the same footing as property groups for copy, archive, and interchange
+operations (REQ-240, REQ-334, REQ-096): clone and export carry the records and
+their disclosure levels. Checkpoint snapshots exclude the store so a restore
+cannot remove a record appended after capture (REQ-627); a consolidation fold in
+the compression ladder travels with clone, checkpoint, and archive and is
+preserved across undo and restore.
 
 **Character identity.** Character identity state (REQ-473–483, 636–643) — the
 staged candidates, accepted facets, and compiled kernel — is Roster-tier,

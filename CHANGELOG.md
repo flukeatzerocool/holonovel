@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-08 — Review remediation: memory, identity, and evidence anchors
+
+- The Player subjective-memory brief renders an `open` record's claim
+  (REQ-634), while `[divergence]` and `[evicted]` markers are appended after
+  admission so they cannot change selection, order, or the render cap
+  (REQ-632, REQ-646).
+- Divergence precedence now checks a false outcome before displacement, the
+  affect and outcome lexicon matches Appendix O.13 on whole tokens, and the
+  alias index is built once per check (REQ-630).
+- Campaign-recap slots are reserved for consolidation summaries, and a fold
+  survives undo and checkpoint restore (REQ-627, REQ-647).
+- The draft-scan target matrix matches the disclosure plan (guarded owner:
+  claim and affect; secret: gist and claim), REQ-599b is amended to match, and
+  a branch drops memories of events after its point (REQ-458).
+- `subjective_record` resolves an entity by id or name, refuses an unresolved
+  entity and a non-integer or negative ordinal, and uses `configInt` for its
+  bounds; legacy records without ids receive deterministic `sm-legacy-*` ids.
+- The who-they-are renderer orders globally by the facet catalog (fact last),
+  and load-time normalization clamps valence and clears off-kind false belief.
+- §7.6 documents `0 = unlimited` for the two briefing bounds, and §7.7.0 gains
+  the Subjective memory class-contract paragraph with its checkpoint exclusion
+  (REQ-240a, REQ-241a, REQ-334b).
+- Holosuite predicate anchors are re-pointed after the source edits; the
+  baseline is restored from 49 passed/5 failed to 54 passed/0 failed.
+
 ## 2026-11-08 — Subjective recall quality and retention
 
 - Replaces the minimal memory comparator with a deterministic integer score

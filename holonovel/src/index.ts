@@ -45,7 +45,7 @@ import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type Percept
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
 import { nextSubjectiveId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, assembleMemorySection, selectForEviction, foldIntoSummary, eventState, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure } from "./core/subjective.js";
 // REQ-629–REQ-633 — divergence: what the Novel recorded, checked against a memory.
-import { projectTruthFacts, checkRecord, type DivergenceResult } from "./core/divergence.js";
+import { projectTruthFacts, checkRecord, buildAliases, type DivergenceResult } from "./core/divergence.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -2246,10 +2246,15 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
       pool,
       (r) => {
         const projected = playerProjection(r);
-        if (!projected) return "";
-        return projected.disclosure === "open"
-          ? `- [${projected.origin}] ${projected.entity_id}: ${projected.gist}${projected.felt_then ? ` (felt ${projected.felt_then})` : ""}${evictedTag(projected)}`
-          : `- [guarded] ${projected.entity_id}: ${projected.gist}${evictedTag(projected)}`;
+        if (!projected) return { text: "" };
+        if (projected.disclosure === "open") {
+          const claim = `${projected.claim.subject} ${projected.claim.predicate} ${projected.claim.object}`.trim();
+          return {
+            text: `- [${projected.origin}] ${projected.entity_id}: ${projected.gist}${claim ? ` (claims: ${claim})` : ""}${projected.felt_then ? ` (felt ${projected.felt_then})` : ""}`,
+            suffix: evictedTag(projected),
+          };
+        }
+        return { text: `- [guarded] ${projected.entity_id}: ${projected.gist}`, suffix: evictedTag(projected) };
       },
       { maxRecords, budgetTokens, marker },
     );
@@ -2272,18 +2277,19 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
   // REQ-632 — the divergence marker derives from the same check as the truth
   // view; selection, order, and the render bounds are untouched.
   const facts = projectTruthFacts(novel);
+  const alias = buildAliases(novel);
   const assembled = assembleMemorySection(
     pool,
     (r) => {
       // REQ-626 — a non-open record carries its disclosure level so the
       // narrator knows it may not be quoted.
       const tag = r.disclosure === "open" ? r.origin : `${r.origin}, ${r.disclosure}`;
-      let line = `- [${tag}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
-      const result = checkRecord(r, facts, novel);
-      if (result.verdict !== "confirmed" && result.verdict !== "unverifiable") {
-        line += ` [divergence: ${result.verdict.split("_").join(" ")}]`;
-      }
-      return line + evictedTag(r);
+      const text = `- [${tag}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
+      const result = checkRecord(r, facts, novel, alias);
+      const divergence = result.verdict !== "confirmed" && result.verdict !== "unverifiable"
+        ? ` [divergence: ${result.verdict.split("_").join(" ")}]`
+        : "";
+      return { text, suffix: divergence + evictedTag(r) };
     },
     { maxRecords, budgetTokens, marker },
   );
@@ -7829,7 +7835,7 @@ server.registerTool("manage_belief", {
     perception_source_entity: z.string().optional().describe("Entity the perception came from (perception_record; default null)."),
     perception_room_id: z.string().optional().describe("Room identifier for the perception (perception_record; defaults to the entity's room)."),
     perception_confidence: z.number().min(0).max(1).optional().describe("0..1 confidence (perception_record; default 0; REQ-594)."),
-    subjective_entity: z.string().optional().describe("Entity that remembers (subjective_record; filter for subjective_list)."),
+    subjective_entity: z.string().optional().describe("Entity that remembers, by id or name (subjective_record; filter for subjective_list)."),
     subjective_gist: z.string().optional().describe("What the entity remembers, in its own terms (subjective_record)."),
     subjective_subject: z.string().optional().describe("Claim subject (subjective_record)."),
     subjective_predicate: z.string().optional().describe("Claim predicate (subjective_record)."),
@@ -7838,7 +7844,7 @@ server.registerTool("manage_belief", {
     subjective_felt_then: z.string().optional().describe("The entity's affect at the event (subjective_record)."),
     subjective_salience: z.number().min(0).max(1).optional().describe("0..1 salience (subjective_record; default 0.5)."),
     subjective_origin: z.enum(["witnessed", "told", "inferred", "authored"]).optional().describe("How the memory arose (subjective_record; default authored; REQ-623)."),
-    subjective_event_ordinal: z.number().optional().describe("Contributing event-log ordinal (subjective_record; defaults to the latest event)."),
+    subjective_event_ordinal: z.number().int().min(0).optional().describe("Contributing event-log ordinal, a non-negative integer (subjective_record; defaults to the latest event)."),
     subjective_disclosure: z.enum(["open", "guarded", "secret"]).optional().describe("Who may see the memory: open (quotable), guarded (gist only), or secret (never quoted) (subjective_record; default secret; subjective_disclose; required)."),
     subjective_record_id: z.string().optional().describe("Memory record id to reclassify, e.g. sm-3 (subjective_disclose)."),
     topic: z.string().optional().describe("Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets."),
@@ -8774,6 +8780,20 @@ const handlePerceptionActions = async (args: any) => {
 // GM-only in this increment; it never rewrites the event log, belief, or the
 // perception ledger.
 // REQ-623, REQ-624, REQ-625, REQ-626, REQ-627, REQ-628
+// REQ-624 — resolve a memory owner by id or name so a typo cannot create an
+// orphan record that no Player or Game Master surface will ever select.
+function resolveMemoryEntity(novel: NovelState, token: string): string | null {
+  const t = normalizeToken(token);
+  if (!t) return null;
+  for (const [id, entity] of novel.entities ?? new Map()) {
+    if (normalizeToken(id) === t || normalizeToken(entity?.name ?? "") === t) return id;
+  }
+  for (const [id, npc] of novel.npcs ?? new Map()) {
+    if (normalizeToken(id) === t || normalizeToken(npc?.name ?? "") === t) return id;
+  }
+  return null;
+}
+
 const handleSubjectiveActions = async (args: any) => {
   const gmRead = () => {
     const badge = getBadge();
@@ -8786,6 +8806,13 @@ const handleSubjectiveActions = async (args: any) => {
       // REQ-624 — entity, gist, and the claim triple are required.
       if (!args.entity || !args.gist || !args.subject || !args.predicate || !args.object) {
         return err("INVALID_INPUT", "entity, gist, subject, predicate, and object are required for subjective_record.");
+      }
+      const entityId = resolveMemoryEntity(novel, args.entity);
+      if (!entityId) {
+        return err("INVALID_INPUT", `No entity or NPC named '${args.entity}'. Use manage_character (action: roster_list) or manage_npc (action: list).`);
+      }
+      if (args.event_ordinal !== undefined && (!Number.isInteger(args.event_ordinal) || args.event_ordinal < 0)) {
+        return err("INVALID_INPUT", "event_ordinal must be a non-negative integer.");
       }
       const origin = (args.origin ?? "authored") as MemoryOrigin;
       if (!MEMORY_ORIGINS.includes(origin)) {
@@ -8810,7 +8837,7 @@ const handleSubjectiveActions = async (args: any) => {
       // REQ-623 — the record holds what the entity remembers, never state.
       const record: SubjectiveMemoryRecord = {
         id: nextSubjectiveId(novel.subjective_memory),
-        entity_id: args.entity,
+        entity_id: entityId,
         event_ordinal: ordinal ?? null,
         gist: args.gist,
         claim: { subject: args.subject, predicate: args.predicate, object: args.object, polarity },
@@ -8824,7 +8851,7 @@ const handleSubjectiveActions = async (args: any) => {
       // REQ-647 — per-entity retention, lowest score first, folding each
       // evicted record into the entity's consolidation summary before removal.
       const scoreInputs = memoryScoreInputs(novel);
-      const consolidationMax = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX ?? "2000", 10);
+      const consolidationMax = configInt("TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX", 2000);
       const ladder = novel.compression_ladder ?? (novel.compression_ladder = { version: 1, arc: [], campaign: null });
       const foldEntity = (entityId: string, evict: SubjectiveMemoryRecord[]) => {
         if (evict.length === 0) return;
@@ -8833,14 +8860,14 @@ const handleSubjectiveActions = async (args: any) => {
         const ids = new Set(evict.map((r) => r.id));
         novel.subjective_memory = novel.subjective_memory.filter((r) => !ids.has(r.id));
       };
-      const perEntity = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX ?? "500", 10);
+      const perEntity = configInt("TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX", 500);
       if (perEntity > 0) {
         const own = novel.subjective_memory.filter((r) => r.entity_id === record.entity_id);
         foldEntity(record.entity_id, selectForEviction(own, perEntity, scoreInputs));
       }
       // REQ-627 — the global cap stays the outer storage bound (oldest-first),
       // but it folds through the same helper so neither bound loses a gist.
-      const cap = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES ?? "20000", 10);
+      const cap = configInt("TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES", 20000);
       if (cap > 0 && novel.subjective_memory.length > cap) {
         const overflow = novel.subjective_memory.slice(0, novel.subjective_memory.length - cap);
         const byEntity = new Map<string, SubjectiveMemoryRecord[]>();
@@ -8917,8 +8944,9 @@ const handleSubjectiveActions = async (args: any) => {
       if (args.event_ordinal !== undefined) records = records.filter((r) => r.event_ordinal === args.event_ordinal);
       if (records.length === 0) return ok("No subjective memories recorded.");
       const facts = projectTruthFacts(novel);
+      const alias = buildAliases(novel);
       const results = records.map((record: SubjectiveMemoryRecord) => {
-        const result: DivergenceResult = checkRecord(record, facts, novel);
+        const result: DivergenceResult = checkRecord(record, facts, novel, alias);
         return {
           record_id: record.id,
           entity_id: record.entity_id,
@@ -10020,7 +10048,7 @@ function redactNovelForPlayer(novel: any): any {
   if (Array.isArray(out.subjective_memory)) {
     const activeId = state.getActiveEntity()?.id;
     out.subjective_memory = (out.subjective_memory as any[])
-      .map((raw) => playerProjection(normalizeSubjectiveRecord(raw)))
+      .map((raw, index) => playerProjection(normalizeSubjectiveRecord(raw, index)))
       .filter((r): r is SubjectiveMemoryRecord => r !== null && !!activeId && r.entity_id === activeId);
   }
   if (out.lore && typeof out.lore === "object") {
@@ -10559,6 +10587,10 @@ Options: yes, cancel`);
       const branchPoint = args.from_event ?? lastOrdinal;
       branch.event_log = sliceThrough(source.event_log, branchPoint);
       branch.branch_lineage = { parent_slug: source.slug, branch_point: branchPoint };
+      // REQ-458 — a branch cannot remember events it does not contain.
+      branch.subjective_memory = (branch.subjective_memory ?? []).filter((r: any) =>
+        r?.event_ordinal === null || r?.event_ordinal === undefined ||
+        (branchPoint !== null && r.event_ordinal <= branchPoint));
       const novel = importNovelJSON(branch);
       state.novels.set(slug, novel);
       state.saveNovel(novel);

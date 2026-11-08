@@ -49,8 +49,9 @@ const POLARITIES: MemoryClaim["polarity"][] = ["positive", "negative"];
 // being dropped, so a Novel written before a field existed survives. A record
 // with no disclosure level loads as `secret`: it was GM-only before the axis
 // existed, and opening it without a Game Master action would publish content
-// the caller never chose to share.
-export function normalizeSubjectiveRecord(raw: any): SubjectiveMemoryRecord {
+// the caller never chose to share. REQ-623 — a record that predates the id
+// field gets a deterministic legacy id so it stays addressable.
+export function normalizeSubjectiveRecord(raw: any, index = 0): SubjectiveMemoryRecord {
   const origin: MemoryOrigin = MEMORY_ORIGINS.includes(raw?.origin) ? raw.origin : "authored";
   const disclosure: MemoryDisclosure = MEMORY_DISCLOSURES.includes(raw?.disclosure)
     ? raw.disclosure
@@ -61,8 +62,9 @@ export function normalizeSubjectiveRecord(raw: any): SubjectiveMemoryRecord {
   const salience = typeof raw?.salience === "number" && Number.isFinite(raw.salience)
     ? Math.min(1, Math.max(0, raw.salience))
     : 0.5;
+  const rawId = typeof raw?.id === "string" && raw.id.length > 0 ? raw.id : `sm-legacy-${index + 1}`;
   return {
-    id: String(raw?.id ?? ""),
+    id: rawId,
     entity_id: String(raw?.entity_id ?? ""),
     event_ordinal: typeof raw?.event_ordinal === "number" ? raw.event_ordinal : null,
     gist: String(raw?.gist ?? ""),
@@ -129,7 +131,14 @@ export function selectForBriefing(
 // REQ-645 — budgeted assembly. Records are admitted whole, in score order,
 // until the record cap or the token budget binds; the caller supplies the
 // renderer (and therefore the badge projection), so the omitted count covers
-// only records that badge can see.
+// only records that badge can see. REQ-632/REQ-646 — a marker returned as
+// `suffix` is appended after admission, so it never changes selection, order,
+// or the render cap; cost is measured on the record's own `text`.
+export interface MemoryRender {
+  text: string;
+  suffix?: string;
+}
+
 export interface AssembledMemorySection {
   lines: string[];
   kept_ids: string[];
@@ -139,7 +148,7 @@ export interface AssembledMemorySection {
 
 export function assembleMemorySection(
   records: SubjectiveMemoryRecord[],
-  render: (r: SubjectiveMemoryRecord) => string,
+  render: (r: SubjectiveMemoryRecord) => MemoryRender,
   opts: { maxRecords: number; budgetTokens: number; marker: (omitted: number) => string },
 ): AssembledMemorySection {
   const lines: string[] = [];
@@ -148,10 +157,10 @@ export function assembleMemorySection(
   let tokens = 0;
   for (const record of records) {
     if (opts.maxRecords > 0 && kept.length >= opts.maxRecords) { omitted++; continue; }
-    const line = render(record);
-    const cost = estimateTokens(line);
-    if (opts.budgetTokens > 0 && tokens + cost > opts.budgetTokens && kept.length > 0) { omitted++; continue; }
-    lines.push(line);
+    const rendered = render(record);
+    const cost = estimateTokens(rendered.text);
+    if (opts.budgetTokens > 0 && tokens + cost > opts.budgetTokens) { omitted++; continue; }
+    lines.push(rendered.text + (rendered.suffix ?? ""));
     kept.push(record.id);
     tokens += cost;
   }
@@ -227,7 +236,7 @@ export function eventState(ordinal: number | null, retained: Set<number>): "reta
   return retained.has(ordinal) ? "retained" : "evicted";
 }
 
-// REQ-625/REQ-634 — the Player-safe projection. `open` renders in full,
+// REQ-599b/REQ-634 — the Player-safe projection. `open` renders in full,
 // `guarded` keeps the gist and provenance while the claim and affect are
 // cleared, and `secret` is absent. Pure: the input record is never mutated.
 export function playerProjection(r: SubjectiveMemoryRecord): SubjectiveMemoryRecord | null {
@@ -240,10 +249,12 @@ export function playerProjection(r: SubjectiveMemoryRecord): SubjectiveMemoryRec
   };
 }
 
-// REQ-599b — the draft-visibility targets a memory contributes. `secret` is a
-// target in full; `guarded` withholds only its gist from the owner, so a claim
-// or affect is always a target and the gist is one for every other entity.
-// `open` records are quotable and contribute nothing.
+// REQ-599b — the draft-visibility targets a memory contributes. `open` records
+// are quotable and contribute nothing. `guarded` withholds its claim and affect
+// from the owning entity's narration, and withholds the gist and claim from any
+// other entity; `secret` withholds the gist and claim from everyone. The affect
+// of a `secret` record is not a target: it shapes narration without being
+// quoted, and the gist/claim already gate the content.
 export function disclosureScanTargets(
   r: SubjectiveMemoryRecord,
   activeEntityId: string | null,
@@ -252,14 +263,18 @@ export function disclosureScanTargets(
   const claim = `${r.claim.subject} ${r.claim.predicate} ${r.claim.object}`.trim();
   const owner = activeEntityId !== null && activeEntityId === r.entity_id;
   const targets: Array<{ kind: string; phrase: string; key: false }> = [];
-  if (r.disclosure === "secret" || !owner) {
-    targets.push({ kind: `${r.disclosure} memory gist`, phrase: r.gist, key: false });
+  const push = (kind: string, phrase: string) => {
+    if (phrase.trim().length > 0) targets.push({ kind, phrase, key: false });
+  };
+  if (r.disclosure === "secret") {
+    push("secret memory gist", r.gist);
+    push("secret memory claim", claim);
+  } else if (owner) {
+    push("guarded memory claim", claim);
+    push("guarded memory affect", r.felt_then);
+  } else {
+    push("guarded memory gist", r.gist);
+    push("guarded memory claim", claim);
   }
-  if (claim.length > 0) {
-    targets.push({ kind: `${r.disclosure} memory claim`, phrase: claim, key: false });
-  }
-  if (owner && r.felt_then.length > 0) {
-    targets.push({ kind: `${r.disclosure} memory affect`, phrase: r.felt_then, key: false });
-  }
-  return targets.filter((t) => t.phrase.trim().length > 0);
+  return targets;
 }
