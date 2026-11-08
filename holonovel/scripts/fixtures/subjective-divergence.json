@@ -1,0 +1,53 @@
+{
+  "description": "Divergence probes (REQ-633). The recall-probe harness builds the fixture campaign (NPC Kael loyal, NPC Mira hostile, Anna allied to Kael, two recorded events), records one memory per probe with the declared claim, and requires the declared verdict. Every probe must resolve to a real verdict: an unverifiable result fails the run.",
+  "probes": [
+    {
+      "id": "confirmed-disposition",
+      "gist": "confirmed-disposition",
+      "claim": { "subject": "Kael", "predicate": "disposition", "object": "loyal", "polarity": "positive" },
+      "felt_then": "relieved",
+      "event_ordinal": 1,
+      "expected_verdict": "confirmed"
+    },
+    {
+      "id": "false-outcome-disposition",
+      "gist": "false-outcome-disposition",
+      "claim": { "subject": "Kael", "predicate": "disposition", "object": "loyal", "polarity": "negative" },
+      "felt_then": "",
+      "event_ordinal": 1,
+      "expected_verdict": "false_outcome"
+    },
+    {
+      "id": "misattributed-disposition",
+      "gist": "misattributed-disposition",
+      "claim": { "subject": "Anna", "predicate": "disposition", "object": "loyal", "polarity": "positive" },
+      "felt_then": "",
+      "event_ordinal": 1,
+      "expected_verdict": "misattributed"
+    },
+    {
+      "id": "conflated-outcome",
+      "gist": "conflated-outcome",
+      "claim": { "subject": "Mira", "predicate": "outcome", "object": "Kael", "polarity": "negative" },
+      "felt_then": "",
+      "event_ordinal": 2,
+      "expected_verdict": "conflated"
+    },
+    {
+      "id": "displaced-outcome",
+      "gist": "displaced-outcome",
+      "claim": { "subject": "Kael", "predicate": "outcome", "object": "Anna", "polarity": "positive" },
+      "felt_then": "",
+      "event_ordinal": 2,
+      "expected_verdict": "displaced"
+    },
+    {
+      "id": "affect-drift-disposition",
+      "gist": "affect-drift-disposition",
+      "claim": { "subject": "Kael", "predicate": "disposition", "object": "loyal", "polarity": "positive" },
+      "felt_then": "terrified",
+      "event_ordinal": 1,
+      "expected_verdict": "affect_drift"
+    }
+  ]
+}

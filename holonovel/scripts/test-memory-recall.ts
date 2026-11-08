@@ -8,7 +8,7 @@
  * probe fixture.
  *
  * Exit codes: 0 = pass, 1 = a check failed, 2 = fatal.
- * REQ-590, REQ-591, REQ-592, REQ-593
+ * REQ-590, REQ-591, REQ-592, REQ-593, REQ-633
  */
 
 import { spawn, ChildProcess } from "node:child_process";
@@ -21,6 +21,7 @@ installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
 const FIXTURE = join(import.meta.dirname!, "fixtures", "memory-recall.json");
+const DIVERGENCE_FIXTURE = join(import.meta.dirname!, "fixtures", "subjective-divergence.json");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-memory-recall-"));
 const SLUG = "recall-fixture";
 
@@ -109,6 +110,27 @@ interface Probe {
   tier: string;
   budget_tokens: number;
   required: boolean;
+}
+
+// REQ-633 — one divergence probe: a deliberately wrong memory and its verdict.
+interface DivergenceProbe {
+  id: string;
+  gist: string;
+  claim: { subject: string; predicate: string; object: string; polarity: "positive" | "negative" };
+  felt_then: string;
+  event_ordinal: number | null;
+  expected_verdict: string;
+}
+
+// REQ-633 — the failure path is evaluable on its own, so a missed expectation
+// is proven to fail rather than assumed to.
+function divergenceMisses(probes: DivergenceProbe[], verdicts: Map<string, string>): string[] {
+  const misses: string[] = [];
+  for (const probe of probes) {
+    const actual = verdicts.get(probe.gist) ?? "(missing)";
+    if (actual !== probe.expected_verdict) misses.push(`${probe.id} expected ${probe.expected_verdict}, got ${actual}`);
+  }
+  return misses;
 }
 
 async function main() {
@@ -210,6 +232,60 @@ async function main() {
     const requiredMiss = probes.some((p) => p.required && misses.some((m) => m.startsWith(p.id)));
     if (requiredMiss) throw new Error(`required-recall probe missed: ${misses.join(", ")}`);
     if (recall < 0.9) throw new Error(`aggregate recall ${recall.toFixed(2)} below 0.90: ${misses.join(", ")}`);
+  });
+
+  await test("T752/REQ-633: divergence probes return their declared verdicts", async () => {
+    await call(proc, "manage_novel", { action: "create", name: "divergence-fixture" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const annaRes = await call(proc, "manage_character", { action: "create", name: "Anna" });
+    const anna = annaRes.match(/Entity id ([a-z0-9_]+)/i)?.[1];
+    if (!anna) throw new Error(`character create did not return an id: ${annaRes.slice(0, 160)}`);
+    await call(proc, "manage_npc", { action: "create", name: "Kael", disposition: "loyal" });
+    await call(proc, "manage_npc", { action: "create", name: "Mira", disposition: "hostile" });
+    await call(proc, "manage_relationship", { action: "set", entity_a: anna, entity_b: "Kael", type: "ally" });
+    await call(proc, "manage_diagnostics", { action: "event", text: "Kael gave the chapel to Anna" });
+    await call(proc, "manage_diagnostics", { action: "event", text: "Mira betrayed Anna" });
+    const infoBefore = await call(proc, "manage_novel", { action: "info", slug: "divergence-fixture" });
+    const eventsBefore = infoBefore.match(/"event_count":\s*(\d+)/)?.[1];
+
+    const probes: DivergenceProbe[] = JSON.parse(readFileSync(DIVERGENCE_FIXTURE, "utf8")).probes;
+    for (const probe of probes) {
+      const recorded = await call(proc, "manage_belief", {
+        action: "subjective_record",
+        subjective_entity: anna,
+        subjective_gist: probe.gist,
+        subjective_subject: probe.claim.subject,
+        subjective_predicate: probe.claim.predicate,
+        subjective_object: probe.claim.object,
+        subjective_polarity: probe.claim.polarity,
+        subjective_felt_then: probe.felt_then || undefined,
+        subjective_event_ordinal: probe.event_ordinal ?? undefined,
+        subjective_origin: "witnessed",
+      });
+      assertContains(recorded, "[OK]");
+    }
+
+    const view = await call(proc, "manage_belief", { action: "subjective_verify", subjective_entity: anna });
+    const rows = JSON.parse(view) as Array<{ gist: string; verdict: string }>;
+    const verdicts = new Map(rows.map((r) => [r.gist, r.verdict]));
+    for (const probe of probes) {
+      console.log(`    probe ${probe.id} → ${verdicts.get(probe.gist) ?? "(missing)"}`);
+    }
+    const misses = divergenceMisses(probes, verdicts);
+    if (misses.length > 0) throw new Error(`divergence probes missed: ${misses.join("; ")}`);
+
+    // A deliberately missed expectation must fail the evaluator.
+    const flipped = probes.map((p, i) => (i === 0 ? { ...p, expected_verdict: "unverifiable" } : p));
+    if (divergenceMisses(flipped, verdicts).length === 0) throw new Error("a deliberately missed verdict did not fail the probe check");
+    // A probe that resolves to unverifiable must fail, not pass.
+    if (divergenceMisses([{ ...probes[0], expected_verdict: "confirmed" }], new Map([[probes[0].gist, "unverifiable"]])).length === 0) {
+      throw new Error("an unverifiable probe passed");
+    }
+
+    const again = await call(proc, "manage_belief", { action: "subjective_verify", subjective_entity: anna });
+    if (again !== view) throw new Error("recomputation of unchanged state differs");
+    const infoAfter = await call(proc, "manage_novel", { action: "info", slug: "divergence-fixture" });
+    if (infoAfter.match(/"event_count":\s*(\d+)/)?.[1] !== eventsBefore) throw new Error("the divergence check advanced the event log");
   });
 
   await kill(proc);

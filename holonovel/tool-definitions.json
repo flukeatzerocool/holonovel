@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 110266,
+  "tools_list_bytes": 110301,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 110266,
-        "tokens": 27567
+        "bytes": 110301,
+        "tokens": 27576
       },
       "standard": {
         "tools": 37,
-        "bytes": 95873,
-        "tokens": 23969
+        "bytes": 95908,
+        "tokens": 23977
       },
       "small": {
         "tools": 6,
@@ -334,8 +334,8 @@
     {
       "name": "manage_belief",
       "title": "Belief Management",
-      "description": "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and a one-entity knowledge query. list, get, evidence, conflicts, perception_list, subjective_list, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight and does not change a stance until reconcile recomputes it; retract requires the evidence_id from admit and reconciles; perception and memory ledgers are append-only; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
-      "description_bytes": 984,
+      "description": "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances; retract requires the evidence_id from admit; perception and memory ledgers are append-only; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with provenance. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+      "description_bytes": 979,
       "action_enum": [
         "list",
         "get",
@@ -350,7 +350,8 @@
         "perception_for_entity",
         "perception_for_event",
         "subjective_record",
-        "subjective_list"
+        "subjective_list",
+        "subjective_verify"
       ],
       "param_count": 32,
       "required": [
@@ -414,8 +415,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6045,
-        "descriptionBytes": 984
+        "definitionBytes": 6080,
+        "descriptionBytes": 979
       },
       "category": "",
       "gate": ""

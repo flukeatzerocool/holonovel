@@ -44,6 +44,8 @@ import { transition as agentTransition, recordAction, nextTaskId, isTerminal, is
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
 import { nextSubjectiveId, MEMORY_ORIGINS, selectForBriefing, type SubjectiveMemoryRecord, type MemoryOrigin } from "./core/subjective.js";
+// REQ-629–REQ-633 — divergence: what the Novel recorded, checked against a memory.
+import { projectTruthFacts, checkRecord, type DivergenceResult } from "./core/divergence.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -2224,9 +2226,17 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
   const max = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX", 5);
   const records = selectForBriefing(novel.subjective_memory ?? [], present, max);
   if (records.length === 0) return "";
-  const lines = records.map(
-    (r) => `- [${r.origin}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`,
-  );
+  // REQ-632 — the divergence marker derives from the same check as the truth
+  // view; selection, order, and the render cap are untouched.
+  const facts = projectTruthFacts(novel);
+  const lines = records.map((r) => {
+    let line = `- [${r.origin}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
+    const result = checkRecord(r, facts, novel);
+    if (result.verdict !== "confirmed" && result.verdict !== "unverifiable") {
+      line += ` [divergence: ${result.verdict.split("_").join(" ")}]`;
+    }
+    return line;
+  });
   return `\n\n## Subjective Memory\n${lines.join("\n")}`;
 }
 
@@ -7745,9 +7755,9 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management",
-  description: "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and a one-entity knowledge query. list, get, evidence, conflicts, perception_list, subjective_list, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight and does not change a stance until reconcile recomputes it; retract requires the evidence_id from admit and reconciles; perception and memory ledgers are append-only; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+  description: "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight; reconcile recomputes stances; retract requires the evidence_id from admit; perception and memory ledgers are append-only; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with provenance. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
   inputSchema: {
-    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record or subjective_list (GM only). Knowledge: knowledge_query."),
+    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list", "subjective_verify"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record, subjective_list, or subjective_verify (GM only). Knowledge: knowledge_query."),
     detail: z.boolean().optional().describe("Return full belief records instead of summary entries (list)."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
     subject: z.string().optional().describe("Proposition subject (admit)."),
@@ -8720,6 +8730,31 @@ const handleSubjectiveActions = async (args: any) => {
       if (args.event_ordinal !== undefined) records = records.filter((r) => r.event_ordinal === args.event_ordinal);
       if (records.length === 0) return ok("No subjective memories recorded.");
       return raw(JSON.stringify(records, null, 2));
+    }
+    case "verify": {
+      // REQ-631 — the GM truth view: each record beside the recorded fact that
+      // decides it. Read-only; never appends an event or an audit entry.
+      if (!gmRead()) return err("FORBIDDEN", "Subjective memory is Game Master only.");
+      const novel = requireNovel();
+      let records = novel.subjective_memory;
+      if (args.entity) records = records.filter((r) => r.entity_id === args.entity);
+      if (args.event_ordinal !== undefined) records = records.filter((r) => r.event_ordinal === args.event_ordinal);
+      if (records.length === 0) return ok("No subjective memories recorded.");
+      const facts = projectTruthFacts(novel);
+      const results = records.map((record: SubjectiveMemoryRecord) => {
+        const result: DivergenceResult = checkRecord(record, facts, novel);
+        return {
+          record_id: record.id,
+          entity_id: record.entity_id,
+          event_ordinal: record.event_ordinal,
+          gist: record.gist,
+          claim: record.claim,
+          verdict: result.verdict,
+          reason: result.reason,
+          truth: result.truth,
+        };
+      });
+      return raw(JSON.stringify(results, null, 2));
     }
     default:
       return err("INVALID_INPUT", `Unknown subjective action '${args.action}'.`);

@@ -309,3 +309,14 @@ readability warning (REQ-628, Flesch-Kincaid 20.2 from "reconciliation" and
 
 **Disposition: all 257 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 9 — memory divergence delta (2026-11-08)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 257 warnings**.
+Five REQ bodies (REQ-629–REQ-633) and the Appendix O.13 tables landed. The two
+passive-voice warnings raised by the first draft of REQ-629 and REQ-633 were
+rewritten to active voice, so the delta over Batch 8 is +0; no warning names a
+new REQ.
+
+**Disposition: all 257 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

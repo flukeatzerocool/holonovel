@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-08 — Memory divergence verdicts
+
+- Adds §5.35 Divergence (REQ-629–REQ-633): a deterministic recorded-state truth
+  projection, six divergence verdicts (confirmed, misattributed, displaced,
+  conflated, false outcome, affect drift) plus the `unverifiable` outcome, the
+  Game Master truth view, the `[divergence]` briefing marker, and committed
+  divergence probes.
+- Adds `manage_belief (action: subjective_verify)`, a GM-only read returning each
+  memory beside its verdict, the recorded fact it rests on, and that fact's
+  source. Verdicts are derived on read — no new Novel field, migration,
+  checkpoint change, or starter rebuild; the tool count stays 37 and the
+  recorded required-parameter count stays 1.
+- Adds Appendix O.13 (predicate families, affect valence, outcome opposition
+  pairs) as fixed contract infrastructure referenced from the REQ bodies.
+- Tests T748–T751 in `test-belief.ts`; T752 evaluates
+  `fixtures/subjective-divergence.json` through the recall-probe harness, which
+  now fails on a missed or unverifiable verdict. Roadmap chunk 2 of 5 is
+  retired.
+
 ## 2026-11-08 — Subjective memory store (GM-only)
 
 - Adds §5.35 Subjective Memory (REQ-623–REQ-628): an append-only per-entity

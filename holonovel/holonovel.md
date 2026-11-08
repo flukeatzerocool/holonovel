@@ -528,7 +528,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–628 |
+| 5.35   | Subjective Memory                                       | 623–633 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4913,6 +4913,62 @@ Reconciliation SHALL NOT rewrite a subjective-memory record. *Acceptance
 criterion:* recording a memory leaves perceptions, evidence, stances,
 campaign-memory facts, and the event-log cursor unchanged, and a reconcile
 leaves the memory unchanged. _Check:_ T747.
+
+**REQ-629 — Recorded-state truth projection.**
+THE server SHALL derive, from recorded Novel state, a deterministic set of
+truth facts, each carrying a subject, a predicate family, an object, a
+polarity, and the recorded source that asserts it. The projection SHALL draw on
+the event log, story journal, campaign memory, relationships, NPC dispositions,
+scene presence and location, and inventory, and SHALL carry an event-ordinal
+anchor when its source is event-bound. Appendix O.13 fixes the predicate
+families. Derivation SHALL consult only Novel state — no model call,
+network, or wall-clock input — and SHALL NOT mutate state, append an event, or
+record an audit entry. *Acceptance criterion:* two derivations of unchanged
+state return equal fact sets, and a recorded relationship change alters the
+projected facts. _Check:_ T748.
+
+**REQ-630 — Divergence verdicts.**
+A divergence check SHALL compare a memory record's structured claim with the
+truth projection (REQ-629) and return exactly one verdict: confirmed,
+misattributed, displaced, conflated, false outcome, or affect drift. A claim no
+recorded fact resolves SHALL report `unverifiable`, not a divergence. Verdicts
+SHALL follow a fixed precedence, SHALL cite the recorded fact behind a
+non-confirmed verdict, and SHALL classify affect against recorded relational
+valence per Appendix O.13. The check SHALL NOT rewrite the memory, the event
+log, or any other state; two checks of unchanged state SHALL agree. *Acceptance
+criterion:* a deliberately wrong memory returns its expected verdict,
+recomputation is identical, and the event-log cursor is unchanged. _Check:_
+T749.
+
+**REQ-631 — Game Master truth view.**
+`manage_belief (action: subjective_verify)` SHALL return each matching
+subjective-memory record beside its divergence verdict, the recorded fact the
+verdict rests on, and that fact's recorded source, filtered by the entity or
+event-ordinal parameters already carried by `subjective_list` and defaulting to
+every record. The action SHALL be Game Master only, SHALL NOT mutate state or
+advance the event log, and SHALL return identical output for unchanged state.
+*Acceptance criterion:* a Game Master call returns a verdict and its recorded
+source per record, a Player or Observer call returns `[FORBIDDEN]`, and two
+calls return equal output. _Check:_ T750.
+
+**REQ-632 — Divergence marker in the briefing.**
+WHEN the Game Master briefing renders the `## Subjective Memory` section
+(REQ-626), THE server SHALL append a `[divergence]` marker naming the verdict to
+every rendered record whose verdict is a divergence, and SHALL render no marker
+for a confirmed or unverifiable record. The marker SHALL derive from the same
+check as REQ-630 and SHALL NOT change record selection, order, or the render
+cap. *Acceptance criterion:* a divergent record renders with its verdict named,
+a confirmed record renders without a marker, and two renders of unchanged state
+are identical. _Check:_ T751.
+
+**REQ-633 — Subjective divergence probes.**
+The server distribution SHALL include a committed probe fixture whose records
+carry deliberately wrong structured claims, each declaring its expected verdict,
+and the recall-probe harness (REQ-593) SHALL evaluate every divergence probe and
+fail when any probe does not return its expected verdict. The harness SHALL
+report the verdict per probe, and a probe whose claim is unverifiable SHALL fail
+rather than pass. *Acceptance criterion:* the committed fixture runs and fails on a
+deliberately missed expected verdict. _Check:_ T752.
 
 #### End of requirements
 
@@ -10403,6 +10459,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-626 | Deterministic briefing selection | 2026-11-08 |
 | REQ-627 | Persistence and retention | 2026-11-08 |
 | REQ-628 | Separation from recorded state | 2026-11-08 |
+| REQ-629 | Recorded-state truth projection | 2026-11-08 |
+| REQ-630 | Divergence verdicts | 2026-11-08 |
+| REQ-631 | Game Master truth view | 2026-11-08 |
+| REQ-632 | Divergence marker in the briefing | 2026-11-08 |
+| REQ-633 | Subjective divergence probes | 2026-11-08 |
 
 ---
 
@@ -10541,7 +10602,7 @@ diet.
 | T88   | Automated | Atomic writes: create a Novel, trigger a mutation, assert `<slug>.json.bak` exists alongside `<slug>.json`. Corrupt the primary file — assert server emits stderr warning and loads from backup or reports corruption in `spec_health`. Assert `manage_novel (action: end)` removes both the primary and backup files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | REQ-092                                     |
 | T89   | Manual   | Assumption audit trail: invoke the `assumption_audit` prompt against the current spec revision. Assert DECISIONS.md (4) contains at least one challenged assumption per category (technology, AI-as-builder, extraction, MCP, state, verification, build process, runtime, spec process). For a spec revision, assert a diff-only audit covering changed assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101                                     |
 | T90   | Manual   | Complex fixture verification workflow: build a server from the Appendix N fixture, replay the N.3 transcript. Assert all behavioral contracts (Appendix O) hold: status prefixes, dice transparency, roll values per N.4 witness table, combat turn resolution, condition lifecycle, countdown auto-decrement, manage_context (action: recap), undo correctness, and badge enforcement. Required for rulesets at REQ-100 tiers Standard, Heavy, Huge (≥100 indexed items).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | REQ-001, REQ-032, REQ-041, REQ-043, REQ-072, REQ-073, REQ-050                                   |
-| T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.8) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
+| T91   | Manual   | Appendix O spot-check: invoke one tool from each behavioral contract category (O.1–O.8 and O.13) on the running server and assert the output shape matches the category's documented contract. This is a lightweight cross-check — the individual behaviors are verified by automated tests; this confirms the output contracts are mutually consistent.                                                                                                                                                                                                                                                                                                                                                                                    | REQ-001, REQ-012, REQ-043, REQ-041, REQ-032                                   |
 | T92   | Automated | Alternative tech stack: build a server in a non-TypeScript language. Assert all verification workflows pass and the full Pattern Buffer passes. Assert alternative stack recorded with justification in DECISIONS.md (2). Waived if the builder uses only TypeScript.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | REQ-101 (via §4)                            |
 | T93   | Manual   | Source conversion: verify DECISIONS.md (2) records converter and version; (6) records fidelity rate per content type ≥ 90%; (5) records artifact dispositions for all flagged artifacts. Assert `spec_health` includes `conversionFidelity` section with per-content-type rates, overall rate, sample set, unresolved ambiguities, and confidence cap counts. Assert REQ-011 confidence capping for converted sections below threshold. Assert Appendix H.19 (converted table match) passes for sampled tables. When conversion is not selected, T93 is waived.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | REQ-102, REQ-011, REQ-025                   |
 | T94   | Automated | Synthesis reversion: run manage_synthesis (action: run), verify 7 modules populated. Call `manage_synthesis (action: revert)` — assert all synthesis resource URIs (`synthesis://voice_examples`, `synthesis://briefing_order`, `synthesis://action_patterns`, `synthesis://adventure_advice`) return empty or absent; `lore://templates` returns only Novel-scoped entries, synthesis state removed, mechanical fields unchanged, `[ruleset]` content unchanged, DECISIONS.md synthesis evidence retained, GM-configured briefing_order and action_patterns_enabled survive reversion unchanged. Re-run manage_synthesis (action: run) — assert repopulation succeeds. Player badge attempt returns `[FORBIDDEN]`. Assert synthesis briefing_order tokens are a subset of `spec_health.section_tokens`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | REQ-103, REQ-080, REQ-185                            |
@@ -11078,6 +11139,11 @@ diet.
 | T745 | Automated | Deterministic briefing selection: two `badge_briefing` renders at one state return an identical `## Subjective Memory` section; records order by descending salience, then descending ordinal, then ascending id; the section honors `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`; a Player render omits the section. | REQ-626 |
 | T746 | Automated | Subjective memory persistence: a record survives an end-and-resume cycle; a cap overflow evicts the oldest record; a checkpoint restore preserves a record appended after capture; `spec_health` reports `subjective_memory_count` under the Game Master badge. | REQ-627 |
 | T747 | Automated | Subjective memory separation: recording a memory leaves perceptions, evidence, belief stances, campaign-memory facts, and the event-log cursor unchanged, and a reconcile leaves the memory unchanged. | REQ-628 |
+| T748 | Automated | Truth projection: two derivations of unchanged state return equal fact sets; a recorded relationship change alters the projected facts; the event-log cursor is unchanged by a derivation. | REQ-629 |
+| T749 | Automated | Divergence verdicts: a memory whose claim matches recorded state reports confirmed; a claim with opposite polarity reports false outcome; a claim naming the wrong participant reports misattributed; a claim carried by two different facts reports conflated; a claim anchored to a different event reports displaced; a confirmed claim whose affect opposes recorded valence reports affect drift; an unresolvable claim reports unverifiable; two checks of unchanged state return identical verdicts and the event-log cursor is unchanged. | REQ-630 |
+| T750 | Automated | GM truth view: `manage_belief (action: subjective_verify)` returns a verdict, the recorded fact, and its source per record; the entity and event-ordinal filters narrow the result; a Player or Observer call returns `[FORBIDDEN]`; two calls return equal output and do not advance the event log. | REQ-631 |
+| T751 | Automated | Divergence marker: a divergent memory renders `[divergence: <verdict>]` in the `## Subjective Memory` briefing section; a confirmed memory renders without a marker; two renders of unchanged state are identical and selection is unchanged. | REQ-632 |
+| T752 | Automated | Divergence probes: the committed probe fixture is evaluated by the recall-probe harness, every probe returns its declared verdict, the harness reports the verdict per probe, and a deliberately missed expected verdict fails the run. | REQ-633 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

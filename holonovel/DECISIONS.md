@@ -2,11 +2,11 @@
 
 **Spec hash:** 6f16945a25290e479cc9cb90706bb2bc8cb3f885ad2f1ea6982e442132614b03
 
-**Recorded tool budget:** 37 listed (238 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (239 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,567 tokens; standard 23,969; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,576 tokens; standard 23,977; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,37 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Subjective memory divergence — 2026-11-08
+
+- **D1 — Verdicts are derived on read, never stored.** `projectTruthFacts` and
+  `checkRecord` recompute from recorded state at call and render time; the
+  record shape, the Novel JSON, checkpoints, and the starter artifact are
+  unchanged. A stored verdict would go stale the moment recorded state changed
+  while the memory did not, and correcting it would edit an append-only record.
+  (REQ-629, REQ-630)
+- **D2 — `unverifiable` is an outcome, not a seventh verdict.** A claim the
+  projection cannot resolve reports `unverifiable` and never renders a
+  `[divergence]` marker; forcing absence into `misattributed` would assert a
+  divergence the record does not support. (REQ-630, REQ-632)
+- **D3 — The projection reads current recorded state, not state reconstructed at
+  the anchor.** Replay returns log text and the nearest checkpoint, not a state
+  projection (REQ-604), so a historical projection would need a state machine
+  this increment does not have. Event- and scene-bound facts carry their ordinal
+  anchor for the `displaced` check; state facts do not. (REQ-629, REQ-630)
+- **D4 — One read action, no new tool and no new parameter.**
+  `manage_belief (action: subjective_verify)` reuses `subjective_entity` and
+  `subjective_event_ordinal` through `mergeScopedArgs`; the tool description was
+  trimmed to stay inside the 1000-byte lint budget (979 bytes), and the
+  recorded required-parameter count stays 1. (REQ-408, REQ-413, REQ-631)
+- **D5 — Fixed tables live in Appendix O.13.** Predicate families, affect
+  valence terms, and outcome opposition pairs are fixed contract infrastructure
+  referenced from the REQ bodies; Appendix M forbids restating them in a body
+  and the 800-character limit makes it impossible. (REQ-629, REQ-630)
+- **D6 — Divergence probes are a verdict family, not a recall family.** The
+  committed fixture is evaluated by the REQ-593 harness and fails on a missed or
+  unverifiable verdict; the subjective recall@budget family and its declared
+  floor remain roadmap chunk 5. (REQ-593, REQ-633)
 
 ### Subjective memory store — 2026-11-08
 

@@ -584,4 +584,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-626 | Deterministic briefing selection | 5.35 Subjective Memory | C | T745 | — |
 | REQ-627 | Persistence and retention | 5.35 Subjective Memory | C | T746 | — |
 | REQ-628 | Separation from recorded state | 5.35 Subjective Memory | C | T747 | — |
+| REQ-629 | Recorded-state truth projection | 5.35 Subjective Memory | C | T748 | — |
+| REQ-630 | Divergence verdicts | 5.35 Subjective Memory | C | T749 | — |
+| REQ-631 | Game Master truth view | 5.35 Subjective Memory | C | T750 | — |
+| REQ-632 | Divergence marker in the briefing | 5.35 Subjective Memory | C | T751 | — |
+| REQ-633 | Subjective divergence probes | 5.35 Subjective Memory | C | T752 | — |
 

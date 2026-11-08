@@ -7,7 +7,8 @@
 // and REQ-472 (badge gating). Subjective memory: REQ-623 (record), REQ-624
 // (recording action), REQ-625 (read and gating), REQ-626 (deterministic
 // briefing selection), REQ-627 (persistence and retention), and REQ-628
-// (separation from recorded state).
+// (separation from recorded state). Divergence: REQ-629 (truth projection),
+// REQ-630 (verdicts), REQ-631 (GM truth view), and REQ-632 (briefing marker).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -66,6 +67,19 @@ async function memory(p: any, entity: string, gist: string, extra: any = {}) {
   });
 }
 async function listBeliefs(p: any, entity_id: string): Promise<any[]> { const t = await call(p, "manage_belief", { action: "list", entity_id, detail: true }); if (/^\[OK\] No /.test(t.trim())) return []; try { return JSON.parse(t); } catch { throw new Error(`beliefs were not JSON: ${t.slice(0, 200)}`); } }
+// REQ-631 — one row of the GM truth view, matched by its gist.
+function verdictOf(json: string, gist: string): string {
+  const rows = JSON.parse(json);
+  const row = rows.find((r: any) => r.gist === gist);
+  return row ? row.verdict : "(missing)";
+}
+// REQ-629 — NPC ids are generated, so the fact sources come from the id.
+async function makeNpc(p: any, name: string, disposition: string): Promise<string> {
+  const res = await call(p, "manage_npc", { action: "create", name, disposition });
+  const id = res.match(/\((npc_[a-z0-9]+)\)/)?.[1];
+  if (!id) throw new Error(`npc create did not return an id: ${res.slice(0, 160)}`);
+  return id;
+}
 function q(s: string, p1: string, o: string) { return `${s}|${p1}|${o}`.toLowerCase(); }
 
 async function main() {
@@ -376,6 +390,124 @@ async function main() {
     await call(p, "manage_belief", { action: "reconcile", entity_id: id });
     const mems = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
     assert(mems.length === 1 && mems[0].gist === "the door was open", "reconcile rewrote the memory: " + JSON.stringify(mems));
+    await kill(p);
+  });
+
+  // ── T748: recorded-state truth projection (REQ-629) ──────────────────
+  await test("T748/REQ-629: projection is deterministic and tracks recorded state", async () => {
+    const p = await boot(); await newNovel(p, "div1");
+    const hero = await present(p, "Hero");
+    const kael = await makeNpc(p, "Kael", "loyal");
+    await call(p, "manage_relationship", { action: "set", entity_a: hero, entity_b: kael, type: "ally" });
+    const infoBefore = await call(p, "manage_novel", { action: "info", slug: "div1" });
+    const eventsBefore = infoBefore.match(/"event_count":\s*(\d+)/)?.[1];
+    await memory(p, hero, "Kael is my ally", { subject: "Kael", predicate: "relationship", object: "Kael", subjective_polarity: "positive" });
+    await memory(p, hero, "Kael stands with me", { subject: "Hero", predicate: "relationship", object: "Kael", subjective_polarity: "positive" });
+    const first = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    const second = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(first === second, "two projections of unchanged state differ");
+    assert(verdictOf(first, "Kael stands with me") === "confirmed", "relationship fact not projected as confirmed: " + first.slice(0, 300));
+    await call(p, "manage_relationship", { action: "set", entity_a: hero, entity_b: kael, type: "rival" });
+    const changed = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(verdictOf(changed, "Kael stands with me") === "false_outcome", "a relationship change did not alter the projected facts: " + changed.slice(0, 300));
+    const infoAfter = await call(p, "manage_novel", { action: "info", slug: "div1" });
+    assert(infoAfter.match(/"event_count":\s*(\d+)/)?.[1] === eventsBefore, "projection appended an event");
+    await kill(p);
+  });
+
+  // ── T749: divergence verdicts (REQ-630) ──────────────────────────────
+  await test("T749/REQ-630: each verdict fires on its deliberately wrong memory", async () => {
+    const p = await boot(); await newNovel(p, "div2");
+    const hero = await present(p, "Hero");
+    const kael = await makeNpc(p, "Kael", "loyal");
+    await makeNpc(p, "Mira", "hostile");
+    await call(p, "manage_relationship", { action: "set", entity_a: hero, entity_b: kael, type: "ally" });
+    await call(p, "manage_diagnostics", { action: "event", text: "Kael gave the chapel to Hero" });
+    await call(p, "manage_diagnostics", { action: "event", text: "Mira betrayed Hero" });
+    const infoBefore = await call(p, "manage_novel", { action: "info", slug: "div2" });
+    const eventsBefore = infoBefore.match(/"event_count":\s*(\d+)/)?.[1];
+
+    await memory(p, hero, "confirmed-probe", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_felt_then: "relieved" });
+    await memory(p, hero, "false-outcome-probe", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_polarity: "negative" });
+    await memory(p, hero, "misattributed-probe", { subject: "Hero", predicate: "disposition", object: "loyal", subjective_polarity: "positive" });
+    await memory(p, hero, "conflated-probe", { subject: "Mira", predicate: "outcome", object: "Kael", subjective_polarity: "negative" });
+    await memory(p, hero, "displaced-probe", { subject: "Kael", predicate: "outcome", object: "Hero", subjective_polarity: "positive", subjective_event_ordinal: 2 });
+    await memory(p, hero, "affect-drift-probe", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_polarity: "positive", subjective_felt_then: "terrified" });
+    await memory(p, hero, "unverifiable-probe", { subject: "the bridge", predicate: "collapsed under", object: "the wagon", subjective_polarity: "negative" });
+
+    const out = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    const expected: Array<[string, string]> = [
+      ["confirmed-probe", "confirmed"],
+      ["false-outcome-probe", "false_outcome"],
+      ["misattributed-probe", "misattributed"],
+      ["conflated-probe", "conflated"],
+      ["displaced-probe", "displaced"],
+      ["affect-drift-probe", "affect_drift"],
+      ["unverifiable-probe", "unverifiable"],
+    ];
+    for (const [gist, verdict] of expected) {
+      assert(verdictOf(out, gist) === verdict, `${gist} returned ${verdictOf(out, gist)} instead of ${verdict}: ` + out.slice(0, 400));
+    }
+    const again = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(out === again, "recomputation of unchanged state differs");
+    const infoAfter = await call(p, "manage_novel", { action: "info", slug: "div2" });
+    assert(infoAfter.match(/"event_count":\s*(\d+)/)?.[1] === eventsBefore, "the divergence check advanced the event log");
+    await kill(p);
+  });
+
+  // ── T750: GM truth view (REQ-631) ────────────────────────────────────
+  await test("T750/REQ-631: truth view returns verdict, truth, and source; GM only", async () => {
+    const p = await boot(); await newNovel(p, "div3");
+    const hero = await present(p, "Hero");
+    const kael = await makeNpc(p, "Kael", "loyal");
+    await call(p, "manage_diagnostics", { action: "event", text: "Kael gave the chapel to Hero" });
+    await memory(p, hero, "kael-loyal", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_polarity: "positive" });
+    await call(p, "manage_diagnostics", { action: "event", text: "The bell rang at dusk" });
+    await memory(p, hero, "kael-hostile", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_polarity: "negative" });
+    const infoBefore = await call(p, "manage_novel", { action: "info", slug: "div3" });
+    const eventsBefore = infoBefore.match(/"event_count":\s*(\d+)/)?.[1];
+    const view = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    const rows = JSON.parse(view);
+    assert(Array.isArray(rows) && rows.length === 2, "truth view did not return both records: " + view.slice(0, 200));
+    const row = rows[0];
+    for (const field of ["record_id", "entity_id", "event_ordinal", "gist", "claim", "verdict", "reason", "truth"]) {
+      assert(field in row, `truth view row missing '${field}': ` + JSON.stringify(row));
+    }
+    assert(row.truth && row.truth.polarity === "positive" && row.truth.source.startsWith("npc:"), "truth fact did not carry its recorded source: " + JSON.stringify(row.truth));
+    const filtered = JSON.parse(await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero, subjective_event_ordinal: 2 }));
+    assert(filtered.length === 1 && filtered[0].gist === "kael-hostile", "event-ordinal filter did not narrow the view: " + JSON.stringify(filtered));
+    const twice = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(twice === view, "two truth views of unchanged state differ");
+    await call(p, "set_badge", { badge: "player" });
+    const player = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(player.includes("[FORBIDDEN]"), "Player truth view was not refused: " + player.slice(0, 160));
+    await call(p, "set_badge", { badge: "observer" });
+    const observer = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: hero });
+    assert(observer.includes("[FORBIDDEN]"), "Observer truth view was not refused: " + observer.slice(0, 160));
+    await call(p, "set_badge", { badge: "game_master" });
+    const infoAfter = await call(p, "manage_novel", { action: "info", slug: "div3" });
+    assert(infoAfter.match(/"event_count":\s*(\d+)/)?.[1] === eventsBefore, "the truth view advanced the event log");
+    await kill(p);
+  });
+
+  // ── T751: divergence marker in the briefing (REQ-632) ────────────────
+  await test("T751/REQ-632: divergent records carry the marker; confirmed ones do not", async () => {
+    const p = await boot(); await newNovel(p, "div4");
+    const hero = await present(p, "Hero");
+    const kael = await makeNpc(p, "Kael", "loyal");
+    await call(p, "manage_relationship", { action: "set", entity_a: hero, entity_b: kael, type: "ally" });
+    await memory(p, hero, "kael-is-loyal", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_polarity: "positive", subjective_salience: 0.9 });
+    await memory(p, hero, "kael-is-hostile", { subject: "Kael", predicate: "disposition", object: "loyal", subjective_polarity: "negative", subjective_salience: 0.8 });
+    const b1 = section(await prompt(p, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
+    const b2 = section(await prompt(p, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
+    assert(b1.length > 0, "no Subjective Memory section in the GM briefing");
+    assert(b1 === b2, "two renders of unchanged state differ");
+    const confirmedLine = b1.split("\n").find((l) => l.includes("kael-is-loyal")) ?? "";
+    const divergentLine = b1.split("\n").find((l) => l.includes("kael-is-hostile")) ?? "";
+    assert(confirmedLine.length > 0 && divergentLine.length > 0, "both memories did not render: " + b1);
+    assert(!confirmedLine.includes("[divergence"), "a confirmed memory rendered a divergence marker: " + confirmedLine);
+    assert(divergentLine.includes("[divergence: false outcome]"), "a divergent memory did not name its verdict: " + divergentLine);
+    assert(b1.indexOf("kael-is-loyal") < b1.indexOf("kael-is-hostile"), "marker changed the salience order: " + b1);
     await kill(p);
   });
 

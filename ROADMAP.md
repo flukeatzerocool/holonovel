@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Memory divergence verdicts
-
-- Check a memory's structured claims against recorded state and return a
-  verdict — confirmed, misattributed, displaced, conflated, false outcome, or
-  affect drift — without rewriting the event log.
-- Add the GM truth view, the `[divergence]` marker, and the subjective recall
-  probes.
-
-**Trigger:** shipped when a fixture with a deliberately wrong memory returns
-the expected verdict, recomputation is identical, and the event log is
-unchanged.
-
 ## Disclosure axis and Player exposure
 
 - Add `open` / `guarded` / `secret` disclosure to subjective memory; secret

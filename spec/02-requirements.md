@@ -40,7 +40,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–628 |
+| 5.35   | Subjective Memory                                       | 623–633 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4425,5 +4425,61 @@ Reconciliation SHALL NOT rewrite a subjective-memory record. *Acceptance
 criterion:* recording a memory leaves perceptions, evidence, stances,
 campaign-memory facts, and the event-log cursor unchanged, and a reconcile
 leaves the memory unchanged. _Check:_ T747.
+
+**REQ-629 — Recorded-state truth projection.**
+THE server SHALL derive, from recorded Novel state, a deterministic set of
+truth facts, each carrying a subject, a predicate family, an object, a
+polarity, and the recorded source that asserts it. The projection SHALL draw on
+the event log, story journal, campaign memory, relationships, NPC dispositions,
+scene presence and location, and inventory, and SHALL carry an event-ordinal
+anchor when its source is event-bound. Appendix O.13 fixes the predicate
+families. Derivation SHALL consult only Novel state — no model call,
+network, or wall-clock input — and SHALL NOT mutate state, append an event, or
+record an audit entry. *Acceptance criterion:* two derivations of unchanged
+state return equal fact sets, and a recorded relationship change alters the
+projected facts. _Check:_ T748.
+
+**REQ-630 — Divergence verdicts.**
+A divergence check SHALL compare a memory record's structured claim with the
+truth projection (REQ-629) and return exactly one verdict: confirmed,
+misattributed, displaced, conflated, false outcome, or affect drift. A claim no
+recorded fact resolves SHALL report `unverifiable`, not a divergence. Verdicts
+SHALL follow a fixed precedence, SHALL cite the recorded fact behind a
+non-confirmed verdict, and SHALL classify affect against recorded relational
+valence per Appendix O.13. The check SHALL NOT rewrite the memory, the event
+log, or any other state; two checks of unchanged state SHALL agree. *Acceptance
+criterion:* a deliberately wrong memory returns its expected verdict,
+recomputation is identical, and the event-log cursor is unchanged. _Check:_
+T749.
+
+**REQ-631 — Game Master truth view.**
+`manage_belief (action: subjective_verify)` SHALL return each matching
+subjective-memory record beside its divergence verdict, the recorded fact the
+verdict rests on, and that fact's recorded source, filtered by the entity or
+event-ordinal parameters already carried by `subjective_list` and defaulting to
+every record. The action SHALL be Game Master only, SHALL NOT mutate state or
+advance the event log, and SHALL return identical output for unchanged state.
+*Acceptance criterion:* a Game Master call returns a verdict and its recorded
+source per record, a Player or Observer call returns `[FORBIDDEN]`, and two
+calls return equal output. _Check:_ T750.
+
+**REQ-632 — Divergence marker in the briefing.**
+WHEN the Game Master briefing renders the `## Subjective Memory` section
+(REQ-626), THE server SHALL append a `[divergence]` marker naming the verdict to
+every rendered record whose verdict is a divergence, and SHALL render no marker
+for a confirmed or unverifiable record. The marker SHALL derive from the same
+check as REQ-630 and SHALL NOT change record selection, order, or the render
+cap. *Acceptance criterion:* a divergent record renders with its verdict named,
+a confirmed record renders without a marker, and two renders of unchanged state
+are identical. _Check:_ T751.
+
+**REQ-633 — Subjective divergence probes.**
+The server distribution SHALL include a committed probe fixture whose records
+carry deliberately wrong structured claims, each declaring its expected verdict,
+and the recall-probe harness (REQ-593) SHALL evaluate every divergence probe and
+fail when any probe does not return its expected verdict. The harness SHALL
+report the verdict per probe, and a probe whose claim is unverifiable SHALL fail
+rather than pass. *Acceptance criterion:* the committed fixture runs and fails on a
+deliberately missed expected verdict. _Check:_ T752.
 
 #### End of requirements
