@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-08 — Attribution due diligence for borrowed sources
+
+- Added COF's requested attribution verbatim — "COF — Character Open File,
+  Yann Souetre, https://github.com/yannsouetre/cof" — to the upstream watch
+  ledger, with the license and upstream links the CC BY notice calls for.
+- Added `docs/licenses/ATTRIBUTION.md`: license link, upstream link, what each
+  source contributes, and modification status for all thirteen borrowed
+  sources, plus share-alike and OGL notes.
+- Both the repository and package READMEs now carry license-text and upstream
+  links; Appendix U remains the single source of truth for the footer and
+  points at the register.
+- Recorded two open attribution defects: vendor Ruleset Wisdom items hold
+  repository-relative paths in `source_url` rather than upstream links, and
+  items derived from lonelog carry no CC BY-SA label.
+
 ## 2026-11-08 — Schedule subjective memory and track COF upstream
 
 - Scheduled five incremental chunks for subjective memory, each bound to an

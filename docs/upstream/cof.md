@@ -8,6 +8,13 @@ Credit is carried in two places: the README License list (borrowed-sources
 bullet) and the §5.35 preamble that defines subjective memory. COF's
 specification is CC BY 4.0, its schemas CC0, its code MIT, by Yann Souetre.
 
+**Requested attribution**, reproduced verbatim as COF's README asks:
+
+> COF — Character Open File, Yann Souetre, https://github.com/yannsouetre/cof
+
+Full license links and modification status for every borrowed source are in
+[`docs/licenses/ATTRIBUTION.md`](../licenses/ATTRIBUTION.md).
+
 ## Pin
 
 | Field | Value |

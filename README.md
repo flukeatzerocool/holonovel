@@ -432,6 +432,9 @@ specific table's setup? See the [FAQ](https://git.gay/flukeatzerocool/Holonovel/
 
 Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel).
 
+Licenses, upstream links, and modification status for every borrowed source:
+[`docs/licenses/ATTRIBUTION.md`](docs/licenses/ATTRIBUTION.md).
+
 Holonovel is MIT-licensed. Built from:
 
 - D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a, Wizards of the Coast)
@@ -447,5 +450,27 @@ Holonovel is MIT-licensed. Built from:
 - Dungeon World SRD (CC BY 3.0, Sage LaTorra, Adam Koebel)
 - Fate SRD (CC BY 3.0, Evil Hat Productions)
 - Ironsworn SRD (CC BY 4.0, Shawn Tomkin)
+
+License texts: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/),
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/),
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/),
+[MIT](https://opensource.org/license/mit),
+[OGL 1.0a](https://opengamingfoundation.org/ogl.html),
+[Artistic 2.0](https://opensource.org/license/artistic-2-0).
+
+Upstream sources: [D&D 5e SRD](https://www.dndbeyond.com/srd),
+[Inform](https://inform7.com),
+[if-craft-corpus](https://pvliesdonk.github.io/if-craft-corpus/),
+[dmcp](https://github.com/shawnrushefsky/dmcp),
+[lonelog](https://lonelog.org),
+[BitD SRD](https://bladesinthedark.com/),
+[Starforged SRD](https://ironswornrpg.com),
+[Lazy GM](https://slyflourish.com/lazy_gm_resource_document.html),
+[The Alexandrian](https://thealexandrian.net),
+[Dungeon World SRD](https://www.dungeonworldsrd.com),
+[Fate SRD](https://fate-srd.com),
+[Ironsworn SRD](https://ironswornrpg.com),
+[COF](https://github.com/yannsouetre/cof).
 
 [RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-11-07.

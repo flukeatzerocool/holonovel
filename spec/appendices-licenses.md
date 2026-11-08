@@ -20,6 +20,10 @@ into the README.md license footer during handoff (§6.4).
 | Ironsworn SRD | Borrowed mechanics | CC BY 4.0 | Shawn Tomkin |
 | COF — Character Open File | Borrowed mechanics | CC BY 4.0 / CC0 1.0 | Yann Souetre |
 
+License links, upstream links, what each source contributes, and whether it was
+modified are recorded in `docs/licenses/ATTRIBUTION.md`; this table stays the
+single source of truth for the README footer.
+
 Adding a content source requires: (a) a row in this table; (b) a LICENSE file
 in the content's subdirectory for vendored **Narrative frameworks** rows; and
 (c) a `source_url` field in the synthesis manifest for those vendored rows.
