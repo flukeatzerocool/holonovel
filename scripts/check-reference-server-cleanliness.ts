@@ -4,11 +4,10 @@
  * (REQ-562 / governance). [gate]
  *
  * The reference server (this specification repository) ships its own reference
- * rulesets; personal/deployed ruleset content — build assets, converted sources,
- * and emitted packages — belongs in the deploy content pipeline, not here. This
- * gate fails when:
- *   (a) `scripts/ruleset-builds/<slug>/` exists for a slug outside the sanctioned
- *       allowlist; or
+ * rulesets; no per-book build assets belong here — converted sources, build
+ * tooling, and emitted packages live in the deploy content pipeline. This gate
+ * fails when:
+ *   (a) any tracked file under `scripts/ruleset-builds/` exists; or
  *   (b) a ruleset package triple (manifest.json + model.json + index.json) is
  *       tracked outside the sanctioned fixtures / gitignored build output.
  *
@@ -17,9 +16,8 @@
  */
 import { execSync } from "node:child_process";
 
-// Reference rulesets whose build assets are committed to this repository.
-const SANCTIONED_BUILD_SLUGS = new Set(["dnd2024", "swse"]);
-// Paths where a package triple is legitimate (test fixtures).
+// Reference rulesets whose build assets are committed to this repository: none.
+// Per-book assets live in the deploy content pipeline (see DECISIONS.md).
 const SANCTIONED_PACKAGE_PREFIXES = ["holonovel/testdata/rulesets/"];
 
 const root = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
@@ -27,11 +25,10 @@ const tracked = execSync("git ls-files", { cwd: root, encoding: "utf-8" }).trim(
 
 const violations: string[] = [];
 
-// (a) build-asset slugs.
+// (a) build assets.
 for (const f of tracked) {
-  const m = f.match(/^scripts\/ruleset-builds\/([^/]+)\//);
-  if (m && !SANCTIONED_BUILD_SLUGS.has(m[1])) {
-    violations.push(`unsanctioned ruleset build asset: ${f} (slug '${m[1]}' — keep deployed ruleset content out of the reference server)`);
+  if (f.startsWith("scripts/ruleset-builds/")) {
+    violations.push(`tracked ruleset build asset: ${f} — per-book build assets belong in the deploy content pipeline, not the reference server`);
   }
 }
 

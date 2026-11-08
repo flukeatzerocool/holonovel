@@ -44,6 +44,9 @@ function git(args: string[]): string {
     cwd: ROOT,
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "ignore"],
+    // A content-removal diff (a large deletion) overflows the 1 MB default and
+    // crashes the pre-commit hook with ENOBUFS, blocking the commit itself.
+    maxBuffer: 64 * 1024 * 1024,
   }).trim();
 }
 

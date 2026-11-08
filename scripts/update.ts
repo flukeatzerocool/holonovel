@@ -15,7 +15,7 @@
  * REQ-395c, REQ-421, REQ-424, REQ-556, REQ-557, REQ-563, REQ-564, REQ-579.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, appendFileSync } from "node:fs";
+import { readFileSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleHelp, parseFlag, rejectUnknown } from "./lib/args.js";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
@@ -112,18 +112,6 @@ function main(): number {
       if (!resolved) {
         outcomes.push({ tier: "package", name: pkg.slug, outcome: "deferred", reason: "no recorded emitter or source" });
         continue;
-      }
-      const extract = join(root, "scripts", "ruleset-builds", "dnd2024", "extract-thundercats.json");
-      if (pkg.slug === "dnd2024" && !existsSync(extract)) {
-        if (!apply) {
-          outcomes.push({ tier: "package", name: pkg.slug, outcome: "deferred", reason: "extract missing; run --apply to regenerate" });
-          continue;
-        }
-        const ex = run("node", [join(root, "scripts", "ruleset-builds", "dnd2024", "extract-thundercats.mjs")]);
-        if (ex.status !== 0) {
-          outcomes.push({ tier: "package", name: pkg.slug, outcome: "deferred", reason: `extract failed: ${ex.out.trim().slice(-200)}` });
-          continue;
-        }
       }
       if (!apply) {
         outcomes.push({ tier: "package", name: pkg.slug, outcome: "planned", reason: `${resolved.emitter} ${resolved.args.join(" ")}` });

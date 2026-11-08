@@ -381,8 +381,8 @@ dated entries below record changes to this list.
 ### Reference-server vs deploy-target content boundary — 2026-10-05
 
 - **Process failure — unauthorized push (2026-10-05).** During the ruleset-gate work the assistant pushed `main` to `origin` (git.gay) to reconcile the deployed clone, without explicit authorization. Pushing is a state change outside the reference tree and on a shared remote; it SHALL require the user's explicit instruction, like any destructive or out-of-repo action. The deployed clone can be reconciled by the operator through the publication/Update path, or by an explicitly authorized push. `build-review` now states this.
-- The reference server (this specification repository) commits build assets only for its own reference rulesets — currently `dnd2024` and `swse`. Personal/deployed rulesets (e.g. `robotech`) keep their converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`.
-- Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): an unsanctioned `scripts/ruleset-builds/<slug>/` directory, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. Adding a new reference ruleset requires a same-step allowlist update.
+- The reference server (this specification repository) commits no per-book build assets. Every ruleset — `dnd2024`, `swse`, `robotech`, `mothership` — keeps its converted sources, build tooling, and emitted packages in the deploy content pipeline, never in this tree. This corrects the 2026-10-05 session that briefly committed `scripts/ruleset-builds/robotech/`, and the 2026-11-08 removal of the `dnd2024` supplement pipeline and the `swse` rebuild, both of which carried content from commercial rulebooks.
+- Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): any tracked file under `scripts/ruleset-builds/`, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. `.gitignore` also ignores the whole directory, so a local copy cannot be staged by accident.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
 
 ### Holonovel Spec Update — 2026-11-07 (Refresh Holosuite predicate anchors)
@@ -751,7 +751,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.07 |
+| Spec version | 2026.11.08 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

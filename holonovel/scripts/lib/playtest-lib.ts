@@ -107,7 +107,7 @@ export function stateFingerprint(novel: any): string {
 /**
  * Read a character's death signal, vitals, and conditions. Reads both raw
  * stat keys (`hit_points`, `reflex_defense`) and the human labels the sheet
- * renders (`"Hit Points"`, `"Reflex Defense"`). SWSE sheets persist only the
+ * renders (`"Hit Points"`, `"Reflex Defense"`). Reference packages persist only the
  * three defenses today, so absent fields are reported null and `stat_keys`
  * exposes what the sheet actually carries (a fidelity signal).
  */

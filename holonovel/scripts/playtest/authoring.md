@@ -22,7 +22,7 @@ Run the GM and player as separate contexts (see `driver.md` §Role isolation).
 
 ## Grounding (fidelity)
 
-The SWSE package is a mechanics package; its adventure/encounter text is
+The bound package is a mechanics package; its adventure/encounter text is
 searchable reference, not a loadable module. Before inventing a premise, the
 GM SHALL `manage_ruleset (action: search)` for the era, a published adventure
 module, or a named encounter (e.g. "Storming the Bridge") and adapt what it

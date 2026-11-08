@@ -12,7 +12,7 @@
  * Exit codes: 0 = pass, 1 = one or more assertions failed.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
@@ -35,6 +35,47 @@ function runGate(dir: string): { code: number; out: string } {
 }
 
 const TMP = mkdtempSync(join(tmpdir(), "holonovel-ruleset-gates-"));
+
+// T689/T737 — the reference server ships no per-book build assets, so the
+// emitter contract is exercised by a neutral stub generated into TMP. The stub
+// runs through the shared build kit, so surface injection, fixed-timestamp
+// determinism, and provenance handling remain the behaviour under test.
+const STUB_DIR = join(TMP, "emitter");
+mkdirSync(STUB_DIR, { recursive: true });
+const STUB_PROVENANCE = join(STUB_DIR, "provenance.json");
+writeFileSync(STUB_PROVENANCE, JSON.stringify({ creator: "Fixture creator", attribution: "Fixture attribution" }, null, 2) + "\n");
+const KIT_PATH = join(import.meta.dirname, "..", "..", "scripts", "lib", "ruleset-build-kit.mjs");
+const REPO_ROOT = join(import.meta.dirname, "..", "..");
+const STUB = join(STUB_DIR, "build-package.mjs");
+writeFileSync(STUB, `import * as fs from "node:fs";
+import * as path from "node:path";
+import { parseBuildArgs, readJson, readPackageFormat, readHostVersion, sanitizeReadOnlyDescription, surfaceFor, buildTimestamp, writePackageFiles } from ${JSON.stringify(KIT_PATH)};
+
+const HERE = import.meta.dirname;
+const REPO_ROOT = ${JSON.stringify(REPO_ROOT)};
+const PROVENANCE_PATH = path.join(HERE, "provenance.json");
+const PROVENANCE = fs.existsSync(PROVENANCE_PATH) ? readJson(PROVENANCE_PATH) : {};
+
+const opts = parseBuildArgs(process.argv.slice(2), {
+  baseline: "baselineDir", out: "out", "dry-run": "dryRun", "no-backup": "noBackup",
+});
+const baselineDir = path.resolve(opts.baselineDir);
+const outDir = path.resolve(opts.out);
+const files = {};
+for (const f of ["manifest.json", "index.json", "model.json", "tools.json", "resources.json", "prompts.json"]) {
+  if (f !== "manifest.json") files[f] = readJson(path.join(baselineDir, f));
+}
+files["tools.json"] = files["tools.json"].map((t) => ({ ...t, ...surfaceFor(t), description: sanitizeReadOnlyDescription(t.description) }));
+files["manifest.json"] = {
+  slug: "fixture", name: "Fixture package", host_version: readHostVersion(REPO_ROOT),
+  content_hash: "fixture", built_at: buildTimestamp(), counts: {},
+  package_format: readPackageFormat(REPO_ROOT),
+  ...(PROVENANCE.creator ? { creator: PROVENANCE.creator } : {}),
+  ...(PROVENANCE.attribution ? { attribution: PROVENANCE.attribution } : {}),
+};
+writePackageFiles(outDir, files);
+process.exit(0);
+`);
 
 function goodParts() {
   return {
@@ -270,7 +311,7 @@ test("T689/REQ-563+REQ-578: emitter declares surfaces and is deterministic at a 
   for (const t of stripped) { delete t.group; delete t.phases; }
   writeFileSync(toolsPath, JSON.stringify(stripped, null, 2) + "\n");
 
-  const emitter = join(import.meta.dirname, "..", "..", "scripts", "ruleset-builds", "swse", "build-package.mjs");
+  const emitter = STUB;
   const env = { ...process.env, HOLONOVEL_BUILD_TIMESTAMP: "2020-01-01T00:00:00.000Z" };
   const outs = [join(TMP, "swse-emit-a"), join(TMP, "swse-emit-b")];
   for (const out of outs) {
@@ -292,8 +333,8 @@ test("T737/REQ-619: reference emitter populates creator/attribution from its pro
   for (const t of stripped) { delete t.group; delete t.phases; }
   writeFileSync(toolsPath, JSON.stringify(stripped, null, 2) + "\n");
 
-  const emitter = join(import.meta.dirname, "..", "..", "scripts", "ruleset-builds", "swse", "build-package.mjs");
-  const provPath = join(import.meta.dirname, "..", "..", "scripts", "ruleset-builds", "swse", "provenance.json");
+  const emitter = STUB;
+  const provPath = STUB_PROVENANCE;
   const expected = JSON.parse(readFileSync(provPath, "utf-8"));
   const env = { ...process.env, HOLONOVEL_BUILD_TIMESTAMP: "2020-01-01T00:00:00.000Z" };
   const out = join(TMP, "swse-prov-out");

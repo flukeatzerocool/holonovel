@@ -169,14 +169,14 @@ test("authoredAdventureHash: stable and content-sensitive", () => {
   assert(authoredAdventureHash(a) !== authoredAdventureHash(c), "content-sensitive");
 });
 
-// --- SWSE vitals ------------------------------------------------------------
-test("pcVitals: reads SWSE label keys and stat_keys", () => {
+// --- Reference-package vitals -----------------------------------------------
+test("pcVitals: reads reference-package label keys and stat_keys", () => {
   const v = pcVitals({ stats: { "Reflex Defense": 16, "Fortitude Defense": 15, "Will Defense": 12, level: 5 } });
   assert(v.defenses.reflex === 16 && v.defenses.fortitude === 15 && v.defenses.will === 12, "defenses");
   assert(v.hp === null && v.damage_threshold === null && v.force_points === null, "absent fields null");
   assert(v.stat_keys.includes("Reflex Defense") && v.dead === false, "keys + alive");
 });
-test("pcVitals: raw SWSE keys also resolve", () => {
+test("pcVitals: raw reference-package keys also resolve", () => {
   const v = pcVitals({ stats: { hit_points: 30, damage_threshold: 18, force_points: 5, reflex_defense: 15 } });
   assert(v.hp === 30 && v.damage_threshold === 18 && v.force_points === 5 && v.defenses.reflex === 15, "raw keys");
 });

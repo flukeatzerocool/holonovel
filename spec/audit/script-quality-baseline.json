@@ -21,40 +21,10 @@
       "justification": "Invoked from the holonovel/AGENTS.md retirement runbook, not a CI gate."
     },
     {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/swse/build-package.mjs",
-      "disposition": "build-asset",
-      "justification": "Ruleset package rebuild asset run by the Build workflow (REQ-399a/REQ-395a), not an npm gate."
-    },
-    {
       "check": "duplicate-helper",
       "path": "holonovel/scripts/run_pattern_buffer.ts",
       "disposition": "intentional-divergence",
       "justification": "`doAction` diverges from run_ruleset_pattern_buffer's copy: the ruleset variant adds a `restart` branch and a function-valued `uri`, so extraction would add branching without reducing surface. Re-evaluate if the two runners are unified."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/dnd2024/annotate-thundercats.mjs",
-      "disposition": "build-asset",
-      "justification": "dnd2024 supplement conversion asset (Convert workflow); run manually, not an npm gate."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/dnd2024/extract-thundercats.mjs",
-      "disposition": "build-asset",
-      "justification": "dnd2024 supplement extraction asset (Build workflow); run manually, not an npm gate."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/dnd2024/build-package.mjs",
-      "disposition": "build-asset",
-      "justification": "dnd2024 supplement package overlay (REQ-389/REQ-395a); run manually by the Build workflow."
-    },
-    {
-      "check": "reachability",
-      "path": "scripts/ruleset-builds/dnd2024/deploy.mjs",
-      "disposition": "build-asset",
-      "justification": "dnd2024 supplement deploy asset; run manually by the Build workflow."
     }
   ]
 }

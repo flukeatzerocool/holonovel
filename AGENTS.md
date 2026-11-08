@@ -81,8 +81,6 @@ scripts/update.ts         Unified Update entry point: rebuilds stale packages th
                           their recorded emitters and migrates stale user data (REQ-395c)
 scripts/lib/ruleset-registry.ts  Shared source-registry schema/load/save, installed-package
                           scan, staleness predicate, and emitter resolution (REQ-421)
-scripts/ruleset-builds/swse/  SWSE package rebuild: authored character_creation
-                          source + build-package.mjs (REQ-399a, REQ-395a)
 scripts/loop-audit.ts     Measures the session and publication loops; writes
                           spec/audit/loop-audit.md; --check is a trailing-window gate
 scripts/check-loop-artifacts.ts  Gate: docs/plans increments carry plan/tasks/AAR

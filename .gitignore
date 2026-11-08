@@ -17,6 +17,6 @@ plans/*
 # AI agent orientation
 AGENTS.md
 
-# Ruleset build output (regenerate from committed sources)
-scripts/ruleset-builds/*/package/
-scripts/ruleset-builds/*/extract-thundercats.json
+# Per-book build assets live in the deployed content pipeline, never here
+# (holonovel/DECISIONS.md — reference-server content boundary).
+scripts/ruleset-builds/

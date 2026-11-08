@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-08 — Remove per-book ruleset assets and enforce the content boundary
+
+- Removed `scripts/ruleset-builds/` entirely. The `dnd2024` supplement pipeline
+  carried 1.07 MB of verbatim text from a commercial ThunderCats book plus its
+  annotate/extract/build/deploy scripts and authored tools; the `swse` rebuild
+  carried a character-creation source and emitter labelled for a trademarked,
+  non-open product. Per the project rule that per-book content lives in the
+  deployed content pipeline, both are gone from the reference server.
+- `.gitignore` ignores `scripts/ruleset-builds/` wholesale, and
+  `check-reference-server-cleanliness` drops its sanctioned-slug allowlist: any
+  tracked file under that path fails the gate. `DECISIONS.md` records the
+  boundary accordingly.
+- `scripts/update.ts` no longer special-cases the dnd2024 extract; a package
+  whose emitter is absent now reports `deferred` instead of failing.
+- T689/T737 now exercise a neutral stub emitter generated at test time, so the
+  emitter contract (surface injection, fixed-timestamp determinism, provenance
+  handling) stays under test without a committed per-book asset. T737's wording
+  no longer names a specific package.
+- The pre-commit gate run manifest reads the working diff with a 64 MB buffer;
+  the 1 MB default crashed the hook with ENOBUFS on a large deletion and blocked
+  the commit.
+
 ## 2026-11-08 — Attribution due diligence for borrowed sources
 
 - Added COF's requested attribution verbatim — "COF — Character Open File,
