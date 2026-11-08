@@ -43,7 +43,7 @@ import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
-import { nextSubjectiveId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure } from "./core/subjective.js";
+import { nextSubjectiveId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, assembleMemorySection, selectForEviction, foldIntoSummary, eventState, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure } from "./core/subjective.js";
 // REQ-629–REQ-633 — divergence: what the Novel recorded, checked against a memory.
 import { projectTruthFacts, checkRecord, type DivergenceResult } from "./core/divergence.js";
 import {
@@ -2211,34 +2211,52 @@ function composeCampaignMemorySection(novel: NovelState, badge: string): string 
   return `\n\n## Campaign Memory\n${blocks.join("\n")}`;
 }
 
-// REQ-626/REQ-634 — subjective-memory briefing section. Selection is
-// deterministic (descending salience, then descending event ordinal, then
-// ascending record id), so two renders of unchanged state are identical. The
-// Game Master sees every present entity's records, non-`open` ones tagged with
-// their disclosure level; the Player sees only the active entity's records,
-// with `guarded` rendered as gist and `secret` absent. The Observer badge
-// never sees the section.
+// REQ-626/REQ-634/REQ-644–REQ-648 — subjective-memory briefing section.
+// Selection is deterministic (REQ-644), bounded by the record cap or the token
+// budget (REQ-645), and reports both an evicted source and the omitted count.
+// REQ-648 probes this render at declared budgets.
+// The Game Master sees every present entity's records, non-`open` ones tagged
+// with their disclosure level; the Player sees only the active entity's visible
+// records, with `guarded` rendered as gist. The Observer badge never sees it.
+function memoryScoreInputs(novel: NovelState): { latestOrdinal: number; logLength: number } {
+  const log = novel.event_log ?? [];
+  return { latestOrdinal: log.length > 0 ? log[log.length - 1].ordinal : 0, logLength: log.length };
+}
+
 function composeSubjectiveMemorySection(novel: NovelState, badge: string): string {
   const isGM = badge === "game_master" || badge === "none";
   if (!isGM && badge !== "player") return "";
-  const max = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX", 5);
+  const maxRecords = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX", 5);
+  const budgetTokens = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS", 800);
+  const inputs = memoryScoreInputs(novel);
+  const retained = new Set((novel.event_log ?? []).map((e) => e.ordinal));
+  const marker = (omitted: number) => `[truncated] ${omitted} memories omitted at budget`;
+  const evictedTag = (r: SubjectiveMemoryRecord) =>
+    eventState(r.event_ordinal, retained) === "evicted" ? ` [evicted #${r.event_ordinal}]` : "";
+
   if (badge === "player") {
     // REQ-634 — the Player section covers the active entity only and never
-    // depends on scene presence.
+    // depends on scene presence. `secret` records leave the pool before packing
+    // so the omitted count cannot hint at their existence (REQ-645).
     const activeId = state.getActiveEntity()?.id;
     if (!activeId) return "";
-    const records = selectForBriefing(novel.subjective_memory ?? [], new Set([activeId]), max);
-    const lines = records
-      .map((r) => playerProjection(r))
-      .filter((r): r is SubjectiveMemoryRecord => r !== null)
-      .map((r) =>
-        r.disclosure === "open"
-          ? `- [${r.origin}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`
-          : `- [guarded] ${r.entity_id}: ${r.gist}`,
-      );
-    if (lines.length === 0) return "";
-    return `\n\n## Subjective Memory\n${lines.join("\n")}`;
+    const pool = selectForBriefing(novel.subjective_memory ?? [], new Set([activeId]), inputs)
+      .filter((r) => r.disclosure !== "secret");
+    const assembled = assembleMemorySection(
+      pool,
+      (r) => {
+        const projected = playerProjection(r);
+        if (!projected) return "";
+        return projected.disclosure === "open"
+          ? `- [${projected.origin}] ${projected.entity_id}: ${projected.gist}${projected.felt_then ? ` (felt ${projected.felt_then})` : ""}${evictedTag(projected)}`
+          : `- [guarded] ${projected.entity_id}: ${projected.gist}${evictedTag(projected)}`;
+      },
+      { maxRecords, budgetTokens, marker },
+    );
+    if (assembled.lines.length === 0) return "";
+    return `\n\n## Subjective Memory\n${assembled.lines.join("\n")}`;
   }
+
   const present = new Set<string>(novel.characters_present_ids ?? []);
   const sceneLoc = (novel.scene_location ?? "").toLowerCase();
   if (sceneLoc) {
@@ -2249,23 +2267,27 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
     }
   }
   if (present.size === 0) return "";
-  const records = selectForBriefing(novel.subjective_memory ?? [], present, max);
-  if (records.length === 0) return "";
+  const pool = selectForBriefing(novel.subjective_memory ?? [], present, inputs);
+  if (pool.length === 0) return "";
   // REQ-632 — the divergence marker derives from the same check as the truth
-  // view; selection, order, and the render cap are untouched.
+  // view; selection, order, and the render bounds are untouched.
   const facts = projectTruthFacts(novel);
-  const lines = records.map((r) => {
-    // REQ-626 — a non-open record carries its disclosure level so the narrator
-    // knows it may not be quoted.
-    const tag = r.disclosure === "open" ? r.origin : `${r.origin}, ${r.disclosure}`;
-    let line = `- [${tag}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
-    const result = checkRecord(r, facts, novel);
-    if (result.verdict !== "confirmed" && result.verdict !== "unverifiable") {
-      line += ` [divergence: ${result.verdict.split("_").join(" ")}]`;
-    }
-    return line;
-  });
-  return `\n\n## Subjective Memory\n${lines.join("\n")}`;
+  const assembled = assembleMemorySection(
+    pool,
+    (r) => {
+      // REQ-626 — a non-open record carries its disclosure level so the
+      // narrator knows it may not be quoted.
+      const tag = r.disclosure === "open" ? r.origin : `${r.origin}, ${r.disclosure}`;
+      let line = `- [${tag}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
+      const result = checkRecord(r, facts, novel);
+      if (result.verdict !== "confirmed" && result.verdict !== "unverifiable") {
+        line += ` [divergence: ${result.verdict.split("_").join(" ")}]`;
+      }
+      return line + evictedTag(r);
+    },
+    { maxRecords, budgetTokens, marker },
+  );
+  return `\n\n## Subjective Memory\n${assembled.lines.join("\n")}`;
 }
 
 // REQ-255b — boundary signal propagation: when free-text input contains a
@@ -8799,9 +8821,32 @@ const handleSubjectiveActions = async (args: any) => {
         at: new Date().toISOString(),
       };
       novel.subjective_memory.push(record);
-      // REQ-627 — storage cap, oldest-first eviction.
+      // REQ-647 — per-entity retention, lowest score first, folding each
+      // evicted record into the entity's consolidation summary before removal.
+      const scoreInputs = memoryScoreInputs(novel);
+      const consolidationMax = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX ?? "2000", 10);
+      const ladder = novel.compression_ladder ?? (novel.compression_ladder = { version: 1, arc: [], campaign: null });
+      const foldEntity = (entityId: string, evict: SubjectiveMemoryRecord[]) => {
+        if (evict.length === 0) return;
+        ladder.entities = ladder.entities ?? {};
+        ladder.entities[entityId] = foldIntoSummary(ladder.entities[entityId], evict, consolidationMax);
+        const ids = new Set(evict.map((r) => r.id));
+        novel.subjective_memory = novel.subjective_memory.filter((r) => !ids.has(r.id));
+      };
+      const perEntity = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX ?? "500", 10);
+      if (perEntity > 0) {
+        const own = novel.subjective_memory.filter((r) => r.entity_id === record.entity_id);
+        foldEntity(record.entity_id, selectForEviction(own, perEntity, scoreInputs));
+      }
+      // REQ-627 — the global cap stays the outer storage bound (oldest-first),
+      // but it folds through the same helper so neither bound loses a gist.
       const cap = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES ?? "20000", 10);
-      if (cap > 0 && novel.subjective_memory.length > cap) novel.subjective_memory = novel.subjective_memory.slice(novel.subjective_memory.length - cap);
+      if (cap > 0 && novel.subjective_memory.length > cap) {
+        const overflow = novel.subjective_memory.slice(0, novel.subjective_memory.length - cap);
+        const byEntity = new Map<string, SubjectiveMemoryRecord[]>();
+        for (const r of overflow) byEntity.set(r.entity_id, [...(byEntity.get(r.entity_id) ?? []), r]);
+        for (const [entityId, evict] of byEntity) foldEntity(entityId, evict);
+      }
       state.saveNovel(novel);
       audit("subjective_record", { entity_id: record.entity_id, ordinal: record.event_ordinal, origin: record.origin, disclosure: record.disclosure });
       return ok(`Memory ${record.id} recorded for '${record.entity_id}'.`);
@@ -8834,7 +8879,11 @@ const handleSubjectiveActions = async (args: any) => {
           .filter((r): r is SubjectiveMemoryRecord => r !== null);
       }
       if (records.length === 0) return ok("No subjective memories recorded.");
-      return raw(JSON.stringify(records, null, 2));
+      // REQ-646 — a derived event state beside each record; the record itself is
+      // never rewritten and the event log's retained horizon decides the value.
+      const retained = new Set((novel.event_log ?? []).map((e) => e.ordinal));
+      const rows = records.map((r) => ({ ...r, event_state: eventState(r.event_ordinal, retained) }));
+      return raw(JSON.stringify(rows, null, 2));
     }
     case "disclose": {
       // REQ-635 — reclassify one record without touching what it holds. The

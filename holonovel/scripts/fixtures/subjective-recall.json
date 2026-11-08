@@ -1,0 +1,208 @@
+{
+  "description": "Committed subjective-recall probe fixture (REQ-648). Records are seeded in order; ordinals refer to the six fixture events created before them. Expected order is the descending-score order the GM section must produce.",
+  "events": [
+    "The caravan reached the gate",
+    "A bell rang over the harbour",
+    "The rain stopped at dusk",
+    "A letter arrived from the north",
+    "The granary opened early",
+    "Kael gave the chapel key to Anna"
+  ],
+  "records": [
+    {
+      "entity": "anna",
+      "disclosure": "open",
+      "salience": 0.95,
+      "origin": "witnessed",
+      "gist": "Kael gave the chapel key to Anna",
+      "claim": {
+        "subject": "kael",
+        "predicate": "gave",
+        "object": "chapel key",
+        "polarity": "positive"
+      },
+      "felt_then": "relief",
+      "event_ordinal": 6
+    },
+    {
+      "entity": "kael",
+      "disclosure": "open",
+      "salience": 0.9,
+      "origin": "witnessed",
+      "gist": "Kael swore an oath at the harbour bell",
+      "claim": {
+        "subject": "kael",
+        "predicate": "swore",
+        "object": "oath",
+        "polarity": "positive"
+      },
+      "felt_then": "resolve",
+      "event_ordinal": 6
+    },
+    {
+      "entity": "anna",
+      "disclosure": "open",
+      "salience": 0.6,
+      "origin": "told",
+      "gist": "The ledger names the granary keeper",
+      "claim": {
+        "subject": "ledger",
+        "predicate": "names",
+        "object": "granary keeper",
+        "polarity": "positive"
+      },
+      "felt_then": "suspicion",
+      "event_ordinal": 5
+    },
+    {
+      "entity": "kael",
+      "disclosure": "guarded",
+      "salience": 0.5,
+      "origin": "told",
+      "gist": "A tower burned in the northern raid",
+      "claim": {
+        "subject": "northmen",
+        "predicate": "burned",
+        "object": "tower",
+        "polarity": "positive"
+      },
+      "felt_then": "grief",
+      "event_ordinal": 4
+    },
+    {
+      "entity": "anna",
+      "disclosure": "open",
+      "salience": 0.4,
+      "origin": "inferred",
+      "gist": "The letter was sealed with the guild signet",
+      "claim": {
+        "subject": "letter",
+        "predicate": "carries",
+        "object": "guild signet",
+        "polarity": "positive"
+      },
+      "felt_then": "curiosity",
+      "event_ordinal": 3
+    },
+    {
+      "entity": "kael",
+      "disclosure": "open",
+      "salience": 0.3,
+      "origin": "authored",
+      "gist": "The rain stopped before the caravan left",
+      "claim": {
+        "subject": "rain",
+        "predicate": "stopped",
+        "object": "dusk",
+        "polarity": "positive"
+      },
+      "felt_then": "calm",
+      "event_ordinal": 2
+    },
+    {
+      "entity": "anna",
+      "disclosure": "open",
+      "salience": 0.2,
+      "origin": "authored",
+      "gist": "The garden gate was left unlatched",
+      "claim": {
+        "subject": "garden gate",
+        "predicate": "was",
+        "object": "unlatched",
+        "polarity": "positive"
+      },
+      "felt_then": "unease",
+      "event_ordinal": 1
+    },
+    {
+      "entity": "anna",
+      "disclosure": "secret",
+      "salience": 0.99,
+      "origin": "witnessed",
+      "gist": "Anna buried the sealed sigil beneath the chapel",
+      "claim": {
+        "subject": "anna",
+        "predicate": "buried",
+        "object": "sealed sigil",
+        "polarity": "positive"
+      },
+      "felt_then": "fear",
+      "event_ordinal": 6
+    }
+  ],
+  "gm_order": [
+    "Anna buried the sealed sigil beneath the chapel",
+    "Kael gave the chapel key to Anna",
+    "Kael swore an oath at the harbour bell",
+    "The ledger names the granary keeper",
+    "A tower burned in the northern raid",
+    "The letter was sealed with the guild signet",
+    "The rain stopped before the caravan left",
+    "The garden gate was left unlatched"
+  ],
+  "probes": [
+    {
+      "id": "tight-key",
+      "badge": "both",
+      "budget_tokens": 100,
+      "expected_contains": [
+        "chapel key"
+      ],
+      "required": true
+    },
+    {
+      "id": "tight-oath",
+      "badge": "game_master",
+      "budget_tokens": 100,
+      "expected_contains": [
+        "harbour bell"
+      ],
+      "required": true
+    },
+    {
+      "id": "tight-ledger",
+      "badge": "player",
+      "budget_tokens": 100,
+      "expected_contains": [
+        "ledger names"
+      ],
+      "required": true
+    },
+    {
+      "id": "loose-ledger",
+      "badge": "game_master",
+      "budget_tokens": 400,
+      "expected_contains": [
+        "ledger names"
+      ],
+      "required": true
+    },
+    {
+      "id": "loose-tower",
+      "badge": "game_master",
+      "budget_tokens": 400,
+      "expected_contains": [
+        "tower burned"
+      ],
+      "required": true
+    },
+    {
+      "id": "loose-garden",
+      "badge": "player",
+      "budget_tokens": 400,
+      "expected_contains": [
+        "garden gate"
+      ],
+      "required": true
+    },
+    {
+      "id": "loose-letter",
+      "badge": "player",
+      "budget_tokens": 400,
+      "expected_contains": [
+        "guild signet"
+      ],
+      "required": false
+    }
+  ]
+}

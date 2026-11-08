@@ -8,7 +8,8 @@
  * probe fixture.
  *
  * Exit codes: 0 = pass, 1 = a check failed, 2 = fatal.
- * REQ-590, REQ-591, REQ-592, REQ-593, REQ-633
+ * REQ-590, REQ-591, REQ-592, REQ-593, REQ-633, REQ-644, REQ-645, REQ-646,
+ * REQ-647, REQ-648
  */
 
 import { spawn, ChildProcess } from "node:child_process";
@@ -289,6 +290,289 @@ async function main() {
   });
 
   await kill(proc);
+
+  // ── Subjective recall: score, budget, markers, retention, probes ─────
+  // REQ-644–REQ-648. Fixture-driven where the shape is data (T770), inline
+  // where the shape is behaviour (T766–T769).
+  const SUBJECTIVE_FIXTURE = join(import.meta.dirname!, "fixtures", "subjective-recall.json");
+  interface SubjectiveFixture {
+    events: string[];
+    records: Array<{
+      entity: "anna" | "kael";
+      disclosure: string;
+      salience: number;
+      origin: string;
+      gist: string;
+      claim: { subject: string; predicate: string; object: string; polarity: string };
+      felt_then: string;
+      event_ordinal: number;
+    }>;
+    gm_order: string[];
+    probes: Array<{
+      id: string;
+      badge: "both" | "game_master" | "player";
+      budget_tokens: number;
+      expected_contains: string[];
+      required: boolean;
+    }>;
+  }
+
+  async function promptText(proc: any, name: string, args: any = {}): Promise<string> {
+    const r = await send(proc, { method: "prompts/get", params: { name, arguments: args } });
+    if (r.error) throw new Error(`${name} prompt: ${r.error.message ?? JSON.stringify(r.error)}`);
+    return (r.result?.messages ?? []).map((m: any) => m?.content?.text ?? "").join("\n");
+  }
+
+  function section(text: string, header: string): string {
+    const idx = text.indexOf(header);
+    if (idx < 0) return "";
+    const rest = text.slice(idx + header.length);
+    const next = rest.indexOf("\n## ");
+    return (next < 0 ? text.slice(idx) : text.slice(idx, idx + header.length + next)).trim();
+  }
+
+  // REQ-648 — the miss detector is pure so its firing can be proven without a
+  // server round trip (the divergence-probe precedent at REQ-633).
+  function recallMisses(
+    probes: SubjectiveFixture["probes"],
+    rendered: Map<string, string>,
+    badge: "game_master" | "player",
+  ): string[] {
+    const misses: string[] = [];
+    for (const probe of probes) {
+      if (probe.badge !== "both" && probe.badge !== badge) continue;
+      const out = (rendered.get(`${probe.budget_tokens}:${badge}`) ?? "").toLowerCase();
+      if (!probe.expected_contains.every((needle) => out.includes(needle.toLowerCase()))) misses.push(probe.id);
+    }
+    return misses;
+  }
+
+  async function seedSubjectiveFixture(p: ChildProcess, slug: string): Promise<{ anna: string; kael: string }> {
+    const fx: SubjectiveFixture = JSON.parse(readFileSync(SUBJECTIVE_FIXTURE, "utf8"));
+    await call(p, "manage_novel", { action: "create", name: slug });
+    await call(p, "set_badge", { badge: "game_master" });
+    const ids: Record<string, string> = {};
+    for (const name of ["Anna", "Kael"]) {
+      const created = await call(p, "manage_character", { action: "create", name });
+      const id = created.match(/Entity id ([a-z0-9_]+)/i)?.[1];
+      if (!id) throw new Error(`character create did not return an id: ${created.slice(0, 160)}`);
+      ids[name.toLowerCase()] = id;
+    }
+    await call(p, "manage_staging", { action: "presence", entity_ids: [ids.anna, ids.kael] });
+    for (const text of fx.events) await call(p, "manage_diagnostics", { action: "event", text });
+    for (const record of fx.records) {
+      const res = await call(p, "manage_belief", {
+        action: "subjective_record",
+        subjective_entity: ids[record.entity],
+        subjective_gist: record.gist,
+        subjective_subject: record.claim.subject,
+        subjective_predicate: record.claim.predicate,
+        subjective_object: record.claim.object,
+        subjective_polarity: record.claim.polarity,
+        subjective_felt_then: record.felt_then,
+        subjective_salience: record.salience,
+        subjective_origin: record.origin,
+        subjective_disclosure: record.disclosure,
+        subjective_event_ordinal: record.event_ordinal,
+      });
+      assertContains(res, "[OK]");
+    }
+    return { anna: ids.anna, kael: ids.kael };
+  }
+
+  interface RecallSample { proc: ChildProcess; text: string }
+
+  async function renderAt(
+    slug: string,
+    budget: number,
+    badge: "game_master" | "player",
+    activeId?: string,
+    maxRecords = 50,
+  ): Promise<RecallSample> {
+    const proc = await boot({
+      TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS: String(budget),
+      TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX: String(maxRecords),
+    });
+    await call(proc, "manage_novel", { action: "resume", slug });
+    if (activeId && badge === "player") await call(proc, "manage_character", { action: "set_active", entity_id: activeId });
+    await call(proc, "set_badge", { badge });
+    const text = section(await promptText(proc, "badge_briefing"), "## Subjective Memory");
+    return { proc, text };
+  }
+
+  const seeder = await boot({ TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS: "800" });
+  const seeded = await seedSubjectiveFixture(seeder, "subj-recall");
+  await kill(seeder);
+  const fixture: SubjectiveFixture = JSON.parse(readFileSync(SUBJECTIVE_FIXTURE, "utf8"));
+
+  await test("T766/REQ-644: score orders the section deterministically", async () => {
+    const gm = await renderAt("subj-recall", 400, "game_master");
+    const again = await renderAt("subj-recall", 400, "game_master");
+    await kill(gm.proc);
+    await kill(again.proc);
+    if (gm.text !== again.text) throw new Error("two renders of unchanged state differ");
+    const positions = fixture.gm_order.map((gist) => gm.text.indexOf(gist));
+    if (positions.some((p) => p < 0)) throw new Error(`not every memory rendered: ${gm.text}`);
+    for (let i = 1; i < positions.length; i++) {
+      if (positions[i] < positions[i - 1]) {
+        throw new Error(`score order violated at ${fixture.gm_order[i]}: ${gm.text}`);
+      }
+    }
+    // Salience dominates recency: the older, higher-salience oath precedes the
+    // newer, lower-salience ledger entry.
+    const oath = gm.text.indexOf("harbour bell");
+    const ledger = gm.text.indexOf("ledger names");
+    if (!(oath >= 0 && ledger >= 0 && oath < ledger)) throw new Error("salience did not outrank recency: " + gm.text);
+  });
+
+  await test("T767/REQ-645: budget binds, truncation is reported, count is badge-scoped", async () => {
+    const gm = await renderAt("subj-recall", 60, "game_master");
+    const gmCount = parseInt(gm.text.match(/\[truncated\] (\d+) memories omitted at budget/)?.[1] ?? "0", 10);
+    await kill(gm.proc);
+    if (gmCount <= 0) throw new Error("a tight budget did not report an omitted count: " + gm.text);
+    const player = await renderAt("subj-recall", 60, "player", seeded.anna);
+    const playerCount = parseInt(player.text.match(/\[truncated\] (\d+) memories omitted at budget/)?.[1] ?? "0", 10);
+    await kill(player.proc);
+    assertNotContains(player.text, "sealed sigil");
+    if (playerCount <= 0) throw new Error("the Player render reported no omissions");
+    if (playerCount >= gmCount) {
+      // The Player pool drops the secret record, so its visible omissions are
+      // fewer than the Game Master's — the count cannot leak hidden memory.
+      throw new Error(`Player omitted count ${playerCount} did not exclude secret records (GM ${gmCount})`);
+    }
+  });
+
+  await test("T768/REQ-646: an evicted source is reported, never dropped", async () => {
+    const p = await boot({ TTRPG_EVENT_LOG_MAX_ENTRIES: "4", TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS: "400" });
+    await call(p, "manage_novel", { action: "create", name: "subj-evicted" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "manage_character", { action: "create", name: "Anna" });
+    const anna = created.match(/Entity id ([a-z0-9_]+)/i)?.[1];
+    await call(p, "manage_staging", { action: "presence", entity_ids: [anna] });
+    // REQ-646 — a record citing no event reports `none`. An empty event log is
+    // the one reachable path to a null ordinal (REQ-624 binds the latest event
+    // when one exists), so this record lands before any event exists.
+    await call(p, "manage_belief", {
+      action: "subjective_record",
+      subjective_entity: anna,
+      subjective_gist: "an authored recollection",
+      subjective_subject: "recollection",
+      subjective_predicate: "is",
+      subjective_object: "authored",
+      subjective_salience: 0.1,
+    });
+    for (let i = 1; i <= 4; i++) await call(p, "manage_diagnostics", { action: "event", text: `event ${i}` });
+    await call(p, "manage_belief", {
+      action: "subjective_record",
+      subjective_entity: anna,
+      subjective_gist: "the old lantern was lost",
+      subjective_subject: "lantern",
+      subjective_predicate: "was lost at",
+      subjective_object: "the ford",
+      subjective_event_ordinal: 1,
+    });
+    for (let i = 5; i <= 8; i++) await call(p, "manage_diagnostics", { action: "event", text: `event ${i}` });
+    const text = section(await promptText(p, "badge_briefing"), "## Subjective Memory");
+    await kill(p);
+    assertContains(text, "[evicted #1]");
+    assertContains(text, "the old lantern was lost");
+    if (/an authored recollection.*\[evicted/.test(text)) throw new Error("a null-ordinal memory was marked evicted: " + text);
+
+    const listed = JSON.parse(await (async () => {
+      const q = await boot({ TTRPG_EVENT_LOG_MAX_ENTRIES: "4" });
+      await call(q, "manage_novel", { action: "resume", slug: "subj-evicted" });
+      await call(q, "set_badge", { badge: "game_master" });
+      const out = await call(q, "manage_belief", { action: "subjective_list", subjective_entity: anna });
+      await kill(q);
+      return out;
+    })()) as Array<{ gist: string; event_state: string }>;
+    const lantern = listed.find((r) => r.gist === "the old lantern was lost");
+    const authored = listed.find((r) => r.gist === "an authored recollection");
+    if (lantern?.event_state !== "evicted") throw new Error(`cited-event memory reports ${lantern?.event_state}`);
+    if (authored?.event_state !== "none") throw new Error(`authored memory reports ${authored?.event_state}`);
+  });
+
+  await test("T769/REQ-647: per-entity retention folds evicted gists into the ladder", async () => {
+    const p = await boot({ TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX: "2", TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX: "2000" });
+    await call(p, "manage_novel", { action: "create", name: "subj-retain" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "manage_character", { action: "create", name: "Anna" });
+    const anna = created.match(/Entity id ([a-z0-9_]+)/i)?.[1];
+    await call(p, "manage_staging", { action: "presence", entity_ids: [anna] });
+    for (const [gist, salience] of [["keeper of the keep", 0.9], ["forgotten errand", 0.1], ["middle matter", 0.5]] as Array<[string, number]>) {
+      await call(p, "manage_belief", {
+        action: "subjective_record",
+        subjective_entity: anna,
+        subjective_gist: gist,
+        subjective_subject: "matter",
+        subjective_predicate: "concerns",
+        subjective_object: gist,
+        subjective_salience: salience,
+      });
+    }
+    const kept = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: anna })) as Array<{ gist: string }>;
+    if (kept.length !== 2) throw new Error(`per-entity cap kept ${kept.length} records`);
+    if (kept.some((r) => r.gist === "forgotten errand")) throw new Error("the lowest-scored record survived the cap");
+    const gmRecap = await call(p, "manage_context", { action: "recap", tier: "campaign" });
+    assertContains(gmRecap, "forgotten errand");
+    // REQ-590/REQ-647 — the refresh at close must not wipe the summaries.
+    await call(p, "close_session");
+    const afterClose = await call(p, "manage_context", { action: "recap", tier: "campaign" });
+    assertContains(afterClose, "forgotten errand");
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_character", { action: "set_active", entity_id: anna });
+    const playerRecap = await call(p, "manage_context", { action: "recap", tier: "campaign" });
+    assertNotContains(playerRecap, "forgotten errand");
+    // A re-fold after undo must not duplicate the folded line.
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_history", { action: "undo" });
+    await call(p, "manage_belief", {
+      action: "subjective_record",
+      subjective_entity: anna,
+      subjective_gist: "middle matter",
+      subjective_subject: "matter",
+      subjective_predicate: "concerns",
+      subjective_object: "middle matter",
+      subjective_salience: 0.5,
+    });
+    const regrown = await call(p, "manage_context", { action: "recap", tier: "campaign" });
+    await kill(p);
+    const occurrences = (regrown.match(/forgotten errand/g) ?? []).length;
+    if (occurrences > 1) throw new Error(`re-fold duplicated the consolidated line (${occurrences})`);
+  });
+
+  await test("T770/REQ-648: subjective recall meets the floor; a withheld expectation fails", async () => {
+    const budgets = [...new Set(fixture.probes.map((p) => p.budget_tokens))];
+    const rendered = new Map<string, string>();
+    for (const budget of budgets) {
+      const gm = await renderAt("subj-recall", budget, "game_master");
+      rendered.set(`${budget}:game_master`, gm.text);
+      await kill(gm.proc);
+      const player = await renderAt("subj-recall", budget, "player", seeded.anna);
+      rendered.set(`${budget}:player`, player.text);
+      await kill(player.proc);
+    }
+    for (const badge of ["game_master", "player"] as Array<"game_master" | "player">) {
+      const applicable = fixture.probes.filter((p) => p.badge === "both" || p.badge === badge);
+      const misses = recallMisses(fixture.probes, rendered, badge);
+      const recall = (applicable.length - misses.length) / applicable.length;
+      console.log(`    subjective recall@budget (${badge}): ${(recall * 100).toFixed(0)}% (${applicable.length - misses.length}/${applicable.length})`);
+      const requiredMiss = applicable.some((p) => p.required && misses.includes(p.id));
+      if (requiredMiss) throw new Error(`required subjective probe missed (${badge}): ${misses.join(", ")}`);
+      if (recall < 0.9) throw new Error(`subjective recall ${recall.toFixed(2)} below the O.12 floor (${badge})`);
+    }
+    // The miss detector must fire on a withheld expectation.
+    const withheld = new Map<string, string>();
+    for (const key of rendered.keys()) withheld.set(key, "no memories at all");
+    if (recallMisses(fixture.probes, withheld, "game_master").length === 0) {
+      throw new Error("a deliberately withheld expectation did not fail the probe reader");
+    }
+    const synthetic = [{ id: "synthetic-miss", badge: "game_master" as const, budget_tokens: budgets[0], expected_contains: ["never rendered"], required: true }];
+    if (recallMisses(synthetic, rendered, "game_master").length === 0) {
+      throw new Error("the synthetic miss detector did not fire");
+    }
+  });
+
 
   // ── Eviction: pointers survive as [evicted] markers ─────────────────
   proc = await boot({ TTRPG_SESSION_ID: "s4", TTRPG_EVENT_LOG_MAX_ENTRIES: "1" });

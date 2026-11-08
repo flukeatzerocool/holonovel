@@ -1,6 +1,6 @@
 // Compression ladder — deterministic tier derivation, budgeted assembly, and
 // source-pointer traversal. Pure: no clocks, network, or LLM.
-// REQ-590, REQ-591, REQ-592
+// REQ-590, REQ-591, REQ-592, REQ-647
 
 import { describeEntry, type EventLogEntry } from "./event-log.js";
 import type { AuditEntry, AuditArchiveSummary, Badge, NovelState, TierSummary } from "./state.js";
@@ -118,6 +118,16 @@ export function deriveCampaignTier(novel: NovelState, maxFacts: number, derivedA
     const ref = `campaign:${mem.category}:${mem.at}`;
     if (facts.some((f) => f.text === mem.text)) continue;
     facts.push({ text: mem.text, ref, key: mem.at });
+  }
+  // REQ-647 — per-entity consolidation summaries folded from evicted memories.
+  // GM-only: a summary carries gists at every disclosure level, so it never
+  // reaches a Player surface.
+  if (gm) {
+    for (const [entityId, summary] of Object.entries(novel.compression_ladder?.entities ?? {})) {
+      if (!summary.text) continue;
+      const body = summary.text.split("\n").map((line) => line.replace(/^- /, "")).join("; ");
+      facts.push({ text: `memory ${entityId}: ${body}`, ref: `memory:${entityId}`, key: entityId });
+    }
   }
   const capped = maxFacts > 0 ? facts.slice(0, maxFacts) : facts;
   const sourceOrdinals = new Set<number>();

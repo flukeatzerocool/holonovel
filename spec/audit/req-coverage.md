@@ -599,4 +599,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-641 | Owned contradiction | 5.26 Character Identity | C | T763 | — |
 | REQ-642 | Who-they-are renderer | 5.26 Character Identity | C | T764 | — |
 | REQ-643 | Identity Player projection | 5.26 Character Identity | C | T765 | — |
+| REQ-644 | Deterministic recall score | 5.35 Subjective Memory | C | T766 | — |
+| REQ-645 | Budgeted section assembly | 5.35 Subjective Memory | C | T767 | — |
+| REQ-646 | Evicted-source reporting | 5.35 Subjective Memory | C | T768 | — |
+| REQ-647 | Per-entity retention and consolidation | 5.35 Subjective Memory | C | T769 | — |
+| REQ-648 | Subjective recall probes | 5.35 Subjective Memory | C | T770 | — |
 

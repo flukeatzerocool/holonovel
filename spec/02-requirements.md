@@ -40,7 +40,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–635 |
+| 5.35   | Subjective Memory                                       | 623–648 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4360,7 +4360,7 @@ The report SHALL state, for each advisory surface it derives, whether that surfa
 ### 5.34 Compression Ladder and Recall
 
 **REQ-590 — Compression ladder tiers.**
-The server SHALL store a `compression_ladder` Novel property group holding `arc` summaries and one `campaign` summary. Tiers are the raw event log, a recent window of `TTRPG_MEMORY_RECENT_EVENTS` entries (§7.6), per-session summaries in `audit_archive`, arc summaries grouping `TTRPG_MEMORY_ARC_SESSIONS` sessions (§7.6), and a campaign bible of at most `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` stable facts (§7.6). Derivation SHALL be deterministic — no LLM call, network, or wall-clock input — and the group SHALL copy through clone, checkpoint, archive, and export while the `player` scope omits it. _Check:_ T697.
+The server SHALL store a `compression_ladder` Novel property group holding `arc` summaries, one `campaign` summary, and one consolidation summary per entity folded from evicted subjective-memory records (REQ-647). Tiers are the raw event log, a recent window of `TTRPG_MEMORY_RECENT_EVENTS` entries (§7.6), per-session summaries in `audit_archive`, arc summaries grouping `TTRPG_MEMORY_ARC_SESSIONS` sessions (§7.6), and a campaign bible of at most `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS` stable facts (§7.6). Derivation SHALL be deterministic — no LLM call, network, or wall-clock input — and the group SHALL copy through clone, checkpoint, archive, and export while the `player` scope omits it. _Check:_ T697.
 
 **REQ-591 — Source pointers and traversal.**
 Every derived summary SHALL carry `source_ordinals` (event-log ordinals) and, for the campaign bible, `source_refs` (property keys such as `lore:<key>`). Session summaries in `audit_archive` SHALL carry `source_ordinals` and `source_sessions`, populated before compaction deletes the raw slice. `manage_diagnostics (action: history, ordinals)` SHALL return the named entries in ordinal order and SHALL report `[evicted]` for an ordinal removed by the event-log cap rather than omitting or fabricating it. Traversal SHALL be badge-filtered and read-only. _Check:_ T698.
@@ -4425,10 +4425,9 @@ T744, T754.
 WHEN `badge_briefing` composes Game Master content, THE server SHALL render a
 `## Subjective Memory` section after `## Campaign Memory` covering entities
 present in the current scene and tagging every non-`open` record with its
-disclosure level. Records SHALL be selected by descending salience, then
-descending event ordinal, then ascending record identifier, and SHALL render at
-most `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records (§7.6). The section SHALL
-NOT render under the Observer badge, and two renders of unchanged state SHALL
+disclosure level. Records SHALL be ordered by the score in REQ-644 and
+rendered within the bounds of REQ-645, reporting an evicted source per
+REQ-646. The section SHALL NOT render under the Observer badge, and two renders of unchanged state SHALL
 be identical. *Acceptance criterion:* two renders of unchanged state return the
 same ordered section, a `secret` record renders tagged, and an Observer render
 omits the section. _Check:_ T745, T755.
@@ -4436,11 +4435,11 @@ omits the section. _Check:_ T745, T755.
 **REQ-627 — Persistence and retention.**
 Subjective-memory records SHALL persist with the Novel, survive a restart, and
 travel with clone and export operations, bounded by
-`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. The
-disclosure level SHALL travel with those records, and a reclassification SHALL
+`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction and by
+REQ-647's per-entity bound. The disclosure level SHALL travel with those records, and a reclassification SHALL
 survive undo, checkpoint restore, and a save-and-resume cycle. A checkpoint
 restore SHALL NOT remove a record appended after the checkpoint, mirroring the
-append-only event log. Under the Game Master badge, `spec_health` SHALL report
+log. Under the Game Master badge, `spec_health` SHALL report
 `subjective_memory_count`, the total number of records across all entities.
 *Acceptance criterion:* a record and its level survive an end-and-resume cycle, a
 cap overflow evicts the oldest record, and the health report carries the count.
@@ -4515,8 +4514,9 @@ WHEN `badge_briefing` composes Player-badge content, THE server SHALL render a
 `## Subjective Memory` section after `## Campaign Memory` covering the active
 entity's records only. An `open` record SHALL render its gist, claim, and
 affect; a `guarded` record SHALL render its gist only, with the claim and
-affect withheld; a `secret` record SHALL be absent. Selection and the render cap
-SHALL match REQ-626. With no active entity, or with no record the level makes
+affect withheld; a `secret` record SHALL be absent. Selection and the render bounds
+SHALL match REQ-626, and the truncation count SHALL be badge-scoped per
+REQ-645. With no active entity, or with no record the level makes
 visible, the section SHALL be absent. *Acceptance criterion:* a Player render
 carries an `open` record in full, a `guarded` record as gist only, and no
 `secret` record. _Check:_ T755.
@@ -4532,5 +4532,65 @@ and SHALL NOT be reverted by undo or a checkpoint restore (REQ-627).
 *Acceptance criterion:* reclassifying a record changes every Player surface at
 once, an unknown identifier is refused, and undo leaves the new level in place.
 _Check:_ T756.
+
+**REQ-644 — Deterministic recall score.**
+WHEN the server composes the `## Subjective Memory` section, THE server SHALL
+rank records by a deterministic score derived from recorded state under the
+algorithm in §7.9e. The score SHALL combine a record's salience, its recency
+measured against the event-log head, and its origin, and SHALL NOT consult the
+clock, network, or model output. Records of equal score SHALL order by
+descending event ordinal, then ascending record identifier. The disclosure level
+SHALL NOT affect the score. *Acceptance criterion:* two renders of unchanged
+state at one budget return the same ordered set, and a higher-salience record
+outranks a newer lower-salience record. _Check:_ T766.
+
+**REQ-645 — Budgeted section assembly.**
+The server SHALL assemble the section in score order until either
+`TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records or the
+`TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` token budget binds, estimating cost
+under §7.9b. A record SHALL be admitted whole or not at all. When records are
+omitted, the section SHALL end with a `[truncated]` marker naming the number
+omitted from the calling badge's rendered set, and SHALL NOT disclose the
+existence of a record the badge cannot see. *Acceptance criterion:* a budget
+below the packed cost omits the lowest-scored records and reports the count, and
+a Player render's count excludes `secret` records. _Check:_ T767.
+
+**REQ-646 — Evicted-source reporting.**
+A subjective-memory record whose contributing event ordinal is no longer
+retained in the event log SHALL be reported with an `[evicted]` marker carrying
+that ordinal rather than dropped, fabricated, or re-charged to another event.
+The briefing SHALL append the marker to the record's rendered line;
+`manage_belief (action: subjective_list)` SHALL report a per-record event state
+of `retained`, `evicted`, or `none`, the last for a record citing no event.
+Eviction reporting SHALL NOT change selection, order, the render cap, or the
+record itself. *Acceptance criterion:* after the cited event is evicted by the
+event-log cap, the section marks the record `[evicted]` and the list reports its
+state, while a retained event reports `retained` and an authored record reports
+`none`. _Check:_ T768.
+
+**REQ-647 — Per-entity retention and consolidation.**
+The server SHALL bound each entity's records by
+`TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX` (§7.6), evicting the lowest-scored
+first, ties broken by oldest event ordinal then ascending identifier. Before any
+bound evicts a record, the server SHALL fold its gist, origin, and ordinal into
+the entity's consolidation summary in the compression ladder (REQ-590), bounded
+by `TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX` and dropping the oldest lines
+first. A fold SHALL be keyed by record identifier so it never duplicates. The
+summary SHALL travel with clone, checkpoint, and archive operations and reach no
+Player surface. *Acceptance criterion:* with a per-entity cap of two, a third
+record evicts the lowest-scored one and the GM recap names its gist from the
+consolidation summary. _Check:_ T769.
+
+**REQ-648 — Subjective recall probes.**
+The server distribution SHALL include a committed subjective-recall probe
+fixture whose record and probe fields are declared in Appendix O.12. The
+recall-probe harness (REQ-593) SHALL seed the fixture, render the section at
+each probe's declared budget for the Game Master and Player badges, and report
+`subjective recall@budget` per badge. It SHALL fail when a required probe misses
+at any declared budget or aggregate recall falls below the subjective floor in
+Appendix O.12. The harness SHALL prove its miss detector fires on a synthetic
+probe whose expectation is deliberately withheld. *Acceptance criterion:* the
+committed fixture runs, and a required probe whose expected gist is withheld by
+the budget fails the run. _Check:_ T770.
 
 #### End of requirements

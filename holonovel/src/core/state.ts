@@ -275,10 +275,20 @@ export interface TierSummary {
   derived_at: string;
 }
 
+// REQ-647 — one entity's folded memories. `source_refs` holds `memory:<id>`
+// fold keys; they are never dereferenced, they only make a re-fold idempotent.
+export interface EntityMemorySummary {
+  entity_id: string;
+  text: string;
+  source_ordinals: number[];
+  source_refs: string[];
+}
+
 export interface CompressionLadder {
   version: 1;
   arc: TierSummary[];
   campaign: TierSummary | null;
+  entities?: Record<string, EntityMemorySummary>;
 }
 
 export function emptyCompressionLadder(): CompressionLadder {

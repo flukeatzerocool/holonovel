@@ -5,6 +5,9 @@
 // memory never rewrites either, and reconciliation never rewrites a memory.
 // The disclosure axis decides which surfaces may quote a record.
 // REQ-599b, REQ-623, REQ-624, REQ-625, REQ-626, REQ-627, REQ-628, REQ-634
+// REQ-644, REQ-645, REQ-646, REQ-647
+
+import { estimateTokens } from "./memory.js";
 
 // REQ-623 — how the entity came to hold the memory.
 export type MemoryOrigin = "witnessed" | "told" | "inferred" | "authored";
@@ -86,22 +89,142 @@ export function nextSubjectiveId(records: SubjectiveMemoryRecord[]): string {
   return `sm-${max + 1}`;
 }
 
-// REQ-626 — deterministic selection for the GM briefing. Order is descending
-// salience, then descending event ordinal, then ascending record id; the render
-// time never participates, so unchanged state yields an identical section.
+// REQ-644 — one integer score, computed from recorded state only. Salience
+// dominates (0..1000); recency decays linearly across the retained event log so
+// no clock and no new config is involved; origin is a small provenance bonus.
+export interface MemoryScoreInputs {
+  latestOrdinal: number;   // event-log head; 0 when the log is empty
+  logLength: number;       // retained entries; the recency horizon
+}
+
+export function scoreMemory(r: SubjectiveMemoryRecord, inputs: MemoryScoreInputs): number {
+  const salience = Math.round(Math.min(1, Math.max(0, r.salience)) * 1000);
+  let recency = 0;
+  if (r.event_ordinal !== null && inputs.latestOrdinal > 0) {
+    const distance = inputs.latestOrdinal - r.event_ordinal;
+    recency = Math.max(0, Math.round(200 * (1 - distance / Math.max(1, inputs.logLength))));
+  }
+  const origin = r.origin === "witnessed" ? 60 : r.origin === "told" ? 40 : r.origin === "inferred" ? 20 : 0;
+  return salience + recency + origin;
+}
+
+// REQ-644 — deterministic order for the section. Score first, then the chunk-1
+// tie-breaks so unchanged state stays byte-identical. The render time never
+// participates. The bound is applied by `assembleMemorySection`, not here.
 export function selectForBriefing(
   records: SubjectiveMemoryRecord[],
   presentEntityIds: Set<string>,
-  max: number,
+  inputs: MemoryScoreInputs,
 ): SubjectiveMemoryRecord[] {
   const pool = records.filter((r) => presentEntityIds.has(r.entity_id));
   pool.sort(
     (a, b) =>
-      b.salience - a.salience ||
+      scoreMemory(b, inputs) - scoreMemory(a, inputs) ||
       (b.event_ordinal ?? -1) - (a.event_ordinal ?? -1) ||
       a.id.localeCompare(b.id, undefined, { numeric: true }),
   );
-  return max > 0 ? pool.slice(0, max) : pool;
+  return pool;
+}
+
+// REQ-645 — budgeted assembly. Records are admitted whole, in score order,
+// until the record cap or the token budget binds; the caller supplies the
+// renderer (and therefore the badge projection), so the omitted count covers
+// only records that badge can see.
+export interface AssembledMemorySection {
+  lines: string[];
+  kept_ids: string[];
+  omitted: number;
+  tokens: number;
+}
+
+export function assembleMemorySection(
+  records: SubjectiveMemoryRecord[],
+  render: (r: SubjectiveMemoryRecord) => string,
+  opts: { maxRecords: number; budgetTokens: number; marker: (omitted: number) => string },
+): AssembledMemorySection {
+  const lines: string[] = [];
+  const kept: string[] = [];
+  let omitted = 0;
+  let tokens = 0;
+  for (const record of records) {
+    if (opts.maxRecords > 0 && kept.length >= opts.maxRecords) { omitted++; continue; }
+    const line = render(record);
+    const cost = estimateTokens(line);
+    if (opts.budgetTokens > 0 && tokens + cost > opts.budgetTokens && kept.length > 0) { omitted++; continue; }
+    lines.push(line);
+    kept.push(record.id);
+    tokens += cost;
+  }
+  if (omitted > 0) {
+    lines.push(opts.marker(omitted));
+  }
+  return { lines, kept_ids: kept, omitted, tokens };
+}
+
+// REQ-647 — the records a bound should evict, lowest score first. Ties break by
+// oldest event ordinal then ascending id so the choice is reproducible.
+export function selectForEviction(
+  records: SubjectiveMemoryRecord[],
+  cap: number,
+  inputs: MemoryScoreInputs,
+): SubjectiveMemoryRecord[] {
+  if (cap <= 0 || records.length <= cap) return [];
+  const ordered = [...records].sort(
+    (a, b) =>
+      scoreMemory(a, inputs) - scoreMemory(b, inputs) ||
+      (a.event_ordinal ?? -1) - (b.event_ordinal ?? -1) ||
+      a.id.localeCompare(b.id, undefined, { numeric: true }),
+  );
+  return ordered.slice(0, records.length - cap);
+}
+
+// REQ-647 — fold evicted records into one entity's consolidation summary.
+// Keyed by `memory:<id>` so a re-fold (undo, then re-record) never duplicates a
+// line; the oldest lines go first when the character bound binds.
+export interface EntityMemorySummaryData {
+  entity_id: string;
+  text: string;
+  source_ordinals: number[];
+  source_refs: string[];
+}
+
+export function foldIntoSummary(
+  summary: EntityMemorySummaryData | undefined,
+  evicted: SubjectiveMemoryRecord[],
+  maxChars: number,
+): EntityMemorySummaryData {
+  const prior = summary ?? { entity_id: evicted[0]?.entity_id ?? "", text: "", source_ordinals: [], source_refs: [] };
+  const seen = new Set(prior.source_refs);
+  const lines = prior.text.length > 0 ? prior.text.split("\n") : [];
+  const ordinals = [...prior.source_ordinals];
+  const refs = [...prior.source_refs];
+  for (const record of evicted) {
+    const ref = `memory:${record.id}`;
+    if (seen.has(ref)) continue;
+    seen.add(ref);
+    const ordinal = record.event_ordinal === null ? "none" : String(record.event_ordinal);
+    lines.push(`- [${record.origin}] ${record.gist} (ordinal ${ordinal})`);
+    refs.push(ref);
+    if (record.event_ordinal !== null) ordinals.push(record.event_ordinal);
+  }
+  let text = lines.join("\n");
+  while (maxChars > 0 && text.length > maxChars && lines.length > 1) {
+    lines.shift();
+    text = lines.join("\n");
+  }
+  if (maxChars > 0 && text.length > maxChars) text = text.slice(text.length - maxChars);
+  return {
+    entity_id: summary?.entity_id ?? evicted[0]?.entity_id ?? "",
+    text,
+    source_ordinals: [...new Set(ordinals)].sort((a, b) => a - b),
+    source_refs: refs,
+  };
+}
+
+// REQ-646 — whether a record's cited event is still in the retained log.
+export function eventState(ordinal: number | null, retained: Set<number>): "retained" | "evicted" | "none" {
+  if (ordinal === null) return "none";
+  return retained.has(ordinal) ? "retained" : "evicted";
 }
 
 // REQ-625/REQ-634 — the Player-safe projection. `open` renders in full,

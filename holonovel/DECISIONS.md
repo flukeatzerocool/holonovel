@@ -27,6 +27,53 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Subjective recall quality and retention — 2026-11-08
+
+- **D1 — One integer score; no float, no clock.** `scoreMemory` sums
+  `salience × 1000`, a recency term normalized by the retained event-log
+  length, and an origin bonus (witnessed 60, told 40, inferred 20, authored 0).
+  Ties keep chunk 1's order (descending ordinal, then ascending id), so
+  unchanged state stays byte-identical on every render. Weights live in §7.9e.
+  (REQ-644)
+- **D2 — The token budget sits beside the record cap.** `BRIEFING_MAX` still
+  bounds the count; `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` (default 800)
+  bounds the cost, and assembly admits whole records until either binds. The
+  budget is Presentation, like the cap; the two bound the same output.
+  (REQ-645)
+- **D3 — The omitted count is badge-scoped.** The Player path projects before
+  packing, so the `[truncated]` count cannot reveal that a `secret` record
+  exists. A store-wide count would be a disclosure leak, not a convenience.
+  (REQ-645, REQ-634)
+- **D4 — Recency is measured at the event-log head, scaled by the retained log
+  length.** No new config, no wall-clock read: the log the Novel already keeps
+  is the horizon. A null ordinal contributes 0. (REQ-644)
+- **D5 — Disclosure does not score.** Ranking by secrecy would bury the guarded
+  and secret material the narrator most needs; exposure is the badge filter's
+  job. One ordering serves both badges. (REQ-644)
+- **D6 — An evicted source is reported, not dropped.** The record survives its
+  cited event; the briefing appends `[evicted #<ordinal>]` and
+  `subjective_list` adds a derived `event_state` (`retained` | `evicted` |
+  `none`). `none` is reachable only when the Novel has no events at all, since
+  REQ-624 binds the latest event when one exists; a legacy save with a null
+  ordinal loads the same way. Mirrors REQ-591's `[evicted]` history contract.
+  (REQ-646)
+- **D7 — Two retention bounds, two selection policies, one loss semantics.**
+  The per-entity bound (`TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX`, default 500)
+  evicts the lowest-scored records — the quality decision. The global cap
+  (`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES`) keeps its documented oldest-first
+  selection as a disk backstop. Both fold through `foldIntoSummary` before
+  removal, so neither loses a gist. (REQ-627, REQ-647)
+- **D8 — Consolidation is written at eviction time into
+  `compression_ladder.entities`.** An evicted record is gone from the store, so
+  a lazy summary could never recover it. The member is optional on load (no
+  `DATA_FORMAT` migration), carries `memory:<id>` fold keys that are never
+  dereferenced, has no `derived_at` stamp, and surfaces only in the GM campaign
+  tier; the ladder is already in `PLAYER_OMITTED_KEYS`. Rejected: a new
+  property group and in-place record rewriting. (REQ-590, REQ-647)
+- **D9 — Deferrals.** A Player-visible consolidation summary would need a
+  per-line disclosure matrix; the score weights stay contract constants rather
+  than config. Both recorded, neither scheduled. (REQ-647)
+
 ### Psyche-depth identity facets — 2026-11-08
 
 - **D1 — The psyche attributes ride the existing identity record.** `kind`,

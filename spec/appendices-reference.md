@@ -1401,6 +1401,11 @@ date-stamps matching CHANGELOG entries.
 | REQ-641 | Owned contradiction | 2026-11-08 |
 | REQ-642 | Who-they-are renderer | 2026-11-08 |
 | REQ-643 | Identity Player projection | 2026-11-08 |
+| REQ-644 | Deterministic recall score | 2026-11-08 |
+| REQ-645 | Budgeted section assembly | 2026-11-08 |
+| REQ-646 | Evicted-source reporting | 2026-11-08 |
+| REQ-647 | Per-entity retention and consolidation | 2026-11-08 |
+| REQ-648 | Subjective recall probes | 2026-11-08 |
 
 ---
 
@@ -2073,7 +2078,7 @@ diet.
 | T742 | Automated | Survival resource: a trap resolves a seeded check against the `snuff` countdown's ticks and extinguishes the resource on success; a bundle adds its declared increment; an extinguish with a unit relights without loss; an extinguish without a unit starts the declared last-light countdown; the Player badge sees remaining units without a tick total. | REQ-622b, REQ-622c |
 | T743 | Automated | Subjective memory record: recording a memory appends one entry carrying its entity, the contributing event-log ordinal (defaulting to the latest), a gist, a claim triple, the affect, a 0..1 salience, and an origin; the entry survives a save and reload. | REQ-623, REQ-624 |
 | T744 | Automated | Subjective memory read gating: a Player `subjective_list` returns the active entity's non-`secret` records and returns `[FORBIDDEN]` for another entity; an Observer `subjective_list` returns `[FORBIDDEN]`; a Player `subjective_record` is refused; a Game Master entity query returns only that entity's records; a read leaves the event-log cursor unchanged. | REQ-624, REQ-625 |
-| T745 | Automated | Deterministic briefing selection: two `badge_briefing` renders at one state return an identical `## Subjective Memory` section; records order by descending salience, then descending ordinal, then ascending id; the section honors `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`; a non-`open` record renders tagged and an Observer render omits the section. | REQ-626 |
+| T745 | Automated | Deterministic briefing selection: two `badge_briefing` renders at one state return an identical `## Subjective Memory` section; records order by descending score per REQ-644, then descending ordinal, then ascending id; the section honors `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` and `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS`; a non-`open` record renders tagged and an Observer render omits the section. | REQ-626 |
 | T746 | Automated | Subjective memory persistence: a record and its disclosure level survive an end-and-resume cycle; a cap overflow evicts the oldest record; a checkpoint restore preserves a record appended after capture and a reclassification survives the restore; `spec_health` reports `subjective_memory_count` under the Game Master badge. | REQ-627 |
 | T747 | Automated | Subjective memory separation: recording a memory leaves perceptions, evidence, belief stances, campaign-memory facts, and the event-log cursor unchanged, and a reconcile leaves the memory unchanged. | REQ-628 |
 | T748 | Automated | Truth projection: two derivations of unchanged state return equal fact sets; a recorded relationship change alters the projected facts; the event-log cursor is unchanged by a derivation. | REQ-629 |
@@ -2094,6 +2099,11 @@ diet.
 | T763 | Automated | Owned contradiction: a contradiction facet naming two current ends reports one tension; the tension survives a belief reconciliation; replacing an end makes the tension dormant without deleting either facet. | REQ-641 |
 | T764 | Automated | Who-they-are renderer: two renders at one identity version and event-log head are byte-identical; an ended facet and a secret facet are absent; the section is absent with no active entity and carries the empty marker when nothing is stated. | REQ-642 |
 | T765 | Automated | Identity Player projection: a Player read of a foreign character through the tool and through the identity resource is refused; an own-character read omits unaware facets and clears the false-but-held mark; the Game Master read is unprojected. | REQ-643 |
+| T766 | Automated | Subjective recall score: two renders of unchanged state at one budget are byte-identical with the same ordered set; a higher-salience record outranks a newer lower-salience record; an equal-score pair orders by descending ordinal then ascending id; two runs at one budget return the same ordered set. | REQ-644 |
+| T767 | Automated | Budgeted section assembly: a budget below the packed cost omits the lowest-scored records and reports the omitted count; the record cap binds first when it is the tighter bound; a Player render's count excludes `secret` records; a record is admitted whole or not at all. | REQ-645 |
+| T768 | Automated | Evicted-source reporting: after `TTRPG_EVENT_LOG_MAX_ENTRIES` evicts the cited event, the section line carries `[evicted #<ordinal>]` and `manage_belief (action: subjective_list)` reports `evicted`; a retained event reports `retained`; an authored record reports `none`; selection, order, and the cap are unchanged. | REQ-646 |
+| T769 | Automated | Per-entity retention and consolidation: with a per-entity cap of two a third record evicts the lowest-scored one; the consolidation summary names its gist in the GM campaign recap and is absent from the Player recap; the summary survives a ladder refresh; re-folding after undo does not duplicate the line. | REQ-647 |
+| T770 | Automated | Subjective recall probes: the committed fixture renders at each declared budget for both badges and reports `subjective recall@budget`; a required probe that misses fails the run; aggregate recall below the O.12 floor fails; a synthetic probe whose expectation is withheld proves the miss detector fires. | REQ-648 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -3141,7 +3151,12 @@ value.
 | Surface contract | Standard catalog budget ratio (REQ-571) | 90% of the full-surface baseline |
 | Surface contract | Small catalog budget ratio (REQ-571) | 10% of the full-surface baseline |
 | Verification | Recall-probe aggregate floor (REQ-593) | 0.90 |
+| Verification | Subjective recall floor (REQ-648) | 0.90 |
 | Independent verification | Open-ended count tolerance (REQ-273) | ±1 |
+
+**Subjective recall probe fixture (REQ-648).** Each record declares
+`entity`, `disclosure`, `salience`, `gist`, `origin`, and `event_ordinal`;
+each probe declares `id`, `expected_contains`, `budget_tokens`, and `required`.
 
 ---
 

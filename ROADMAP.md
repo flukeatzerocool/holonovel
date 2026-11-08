@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Subjective recall quality and retention
-
-- Replace the minimal selection with a deterministic score, budgeted assembly,
-  `[truncated]` / `[evicted]` reporting, and per-entity retention with
-  consolidation into the compression ladder.
-- Extend the recall-probe harness with the subjective probe family and a
-  declared floor.
-
-**Trigger:** shipped when two runs at one budget return the same ordered set,
-an eviction fixture reports `[evicted]`, and the probe suite fails on a
-deliberately missed required probe.
-
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

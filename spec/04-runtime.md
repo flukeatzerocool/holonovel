@@ -214,6 +214,9 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
 | `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` | No | Maximum subjective-memory records retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
 | `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` | No | Maximum subjective-memory records injected into the `## Subjective Memory` briefing section (default 5; REQ-626). Presentation — non-behavioral; it bounds output volume, not story state. |
+| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` | No | Token budget for the `## Subjective Memory` briefing section (default 800; REQ-645). Presentation — non-behavioral; it bounds output volume, not story state. |
+| `TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX` | No | Maximum subjective-memory records retained per entity before score-ordered eviction (default 500; REQ-647). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX` | No | Maximum characters in one entity's consolidation summary, oldest folded lines dropped first (default 2000; REQ-647). Storage. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
@@ -264,7 +267,7 @@ discarded by `manage_novel (action: end)`):
 | Server Notes | Session, Guidance | read/write/create/delete (REQ-285) | Game Master only |
 | Story Journal | Narrative-memory | read/write/create (REQ-246) | read-only (GM-filtered) |
 | Campaign Memory | Knowledge-carrying | read (engine-maintained; GM-filtered) | read-only (GM-filtered) |
-| Compression Ladder | Narrative-memory, Knowledge-carrying | read/write (REQ-590) | read-only (GM-filtered) |
+| Compression Ladder | Narrative-memory, Knowledge-carrying | read/write (REQ-590; arc, campaign, and per-entity consolidation summaries) | read-only (GM-filtered; consolidation summaries GM-only per REQ-647) |
 | Mechanics | Mechanical | read (engine-populated during Discovery; GM-filtered) | read-only (GM-filtered) |
 | World | Spatial | read/write/create/delete (rooms, things, exits, vehicles per §5.10; parser command navigation) | read-only (room descriptions, thing descriptions, exit availability) |
 | Story Beats | Scene-anchored | read/write (REQ-335) | read-only (shared-scope beats) |
@@ -286,7 +289,7 @@ discarded by `manage_novel (action: end)`):
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
 | Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_belief (action: perception_record)`) | read-only (own entity, badge-filtered per REQ-545) |
-| Subjective Memory | Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief (action: subjective_record)`, disclosure set via `manage_belief (action: subjective_disclose)`) | read-only (own entity, disclosure-filtered per REQ-625 and REQ-634) |
+| Subjective Memory | Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief (action: subjective_record)`, disclosure set via `manage_belief (action: subjective_disclose)`, scored and budgeted recall per REQ-644/REQ-645) | read-only (own entity, disclosure-filtered per REQ-625 and REQ-634) |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -710,4 +713,18 @@ same HMAC-SHA256 construction with `TTRPG_ARTIFACT_VERIFY_KEY`: a package
 manifest's signature covers its canonical manifest JSON without the signature
 member (REQ-446), and an adventure module's signature covers its declared
 `content_hash` string (REQ-617).
+
+**7.9e Subjective recall scoring and assembly.** A memory record scores
+`salience × 1000 + recency + origin`, each term an integer. `recency` is
+`max(0, round(200 × (1 − distance / max(1, logLength))))`, where `distance` is
+the event-log head ordinal minus the record's ordinal and `logLength` is the
+number of retained event-log entries; a record citing no event contributes 0.
+`origin` contributes 60 for witnessed, 40 for told, 20 for inferred, and 0 for
+authored. Equal scores order by descending event ordinal, then ascending record
+identifier. The section admits records whole in score order until the record cap
+or the token budget binds, and the omitted count covers only records the
+calling badge can see. Three markers are distinct: `[truncated <tier> tier
+omitted at this budget]` names a dropped ladder tier (7.9b), `[truncated] N
+memories omitted at budget` names a record count, and `[evicted #<ordinal>]`
+names a record whose cited event the log no longer retains.
 

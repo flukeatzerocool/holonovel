@@ -171,7 +171,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
 | Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
 | Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
-| Subjective Memory | The append-only per-entity record of what a character remembers — gist, structured claim, affect, salience, origin, and a disclosure level (`open`, `guarded`, or `secret`), bound to an event-log ordinal (REQ-623–REQ-635). |
+| Subjective Memory | The append-only per-entity record of what a character remembers — gist, structured claim, affect, salience, origin, and a disclosure level (`open`, `guarded`, or `secret`), bound to an event-log ordinal and ranked for recall by a deterministic score (REQ-623–REQ-648). A record evicted by the per-entity bound folds its gist into a per-entity consolidation summary in the compression ladder (REQ-647). |
 | Witness provenance | The witness kind, producing sense, source, room, and confidence carried by a perception entry (REQ-594–REQ-595). |
 | Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 

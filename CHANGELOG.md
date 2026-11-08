@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-08 — Subjective recall quality and retention
+
+- Replaces the minimal memory comparator with a deterministic integer score
+  (salience, event-log recency, origin) declared in §7.9e, so two renders at one
+  budget return the same ordered set (REQ-644).
+- Adds budgeted section assembly beside the record cap: whole-record admission,
+  a `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` (default 800) bound, and a
+  `[truncated]` count scoped to what the calling badge can see, so a Player
+  render never hints at a secret record (REQ-645).
+- Reports an evicted source instead of dropping it: the briefing appends
+  `[evicted #<ordinal>]` and `manage_belief (action: subjective_list)` reports a
+  per-record `event_state` of `retained`, `evicted`, or `none` (REQ-646).
+- Adds per-entity retention that evicts the lowest-scored records and folds
+  each gist into a per-entity consolidation summary in the compression ladder,
+  surfaced in the GM campaign tier only, with the global cap folding through the
+  same path (REQ-590, REQ-627, REQ-647).
+- Extends the recall-probe harness with a committed subjective fixture, a
+  per-badge `subjective recall@budget` report, the O.12 floor, and a
+  synthetic-miss detector that proves a withheld expectation fails the run
+  (REQ-648).
+
 ## 2026-11-08 — Psyche-depth identity facets, who-they-are renderer, and tension surface
 
 - Extends identity facets with the psyche attributes the roadmap names — kind,
