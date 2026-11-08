@@ -27,6 +27,10 @@
 - Holosuite predicate validation now resolves every recorded event anchor, not
   only findings and assertion events, so a stale citation on a passing record
   fails the gate instead of hiding behind a green tier.
+- Repaired the license-compliance plan, tasks, and AAR after the sanitization
+  pass: grammatical generic descriptions replace the mangled phrases, and the
+  purge evidence now points at the recorded bundle manifest instead of a grep
+  that could not match.
 
 ## 2026-11-08 — Subjective recall quality and retention
 

@@ -11,6 +11,66 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-08 review remediation (CR-1..CR-22)
+
+- **CR-1 — Player open memory omitted the claim (resolved):** `index.ts`
+  `composeSubjectiveMemorySection` now appends `(claims: …)` for an `open`
+  record; T755 asserts it. Predicate: `holonovel/src/index.ts` `composeSubjectiveMemorySection`.
+- **CR-2 — Markers changed selection/order (resolved):** the renderer returns
+  `{ text, suffix }`, cost is measured on `text`, and the suffix is appended after
+  admission; T768 proves it. Predicate: `holonovel/src/core/subjective.ts` `assembleMemorySection`.
+- **CR-3 — False outcome evaluated after displaced (resolved):** `checkRecord`
+  checks an opposite-polarity fact before the displaced fallback; T749 covers the
+  precedence. Predicate: `holonovel/src/core/divergence.ts` `checkRecord`.
+- **CR-4 — Consolidation summaries dropped by the campaign cap (resolved):**
+  `deriveCampaignTier` reserves fact slots for summaries. Predicate:
+  `holonovel/src/core/memory.ts` `deriveCampaignTier`.
+- **CR-5 — Undo/restore dropped a fold (resolved):** `applyNovelState` preserves
+  `compression_ladder.entities` on `"undo"`; T769 asserts the recap after undo.
+  Predicate: `holonovel/src/core/state.ts` `applyNovelState`.
+- **CR-6 — Scan matrix contradicted REQ-599b (resolved):** the matrix is now
+  `guarded` owner claim+affect, non-owner gist+claim, `secret` gist+claim; REQ-599b
+  is amended; T757 covers the secret-affect exemption. Predicate:
+  `holonovel/src/core/subjective.ts` `disclosureScanTargets`.
+- **CR-7 — Branch kept future memories (resolved):** `branch` filters records
+  after the branch point; REQ-458 is amended; T746 covers it. Predicate:
+  `holonovel/src/index.ts` `branch`.
+- **CR-8 — Budget admitted the first record over the ceiling (resolved):**
+  `assembleMemorySection` enforces the budget on every record; T767 covers it.
+- **CR-9 — Raw `parseInt(process.env)` (resolved):** the three bounds use
+  `configInt`. Predicate: `holonovel/src/index.ts` `handleSubjectiveActions`.
+- **CR-10 — Renderer ordered class before catalog (resolved):** global
+  `KIND_INDEX` sort with class as a tie-break; T758 covers a structural `name`
+  fact. Predicate: `holonovel/src/core/identity.ts` `renderWhoTheyAre`.
+- **CR-11 — Load accepted out-of-range valence / off-kind false belief
+  (resolved):** `normalizeFacetAttributes` clamps and clears; T761 covers it.
+- **CR-12 — Lexicon superset and substring matching (resolved):** the cue table
+  matches Appendix O.13, whole-token matching; T749 covers `unsafe`/`wonder`.
+- **CR-13 — Ordinal accepted floats/negatives (resolved):** the schema is
+  `int().min(0)` and the handler re-validates.
+- **CR-14 — `compileKernel` spread a possibly-undefined `contradicts`
+  (resolved):** defensive `?? []` at every copy.
+- **CR-15 — Alias index rebuilt per record (resolved):** `buildAliases` is
+  exported and passed through `checkRecord`/`recordedValence`; performance-only,
+  no gate (Closed-P3 for a regression test).
+- **CR-16 — Orphan memory from a typo (resolved):** `resolveMemoryEntity`
+  resolves id or name and refuses an unresolved entity; T743 covers it.
+- **CR-17 — `0` semantics undocumented (resolved):** §7.6 rows 216–217 say
+  `0 = unlimited`.
+- **CR-18 — §7.7.0/enumerations omitted subjective memory (resolved):** §7.7.0
+  gains the class-contract paragraph; REQ-240a/241a/334b name it.
+- **CR-19 — Recall floor hardcoded (resolved):** `test-memory-recall` reads the
+  O.12 floor from the assembled spec copy and fails when it is absent.
+- **CR-20 — Legacy records had no id (resolved):** `normalizeSubjectiveRecord`
+  assigns `sm-legacy-<n>` deterministically.
+- **CR-21 — License-doc prose mangled (resolved):** the license-compliance
+  plan/tasks/AAR are grammatical and the purge evidence points at the recorded
+  bundle manifest. Predicate: `docs/plans/2026-11-08-license-compliance/plan.md`.
+- **CR-22 — 18/23 Holosuite anchors stale; gate skipped record predicates
+  (resolved):** anchors are re-pointed and `unresolvedPredicates` validates every
+  recorded event; `test-holosuite-evidence` covers the failure path. Predicate:
+  `holonovel/scripts/lib/eval-predicate.ts` `unresolvedPredicates`.
+
 - **Lore `visibility` is specified and now implemented (resolved 2026-11-07):**
   `LoreEntry` now carries `visibility` (`gm_only`/`shared`/`player_discovered`)
   and `known_by`; `manage_lore` accepts `visibility`, reveal marks a lore entry

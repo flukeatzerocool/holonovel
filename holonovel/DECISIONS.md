@@ -2194,3 +2194,18 @@ runtime (REQ-389a), so these are intended gaps, not host conformance gaps.
 | `TTRPG_WORLD_PROMINENCE` | Builder-side | World-model prominence tier selected at build time (REQ-309). |
 | `TTRPG_PORT` | Intended gap (optional) | Optional inbound HTTP transport; the reference host ships the stdio transport only. Inbound-only; does not affect REQ-051. |
 | `TTRPG_PROMPT_BUDGET` | Legacy fallback | Pre-rename alias for `TTRPG_MAX_BRIEFING_TOKENS`, honored when the new variable is unset so existing callers keep working. |
+
+### Review remediation decisions — 2026-11-08
+
+- **D1 — Player memory claim.** An `open` subjective-memory record renders its gist, claim, and affect; the claim uses the compact `(claims: subject predicate object)` form.
+- **D2 — Marker cost.** Divergence and eviction markers are returned as a suffix and appended after admission, so they cannot change selection, order, or the render cap (REQ-632, REQ-646).
+- **D3 — Verdict precedence.** Confirmed/affect drift (anchored same polarity) → false outcome (any opposite) → displaced (unanchored same polarity) → conflated → misattributed → unverifiable (REQ-630).
+- **D4 — Draft-scan matrix.** `open`: no target; `guarded` owner: claim + affect; `guarded` non-owner: gist + claim; `secret`: gist + claim. REQ-599b is amended to this matrix.
+- **D5 — Fold monotonicity.** `compression_ladder.entities` is preserved across undo and checkpoint restore while the rest of the ladder rolls back (REQ-627, REQ-647).
+- **D6 — Branch continuity.** A branched Novel carries only memory records whose cited event is at or before the branch point (REQ-458).
+- **D7 — Summary slots.** Consolidation summaries are reserved against `TTRPG_MEMORY_CAMPAIGN_MAX_FACTS`; the oldest non-memory facts give way.
+- **D8 — Renderer order.** The who-they-are renderer sorts globally by the facet catalog (`fact` last), then stability class, facet, and revision (REQ-636).
+- **D9 — Lexicon.** Appendix O.13 affect terms and outcome pairs match on whole-word boundaries; no extra cue terms are recognized (REQ-630).
+- **D10 — Evidence anchors.** Holosuite predicates must cite the implementing handler or function; `unresolvedPredicates` validates every recorded event, not only findings and assertions.
+- **D11 — Config bounds.** The three subjective-memory bounds read through `configInt`; an empty environment value keeps the documented default.
+- **D12 — Legacy ids.** A subjective-memory record without an id loads with a deterministic `sm-legacy-<n>` id so it remains addressable.
