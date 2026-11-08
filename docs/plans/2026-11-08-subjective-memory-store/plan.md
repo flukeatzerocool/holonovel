@@ -43,7 +43,7 @@ action, or state field names subjective memory.
 | Player-scope redaction list | `holonovel/src/index.ts:9685-9692` |
 | REQ-407 persist-tools rendering | `holonovel/src/index.ts:13298-13303` |
 | `manage_belief` schema and handler block | `holonovel/src/index.ts:7720-7743`, `:8555-8610` |
-| Novel serialize / deserialize / migrate | `holonovel/src/core/state.ts:729-730`, `:1510`, `:2664`, `:2685`, `:2830`, `:2864` |
+| Novel serialize / deserialize / migrate | `holonovel/src/core/state.ts:729-730`, `:1510`, `:2664`, `:2685`, `:2830`, `:2860` |
 | COF vocabulary and the promised §5.35 attribution | `docs/upstream/cof.md:20-35` |
 | Tool-surface documentation that lists `manage_belief` actions | `holonovel/AGENTS.md:101` |
 | Next free identifiers | max REQ-622, max T742 → REQ-623–628, T743–747 |
@@ -95,7 +95,7 @@ action, or state field names subjective memory.
   (`index.ts:10272-10275`) and join `APPEND_ONLY_STATE_FIELDS`
   (`state.ts:2860`), mirroring the event log and perception ledger. Correction
   is a new record, never an edit. This is an explicit asymmetry: clone and
-  export carry the records (REQ-240a, REQ-334b) while snapshot and checkpoint
+  export carry the records (REQ-240a, REQ-096a/b) while snapshot and checkpoint
   restore do not roll them back. Rejected: mutable records restored by undo — a
   memory would silently change when the player rewinds, while the event log it
   cites does not. Note that REQ-241a's blanket "includes all §7.7 property
@@ -137,8 +137,12 @@ action, or state field names subjective memory.
   (`index.ts:11253`); a Player-visible count would disclose secret memory
   before chunk 3 defines the disclosure axis.
 - **D9 — No new tool and no REQ-137a row.** `manage_belief`'s schema grows, so
-  `holonovel/tool-definitions.json` and `spec/audit/tool-surface-baseline.json`
-  are regenerated; the REQ-429 budget is unchanged.
+  `holonovel/tool-definitions.json` is regenerated and
+  `spec/audit/tool-surface-baseline.json` is re-recorded; `holonovel/tool-surface-registry.json`
+  is hand-edited (it is a declaration file, not generated). The REQ-429 budget
+  is unchanged. No new schema field is required, so the tool's required count
+  stays 1 and REQ-408's ceiling of 8 holds; per-action requiredness is
+  handler-enforced, as it already is for `entity_id` and `subject`.
 - **D10 — COF attribution lands in the §5.35 preamble**, as
   `docs/upstream/cof.md` promises; the Appendix U row already exists
   (`spec/appendices-licenses.md:21`).
@@ -180,13 +184,35 @@ export function selectForBriefing(
 
 ```ts
 // holonovel/src/index.ts — schema additions on manage_belief
+// All ten are `.optional()` in the tool's single flat schema (the MCP SDK parses
+// that shape on every call, so a schema-required field would break the other 12
+// actions). The `subjective_record` handler enforces entity, gist, subject,
+// predicate, and object, returning `[ERROR] [INVALID_INPUT]` when one is absent
+// — the existing `entity_id`/`subject` pattern. The required schema count stays
+// 1 (the action discriminator), inside REQ-408's ceiling of 8.
 subjective_entity, subjective_gist, subjective_subject, subjective_predicate,
-subjective_object, subjective_polarity, subjective_felt_then,
-subjective_salience, subjective_origin, subjective_event_ordinal
+subjective_object
+// Optional in both senses: polarity defaults to positive, salience to 0.5,
+// origin to authored, and the ordinal to the latest event.
+subjective_polarity, subjective_felt_then, subjective_salience,
+subjective_origin, subjective_event_ordinal
 ```
 
 The stored shape is additive: a pre-change Novel loads with
 `subjective_memory: []`.
+
+## Exact config and table rows (Phase 2)
+
+- `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (after `TTRPG_PERCEPTION_MAX_ENTRIES`):
+  "Maximum subjective-memory records retained per Novel before oldest-first
+  eviction (default 20000; 0 = unlimited). Storage."
+- `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`: "Maximum subjective-memory records
+  injected into the `## Subjective Memory` briefing section (default 5;
+  REQ-626). Presentation — non-behavioral; it bounds output volume, not story
+  state."
+- §7.7 property row (after Perception Ledger): "| Subjective Memory |
+  Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief
+  (action: subjective_record)`) | Game Master only |".
 
 ## Exact requirement prose (Phase 1)
 
@@ -206,7 +232,7 @@ from the `subjective_entity`, `subjective_gist`, `subjective_subject`,
 `subjective_predicate`, and `subjective_object` parameters, carrying stance and
 provenance from `subjective_polarity`, `subjective_felt_then`,
 `subjective_salience`, `subjective_origin`, and `subjective_event_ordinal`. A
-missing entity, gist, or claim part SHALL return `[ERROR] [INVALID_INPUT]`
+missing entity, gist, or claim triple SHALL return `[ERROR] [INVALID_INPUT]`
 enumerating valid values. The event ordinal SHALL default to the latest
 event-log ordinal and SHALL NOT exceed it. Mutation SHALL require the Game
 Master badge. *Acceptance criterion:* a well-formed record appends one entry, a
@@ -273,14 +299,19 @@ leaves the memory unchanged. _Check:_ T747.
    checkpoint capture deletes the field alongside the other append-only logs.
 4. **Sibling-contract check, then actions.** Grep `manage_belief` across
    `spec/` and confirm no conflicting badge gate, error code, or enum semantics
-   in REQ-461–REQ-472, REQ-540–REQ-545, or REQ-594; record the result in this
-   plan. Then add the `manage_belief` enum entries, parameters, handlers beside
-   the perception block (`index.ts:8555-8610`), audit entry on
+   in REQ-461–REQ-472, REQ-540–REQ-545, or REQ-594; also confirm the added
+   required fields stay inside REQ-408's per-action ceiling of 8 (REQ-413's
+   action-discriminator rule). Record both results in this plan. Then add the
+   `manage_belief` enum entries, parameters (all `.optional()`, with the five
+   identity/claim fields enforced in the handler), handlers beside the
+   perception block (`index.ts:8555-8610`), audit entry on
    `subjective_record`, badge gating, and a tool description trimmed to the
    1000-byte budget. Declare `manage_belief.subjective_record` and
    `manage_belief.subjective_list` in `holonovel/tool-surface-registry.json`
    with group, phases, entry, mutation class, preconditions, successors, and
-   edges (the registry gate rejects an unregistered action).
+   edges (the registry gate rejects an unregistered action). Record the
+   resulting `spec_health.tool_required_param_counts.manage_belief` (expected
+   1) in the verification evidence.
 5. **Briefing and health.** `composeSubjectiveMemorySection` beside
    `composeCampaignMemorySection` (`index.ts:2185`), rendered at `:13044`;
    `subjective_memory_count` and the storage-cap row at `:11244-11250`;
@@ -334,6 +365,9 @@ leaves the memory unchanged. _Check:_ T747.
   runs.
 - `check-tool-surface` fails with `unregistered action:
   manage_belief.subjective_record` until the registry entries land.
+- `tool-definitions-lint` may flag a parameter description that breaks the
+  quality rules even when the sync gate passes — rewrite the description, do not
+  suppress.
 - `surface-budget` fails until the baseline is re-recorded.
 - `action-conflicts` may flag `subjective_list` vs an existing read action;
   resolve by renaming the action, not by excluding it.

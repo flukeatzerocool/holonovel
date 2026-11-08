@@ -270,6 +270,20 @@ Phases run in order; P2 gates on user approval and a verified backup.
 6. `npm run check:fast`, `npm run check`, `npm run test:package-smoke` exit 0.
 7. Deployed instance re-cloned; `open_session` resumes `torre-nosferatu`.
 
+## Delta amendment 2 — 2026-11-08 (dnd5e history purge)
+
+User-directed scope addition: purge the historical `dnd5e/` tree (1,072 files of
+converted SRD rules text from the repo's pre-rename era), `dnd5e-holonovel/`
+(13 files), and `.opencode/extract_swse.py`.
+
+- **R22.** Add a second rewrite: backup bundle, `git filter-branch` over the three
+  paths, `--prune-empty` (early commits that only carried `dnd5e/` disappear),
+  retag, verify, force-push both remotes, reconcile the deployed clone.
+- SRD 5.1 text is openly licensed, so this is a content-boundary policy purge,
+  not a legal-exposure one; it is user-directed and recorded as such.
+- Not purged: `inform/` (17 files, Artistic 2.0 conventions) — outside the
+  instruction.
+
 ## Open questions
 
 1. ~~Redistribution rights for the ThunderCats book?~~ **Resolved 2026-11-08:

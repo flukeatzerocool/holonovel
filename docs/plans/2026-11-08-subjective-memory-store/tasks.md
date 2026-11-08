@@ -25,8 +25,9 @@ Ordered by dependency; each item's evidence is the command that proved it.
 
 - [ ] REQ-109c3 and REQ-109e name the `## Subjective Memory` section.
 - [ ] §7.7 property row after Perception Ledger; archetype example list.
-- [ ] §7.6 `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (Storage) and
-      `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` (Presentation — non-behavioral).
+- [ ] §7.6 `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (Storage; default 20000, 0 =
+      unlimited) and `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` (Presentation —
+      non-behavioral; default 5).
 - [ ] §5.19 REQ-400 and REQ-407 name the surface.
 - [ ] §4 glossary row; Appendix E (Requirements Manifest) rows for REQ-623–628
       with the 2026-11-08 pin; Appendix F (Derived Test Catalogue) T743–T747.
@@ -50,7 +51,8 @@ Ordered by dependency; each item's evidence is the command that proved it.
 
 - [ ] Sibling-contract check: grep `manage_belief` in `spec/`; confirm no
       conflicting badge gate, error code, or enum semantics in REQ-461–472,
-      REQ-540–545, REQ-594; record the result here.
+      REQ-540–545, REQ-594, and that adding no schema-required field keeps the
+      tool's required count at 1 under REQ-408's ceiling of 8; record both.
 - [ ] Header citation in `subjective.ts` and per-block REQ-623–628 citations in
       the handlers (the coverage audit reads source citations).
 - [ ] `manage_belief` enum gains `subjective_record`, `subjective_list`.
@@ -80,7 +82,8 @@ Ordered by dependency; each item's evidence is the command that proved it.
       unchanged.
 - [ ] T745: two renders at one state are identical; ordering by salience, then
       ordinal, then id; cap honored; Player render omits the section.
-- [ ] T746: end/resume persistence, cap eviction, `subjective_memory_count`.
+- [ ] T746: end/resume persistence, cap eviction, `subjective_memory_count`,
+      and a checkpoint restore that preserves a record appended after capture.
 - [ ] T747: belief/evidence/perception/campaign-memory/event-log unchanged;
       reconcile leaves the memory unchanged.
 - [ ] Test names use the `T743/REQ-623: …` prefix (`test-belief.ts:37` style).
