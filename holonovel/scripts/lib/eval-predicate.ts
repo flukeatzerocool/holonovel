@@ -39,6 +39,43 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+export interface PredicateBearingEvent {
+  tool: string;
+  predicate?: string;
+  step: number;
+  req_ids: string[];
+}
+
+export interface PredicateBearingFinding {
+  predicate: string;
+  step: number;
+  target: string;
+}
+
+/**
+ * Collect every unresolvable predicate carried by a tier's findings or its
+ * recorded events. REQ-141m / the evidence-integrity rule: a predicate is
+ * evidence only if it resolves, whether or not the event happened to pass.
+ */
+export function unresolvedPredicates(
+  findings: PredicateBearingFinding[],
+  events: PredicateBearingEvent[],
+  root: string,
+): Map<string, { step: number; target: string; detail: string }> {
+  const unresolved = new Map<string, { step: number; target: string; detail: string }>();
+  const check = (predicate: string, step: number, target: string): void => {
+    if (unresolved.has(predicate)) return;
+    const resolution = resolvePredicate(predicate, root);
+    if (!resolution.ok) unresolved.set(predicate, { step, target, detail: resolution.reason });
+  };
+  for (const finding of findings) check(finding.predicate, finding.step, finding.target);
+  for (const event of events) {
+    if (!event.predicate) continue;
+    check(event.predicate, event.step, event.req_ids.join(","));
+  }
+  return unresolved;
+}
+
 /** Resolve a predicate against a repo root. */
 export function resolvePredicate(predicate: string, root: string): PredicateResolution {
   const parsed = parsePredicate(predicate);

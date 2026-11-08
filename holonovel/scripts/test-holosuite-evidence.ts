@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 import { recordAssertion } from "./lib/eval-assertion.js";
-import { parsePredicate, resolvePredicate } from "./lib/eval-predicate.js";
+import { parsePredicate, resolvePredicate, unresolvedPredicates } from "./lib/eval-predicate.js";
 import { deriveCoverage, validateCoverage } from "./lib/eval-coverage.js";
 import { specContentHash } from "./lib/eval-provenance.js";
 import type { TierResult } from "./lib/eval-schema.js";
@@ -94,6 +94,23 @@ try {
     assert(!resolvePredicate("ok.ts:2#g", ROOT).ok, "wrong symbol for the line should fail");
     assert(resolvePredicate("ok.ts:1#a", ROOT).ok, "line 1 does contain symbol a");
     assert(!resolvePredicate("ok.ts:5#foo", ROOT).ok, "symbol must match a token, not a substring");
+  });
+
+  test("unresolvedPredicates validates record-event predicates, not only assertions", () => {
+    const stale = unresolvedPredicates(
+      [],
+      [{ tool: "manage_scene", predicate: "ok.ts:9#f", step: 1, req_ids: ["REQ-001"] }],
+      ROOT,
+    );
+    assert(stale.has("ok.ts:9#f"), "a stale record-event predicate was not reported");
+    const valid = unresolvedPredicates(
+      [],
+      [{ tool: "manage_scene", predicate: "ok.ts:2#f", step: 1, req_ids: ["REQ-001"] }],
+      ROOT,
+    );
+    assert(valid.size === 0, "a valid record-event predicate was reported");
+    const finding = unresolvedPredicates([{ predicate: "ok.ts:1#f", step: 2, target: "REQ-002" }], [], ROOT);
+    assert(finding.has("ok.ts:1#f"), "a stale finding predicate was not reported");
   });
 
   test("deriveCoverage counts assertion events only", () => {

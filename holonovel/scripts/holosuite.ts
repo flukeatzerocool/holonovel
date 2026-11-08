@@ -40,7 +40,7 @@ import { runNovel } from "./lib/holosuite-novel.js";
 import { runMutationAudit } from "./lib/holosuite-mutation.js";
 import { appendEvent, canonicalJson, summarize, type EvalFinding, type EvalProvenance, type TierResult } from "./lib/eval-schema.js";
 import { deriveCoverage, validateCoverage } from "./lib/eval-coverage.js";
-import { anchor, resolvePredicate } from "./lib/eval-predicate.js";
+import { anchor, unresolvedPredicates } from "./lib/eval-predicate.js";
 import { gitDirty, gitSha, specContentHash } from "./lib/eval-provenance.js";
 import { extractReqHeaders, readSpec } from "../../scripts/lib/parse-spec.js";
 
@@ -210,20 +210,9 @@ function applyCoverageValidation(results: TierResult[], specIds: Set<string>): v
 /** Add predicate-resolution findings for every finding and assertion anchor. */
 function applyPredicateValidation(results: TierResult[], root: string): void {
   for (const result of results) {
-    const unresolved = new Map<string, { step: number; target: string; detail: string }>();
-    for (const finding of result.findings) {
-      const resolution = resolvePredicate(finding.predicate, root);
-      if (!resolution.ok && !unresolved.has(finding.predicate)) {
-        unresolved.set(finding.predicate, { step: finding.step, target: finding.target, detail: resolution.reason });
-      }
-    }
-    for (const event of result.events) {
-      if (event.tool !== "assertion" || !event.predicate) continue;
-      const resolution = resolvePredicate(event.predicate, root);
-      if (!resolution.ok && !unresolved.has(event.predicate)) {
-        unresolved.set(event.predicate, { step: event.step, target: event.req_ids.join(","), detail: resolution.reason });
-      }
-    }
+    // REQ-141m evidence integrity: every recorded predicate is evidence, not
+    // only the ones attached to a finding or an assertion event.
+    const unresolved = unresolvedPredicates(result.findings, result.events, root);
     for (const [predicate, info] of unresolved) {
       const finding: EvalFinding = {
         class: "predicate_unresolved",

@@ -24,6 +24,9 @@
   (REQ-240a, REQ-241a, REQ-334b).
 - Holosuite predicate anchors are re-pointed after the source edits; the
   baseline is restored from 49 passed/5 failed to 54 passed/0 failed.
+- Holosuite predicate validation now resolves every recorded event anchor, not
+  only findings and assertion events, so a stale citation on a passing record
+  fails the gate instead of hiding behind a green tier.
 
 ## 2026-11-08 — Subjective recall quality and retention
 
