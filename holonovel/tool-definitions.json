@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 110722,
+  "tools_list_bytes": 111732,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 110722,
-        "tokens": 27681
+        "bytes": 111732,
+        "tokens": 27933
       },
       "standard": {
         "tools": 37,
-        "bytes": 96329,
-        "tokens": 24083
+        "bytes": 97339,
+        "tokens": 24335
       },
       "small": {
         "tools": 6,
@@ -1084,8 +1084,8 @@
     {
       "name": "manage_identity",
       "title": "Identity Management",
-      "description": "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material; accept replaces a facet, retains the displaced value in an internal history, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only and report current facets only. Use when: staging, accepting, rejecting, reverting, or reading identity material. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
-      "description_bytes": 850,
+      "description": "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material with a psyche kind, self-awareness, optional false-but-held belief, valence, date bounds, and contradiction links; accept replaces a facet, retains the displaced value internally, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only, and a Player badge reads its own character's projected kernel. Use when: staging psyche facets, accepting, rejecting, reverting, or reading identity. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+      "description_bytes": 989,
       "action_enum": [
         "stage",
         "accept",
@@ -1095,19 +1095,26 @@
         "snapshot",
         "bootstrap"
       ],
-      "param_count": 8,
+      "param_count": 15,
       "required": [
         "action",
         "character_id"
       ],
       "params": {
+        "awareness": "Whether the character knows this about itself (stage; default yes).",
         "candidate_id": "Identity candidate id (accept/reject).",
         "card": "Character-card fields to stage (bootstrap).",
         "character_id": "Roster character id.",
+        "contradicts": "Facet keys a contradiction facet holds in tension (stage).",
         "facet": "Identity facet key, e.g. name or calling (stage).",
+        "false_but_held": "Belief kind only: the character holds it and it is false (stage).",
+        "kind": "Psyche kind (stage; default fact).",
         "perspective": "self, biographical, public_reputation, secret, or unknown (stage/accept; default self).",
+        "since": "ISO date the facet began (stage).",
         "source": "Provenance label for the candidate (stage; default manual).",
         "stability": "structural, constitutional, core, or developmental (stage; default core).",
+        "until": "ISO date the facet ended (stage).",
+        "valence": "Stance or taste kind only: hostile (-100) to warm (+100) (stage).",
         "value": "Identity facet value (stage)."
       },
       "output_fields": {
@@ -1121,10 +1128,10 @@
         "readOnlyHint": false
       },
       "context_signals": {
-        "paramCount": 9,
+        "paramCount": 16,
         "requiredParamCount": 2,
-        "paramsWithDescriptions": 9,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 16,
+        "paramsWithEnums": 5,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 2,
@@ -1134,8 +1141,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2722,
-        "descriptionBytes": 850
+        "definitionBytes": 3732,
+        "descriptionBytes": 989
       },
       "category": "",
       "gate": ""

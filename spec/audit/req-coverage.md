@@ -591,4 +591,12 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-633 | Subjective divergence probes | 5.35 Subjective Memory | C | T752 | — |
 | REQ-634 | Player-badge memory exposure | 5.35 Subjective Memory | C | T755 | — |
 | REQ-635 | Memory reclassification | 5.35 Subjective Memory | C | T756 | — |
+| REQ-636 | Facet kinds | 5.26 Character Identity | C | T758 | — |
+| REQ-637 | Facet self-awareness | 5.26 Character Identity | C | T759 | — |
+| REQ-638 | False but held belief | 5.26 Character Identity | C | T760 | — |
+| REQ-639 | Facet valence | 5.26 Character Identity | C | T761 | — |
+| REQ-640 | Facet temporal bounds | 5.26 Character Identity | C | T762 | — |
+| REQ-641 | Owned contradiction | 5.26 Character Identity | C | T763 | — |
+| REQ-642 | Who-they-are renderer | 5.26 Character Identity | C | T764 | — |
+| REQ-643 | Identity Player projection | 5.26 Character Identity | C | T765 | — |
 

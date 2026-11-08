@@ -28,13 +28,13 @@ import type { TierResult } from "./eval-schema.js";
 const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 26, "dispatchCommand");
 const P_VALIDATION = anchor("holonovel/src/index.ts", 4869, "create_room");
 const P_PROTOCOL = anchor("holonovel/src/index.ts", 12, "CallToolRequestSchema");
-const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 8812, "verify");
+const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 8861, "verify");
 const P_READONLY = anchor("holonovel/src/core/state.ts", 606, "snapshot");
-const P_ARTIFACT = anchor("holonovel/src/index.ts", 10839, "inboxSourcePath");
-const P_SHARE = anchor("holonovel/src/index.ts", 9977, "share");
-const P_RECAP = anchor("holonovel/src/index.ts", 8958, "recap");
+const P_ARTIFACT = anchor("holonovel/src/index.ts", 10888, "inboxSourcePath");
+const P_SHARE = anchor("holonovel/src/index.ts", 10026, "share");
+const P_RECAP = anchor("holonovel/src/index.ts", 9007, "recap");
 const P_PROVENANCE = anchor("holonovel/src/index.ts", 78, "provenance");
-const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 10158, "strictMode");
+const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 10207, "strictMode");
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {

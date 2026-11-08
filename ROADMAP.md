@@ -12,17 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Psyche-depth identity facets
-
-- Extend identity facets with kind, awareness, false-but-held belief, valence,
-  temporal bounds and owned contradictions, keeping candidate staging and the
-  versioned kernel.
-- Add a deterministic "who they are" renderer to the briefing and a
-  contradiction-tension surface.
-
-**Trigger:** shipped when a developmental facet remains a proposal, a false
-belief renders marked, and a contradiction survives reconciliation.
-
 ## Subjective recall quality and retention
 
 - Replace the minimal selection with a deterministic score, budgeted assembly,

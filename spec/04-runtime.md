@@ -355,13 +355,22 @@ wherever they include property-group state. It mutates only through
 `manage_staging (action: cast|next_speaker)` and does not couple to any
 property group.
 
-**Character identity.** Character identity state (REQ-473–483) — the staged
-candidates, accepted facets, and compiled kernel — is Roster-tier, permanent
-state attached to roster baselines. It is self-contained: it mutates only
-through `manage_identity`, does not couple to any Novel property group, and is
-preserved with roster baselines wherever roster references are preserved
-(REQ-240a). A future identity surface that defines cross-property effects SHALL
-register as a property group with archetypes and coupling rows per REQ-370.
+**Character identity.** Character identity state (REQ-473–483, 636–643) — the
+staged candidates, accepted facets, and compiled kernel — is Roster-tier,
+permanent state attached to roster baselines. Every candidate and facet
+carries a psyche kind drawn from the catalog value, belief, want, need, fear,
+wound, stance, taste, habit, contradiction, rule, and fact, where fact is the
+default for an authored identity fact; the renderer's facet order is that
+catalog order with fact last. A facet also carries a self-awareness of yes,
+partly, or no and may carry a false-but-held marking on a belief, a valence on
+the bounded signed scale from the hostile end to the warm end on a stance or
+taste, a start and an end date, and the facet keys of an owned contradiction.
+A tension exists while a contradiction facet's named ends are both current
+facets. Identity is self-contained: it mutates only through `manage_identity`,
+does not couple to any Novel property group, and is preserved with roster
+baselines wherever roster references are preserved (REQ-240a). A future
+identity surface that defines cross-property effects SHALL register as a
+property group with archetypes and coupling rows per REQ-370.
 
 **Semantic index.** The semantic index (REQ-504–509) is a derived,
 session-scoped advisory surface, not a Novel property group: it is rebuilt

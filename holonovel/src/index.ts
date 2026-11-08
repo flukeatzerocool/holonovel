@@ -35,7 +35,7 @@ import { hazardRoll as hazardDraw, parseRoomHazard } from "./core/hazard.js";
 import { EventHub } from "./core/event-hub.js";
 import { deriveRecentTier, deriveSessionTier, deriveArcTier, deriveCampaignTier, assembleByBudget, traverse, type TierCandidate } from "./core/memory.js";
 import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type BeliefRecord, type Polarity, type EvidenceStatus } from "./core/belief.js";
-import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, revertFacet, STABILITY_CLASSES, PERSPECTIVES, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective } from "./core/identity.js";
+import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, revertFacet, normalizeIdentityState, playerIdentityProjection, renderWhoTheyAre, STABILITY_CLASSES, PERSPECTIVES, FACET_KINDS, FACET_AWARENESSES, VALENCE_MIN, VALENCE_MAX, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective, type FacetKind, type FacetAwareness } from "./core/identity.js";
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
@@ -7959,7 +7959,17 @@ function identityFor(characterId: string): IdentityState | null {
   const entity = state.roster.get(characterId);
   if (!entity) return null;
   if (!entity.identity) entity.identity = emptyIdentity(characterId);
-  return entity.identity;
+  // REQ-636–641 — the single defaulting seam: roster files written before the
+  // psyche attributes load with the neutral defaults (fact / yes / not false).
+  return normalizeIdentityState(entity.identity);
+}
+
+// REQ-643 — the Player projection for the list surface: the character knows
+// what it is aware of, and never sees the Game Master's false-belief marking.
+function projectIdentityRowsForPlayer<T extends { awareness: FacetAwareness; false_but_held: boolean; contradicts?: string[] }>(rows: T[]): T[] {
+  return rows
+    .filter((row) => row.awareness === "yes")
+    .map((row) => ({ ...row, false_but_held: false, ...(row.contradicts ? { contradicts: [...row.contradicts] } : {}) }));
 }
 
 // REQ-547 — identity candidate retention bound. Oldest candidates are evicted
@@ -7982,7 +7992,7 @@ function identityReadGate(characterId: string) {
 
 server.registerTool("manage_identity", {
   title: "Identity Management",
-  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material; accept replaces a facet, retains the displaced value in an internal history, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only and report current facets only. Use when: staging, accepting, rejecting, reverting, or reading identity material. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material with a psyche kind, self-awareness, optional false-but-held belief, valence, date bounds, and contradiction links; accept replaces a facet, retains the displaced value internally, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only, and a Player badge reads its own character's projected kernel. Use when: staging psyche facets, accepting, rejecting, reverting, or reading identity. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
   inputSchema: {
     action: z.enum(["stage", "accept", "reject", "revert", "list", "snapshot", "bootstrap"]).describe("stage, accept, reject, revert, list, snapshot, or bootstrap."),
     character_id: z.string().describe("Roster character id."),
@@ -7992,6 +8002,13 @@ server.registerTool("manage_identity", {
     stability: z.enum(["structural", "constitutional", "core", "developmental"]).optional().describe("structural, constitutional, core, or developmental (stage; default core)."),
     perspective: z.enum(["self", "biographical", "public_reputation", "secret", "unknown"]).optional().describe("self, biographical, public_reputation, secret, or unknown (stage/accept; default self)."),
     source: z.string().optional().describe("Provenance label for the candidate (stage; default manual)."),
+    kind: z.enum(["value", "belief", "want", "need", "fear", "wound", "stance", "taste", "habit", "contradiction", "rule", "fact"]).optional().describe("Psyche kind (stage; default fact)."),
+    awareness: z.enum(["yes", "partly", "no"]).optional().describe("Whether the character knows this about itself (stage; default yes)."),
+    false_but_held: z.boolean().optional().describe("Belief kind only: the character holds it and it is false (stage)."),
+    valence: z.number().int().min(-100).max(100).optional().describe("Stance or taste kind only: hostile (-100) to warm (+100) (stage)."),
+    since: z.string().optional().describe("ISO date the facet began (stage)."),
+    until: z.string().optional().describe("ISO date the facet ended (stage)."),
+    contradicts: z.array(z.string()).optional().describe("Facet keys a contradiction facet holds in tension (stage)."),
     card: z.record(z.string(), z.unknown()).optional().describe("Character-card fields to stage (bootstrap)."),
   },
 }, async (args: any) => {
@@ -8002,6 +8019,15 @@ server.registerTool("manage_identity", {
       const identity = identityFor(args.character_id);
       if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
       const { history: _history, ...publicIdentity } = identity;
+      // REQ-643 — a Player reads the projected record, not the GM's view.
+      if (getBadge() === "player") {
+        const projected = {
+          ...publicIdentity,
+          candidates: projectIdentityRowsForPlayer(publicIdentity.candidates),
+          facets: projectIdentityRowsForPlayer(publicIdentity.facets),
+        };
+        return raw(JSON.stringify(projected, null, 2));
+      }
       return raw(JSON.stringify(publicIdentity, null, 2));
     }
     case "snapshot": {
@@ -8009,7 +8035,9 @@ server.registerTool("manage_identity", {
       const gate = identityReadGate(args.character_id); if (gate) return gate;
       const identity = identityFor(args.character_id);
       if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
-      return raw(JSON.stringify(compileKernel(identity), null, 2));
+      const kernel = compileKernel(identity);
+      // REQ-480/REQ-643 — one kernel, projected for a Player badge.
+      return raw(JSON.stringify(getBadge() === "player" ? playerIdentityProjection(kernel) : kernel, null, 2));
     }
     case "stage": {
       requireGM();
@@ -8018,6 +8046,20 @@ server.registerTool("manage_identity", {
       if (!args.facet || !args.value) return err("INVALID_INPUT", "facet and value are required for stage.");
       if (args.stability && !STABILITY_CLASSES.includes(args.stability)) return err("INVALID_INPUT", `Unknown stability '${args.stability}'.`);
       if (args.perspective && !PERSPECTIVES.includes(args.perspective)) return err("INVALID_INPUT", `Unknown perspective '${args.perspective}'.`);
+      // REQ-636–641 — the psyche attributes, validated before staging.
+      if (args.kind && !FACET_KINDS.includes(args.kind)) return err("INVALID_INPUT", `Unknown facet kind '${args.kind}'.`);
+      if (args.awareness && !FACET_AWARENESSES.includes(args.awareness)) return err("INVALID_INPUT", `Unknown awareness '${args.awareness}'.`);
+      const kind = (args.kind ?? "fact") as FacetKind;
+      const awareness = (args.awareness ?? "yes") as FacetAwareness;
+      if (args.false_but_held === true && kind !== "belief") return err("INVALID_INPUT", "false_but_held applies only to belief-kind facets.");
+      if (args.valence !== undefined && kind !== "stance" && kind !== "taste") return err("INVALID_INPUT", "valence applies only to stance or taste facets.");
+      if (args.valence !== undefined && (!Number.isInteger(args.valence) || args.valence < VALENCE_MIN || args.valence > VALENCE_MAX)) {
+        return err("INVALID_INPUT", `valence must be an integer from ${VALENCE_MIN} to ${VALENCE_MAX}.`);
+      }
+      for (const bound of [args.since, args.until]) {
+        if (bound !== undefined && Number.isNaN(Date.parse(bound))) return err("INVALID_INPUT", `Unparseable date '${bound}'. Use an ISO date.`);
+      }
+      if (args.since && args.until && args.since >= args.until) return err("INVALID_INPUT", "until must be later than since.");
       const candidate: IdentityCandidate = {
         id: nextCandidateId(identity),
         facet: args.facet,
@@ -8027,6 +8069,13 @@ server.registerTool("manage_identity", {
         source: args.source ?? "manual",
         status: "pending",
         proposed_at: new Date().toISOString(),
+        kind,
+        awareness,
+        false_but_held: args.false_but_held === true,
+        valence: args.valence,
+        since: args.since,
+        until: args.until,
+        contradicts: Array.isArray(args.contradicts) ? args.contradicts : [],
       };
       identity.candidates.push(candidate);
       enforceIdentityCandidateCap(identity);
@@ -11719,15 +11768,24 @@ server.registerResource("scene-history", "scene://history", { title: "Scene Hist
   return { contents: [{ uri: "scene://history", text: JSON.stringify(history), mimeType: "application/json" }] };
 });
 
-// Identity resource (REQ-476/REQ-480) — the compiled identity kernel for a
-// roster character. Secret-perspective facets are excluded from the kernel.
+// Identity resource (REQ-476/REQ-480/REQ-481/REQ-643) — the compiled identity
+// kernel for a roster character. Secret-perspective facets are excluded from
+// the kernel; a Player badge reads only the active character, projected.
 server.registerResource("identity-kernel", new ResourceTemplate("identity://{id}", { list: () => {
-  return { resources: [...state.roster.keys()].map(id => ({ uri: `identity://${id}`, name: id })) };
+  const badge = getBadge();
+  const active = state.activeNovel?.active_entity_id;
+  const ids = [...state.roster.keys()].filter((id) => badge !== "player" || id === active);
+  return { resources: ids.map(id => ({ uri: `identity://${id}`, name: id })) };
 } }), { title: "Identity Kernel" }, async (uri) => {
   const id = resourceKey(uri);
+  const badge = getBadge();
+  if (badge === "player" && id !== state.activeNovel?.active_entity_id) {
+    return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "FORBIDDEN", message: "Player badge reads only the active character's identity. Corrective action: set_badge to the Game Master badge to read others." }), mimeType: "application/json" }] };
+  }
   const identity = identityFor(id);
   if (!identity) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: JSON.stringify(compileKernel(identity), null, 2), mimeType: "application/json" }] };
+  const kernel = compileKernel(identity);
+  return { contents: [{ uri: uri.href, text: JSON.stringify(badge === "player" ? playerIdentityProjection(kernel) : kernel, null, 2), mimeType: "application/json" }] };
 });
 
 // Causal state resource (REQ-494) — admitted objective state for the active Novel.
@@ -13432,6 +13490,19 @@ Describe the scene through ${entity.name}'s eyes — what they see, hear, and fe
     } else {
       briefing += `\n\n### Point of view
 POV: none — narration is omniscient.`;
+    }
+  }
+
+  // REQ-642 — deterministic who-they-are section for the active entity,
+  // immediately after the POV directive (REQ-109c2) and before the entity
+  // personality group. Reads the compiled kernel, so secret facets are absent.
+  if ((badge === "game_master" || badge === "player") && novel.active_entity_id) {
+    const identity = identityFor(novel.active_entity_id);
+    if (identity) {
+      const log = novel.event_log ?? [];
+      const at = log.length > 0 ? log[log.length - 1].at : null;
+      const body = renderWhoTheyAre(compileKernel(identity), { badge: badge === "player" ? "player" : "game_master", at });
+      briefing += `\n\n### Who They Are\n${body}`;
     }
   }
 

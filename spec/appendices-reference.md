@@ -1393,6 +1393,14 @@ date-stamps matching CHANGELOG entries.
 | REQ-633 | Subjective divergence probes | 2026-11-08 |
 | REQ-634 | Player-badge memory exposure | 2026-11-08 |
 | REQ-635 | Memory reclassification | 2026-11-08 |
+| REQ-636 | Facet kinds | 2026-11-08 |
+| REQ-637 | Facet self-awareness | 2026-11-08 |
+| REQ-638 | False but held belief | 2026-11-08 |
+| REQ-639 | Facet valence | 2026-11-08 |
+| REQ-640 | Facet temporal bounds | 2026-11-08 |
+| REQ-641 | Owned contradiction | 2026-11-08 |
+| REQ-642 | Who-they-are renderer | 2026-11-08 |
+| REQ-643 | Identity Player projection | 2026-11-08 |
 
 ---
 
@@ -1963,7 +1971,7 @@ diet.
 | T569 | Automated | Card-bootstrap exclusions: a card's scenario and first message are not staged, while its name and description are. | REQ-479 |
 | T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel grouped by stability class. | REQ-480 |
 | T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
-| T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
+| T572 | Automated | Developmental proposal-only: a developmental candidate, including one carrying psyche attributes, leaves the version unchanged until explicitly accepted. | REQ-482 |
 | T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
 | T574 | Automated | Transition proposal: proposing a transition leaves the admitted state unchanged and records the proposal. | REQ-484 |
 | T575 | Automated | Admission decision: a valid proposal is admitted and an incompatible one is refused with a named decision. | REQ-485 |
@@ -2078,6 +2086,14 @@ diet.
 | T755 | Automated | Player briefing exposure: a Player `badge_briefing` renders an `open` record in full, a `guarded` record as gist without claim or affect, and no `secret` record; the Game Master render tags each non-`open` record; two renders of unchanged state are identical; an Observer render carries no section. | REQ-626, REQ-634 |
 | T756 | Automated | Memory reclassification: `manage_belief (action: subjective_disclose)` sets one record's level and every Player surface reflects it; the gist, claim, affect, salience, ordinal, and id are unchanged; an unknown identifier returns `[NOT_FOUND]` and an unknown level `[INVALID_INPUT]`; a Player call is refused; the action records one audit entry; undo leaves the new level in place. | REQ-635 |
 | T757 | Automated | Memory scan and player export: a Player-audience draft quoting a `secret` memory's gist or claim is redacted, and refused under `strict`; a `guarded` record's claim is redacted for a non-owning audience while an `open` record is untouched; a player-scope export carries `open` records, projects `guarded` records without claim or affect, and omits `secret` records. | REQ-599b, REQ-627 |
+| T758 | Automated | Facet kinds: every accepted facet reports its kind in the kernel; a facet staged without a kind reports the fact kind; a fear facet renders after a value facet; two renders of one version agree on the order. | REQ-636 |
+| T759 | Automated | Facet self-awareness: an unaware facet renders marked for the Game Master and is absent from the Player render; a partly-aware facet is marked; a yes facet renders unmarked. | REQ-637 |
+| T760 | Automated | False but held belief: a belief accepted as false but held renders a false-belief mark for the Game Master, renders unmarked for the Player, and stays marked after belief reconciliation; the marking on a non-belief facet is refused as invalid input. | REQ-638 |
+| T761 | Automated | Facet valence: a stance accepted with a negative valence reports it in the kernel and the render; a valence on a non-stance and non-taste facet is refused; an out-of-range valence is refused. | REQ-639 |
+| T762 | Automated | Facet temporal bounds: a facet whose end date precedes the event-log head is absent from the render and present in the kernel; an in-window facet renders; an inverted window is refused; with an empty event log the bounds do not filter. | REQ-640 |
+| T763 | Automated | Owned contradiction: a contradiction facet naming two current ends reports one tension; the tension survives a belief reconciliation; replacing an end makes the tension dormant without deleting either facet. | REQ-641 |
+| T764 | Automated | Who-they-are renderer: two renders at one identity version and event-log head are byte-identical; an ended facet and a secret facet are absent; the section is absent with no active entity and carries the empty marker when nothing is stated. | REQ-642 |
+| T765 | Automated | Identity Player projection: a Player read of a foreign character through the tool and through the identity resource is refused; an own-character read omits unaware facets and clears the false-but-held mark; the Game Master read is unprojected. | REQ-643 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

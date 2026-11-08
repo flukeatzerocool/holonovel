@@ -35,7 +35,7 @@ is a decision, not a merge.
 | memory node: gist, when/where/who, felt_then/now, salience, fidelity, origin | `subjective_memory` group, roadmap chunk 1 | scheduled |
 | divergence between recollection and fact | divergence verdicts, roadmap chunk 2 | scheduled |
 | `disclosure` (open / guarded / secret) separate from access | memory disclosure axis, roadmap chunk 3 | scheduled |
-| psyche kinds, `awareness`, `false_but_held`, `valence`, `since`/`until`, owned contradiction | identity facets, roadmap chunk 4 | scheduled |
+| psyche kinds, `awareness`, `false_but_held`, `valence`, `since`/`until`, owned contradiction | identity facets, roadmap chunk 4 | adopted — REQ-636–REQ-643 |
 | deterministic selection, retention, recall evaluation | recall quality, roadmap chunk 5 | scheduled |
 
 ## What we deliberately do not take
@@ -46,6 +46,8 @@ is a decision, not a merge.
 | multimodal memory traces (image, audio, video) | Holonovel is text-only |
 | softmax / sampled memory selection | breaks replay determinism; Holonovel specifies a scored, ordinal-tie-broken top-k |
 | reader-defined recall | the format stores memory, the host performs it; Holonovel specifies and measures recall |
+| psyche-node `strength` (0–100 decision weight) | not adopted with the psyche facets: the roadmap does not name it, and ranking belongs with recall quality (chunk 5) |
+| psyche-node typed links other than `conflicts` (`about`, `because`, `supports`) | only the contradiction relation is adopted (`contradicts`); a general facet graph needs its own traversal contract |
 
 ## Review procedure (monthly)
 

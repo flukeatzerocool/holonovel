@@ -163,7 +163,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Evidence | A record of an admitted observation entering the belief layer, carrying provenance and an admission state (REQ-461–464). |
 | Ruling ledger | The GM-only append-only record of verified rulings and their citations, retained across revert and interchange (REQ-589). |
 | Belief State | The engine-maintained per-entity stance on a belief question, reconciled from admitted evidence (REQ-465–472). |
-| Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class, and the compiled identity kernel (REQ-473–483). |
+| Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class and carrying psyche attributes, and the compiled identity kernel (REQ-473–483, 636–643). |
 | Causal State | Validated objective world state maintained through transition proposals and admission decisions (REQ-484–495). |
 | Transition Ledger | The append-only record of causal proposals and their admission decisions, retained as auditable evidence (REQ-484, REQ-491). |
 | Knowledge Corpus | Registered cold reference documents and their per-entity acquisition ledgers (REQ-496–503, REQ-546). |

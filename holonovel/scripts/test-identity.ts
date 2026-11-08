@@ -4,14 +4,14 @@
 // REQ-477 (write-authority isolation), REQ-478 (revision audit), REQ-479
 // (card-bootstrap exclusions), REQ-480 (kernel exposure), REQ-481 (visibility
 // gating), REQ-482 (developmental proposal-only), REQ-483 (source provenance),
-// and REQ-547 (candidate retention bound).
+// REQ-547 (candidate retention bound), and the psyche-depth facets REQ-636–643.
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
-import { resourceReader } from "./lib/jsonrpc.js";
+import { resourceReader, promptReader } from "./lib/jsonrpc.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
@@ -42,6 +42,9 @@ async function stage(p: any, character_id: string, facet: string, value: string,
   return m[1];
 }
 async function listIdentity(p: any, character_id: string): Promise<any> { return JSON.parse(await call(p, "manage_identity", { action: "list", character_id })); }
+async function snapshotIdentity(p: any, character_id: string): Promise<any> { return JSON.parse(await call(p, "manage_identity", { action: "snapshot", character_id })); }
+const briefing = (p: any) => promptReader(send)(p, "badge_briefing");
+function kernelFacets(kernel: any): any[] { return [...kernel.structural, ...kernel.constitutional, ...kernel.core, ...kernel.developmental]; }
 
 async function main() {
   // ── T563: candidate staging (REQ-473) ────────────────────────────────
@@ -190,9 +193,10 @@ async function main() {
     const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id10" }); await call(p, "set_badge", { badge: "game_master" });
     const cid = await makeCharacter(p, "Alice");
     await stage(p, cid, "calling", "maybe a healer", { stability: "developmental" });
+    await stage(p, cid, "fear_of_failure", "not good enough", { stability: "developmental", kind: "fear", awareness: "no" });
     const id = await listIdentity(p, cid);
     assert(id.facets.length === 0 && id.version === 0, "developmental candidate was auto-applied");
-    assert(id.candidates[0].status === "pending" && id.candidates[0].stability === "developmental", "developmental candidate not pending");
+    assert(id.candidates.length === 2 && id.candidates.every((c: any) => c.status === "pending" && c.stability === "developmental"), "developmental candidate not pending");
     await kill(p);
   });
 
@@ -207,6 +211,166 @@ async function main() {
     const carded = id.candidates.find((c: any) => c.facet === "name");
     assert(manual.source === "wiki", "manual source not recorded");
     assert(carded && carded.source === "character_card", "card source not recorded: " + JSON.stringify(carded));
+    await kill(p);
+  });
+
+  // ── T758: facet kinds and render order (REQ-636) ─────────────────────
+  await test("T758/REQ-636: facets carry a psyche kind and render in catalog order", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id15" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    const v = await stage(p, cid, "val", "keeps her word", { kind: "value" });
+    const f = await stage(p, cid, "fear", "burning out", { kind: "fear" });
+    const plain = await stage(p, cid, "calling", "Wandering blade");
+    for (const id of [v, f, plain]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
+    const k = await snapshotIdentity(p, cid);
+    const facet = (n: string) => kernelFacets(k).find((x: any) => x.facet === n);
+    assert(facet("val").kind === "value" && facet("fear").kind === "fear", "kind not preserved in the kernel");
+    assert(facet("calling").kind === "fact", "unset kind did not default to fact");
+    const b = await briefing(p);
+    assert(b.includes("- value: keeps her word") && b.includes("- fear: burning out"), "psyche kinds not rendered");
+    assert(b.indexOf("- value:") < b.indexOf("- fear:"), "catalog order not applied");
+    assert(b.includes("- calling: Wandering blade"), "fact facet did not render as its key");
+    await kill(p);
+  });
+
+  // ── T759: self-awareness (REQ-637) ───────────────────────────────────
+  await test("T759/REQ-637: unaware facets are marked for the GM and never stated to the Player", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id16" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    const c = await stage(p, cid, "shame", "she cannot forgive the fire", { kind: "wound", awareness: "no" });
+    await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: c });
+    const gm = await briefing(p);
+    assert(gm.includes("she cannot forgive the fire") && gm.includes("[unaware]"), "GM render did not mark the unaware facet");
+    await call(p, "set_badge", { badge: "player" });
+    const player = await briefing(p);
+    assert(!player.includes("she cannot forgive the fire"), "unaware facet was stated to the Player");
+    assert(player.includes("### Who They Are"), "Player lost the who-they-are section");
+    await kill(p);
+  });
+
+  // ── T760: false-but-held belief (REQ-638) ────────────────────────────
+  await test("T760/REQ-638: a false belief is marked for the GM, unmarked for the Player, and survives reconciliation", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id17" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    const c = await stage(p, cid, "web", "the web got heavy because nobody paid", { kind: "belief", false_but_held: true });
+    await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: c });
+    assert((await briefing(p)).includes("[false belief]"), "GM render did not mark the false belief");
+    await call(p, "manage_belief", { action: "reconcile", entity_id: cid });
+    assert((await briefing(p)).includes("[false belief]"), "reconciliation cleared the false-belief mark");
+    await call(p, "set_badge", { badge: "player" });
+    const player = await briefing(p);
+    assert(player.includes("the web got heavy because nobody paid"), "Player lost the belief");
+    assert(!player.includes("[false belief]"), "Player saw the false-belief mark");
+    await kill(p);
+  });
+
+  // ── T761: valence (REQ-639) ──────────────────────────────────────────
+  await test("T761/REQ-639: stance valence is preserved and rendered", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id18" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    const c = await stage(p, cid, "brother", "her brother's caution", { kind: "stance", valence: -40 });
+    await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: c });
+    const k = await snapshotIdentity(p, cid);
+    const stance = kernelFacets(k).find((x: any) => x.facet === "brother");
+    assert(stance.valence === -40, "valence not preserved in the kernel: " + JSON.stringify(stance));
+    assert((await briefing(p)).includes("(valence -40)"), "valence not rendered");
+    const refused = await call(p, "manage_identity", { action: "stage", character_id: cid, facet: "x", value: "y", kind: "value", valence: 10 });
+    assert(refused.includes("INVALID_INPUT"), "valence on a value facet was not refused: " + refused.slice(0, 120));
+    await kill(p);
+  });
+
+  // ── T762: temporal bounds (REQ-640) ──────────────────────────────────
+  await test("T762/REQ-640: an ended facet is absent from the render and present in the kernel", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id19" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    await call(p, "manage_diagnostics", { action: "event", text: "a marker event for the identity window" });
+    const old = await stage(p, cid, "old_oath", "an oath she has outgrown", { kind: "value", until: "2000-01-01" });
+    const now = await stage(p, cid, "new_oath", "an oath she keeps", { kind: "value" });
+    for (const id of [old, now]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
+    const b = await briefing(p);
+    assert(b.includes("an oath she keeps"), "in-window facet missing from the render");
+    assert(!b.includes("an oath she has outgrown"), "ended facet rendered");
+    const k = await snapshotIdentity(p, cid);
+    assert(kernelFacets(k).some((x: any) => x.facet === "old_oath"), "ended facet dropped from the kernel");
+    const inverted = await call(p, "manage_identity", { action: "stage", character_id: cid, facet: "bad", value: "window", since: "2026-02-01", until: "2026-01-01" });
+    assert(inverted.includes("INVALID_INPUT"), "inverted window was not refused: " + inverted.slice(0, 120));
+    await kill(p);
+  });
+
+  // ── T763: owned contradiction (REQ-641) ──────────────────────────────
+  await test("T763/REQ-641: a contradiction reports a tension that survives reconciliation", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id20" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    const a = await stage(p, cid, "value_a", "keeps her word", { kind: "value" });
+    const b = await stage(p, cid, "stance_b", "distrusts every oath", { kind: "stance", valence: -30 });
+    const contra = await stage(p, cid, "contra", "preaches patience, works at night", { kind: "contradiction", contradicts: ["value_a", "stance_b"] });
+    for (const id of [a, b, contra]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
+    let k = await snapshotIdentity(p, cid);
+    assert(k.tensions.length === 1, "expected one tension: " + JSON.stringify(k.tensions));
+    assert(k.tensions[0].ends[0] === "stance_b" && k.tensions[0].ends[1] === "value_a", "tension ends not sorted");
+    assert((await briefing(p)).includes("Tension: preaches patience"), "tension not rendered");
+    await call(p, "manage_belief", { action: "reconcile", entity_id: cid });
+    k = await snapshotIdentity(p, cid);
+    assert(k.tensions.length === 1, "tension did not survive reconciliation");
+    const ghost = await stage(p, cid, "contra_ghost", "names no current end", { kind: "contradiction", contradicts: ["ghost_a", "ghost_b"] });
+    await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: ghost });
+    k = await snapshotIdentity(p, cid);
+    assert(k.tensions.length === 1, "a dormant contradiction surfaced a tension");
+    await kill(p);
+  });
+
+  // ── T764: renderer determinism and exclusions (REQ-642) ──────────────
+  await test("T764/REQ-642: two renders are identical; secret and ended facets are absent", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id21" }); await call(p, "set_badge", { badge: "game_master" });
+    const cid = await makeCharacter(p, "Alice");
+    await call(p, "manage_character", { action: "set_active", entity_id: cid });
+    await call(p, "manage_diagnostics", { action: "event", text: "a marker event" });
+    const v = await stage(p, cid, "value_a", "keeps her word", { kind: "value" });
+    const hidden = await stage(p, cid, "hidden", "a secret she keeps", { perspective: "secret" });
+    const ended = await stage(p, cid, "old", "a habit she broke", { kind: "habit", until: "2000-01-01" });
+    for (const id of [v, hidden, ended]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
+    const first = await briefing(p); const second = await briefing(p);
+    assert(first === second, "two renders at one version differ");
+    assert(first.includes("keeps her word"), "current facet missing");
+    assert(!first.includes("a secret she keeps"), "secret facet rendered");
+    assert(!first.includes("a habit she broke"), "ended facet rendered");
+    const bob = await makeCharacter(p, "Bob");
+    await call(p, "manage_character", { action: "set_active", entity_id: bob });
+    const bobId = await stage(p, bob, "temp", "nothing durable");
+    await call(p, "manage_identity", { action: "reject", character_id: bob, candidate_id: bobId });
+    assert((await briefing(p)).includes("[No identity facets to state.]"), "empty state marker missing");
+    await kill(p);
+  });
+
+  // ── T765: Player projection and resource gate (REQ-643) ──────────────
+  await test("T765/REQ-643: a Player reads a projected kernel and is refused a foreign identity", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id22" }); await call(p, "set_badge", { badge: "game_master" });
+    const alice = await makeCharacter(p, "Alice");
+    const bob = await makeCharacter(p, "Bob");
+    for (const [cid, tag] of [[alice, "alice"], [bob, "bob"]] as const) {
+      const belief = await stage(p, cid, "belief_" + tag, `a belief ${tag} holds`, { kind: "belief", false_but_held: true });
+      const unaware = await stage(p, cid, "unaware_" + tag, `a wound ${tag} hides`, { kind: "wound", awareness: "no" });
+      for (const id of [belief, unaware]) await call(p, "manage_identity", { action: "accept", character_id: cid, candidate_id: id });
+    }
+    await call(p, "manage_character", { action: "set_active", entity_id: alice });
+    await call(p, "set_badge", { badge: "player" });
+    const foreign = await call(p, "manage_identity", { action: "list", character_id: bob });
+    assert(foreign.includes("[FORBIDDEN]"), "Player tool read of a foreign identity was not refused");
+    const foreignRes = await readRes(p, `identity://${bob}`);
+    assert(String(foreignRes).includes("FORBIDDEN"), "Player resource read of a foreign identity was not refused");
+    const own = await snapshotIdentity(p, alice);
+    assert(!kernelFacets(own).some((f: any) => f.facet === "unaware_alice"), "Player snapshot carried an unaware facet");
+    const ownBelief = kernelFacets(own).find((f: any) => f.facet === "belief_alice");
+    assert(ownBelief && ownBelief.false_but_held === false, "Player snapshot kept the false-belief mark");
+    await call(p, "set_badge", { badge: "game_master" });
+    const gm = await snapshotIdentity(p, alice);
+    assert(kernelFacets(gm).find((f: any) => f.facet === "belief_alice").false_but_held === true, "GM snapshot lost the false-belief mark");
     await kill(p);
   });
 

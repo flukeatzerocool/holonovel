@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,681 tokens; standard 24,083; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,933 tokens; standard 24,335; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,68 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Psyche-depth identity facets — 2026-11-08
+
+- **D1 — The psyche attributes ride the existing identity record.** `kind`,
+  `awareness`, `false_but_held`, `valence`, `since`, `until`, and `contradicts`
+  are optional fields on `IdentityCandidate` and `IdentityFacet`, defaulted in
+  `normalizeFacetAttributes` at the `identityFor` access seam, so roster files
+  written before this increment load unchanged. Rejected: a parallel psyche
+  store (a second persisted identity surface) and a new tool (REQ-477 makes
+  `manage_identity` the only durable-identity writer). (REQ-636–643)
+- **D2 — The kind catalog is COF 1.2's eleven psyche kinds plus `fact`.**
+  Order: value, belief, want, need, fear, wound, stance, taste, habit,
+  contradiction, rule, fact. `fact` is the default because an authored identity
+  fact (name, calling) is not a psyche node; defaulting it to `belief` would
+  relabel every pre-existing facet. Rejected: free-text kinds (no stable render
+  order). (REQ-636)
+- **D3 — Awareness is COF's `aware`, and a `no` facet is never stated.** The
+  GM render marks `[unaware]` / `[partly aware]`; the Player render states only
+  `yes` facets. Rejected: a boolean (loses "she half knows it") and treating
+  awareness as disclosure (REQ-475 already owns who may see it). (REQ-637)
+- **D4 — `false_but_held` marks a belief for the GM only.** The Player
+  projection keeps the belief and clears the mark, so the player holds what the
+  character holds. Belief reconciliation never writes identity (REQ-477), so the
+  mark survives by construction. (REQ-638)
+- **D5 — Valence does not reorder the render.** The scalar is preserved and
+  printed inline; ordering stays kernel order (facet, revision) because REQ-476
+  fixes determinism there. Rejected: valence-based ordering (a mutable value
+  would move existing lines). (REQ-639)
+- **D6 — `since`/`until` are ISO dates evaluated at the event-log head.** The
+  evaluation instant is the newest event-log entry's `at` for the active Novel;
+  an empty log applies no bounds. Roster-tier state cannot bind to Novel-scoped
+  ordinals, and there is no character-age clock. A facet outside its window
+  stays listable and compiled. Rejected: wall-clock `now` (breaks the
+  determinism clause). (REQ-640)
+- **D7 — An owned contradiction is a `contradiction`-kind facet whose
+  `contradicts` keys name the ends.** Ownership is the node's existence (COF's
+  "acknowledged inner tensions"). A tension exists only while both ends are
+  current facets; a missing end makes it dormant, not deleted. Rejected: a
+  symmetric link on each end (two records to keep aligned) and a first-class
+  tension record type. (REQ-641)
+- **D8 — The renderer is a supplementary briefing section for the active
+  entity.** `### Who They Are` follows `### Point of view`, renders from the
+  compiled kernel (so `secret` facets are absent), and is truncatable under
+  REQ-135. One marker, `[No identity facets to state.]`, covers both "none
+  accepted" and "none statable to this badge". (REQ-642)
+- **D9 — No new config.** The facet set is bounded by distinct facet keys
+  (acceptance replaces per key) and REQ-135 bounds total briefing size.
+  Rejected: `TTRPG_IDENTITY_BRIEFING_MAX`.
+- **D10 — The Player projection also closes the identity-resource gap.** The
+  resource previously had no badge gate; because the new attributes are GM
+  knowledge, `identity://<character>` now applies the same gate as the tool:
+  its listing offers only the active character to a Player and a foreign read
+  returns a `{"error":"FORBIDDEN"}` body. (REQ-480, REQ-481, REQ-643)
+- **D11 — The compiler version advances to `2026.11.08`.** The kernel shape
+  changed (attributes plus `tensions`), so cached kernels keyed by the old
+  version must not be reused. (REQ-476)
+- **Deferred — `strength`.** COF's 0–100 decision weight is not adopted: the
+  roadmap does not name it, and ranking belongs with recall quality. (REQ-636)
+- **Budget update.** The `manage_identity` description grew to 989 bytes (under
+  the 1000-byte recorded budget); the measured catalog grew to 27,933 full /
+  24,335 standard tokens, recorded in the header line above. (REQ-024c,
+  REQ-571)
 
 ### Subjective memory disclosure axis — 2026-11-08
 

@@ -460,7 +460,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Evidence | A record of an admitted observation entering the belief layer, carrying provenance and an admission state (REQ-461–464). |
 | Ruling ledger | The GM-only append-only record of verified rulings and their citations, retained across revert and interchange (REQ-589). |
 | Belief State | The engine-maintained per-entity stance on a belief question, reconciled from admitted evidence (REQ-465–472). |
-| Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class, and the compiled identity kernel (REQ-473–483). |
+| Character Identity | Roster-tier identity state — staged candidates, accepted facets grouped by stability class and carrying psyche attributes, and the compiled identity kernel (REQ-473–483, 636–643). |
 | Causal State | Validated objective world state maintained through transition proposals and admission decisions (REQ-484–495). |
 | Transition Ledger | The append-only record of causal proposals and their admission decisions, retained as auditable evidence (REQ-484, REQ-491). |
 | Knowledge Corpus | Registered cold reference documents and their per-entity acquisition ledgers (REQ-496–503, REQ-546). |
@@ -519,7 +519,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 | 5.24   | Temporal Event Log and Branching                        | 455–460, 601–605 |
 | 5.25   | Belief and Evidence                                     | 461–472 |
-| 5.26   | Character Identity                                      | 473–483, 547 |
+| 5.26   | Character Identity                                      | 473–483, 547, 636–643 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
 | 5.28   | Knowledge Corpus                                        | 496–503, 546 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
@@ -1784,7 +1784,7 @@ Narrate scenes, make decisions for all player characters, advance combat.
 Play the Novel." The **State surface layer** (sourced from the active badge per REQ-032) reports the current scene state (REQ-076), the narrative POV directive (REQ-220), and active entities with summary stats and presence markers (REQ-074, REQ-307). The surface reports active NPCs (REQ-075), active countdowns badge-filtered by `badge_scope` (REQ-073), and active lore entries (REQ-083). The surface reports active adventure content (REQ-079) and registered tools relevant to the current scene type (REQ-087). Active combat state shows the round, turn order, and current participant (if in-combat; REQ-043).
 
 **REQ-109c2 — Badge briefing composition (Part c2).**
-The surface also reports active entity personality fields and voice examples, badge-filtered per REQ-077. The surface reports the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), and Novel setup metadata (REQ-089). The setup metadata includes a "Session zero not yet completed" reminder when `session_zero_completed` is false. The surface also reports a pointer to the intro prompt (REQ-063).
+The surface reports the who-they-are identity summary for the active entity (REQ-642) immediately after the POV directive. The surface also reports active entity personality fields and voice examples, badge-filtered per REQ-077. The surface reports the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), and Novel setup metadata (REQ-089). The setup metadata includes a "Session zero not yet completed" reminder when `session_zero_completed` is false. The surface also reports a pointer to the intro prompt (REQ-063).
 
 **REQ-109c3 — Badge briefing composition (Part c3).**
 The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), subjective memory records selected per REQ-626 for the Game Master and per REQ-634 for the Player, world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
@@ -1793,7 +1793,7 @@ The surface further reports story journal entries whose entity IDs overlap the a
 Groups whose data source is empty SHALL include an explicit empty-state marker describing which category is empty. Markers preserve the expected briefing structure and prevent the caller from inferring non-existent content. The enumeration order above is the builder's required default section ordering for `badge_briefing`.
 
 **REQ-109e — Badge briefing composition (Part e).**
-Decision-critical groups precede the section boundary. The decision-critical groups include scene state, the POV directive, entities, combat state, and triggered lore. The group also includes active NPCs, active countdowns, narrative threads, campaign memory (REQ-310), subjective memory (REQ-626), world in motion (REQ-233a), and available actions (REQ-084a). Supplementary guidance and navigation groups follow. The supplementary groups include badge foundations, anti-slop guidance, narrative tone samples, active adventure content, registered tools, and entity personality fields. The supplementary groups also include the narrative directive, player signals, Novel setup metadata, autonomy state, and the intro pointer.
+Decision-critical groups precede the section boundary. The decision-critical groups include scene state, the POV directive, entities, combat state, and triggered lore. The group also includes active NPCs, active countdowns, narrative threads, campaign memory (REQ-310), subjective memory (REQ-626), world in motion (REQ-233a), and available actions (REQ-084a). Supplementary guidance and navigation groups follow. The supplementary groups include badge foundations, anti-slop guidance, narrative tone samples, active adventure content, registered tools, entity personality fields, and the who-they-are identity summary (REQ-642). The supplementary groups also include the narrative directive, player signals, Novel setup metadata, autonomy state, and the intro pointer.
 
 **REQ-109f — Badge briefing composition (Part f).**
 The Game Master may override this order via `manage_context (action: briefing_order)` (REQ-082). *Acceptance criterion:* `badge_briefing` for a Novel with entities, combat, countdowns, and lore includes all mandatory groups; an empty data source displays its empty-state marker; decision-critical groups appear before supplementary groups. _Check:_ T109, T110, T149.
@@ -4674,7 +4674,7 @@ WHEN the server admits, retracts, or reclassifies evidence for an entity and rec
 
 **REQ-475 — Identity perspective.** Every candidate and facet SHALL carry a perspective distinguishing self-definition, biographical fact, public reputation, secret, or unknown; a secret-perspective facet SHALL be excluded from the compiled kernel. *Acceptance criterion:* a biographical facet retains its perspective, and a secret facet is absent from the kernel. _Check:_ T565.
 
-**REQ-476 — Compiled identity kernel.** Accepted facets SHALL compile into a deterministic kernel grouped by stability class and keyed by the character's identity version and a compiler version; two compilations at one identity version SHALL be identical, and an acceptance SHALL advance the version. *Acceptance criterion:* repeated snapshots share a version, and an acceptance produces a kernel at the next version. _Check:_ T566.
+**REQ-476 — Compiled identity kernel.** Accepted facets SHALL compile into a deterministic kernel grouped by stability class and keyed by the character's identity version and a compiler version; the kernel SHALL preserve each facet's psyche attributes and expose the owned contradictions as a tension list. Two compilations at one identity version SHALL be identical, and an acceptance SHALL advance the version. *Acceptance criterion:* repeated snapshots share a version, and an acceptance produces a kernel at the next version. _Check:_ T566.
 
 **REQ-477 — Identity write-authority isolation.** Conversation, belief reconciliation, memory, and runtime state SHALL NOT write durable identity; identity acceptance is the mutation path for durable identity. *Acceptance criterion:* a session of observations, beliefs, and scene changes leaves the identity version unchanged. _Check:_ T567.
 
@@ -4683,16 +4683,32 @@ WHEN the server accepts a facet again, THE server SHALL replace its prior value 
 
 **REQ-479 — Character-card bootstrap exclusions.** Bootstrapping identity from a character card SHALL stage the card's identity fields as candidates and SHALL exclude scenario, first-message, and example-dialogue fields; non-developmental authored fields MAY be accepted as facets under the configured bootstrap policy, while developmental fields SHALL remain candidates. *Acceptance criterion:* a card's scenario and first message are not staged, while its name and description are. _Check:_ T569.
 
-**REQ-480 — Identity kernel exposure.** The compiled identity kernel SHALL be served through `manage_identity (action: snapshot)` and an `identity://<character>` resource for consumption by the character sheet and briefing surfaces. *Acceptance criterion:* snapshot and the identity resource return the same kernel grouped by stability class. _Check:_ T570.
+**REQ-480 — Identity kernel exposure.** The compiled identity kernel SHALL be served through `manage_identity (action: snapshot)` and an `identity://<character>` resource for consumption by the character sheet and briefing surfaces; a Player read SHALL return the projection defined in REQ-643. *Acceptance criterion:* snapshot and the identity resource return the same kernel grouped by stability class for one character and badge. _Check:_ T570.
 
-**REQ-481 — Identity visibility and badge gating.** Identity reads SHALL be badge-filtered: the Game Master reads every character, a Player reads only the active character, and the Observer reads without mutating; identity mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another character's identity returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T571.
+**REQ-481 — Identity visibility and badge gating.** Identity reads through either the tool or the identity resource SHALL be badge-filtered: the Game Master reads every character, a Player reads only the active character and receives the projection defined in REQ-643, and the Observer reads without mutating; identity mutation SHALL require the Game Master badge. *Acceptance criterion:* a Player request for another character's identity returns [FORBIDDEN], and an Observer mutation is rejected. _Check:_ T571.
 
-**REQ-482 — Developmental proposal-only.** Identity candidates whose stability class is developmental SHALL remain proposals; the server SHALL NOT apply them to durable identity without explicit acceptance, and bootstrap SHALL NOT auto-accept them. *Acceptance criterion:* a developmental candidate leaves the version unchanged until explicitly accepted. _Check:_ T572.
+**REQ-482 — Developmental proposal-only.** Identity candidates whose stability class is developmental, including a candidate that carries psyche attributes, SHALL remain proposals; the server SHALL NOT apply them to durable identity without explicit acceptance, and bootstrap SHALL NOT auto-accept them. *Acceptance criterion:* a developmental candidate leaves the version unchanged until explicitly accepted. _Check:_ T572.
 
 **REQ-483 — Identity source provenance.** Every identity candidate SHALL record its provenance — character card, manual entry, or another named source — preserved on the accepted facet. *Acceptance criterion:* a manual candidate and a card candidate report their distinct sources. _Check:_ T573.
 
 **REQ-547 — Identity candidate retention bound.**
 The server SHALL bound the identity candidates it retains per character by a configured cap; exceeding the cap SHALL evict the oldest candidates first without affecting accepted facets and the compiled kernel. *Acceptance criterion:* with a cap of 2, staging a third candidate evicts the oldest and the accepted facets remain. _Check:_ T630.
+
+**REQ-636 — Facet kinds.** Every identity facet SHALL carry a kind drawn from the catalog defined in the state model, recorded at acceptance and preserved in the compiled kernel; a facet accepted without a kind SHALL carry the catalog's fact kind. The who-they-are renderer SHALL order facets by the catalog's declared order. *Acceptance criterion:* a fear facet reports its kind in the kernel and renders after a value facet. _Check:_ T758.
+
+**REQ-637 — Facet self-awareness.** Every identity facet SHALL carry an awareness of yes, partly, or no, recorded at acceptance and preserved in the compiled kernel. A facet whose awareness is not yes SHALL be marked for the Game Master and SHALL NOT be stated to the Player. *Acceptance criterion:* an unaware facet renders marked for the Game Master and is absent from the Player's render. _Check:_ T759.
+
+**REQ-638 — False but held belief.** A facet of belief kind MAY be recorded as false but held; the server SHALL mark it in the Game Master's render, SHALL NOT mark it for the Player, and SHALL NOT alter it through belief reconciliation. *Acceptance criterion:* a false belief remains marked after the entity's beliefs are reconciled. _Check:_ T760.
+
+**REQ-639 — Facet valence.** A facet of stance or taste kind MAY carry a valence within a bounded signed range declared in the state model; the server SHALL preserve it in the compiled kernel and SHALL render it with the facet. *Acceptance criterion:* a stance accepted with a negative valence reports that valence in the kernel and in the render. _Check:_ T761.
+
+**REQ-640 — Facet temporal bounds.** A facet MAY carry a start and an end date; the server SHALL preserve both in the compiled kernel and SHALL treat the facet as current only when the evaluation instant falls inside the bounds. The evaluation instant SHALL be the newest event-log entry for the active Novel; when the log is empty no bounds apply. A facet outside its bounds SHALL remain listable and compiled. *Acceptance criterion:* an ended facet is absent from the render and present in the kernel. _Check:_ T762.
+
+**REQ-641 — Owned contradiction.** An identity facet of contradiction kind SHALL name the facet keys it holds in tension, and the compiled kernel SHALL expose a tension for each such facet whose named ends are both current facets. *Acceptance criterion:* a contradiction over two current facets reports a tension that survives a belief reconciliation. _Check:_ T763.
+
+**REQ-642 — Who-they-are renderer.** `badge_briefing` SHALL include a deterministic who-they-are section for the active entity, compiled from the identity kernel, ordered by the facet catalog, identical across two renders at one identity version and event-log head, and absent when no entity is active. *Acceptance criterion:* two renders match byte for byte, and an ended or secret facet is absent. _Check:_ T764.
+
+**REQ-643 — Identity Player projection.** Identity reads SHALL return the full kernel to the Game Master and a Player projection to the Player that omits facets whose awareness is not yes and clears false-but-held markings; a Player read of another character's identity through the tool or the identity resource SHALL be refused. *Acceptance criterion:* a Player read of a foreign character is refused and an own-character read omits unaware facets. _Check:_ T765.
 
 ### 5.27 Causal Transition Validation
 
@@ -7521,13 +7537,22 @@ wherever they include property-group state. It mutates only through
 `manage_staging (action: cast|next_speaker)` and does not couple to any
 property group.
 
-**Character identity.** Character identity state (REQ-473–483) — the staged
-candidates, accepted facets, and compiled kernel — is Roster-tier, permanent
-state attached to roster baselines. It is self-contained: it mutates only
-through `manage_identity`, does not couple to any Novel property group, and is
-preserved with roster baselines wherever roster references are preserved
-(REQ-240a). A future identity surface that defines cross-property effects SHALL
-register as a property group with archetypes and coupling rows per REQ-370.
+**Character identity.** Character identity state (REQ-473–483, 636–643) — the
+staged candidates, accepted facets, and compiled kernel — is Roster-tier,
+permanent state attached to roster baselines. Every candidate and facet
+carries a psyche kind drawn from the catalog value, belief, want, need, fear,
+wound, stance, taste, habit, contradiction, rule, and fact, where fact is the
+default for an authored identity fact; the renderer's facet order is that
+catalog order with fact last. A facet also carries a self-awareness of yes,
+partly, or no and may carry a false-but-held marking on a belief, a valence on
+the bounded signed scale from the hostile end to the warm end on a stance or
+taste, a start and an end date, and the facet keys of an owned contradiction.
+A tension exists while a contradiction facet's named ends are both current
+facets. Identity is self-contained: it mutates only through `manage_identity`,
+does not couple to any Novel property group, and is preserved with roster
+baselines wherever roster references are preserved (REQ-240a). A future
+identity surface that defines cross-property effects SHALL register as a
+property group with archetypes and coupling rows per REQ-370.
 
 **Semantic index.** The semantic index (REQ-504–509) is a derived,
 session-scoped advisory surface, not a Novel property group: it is rebuilt
@@ -10501,6 +10526,14 @@ date-stamps matching CHANGELOG entries.
 | REQ-633 | Subjective divergence probes | 2026-11-08 |
 | REQ-634 | Player-badge memory exposure | 2026-11-08 |
 | REQ-635 | Memory reclassification | 2026-11-08 |
+| REQ-636 | Facet kinds | 2026-11-08 |
+| REQ-637 | Facet self-awareness | 2026-11-08 |
+| REQ-638 | False but held belief | 2026-11-08 |
+| REQ-639 | Facet valence | 2026-11-08 |
+| REQ-640 | Facet temporal bounds | 2026-11-08 |
+| REQ-641 | Owned contradiction | 2026-11-08 |
+| REQ-642 | Who-they-are renderer | 2026-11-08 |
+| REQ-643 | Identity Player projection | 2026-11-08 |
 
 ---
 
@@ -11071,7 +11104,7 @@ diet.
 | T569 | Automated | Card-bootstrap exclusions: a card's scenario and first message are not staged, while its name and description are. | REQ-479 |
 | T570 | Automated | Identity kernel exposure: snapshot and the `identity://<character>` resource return the kernel grouped by stability class. | REQ-480 |
 | T571 | Automated | Identity badge gating: a Player request for another character's identity returns [FORBIDDEN]; an Observer mutation is rejected. | REQ-481 |
-| T572 | Automated | Developmental proposal-only: a developmental candidate leaves the version unchanged until explicitly accepted. | REQ-482 |
+| T572 | Automated | Developmental proposal-only: a developmental candidate, including one carrying psyche attributes, leaves the version unchanged until explicitly accepted. | REQ-482 |
 | T573 | Automated | Identity source provenance: a manual candidate and a card candidate report their distinct sources. | REQ-483 |
 | T574 | Automated | Transition proposal: proposing a transition leaves the admitted state unchanged and records the proposal. | REQ-484 |
 | T575 | Automated | Admission decision: a valid proposal is admitted and an incompatible one is refused with a named decision. | REQ-485 |
@@ -11186,6 +11219,14 @@ diet.
 | T755 | Automated | Player briefing exposure: a Player `badge_briefing` renders an `open` record in full, a `guarded` record as gist without claim or affect, and no `secret` record; the Game Master render tags each non-`open` record; two renders of unchanged state are identical; an Observer render carries no section. | REQ-626, REQ-634 |
 | T756 | Automated | Memory reclassification: `manage_belief (action: subjective_disclose)` sets one record's level and every Player surface reflects it; the gist, claim, affect, salience, ordinal, and id are unchanged; an unknown identifier returns `[NOT_FOUND]` and an unknown level `[INVALID_INPUT]`; a Player call is refused; the action records one audit entry; undo leaves the new level in place. | REQ-635 |
 | T757 | Automated | Memory scan and player export: a Player-audience draft quoting a `secret` memory's gist or claim is redacted, and refused under `strict`; a `guarded` record's claim is redacted for a non-owning audience while an `open` record is untouched; a player-scope export carries `open` records, projects `guarded` records without claim or affect, and omits `secret` records. | REQ-599b, REQ-627 |
+| T758 | Automated | Facet kinds: every accepted facet reports its kind in the kernel; a facet staged without a kind reports the fact kind; a fear facet renders after a value facet; two renders of one version agree on the order. | REQ-636 |
+| T759 | Automated | Facet self-awareness: an unaware facet renders marked for the Game Master and is absent from the Player render; a partly-aware facet is marked; a yes facet renders unmarked. | REQ-637 |
+| T760 | Automated | False but held belief: a belief accepted as false but held renders a false-belief mark for the Game Master, renders unmarked for the Player, and stays marked after belief reconciliation; the marking on a non-belief facet is refused as invalid input. | REQ-638 |
+| T761 | Automated | Facet valence: a stance accepted with a negative valence reports it in the kernel and the render; a valence on a non-stance and non-taste facet is refused; an out-of-range valence is refused. | REQ-639 |
+| T762 | Automated | Facet temporal bounds: a facet whose end date precedes the event-log head is absent from the render and present in the kernel; an in-window facet renders; an inverted window is refused; with an empty event log the bounds do not filter. | REQ-640 |
+| T763 | Automated | Owned contradiction: a contradiction facet naming two current ends reports one tension; the tension survives a belief reconciliation; replacing an end makes the tension dormant without deleting either facet. | REQ-641 |
+| T764 | Automated | Who-they-are renderer: two renders at one identity version and event-log head are byte-identical; an ended facet and a secret facet are absent; the section is absent with no active entity and carries the empty marker when nothing is stated. | REQ-642 |
+| T765 | Automated | Identity Player projection: a Player read of a foreign character through the tool and through the identity resource is refused; an own-character read omits unaware facets and clears the false-but-held mark; the Game Master read is unprojected. | REQ-643 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

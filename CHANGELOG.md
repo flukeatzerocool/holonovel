@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-08 — Psyche-depth identity facets, who-they-are renderer, and tension surface
+
+- Extends identity facets with the psyche attributes the roadmap names — kind,
+  self-awareness, false-but-held belief, valence, start and end dates, and owned
+  contradictions — carried by candidates and accepted facets, preserved by the
+  compiled kernel, and defaulted on load so existing roster files behave as
+  before (REQ-636–REQ-641).
+- Renders a deterministic `### Who They Are` briefing section for the active
+  entity, after the POV directive: the catalog order is fixed, false beliefs and
+  self-unaware facets are marked for the Game Master, a Player sees only stated
+  facets, date bounds are evaluated at the event-log head, and two renders at
+  one identity version are byte-identical (REQ-642).
+- Adds the owned-contradiction tension surface: a contradiction facet names the
+  facets it holds in tension, the kernel exposes the live tensions, and a
+  tension survives belief reconciliation (REQ-641).
+- Closes the identity resource's missing badge gate and projects the Player's
+  own identity read: unaware facets are omitted and the false-belief mark is
+  cleared, through both `manage_identity` and `identity://<character>`
+  (REQ-480, REQ-481, REQ-643).
+- Tests T758–T765 in `test-identity.ts`, with T572 extended to a developmental
+  psyche facet. Tool count stays 37; `manage_identity` gains seven optional
+  parameters and no new action. Roadmap chunk 4 of 5 is retired.
+
 ## 2026-11-08 — Subjective memory disclosure axis and Player exposure
 
 - Adds a `disclosure` level (`open`, `guarded`, `secret`) to every

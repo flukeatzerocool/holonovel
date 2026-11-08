@@ -34,3 +34,22 @@ export async function readResource(
 export function resourceReader(send: LenientSend, opts: ResourceReaderOptions = {}): (proc: any, uri: string) => Promise<string> {
   return (proc, uri) => readResource(send, proc, uri, opts);
 }
+
+// Read a prompt and join its `messages[].content.text`. Shared by the
+// harnesses that render `badge_briefing` and assert on section content.
+export async function readPrompt(
+  send: LenientSend,
+  proc: any,
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<string> {
+  const resp = await send(proc, { method: "prompts/get", params: { name, arguments: args } });
+  if (resp.error) throw new Error(`prompts/get ${name}: ${JSON.stringify(resp.error)}`);
+  const messages = resp.result?.messages ?? [];
+  return messages.map((m: any) => m?.content?.text ?? "").join("\n");
+}
+
+// Bind a harness's local `send` into a `(proc, name, args?) => Promise<string>` reader.
+export function promptReader(send: LenientSend): (proc: any, name: string, args?: Record<string, unknown>) => Promise<string> {
+  return (proc, name, args = {}) => readPrompt(send, proc, name, args);
+}
