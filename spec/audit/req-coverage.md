@@ -578,4 +578,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-620 | Local artifact registry | 5.7 Determinism, Safety, and Performance | C | T738, S6 | — |
 | REQ-621 | Artifact admission (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T739 | — |
 | REQ-622 | Room hazard annotations (3 sub-parts) | 5.10 World-Model Layer | C | T741, T742 | — |
+| REQ-623 | Subjective memory record | 5.35 Subjective Memory | C | T743 | — |
+| REQ-624 | Subjective memory recording | 5.35 Subjective Memory | C | T743, T744 | — |
+| REQ-625 | Subjective memory read and gating | 5.35 Subjective Memory | C | T744 | — |
+| REQ-626 | Deterministic briefing selection | 5.35 Subjective Memory | C | T745 | — |
+| REQ-627 | Persistence and retention | 5.35 Subjective Memory | C | T746 | — |
+| REQ-628 | Separation from recorded state | 5.35 Subjective Memory | C | T747 | — |
 

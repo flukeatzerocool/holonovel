@@ -98,7 +98,7 @@ src/library.ts          Package library entry: core and world namespaces plus
   seeded starter on a fresh install) and refuses by slug when several exist
 - **close_session** (no params) — composite: recap and save context (REQ-577)
 - **take_turn** (intent/entity_id?) — composite: parser resolution, suggestions, and a turn handle (REQ-574/REQ-577)
-- **manage_belief** (action: list/get/evidence/admit/retract/conflicts/reconcile/knowledge_query/perception_record/perception_list/perception_for_entity/perception_for_event) — per-entity evidence, reconciled belief stances, one-entity knowledge queries, and the perception ledger (REQ-461–REQ-472, REQ-540–REQ-545)
+- **manage_belief** (action: list/get/evidence/admit/retract/conflicts/reconcile/knowledge_query/perception_record/perception_list/perception_for_entity/perception_for_event/subjective_record/subjective_list) — per-entity evidence, reconciled belief stances, one-entity knowledge queries, the perception ledger, and the GM-only subjective-memory store (REQ-461–REQ-472, REQ-540–REQ-545, REQ-623–REQ-628)
 - **manage_identity** (action: stage/accept/reject/list/snapshot/bootstrap) — Roster-tier character identity: staged candidates, accepted facets, versioned kernel (REQ-473–REQ-483)
 - **manage_knowledge** (action: index_build/index_status/index_list/index_search/index_relations/graph_build/graph_status/graph_get/graph_nodes/graph_edges/graph_neighbors) — derived semantic index (REQ-504–REQ-509) and knowledge-graph projection (REQ-510–REQ-514); in-memory, advisory, read-only reads
 - **manage_agent** (action: create/list/get/start/advance/complete/fail/cancel) — durable NPC/agent task and action lifecycle (REQ-522–REQ-530)

@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Subjective memory store (GM-only)
-
-- Add a `subjective_memory` §7.7 group: per-entity records bound to an event
-  ordinal, with structured claims, `felt_then`, `salience`, and `origin`;
-  deterministic capped selection into the GM briefing.
-- Add recording and read actions on `manage_belief` / `manage_context`; report
-  counts in `spec_health`; name the surface in the §5.19 guardrails.
-
-**Trigger:** shipped when `check:fast` is green, the new REQs are cited in
-server source with passing tests, and the coverage register lists them as
-evidenced.
-
 ## Memory divergence verdicts
 
 - Check a memory's structured claims against recorded state and return a

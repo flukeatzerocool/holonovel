@@ -4,7 +4,10 @@
 // REQ-465 (stance materialization), REQ-466 (independent corroboration),
 // REQ-467 (contradiction preservation), REQ-468 (refresh), REQ-469 (family
 // policies), REQ-470 (single-value predicates), REQ-471 (branch inheritance),
-// and REQ-472 (badge gating).
+// and REQ-472 (badge gating). Subjective memory: REQ-623 (record), REQ-624
+// (recording action), REQ-625 (read and gating), REQ-626 (deterministic
+// briefing selection), REQ-627 (persistence and retention), and REQ-628
+// (separation from recorded state).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -29,6 +32,39 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
 async function newNovel(p: any, name: string) { await call(p, "manage_novel", { action: "create", name }); await call(p, "set_badge", { badge: "game_master" }); }
 async function admit(p: any, args: any) { return call(p, "manage_belief", { action: "admit", ...args }); }
+async function prompt(proc: any, name: string, args: any = {}): Promise<string> {
+  const r = await send(proc, { method: "prompts/get", params: { name, arguments: args } });
+  if (r.error) throw new Error(`${name} prompt: ${r.error.message ?? JSON.stringify(r.error)}`);
+  const msgs = r.result?.messages ?? [];
+  return msgs.map((m: any) => m?.content?.text ?? "").join("\n");
+}
+// REQ-626 — extract one briefing section by heading, up to the next heading.
+function section(text: string, heading: string): string {
+  const i = text.indexOf(heading);
+  if (i < 0) return "";
+  const rest = text.slice(i + heading.length);
+  const end = rest.search(/\n#{1,3} /);
+  return heading + (end < 0 ? rest : rest.slice(0, end));
+}
+async function present(p: any, name: string): Promise<string> {
+  const created = await call(p, "manage_character", { action: "create", name });
+  const id = created.match(/Entity id ([a-z0-9_]+)/i)?.[1];
+  if (!id) throw new Error(`create did not return an entity id: ${created.slice(0, 160)}`);
+  await call(p, "manage_staging", { action: "presence", entity_ids: [id] });
+  return id;
+}
+async function memory(p: any, entity: string, gist: string, extra: any = {}) {
+  const { subject, predicate, object, ...rest } = extra;
+  return call(p, "manage_belief", {
+    action: "subjective_record",
+    subjective_entity: entity,
+    subjective_gist: gist,
+    subjective_subject: subject ?? "the bridge",
+    subjective_predicate: predicate ?? "collapsed under",
+    subjective_object: object ?? "the wagon",
+    ...rest,
+  });
+}
 async function listBeliefs(p: any, entity_id: string): Promise<any[]> { const t = await call(p, "manage_belief", { action: "list", entity_id, detail: true }); if (/^\[OK\] No /.test(t.trim())) return []; try { return JSON.parse(t); } catch { throw new Error(`beliefs were not JSON: ${t.slice(0, 200)}`); } }
 function q(s: string, p1: string, o: string) { return `${s}|${p1}|${o}`.toLowerCase(); }
 
@@ -207,6 +243,140 @@ async function main() {
     const onBeliefs = await listBeliefs(p2, "hero");
     await kill(p2);
     assert(onBeliefs.length === 1 && onBeliefs[0].accepted === true, "stance not materialized when reconciliation enabled: " + JSON.stringify(onBeliefs));
+  });
+
+  // ── T743: subjective memory record (REQ-623, REQ-624) ────────────────
+  await test("T743/REQ-623: record carries entity, ordinal, claim, affect, salience, origin", async () => {
+    const p = await boot(); await newNovel(p, "subj1");
+    const id = await present(p, "Hero");
+    await call(p, "manage_diagnostics", { action: "event", text: "The bridge collapses under the wagon." });
+    const res = await memory(p, id, "the bridge gave way", {
+      subject: "the bridge",
+      predicate: "collapsed under",
+      object: "the wagon",
+      subjective_polarity: "negative",
+      subjective_felt_then: "terror",
+      subjective_salience: 0.9,
+      subjective_origin: "witnessed",
+    });
+    assert(res.includes("[OK]"), "record refused: " + res.slice(0, 200));
+    const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(recs.length === 1, "expected one memory, got " + recs.length);
+    const r = recs[0];
+    assert(r.entity_id === id && r.gist === "the bridge gave way" && r.felt_then === "terror" && r.salience === 0.9 && r.origin === "witnessed", "fields wrong: " + JSON.stringify(r));
+    assert(r.claim.subject === "the bridge" && r.claim.predicate === "collapsed under" && r.claim.object === "the wagon" && r.claim.polarity === "negative", "claim wrong: " + JSON.stringify(r.claim));
+    assert(typeof r.event_ordinal === "number" && r.event_ordinal >= 1, "ordinal not bound: " + JSON.stringify(r.event_ordinal));
+    await kill(p);
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "subj1" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    const after = JSON.parse(await call(p2, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(after.length === 1 && after[0].gist === "the bridge gave way", "memory did not survive a restart");
+    await kill(p2);
+  });
+
+  // ── T744: badge gating (REQ-624, REQ-625) ────────────────────────────
+  await test("T744/REQ-625: subjective memory is Game Master only", async () => {
+    const p = await boot(); await newNovel(p, "subj2");
+    const id = await present(p, "Hero");
+    await memory(p, id, "a remembered shout");
+    const before = await call(p, "manage_context", { action: "history" });
+    await call(p, "set_badge", { badge: "player" });
+    const read = await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id });
+    assert(read.includes("[FORBIDDEN]"), "Player read was not refused: " + read.slice(0, 160));
+    const write = await memory(p, id, "a Player write");
+    assert(write.includes("[FORBIDDEN]"), "Player write was not refused: " + write.slice(0, 160));
+    await call(p, "set_badge", { badge: "observer" });
+    const obs = await call(p, "manage_belief", { action: "subjective_list" });
+    assert(obs.includes("[FORBIDDEN]"), "Observer read was not refused: " + obs.slice(0, 160));
+    const after = await call(p, "manage_context", { action: "history" });
+    assert(before === after, "a refused read advanced the event log");
+    await kill(p);
+  });
+
+  // ── T745: deterministic capped GM section (REQ-626) ──────────────────
+  await test("T745/REQ-626: GM section is deterministic, ordered, capped, GM-only", async () => {
+    const p = await boot(); await newNovel(p, "subj3");
+    const id = await present(p, "Hero");
+    await call(p, "manage_diagnostics", { action: "event", text: "one" });
+    await memory(p, id, "low-salience memory", { subjective_salience: 0.2 });
+    await call(p, "manage_diagnostics", { action: "event", text: "two" });
+    await memory(p, id, "high-salience memory", { subjective_salience: 0.95, subjective_event_ordinal: 2 });
+    await memory(p, id, "second high memory", { subjective_salience: 0.95, subjective_event_ordinal: 2 });
+    const b1 = section(await prompt(p, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
+    const b2 = section(await prompt(p, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
+    assert(b1.length > 0, "GM briefing has no Subjective Memory section");
+    assert(b1 === b2, "two renders of unchanged state differ");
+    const low = b1.indexOf("low-salience memory");
+    const high = b1.indexOf("high-salience memory");
+    const second = b1.indexOf("second high memory");
+    assert(low > 0 && high > 0 && second > 0, "not all memories rendered: " + b1);
+    assert(high < low && second < low, "salience ordering wrong: " + b1);
+    assert(high < second, "equal-salience tie-break should order by ascending record id: " + b1);
+    await call(p, "set_badge", { badge: "player" });
+    const player = section(await prompt(p, "badge_briefing", { badge: "player" }), "## Subjective Memory");
+    assert(player === "", "Player briefing leaked the subjective-memory section");
+    await kill(p);
+    // Cap: one record at most.
+    process.env.TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX = "1";
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "subj3" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    const capped = section(await prompt(p2, "badge_briefing", { badge: "game_master" }), "## Subjective Memory");
+    await kill(p2);
+    delete process.env.TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX;
+    assert((capped.match(/^- \[/gm) ?? []).length === 1, "briefing cap not honored: " + capped);
+  });
+
+  // ── T746: persistence, cap eviction, checkpoint, count (REQ-627) ─────
+  await test("T746/REQ-627: storage cap evicts oldest; checkpoint keeps later records; count reported", async () => {
+    process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES = "1";
+    const p = await boot(); await newNovel(p, "subj4");
+    const id = await present(p, "Hero");
+    await memory(p, id, "older memory");
+    await memory(p, id, "newer memory");
+    const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(recs.length === 1 && recs[0].gist === "newer memory", "cap did not evict oldest-first: " + JSON.stringify(recs));
+    const health = await call(p, "manage_diagnostics", { action: "health" });
+    assert(health.includes('"subjective_memory_count": 1'), "spec_health did not report the count: " + health.slice(0, 300));
+    await kill(p);
+    delete process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES;
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "subj4" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    await call(p2, "manage_archive", { action: "checkpoint_set", label: "cp" });
+    await memory(p2, id, "after the checkpoint");
+    const restore = await call(p2, "manage_archive", { action: "checkpoint_restore", label: "cp" });
+    assert(restore.includes("[NEED_INPUT]"), "restore did not ask for confirmation: " + restore.slice(0, 160));
+    await call(p2, "respond_decision", { decision: "restore_checkpoint:cp", option: "yes" });
+    const after = JSON.parse(await call(p2, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(after.some((r: any) => r.gist === "after the checkpoint"), "checkpoint restore dropped a post-checkpoint record");
+    await kill(p2);
+  });
+
+  // ── T747: separation from recorded state (REQ-628) ───────────────────
+  await test("T747/REQ-628: recording a memory leaves belief, evidence, perception, and the event log alone", async () => {
+    const p = await boot(); await newNovel(p, "subj5");
+    const id = await present(p, "Hero");
+    await call(p, "manage_diagnostics", { action: "event", text: "the door is locked" });
+    await admit(p, { entity_id: id, subject: "the door", predicate: "is", object: "locked", polarity: "positive", weight: 0.9, source: "witness" });
+    await call(p, "manage_belief", { action: "perception_record", perception_entity_id: id, perception_summary: "saw the door" });
+    const beliefsBefore = await call(p, "manage_belief", { action: "list", entity_id: id, detail: true });
+    const evidenceBefore = await call(p, "manage_belief", { action: "evidence", entity_id: id });
+    const perceptionBefore = await call(p, "manage_belief", { action: "perception_list" });
+    const infoBefore = await call(p, "manage_novel", { action: "info", slug: "subj5" });
+    const eventsBefore = infoBefore.match(/"event_count":\s*(\d+)/)?.[1];
+    assert(eventsBefore !== undefined, "info did not report an event count: " + infoBefore.slice(0, 200));
+    await memory(p, id, "the door was open");
+    assert((await call(p, "manage_belief", { action: "list", entity_id: id, detail: true })) === beliefsBefore, "memory altered belief state");
+    assert((await call(p, "manage_belief", { action: "evidence", entity_id: id })) === evidenceBefore, "memory altered evidence");
+    assert((await call(p, "manage_belief", { action: "perception_list" })) === perceptionBefore, "memory altered the perception ledger");
+    const infoAfter = await call(p, "manage_novel", { action: "info", slug: "subj5" });
+    assert(infoAfter.match(/"event_count":\s*(\d+)/)?.[1] === eventsBefore, "memory advanced the event log: " + infoAfter.slice(0, 200));
+    await call(p, "manage_belief", { action: "reconcile", entity_id: id });
+    const mems = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
+    assert(mems.length === 1 && mems[0].gist === "the door was open", "reconcile rewrote the memory: " + JSON.stringify(mems));
+    await kill(p);
   });
 
   harnessComplete();

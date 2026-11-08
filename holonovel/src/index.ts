@@ -42,6 +42,8 @@ import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceI
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
+// REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
+import { nextSubjectiveId, MEMORY_ORIGINS, selectForBriefing, type SubjectiveMemoryRecord, type MemoryOrigin } from "./core/subjective.js";
 import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
@@ -2200,6 +2202,32 @@ function composeCampaignMemorySection(novel: NovelState, badge: string): string 
   const blocks = [lines.join("\n"), bible].filter(Boolean);
   if (blocks.length === 0) return "";
   return `\n\n## Campaign Memory\n${blocks.join("\n")}`;
+}
+
+// REQ-626 — GM-only subjective-memory section. Selection is deterministic
+// (descending salience, then descending event ordinal, then ascending record
+// id), so two renders of unchanged state are identical; the Player and
+// Observer badges never see it.
+function composeSubjectiveMemorySection(novel: NovelState, badge: string): string {
+  const isGM = badge === "game_master" || badge === "none";
+  if (!isGM) return "";
+  const present = new Set<string>(novel.characters_present_ids ?? []);
+  const sceneLoc = (novel.scene_location ?? "").toLowerCase();
+  if (sceneLoc) {
+    for (const npc of novel.npcs.values()) {
+      if ((npc.room_id ?? "").toLowerCase() === sceneLoc || (npc.location ?? "").toLowerCase() === sceneLoc) {
+        present.add(npc.id);
+      }
+    }
+  }
+  if (present.size === 0) return "";
+  const max = configInt("TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX", 5);
+  const records = selectForBriefing(novel.subjective_memory ?? [], present, max);
+  if (records.length === 0) return "";
+  const lines = records.map(
+    (r) => `- [${r.origin}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`,
+  );
+  return `\n\n## Subjective Memory\n${lines.join("\n")}`;
 }
 
 // REQ-255b — boundary signal propagation: when free-text input contains a
@@ -7717,9 +7745,9 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management",
-  description: "Manage per-entity evidence, reconciled belief stances, the perception ledger, and a one-entity knowledge query. list, get, evidence, conflicts, perception_list, and knowledge_query read; admit, retract, reconcile, and perception_record write. admit records a subject/predicate/object proposition with a 0..1 weight and does not change a stance until reconcile recomputes it; retract requires the evidence_id from admit and reconciles; the perception ledger is append-only, so correct a mistaken perception with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Use when: inspecting or recording what an entity learned or believes. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+  description: "Manage per-entity evidence, belief stances, the perception ledger, a GM-only memory store, and a one-entity knowledge query. list, get, evidence, conflicts, perception_list, subjective_list, and knowledge_query read; admit, retract, reconcile, perception_record, and subjective_record write. admit records a subject/predicate/object proposition with a 0..1 weight and does not change a stance until reconcile recomputes it; retract requires the evidence_id from admit and reconciles; perception and memory ledgers are append-only; correct mistakes with a new record. Mutating actions persist to the Novel. knowledge_query returns perceptions, beliefs, and known secrets with event provenance, optionally filtered by topic. Use when: inspecting what an entity learned, believes, or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
   inputSchema: {
-    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Knowledge: knowledge_query."),
+    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record or subjective_list (GM only). Knowledge: knowledge_query."),
     detail: z.boolean().optional().describe("Return full belief records instead of summary entries (list)."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
     subject: z.string().optional().describe("Proposition subject (admit)."),
@@ -7741,6 +7769,16 @@ server.registerTool("manage_belief", {
     perception_source_entity: z.string().optional().describe("Entity the perception came from (perception_record; default null)."),
     perception_room_id: z.string().optional().describe("Room identifier for the perception (perception_record; defaults to the entity's room)."),
     perception_confidence: z.number().min(0).max(1).optional().describe("0..1 confidence (perception_record; default 0; REQ-594)."),
+    subjective_entity: z.string().optional().describe("Entity that remembers (subjective_record; filter for subjective_list)."),
+    subjective_gist: z.string().optional().describe("What the entity remembers, in its own terms (subjective_record)."),
+    subjective_subject: z.string().optional().describe("Claim subject (subjective_record)."),
+    subjective_predicate: z.string().optional().describe("Claim predicate (subjective_record)."),
+    subjective_object: z.string().optional().describe("Claim object (subjective_record)."),
+    subjective_polarity: z.enum(["positive", "negative"]).optional().describe("Claim polarity (subjective_record; default positive)."),
+    subjective_felt_then: z.string().optional().describe("The entity's affect at the event (subjective_record)."),
+    subjective_salience: z.number().min(0).max(1).optional().describe("0..1 salience (subjective_record; default 0.5)."),
+    subjective_origin: z.enum(["witnessed", "told", "inferred", "authored"]).optional().describe("How the memory arose (subjective_record; default authored; REQ-623)."),
+    subjective_event_ordinal: z.number().optional().describe("Contributing event-log ordinal (subjective_record; defaults to the latest event)."),
     topic: z.string().optional().describe("Optional topic filter applied to knowledge_query perceptions, beliefs, and secrets."),
   },
 }, async (args: any) => {
@@ -7763,6 +7801,8 @@ server.registerTool("manage_belief", {
     return raw(JSON.stringify({ entity_id: entityId, perceptions, beliefs, secrets }, null, 2));
   }
   if (typeof args.action === "string" && args.action.startsWith("perception_")) return handlePerceptionActions(mergeScopedArgs(args, "perception"));
+  // REQ-625 — subjective-memory actions are absorbed under manage_belief.
+  if (typeof args.action === "string" && args.action.startsWith("subjective_")) return handleSubjectiveActions(mergeScopedArgs(args, "subjective"));
   switch (args.action) {
     case "list": {
       requireNotObserver();
@@ -8613,6 +8653,76 @@ const handlePerceptionActions = async (args: any) => {
     }
     default:
       return err("INVALID_INPUT", `Unknown perception action '${args.action}'.`);
+  }
+};
+
+// --- Subjective Memory ---
+
+// Subjective Memory (REQ-623–REQ-628) — append-only per-entity record of what a
+// character remembers, bound to an event-log ordinal. It is GM-authored and
+// GM-only in this increment; it never rewrites the event log, belief, or the
+// perception ledger.
+// REQ-623, REQ-624, REQ-625, REQ-626, REQ-627, REQ-628
+const handleSubjectiveActions = async (args: any) => {
+  const gmRead = () => {
+    const badge = getBadge();
+    return badge === "game_master" || badge === "none";
+  };
+  switch (args.action) {
+    case "record": {
+      requireGM();
+      const novel = requireNovel();
+      // REQ-624 — entity, gist, and the claim triple are required.
+      if (!args.entity || !args.gist || !args.subject || !args.predicate || !args.object) {
+        return err("INVALID_INPUT", "entity, gist, subject, predicate, and object are required for subjective_record.");
+      }
+      const origin = (args.origin ?? "authored") as MemoryOrigin;
+      if (!MEMORY_ORIGINS.includes(origin)) {
+        return err("INVALID_INPUT", `Unknown origin '${origin}'. Valid origins: ${MEMORY_ORIGINS.join(", ")}.`);
+      }
+      const polarity = args.polarity ?? "positive";
+      if (polarity !== "positive" && polarity !== "negative") {
+        return err("INVALID_INPUT", `Unknown polarity '${polarity}'. Valid polarities: positive, negative.`);
+      }
+      const latest = novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null;
+      const ordinal = args.event_ordinal !== undefined ? args.event_ordinal : latest;
+      // REQ-624 — a memory may not cite an event the Novel has not recorded.
+      if (ordinal !== null && latest !== null && ordinal > latest) {
+        return err("INVALID_INPUT", `Event ordinal ${ordinal} exceeds the latest event ${latest}.`);
+      }
+      // REQ-623 — the record holds what the entity remembers, never state.
+      const record: SubjectiveMemoryRecord = {
+        id: nextSubjectiveId(novel.subjective_memory),
+        entity_id: args.entity,
+        event_ordinal: ordinal ?? null,
+        gist: args.gist,
+        claim: { subject: args.subject, predicate: args.predicate, object: args.object, polarity },
+        felt_then: args.felt_then ?? "",
+        salience: typeof args.salience === "number" ? Math.max(0, Math.min(1, args.salience)) : 0.5,
+        origin,
+        at: new Date().toISOString(),
+      };
+      novel.subjective_memory.push(record);
+      // REQ-627 — storage cap, oldest-first eviction.
+      const cap = parseInt(process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES ?? "20000", 10);
+      if (cap > 0 && novel.subjective_memory.length > cap) novel.subjective_memory = novel.subjective_memory.slice(novel.subjective_memory.length - cap);
+      state.saveNovel(novel);
+      audit("subjective_record", { entity_id: record.entity_id, ordinal: record.event_ordinal, origin: record.origin });
+      return ok(`Memory ${record.id} recorded for '${record.entity_id}'.`);
+    }
+    case "list": {
+      // REQ-625 — Game Master only in this increment; the Player badge opens
+      // with the disclosure axis (roadmap chunk 3).
+      if (!gmRead()) return err("FORBIDDEN", "Subjective memory is Game Master only.");
+      const novel = requireNovel();
+      let records = novel.subjective_memory;
+      if (args.entity) records = records.filter((r) => r.entity_id === args.entity);
+      if (args.event_ordinal !== undefined) records = records.filter((r) => r.event_ordinal === args.event_ordinal);
+      if (records.length === 0) return ok("No subjective memories recorded.");
+      return raw(JSON.stringify(records, null, 2));
+    }
+    default:
+      return err("INVALID_INPUT", `Unknown subjective action '${args.action}'.`);
   }
 };
 
@@ -9687,6 +9797,8 @@ const PLAYER_OMITTED_KEYS = [
   "gm_context", "secrets", "pending_workflow", "constraint_overrides",
   "synthesis_activated", "synthesis_deactivated", "narrative_directive",
   "generated_adventure", "ruling_ledger", "compression_ladder",
+  // REQ-627 — subjective memory is Game Master only.
+  "subjective_memory",
 ];
 
 function redactNovelForPlayer(novel: any): any {
@@ -10271,6 +10383,7 @@ Options: yes, cancel`);
       delete snapshot.audit_archive;
       delete snapshot.event_log;
       delete snapshot.perception_ledger;
+      delete snapshot.subjective_memory;
       delete snapshot.checkpoints;
       // REQ-241b — record the capture ordinal and snapshot digest (REQ-601).
       novel.checkpoints.push({
@@ -11242,11 +11355,14 @@ function buildSpecHealth(): Record<string, unknown> {
     checkpoint_count: novel ? novel.checkpoints.length : 0,
     checkpoint_bytes: novel ? JSON.stringify(novel.checkpoints).length : 0,
     perception_ledger_count: novel ? novel.perception_ledger.length : 0,
+    // REQ-627 — subjective-memory count, Game Master only.
+    subjective_memory_count: isGM && novel ? (novel.subjective_memory ?? []).length : undefined,
     compression_ladder: novel ? { arc: novel.compression_ladder?.arc?.length ?? 0, campaign: !!novel.compression_ladder?.campaign } : undefined,
     social_cast: isGM && novel ? { strategy: novel.social_cast.strategy, muted: novel.social_cast.muted, spoken: novel.social_cast.spoken.length } : undefined,
     storage_caps: novel ? {
       event_log: storageCapStatus(novel.event_log.length, process.env.TTRPG_EVENT_LOG_MAX_ENTRIES, 50000),
       perception_ledger: storageCapStatus(novel.perception_ledger.length, process.env.TTRPG_PERCEPTION_MAX_ENTRIES, 20000),
+      subjective_memory: storageCapStatus((novel.subjective_memory ?? []).length, process.env.TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES, 20000),
       checkpoints: storageCapStatus(novel.checkpoints.length, process.env.TTRPG_MAX_CHECKPOINTS, 25),
     } : undefined,
     // REQ-589 — GM-only ruling-ledger counts.
@@ -13042,6 +13158,7 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel
   // REQ-310 — campaign memory: decision-critical group after scene state,
   // before entities; prioritized by relevance, capped by config.
   briefing += composeCampaignMemorySection(novel, badge);
+  briefing += composeSubjectiveMemorySection(novel, badge);
 
   // REQ-335 — current beat surfaces immediately after the scene type tag.
   briefing += `\n**Beat:** ${currentBeat(novel)}`;
@@ -13299,7 +13416,7 @@ Commit every narratable change to state in the same turn you narrate it — scen
       // scene type (scene, journal, countdown, note, personality, NPC, vow,
       // event log, belief/evidence, identity, causal state, corpus, semantic
       // index, knowledge graph, agent tasks, perception, base capabilities).
-      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · manage_diagnostics (event) · manage_belief (admit/perception_record) · manage_identity (accept) · manage_causality (causal_propose) · manage_corpus (corpus_register) · manage_knowledge (index_build/graph_build) · manage_agent (create) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`;
+      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · manage_diagnostics (event) · manage_belief (admit/perception_record/subjective_record) · manage_identity (accept) · manage_causality (causal_propose) · manage_corpus (corpus_register) · manage_knowledge (index_build/graph_build) · manage_agent (create) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.

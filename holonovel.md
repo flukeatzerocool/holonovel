@@ -468,6 +468,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Knowledge Graph | A derived, session-scoped typed projection over Novel sources; never persisted (REQ-510–514). |
 | Durable Agent Task | A GM-owned task carrying a subject, goal, autonomy level, lifecycle status, and append-only action log (REQ-522–530). |
 | Perception Ledger | The append-only per-entity record of perceived events, citing the contributing event-log ordinal (REQ-540–545). |
+| Subjective Memory | The append-only per-entity record of what a character remembers — gist, structured claim, affect, salience, and origin, bound to an event-log ordinal (REQ-623–REQ-628). |
 | Witness provenance | The witness kind, producing sense, source, room, and confidence carried by a perception entry (REQ-594–REQ-595). |
 | Briefing Consistency | The derived, read-only readiness-cursor and derived-surface freshness report (REQ-515–521). |
 
@@ -527,6 +528,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
+| 5.35   | Subjective Memory                                       | 623–628 |
 
 ### 5.1 Output and Error Contracts
 
@@ -1785,13 +1787,13 @@ Play the Novel." The **State surface layer** (sourced from the active badge per 
 The surface also reports active entity personality fields and voice examples, badge-filtered per REQ-077. The surface reports the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), and Novel setup metadata (REQ-089). The setup metadata includes a "Session zero not yet completed" reminder when `session_zero_completed` is false. The surface also reports a pointer to the intro prompt (REQ-063).
 
 **REQ-109c3 — Badge briefing composition (Part c3).**
-The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
+The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), subjective memory records selected per REQ-626 (GM only), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
 
 **REQ-109d — Badge briefing composition (Part d).**
 Groups whose data source is empty SHALL include an explicit empty-state marker describing which category is empty. Markers preserve the expected briefing structure and prevent the caller from inferring non-existent content. The enumeration order above is the builder's required default section ordering for `badge_briefing`.
 
 **REQ-109e — Badge briefing composition (Part e).**
-Decision-critical groups precede the section boundary. The decision-critical groups include scene state, the POV directive, entities, combat state, and triggered lore. The group also includes active NPCs, active countdowns, narrative threads, campaign memory (REQ-310), world in motion (REQ-233a), and available actions (REQ-084a). Supplementary guidance and navigation groups follow. The supplementary groups include badge foundations, anti-slop guidance, narrative tone samples, active adventure content, registered tools, and entity personality fields. The supplementary groups also include the narrative directive, player signals, Novel setup metadata, autonomy state, and the intro pointer.
+Decision-critical groups precede the section boundary. The decision-critical groups include scene state, the POV directive, entities, combat state, and triggered lore. The group also includes active NPCs, active countdowns, narrative threads, campaign memory (REQ-310), subjective memory (REQ-626), world in motion (REQ-233a), and available actions (REQ-084a). Supplementary guidance and navigation groups follow. The supplementary groups include badge foundations, anti-slop guidance, narrative tone samples, active adventure content, registered tools, and entity personality fields. The supplementary groups also include the narrative directive, player signals, Novel setup metadata, autonomy state, and the intro pointer.
 
 **REQ-109f — Badge briefing composition (Part f).**
 The Game Master may override this order via `manage_context (action: briefing_order)` (REQ-082). *Acceptance criterion:* `badge_briefing` for a Novel with entities, combat, countdowns, and lore includes all mandatory groups; an empty data source displays its empty-state marker; decision-critical groups appear before supplementary groups. _Check:_ T109, T110, T149.
@@ -4510,7 +4512,7 @@ Game Master, `badge_briefing` orientation SHALL include a persistence
 directive instructing the GM to commit state for every narratable change.
 Scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
 be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
-REQ-073), including the event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, and base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
+REQ-073), including the event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, subjective-memory, and base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
 never-truncated tier (REQ-135). _Check:_ T469.
 
 **REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
@@ -4564,7 +4566,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, staging/cast, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, perception, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, perception, subjective-memory, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4840,6 +4842,77 @@ When `budget_tokens` is supplied, the server SHALL pack and degrade tiers per §
 
 **REQ-593 — Recall probes.**
 The server distribution SHALL include a recall-probe harness that builds a deterministic fixture campaign, forces session summarization through the compaction path, and evaluates probe questions drawn from a committed fixture. Each probe declares expected substrings, a tier, a token budget, and whether it is a required-recall probe. The harness SHALL assemble the requested tier at the requested budget and report `recall@budget` per tier. It SHALL fail when any required-recall probe misses at any declared budget or aggregate recall falls below the O.12 recall floor. _Check:_ T700.
+
+### 5.35 Subjective Memory
+
+The subjective-memory store holds what a character remembers rather than what
+happened: per-entity records bound to an event-log ordinal, each carrying a
+gist, a structured claim, the entity's affect at the time, a salience, and an
+origin. It stays separate from the objective record (REQ-455) and from belief
+(REQ-461–REQ-472) and never rewrites either. The memory-node vocabulary — gist,
+affect, salience, origin — is adapted from COF (Character Open File, Yann
+Souetre, <https://github.com/yannsouetre/cof>), CC BY 4.0; see Appendix U.
+
+**REQ-623 — Subjective memory record.**
+THE server SHALL maintain, for each player character and named NPC, an
+append-only subjective-memory store. Each record carries the owning entity, the
+contributing event-log ordinal, a gist, a structured claim (subject, predicate,
+object, and polarity), the entity's affect at the event, a 0..1 salience, and an
+origin (witnessed, told, inferred, or authored). A record SHALL hold what the
+entity remembers and SHALL NOT hold or rewrite objective state. *Acceptance
+criterion:* recording a memory appends a record carrying its entity, ordinal,
+gist, claim, affect, salience, and origin. _Check:_ T743.
+
+**REQ-624 — Subjective memory recording.**
+`manage_belief (action: subjective_record)` SHALL record a subjective memory
+from the `subjective_entity`, `subjective_gist`, `subjective_subject`,
+`subjective_predicate`, and `subjective_object` parameters, carrying stance and
+provenance from `subjective_polarity`, `subjective_felt_then`,
+`subjective_salience`, `subjective_origin`, and `subjective_event_ordinal`. A
+missing entity, gist, or claim triple SHALL return `[ERROR] [INVALID_INPUT]`
+enumerating valid values. The event ordinal SHALL default to the latest
+event-log ordinal and SHALL NOT exceed it. Mutation SHALL require the Game
+Master badge. *Acceptance criterion:* a well-formed record appends one entry, a
+malformed record is refused, and a Player call is refused. _Check:_ T743, T744.
+
+**REQ-625 — Subjective memory read and gating.**
+`manage_belief (action: subjective_list)` SHALL return the records for one
+entity or one event ordinal in record order and SHALL NOT mutate state.
+Subjective-memory reads and writes SHALL be Game Master only: a Player or
+Observer read SHALL return `[FORBIDDEN]`, and a read SHALL NOT advance the
+event log. *Acceptance criterion:* a Game Master entity query returns only that
+entity's records; Player and Observer reads return `[FORBIDDEN]` and leave the
+cursor unchanged. _Check:_ T744.
+
+**REQ-626 — Deterministic briefing selection.**
+WHEN `badge_briefing` composes Game Master content, THE server SHALL render a
+`## Subjective Memory` section after `## Campaign Memory` covering entities
+present in the current scene. Records SHALL be selected by descending salience,
+then descending event ordinal, then ascending record identifier, and SHALL
+render at most `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records (§7.6). The
+section SHALL NOT render under the Player or Observer badge, and two renders of
+unchanged state SHALL be identical. *Acceptance criterion:* two renders of
+unchanged state return the same ordered section and a Player render omits it.
+_Check:_ T745.
+
+**REQ-627 — Persistence and retention.**
+Subjective-memory records SHALL persist with the Novel, survive a restart, and
+travel with clone and export operations, bounded by
+`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. A
+checkpoint restore SHALL NOT remove a record appended after the checkpoint,
+mirroring the append-only event log. Under the Game Master badge, `spec_health`
+SHALL report `subjective_memory_count`, the total number of records across all
+entities. *Acceptance criterion:* a record survives an end-and-resume cycle, a
+cap overflow evicts the oldest record, and the health report carries the count.
+_Check:_ T746.
+
+**REQ-628 — Separation from recorded state.**
+Recording a subjective memory SHALL NOT create or alter a perception, an
+evidence record, a belief stance, a campaign-memory fact, or an event-log entry.
+Reconciliation SHALL NOT rewrite a subjective-memory record. *Acceptance
+criterion:* recording a memory leaves perceptions, evidence, stances,
+campaign-memory facts, and the event-log cursor unchanged, and a reconcile
+leaves the memory unchanged. _Check:_ T747.
 
 #### End of requirements
 
@@ -5502,7 +5575,7 @@ before any server code is written.
 | Synthesis population | Modules with ≥1 ruleset-native item / 7 total modules; Wisdom items with Mechanical coupling nature / total Wisdom items | ≥4 populated; ≥30% Mechanical | Re-read source sections for barren modules per REQ-225 re-read mapping; re-classify Wisdom items from Navigational to Mechanical where ruleset text supports it |
 | Synthesis term anchoring | Synthesis items referencing valid ruleset index terms / total synthesis items | ≥90% | Re-anchor or remove items with unresolvable ruleset references |
 | Mechanical coupling population | Mechanical tools with coupling metadata / total mechanical tools; couplings ≥ 1 per 50 indexed items (floor 5, ceiling 50); Mechanical couplings ≥ 10% of total | Per REQ-378 | Re-read under-coupled sections, re-classify Navigational to Mechanical where ruleset text supports it |
-| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 40 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
+| Archetype coverage | Property groups with ≥1 archetype per §7.7.0 / 41 total property groups | 100% | Re-read §7.7.0 definitions, reassign missing archetypes per coupling pattern rules |
 
 Synthesis population, Synthesis term anchoring, and the Wisdom mechanical
 coupling rate (REQ-375) are artifact-scope metrics — they verify the extracted
@@ -7214,6 +7287,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral (mechanical) — couples per P29. |
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` | No | Maximum subjective-memory records retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` | No | Maximum subjective-memory records injected into the `## Subjective Memory` briefing section (default 5; REQ-626). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
@@ -7286,6 +7361,7 @@ discarded by `manage_novel (action: end)`):
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
 | Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_belief (action: perception_record)`) | read-only (own entity, badge-filtered per REQ-545) |
+| Subjective Memory | Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief (action: subjective_record)`) | Game Master only |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -7384,7 +7460,7 @@ of derived advisory surfaces; it is not a property group and never writes state.
 | Entity-bearing | Carries persistent identity with fields | NPC, Faction, Player character |
 | Scene-anchored | Changes trigger scene-transition hooks | Scene state, Adventure waypoint, Story beats |
 | Knowledge-carrying | Content surfaced by trigger matching | Lore, Secret, Knowledge state, Campaign memory, Background, Evidence, Belief State, Knowledge Corpus |
-| Narrative-memory | Records story events for later recall | Story journal, Session recap, Event Log, Transition Ledger, Perception Ledger |
+| Narrative-memory | Records story events for later recall | Story journal, Session recap, Event Log, Transition Ledger, Perception Ledger, Subjective Memory |
 | Spatial | Defines physical constraints and locations | World model (rooms, things, exits, vehicles), Causal State |
 | Relational | Links entities through typed connections | Relationships |
 | Decision | Presents structured player choices | Choices, Vows, Pending Workflow |
@@ -10321,6 +10397,12 @@ date-stamps matching CHANGELOG entries.
 | REQ-622a | Encounter hazard resolution | 2026-10-30 |
 | REQ-622b | Trap hazard resolution | 2026-10-31 |
 | REQ-622c | Survivable resource countdown | 2026-10-31 |
+| REQ-623 | Subjective memory record | 2026-11-08 |
+| REQ-624 | Subjective memory recording | 2026-11-08 |
+| REQ-625 | Subjective memory read and gating | 2026-11-08 |
+| REQ-626 | Deterministic briefing selection | 2026-11-08 |
+| REQ-627 | Persistence and retention | 2026-11-08 |
+| REQ-628 | Separation from recorded state | 2026-11-08 |
 
 ---
 
@@ -10781,7 +10863,7 @@ diet.
 | T422 | Automated | Ruleset Wisdom as rendered reality: build a host carrying vendor Ruleset Wisdom (§11.4). Create a Novel — assert NPCs render with voice_examples and personality patterns from Wisdom without manual `manage_synthesis (action: activate)` calls. Assert Wisdom-derived countdown pacing patterns advance mechanically on scene transitions. Call `manage_synthesis (action: deactivate)` on a Wisdom item — assert the coupled behavior ceases. Call `manage_synthesis (action: revert)` — assert Wisdom items and their couplings survive (only Tier 2 community items removed). Assert ruleset-free build has empty Wisdom with "[ruleset-free]" annotation in `spec_health`. | REQ-371 |
 | T423 | Automated | Supplementary ruleset import: build a server against a primary ruleset. Create a Novel. Call `manage_ruleset (action: import_supplementary)` on a minimal fixture (Appendix Z) — assert extraction runs, new tools appear in `tools/list` annotated with source slug, new Wisdom items appear in `manage_synthesis (action: list)` with source anchor pointing to the supplementary file. Assert Wisdom couples mechanically per P5–P11. Assert confidence below `TTRPG_CONFIDENCE_FLOOR` does not block import — items carry `[LOW]` and `spec_health` reports `supplementary_confidence_warnings`. Assert GM-only. Call `manage_ruleset (action: import_supplementary)` with invalid path — assert `[NOT_FOUND]` with valid source enumeration. Call `manage_ruleset (action: import_supplementary)` under Player badge — assert `[FORBIDDEN]`. Call `manage_ruleset (action: remove_supplementary)` — assert tools and Wisdom removed. End Novel and resume — assert supplementary re-resolved. Move the supplementary file — assert `[supplementary-gap]` in `spec_health`, remaining content with `[partial]` marker. | REQ-372 |
 | T424 | Automated | Dynamic tool registration: call `manage_ruleset (action: import_supplementary)` with a matching fixture (Appendix Z) — assert new tools in `tools/list` annotated with source slug. Invoke a supplementary-derived tool — assert `[OK]` response with prefix, error taxonomy, source quoting. Call `manage_ruleset (action: remove_supplementary)` — assert tools absent from `tools/list`. Invoke a removed tool — assert tool-not-found at MCP layer. Call `manage_ruleset (action: import_supplementary)` on a builder-stack that recorded a dynamic-registration waiver — assert only Wisdom imported, no new tools in `tools/list`. The waiver branch is the reference `holonovel` build's permanent path (REQ-373 is a terminal builder-scope non-goal); the registration branch applies only to stacks without the waiver. | REQ-373 |
-| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 38 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
+| T425 | Automated | Archetype coverage convergence: parse §7.7 property groups, assert all 41 groups carry ≥1 archetype per §7.7.0. A group missing an archetype fails the Phase 1 archetype coverage metric with threshold 100%. Assert `npm run validate` reports archetype assignment completeness for all property groups. | REQ-374 |
 | T426 | Automated | Wisdom mechanical coupling rate: build with a ruleset producing Wisdom items. Assert ≥30% of extracted Wisdom items carry Mechanical coupling nature in §7.7.1a. A build with Wisdom items exclusively Navigational fails this Phase 1 metric. Assert re-classification from Navigational to Mechanical where ruleset text supports behavioral language. | REQ-375 |
 | T427 | Automated | Coupling chain Pattern Buffer: populate world model, create countdown with world_effect, create faction. Advance scene — assert countdown ticks and faction clock ticks (P1). Move player via go — assert scene transition hook and lore triggers (P13, P2). Advance countdown to fire — assert world_effect mutates room (P14). Record consequence story journal — assert faction advisory in narrative_threads (P33). Undo — assert pre-chain state restored. | §6.6 S32 |
 | T428 | Automated | Wisdom mechanical enactment Pattern Buffer: create NPC with host-carried Wisdom active — assert manage_character (action: sheet) shows auto-populated voice_examples, goals, personality (P6). Create countdown — assert auto-advances on manage_scene (action: set) (P7). run_command (action: suggest) returns constraint overrides (P10). Deactivate Wisdom items — assert behavior stops. Reactivate — assert resumes. Assert REQ-371 conformance: first-class mechanics, not advisory. | §6.6 S33, REQ-371 |
@@ -10795,7 +10877,7 @@ diet.
 | T436 | Automated | Scene ↔ NPC couplings: create NPC with disposition=friendly. Call `manage_scene (action: set, "...", scene_type="combat")` — assert `narrative_threads` includes NPC disposition advisory (P41). Call `manage_scene (action: set, "...", scene_type="social")` — assert advisory updated. Create NPC with `location` matching active room — call `manage_scene (action: set, "...", characters_present=["<entity>"])` — assert NPC auto-registers in scene per P42. | REQ-369, REQ-075 |
 | T437 | Automated | Temporal → Scene coupling: create countdown with `world_effect: {type: "scene", value: "The chamber floods with dark water."}`. Advance countdown to fire — assert scene description includes flood text. Assert prior scene description in undo stack. Create countdown without scene scope — assert fire does not update scene. Remove countdown — assert no further effect. | REQ-369, REQ-073 |
 | T438 | Automated | Knowledge → Scene coupling: create lore entry "The chapel was built on a mass grave" with triggers=["chapel"], badge_scope="shared", visibility="shared". Call `manage_scene (action: set, "You stand in the chapel", location="Chapel")` — assert scene description surfaces lore tagged `[lore-relevant]`. Create lore with badge_scope="game_master" — assert GM briefing includes it, Player view does not. | REQ-369, REQ-083 |
-| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 38 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
+| T439 | Automated | Archetype verification: parse §7.7 property groups, assert all 41 groups carry ≥1 archetype per §7.7.0 including Mechanical on Mechanics, Ruleset Wisdom on Synthesis, and `[content source]` on Adventure groups. Assert 12 distinct archetypes enumerated in §7.7.0 (Temporal, Entity-bearing, Scene-anchored, Knowledge-carrying, Narrative-memory, Spatial, Relational, Decision, Guidance, Session, Ruleset Wisdom, Mechanical). Assert every property group's archetypes are used by ≥1 coupling row. | REQ-374, REQ-369 |
 | T440 | Automated | Tool namespacing: build a host with D&D and Starfinder packages loaded. Assert `tools/list` reports `dnd5e_` and `starfinder_` prefixed tools with correct `ruleset` annotations. Assert infrastructure tools carry `ruleset: null`. Assert `spec_health.ruleset_prefix_map` covers all slugs. | REQ-379 |
 | T441 | Automated | Novel ruleset binding: call `manage_novel (action: create, "test", ruleset="dnd5e")` — assert `ruleset: "dnd5e"` in `manage_novel (action: info)`. Call `manage_novel (action: create, "test2", ruleset="unknown")` — assert `[ERROR] [INVALID_INPUT]` with valid rulesets enumerated. Export and verify `ruleset` field in manifest. | REQ-380 |
 | T442 | Automated | Ruleset-scoped tool gating: create D&D Novel. Assert `dnd5e_roll_skill_check` succeeds, `starfinder_roll_weapon_attack` returns `[ERROR] [INVALID_INPUT]` naming D&D scope. Create Starfinder Novel — assert reverse. With no Novel active — both succeed. Assert `tools/list` includes all with `inapplicable` annotations. | REQ-381 |
@@ -10991,6 +11073,11 @@ diet.
 | T740 | Automated | Novel sharing: a `share` export with `TTRPG_EXPORT_EMBED_ADVENTURES` unset embeds adventure content and forces full scope; `share` with markdown or a non-full scope is refused `[INVALID_INPUT]`; a shared bundle materializes its embedded adventure in a fresh installation and the copy loads it; a tampered embedded adventure blocks import. | REQ-096m |
 | T741 | Automated | Room hazard annotations: a well-formed `annotations.encounter` and `annotations.trap` are readable from the room; an encounter subtracts its declared `spill` from the bound resource countdown and fires the resource's world effect at zero; a malformed annotation is ignored with a warning without blocking entry. | REQ-622, REQ-622a |
 | T742 | Automated | Survival resource: a trap resolves a seeded check against the `snuff` countdown's ticks and extinguishes the resource on success; a bundle adds its declared increment; an extinguish with a unit relights without loss; an extinguish without a unit starts the declared last-light countdown; the Player badge sees remaining units without a tick total. | REQ-622b, REQ-622c |
+| T743 | Automated | Subjective memory record: recording a memory appends one entry carrying its entity, the contributing event-log ordinal (defaulting to the latest), a gist, a claim triple, the affect, a 0..1 salience, and an origin; the entry survives a save and reload. | REQ-623, REQ-624 |
+| T744 | Automated | Subjective memory gating: a Player or Observer `subjective_list` returns `[FORBIDDEN]` and leaves the event-log cursor unchanged; a Player `subjective_record` is refused; a Game Master entity query returns only that entity's records. | REQ-624, REQ-625 |
+| T745 | Automated | Deterministic briefing selection: two `badge_briefing` renders at one state return an identical `## Subjective Memory` section; records order by descending salience, then descending ordinal, then ascending id; the section honors `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`; a Player render omits the section. | REQ-626 |
+| T746 | Automated | Subjective memory persistence: a record survives an end-and-resume cycle; a cap overflow evicts the oldest record; a checkpoint restore preserves a record appended after capture; `spec_health` reports `subjective_memory_count` under the Game Master badge. | REQ-627 |
+| T747 | Automated | Subjective memory separation: recording a memory leaves perceptions, evidence, belief stances, campaign-memory facts, and the event-log cursor unchanged, and a reconcile leaves the memory unchanged. | REQ-628 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

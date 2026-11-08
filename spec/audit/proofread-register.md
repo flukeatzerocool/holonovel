@@ -296,3 +296,16 @@ new lexical rule was introduced.
 **Disposition: all 231 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding; the SR-1…SR-14 findings were resolved structurally in
 this batch.
+
+## Batch 8 — subjective memory delta (2026-11-08)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 257 warnings**.
+The 26-warning net increase over Batch 7 is not a regression from this
+increment alone: eleven REQs landed between the batches (perception witness,
+briefing consistency, compression ladder, artifact provenance, room hazards),
+and their bodies drive the same lexical families. This increment adds one
+readability warning (REQ-628, Flesch-Kincaid 20.2 from "reconciliation" and
+"campaign-memory facts"); its other bodies are clean after a sentence split.
+
+**Disposition: all 257 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

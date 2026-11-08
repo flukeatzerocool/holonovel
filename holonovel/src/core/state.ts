@@ -20,6 +20,7 @@ import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
 import { stateHash, STATE_HASH_PROJECTION_VERSION } from "./state-hash.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 import { normalizePerceptionRecord } from "./perception.js";
+import { normalizeSubjectiveRecord } from "./subjective.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
 import { auditNotation } from "./lonelog.js";
 
@@ -728,6 +729,8 @@ export interface NovelState {
   agent_tasks: import("./agent.js").AgentTask[];
   // REQ-540 — append-only per-entity perception ledger (observed, not believed).
   perception_ledger: import("./perception.js").PerceptionRecord[];
+  // REQ-623 — append-only per-entity record of what a character remembers.
+  subjective_memory: import("./subjective.js").SubjectiveMemoryRecord[];
   // REQ-496/REQ-498/REQ-500 — cold knowledge corpus, access profiles, and the
   // per-entity acquisition ledger.
   corpus_documents: import("./corpus.js").CorpusDocument[];
@@ -1118,6 +1121,7 @@ export class StateManager {
       supplementary_rulesets: [],
       agent_tasks: [],
       perception_ledger: [],
+      subjective_memory: [],
       corpus_documents: [],
       corpus_access: [],
       corpus_consumption: [],
@@ -1508,6 +1512,7 @@ export class StateManager {
       supplementary_rulesets: data.supplementary_rulesets ?? [],
       agent_tasks: data.agent_tasks ?? [],
       perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
+      subjective_memory: (data.subjective_memory ?? []).map(normalizeSubjectiveRecord),
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2662,6 +2667,7 @@ function novelToJSON(novel: NovelState): any {
     supplementary_rulesets: novel.supplementary_rulesets,
     agent_tasks: novel.agent_tasks,
     perception_ledger: novel.perception_ledger,
+    subjective_memory: novel.subjective_memory,
     // REQ-496/REQ-498/REQ-500 — corpus documents, access, and acquisitions persist.
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
@@ -2683,6 +2689,7 @@ function novelToSnapshotJSON(novel: NovelState): any {
   delete base.audit_archive;
   delete base.event_log;
   delete base.perception_ledger;
+  delete base.subjective_memory;
   return base;
 }
 
@@ -2828,6 +2835,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     supplementary_rulesets: data.supplementary_rulesets ?? [],
     agent_tasks: data.agent_tasks ?? [],
     perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
+    subjective_memory: (data.subjective_memory ?? []).map(normalizeSubjectiveRecord),
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],
@@ -2862,6 +2870,7 @@ export const APPEND_ONLY_STATE_FIELDS = [
   "audit_archive",
   "event_log",
   "perception_ledger",
+  "subjective_memory",
 ] as const;
 
 export const BOOKKEEPING_STATE_FIELDS = [

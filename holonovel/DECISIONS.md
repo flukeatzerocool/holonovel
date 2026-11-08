@@ -2,11 +2,11 @@
 
 **Spec hash:** 6f16945a25290e479cc9cb90706bb2bc8cb3f885ad2f1ea6982e442132614b03
 
-**Recorded tool budget:** 37 listed (236 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (238 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,228 tokens; standard 23,630; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,567 tokens; standard 23,969; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,30 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Subjective memory store — 2026-11-08
+
+- **D1 — `subjective_memory` is a §7.7 property group with no §7.7.1a coupling
+  row.** The increment defines no cross-property effect, so a coupling row would
+  assert a promotion the model does not perform; Ruling Ledger is the precedent.
+  T439 is archetype-level: the group's Narrative-memory archetype is already
+  coupled through the Perception Ledger row. (REQ-370, REQ-623, REQ-626)
+- **D2 — Append-only and undo-preserved.** Records leave the snapshot and
+  checkpoint payloads and are listed in `APPEND_ONLY_STATE_FIELDS`, mirroring
+  the event log and the perception ledger. Correction is a new record. Clone and
+  export still carry the store, so the asymmetry is deliberate. (REQ-623,
+  REQ-627)
+- **D3 — Game Master only in this increment.** Mutation requires the GM badge
+  and reads refuse Player and Observer. The Player badge opens with the
+  disclosure axis (roadmap chunk 3). (REQ-624, REQ-625, REQ-626)
+- **D4 — Actions on `manage_belief`, all fields optional in the shared flat
+  schema.** The MCP SDK parses the tool's single shape on every call, so a
+  schema-required field would break the other twelve actions; the handler
+  enforces entity, gist, and the claim triple and keeps the recorded required
+  count at 1. (REQ-408, REQ-413, REQ-624)
+- **D5 — Briefing selection is salience, then ordinal, then record id.** No
+  scored model and no directive path: chunk 5 owns scoring, and the cap is
+  Presentation because no GM directive tunes it. (REQ-626)
 
 ### Lore visibility read gate — 2026-11-07
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-08 — Subjective memory store (GM-only)
+
+- Adds §5.35 Subjective Memory (REQ-623–REQ-628): an append-only per-entity
+  record of what a character remembers, bound to an event-log ordinal and
+  carrying a gist, a structured claim, `felt_then`, a 0..1 salience, and an
+  origin. The §5.35 preamble carries the COF attribution the upstream ledger
+  promised.
+- Adds `manage_belief (action: subjective_record|subjective_list)`, a GM-only
+  `## Subjective Memory` briefing section selected deterministically (salience,
+  then ordinal, then record id), `spec_health.subjective_memory_count`, and the
+  §7.6 caps `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` and
+  `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX`. No new tool; the REQ-429 budget is
+  unchanged at 37 tools.
+- Records persist with the Novel, survive restart, travel with clone and export,
+  and are preserved by undo and checkpoint restore like the event log. The
+  Player badge opens with the disclosure axis (roadmap chunk 3).
+- New §7.7 group `Subjective Memory` (Narrative-memory) with no coupling row —
+  the increment defines no cross-property effect; group-count statements move
+  40 → 41, correcting T425/T439's stale 38.
+- Tests T743–T747 in `test-belief.ts`; `spec_health` reports the storage-cap
+  status; the Player-scope export omits the store. Roadmap chunk 1 of 5 is
+  retired.
+
 ## 2026-11-08 — License gates and attribution records
 
 - Purged the pre-rename project tree (1,072 files), its server sibling, and an

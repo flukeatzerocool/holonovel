@@ -212,6 +212,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_AGENT_AUTONOMY` | No | Default autonomy for new agent tasks — `advisory`, `prompt`, or `auto` (default `prompt`; REQ-526). Behavioral (mechanical) — couples per P29. |
 | `TTRPG_AGENT_MAX_TASKS` | No | Maximum agent tasks retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_PERCEPTION_MAX_ENTRIES` | No | Maximum perception entries retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` | No | Maximum subjective-memory records retained per Novel before oldest-first eviction (default 20000; 0 = unlimited). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` | No | Maximum subjective-memory records injected into the `## Subjective Memory` briefing section (default 5; REQ-626). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
@@ -284,6 +286,7 @@ discarded by `manage_novel (action: end)`):
 | Knowledge Corpus | Knowledge-carrying | read/write (REQ-496; registration/routing/access GM-only) | read-only (consume for the active entity per REQ-503) |
 | Agent Tasks | Temporal | read/write (REQ-522; engine-maintained via `manage_agent`) | read-only (badge-filtered per REQ-530) |
 | Perception Ledger | Narrative-memory | read/write (REQ-540; engine-maintained via `manage_belief (action: perception_record)`) | read-only (own entity, badge-filtered per REQ-545) |
+| Subjective Memory | Narrative-memory | read/write (REQ-623; GM-authored via `manage_belief (action: subjective_record)`) | Game Master only |
 
 Dangers and non-entity combat participants have no IDs, no URIs, no
 persistent state. Named NPCs (REQ-075) have IDs, URIs, and persistent state.
@@ -382,7 +385,7 @@ of derived advisory surfaces; it is not a property group and never writes state.
 | Entity-bearing | Carries persistent identity with fields | NPC, Faction, Player character |
 | Scene-anchored | Changes trigger scene-transition hooks | Scene state, Adventure waypoint, Story beats |
 | Knowledge-carrying | Content surfaced by trigger matching | Lore, Secret, Knowledge state, Campaign memory, Background, Evidence, Belief State, Knowledge Corpus |
-| Narrative-memory | Records story events for later recall | Story journal, Session recap, Event Log, Transition Ledger, Perception Ledger |
+| Narrative-memory | Records story events for later recall | Story journal, Session recap, Event Log, Transition Ledger, Perception Ledger, Subjective Memory |
 | Spatial | Defines physical constraints and locations | World model (rooms, things, exits, vehicles), Causal State |
 | Relational | Links entities through typed connections | Relationships |
 | Decision | Presents structured player choices | Choices, Vows, Pending Workflow |

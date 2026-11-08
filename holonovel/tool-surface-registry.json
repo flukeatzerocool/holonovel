@@ -661,6 +661,40 @@
       "successors": [],
       "edges": []
     },
+    "manage_belief.subjective_list": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "read",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
+    "manage_belief.subjective_record": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_belief.reconcile": {
       "group": "referee",
       "phases": [

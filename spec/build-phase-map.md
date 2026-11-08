@@ -1,6 +1,6 @@
 # Build Phase → Spec File Map
 
-<!-- content hash: 048637c5c2281dc18f6fea5f339d4b893833412eafd5fc7ed401eccee7229afa -->
+<!-- content hash: 91435cbec93af4e310c6447dc70327439743b0409a4c5145cdf9ac86ddf77119 -->
 
 The builder reads files on demand per build phase. The assembled `holonovel.md` contains
 all content for distribution and REQ-105; this table enables per-phase targeted loading
@@ -48,7 +48,7 @@ reduction in per-phase context.
 |----|--------------------------|-------------------------------------|
 | 1  | 01-foundations.md        | §0–§3: reading guide, mission, failure modes |
 | 2  | 01a-constitution.md      | §4: standing rules and terminology  |
-| 3  | 02-requirements.md       | §5: all REQs, 33 subsections        |
+| 3  | 02-requirements.md       | §5: all REQs, 35 subsections        |
 | 4  | 03-build.md              | §6: build process                   |
 | 5  | 04-runtime.md            | §7: runtime conventions             |
 | 6  | 05-verification.md       | §8: verification workflows          |

@@ -40,6 +40,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
+| 5.35   | Subjective Memory                                       | 623–628 |
 
 ### 5.1 Output and Error Contracts
 
@@ -1298,13 +1299,13 @@ Play the Novel." The **State surface layer** (sourced from the active badge per 
 The surface also reports active entity personality fields and voice examples, badge-filtered per REQ-077. The surface reports the narrative directive (GM only, REQ-081), player signals (GM only, REQ-069), and Novel setup metadata (REQ-089). The setup metadata includes a "Session zero not yet completed" reminder when `session_zero_completed` is false. The surface also reports a pointer to the intro prompt (REQ-063).
 
 **REQ-109c3 — Badge briefing composition (Part c3).**
-The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
+The surface further reports story journal entries whose entity IDs overlap the active entities or whose scene anchor matches the current scene (GM only, REQ-246). The surface reports the current autonomy state — all four slider values from `manage_staging (action: autonomy)` (REQ-306) when set. The surface reports campaign memory facts (GM only, REQ-310), subjective memory records selected per REQ-626 (GM only), world in motion entries (GM only, REQ-233a), and proactive available actions (REQ-084a).
 
 **REQ-109d — Badge briefing composition (Part d).**
 Groups whose data source is empty SHALL include an explicit empty-state marker describing which category is empty. Markers preserve the expected briefing structure and prevent the caller from inferring non-existent content. The enumeration order above is the builder's required default section ordering for `badge_briefing`.
 
 **REQ-109e — Badge briefing composition (Part e).**
-Decision-critical groups precede the section boundary. The decision-critical groups include scene state, the POV directive, entities, combat state, and triggered lore. The group also includes active NPCs, active countdowns, narrative threads, campaign memory (REQ-310), world in motion (REQ-233a), and available actions (REQ-084a). Supplementary guidance and navigation groups follow. The supplementary groups include badge foundations, anti-slop guidance, narrative tone samples, active adventure content, registered tools, and entity personality fields. The supplementary groups also include the narrative directive, player signals, Novel setup metadata, autonomy state, and the intro pointer.
+Decision-critical groups precede the section boundary. The decision-critical groups include scene state, the POV directive, entities, combat state, and triggered lore. The group also includes active NPCs, active countdowns, narrative threads, campaign memory (REQ-310), subjective memory (REQ-626), world in motion (REQ-233a), and available actions (REQ-084a). Supplementary guidance and navigation groups follow. The supplementary groups include badge foundations, anti-slop guidance, narrative tone samples, active adventure content, registered tools, and entity personality fields. The supplementary groups also include the narrative directive, player signals, Novel setup metadata, autonomy state, and the intro pointer.
 
 **REQ-109f — Badge briefing composition (Part f).**
 The Game Master may override this order via `manage_context (action: briefing_order)` (REQ-082). *Acceptance criterion:* `badge_briefing` for a Novel with entities, combat, countdowns, and lore includes all mandatory groups; an empty data source displays its empty-state marker; decision-critical groups appear before supplementary groups. _Check:_ T109, T110, T149.
@@ -4023,7 +4024,7 @@ Game Master, `badge_briefing` orientation SHALL include a persistence
 directive instructing the GM to commit state for every narratable change.
 Scene changes, mechanical outcomes, disposition shifts, and story beats SHALL
 be persisted with the corresponding state tool (REQ-076, REQ-246, REQ-075,
-REQ-073), including the event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, and base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
+REQ-073), including the event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, subjective-memory, and base-capability state tools (REQ-434–443), in the same turn the GM narrates them. The directive SHALL render in the
 never-truncated tier (REQ-135). _Check:_ T469.
 
 **REQ-401 — State ledger briefing token.** `badge_briefing` SHALL render a
@@ -4077,7 +4078,7 @@ _Check:_ T475.
 **REQ-407 — Persist-tools never truncated.** The Game Master's scene-typed
 tool section in `badge_briefing` (REQ-087) SHALL always include the core
 state-persistence tools, regardless of scene type. The section covers the scene, staging/cast, story-journal, countdown, note,
-personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, perception, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
+personality, NPC, vow, event-log, belief/evidence, identity, causal-state, corpus, semantic-index, knowledge-graph, agent-task, perception, subjective-memory, and base-capability state tools defined in §5. The server SHALL never truncate those tools per REQ-135. _Check:_ T476.
 
 ### 5.20 Narrative Turn Conventions
 
@@ -4353,5 +4354,76 @@ When `budget_tokens` is supplied, the server SHALL pack and degrade tiers per §
 
 **REQ-593 — Recall probes.**
 The server distribution SHALL include a recall-probe harness that builds a deterministic fixture campaign, forces session summarization through the compaction path, and evaluates probe questions drawn from a committed fixture. Each probe declares expected substrings, a tier, a token budget, and whether it is a required-recall probe. The harness SHALL assemble the requested tier at the requested budget and report `recall@budget` per tier. It SHALL fail when any required-recall probe misses at any declared budget or aggregate recall falls below the O.12 recall floor. _Check:_ T700.
+
+### 5.35 Subjective Memory
+
+The subjective-memory store holds what a character remembers rather than what
+happened: per-entity records bound to an event-log ordinal, each carrying a
+gist, a structured claim, the entity's affect at the time, a salience, and an
+origin. It stays separate from the objective record (REQ-455) and from belief
+(REQ-461–REQ-472) and never rewrites either. The memory-node vocabulary — gist,
+affect, salience, origin — is adapted from COF (Character Open File, Yann
+Souetre, <https://github.com/yannsouetre/cof>), CC BY 4.0; see Appendix U.
+
+**REQ-623 — Subjective memory record.**
+THE server SHALL maintain, for each player character and named NPC, an
+append-only subjective-memory store. Each record carries the owning entity, the
+contributing event-log ordinal, a gist, a structured claim (subject, predicate,
+object, and polarity), the entity's affect at the event, a 0..1 salience, and an
+origin (witnessed, told, inferred, or authored). A record SHALL hold what the
+entity remembers and SHALL NOT hold or rewrite objective state. *Acceptance
+criterion:* recording a memory appends a record carrying its entity, ordinal,
+gist, claim, affect, salience, and origin. _Check:_ T743.
+
+**REQ-624 — Subjective memory recording.**
+`manage_belief (action: subjective_record)` SHALL record a subjective memory
+from the `subjective_entity`, `subjective_gist`, `subjective_subject`,
+`subjective_predicate`, and `subjective_object` parameters, carrying stance and
+provenance from `subjective_polarity`, `subjective_felt_then`,
+`subjective_salience`, `subjective_origin`, and `subjective_event_ordinal`. A
+missing entity, gist, or claim triple SHALL return `[ERROR] [INVALID_INPUT]`
+enumerating valid values. The event ordinal SHALL default to the latest
+event-log ordinal and SHALL NOT exceed it. Mutation SHALL require the Game
+Master badge. *Acceptance criterion:* a well-formed record appends one entry, a
+malformed record is refused, and a Player call is refused. _Check:_ T743, T744.
+
+**REQ-625 — Subjective memory read and gating.**
+`manage_belief (action: subjective_list)` SHALL return the records for one
+entity or one event ordinal in record order and SHALL NOT mutate state.
+Subjective-memory reads and writes SHALL be Game Master only: a Player or
+Observer read SHALL return `[FORBIDDEN]`, and a read SHALL NOT advance the
+event log. *Acceptance criterion:* a Game Master entity query returns only that
+entity's records; Player and Observer reads return `[FORBIDDEN]` and leave the
+cursor unchanged. _Check:_ T744.
+
+**REQ-626 — Deterministic briefing selection.**
+WHEN `badge_briefing` composes Game Master content, THE server SHALL render a
+`## Subjective Memory` section after `## Campaign Memory` covering entities
+present in the current scene. Records SHALL be selected by descending salience,
+then descending event ordinal, then ascending record identifier, and SHALL
+render at most `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX` records (§7.6). The
+section SHALL NOT render under the Player or Observer badge, and two renders of
+unchanged state SHALL be identical. *Acceptance criterion:* two renders of
+unchanged state return the same ordered section and a Player render omits it.
+_Check:_ T745.
+
+**REQ-627 — Persistence and retention.**
+Subjective-memory records SHALL persist with the Novel, survive a restart, and
+travel with clone and export operations, bounded by
+`TTRPG_SUBJECTIVE_MEMORY_MAX_ENTRIES` (§7.6) with oldest-first eviction. A
+checkpoint restore SHALL NOT remove a record appended after the checkpoint,
+mirroring the append-only event log. Under the Game Master badge, `spec_health`
+SHALL report `subjective_memory_count`, the total number of records across all
+entities. *Acceptance criterion:* a record survives an end-and-resume cycle, a
+cap overflow evicts the oldest record, and the health report carries the count.
+_Check:_ T746.
+
+**REQ-628 — Separation from recorded state.**
+Recording a subjective memory SHALL NOT create or alter a perception, an
+evidence record, a belief stance, a campaign-memory fact, or an event-log entry.
+Reconciliation SHALL NOT rewrite a subjective-memory record. *Acceptance
+criterion:* recording a memory leaves perceptions, evidence, stances,
+campaign-memory facts, and the event-log cursor unchanged, and a reconcile
+leaves the memory unchanged. _Check:_ T747.
 
 #### End of requirements
