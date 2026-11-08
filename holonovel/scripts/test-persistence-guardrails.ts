@@ -114,7 +114,7 @@ async function main() {
       await call(proc, "manage_scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);
       assertContains(b, "Persistence tools");
-      for (const tool of ["manage_scene (set)", "manage_story (record)", "manage_countdown (set)", "manage_note (set)", "manage_character (personality)", "manage_npc (create)", "manage_vow (set)", "manage_diagnostics (event)", "manage_belief (admit/perception_record)", "manage_identity (accept)", "manage_causality (causal_propose)", "manage_corpus (corpus_register)", "manage_knowledge (index_build/graph_build)", "manage_agent (create)", "resolve_mechanic (fate_aspect)", "resolve_mechanic (ironsworn_momentum)", "resolve_mechanic (forged_stress)"]) {
+      for (const tool of ["manage_scene (set)", "manage_story (record)", "manage_countdown (set)", "manage_note (set)", "manage_character (personality)", "manage_npc (create)", "manage_vow (set)", "manage_diagnostics (event)", "manage_belief (admit/perception_record/subjective_record)", "manage_identity (accept)", "manage_causality (causal_propose)", "manage_corpus (corpus_register)", "manage_knowledge (index_build/graph_build)", "manage_agent (create)", "resolve_mechanic (fate_aspect)", "resolve_mechanic (ironsworn_momentum)", "resolve_mechanic (forged_stress)"]) {
         if (!b.includes(tool)) throw new Error(`missing persist tool ${tool}`);
       }
     });

@@ -26,15 +26,15 @@ import type { TierResult } from "./eval-schema.js";
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 26, "dispatchCommand");
-const P_VALIDATION = anchor("holonovel/src/index.ts", 4803, "create_room");
-const P_PROTOCOL = anchor("holonovel/src/index.ts", 1752, "CallToolRequestSchema");
-const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 9151, "verify");
-const P_READONLY = anchor("holonovel/src/core/state.ts", 1739, "snapshot");
-const P_ARTIFACT = anchor("holonovel/src/index.ts", 10605, "inboxSourcePath");
-const P_SHARE = anchor("holonovel/src/index.ts", 9846, "share");
-const P_RECAP = anchor("holonovel/src/index.ts", 8890, "recap");
-const P_PROVENANCE = anchor("holonovel/src/index.ts", 9386, "provenance");
-const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 10005, "strictMode");
+const P_VALIDATION = anchor("holonovel/src/index.ts", 4841, "create_room");
+const P_PROTOCOL = anchor("holonovel/src/index.ts", 12, "CallToolRequestSchema");
+const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 8734, "verify");
+const P_READONLY = anchor("holonovel/src/core/state.ts", 606, "snapshot");
+const P_ARTIFACT = anchor("holonovel/src/index.ts", 10753, "inboxSourcePath");
+const P_SHARE = anchor("holonovel/src/index.ts", 9891, "share");
+const P_RECAP = anchor("holonovel/src/index.ts", 8879, "recap");
+const P_PROVENANCE = anchor("holonovel/src/index.ts", 78, "provenance");
+const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 10072, "strictMode");
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {

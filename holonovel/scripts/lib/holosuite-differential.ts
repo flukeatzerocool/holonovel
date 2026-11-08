@@ -22,8 +22,8 @@ import { anchor } from "./eval-predicate.js";
 import type { TierResult } from "./eval-schema.js";
 
 // Real source anchors per finding class.
-const P_REPLAY = anchor("holonovel/src/core/state.ts", 2329, "saveNovel");
-const P_WORLD = anchor("holonovel/src/world/model.ts", 235, "rooms");
+const P_REPLAY = anchor("holonovel/src/core/state.ts", 1133, "saveNovel");
+const P_WORLD = anchor("holonovel/src/world/model.ts", 9, "rooms");
 
 /** Order- and id-independent projection of the world model (diagnostic). */
 function worldProjection(novel: Record<string, unknown>): string {
