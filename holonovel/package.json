@@ -25,6 +25,7 @@
     "src",
     "bin",
     "content/torre-nosferatu.json",
+    "NOTICE.md",
     "holonovel.md",
     "tool-surface-registry.json",
     "tool-disambiguation.json"

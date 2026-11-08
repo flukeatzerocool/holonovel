@@ -192,6 +192,12 @@ const RAW_GATES: Gate[] = [
     full: npm("check-reference-server-cleanliness"),
   },
   {
+    name: "check-vendor-manifest",
+    description: "Vendored content hashes match the manifest",
+    fast: ["npm", "--prefix", "holonovel", "run", "check:vendor"],
+    full: ["npm", "--prefix", "holonovel", "run", "check:vendor"],
+  },
+  {
     name: "check-starter-freshness",
     description: "Starter Novel artifacts are current",
     fast: npm("check-starter-freshness"),

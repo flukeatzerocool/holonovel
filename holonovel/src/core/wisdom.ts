@@ -17,6 +17,12 @@ export interface WisdomItem {
   tag?: string;
   badge_scope: "player" | "game_master" | "shared";
   category?: string;
+  // G2/G3 — attribution that survives an exported Novel: the upstream URL, the
+  // source license and creator, and the repository-relative anchor the item was
+  // seeded from.
+  license?: string;
+  creator?: string;
+  local_source?: string;
   // REQ-080h — the cited span and the stored source text it was drawn from.
   // Verification reads these; it never fetches and never backfills at verify time.
   quoted_excerpt?: string;
@@ -30,6 +36,9 @@ export interface ActionPattern {
   ruleset_section: string;
   source_url?: string;
   suggested_actions?: string[];
+  license?: string;
+  creator?: string;
+  local_source?: string;
   quoted_excerpt?: string;
   source_snapshot?: string;
 }
@@ -338,6 +347,41 @@ export const DEFAULT_WISDOM: WisdomManifest = {
 // REQ-260a / §11.3 — every Wisdom item carries a stable key so activation and
 // deactivation address a specific item. Keys derive deterministically from the
 // item's own content, so re-extraction of identical content reproduces them.
+// G2/G3 — every seeded vendor item carries actionable attribution: the upstream
+// URL replaces the repository-relative path, and the source license and creator
+// travel with the item into an exported Novel. The local anchor is kept for
+// build-time verification. A source added here must also appear in Appendix U
+// and docs/licenses/ATTRIBUTION.md (check-reference-server-cleanliness).
+const VENDOR_SOURCES: Array<{ prefix: string; upstream: string; license: string; creator: string }> = [
+  { prefix: "narrative_world_model/narrative/dmcp/", upstream: "https://github.com/shawnrushefsky/dmcp", license: "MIT", creator: "Shawn Rushefsky" },
+  { prefix: "narrative_world_model/narrative/lonelog/", upstream: "https://lonelog.org", license: "CC BY-SA 4.0", creator: "zeruhur" },
+  { prefix: "narrative_world_model/narrative/bitd/", upstream: "https://bladesinthedark.com/", license: "CC BY 3.0", creator: "John Harper" },
+  { prefix: "narrative_world_model/narrative/ironsworn-srd/", upstream: "https://ironswornrpg.com", license: "CC BY 4.0", creator: "Shawn Tomkin" },
+  { prefix: "narrative_world_model/narrative/lazy-gm/", upstream: "https://slyflourish.com/lazy_gm_resource_document.html", license: "CC BY 4.0", creator: "Mike Shea" },
+  { prefix: "narrative_world_model/narrative/alexandrian/", upstream: "https://thealexandrian.net", license: "CC BY 4.0", creator: "Justin Alexander" },
+  { prefix: "narrative_world_model/narrative/dungeon-world/", upstream: "https://www.dungeonworldsrd.com", license: "CC BY 3.0", creator: "Sage LaTorra, Adam Koebel" },
+  { prefix: "narrative_world_model/narrative/if-craft-corpus/", upstream: "https://pvliesdonk.github.io/if-craft-corpus/", license: "CC BY 4.0", creator: "pvliesdonk" },
+];
+
+function attributeVendor<T extends { source_url?: string; license?: string; creator?: string; local_source?: string }>(item: T): T {
+  const url = item.source_url;
+  if (!url) return item;
+  const hit = VENDOR_SOURCES.find((v) => url.startsWith(v.prefix));
+  if (!hit) return item;
+  return { ...item, source_url: hit.upstream, local_source: url, license: item.license ?? hit.license, creator: item.creator ?? hit.creator };
+}
+
+for (const arr of [
+  DEFAULT_WISDOM.voice_examples,
+  DEFAULT_WISDOM.lore_templates,
+  DEFAULT_WISDOM.supplementary_guidance,
+  DEFAULT_WISDOM.action_patterns,
+  DEFAULT_WISDOM.adventure_advice.templates,
+  DEFAULT_WISDOM.adventure_advice.scenario_starters,
+] as Array<Array<{ source_url?: string }>>) {
+  for (let i = 0; i < arr.length; i++) arr[i] = attributeVendor(arr[i]);
+}
+
 function wisdomSlug(s: string): string {
   return String(s)
     .toLowerCase()

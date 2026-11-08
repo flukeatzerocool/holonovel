@@ -340,6 +340,7 @@ This runs (the table is generated from the gate manifest):
 | `check-tdqs-scoreboard` | yes | yes | TDQS scoreboard consistency |
 | `tool-citation-check` | yes | yes | Tool citations resolve to spec identifiers |
 | `check-reference-server-cleanliness` | yes | yes | Reference server stays inside the content boundary |
+| `check-vendor-manifest` | yes | yes | Vendored content hashes match the manifest |
 | `check-starter-freshness` | yes | yes | Starter Novel artifacts are current |
 | `playability` | no | yes | Headless playability run for every shipped Novel |
 | `check-package-manifest` | yes | yes | Published package manifest assertions |

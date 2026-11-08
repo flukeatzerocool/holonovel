@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-08 — License gates, attribution fields, and the dnd5e history purge
+
+- Purged the historical `dnd5e/` tree (1,072 files), `dnd5e-holonovel/`, and
+  `.opencode/extract_swse.py` from history; 690 → 684 commits, both remotes
+  force-pushed, deployed clone reconciled, installed ruleset state preserved.
+- Appendix U records SRD 5.2.1 / CC BY 4.0 (replacing the stale 5.1 + OGL row),
+  adds the operator-supplied build-input class, and states the OGL Section 15
+  policy for any future redistributed Open Game Content.
+- `check-reference-server-cleanliness` now enforces four-way license parity: a
+  vendored corpus, its LICENSE file, its Appendix U row, and its
+  `docs/licenses/ATTRIBUTION.md` row must move together.
+- `check-vendor-manifest` is registered in the gate manifest, so the vendored
+  content hashes are gated instead of advisory; the AGENTS.md gate table is
+  regenerated.
+- Seeded Ruleset Wisdom items carry the upstream URL in `source_url`, the local
+  anchor in `local_source`, and the source `license` and `creator` — so an
+  exported Novel keeps CC BY-SA attribution.
+- `NOTICE.md` ships in the package and `DECISIONS.md` records the two-record
+  license policy (Appendix U normative, the register for detail).
+
 ## 2026-11-08 — Remove per-book ruleset assets and enforce the content boundary
 
 - Removed `scripts/ruleset-builds/` entirely. The `dnd2024` supplement pipeline

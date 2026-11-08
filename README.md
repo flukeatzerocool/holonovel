@@ -437,7 +437,7 @@ Licenses, upstream links, and modification status for every borrowed source:
 
 Holonovel is MIT-licensed. Built from:
 
-- D&D 5e SRD v5.1 (CC BY 4.0 + OGL 1.0a, Wizards of the Coast)
+- D&D 5e SRD v5.2.1 (CC BY 4.0, Wizards of the Coast)
 - Graham Nelson's Inform (Artistic License 2.0, Graham Nelson)
 - if-craft-corpus (CC BY 4.0, pvliesdonk)
 - dmcp (MIT, Shawn Rushefsky)
@@ -456,7 +456,6 @@ License texts: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/),
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/),
 [MIT](https://opensource.org/license/mit),
-[OGL 1.0a](https://opengamingfoundation.org/ogl.html),
 [Artistic 2.0](https://opensource.org/license/artistic-2-0).
 
 Upstream sources: [D&D 5e SRD](https://www.dndbeyond.com/srd),
