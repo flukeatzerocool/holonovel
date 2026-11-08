@@ -43,6 +43,10 @@ scheduled are explicitly parked, not "in progress".
 
 - Release tag (the pipeline tags when the version advances).
 - Dependency refresh.
+- Upstream watch: review `docs/upstream/cof.md` against the pinned commit, triage
+  every design-relevant delta, and update the pin and delta log. A delta that
+  changes a pending chunk amends that chunk's plan; a new capability waits for
+  the weekly replenishment point.
 - Gate-retirement review: `npm run gate-cost -- --apply` downgrades gates with
   no findings across 20 consecutive runs to advisory. Deleting a gate is still a
   manual decision.

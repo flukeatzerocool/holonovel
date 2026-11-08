@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-08 — Schedule subjective memory and track COF upstream
+
+- Scheduled five incremental chunks for subjective memory, each bound to an
+  event ordinal: a per-entity memory group with affect, salience and origin; a
+  divergence verdict that checks a memory's structured claims against recorded
+  state; a disclosure axis that separates what a character will say from what a
+  badge may see; psyche-depth identity facets; and deterministic recall quality
+  with retention.
+- Added an upstream watch ledger (`docs/upstream/cof.md`) pinned to COF 1.2.1,
+  with a monthly review step in the workflow cadence, so a new release arrives
+  as a diff against a known commit and a triaged decision.
+- Credited COF's memory and psyche vocabulary in the README license list.
+- Scope decisions recorded with the schedule: no COF file interchange (Character
+  Card import and export already cover the AI-mediated path), no multimodal
+  memory, and no sampled recall.
+
 ## 2026-11-07 — Recover the shell-lint CI failure
 
 - `scripts/push-pipeline.sh` drops the `GREEN` color declaration the legacy

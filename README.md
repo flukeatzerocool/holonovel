@@ -439,6 +439,7 @@ Holonovel is MIT-licensed. Built from:
 - if-craft-corpus (CC BY 4.0, pvliesdonk)
 - dmcp (MIT, Shawn Rushefsky)
 - lonelog (CC BY-SA 4.0, zeruhur)
+- COF — Character Open File (CC BY 4.0 / CC0 1.0, Yann Souetre)
 - BitD SRD (CC BY 3.0, John Harper)
 - Ironsworn: Starforged SRD (CC BY 4.0, Shawn Tomkin)
 - Sly Flourish Lazy GM Resource Document (CC BY 4.0, Mike Shea)

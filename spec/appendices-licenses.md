@@ -18,6 +18,7 @@ into the README.md license footer during handoff (§6.4).
 | Dungeon World SRD | Narrative frameworks | CC BY 3.0 | Sage LaTorra, Adam Koebel |
 | Fate SRD | Borrowed mechanics | CC BY 3.0 | Evil Hat Productions |
 | Ironsworn SRD | Borrowed mechanics | CC BY 4.0 | Shawn Tomkin |
+| COF — Character Open File | Borrowed mechanics | CC BY 4.0 / CC0 1.0 | Yann Souetre |
 
 Adding a content source requires: (a) a row in this table; (b) a LICENSE file
 in the content's subdirectory for vendored **Narrative frameworks** rows; and
