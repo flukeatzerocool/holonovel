@@ -1,42 +1,43 @@
 # Changelog
 
-## 2026-11-08 — License gates, attribution fields, and the dnd5e history purge
+## 2026-11-08 — License gates and attribution records
 
-- Purged the historical `dnd5e/` tree (1,072 files), `dnd5e-holonovel/`, and
-  `.opencode/extract_swse.py` from history; 690 → 684 commits, both remotes
-  force-pushed, deployed clone reconciled, installed ruleset state preserved.
-- Appendix U records SRD 5.2.1 / CC BY 4.0 (replacing the stale 5.1 + OGL row),
-  adds the operator-supplied build-input class, and states the OGL Section 15
-  policy for any future redistributed Open Game Content.
+- Purged the pre-rename project tree (1,072 files), its server sibling, and an
+  obsolete extractor from history; 690 → 684 commits, both remotes
+  force-pushed, the deployed clone reconciled, and installed ruleset state
+  preserved.
+- Appendix U records the current SRD version and license (replacing the stale
+  row), adds the operator-supplied build-input class, and states the OGL
+  Section 15 policy for any future redistributed Open Game Content.
 - `check-reference-server-cleanliness` now enforces four-way license parity: a
   vendored corpus, its LICENSE file, its Appendix U row, and its
-  `docs/licenses/ATTRIBUTION.md` row must move together.
+  `docs/licenses/ATTRIBUTION.md` row move together.
 - `check-vendor-manifest` is registered in the gate manifest, so the vendored
   content hashes are gated instead of advisory; the AGENTS.md gate table is
   regenerated.
 - Seeded Ruleset Wisdom items carry the upstream URL in `source_url`, the local
   anchor in `local_source`, and the source `license` and `creator` — so an
-  exported Novel keeps CC BY-SA attribution.
+  exported Novel keeps its attribution.
 - `NOTICE.md` ships in the package and `DECISIONS.md` records the two-record
   license policy (Appendix U normative, the register for detail).
 
-## 2026-11-08 — Remove per-book ruleset assets and enforce the content boundary
+## 2026-11-08 — Remove per-book build assets and enforce the content boundary
 
-- Removed `scripts/ruleset-builds/` entirely. The `dnd2024` supplement pipeline
-  carried 1.07 MB of verbatim text from a commercial ThunderCats book plus its
-  annotate/extract/build/deploy scripts and authored tools; the `swse` rebuild
-  carried a character-creation source and emitter labelled for a trademarked,
-  non-open product. Per the project rule that per-book content lives in the
-  deployed content pipeline, both are gone from the reference server.
+- Removed `scripts/ruleset-builds/` entirely. One supplement pipeline carried
+  1.07 MB of verbatim text from a commercial book plus its annotate, extract,
+  build, and deploy scripts and authored tools; a second rebuild carried a
+  character-creation source and emitter labelled for a non-open, trademarked
+  product. Per the project rule that per-book content lives in the deployed
+  content pipeline, both are gone from the reference server.
 - `.gitignore` ignores `scripts/ruleset-builds/` wholesale, and
   `check-reference-server-cleanliness` drops its sanctioned-slug allowlist: any
   tracked file under that path fails the gate. `DECISIONS.md` records the
   boundary accordingly.
-- `scripts/update.ts` no longer special-cases the dnd2024 extract; a package
-  whose emitter is absent now reports `deferred` instead of failing.
+- `scripts/update.ts` no longer special-cases the supplement extraction; a
+  package whose emitter is absent now reports `deferred` instead of failing.
 - T689/T737 now exercise a neutral stub emitter generated at test time, so the
   emitter contract (surface injection, fixed-timestamp determinism, provenance
-  handling) stays under test without a committed per-book asset. T737's wording
+  handling) stays under test without a committed per-book asset. T737 wording
   no longer names a specific package.
 - The pre-commit gate run manifest reads the working diff with a 64 MB buffer;
   the 1 MB default crashed the hook with ENOBUFS on a large deletion and blocked

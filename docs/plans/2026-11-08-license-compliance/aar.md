@@ -8,7 +8,7 @@
 | Bar | Result |
 |---|---|
 | No tracked path under `scripts/ruleset-builds/` carries third-party prose | Met — the directory is gone and gitignored |
-| The two ThunderCats files are absent from worktree and history | Met — 0 objects for the path |
+| The two the supplement files are absent from worktree and history | Met — 0 objects for the path |
 | A clone of the bundled backup repo greps clean | Met — fresh GitHub clone, 0 history hits |
 | Every build input classified | Superseded — no tracked build inputs exist at all |
 | Gate fails on unclassified / tracked operator-supplied / untracked file | Partly — see deviations |
@@ -31,7 +31,7 @@
 ## What went wrong
 
 - **The plan under-scoped the first removal.** It assumed "sanitize the naming"
-  was enough; `dnd2024/` turned out to be a pipeline whose only purpose was the
+  was enough; `the supplement pipeline/` turned out to be a pipeline whose only purpose was the
   book. Stopping to ask avoided deleting a reference build the user wanted kept
   and surfaced the real principle: per-book assets belong to the deployed
   pipeline.
@@ -42,7 +42,7 @@
   with no AAR. It blocked `check-loop-artifacts`; carried forward with a
   placeholder.
 - **The history was dirtier than the working tree suggested.** Two purges were
-  needed: `scripts/ruleset-builds` and then `dnd5e/` (1,072 files). A single
+  needed: `scripts/ruleset-builds` and then `the pre-rename tree/` (1,072 files). A single
   inventory step at plan time would have found both.
 - **`git push --force-with-lease` was rejected twice** on stale remote-tracking
   refs after a rewrite; a `git fetch` first is required, not optional.
@@ -75,9 +75,9 @@
 - `npx tsx holonovel/scripts/test-ruleset-gates.ts` → 21 passed.
 - `npx tsx holonovel/scripts/test-output-contracts.ts` → 338 passed.
 - `npx tsx holonovel/scripts/test-supplementary.ts` → 4 passed.
-- `git rev-list --objects --all | grep -E 'ruleset-builds|(^|/)(dnd5e|dnd5e-holonovel)/'` → 0.
-- Fresh clone of `github` at `b2903cd`: 684 commits, no `dnd5e/`, no
+- `git rev-list --objects --all | grep -E 'ruleset-builds|(^|/)(the pre-rename tree|the pre-rename server sibling)/'` → 0.
+- Fresh clone of `github` at `b2903cd`: 684 commits, no `the pre-rename tree/`, no
   `scripts/ruleset-builds/`.
-- `TTRPG_DATA_DIR=<deployed> npm run update -- --json` → `swse` deferred, not failed.
+- `TTRPG_DATA_DIR=<deployed> npm run update -- --json` → `the second rebuild` deferred, not failed.
 
 LOOP PAUSED

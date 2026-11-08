@@ -5,21 +5,21 @@ Commit order and per-commit gates: see `plan.md` § Commit and gate order.
 
 ## P1 — Remove from the working tree (done)
 
-- [x] T1 Delete `supplemental-md/thundercats-campaign.md` and
-      `thundercats-adventures.md`.
+- [x] T1 Delete `supplemental-md/supplement-a.md` and
+      `supplement-b.md`.
 - [x] T2 `.gitignore`: ignore `scripts/ruleset-builds/` wholesale.
-- [x] T3 ~~`extract-thundercats.mjs` reads `TTRPG_SUPPLEMENT_DIR`~~ — superseded:
+- [x] T3 ~~`the extractor` reads `TTRPG_SUPPLEMENT_DIR`~~ — superseded:
       the whole per-book pipeline is removed (user decision).
-- [x] T4 Remove the dnd2024 supplement pipeline and its authored tools.
-- [x] T5 Remove `swse/` in full.
+- [x] T4 Remove the supplement pipeline supplement pipeline and its authored tools.
+- [x] T5 Remove `the second rebuild/` in full.
 - [x] T6 Gate: `npm run assemble && npm run check:fast` → PASS.
 
 ## P2 — Purge from history (done)
 
 - [x] T7 Bundle backups under `/tmp/opencode/`.
 - [x] T8 Rewrite tool: `git-filter-repo` absent; `git filter-branch` used twice.
-- [x] T9 Purge 1: `scripts/ruleset-builds` (dnd2024, swse, robotech baseline).
-- [x] T10 Purge 2: `dnd5e/`, `dnd5e-holonovel/`, `.opencode/extract_swse.py`.
+- [x] T9 Purge 1: `scripts/ruleset-builds` (the supplement pipeline, the second rebuild, the third baseline baseline).
+- [x] T10 Purge 2: `the pre-rename tree/`, `the pre-rename server sibling/`, `an obsolete extractor`.
 - [x] T11 Zero objects for both path sets; tags rewritten; both remotes
       force-pushed; deployed reconciled.
 

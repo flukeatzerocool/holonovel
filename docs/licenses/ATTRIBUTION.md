@@ -61,7 +61,7 @@ source says so.
 | G3 | No statement identifies lonelog-derived items as CC BY-SA 4.0. | Medium | Fixed: every seeded vendor item carries `license` and `creator` |
 | G4 | No OGL 1.0a license text or Section 15 notice ships anywhere; acceptable today because the repository distributes no Open Game Content. | Low | Recorded; revisit if a ruleset package is ever published from this repository |
 | G5 | Appendix U's four-column schema is parsed positionally (`validate.ts` requires exactly six split cells), so a license-link column cannot be added without changing the validator and the footer renderer. | Low | Recorded; the register is the interim home |
-| G6 | Commercial rulebook text was committed under `scripts/ruleset-builds/` (dnd2024 supplement, swse, and a historical robotech baseline), published on a public remote. | High | Fixed: the assets are removed from the tree and purged from history; `.gitignore` and the cleanliness gate prevent re-entry |
+| G6 | Commercial rulebook text was committed under `scripts/ruleset-builds/` (a supplement pipeline, a second rebuild, and a historical baseline), published on a public remote. | High | Fixed: the assets are removed from the tree and purged from history; `.gitignore` and the cleanliness gate prevent re-entry |
 
 ## Maintenance
 

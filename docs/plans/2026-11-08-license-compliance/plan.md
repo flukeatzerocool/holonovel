@@ -6,7 +6,7 @@
 ## Done bar
 
 **Done bar:** no tracked path under `scripts/ruleset-builds/` carries third-party
-rulebook prose; the two ThunderCats files are absent from the worktree, from
+rulebook prose; the two the supplement files are absent from the worktree, from
 `git log --all -- <path>`, and from a clone of the bundled backup repository;
 every tracked build input is classified in `docs/licenses/build-inputs.json`;
 the license gate fails on a fixture that adds an unclassified file, on a tracked
@@ -18,22 +18,22 @@ origin and running; the increment lands with plan/tasks/AAR and a LOOP token.
 
 ## Evidence (root cause)
 
-1. `scripts/ruleset-builds/dnd2024/supplemental-md/thundercats-campaign.md`
-   (745,960 B) and `thundercats-adventures.md` (320,997 B) reproduce a commercial
+1. `scripts/ruleset-builds/the supplement pipeline’s supplemental-md`
+   (745,960 B) and `supplement-b.md` (320,997 B) reproduce a commercial
    book — foreword, credits, chapter prose — verbatim.
 2. Both are tracked (`git ls-files`) and introduced in `ad08fa2` (2026-10-03).
    The GitHub remote resolves as `Public`, 687 commits, so the text is published.
 3. The files' own header cites SRD 5.2.1/CC BY 4.0. That notice covers SRD
    material the book uses; it does not license the book, whose credits place ©
-   with the publisher and THUNDERCATS ™/© Warner Bros. and Ted Wolf.
+   with the publisher and supplement ™/© Warner Bros. and Ted Wolf.
 4. `.gitignore:20-22` already excludes `*/package/` and
-   `extract-thundercats.json` — extraction output was kept out, source text was not.
-5. `scripts/ruleset-builds/swse/` (9,877 B) is labelled "Star Wars Saga Edition
+   `the extraction output` — extraction output was kept out, source text was not.
+5. `scripts/ruleset-builds/the second rebuild/` (9,877 B) is labelled "a non-open ruleset
    rules reference", has no Appendix U row, and names a trademarked product.
 6. Appendix U records SRD v5.1 + OGL 1.0a (`spec/appendices-licenses.md:9`) while
    the build scripts use 5.2.1 + CC BY 4.0 — the registry is stale.
 7. `check-reference-server-cleanliness.ts` allowlists build **slugs**
-   (`dnd2024`, `swse`) and package triples; it never inspects file content, and
+   (`the supplement pipeline`, `the second rebuild`) and package triples; it never inspects file content, and
    it reads `git ls-files` only, so an untracked local copy is invisible to it.
 8. `check:vendor` (`holonovel/package.json:110`) exists but no gate in
    `scripts/lib/gate-manifest.ts` runs it, so the hash pins that prove "byte
@@ -50,11 +50,11 @@ origin and running; the increment lands with plan/tasks/AAR and a LOOP token.
 
 | ID | Severity | Finding | Phase |
 |---|---|---|---|
-| R1 | P0 | 1.07 MB of commercial ThunderCats book text is tracked and published | P1 |
+| R1 | P0 | 1.07 MB of commercial the supplement book text is tracked and published | P1 |
 | R2 | P0 | The build reads its input from an in-tree path, so deletion breaks it unless a source path is introduced | P1 |
 | R3 | P0 | Deleting at HEAD leaves the text in every prior commit and on both remotes | P2 |
-| R4 | P0 | ThunderCats naming and derived data persist in adjacent build files, `scripts/update.ts`, `spec/audit/*`, `DECISIONS.md`, and two `plans/` files | P1 |
-| R5 | P1 | `swse/` has no Appendix U row and names a non-open, trademarked product | P1 |
+| R4 | P0 | the supplement naming and derived data persist in adjacent build files, `scripts/update.ts`, `spec/audit/*`, `DECISIONS.md`, and two `plans/` files | P1 |
+| R5 | P1 | `the second rebuild/` has no Appendix U row and names a non-open, trademarked product | P1 |
 | R6 | P1 | Appendix U is stale: SRD v5.1/OGL 1.0a recorded, 5.2.1/CC BY 4.0 used | P3 |
 | R7 | P1 | Appendix U has no class for "operator-supplied, never committed" build input | P3 |
 | R8 | P1 | No gate classifies tracked build inputs; the slug allowlist is the only control | P4 |
@@ -70,17 +70,17 @@ origin and running; the increment lands with plan/tasks/AAR and a LOOP token.
 | R18 | P1 | The content-boundary gate cannot see untracked local copies (`git ls-files` only) | P4 |
 | R19 | P1 | `git-filter-repo` is absent; the rewrite step is unexecutable as first drafted | P2 |
 
-Trust boundary: R1–R5 and the SWSE decision rest on **user** confirmation of
+Trust boundary: R1–R5 and the second rebuild decision rest on **user** confirmation of
 licensing rights; all other premises are **repo**-sourced.
 
 ## Blast radius
 
 | File / surface | Change | Size |
 |---|---|---|
-| `scripts/ruleset-builds/dnd2024/supplemental-md/*.md` | delete (operator-supplied instead) | L |
-| `scripts/ruleset-builds/dnd2024/extract-thundercats.mjs` | source path from `TTRPG_SUPPLEMENT_DIR`, refuse when absent | S |
-| `scripts/ruleset-builds/dnd2024/*` (authored, deploy, annotate, build, provenance) | neutral naming, provenance refresh | M |
-| `scripts/ruleset-builds/swse/*` | re-author/label, or de-track (user decision) | S |
+| `scripts/ruleset-builds/the supplement pipeline/supplemental-md/*.md` | delete (operator-supplied instead) | L |
+| `scripts/ruleset-builds/the supplement pipeline/the extractor` | source path from `TTRPG_SUPPLEMENT_DIR`, refuse when absent | S |
+| `scripts/ruleset-builds/the supplement pipeline/*` (authored, deploy, annotate, build, provenance) | neutral naming, provenance refresh | M |
+| `scripts/ruleset-builds/the second rebuild/*` | re-author/label, or de-track (user decision) | S |
 | `.gitignore` | ignore the input files, not the directory (keep `.gitkeep` trackable) | S |
 | `spec/appendices-licenses.md` | SRD row, third content class, gate reference | M |
 | `docs/licenses/build-inputs.json` (new) | classification manifest | M |
@@ -142,21 +142,21 @@ Phases run in order; P2 gates on user approval and a verified backup.
 
 ### P1 — Remove from the working tree
 
-1. Delete `scripts/ruleset-builds/dnd2024/supplemental-md/thundercats-campaign.md`
-   and `thundercats-adventures.md` (R1).
+1. Delete `scripts/ruleset-builds/the supplement pipeline’s supplemental-md`
+   and `supplement-b.md` (R1).
 2. `.gitignore`: ignore `scripts/ruleset-builds/*/supplemental-md/*.md` (not the
    directory) and negate the keep-file
    `!scripts/ruleset-builds/*/supplemental-md/.gitkeep`; commit the `.gitkeep`
    (R2).
-3. Repoint `extract-thundercats.mjs:21` at `TTRPG_SUPPLEMENT_DIR`; exit 1 with an
+3. Repoint `the extractor:21` at `TTRPG_SUPPLEMENT_DIR`; exit 1 with an
    operator instruction when unset (R2).
-4. Sanitize R4: neutral package slug and labels in `authored/tools-thundercats.json`,
-   `annotate-thundercats.mjs`, `deploy.mjs`, `build-package.mjs`,
+4. Sanitize R4: neutral package slug and labels in `authored/the authored tools file`,
+   `the annotator`, `deploy.mjs`, `build-package.mjs`,
    `provenance.json`, `scripts/update.ts`, `spec/audit/*`, `holonovel/DECISIONS.md`,
    `plans/2026-10-03-convert-build-hardening.md`,
    `plans/2026-10-10-ruleset-rebuild-emitter-stress-test.md`. Delete derived
    artifacts rather than re-describing them.
-5. Resolve `swse/` (R5) per the open question.
+5. Resolve `the second rebuild/` (R5) per the open question.
 
 ### P2 — Purge from history (destructive, approval-gated)
 
@@ -167,7 +167,7 @@ Phases run in order; P2 gates on user approval and a verified backup.
    `npx git-filter-repo`; if neither is available, fall back to
    `git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch <paths>'`.
    Record which path was used.
-8. Rewrite: `--invert-paths` over `scripts/ruleset-builds/dnd2024/supplemental-md`
+8. Rewrite: `--invert-paths` over `scripts/ruleset-builds/the supplement pipeline/supplemental-md`
    and any path dropped in step 5.
 9. Retag `v2026.11.07`; confirm `git log --all -- <paths>` is empty and the tree
    builds.
@@ -260,9 +260,9 @@ Phases run in order; P2 gates on user approval and a verified backup.
 ## Verification
 
 1. `git ls-files scripts/ruleset-builds` shows no `.md` under `supplemental-md/`.
-2. `git log --all -- scripts/ruleset-builds/dnd2024/supplemental-md` is empty.
+2. `git log --all -- scripts/ruleset-builds/the supplement pipeline/supplemental-md` is empty.
 3. Substitute for a network clone: `git clone ../holonovel-pre-purge.bundle
-   /tmp/verify && grep -ri "thundercats 5.5e" /tmp/verify` is empty; repeat against
+   /tmp/verify && grep -ri "supplement 5.5e" /tmp/verify` is empty; repeat against
    the live remotes after the push.
 4. `npx tsx scripts/test-reference-server-cleanliness.ts` passes, and each
    fixture fails for the expected reason.
@@ -270,14 +270,14 @@ Phases run in order; P2 gates on user approval and a verified backup.
 6. `npm run check:fast`, `npm run check`, `npm run test:package-smoke` exit 0.
 7. Deployed instance re-cloned; `open_session` resumes `torre-nosferatu`.
 
-## Delta amendment 2 — 2026-11-08 (dnd5e history purge)
+## Delta amendment 2 — 2026-11-08 (the pre-rename tree history purge)
 
-User-directed scope addition: purge the historical `dnd5e/` tree (1,072 files of
-converted SRD rules text from the repo's pre-rename era), `dnd5e-holonovel/`
-(13 files), and `.opencode/extract_swse.py`.
+User-directed scope addition: purge the historical `the pre-rename tree/` tree (1,072 files of
+converted SRD rules text from the repo's pre-rename era), `the pre-rename server sibling/`
+(13 files), and `an obsolete extractor`.
 
 - **R22.** Add a second rewrite: backup bundle, `git filter-branch` over the three
-  paths, `--prune-empty` (early commits that only carried `dnd5e/` disappear),
+  paths, `--prune-empty` (early commits that only carried `the pre-rename tree/` disappear),
   retag, verify, force-push both remotes, reconcile the deployed clone.
 - SRD 5.1 text is openly licensed, so this is a content-boundary policy purge,
   not a legal-exposure one; it is user-directed and recorded as such.
@@ -286,36 +286,36 @@ converted SRD rules text from the repo's pre-rename era), `dnd5e-holonovel/`
 
 ## Open questions
 
-1. ~~Redistribution rights for the ThunderCats book?~~ **Resolved 2026-11-08:
+1. ~~Redistribution rights for the supplement book?~~ **Resolved 2026-11-08:
    none held. R1/R3 proceed as removal.**
 2. ~~History rewrite approved?~~ **Resolved 2026-11-08: approved.**
-3. ~~`swse/`: re-author or de-track?~~ **Resolved 2026-11-08: remove entirely.**
+3. ~~`the second rebuild/`: re-author or de-track?~~ **Resolved 2026-11-08: remove entirely.**
 4. Is any OGL 1.0a content still in use, or is everything 5.2.1 / CC BY 4.0?
 
-## Delta amendment — 2026-11-08 (SWSE removal)
+## Delta amendment — 2026-11-08 (the second rebuild removal)
 
-Resolving C-3 (remove `scripts/ruleset-builds/swse/` entirely) exposed two
+Resolving C-3 (remove `scripts/ruleset-builds/the second rebuild/` entirely) exposed two
 dependencies the first draft did not carry:
 
 - **R20.** `holonovel/scripts/test-ruleset-gates.ts` T689 and T737 spawn
-  `scripts/ruleset-builds/swse/build-package.mjs` and read
-  `scripts/ruleset-builds/swse/provenance.json`. Deleting the directory breaks
+  `scripts/ruleset-builds/the second rebuild/build-package.mjs` and read
+  `scripts/ruleset-builds/the second rebuild/provenance.json`. Deleting the directory breaks
   both tests. Fix: the test writes a neutral stub emitter plus provenance into
   its own `TMP` directory and spawns that, exercising the shared
   `ruleset-build-kit` behaviour (surface injection, fixed-timestamp determinism,
-  provenance population/omission) with no committed SWSE artifact. Recorded
+  provenance population/omission) with no committed the second rebuild artifact. Recorded
   weakening: the test no longer exercises the shipped reference emitter.
 - **R21.** `scripts/update.ts` resolves an installed package's emitter through
-  `scripts/ruleset-builds/<slug>/build-package.mjs`. Removing `swse/` makes the
-  deployed instance's installed `swse` package `deferred` with
+  `scripts/ruleset-builds/<slug>/build-package.mjs`. Removing `the second rebuild/` makes the
+  deployed instance's installed `the second rebuild` package `deferred` with
   "no recorded emitter or source" (`update.ts:112-115`) — accepted, not a
-  failure; the installed package stays usable. `dnd2024` rebuilds now require
+  failure; the installed package stays usable. `the supplement pipeline` rebuilds now require
   `TTRPG_SUPPLEMENT_DIR` (R2).
 
 Additional surfaces in this delta: `scripts/check-reference-server-cleanliness.ts`
-allowlist drops `swse`; `spec/audit/script-quality-baseline.json` drops the swse
-emitter entry; `holonovel/DECISIONS.md:384` names `dnd2024` only;
+allowlist drops `the second rebuild`; `spec/audit/script-quality-baseline.json` drops the second rebuild
+emitter entry; `holonovel/DECISIONS.md:384` names `the supplement pipeline` only;
 `holonovel/scripts/playtest/authoring.md:25`, `holonovel/scripts/lib/playtest-lib.ts:110`,
 and `holonovel/scripts/test-playtest.ts:172-179` stop naming the product;
-`spec/appendices-reference.md` T737 drops the `swse` example. P2's rewrite path
-list gains `scripts/ruleset-builds/swse`.
+`spec/appendices-reference.md` T737 drops the `the second rebuild` example. P2's rewrite path
+list gains `scripts/ruleset-builds/the second rebuild`.
