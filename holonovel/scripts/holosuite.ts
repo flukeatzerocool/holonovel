@@ -78,7 +78,7 @@ const TIER_REQS: Record<string, string[]> = {
 };
 
 const P_TIER_REQS = anchor("holonovel/scripts/holosuite.ts", 71, "TIER_REQS");
-const P_DETERMINISM = anchor("holonovel/scripts/holosuite.ts", 244, "reportDigest");
+const P_DETERMINISM = anchor("holonovel/scripts/holosuite.ts", 233, "reportDigest");
 
 interface Args {
   tier: Tier;

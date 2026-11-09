@@ -11,6 +11,20 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-08 survivor race clock (REQ-233)
+
+- **Survivor race is descriptive (resolved):** the roadmap decision is made —
+  The Survivors carry goals, resources, and territory, and no numeric clock, so
+  the race stays narration. The generic mechanism it exposed is now real:
+  `advanceFactionClock` is the single writer, a scene transition ticks every
+  clocked faction, a create with goals auto-creates a Game Master-only
+  `clock_type: faction` countdown, a fill rotates `status` to the next goal and
+  surfaces a `[WARNING]` in `spec_health`, and a Player read of `faction://`,
+  `factions://`, or `manage_faction (action: list)` is a GM-filtered projection.
+  T269 and T388 assert it. Predicate: `holonovel/src/index.ts`
+  `advanceFactionClock`; `holonovel/content/torre-nosferatu.source.json`
+  `factions[0]`.
+
 ### 2026-11-08 roadmap clearance (P1, P2)
 
 - **Story-beat previews cut at 60 chars (resolved):** `firstSentence()` replaces
@@ -954,10 +968,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `test:adventure` and `test:backfill` T244)
 
 ## Scheduled-roadmap
-
-- **Survivor race is descriptive (2026-11-08):** The Survivors' 0/10 faction
-  clock has no advancing event. Predicate:
-  `holonovel/content/torre-nosferatu.source.json` `factions`; REQ-233.
 
 
 ## Closed-P3 (recorded, no action)

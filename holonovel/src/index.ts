@@ -679,7 +679,8 @@ function triggerPacingAutonomy(novel: NovelState): void {
 
   const affectedFactions: string[] = [];
   for (const f of novel.factions) {
-    f.clock = Math.min(f.clock_max, f.clock + 1);
+    if (!hasFactionClock(f)) continue;
+    advanceFactionClock(novel, f, 1);
     affectedFactions.push(f.id);
   }
   const affectedNpcs: string[] = [];
@@ -839,7 +840,7 @@ function collectCouplingAdvisories(novel: NovelState, entity: any): string[] {
     if (!f.territory?.length) continue;
     for (const t of f.territory) {
       if (sceneLoc && sceneLoc.startsWith(t.toLowerCase())) {
-        out.push(`[territorial] ${f.name} (clock ${f.clock}/${f.clock_max})`);
+        out.push(hasFactionClock(f) ? `[territorial] ${f.name} (clock ${f.clock ?? 0}/${f.clock_max})` : `[territorial] ${f.name}`);
       }
     }
   }
@@ -3410,7 +3411,7 @@ server.registerTool("respond_decision", {
     for (const f of novel.factions) {
       const tokens = f.goals.join(" ").toLowerCase().split(/\W+/).filter(Boolean);
       if (tokens.includes(chosenId.toLowerCase())) {
-        f.clock = Math.min(f.clock + 1, f.clock_max);
+        advanceFactionClock(novel, f, 1);
         audit("faction_clock", { faction: f.id, clock: f.clock });
       }
     }
@@ -5727,10 +5728,103 @@ function factionAutonomousAdvance(novel: NovelState): void {
   novel.scene_transition_count++;
   if (novel.scene_transition_count % interval !== 0) return;
   for (const f of novel.factions) {
-    f.clock = Math.min(f.clock_max, f.clock + 1);
+    if (!hasFactionClock(f)) continue;
+    advanceFactionClock(novel, f, 1);
     novel.faction_autonomous_ticks[f.id] = (novel.faction_autonomous_ticks[f.id] ?? 0) + 1;
     audit("faction_autonomous_advance", { faction: f.id, clock: f.clock });
   }
+}
+
+// REQ-233b1 — a faction's progress clock is optional: an authored faction
+// without one (the descriptive case) is skipped by every clock path.
+type FactionRecord = NovelState["factions"][number];
+
+function hasFactionClock(f: FactionRecord): boolean {
+  return typeof f.clock_max === "number" && f.clock_max > 0;
+}
+
+// REQ-233b2 — the auto-created countdown mirrors the faction clock; this is the
+// only writer, so the two stores cannot drift.
+function syncFactionClock(novel: NovelState, f: FactionRecord): void {
+  if (!hasFactionClock(f)) return;
+  const mirror = novel.countdowns.get(f.name);
+  if (!mirror || mirror.clock_type !== "faction") return;
+  mirror.ticks = Math.max(0, (f.clock_max ?? 0) - (f.clock ?? 0));
+  mirror.total = f.clock_max ?? mirror.total;
+}
+
+// REQ-233b1 — a filled clock advances the faction to its next goal and starts a
+// new clock. The notice is session-scoped (the relationship-marker precedent):
+// no persisted field, so §7.7 and the clone/checkpoint enumerations are
+// unchanged; a restart drops it.
+const factionFillNotices = new Map<string, string[]>();
+
+function fillFactionClock(novel: NovelState, f: FactionRecord): void {
+  const goals = f.goals ?? [];
+  if (goals.length > 0) {
+    const idx = goals.indexOf(f.status);
+    f.status = goals[(idx + 1) % goals.length] ?? goals[0];
+  }
+  f.clock = 0;
+  syncFactionClock(novel, f);
+  const notices = factionFillNotices.get(novel.slug) ?? [];
+  notices.push(`Faction '${f.name}' clock filled — status advanced to '${f.status}'.`);
+  factionFillNotices.set(novel.slug, notices.slice(-5));
+  audit("faction_clock_fill", { faction: f.id, status: f.status });
+}
+
+// REQ-233b2 / REQ-235 / REQ-338 / REQ-351 — one writer for every clock path.
+function advanceFactionClock(novel: NovelState, f: FactionRecord, delta = 1): void {
+  if (!hasFactionClock(f) || delta === 0) return;
+  const max = f.clock_max ?? 0;
+  const before = f.clock ?? 0;
+  const next = Math.max(0, Math.min(max, before + delta));
+  if (next >= max && before < max) {
+    f.clock = next;
+    fillFactionClock(novel, f);
+    return;
+  }
+  f.clock = next;
+  syncFactionClock(novel, f);
+}
+
+// REQ-233b2 — every faction with a clock advances one tick per scene transition.
+function advanceFactionClocksOnTransition(novel: NovelState): void {
+  for (const f of novel.factions) advanceFactionClock(novel, f, 1);
+}
+
+// REQ-233b1 — the Player sees a GM-filtered faction projection on every read
+// surface: identity and flavor text, never the clock, goals, resources, or the
+// fill-rotated status (which names a goal).
+function factionProjection(f: FactionRecord): Record<string, unknown> {
+  return { id: f.id, name: f.name, description: f.description };
+}
+
+// REQ-233b2 — create-time clock: the faction's own clock is mirrored by a
+// countdown so countdown surfaces report it. A name collision leaves the GM's
+// existing countdown in place; the faction clock still advances.
+function createFactionClockMirror(novel: NovelState, f: FactionRecord): void {
+  if (!hasFactionClock(f) || (f.goals ?? []).length === 0) return;
+  if (novel.countdowns.has(f.name)) return;
+  novel.countdowns.set(f.name, {
+    name: f.name,
+    ticks: f.clock_max ?? 0,
+    total: f.clock_max ?? 0,
+    type: "narrative",
+    scope: `faction:${f.id}`,
+    direction: "decrement",
+    clock_type: "faction",
+    on_scene_transition: false,
+    badge_scope: "game_master",
+  });
+}
+
+// REQ-233b2 — `manage_countdown (action: advance)` on a faction clock updates
+// the faction itself; the mirror is a display of that clock, never its source.
+function factionForCountdown(novel: NovelState, cd: Countdown): FactionRecord | undefined {
+  if (cd.clock_type !== "faction") return undefined;
+  const id = (cd.scope ?? "").replace(/^faction:/, "");
+  return novel.factions.find((f) => f.id === id || f.name === cd.name);
 }
 
 // REQ-340a — compare a countdown scope to a scene location by normalizing case,
@@ -5920,6 +6014,8 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
     cd.ticks -= effective * perUse;
     if (cd.ticks <= 0) expireCountdown(novel, name, cd);
   }
+  // REQ-233b2 — faction clocks tick with the same transition.
+  advanceFactionClocksOnTransition(novel);
 }
 
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
@@ -6011,6 +6107,9 @@ server.registerTool("manage_scene", {
         const ff: any = { interval: fast_forward.interval, npc_changes: [], countdown_adjustments: [] };
         if (!fast_forward.skip_countdowns) {
           for (const [name, cd] of [...novel.countdowns.entries()]) {
+            // REQ-233b2 — a faction clock is transition-driven, not skip-driven;
+            // its mirror is never decremented or deleted here.
+            if (cd.clock_type === "faction") continue;
             if (cd.type === "narrative") {
               const decrement = Math.max(1, Math.round(Number((fast_forward.interval.match(/\d+/) ?? ["1"])[0]) || 1));
               cd.ticks -= decrement;
@@ -6472,7 +6571,7 @@ server.registerTool("manage_staging", {
 // Countdown (REQ-329, REQ-358, REQ-368) — consolidated set/advance/remove/list surface.
 server.registerTool("manage_countdown", {
   title: "Countdown Manager",
-  description: "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; direction shifts NPC dispositions only when scope is also set. remove is GM-only and deletes the timer without firing its world_effect. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
+  description: "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; advancing a faction clock's countdown advances that faction instead. direction shifts NPC dispositions only when scope is also set. remove is GM-only and deletes the timer without firing its world_effect. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
   inputSchema: {
     action: z.enum(["set", "advance", "remove", "list"]).describe("set, advance, remove, or list."),
     name: z.string().optional().describe("Countdown name (set/advance/remove)."),
@@ -6537,6 +6636,14 @@ server.registerTool("manage_countdown", {
       novelSnapshot();
       const cd = novel.countdowns.get(args.name);
       if (!cd) return err("NOT_FOUND", `Countdown '${args.name}' not found.`);
+      // REQ-233b2 — a faction clock is the source of truth; advancing its
+      // countdown advances the faction and rewrites the display.
+      const faction = factionForCountdown(novel, cd);
+      if (faction) {
+        advanceFactionClock(novel, faction, 1);
+        state.saveNovel(novel);
+        return ok(`Faction clock '${cd.name}' advanced to ${faction.clock ?? 0}/${faction.clock_max} (${faction.status}).`);
+      }
       const dir = cd.direction === "increment" ? 1 : -1;
       cd.ticks = Math.max(0, Math.min(cd.total, cd.ticks + dir));
       if ((dir > 0 && cd.ticks >= cd.total) || (dir < 0 && cd.ticks <= 0)) {
@@ -6969,7 +7076,7 @@ server.registerTool("manage_corpus", {
 // Faction (REQ-338, REQ-364) — consolidated create/update/remove/list surface.
 server.registerTool("manage_faction", {
   title: "Faction Management",
-  description: "Manage organizations in the active Novel: create, update, remove, or list factions, each carrying a name, description, goals, resources, and optional territory room names. name is required to create and faction_id targets an existing faction; the progress clock is Novel-internal and not set directly. create, update, and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); remove deletes the faction permanently unless undone, and list is read-only. Use when: creating, revising, removing, or listing factions. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
+  description: "Manage organizations in the active Novel: create, update, remove, or list factions, each carrying a name, description, goals, resources, optional territory room names, and an optional progress clock. name is required to create and faction_id targets an existing faction; the progress clock is Novel-internal and not set directly, and a faction without one carries goals and resources only. create with goals also creates a Game Master-only countdown mirroring the clock; create, update, and remove require the GM or Editor badge and persist to the Novel; remove deletes the faction and that countdown, so both are undoable via manage_history (action: undo); list is read-only and returns a GM-filtered projection to a Player. Use when: creating, revising, removing, or listing factions. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list"]).describe("create, update, remove, or list."),
     detail: z.boolean().optional().describe("Return full faction records instead of summary entries (list)."),
@@ -6994,6 +7101,7 @@ server.registerTool("manage_faction", {
         territory: territory ?? undefined,
       };
       novel.factions.push(faction);
+      createFactionClockMirror(novel, faction);
       state.saveNovel(novel);
       audit("create_faction", { name, description, goals, territory });
       return ok(`Faction '${name}' created (${faction.id}).`);
@@ -7006,6 +7114,15 @@ server.registerTool("manage_faction", {
       if (!faction) return err("NOT_FOUND", `Faction '${faction_id}' not found.`);
       novelSnapshot();
       Object.assign(faction, fields);
+      if (fields.goals) {
+        const goals: string[] = faction.goals ?? [];
+        if (goals.length > 0 && !goals.includes(faction.status)) faction.status = goals[0];
+      }
+      if (hasFactionClock(faction)) {
+        if ((faction.clock ?? 0) > (faction.clock_max ?? 0)) faction.clock = faction.clock_max;
+        if (novel.countdowns.has(faction.name)) syncFactionClock(novel, faction);
+        else createFactionClockMirror(novel, faction);
+      }
       state.saveNovel(novel);
       return ok(`Faction '${faction.name}' updated.`);
     }
@@ -7016,6 +7133,8 @@ server.registerTool("manage_faction", {
       if (idx === -1) return err("NOT_FOUND", `Faction '${args.faction_id}' not found.`);
       const name = novel.factions[idx].name;
       novelSnapshot();
+      const mirror = novel.countdowns.get(name);
+      if (mirror?.clock_type === "faction") novel.countdowns.delete(name);
       novel.factions.splice(idx, 1);
       state.saveNovel(novel);
       audit("remove_faction", { faction_id: args.faction_id });
@@ -7025,11 +7144,11 @@ server.registerTool("manage_faction", {
       const novel = requireNovel();
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
+      const rows = isGM ? novel.factions : novel.factions.map(factionProjection);
       if (wantsDetail(args.detail)) {
-        const rows = novel.factions.map((f) => isGM ? f : { id: f.id, name: f.name, description: f.description });
         return raw(JSON.stringify(rows, null, 2));
       }
-      return raw(JSON.stringify(summaryEntries("faction", novel.factions), null, 2));
+      return raw(JSON.stringify(summaryEntries("faction", rows), null, 2));
     }
     default:
       return err("INVALID_INPUT", `Unknown faction action '${args.action}'. Valid actions: create, update, remove, list.`);
@@ -10779,7 +10898,7 @@ Options: yes, cancel`);
         current_scene: args.current_scene, immediate_situation: args.immediate_situation,
         pending_player_action: args.pending_player_action, short_term_plans: args.short_term_plans,
         long_term_plans: args.long_term_plans, player_goals: args.player_goals,
-        faction_clocks: novel.factions.map(x => ({ name: x.name, clock: x.clock, clock_max: x.clock_max, status: x.status })),
+        faction_clocks: novel.factions.map(x => ({ name: x.name, clock: x.clock ?? null, clock_max: x.clock_max ?? null, status: x.status })),
         countdown_positions: [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, total: cd.total })),
         npc_dispositions: [...novel.npcs.values()].map(n => ({ name: n.name, disposition: n.disposition, location: n.location })),
         relationships: novel.relationships,
@@ -11620,6 +11739,11 @@ function buildSpecHealth(): Record<string, unknown> {
   }
   if (fileSize > 4 * 1024 * 1024) health_warnings.push(`Novel file size ${fileSize} bytes exceeds the 4 MB ceiling.`);
   if (novel && fileSize === 0) health_warnings.push("Novel file size is zero after write (durability failure).");
+  // REQ-233b1 — a filled faction clock is surfaced as a [WARNING]; the notice
+  // list is session-scoped and GM-only (it names a goal).
+  if (isGM && novel) {
+    for (const notice of factionFillNotices.get(novel.slug) ?? []) health_warnings.push(notice);
+  }
   const healthy = health_warnings.length === 0;
 
   // REQ-558d — confidence reflects installed ruleset content even with no active
@@ -12060,7 +12184,11 @@ server.registerResource("causal-state", "causal://state", { title: "Causal State
 server.registerResource("countdown-active", "countdown://active", { title: "Active Countdowns" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "countdown://active", text: "{}", mimeType: "application/json" }] };
-  const active = Object.fromEntries([...novel.countdowns.entries()].filter(([, cd]) => cd.ticks > 0));
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  // REQ-073 — active countdowns are badge-filtered by scope; a faction clock's
+  // mirror is Game Master only.
+  const active = Object.fromEntries([...novel.countdowns.entries()]
+    .filter(([, cd]) => cd.ticks > 0 && (isGM || cd.badge_scope !== "game_master")));
   return { contents: [{ uri: "countdown://active", text: JSON.stringify(active), mimeType: "application/json" }] };
 });
 
@@ -12404,7 +12532,9 @@ server.registerResource("codex-single", new ResourceTemplate("codex://{id}", { l
 server.registerResource("factions-collection", "factions://", { title: "All Factions" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "factions://", text: "[]", mimeType: "application/json" }] };
-  return { contents: [{ uri: "factions://", text: JSON.stringify(novel.factions, null, 2), mimeType: "application/json" }] };
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  const rows = isGM ? novel.factions : novel.factions.map(factionProjection);
+  return { contents: [{ uri: "factions://", text: JSON.stringify(rows, null, 2), mimeType: "application/json" }] };
 });
 server.registerResource("faction-single", new ResourceTemplate("faction://{id}", { list: () => {
   const novel = state.activeNovel;
@@ -12416,7 +12546,9 @@ server.registerResource("faction-single", new ResourceTemplate("faction://{id}",
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const faction = novel.factions.find(f => f.id === id);
   if (!faction) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: JSON.stringify(faction, null, 2), mimeType: "application/json" }] };
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  const body = isGM ? faction : factionProjection(faction);
+  return { contents: [{ uri: uri.href, text: JSON.stringify(body, null, 2), mimeType: "application/json" }] };
 });
 
 // Secrets resource (REQ-234)

@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,980 tokens; standard 24,382; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,051 tokens; standard 24,452; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,36 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Survivor race clock — 2026-11-08
+
+- **D1 — The Survivors' race is descriptive.** The starter faction carries
+  goals, resources, and territory, and no numeric clock; the descent is 84
+  scene transitions on the winning path, so a 10-tick clock (REQ-233b2's one
+  tick per transition) would fill ~12% into the tower. A mechanical clock ships
+  only after a playtest shows the race reads as mechanical. (REQ-233)
+- **D2 — `faction.clock` is authoritative; the countdown mirrors it.**
+  `advanceFactionClock` is the only writer (transitions, REQ-235 choices,
+  REQ-338 autonomous, P53 pacing). The auto-created mirror is
+  `clock_type: "faction"`, `type: "narrative"`, `on_scene_transition: false`,
+  `badge_scope: "game_master"`; the `fast_forward` loop skips faction clocks
+  rather than widening the persisted `type` union. Rejected: deriving the clock
+  from the countdown, which breaks imported factions that carry a clock and no
+  countdown. (REQ-233b2, REQ-073)
+- **D3 — Fill rotates `status` without a new field.** On fill the next goal in
+  `goals` order becomes `status` (a status that is not a goal selects
+  `goals[0]`), the clock resets, and the mirror is rewritten. The `[WARNING]`
+  is an in-memory per-Novel notice rendered into `spec_health.health_warnings`
+  for the Game Master, like the relationship marker; a restart drops it rather
+  than adding a §7.7 property. (REQ-233b1)
+- **D4 — A clock is optional.** `FactionState.clock`/`clock_max` are optional
+  and `hasFactionClock()` gates the tick, the fill, the mirror, and every
+  display; `save_context` reports nulls for a clockless faction. (REQ-233b1,
+  REQ-232d)
+- **D5 — The Player sees a projection.** `faction://`, `factions://`, and both
+  `manage_faction (action: list)` branches return `id`, `name`, and `description`;
+  clock, status, goals, and resources are GM-only. `countdown://active` honors
+  `badge_scope`, so the mirror is GM-only. (REQ-233b1, REQ-073)
 
 ### Relationship change marker and disposition coupling — 2026-11-08
 

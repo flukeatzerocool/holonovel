@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-08 — Faction clocks: real mechanism, descriptive Survivor race
+
+- REQ-233b2's scene-transition tick is implemented: `advanceFactionClock` is the
+  single writer for every clock path (transitions, REQ-235 choices, REQ-338
+  autonomous, P53 pacing), so a clocked faction advances one tick per scene
+  transition at both the parser-move and `manage_scene (action: set)` paths.
+- `manage_faction (action: create)` with goals auto-creates the Game Master-only
+  `clock_type: faction` countdown REQ-233b2 requires; advancing it writes back
+  to the faction, `update` re-syncs on a goals change, and `remove` deletes both.
+- A filled clock rotates `status` to the next goal, starts a new clock, and
+  surfaces a `[WARNING]` in `spec_health` (REQ-233b1); the notice is
+  session-scoped, like the relationship marker.
+- `faction://`, `factions://`, and `manage_faction (action: list)` return a
+  GM-filtered projection to a Player — id, name, description only — and
+  `countdown://active` honors `badge_scope`, closing the clock leak REQ-233b1
+  and §7.7 already forbade. `fast_forward` no longer touches a faction clock.
+- REQ-233b1 states the progress clock is optional. The Survivors ship
+  descriptive: goals, resources, and territory, no numeric race clock, after
+  measuring the winning descent at 84 transitions (a 10-tick clock filled ~12%
+  in). The decision is recorded in `holonovel/DECISIONS.md`; the roadmap item
+  and its register row resolve.
+- T269 is implemented in `test-narrative` (create/mirror, resource position,
+  write-back, transition tick, `fast_forward` no-op, fill rotation,
+  `health_warnings`, removal, Player projection, clockless faction) and T388
+  replaces its vacuous assertions with a real clock read. Holosuite predicate
+  anchors are refreshed for the shifted lines; the data-format fingerprint and
+  the starter artifact are regenerated.
+
 ## 2026-11-08 — Torre knowledge depth: three player-facing pages
 
 - The starter Novel carries ten readable `Page — …` fragments, up from seven:

@@ -12,17 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Survivor race clock (P3)
-
-- Decide whether The Survivors' 0/10 faction clock should advance on scene
-  transitions and fire a "first to the door" event, or stay descriptive
-  (REQ-233).
-- Any clock must be balanced against The Candle and Dread, not layered on top
-  without a playtest.
-
-**Trigger:** after the current Candle/Dread economy has been played and the
-race still feels narrated rather than mechanical.
-
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

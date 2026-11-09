@@ -6,6 +6,7 @@
 
 import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
+import { resourceReader } from "./lib/jsonrpc.js";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -25,6 +26,9 @@ function assertContains(hay: string, needle: string): void {
 }
 function assertNotContains(hay: string, needle: string): void {
   if (hay.toLowerCase().includes(needle.toLowerCase())) throw new Error(`expected NOT to contain "${needle}", got: ${hay.substring(0, 300)}`);
+}
+function assert(cond: boolean, message: string): void {
+  if (!cond) throw new Error(message);
 }
 
 // ── MCP client ──────────────────────────────────────────────────────
@@ -86,14 +90,15 @@ async function briefing(proc: ChildProcess): Promise<string> {
   return messages.map((m: any) => (m?.content?.text ?? "")).join("\n");
 }
 
-function kill(proc: ChildProcess): Promise<void> {
-  return new Promise((resolve) => {
+function kill(proc: ChildProcess): Promise<void> {  return new Promise((resolve) => {
     proc.on("exit", () => resolve());
     proc.kill();
   });
 }
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+const readResource = resourceReader(send);
 
 // ── Main ────────────────────────────────────────────────────────────
 
@@ -171,13 +176,16 @@ async function main() {
     await test("T388: faction autonomous tick fires on interval transitions", async () => {
       const created = await call(proc, "manage_faction", { action: "create",  name: "Merchant Guild", goals: ["Expand to East Dock"] });
       assertContains(created, "faction_");
+      const id = (created.match(/faction_[a-z0-9]+/i) ?? [])[0];
+      const clockNow = async () => JSON.parse(await readResource(proc, `faction://${id}`)).clock as number;
       await call(proc, "manage_scene", { action: "set",  description: "Scene A" });
       await call(proc, "manage_scene", { action: "set",  description: "Scene B" });
       await call(proc, "manage_scene", { action: "set",  description: "Scene C" });
-      const factions = await call(proc, "manage_relationship", { action: "get",  entity_id: "none" }).catch(() => "");
-      void factions;
-      const health = await call(proc, "manage_diagnostics", { action: "health" });
-      assertContains(health, '"active_badge": "game_master"');
+      await call(proc, "manage_scene", { action: "set",  description: "Scene D" });
+      // Every transition ticks the clock; the interval of 3 adds an autonomous
+      // tick on top (REQ-233b2 + REQ-338).
+      const ticks = await clockNow();
+      assert(ticks >= 4, `expected at least 4 clock ticks after three transitions plus one interval tick, got ${ticks}`);
     });
 
     await test("T389: NPC goal pursuit surfaces as World in Motion", async () => {
@@ -198,6 +206,90 @@ async function main() {
     await test("T398/401: audit records faction autonomous advancement", async () => {
       const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, '"active_badge": "game_master"');
+    });
+
+    await kill(proc);
+  }
+
+  // ── T269: faction clocks — mirror, transitions, fill, projection ───
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "narrative-faction-clock" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    const created = await call(proc, "manage_faction", { action: "create", name: "Merchant Guild",
+      goals: ["Expand to East Dock", "Control the river"] });
+    assertContains(created, "faction_");
+    const id = (created.match(/faction_[a-z0-9]+/i) ?? [])[0];
+    const readFaction = async () => JSON.parse(await readResource(proc, `faction://${id}`));
+    const readActiveClocks = async () => JSON.parse(await readResource(proc, "countdown://active"));
+
+    await test("T269: create carries a faction clock and a mirrored countdown", async () => {
+      const faction = await readFaction();
+      assert(faction.clock === 0 && faction.clock_max === 10, `expected a 0/10 clock, got ${faction.clock}/${faction.clock_max}`);
+      const clocks = await readActiveClocks();
+      assert(clocks["Merchant Guild"]?.clock_type === "faction", "auto-created faction countdown missing");
+    });
+
+    await test("T269: advancing the faction countdown writes back to the faction", async () => {
+      const advanced = await call(proc, "manage_countdown", { action: "advance", name: "Merchant Guild" });
+      assertContains(advanced, "Faction clock");
+      assert((await readFaction()).clock === 1, "faction clock did not follow its countdown");
+    });
+
+    await test("T269: a scene transition advances the faction clock", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "The docks" });
+      await call(proc, "manage_scene", { action: "set", description: "A warehouse" });
+      await call(proc, "manage_scene", { action: "set", description: "The market" });
+      const faction = await readFaction();
+      assert(faction.clock === 3, `expected 3 ticks after one advance and two transitions, got ${faction.clock}`);
+      const mirror = (await readActiveClocks())["Merchant Guild"];
+      assert(mirror.ticks === 7, `expected the mirror at 7 remaining, got ${mirror.ticks}`);
+    });
+
+    await test("T269: a fast_forward skip leaves a faction clock alone", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "The market", fast_forward: { interval: "3 hours" } });
+      assert((await readFaction()).clock === 3, "fast_forward advanced a faction clock");
+    });
+
+    await test("T269: a filled clock rotates its goal and warns", async () => {
+      for (let i = 0; i < 7; i += 1) await call(proc, "manage_countdown", { action: "advance", name: "Merchant Guild" });
+      const faction = await readFaction();
+      assert(faction.clock === 0, `expected the clock reset after filling, got ${faction.clock}`);
+      assert(faction.status === "Expand to East Dock", `expected the next goal as status, got '${faction.status}'`);
+      const health = await call(proc, "manage_diagnostics", { action: "health" });
+      assertContains(health, "clock filled");
+    });
+
+    await test("T269: a Player read is a GM-filtered projection", async () => {
+      await call(proc, "set_badge", { badge: "player" });
+      const faction = await readFaction();
+      for (const key of ["clock", "clock_max", "status", "goals", "resources"]) {
+        assert(!(key in faction), `Player faction read leaked '${key}'`);
+      }
+      assert(faction.name === "Merchant Guild", "Player faction read lost its name");
+      const clocks = await readActiveClocks();
+      assert(!("Merchant Guild" in clocks), "Player countdown read exposed a faction clock");
+      const list = JSON.parse(await call(proc, "manage_faction", { action: "list", detail: true }));
+      assert(!("clock" in list[0]) && !("status" in list[0]), "Player faction list leaked the clock");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T269: remove deletes the faction and its clock", async () => {
+      await call(proc, "manage_faction", { action: "remove", faction_id: id });
+      assertContains(await readResource(proc, `faction://${id}`), "not found");
+      assert(!("Merchant Guild" in (await readActiveClocks())), "faction countdown survived removal");
+    });
+
+    await test("T269: a clockless authored faction is untouched by transitions", async () => {
+      await call(proc, "manage_novel", { action: "resume", slug: "torre-nosferatu" });
+      const survivors = JSON.parse(await readResource(proc, "factions://")).find((f: any) => f.name === "The Survivors");
+      assert(!!survivors, "starter faction missing");
+      assert(survivors.clock === undefined && survivors.clock_max === undefined, "starter faction carries a clock");
+      await call(proc, "manage_scene", { action: "set", description: "A landing", location: "The Second Floor" });
+      await call(proc, "manage_scene", { action: "set", description: "Dust and cold", location: "The Second Floor" });
+      const after = JSON.parse(await readResource(proc, "factions://")).find((f: any) => f.name === "The Survivors");
+      assert(after.clock === undefined && after.clock_max === undefined, "a clockless faction gained a clock");
     });
 
     await kill(proc);

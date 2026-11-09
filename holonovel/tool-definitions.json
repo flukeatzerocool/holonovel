@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 111918,
+  "tools_list_bytes": 112201,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 111918,
-        "tokens": 27980
+        "bytes": 112201,
+        "tokens": 28051
       },
       "standard": {
         "tools": 37,
-        "bytes": 97525,
-        "tokens": 24382
+        "bytes": 97808,
+        "tokens": 24452
       },
       "small": {
         "tools": 6,
@@ -852,8 +852,8 @@
     {
       "name": "manage_countdown",
       "title": "Countdown Manager",
-      "description": "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; direction shifts NPC dispositions only when scope is also set. remove is GM-only and deletes the timer without firing its world_effect. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
-      "description_bytes": 629,
+      "description": "Manage countdown timers in the active Novel. set accepts a starting tick count and optional total; advance fires the configured world_effect when the countdown reaches its threshold, and on_scene_transition advances it automatically; advancing a faction clock's countdown advances that faction instead. direction shifts NPC dispositions only when scope is also set. remove is GM-only and deletes the timer without firing its world_effect. Mutating actions persist to the Novel and are audited; list is read-only. Use when: starting, advancing, removing, or listing clocks. Do NOT use when: tracking a vow's progress — use manage_vow (action: milestone). Revert with manage_history (action: undo).",
+      "description_bytes": 698,
       "action_enum": [
         "set",
         "advance",
@@ -900,8 +900,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3551,
-        "descriptionBytes": 629
+        "definitionBytes": 3620,
+        "descriptionBytes": 698
       },
       "category": "",
       "gate": ""
@@ -988,8 +988,8 @@
     {
       "name": "manage_faction",
       "title": "Faction Management",
-      "description": "Manage organizations in the active Novel: create, update, remove, or list factions, each carrying a name, description, goals, resources, and optional territory room names. name is required to create and faction_id targets an existing faction; the progress clock is Novel-internal and not set directly. create, update, and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); remove deletes the faction permanently unless undone, and list is read-only. Use when: creating, revising, removing, or listing factions. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
-      "description_bytes": 670,
+      "description": "Manage organizations in the active Novel: create, update, remove, or list factions, each carrying a name, description, goals, resources, optional territory room names, and an optional progress clock. name is required to create and faction_id targets an existing faction; the progress clock is Novel-internal and not set directly, and a faction without one carries goals and resources only. create with goals also creates a Game Master-only countdown mirroring the clock; create, update, and remove require the GM or Editor badge and persist to the Novel; remove deletes the faction and that countdown, so both are undoable via manage_history (action: undo); list is read-only and returns a GM-filtered projection to a Player. Use when: creating, revising, removing, or listing factions. Do NOT use when: tracking a faction's territory rooms — use manage_world (action: create_room).",
+      "description_bytes": 884,
       "action_enum": [
         "create",
         "update",
@@ -1033,8 +1033,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2078,
-        "descriptionBytes": 670
+        "definitionBytes": 2292,
+        "descriptionBytes": 884
       },
       "category": "",
       "gate": ""

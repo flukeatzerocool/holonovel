@@ -807,8 +807,6 @@
         "Watch the others' wax"
       ],
       "resources": "Their own candles, their own wax, and what they can take from one another.",
-      "clock": 0,
-      "clock_max": 10,
       "status": "neutral",
       "territory": [
         "The Second Floor",

@@ -81,7 +81,7 @@
       }
     }
   },
-  "data_format": "80dc1b0a61fb7dd486c97f83b3329e7a45bb6ad3df354b39bd8767ee08141bc0",
+  "data_format": "e8c5e6514f5cbf5ac534197429334356ea08c896223ac1e2623dc56f788485d1",
   "description": "Torre Nosferatu — a gothic-horror descent. You wake at the top of a seven-floor tower with one candle and no memory of climbing. Every floor hides a key to the stair down. The wax burns with every step. Five strangers are hunting the same exit, each on their own light. Count Orlok rides the edge of your candle and does not cross it. You name yourself at the opening; the rest you earn on your own light.",
   "entities": {
     "character_01": {
@@ -101,8 +101,6 @@
   },
   "factions": [
     {
-      "clock": 0,
-      "clock_max": 10,
       "description": "Five strangers trapped in Torre Nosferatu, each hunting the exit on their own candle. Not a company — a crowd with the same problem, and not the same answer. They trade, they hoard, they race; warmth and cruelty both count here.",
       "goals": [
         "Reach the ground-floor exit before the light runs out",
@@ -1197,8 +1195,6 @@
         },
         "factions": [
           {
-            "clock": 0,
-            "clock_max": 10,
             "description": "Five strangers trapped in Torre Nosferatu, each hunting the exit on their own candle. Not a company — a crowd with the same problem, and not the same answer. They trade, they hoard, they race; warmth and cruelty both count here.",
             "goals": [
               "Reach the ground-floor exit before the light runs out",

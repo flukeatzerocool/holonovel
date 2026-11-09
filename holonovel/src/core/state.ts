@@ -212,6 +212,9 @@ export interface Countdown {
   scope?: string;
   direction?: string;
   clock_type?: "danger" | "racing" | "linked" | "tug_of_war" | "faction" | "mission";
+  // REQ-073 — active countdowns are badge-filtered by scope; a faction clock's
+  // mirror is Game Master only.
+  badge_scope?: "game_master" | "shared";
   on_scene_transition?: boolean;
   // REQ-329 — countdown-world coupling: mechanical triggers that advance the
   // countdown when the matching world-model event occurs (on_room_enter(<id>),
@@ -321,8 +324,11 @@ export interface FactionState {
   description: string;
   goals: string[];
   resources: string;
-  clock: number;
-  clock_max: number;
+  // REQ-233b1 — the progress clock is optional: a faction authored without one
+  // (the descriptive case) carries goals, resources, and territory only, and
+  // every clock path skips it.
+  clock?: number;
+  clock_max?: number;
   status: string;
   territory?: string[]; // REQ-364 — faction world coupling
 }
@@ -372,7 +378,7 @@ export interface GMContext {
   saved_at?: string;
   story_context?: string[];
   active_vows?: { name: string; difficulty: string; milestone_count: number }[];
-  faction_clocks?: { name: string; clock: number; clock_max: number; status: string }[];
+  faction_clocks?: { name: string; clock: number | null; clock_max: number | null; status: string }[];
   countdown_positions?: { name: string; ticks: number; total: number }[];
   npc_dispositions?: { name: string; disposition?: string; location?: string }[];
   relationships?: Relationship[];
