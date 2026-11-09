@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P3b-1 (§5.6 core state and lifecycle)
+
+- Chunk P3b-1 reviews the 66 §5.6 core-state-and-lifecycle REQs (19 families,
+  all bucket C) against the audit log, snapshots/undo/redo, conflict lifecycle,
+  combat and conditions, the structured recap, countdowns, and vows. Every REQ
+  carries a verdict in `docs/plans/2026-11-09-full-review-sweep/worklist.md`:
+  59 hold and 7 carry nine findings. §5.6 splits into P3b-1 (closed here) and
+  P3b-2/P3b-3/P3b-4 on the roadmap.
+- Two P0 defects are fixed with widened assertions. F-P3B1-1: `audit://novel`
+  returned the last 50 entries as JSON with no badge filter and `"[]"` when no
+  Novel was active; it now renders the full chained log as Markdown, filters
+  Player/Observer to own-badge and own-entity entries, returns
+  `[ERROR] [STATE_CONFLICT]` with no Novel, and the forbidden-call wrapper records
+  the active badge instead of an undefined context badge (REQ-168a/b, REQ-133a);
+  T203 asserts the contract and the two JSON-parsing harnesses were updated.
+  F-P3B1-2: the combat-init guard and the navigation block named the nonexistent
+  `end_combat` tool; both now name `manage_combat (action: end)` (REQ-203,
+  REQ-221a).
+- Seven findings are scheduled under a new *§5.6 core state and lifecycle
+  remediation (P1)* roadmap section: the typed recap payload (REQ-072, REQ-175),
+  condition Player access and audit (REQ-217b/c), audit coverage for badge
+  switches/truncation/vows (REQ-040a/c, REQ-041b), countdown `clock_type`
+  interaction models (REQ-073a1/a2), the audit-derived combat turn report
+  (REQ-043b/c), vow resolve/consequence/countdown coupling (REQ-289c,
+  REQ-322b/d), and eleven unexercised Automated citations.
+
 ## 2026-11-09 — Full-review sweep: chunk P3 (§5.4 decision workflows)
 
 - Chunk P3 of the full-review sweep reviewed §5.4's 32 REQs (14 families: 13

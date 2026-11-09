@@ -1035,6 +1035,30 @@ async function main() {
     await call(p, "manage_character", { action: "create",  name: "PC" });
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(aud, "create_novel", "REQ-168 audit resource");
+    // REQ-168a — Markdown, one entry per line: timestamp | badge | tool | prefix | hash.
+    if (!/T\d{2}:\d{2}:\d{2}\.\d{3}Z \| (game_master|none) \| create_novel \| [^|]+ \| [0-9a-f]{8}/.test(aud)) {
+      throw new Error(`REQ-168a audit line format: ${aud.split("\n")[0]?.slice(0, 200)}`);
+    }
+    // REQ-168a — state queries are not recorded.
+    await call(p, "manage_diagnostics", { action: "health" });
+    const afterHealth = await proto(p, "resources/read", { uri: "audit://novel" });
+    if (afterHealth.split("\n").some((line) => line.split(" | ")[2] === "health")) {
+      throw new Error("REQ-168a state query recorded in audit");
+    }
+    // REQ-168a — the Player badge sees own-badge entries, never GM-badge entries.
+    await call(p, "set_badge", { badge: "player" });
+    const playerAud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(playerAud, "set_badge", "REQ-168a player own-badge entry");
+    if (playerAud.split("\n").some((line) => line.split(" | ")[1] === "game_master")) {
+      throw new Error("REQ-168a player saw a GM-badge entry");
+    }
+    const forbidden = await call(p, "manage_npc", { action: "create",  name: "Denied" });
+    assertContains(forbidden, "[FORBIDDEN]", "REQ-032 player GM gate");
+    await call(p, "set_badge", { badge: "game_master" });
+    const boundary = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(boundary, "[BOUNDARY_VIOLATION]", "REQ-168a boundary prefix");
+    const boundaryLine = boundary.split("\n").find((line) => line.includes("[BOUNDARY_VIOLATION]")) ?? "";
+    if (!boundaryLine.includes("| player |")) throw new Error(`REQ-133a boundary entry carries the wrong badge: ${boundaryLine.slice(0, 160)}`);
     await call(p, "manage_npc", { action: "create",  name: "Smith" });
     const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
     const id = Object.keys(npcs)[0];
@@ -1043,8 +1067,13 @@ async function main() {
     await call(p, "manage_scene", { action: "set",  description: "forge", location: "smithy" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Voice directive", "REQ-282 NPC voice directive");
-    passed++;
     await kill(p);
+    // REQ-168b — with no active Novel the resource returns [ERROR] [STATE_CONFLICT].
+    const p2 = await boot();
+    const empty = await proto(p2, "resources/read", { uri: "audit://novel" });
+    assertContains(empty, "[ERROR] [STATE_CONFLICT]", "REQ-168b no-Novel error");
+    await kill(p2);
+    passed++;
   });
 
   // ── Wave 6: §5.6 Adventure resources ──
@@ -1119,6 +1148,7 @@ async function main() {
     await call(p, "manage_combat", { action: "init",  participants: ["character_01", npcId] });
     const again = await call(p, "manage_combat", { action: "init",  participants: ["character_01", npcId] });
     assertContains(again, "[STATE_CONFLICT]", "REQ-203 combat-init guard");
+    assertContains(again, "manage_combat (action: end)", "REQ-203 corrective action names the tool action");
     const add = await call(p, "manage_combat", { action: "add_participant",  participant_id: "nonexistent2" });
     assertContains(add, "[NOT_FOUND]", "REQ-205 add validation");
     passed++;
@@ -1153,6 +1183,7 @@ async function main() {
     await call(p, "manage_combat", { action: "init",  participants: ["character_01"] });
     const nav = await call(p, "run_command", { command: "go north" });
     assertContains(nav, "[STATE_CONFLICT]", "REQ-221 navigation blocked in combat");
+    assertContains(nav, "manage_combat (action: end)", "REQ-221 corrective action names the tool action");
     const look = await call(p, "run_command", { command: "look" });
     assertNotContains(look, "[ERROR]", "REQ-221 inspection allowed");
     await call(p, "manage_combat", { action: "end" });

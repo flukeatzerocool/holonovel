@@ -195,7 +195,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create", name: "deleg-audit" });
     await call(p, "set_badge", { badge: "game_master" });
     const count = async (): Promise<number> =>
-      (JSON.parse(await readResource(p, "audit://novel")) as any[]).filter((e) => e.output_prefix === "[BOUNDARY_VIOLATION]").length;
+      (await readResource(p, "audit://novel")).split("\n").filter((line) => line.includes("| [BOUNDARY_VIOLATION] |")).length;
     const before = await count();
     await call(p, "set_badge", { badge: "player" });
     const refused = await call(p, "manage_causality", {

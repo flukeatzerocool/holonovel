@@ -11,6 +11,26 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
+
+- **F-P3B1-1 — `audit://novel` was truncated JSON, unfiltered (resolved):** the
+  resource returned `novel.audit_log.slice(-50)` as JSON, with no badge filter
+  and `"[]"` when no Novel was active — REQ-168a requires the full log as
+  Markdown, one entry per line, badge-filtered, and REQ-168b requires
+  `[ERROR] [STATE_CONFLICT]`. Predicate: `holonovel/src/index.ts:12447`
+  (pre-fix); T203 asserted only that `create_novel` appeared. Fix at `:12442-12458`:
+  Markdown lines `timestamp | badge | tool | output_prefix | hash | args`,
+  Player/Observer filter by badge or active-entity reference, no-Novel error.
+  The `withForbiddenAudit` wrapper now records `getBadge()` instead of the
+  undefined `ctx.badge` (`core/server.ts:66-73`), so boundary entries carry the
+  active badge. T203 asserts format, filter, state-query absence, boundary
+  prefix, boundary badge, and the no-Novel error; `test-security` and
+  `test-artifact-registry` parse the Markdown resource.
+- **F-P3B1-2 — combat refusals named a tool that does not exist (resolved):**
+  the init guard and the navigation block said `end_combat`; REQ-203/REQ-221a
+  quote `manage_combat (action: end)`. Predicate: `index.ts:5708` and `:4636`
+  (pre-fix). Fix: both messages corrected; T246/T263 assert the quoted action.
+
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
 - **F-P3-1 — structured decision options were mangled (resolved):**
@@ -1069,6 +1089,46 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `test:adventure` and `test:backfill` T244)
 
 ## Scheduled-roadmap
+
+### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
+
+Scheduled under `ROADMAP.md` § *§5.6 core state and lifecycle remediation (P1)*.
+Each finding cites the predicate that carries it.
+
+- **F-P3B1-3 — recap is not the typed structure REQ-072 requires:** output is a
+  line-oriented blob (`holonovel/src/index.ts:9694-9727`); `entities[]`,
+  `lore_entries[]`, `narrative_directive`, `scene_type`, `roster_changes`,
+  `condition_changes`, `story_entries`, `total_combat_rounds`, and typed
+  `timespan_*` are absent, and `confrontations_completed` is a count instead of
+  per-combat `{participants, rounds, outcome}` objects (REQ-175a).
+  T214/T215/T261/T072 (`holonovel/scripts/test-backfill.ts:214`) assert only
+  `Active Novel`.
+- **F-P3B1-4 — condition tools refuse the Player and write no audit entry:**
+  `apply`/`remove` call `requireGM()` (`index.ts:7115`, `:7135`), so a Player
+  cannot condition their own active entity (REQ-217b), and neither action records
+  an audit entry (REQ-217c/REQ-040a). T258 exercises the GM path only.
+- **F-P3B1-5 — audit coverage gaps:** badge switches record only the new badge
+  (`index.ts:3313`; REQ-040c requires old, new, and timestamp); snapshot
+  truncation discards the oldest snapshot silently (`core/state.ts:1881`;
+  REQ-041b requires `[snapshot-truncated]`); vow mutations write no audit entry
+  (`index.ts:7338-7411`; REQ-040a).
+- **F-P3B1-6 — clock interaction models are unimplemented:** the
+  `manage_countdown` schema (`index.ts:6678-6706`) exposes no `clock_type` (nor
+  `opposes`, `link_countdown`, `retreat_countdown`), so racing/linked/tug_of_war/
+  retreat (REQ-073a1/a2) cannot be selected; `CountdownState.clock_type`
+  (`core/state.ts:318`) is only set internally for faction/mission clocks.
+- **F-P3B1-7 — the combat turn report is not audit-derived:** `advance` returns
+  only the turn line with `[AUTO]` (`index.ts:5727-5732`); REQ-043b/c require the
+  participant's actions, rolls, and state changes summarized from the audit log
+  and the lowercase `[auto]` marker.
+- **F-P3B1-8 — vow lifecycle gaps:** `resolve` is not gated on a completed rank
+  track and `consequences` is not recorded as a `consequence` story entry
+  (REQ-289c); `resolve`/`forsake` do not remove the linked `vow:<name>` countdown
+  (REQ-322b/322d). Predicate: `index.ts:7389-7411`.
+- **F-P3B1-9 — Automated citations with no harness:** T8 (REQ-040d),
+  T25/T33/T110/T161 (REQ-043f), T53/T212 (REQ-072f), T271 (REQ-073a2),
+  T54/T139 (REQ-073c3), and T335 (REQ-289e) appear in per-REQ
+  `_Check:_` lines but in no `holonovel/scripts` harness.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

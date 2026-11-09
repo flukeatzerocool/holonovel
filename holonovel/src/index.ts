@@ -4633,7 +4633,7 @@ server.registerTool("run_command", {
   const navVerbs = new Set(["go", "walk", "move", "enter", "exit", "north", "south", "east", "west", "n", "s", "e", "w", "northeast", "northwest", "southeast", "southwest", "ne", "nw", "se", "sw", "up", "down", "u", "d"]);
   const firstWord = command.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
   if (novel.combat && novel.combat.active && navVerbs.has(firstWord)) {
-    return raw(`[ERROR] [STATE_CONFLICT] Combat is active — cannot navigate. Call \`end_combat\` first or flee per the ruleset's retreat mechanic.`);
+    return raw(`[ERROR] [STATE_CONFLICT] Combat is active — cannot navigate. Call \`manage_combat (action: end)\` first or flee per the ruleset's retreat mechanic.`);
   }
 
   // Auto-place entity in first room if no current room
@@ -5705,7 +5705,7 @@ server.registerTool("manage_combat", {
       const novel = requireNovel();
       novelSnapshot();
       if (novel.combat && novel.combat.active) {
-        return err("STATE_CONFLICT", "Combat already active — call `end_combat` first.");
+        return err("STATE_CONFLICT", "Combat already active — call `manage_combat (action: end)` first.");
       }
       const valid = new Set([...novel.entities.keys(), ...novel.npcs.keys()]);
       const unresolved = (args.participants ?? []).filter((p: string) => !valid.has(p));
@@ -12440,11 +12440,25 @@ server.registerResource("lore-single", new ResourceTemplate("lore://{key}", { li
 
 // Audit resource
 server.registerResource("audit-novel", "audit://novel", { title: "Audit Log" }, async () => {
-  // REQ-168 — audit resource: audit://novel exposes the chained audit log,
-  // badge-filtered, with the output prefix distinguishing boundary violations.
+  // REQ-168a/b — the audit resource renders the full chained log as Markdown,
+  // one entry per line, badge-filtered (Player/Observer see own-badge entries
+  // and entries affecting their active entity; GM sees all).
   const novel = state.activeNovel;
-  if (!novel) return { contents: [{ uri: "audit://novel", text: "[]", mimeType: "application/json" }] };
-  return { contents: [{ uri: "audit://novel", text: JSON.stringify(novel.audit_log.slice(-50)), mimeType: "application/json" }] };
+  if (!novel) {
+    return { contents: [{ uri: "audit://novel", text: "[ERROR] [STATE_CONFLICT] No active Novel.\nCorrective action: create or resume a Novel with manage_novel.", mimeType: "text/markdown" }] };
+  }
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none";
+  const activeId = novel.active_entity_id;
+  const visible = isGM
+    ? novel.audit_log
+    : novel.audit_log.filter((e: any) =>
+        e.badge === badge ||
+        (activeId && typeof e.args === "string" && e.args.includes(activeId)));
+  const text = visible
+    .map((e: any) => [e.timestamp, e.badge, e.tool, e.output_prefix || "-", e.hash, e.args ?? "", e.security_event ? "security_event" : ""].filter((part, i) => i < 6 || part).join(" | "))
+    .join("\n");
+  return { contents: [{ uri: "audit://novel", text, mimeType: "text/markdown" }] };
 });
 
 // REQ-239b — compacted per-session summaries, retrievable as structured objects.

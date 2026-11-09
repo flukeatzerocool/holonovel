@@ -14,19 +14,36 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunk P3b: §5.6 state, lifecycle, entities, and adventure content — 265 REQs
-  across 75 families; and chunk P4, `core/state.ts` persistence with the §5.19
-  guardrail cross-check.
-- Chunks P5–P7: engine loop and event stream (§5.20, §5.24, §5.31); adapters and
-  rulesets (§5.10, §5.11, §5.13, §5.15–§5.18, §5.21–§5.23); determinism and
-  knowledge (§5.2, §5.7, §5.8, §5.14, §5.28–§5.30).
-- Chunk P8 and M1: narrative cognition (§5.12, §5.25–§5.27, §5.32–§5.35) and a
-  closing machine-evidence re-run. Scope is §5.1–§5.35 except §5.9 and §5.19,
-  which the 2026-11-09 seam pass closed; chunks P1 (§5.1/§5.5), P2 (§5.3), and
-  P3 (§5.4) landed 2026-11-09.
+- Chunks P3b-2 (entities and NPCs, 93 REQs), P3b-3 (adventure content, 39), and
+  P3b-4 (state surfaces and fingerprinting, 67).
+- Chunks P4 (`core/state.ts` persistence with the §5.19 cross-check) and P5–P7
+  (engine loop and event stream; adapters and rulesets; determinism and
+  knowledge).
+- Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
+  Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
+  closed; P3b-1 (core state and lifecycle) closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P3b
-(§5.6); closes when chunks P3b–P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P3b-2
+(§5.6 entities and NPCs); closes when chunks P3b-2–P8 and the closing M1 pass
+report.
+
+## §5.6 core state and lifecycle remediation (P1)
+
+- Structured recap payload: emit the typed fields REQ-072b/c1/c2/d and
+  per-combat confrontation objects REQ-175a/b, and widen T214/T215/T072
+  (F-P3B1-3).
+- Condition and audit contracts: allow a Player to apply or remove conditions on
+  their own active entity and audit both actions (REQ-217b, REQ-217c), record old
+  and new badge on a switch (REQ-040c), audit snapshot truncation (REQ-041b), and
+  audit vow mutations (REQ-040a) (F-P3B1-4, F-P3B1-5).
+- Clock and vow surfaces: expose `clock_type` and the racing/linked/tug_of_war/
+  retreat models (REQ-073a1/a2), derive the combat turn report from the audit log
+  with `[auto]` (REQ-043b/c), gate vow resolve and remove linked countdowns
+  (REQ-289c, REQ-322b/d) (F-P3B1-6–F-P3B1-8); repair the citations for REQ-040d,
+  REQ-043f, REQ-072f, REQ-073a2, REQ-073c3, and REQ-289e (F-P3B1-9).
+
+**Trigger:** the first session that takes §5.6 remediation work; closes when
+F-P3B1-3–F-P3B1-9 are `Resolved` in the review register.
 
 ## §5.4 remediation (P1)
 

@@ -48,6 +48,29 @@ restart the enumeration from scratch.
   Automated with no harness (a finding).
 - **D11 — No push.** Publication stays user-authorized.
 
+### Decisions (2026-11-09, chunk P3b-1)
+
+- **D12 — §5.6 split (user-approved via "execute plan").** §5.6 is split into
+  four family-atomic sub-increments: P3b-1 core state and lifecycle (66 REQs),
+  P3b-2 entities and NPCs (93), P3b-3 adventure content (39), P3b-4 state
+  surfaces and fingerprinting (67). `REQ-073`'s five parts stay whole in P3b-1.
+- **D13 — Fix policy.** D2 unchanged: P0 in-session, P1 roadmap, P2 only on a
+  demonstrated failure, P3 record-and-close.
+- **D14 — Bucket resolution.** By base family ID from
+  `spec/audit/req-coverage.md`. Every P3b-1 family row is bucket C.
+- **D15 — §5.6/P4 boundary.** P3b-1 reviews lifecycle behaviour through the
+  handlers and public state methods; `state.ts` save/load/archive internals stay
+  with chunk P4.
+- **D16 — Citation resolution.** P2/P3's method: own `_Check:_`, else family
+  citation; an `Automated` token must appear literally in a harness and the
+  harness body must exercise the behaviour.
+- **D17 — Fingerprint consequence.** §5.6 is a `DATA_SECTIONS` member; a REQ-body
+  edit would require `build-order` fingerprint regeneration. This increment
+  changed no REQ body.
+- **D18 — No push.** Publication stays user-authorized.
+- **D19 — Baseline.** `check:fast` 37/37 PASS, `check` PASS, nine server
+  harnesses green before the review; tree clean at `cfaad6b`.
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -55,7 +78,10 @@ restart the enumeration from scratch.
 | P1 | routing, badge gates, `audit()`, error envelopes | §5.1, §5.5 | `code-review` | **closed 2026-11-09** |
 | P2 | tool registration, schemas, descriptions | §5.3 | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3 | decision and creation handlers, structured choices, staleness | §5.4 | `code-review` + citation resolution | **closed 2026-11-09** |
-| P3b | mutation, decision, and lifecycle handlers; entities; adventure content | §5.6 | `code-review` + citation resolution | scheduled |
+| P3b-1 | mutation, decision, and lifecycle handlers; audit resource | §5.6 core state and lifecycle | `code-review` + citation resolution | **closed 2026-11-09** |
+| P3b-2 | entities, NPCs, personality, briefings | §5.6 entities and NPCs (93 REQs) | `code-review` + citation resolution | scheduled |
+| P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | scheduled |
+| P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | scheduled |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
 | P6 | `core/surface-{projection,aliases}.ts`, `world/*`, `rulesets.ts`, `library.ts` | §5.10, §5.11, §5.13, §5.15, §5.16–§5.18, §5.21–§5.23 | `code-review` | scheduled |
@@ -566,3 +592,144 @@ F-P3-6 → 152a, F-P3-7 → 399b, F-P3-8 → 104c, F-P3-5 → 140).
 | REQ-235a | 5.4 | C | holds | no own Check; family exercised: T273 |
 | REQ-235b | 5.4 | C | holds | no own Check; family exercised: T273 |
 | REQ-235c | 5.4 | C | holds | own Check exercised: T273 |
+
+## Chunk P3b-1 — core state and lifecycle (§5.6)
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p3b/`.
+
+**Code targets:** `core/state.ts` audit/snapshot/undo/redo/combat lifecycle
+(`audit` `:1935`, `snapshot` `:1875`, `undo` `:1887`, `redo` `:1902`,
+`advanceCombat`/`endCombat`/`addCombatParticipant`/`removeCombatParticipant`
+`:2290`–`:2400`), `index.ts` `manage_history` (`:3614`), `manage_combat`
+(`:5690`), `manage_condition` (`:7103`), `manage_countdown` (`:6677`),
+`manage_vow` (`:7322`), `manage_context (action: recap)` (`:9647`), the
+`audit://novel` resource (`:12442`), and `core/server.ts` `withForbiddenAudit`.
+**Spec:** the Core State and Lifecycle family block plus `REQ-073a1/a2` — 19
+families, **66 REQs, all bucket C**.
+
+### Cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A audit log, history, conflicts | 17 | **findings F-P3B1-1, F-P3B1-2, F-P3B1-5, F-P3B1-9** | audit resource and boundary badge fixed; remaining gaps scheduled |
+| B combat and conditions | 15 | **findings F-P3B1-2, F-P3B1-4, F-P3B1-7** | messages fixed; turn report and condition badge/audit gaps scheduled |
+| C recap, orientation, clocks, vows | 34 | **findings F-P3B1-3, F-P3B1-6, F-P3B1-8, F-P3B1-9** | orientation and clock/vow basics hold; structured recap, clock types, vow lifecycle scheduled |
+
+**Gate/harness assertion vs REQ text.** T203 asserted only that the string
+`create_novel` appeared in the resource — not the Markdown shape, the full log,
+badge filtering, the boundary prefix, the absence of state queries, or the
+no-Novel error. T214/T215/T261/T072 asserted only `Active Novel` for the whole
+structured recap contract. T258 exercised the GM condition path only. These
+narrow assertions are why the gaps survived.
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P3B1-1 | `audit://novel` returned the last 50 entries as JSON, unfiltered, with no no-Novel error — REQ-168a/b violated (Markdown, full log, player filter, boundary prefix, `[STATE_CONFLICT]` when no Novel) | `index.ts:12447` (pre-fix); T203 at `test-output-contracts.ts:1031` | P0 | **Resolved** — resource renders Markdown with a badge filter and the no-Novel error; T203 asserts format, filter, state-query absence, boundary prefix, no-Novel error; `test-security`/`test-artifact-registry` parse the Markdown |
+| F-P3B1-2 | Combat refusals named the nonexistent `end_combat` tool instead of `manage_combat (action: end)` — REQ-203/REQ-221a quote the corrective action | `index.ts:5708`, `:4636` (pre-fix) | P0 | **Resolved** — both messages corrected; T246/T263 assert the quoted action |
+| F-P3B1-3 | Recap is a line-oriented text blob, not the typed structure REQ-072b/c1/c2/d requires: no `entities[]`, `lore_entries[]`, `narrative_directive`, `scene_type`, `roster_changes`, `condition_changes`, `story_entries`, `total_combat_rounds`, `timespan_*`, and `confrontations_completed` is a count, not per-combat `{participants, rounds, outcome}` objects (REQ-175a) | `index.ts:9694-9727`; `test-backfill.ts:214` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+| F-P3B1-4 | `manage_condition` requires GM/Editor for `apply`/`remove`, refusing a Player on their own active entity (REQ-217b), and neither action writes an audit entry (REQ-217c/REQ-040a) | `index.ts:7115`, `:7135` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+| F-P3B1-5 | Audit coverage gaps: badge switches record only the new badge (REQ-040c requires old + new + timestamp, `index.ts:3313`); snapshot truncation discards the oldest snapshot with no `[snapshot-truncated]` entry (REQ-041b, `core/state.ts:1881`); vow mutations write no audit entry (REQ-040a, `index.ts:7338-7411`) | `index.ts:3313`; `core/state.ts:1881`; `index.ts:7338` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+| F-P3B1-6 | `manage_countdown` exposes no `clock_type` (or `opposes`/`link_countdown`/`retreat_countdown`), so the racing/linked/tug_of_war/retreat interaction models of REQ-073a1/a2 are unimplemented; `CountdownState.clock_type` is only set internally for faction/mission clocks | `index.ts:6678-6706` schema; `core/state.ts:318` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+| F-P3B1-7 | `manage_combat (action: advance)` returns only the turn line with `[AUTO]`; it does not derive the turn report from the audit log (participant actions, rolls, state changes) and the marker case is `[AUTO]`, not `[auto]` (REQ-043b/043c/043f) | `index.ts:5727-5732` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+| F-P3B1-8 | Vow lifecycle gaps: `resolve` is not gated on a completed rank track (REQ-289c), `consequences` is not recorded as a `consequence` story entry (REQ-289c), and `resolve`/`forsake` do not remove the linked `vow:<name>` countdown (REQ-322b/322d) | `index.ts:7389-7411` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+| F-P3B1-9 | Citation repair: Automated tokens with no harness — T8 (REQ-040d), T25/T33/T110/T161 (REQ-043f), T53/T212 (REQ-072f), T271 (REQ-073a2), T54/T139 (REQ-073c3), T335 (REQ-289e) | per-REQ `_Check:_` lines; no token in `holonovel/scripts` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 core state and lifecycle remediation |
+
+No P0 remains open. No REQ body changed.
+
+### Baseline and exit evidence (recorded 2026-11-09)
+
+Baseline before review: `check:fast` 37/37 PASS, `check` PASS, nine server
+harnesses green (`workflow` 14, `persistence` 41, `persistence-guardrails` 16,
+`output-contracts` 338, `backfill` 78, `narrative` 69, `supplementary` 4,
+`adventure` 19, `fingerprints` 12), tree clean at `cfaad6b`.
+
+Exit evidence after the two P0 fixes: `check:fast` 37/37 PASS · `check` PASS
+(0 errors) · `npm --prefix holonovel run test:all` 54/54 PASS (including
+`output-contracts` 344, `security` 12, `artifact-registry` 23) · `check-roadmap`
+PASS · `check-registers --strict` PASS · `check-loop-artifacts` PASS ·
+`build-order` clean. One holosuite evidence anchor (`index.ts:13810#prompt`)
+was repointed to `:13824` after the audit-resource edit shifted the line.
+
+### P3b-1 per-REQ verdict table (66 rows)
+
+Resolution method: each REQ's own `*Check:*` IDs; a REQ with no own Check
+inherits its family's citation set; an `Automated` citation must appear
+literally in a `holonovel/scripts` harness and its body must exercise the
+behaviour; bucket inherited from the base family row (D14).
+
+Result: **59 holds, 7 finding rows carrying 9 finding IDs** (REQ-040a F-4; 040c,
+041b F-5; 040d F-9; 043b/c/f F-7+F-9; 217b/c F-4; 072a1/a2/b/c1/c2/d/f F-3+F-9;
+175a/b F-3; 073c3 F-9; 289c F-8; 289e F-9; 322b/d F-8; 073a1 F-6; 073a2 F-6+F-9).
+Rows marked `holds (fixed …)` carried a P0 that this increment resolved.
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-040a | 5.6 | C | finding:F-P3B1-4 | family exercised T70/T100/T203/T147; condition mutations unaudited |
+| REQ-040b | 5.6 | C | holds | no own Check; family exercised T70/T100/T203/T147; session-boundary marker at `state.ts:1941-1971` |
+| REQ-040c | 5.6 | C | finding:F-P3B1-5 | audit records the new badge only (`index.ts:3313`) |
+| REQ-040d | 5.6 | C | finding:F-P3B1-9 | T147 exercised; Automated T8 has no harness |
+| REQ-168a | 5.6 | C | holds (fixed F-P3B1-1) | T203 widened to the Markdown/filter/prefix contract |
+| REQ-168b | 5.6 | C | holds (fixed F-P3B1-1) | T203 asserts the no-Novel `[STATE_CONFLICT]` |
+| REQ-041a | 5.6 | C | holds | no own Check; family exercised T10/T76/T90/T91/T121/T138/T261; per-badge stacks `state.ts:1875-1885` |
+| REQ-041b | 5.6 | C | finding:F-P3B1-5 | truncation drops the oldest snapshot without an audit entry (`state.ts:1881`) |
+| REQ-041c | 5.6 | C | holds | own Check exercised: T10 |
+| REQ-116 | 5.6 | C | holds | own Check exercised: T121; redo stack clear on snapshot `state.ts:1884` |
+| REQ-043a | 5.6 | C | holds | no own Check; family exercised T47/T90/T91/T131/T162 |
+| REQ-043b | 5.6 | C | finding:F-P3B1-7 | advance does not derive the audit-based turn report |
+| REQ-043c | 5.6 | C | finding:F-P3B1-7 | `[AUTO]` marker case and narrative action report absent |
+| REQ-043d | 5.6 | C | holds | cumulative `total_combat_rounds` (`state.ts:2317`) |
+| REQ-043e | 5.6 | C | holds | briefing combat group implemented |
+| REQ-043f | 5.6 | C | finding:F-P3B1-7, F-P3B1-9 | T162 exercised; T25/T33/T110/T161 have no harness |
+| REQ-043g | 5.6 | C | holds | combat state Novel-scoped; resume path preserves it |
+| REQ-203 | 5.6 | C | holds (fixed F-P3B1-2) | T246 asserts `[STATE_CONFLICT]` and the corrected action |
+| REQ-204a | 5.6 | C | holds | no own Check; family exercised T247; validation before initiative |
+| REQ-204b | 5.6 | C | holds | own Check exercised: T247 |
+| REQ-205a | 5.6 | C | holds | no own Check; family exercised T248; insertion after current turn |
+| REQ-205b | 5.6 | C | holds | no own Check; family exercised T248; pointer advances before removal |
+| REQ-205c | 5.6 | C | holds | own Check exercised: T248; last-participant auto-end `state.ts:2377` |
+| REQ-206a | 5.6 | C | holds | no own Check; family exercised T249; expiry audited `state.ts:2306` |
+| REQ-206b | 5.6 | C | holds | no own Check; family exercised T249; no-duration exemption |
+| REQ-206c | 5.6 | C | holds | own Check exercised: T249 |
+| REQ-221a | 5.6 | C | holds (fixed F-P3B1-2) | navigation guard at `index.ts:4636`; T263 asserts the corrected action |
+| REQ-221b | 5.6 | C | holds | own Check exercised: T263 |
+| REQ-217a | 5.6 | C | holds | no own Check; family exercised T258; catalogue validation at `index.ts:7120` |
+| REQ-217b | 5.6 | C | finding:F-P3B1-4 | Player own-entity path refused by `requireGM()` |
+| REQ-217c | 5.6 | C | finding:F-P3B1-4 | no audit entry on apply/remove |
+| REQ-217d | 5.6 | C | holds | own Check exercised: T258 (GM path) |
+| REQ-072a1 | 5.6 | C | finding:F-P3B1-3 | recap omits active-entity final state and typed fields |
+| REQ-072a2 | 5.6 | C | finding:F-P3B1-3 | roster/condition change arrays absent |
+| REQ-072b | 5.6 | C | finding:F-P3B1-3 | output is line text, not a typed structure |
+| REQ-072c1 | 5.6 | C | finding:F-P3B1-3 | named fields absent |
+| REQ-072c2 | 5.6 | C | finding:F-P3B1-3 | named fields absent |
+| REQ-072d | 5.6 | C | finding:F-P3B1-3 | typed null/empty-array contract absent |
+| REQ-072e | 5.6 | C | holds | session_id/max_transitions/max_rolls implemented and bounded |
+| REQ-072f | 5.6 | C | finding:F-P3B1-3, F-P3B1-9 | T213/T214/T215 exercised; T53/T212 have no harness; typed-value acceptance unasserted |
+| REQ-072g | 5.6 | C | holds | own Check exercised: T272; Lonelog format path |
+| REQ-072h | 5.6 | C | holds | own Check exercised: T518; GM-only gm_notes |
+| REQ-072i | 5.6 | C | holds | own Check exercised: T699; tiered memory |
+| REQ-279a | 5.6 | C | holds | no own Check; family exercised T328; orientation field present |
+| REQ-279b | 5.6 | C | holds | no own Check; family exercised T328; prose + empty-state marker |
+| REQ-279c | 5.6 | C | holds | own Check exercised: T328 |
+| REQ-174a | 5.6 | C | holds | no own Check; family exercised T473/T213; filter at `index.ts:9697-9712` |
+| REQ-174b | 5.6 | C | holds | own Check exercised: T213 |
+| REQ-175a | 5.6 | C | finding:F-P3B1-3 | `confrontations_completed` is a count, not per-combat objects |
+| REQ-175b | 5.6 | C | finding:F-P3B1-3 | pending is a prose string, not typed null/object |
+| REQ-073c1 | 5.6 | C | holds | family exercised T90/T261/T312/T404/T406/T409/T410/T411; round/narrative + direction |
+| REQ-073c2 | 5.6 | C | holds | family exercised; advance/remove/fire audit |
+| REQ-073c3 | 5.6 | C | finding:F-P3B1-9 | Automated T54/T139 have no harness |
+| REQ-329a | 5.6 | C | holds | family exercised T376; three trigger types at `index.ts:4394-4410` |
+| REQ-329b | 5.6 | C | holds | own Check exercised: T373/T376 |
+| REQ-289a | 5.6 | C | holds | family exercised T407/T412/T413; rank tracks at `index.ts:7356` |
+| REQ-289b | 5.6 | C | holds | family exercised; milestone advances |
+| REQ-289c | 5.6 | C | finding:F-P3B1-8 | resolve not gated; consequences not a story entry |
+| REQ-289d | 5.6 | C | holds | family exercised; active/resolved/forsaken surfaces |
+| REQ-289e | 5.6 | C | finding:F-P3B1-9 | Automated T335 has no harness |
+| REQ-322a | 5.6 | C | holds | family exercised T369; suggestion + linked advance |
+| REQ-322b | 5.6 | C | finding:F-P3B1-8 | linked countdown not removed on close |
+| REQ-322c | 5.6 | C | holds | family exercised; shared-scope visibility |
+| REQ-322d | 5.6 | C | finding:F-P3B1-8 | resolve does not remove the linked countdown |
+| REQ-073a1 | 5.6 | C | finding:F-P3B1-6 | clock_type interaction models unimplemented |
+| REQ-073a2 | 5.6 | C | finding:F-P3B1-6, F-P3B1-9 | no `clock_type` parameter; T271 has no harness |

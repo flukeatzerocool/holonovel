@@ -64,12 +64,12 @@ export function withForbiddenAudit(
       // A refusal marker on an OK envelope is quoted content, not a refusal.
       const markedRefusal = /^\s*(\[ERROR\]\s*)?\[FORBIDDEN\]/.test(firstLine) && status !== "OK";
       if (category === "FORBIDDEN" || markedRefusal) {
-        _state.auditForbidden(ctx.badge, toolName, args);
+        _state.auditForbidden(getBadge(), toolName, args);
       }
       return result;
     } catch (e: any) {
       if (e.message?.startsWith("[FORBIDDEN]")) {
-        _state.auditForbidden(ctx.badge, toolName, args);
+        _state.auditForbidden(getBadge(), toolName, args);
       }
       throw e;
     }
