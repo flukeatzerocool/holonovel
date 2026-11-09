@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 5537153c730a376b559f284e54570ecad5fc8fbbbe10523fd00d6c849d273d10
+**Spec hash:** d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672
 
 **Recorded tool budget:** 37 listed (242 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
@@ -699,6 +699,14 @@ dated entries below record changes to this list.
 - Enforced by `check-reference-server-cleanliness` (wired into `check` and `check:fast`): any tracked file under `scripts/ruleset-builds/`, or a tracked ruleset package triple (`manifest.json`+`model.json`+`index.json`) outside `holonovel/testdata/rulesets/`, fails the gate. `.gitignore` also ignores the whole directory, so a local copy cannot be staged by accident.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
 - **License records.** Appendix U is normative; `docs/licenses/ATTRIBUTION.md` carries the due-diligence detail (links, what each source contributes, modification status); `check-reference-server-cleanliness` gates the four-way parity between a vendored corpus, its LICENSE file, its Appendix U row, and its register row. `DECISIONS.md` records the decision only — a third copy would drift.
+
+### Holonovel Spec Update — 2026-11-08 (Holosuite evidence anchor repoint)
+
+- **Delta class:** minor. Changed surfaces: Holosuite evidence anchor repoint; Server coherence remediation; Self-service update path for packaged installs; Faction clocks: real mechanism, descriptive Survivor race; Torre knowledge depth: three player-facing pages.
+- **Fingerprint delta:** partial — changed: source, surfaces; unchanged: config, lockfile, extraction; reused: config, lockfile, extraction; update invoked: no, deferred. Prior spec 5537153c → current d2d55002.
+- **Verification:** Gates: full check suite passed; server harness suite ran; spec SHA d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672; deploy verification is the deploy stage (REQ-418).
+
+<!-- @spec-update:d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672 -->
 
 ### Holonovel Spec Update — 2026-11-08 (Faction clocks: real mechanism, descriptive Survivor race)
 

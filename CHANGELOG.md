@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-08 — Holosuite evidence anchor repoint
+
+- Repointed 25 drifted `path:line#symbol` evidence anchors across the five
+  Holosuite tiers after `holonovel/src/index.ts` and
+  `holonovel/src/core/state.ts` shifted. Each new line was recovered by
+  content-matching the exact source line the anchor last resolved to, not by
+  guessing a delta. All five tiers pass: conformance 45, invariants 25, novel
+  100, adversarial 26, differential 3 (REQ-141m).
+- No assertion, threshold, or tier surface changed; only the predicate
+  anchors that make each finding citable evidence.
+
 ## 2026-11-08 — Server coherence remediation
 
 - The four split originals (`manage_world`, `manage_scene`, `manage_lore`,

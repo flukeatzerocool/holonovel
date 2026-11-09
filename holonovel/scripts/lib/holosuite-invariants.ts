@@ -26,10 +26,10 @@ import type { TierResult } from "./eval-schema.js";
 // whenever the cited file shifts, or cite a nearby stable symbol instead.
 const P_READONLY = anchor("holonovel/src/core/server.ts", 30, "requireNotObserver");
 const P_GATING = anchor("holonovel/src/core/server.ts", 22, "requireGM");
-const P_UNDO = anchor("holonovel/src/index.ts", 3549, "manage_history");
+const P_UNDO = anchor("holonovel/src/index.ts", 3573, "manage_history");
 const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 26, "dispatchCommand");
-const P_RESTART = anchor("holonovel/src/core/state.ts", 2356, "saveNovel");
-const P_PACING = anchor("holonovel/src/index.ts", 619, "pacingSessions");
+const P_RESTART = anchor("holonovel/src/core/state.ts", 2465, "saveNovel");
+const P_PACING = anchor("holonovel/src/index.ts", 631, "pacingSessions");
 const NOVEL_NAME = "Holosuite Invariants";
 
 /** Deterministic PRNG (mulberry32) — no wall-clock, reproducible per seed. */
@@ -79,10 +79,10 @@ export async function runInvariants(opts: { serverDir: string; dataDir?: string;
     const verifyTwo = await client.call("manage_diagnostics", { action: "verify" });
     record("verify_repeat_stable", !verifyOne.isError && verifyOne.text === verifyTwo.text, verifyOne.text.split("\n")[0] ?? "", 2, ["REQ-603"], anchor("holonovel/src/core/state-hash.ts", 59, "stateHash"));
     const replayOne = await client.call("manage_diagnostics", { action: "replay" });
-    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], anchor("holonovel/src/index.ts", 9346, "replayInspection")); // replayInspection
+    record("replay_read_only", !replayOne.isError, replayOne.text.split("\n")[0] ?? "", 2, ["REQ-604"], anchor("holonovel/src/index.ts", 9417, "replayInspection")); // replayInspection
     const ledgerOne = await client.call("manage_diagnostics", { action: "context_report" });
     const ledgerTwo = await client.call("manage_diagnostics", { action: "context_report" });
-    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], anchor("holonovel/src/index.ts", 9740, "context_report"));
+    record("context_report_stable", !ledgerOne.isError && ledgerOne.text === ledgerTwo.text, ledgerOne.isError ? "context_report errored" : `${ledgerOne.text.length} chars`, 2, ["REQ-606"], anchor("holonovel/src/index.ts", 9811, "context_report"));
     const postDiag = fingerprintOf(readPersistedNovel(dataDir, NOVEL_NAME));
     record("diagnostics_read_only", fingerprintStable(preDiag, postDiag).ok, fingerprintStable(preDiag, postDiag).detail, 2, ["REQ-603", "REQ-604", "REQ-606"], anchor("holonovel/src/core/state-hash.ts", 59, "stateHash"));
 
