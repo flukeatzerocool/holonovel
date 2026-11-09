@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-08 — Server coherence remediation
+
+- The four split originals (`manage_world`, `manage_scene`, `manage_lore`,
+  `manage_novel`) no longer carry `_meta.deprecated`: they are listed tools
+  that still own canonical actions. `manage_session` remains the hidden
+  tombstone (REQ-581).
+- Stale split-action prose is gone: `manage_novel` no longer claims the
+  retired export/import/archive actions remain callable, and the four
+  originals no longer point back at their split tools. The 27 retired actions
+  still refuse with `[NOT_FOUND]` naming the split tool (REQ-413, REQ-581).
+- `manage_world (action: list|get)` adds read-only world inspection for Game
+  Master and Editor, so every persisted world type is enumerable and readable
+  under REQ-429; T241 and T511 assert it (REQ-196, REQ-198).
+- Novel-scoped note set/remove, corpus access mutations, and causal mutations
+  now snapshot for `manage_history (action: undo)`. Server-level notes and
+  corpus consumption remain explicit exceptions (REQ-041).
+- The seven knowledge/content tools now declare a recorded disambiguation
+  axis; `tool-disambiguation.json` declares the `knowledge` cluster, and the
+  static lint rejects a listed tool carrying `_meta.deprecated` (REQ-554,
+  REQ-581). The eight widest `manage_*` tools carry an action-span suffix in
+  their title so multiplexing is visible in the catalog.
+- Tests: `test:tool-surface` pins the 27 retired actions and the absence of
+  deprecated listed tools; `test:backfill` covers world list/get;
+  `test:persistence-guardrails` covers note/corpus/causal undo.
+
 ## 2026-11-08 — Self-service update path for packaged installs
 
 - The published package now exposes `holonovel update` (REQ-650): it reconciles

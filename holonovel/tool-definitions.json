@@ -1,29 +1,29 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 112201,
+  "tools_list_bytes": 112264,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 112201,
-        "tokens": 28051
+        "bytes": 112264,
+        "tokens": 28066
       },
       "standard": {
         "tools": 37,
-        "bytes": 97808,
-        "tokens": 24452
+        "bytes": 97871,
+        "tokens": 24468
       },
       "small": {
         "tools": 6,
-        "bytes": 4595,
-        "tokens": 1149,
+        "bytes": 4570,
+        "tokens": 1143,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4595,
-            "tokens": 1149
+            "bytes": 4570,
+            "tokens": 1143
           },
           "explore": {
             "tools": 6,
@@ -37,8 +37,8 @@
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4125,
-            "tokens": 1032
+            "bytes": 4066,
+            "tokens": 1017
           },
           "lookup": {
             "tools": 6,
@@ -52,13 +52,13 @@
           },
           "author": {
             "tools": 6,
-            "bytes": 3775,
-            "tokens": 944
+            "bytes": 3725,
+            "tokens": 932
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4431,
-            "tokens": 1108
+            "bytes": 4468,
+            "tokens": 1117
           }
         }
       }
@@ -84,6 +84,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 0,
         "requiredParamCount": 0,
@@ -136,6 +137,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 1,
@@ -194,6 +196,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 8,
         "requiredParamCount": 1,
@@ -216,7 +219,7 @@
     },
     {
       "name": "manage_archive",
-      "title": "Novel Archive Management",
+      "title": "Novel Archive Management (export/import, clone, checkpoints)",
       "description": "Export, import, archive, unarchive, clone, branch, and checkpoint Novel save files. export writes a file in json or markdown; share emits a portable full-scope json bundle with embedded adventure content; import writes Novel state and mode selects dry-run (validate only), merge (keep existing entries), or replace (discard current Novel state), while strict aborts on unresolved references. clone copies the whole Novel unless trim_audit_sessions keeps only recent sessions; branch starts from from_event (default latest); archive is reversible with unarchive; checkpoint_restore replaces the live Novel with the stored checkpoint and is itself undoable; checkpoint subscriptions persist. Use when: exporting or importing a Novel, archiving/unarchiving, cloning/branching, or managing checkpoints. Do NOT use when: creating, resuming, renaming, or ending a Novel — use manage_novel. Revert the most recent mutation with manage_history (action: undo); checkpoint_list is read-only.",
       "description_bytes": 983,
       "action_enum": [
@@ -260,6 +263,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 14,
         "requiredParamCount": 1,
@@ -274,7 +278,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3293,
+        "definitionBytes": 3329,
         "descriptionBytes": 983
       },
       "category": "",
@@ -311,6 +315,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 5,
         "requiredParamCount": 1,
@@ -333,9 +338,9 @@
     },
     {
       "name": "manage_belief",
-      "title": "Belief Management",
-      "description": "Manage per-entity evidence, belief stances, the perception ledger, the subjective-memory store, and knowledge queries. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets with provenance. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
-      "description_bytes": 997,
+      "title": "Belief Management (evidence, stances, memory, queries)",
+      "description": "Manage per-entity evidence, belief stances, and memory — not objective truth, shared lore, or derived indexes. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets with provenance. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+      "description_bytes": 991,
       "action_enum": [
         "list",
         "get",
@@ -404,6 +409,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 35,
         "requiredParamCount": 1,
@@ -418,8 +424,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6580,
-        "descriptionBytes": 997
+        "definitionBytes": 6611,
+        "descriptionBytes": 991
       },
       "category": "",
       "gate": ""
@@ -427,8 +433,8 @@
     {
       "name": "manage_causality",
       "title": "Causality Management",
-      "description": "Manage objective causal state and transition proposals. causal_propose records a proposal without applying it; causal_admit applies the proposal and causal_reject marks it rejected without deleting the ledger record; causal_expected_version guards optimistic concurrency and causal_from records the expected prior value; causal_ingress admits an external event without a proposal. Proposals persist and are audited, and the ledger is capped by TTRPG_CAUSAL_MAX_LEDGER_ENTRIES; list and state are read-only. Causal changes are not undoable via manage_history. Use when: proposing, admitting, rejecting, listing, or inspecting causal transitions, or ingressing an external event. Do NOT use when: changing rooms, things, or exits — use manage_world.",
-      "description_bytes": 749,
+      "description": "Manage objective causal state and transition proposals. causal_propose records a proposal without applying it; causal_admit applies the proposal and causal_reject marks it rejected without deleting the ledger record; causal_expected_version guards optimistic concurrency and causal_from records the expected prior value; causal_ingress admits an external event without a proposal. Proposals persist and are audited, and the ledger is capped by TTRPG_CAUSAL_MAX_LEDGER_ENTRIES; list and state are read-only. Causal mutations are undoable via manage_history. Use when: proposing, admitting, rejecting, listing, or inspecting causal transitions, or ingressing an external event. Do NOT use when: changing rooms, things, or exits — use manage_world.",
+      "description_bytes": 747,
       "action_enum": [
         "causal_propose",
         "causal_admit",
@@ -463,6 +469,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 11,
         "requiredParamCount": 1,
@@ -477,15 +484,15 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2886,
-        "descriptionBytes": 749
+        "definitionBytes": 2884,
+        "descriptionBytes": 747
       },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_character",
-      "title": "Player Character Management",
+      "title": "Player Character Management (create/import, sheet, update)",
       "description": "Manage player characters: create, import, stage, activate, edit, signal, remove, or list roster characters. stage adds an existing entity to the roster; set_active chooses which Novel entity play acts through and optionally sets pov; import requires roster_id and copies that roster character into the Novel. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields (stats shallow-merge; omitted fields preserved), personality{} aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. stage and roster_remove are exact inverses on the roster; remove deletes the Novel entity and is undoable. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
       "description_bytes": 979,
       "action_enum": [
@@ -544,6 +551,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 27,
         "requiredParamCount": 1,
@@ -558,7 +566,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5401,
+        "definitionBytes": 5432,
         "descriptionBytes": 979
       },
       "category": "",
@@ -567,8 +575,8 @@
     {
       "name": "manage_codex",
       "title": "Codex Library Management",
-      "description": "Manage the server-level codex library of reusable, cross-Novel content (NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, adventures). Entries persist to `.holonovel-state/codex.json` outside every Novel and survive restarts; mutations are audited. Out-of-play and badge-free: requires the Editor or Game Master badge, a Player mid-adventure gets `[FORBIDDEN]`, and reads are not badge-filtered. When no Novel is active, the codex is the default store; `import` and `capture` require an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
-      "description_bytes": 904,
+      "description": "Manage the server-level library of reusable, cross-Novel content — stored entries, not generated synthesis or Novel-scoped lore. Entries cover NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, and adventures, and persist to `.holonovel-state/codex.json` outside every Novel and survive restarts; mutations are audited. Out-of-play and badge-free: requires the Editor or Game Master badge, a Player mid-adventure gets `[FORBIDDEN]`, and reads are not badge-filtered. When no Novel is active, the codex is the default store; `import` and `capture` require an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+      "description_bytes": 976,
       "action_enum": [
         "set",
         "list",
@@ -604,6 +612,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 12,
         "requiredParamCount": 1,
@@ -618,8 +627,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3045,
-        "descriptionBytes": 904
+        "definitionBytes": 3117,
+        "descriptionBytes": 976
       },
       "category": "",
       "gate": ""
@@ -658,6 +667,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 1,
@@ -707,6 +717,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 4,
         "requiredParamCount": 1,
@@ -765,6 +776,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 12,
         "requiredParamCount": 1,
@@ -788,8 +800,8 @@
     {
       "name": "manage_corpus",
       "title": "Knowledge Corpus",
-      "description": "Manage the cold-reference knowledge corpus. corpus_register indexes a document with optional access_public, access_domains, grants, and denies; route derives its domain from a trusted source profile; grant and deny add per-entity decisions, and an explicit deny overrides public, grant, and domain access; access sets an entity's domain profile; consume records a read. Mutating actions persist access state and are audited; list, get, and acquisitions are read-only. Corpus mutations are not undoable via manage_history. Use when: registering, listing, reading, routing, granting/denying access, consuming, or inspecting acquisitions of corpus documents. Do NOT use when: writing Novel lore entries or secrets — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
-      "description_bytes": 812,
+      "description": "Manage external documents and their access state — not Novel lore, beliefs, or derived indexes. corpus_register indexes a document with optional access_public, access_domains, grants, and denies; route derives its domain from a trusted source profile; grant and deny add per-entity decisions, and an explicit deny overrides public, grant, and domain access; access sets an entity's domain profile; consume records a read. Mutating actions persist access state and are audited; list, get, and acquisitions are read-only. Corpus access mutations are undoable; consumption records are append-only. Use when: registering, listing, reading, routing, granting/denying access, consuming, or inspecting acquisitions of corpus documents. Do NOT use when: writing Novel lore entries or secrets — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+      "description_bytes": 887,
       "action_enum": [
         "corpus_register",
         "corpus_list",
@@ -829,6 +841,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 13,
         "requiredParamCount": 1,
@@ -843,8 +856,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3403,
-        "descriptionBytes": 812
+        "definitionBytes": 3478,
+        "descriptionBytes": 887
       },
       "category": "",
       "gate": ""
@@ -886,6 +899,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 11,
         "requiredParamCount": 1,
@@ -908,7 +922,7 @@
     },
     {
       "name": "manage_diagnostics",
-      "title": "Session Diagnostics",
+      "title": "Session Diagnostics (health, compact, event log, verify)",
       "description": "Manage session diagnostics and maintenance surfaces separate from play-facing session controls. compress summarizes the audit log while compact prunes it irreversibly; verify compares live state with recorded hashes and replay reads the retained log, and both are read-only; context_report emits a per-section token ledger and accepts budget_tokens to pack it; visibility_check records its decision in the audit log while visibility_audit reads recent decisions; health, subscribe, and category reassignment do not change Novel content. compact is GM-only. Use when: reporting health or context size, summarizing or compacting the audit log, subscribing, reassigning a category, appending/reading the event log, verifying or replaying state, or scanning a draft for GM-only disclosure. Do NOT use when: recapping play, setting verbosity, or reordering the briefing — use manage_context.",
       "description_bytes": 888,
       "action_enum": [
@@ -965,6 +979,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 25,
         "requiredParamCount": 1,
@@ -979,7 +994,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4980,
+        "definitionBytes": 5017,
         "descriptionBytes": 888
       },
       "category": "",
@@ -1019,6 +1034,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 8,
         "requiredParamCount": 1,
@@ -1061,6 +1077,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 1,
         "requiredParamCount": 0,
@@ -1127,6 +1144,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 16,
         "requiredParamCount": 2,
@@ -1149,9 +1167,9 @@
     },
     {
       "name": "manage_knowledge",
-      "title": "Derived Knowledge",
-      "description": "Manage derived, in-memory knowledge over Novel sources: a semantic index for advisory text ranking and a typed knowledge graph. index_build and graph_build are audited, replace the prior projection in one step, and do not persist a separate copy; both are safe to rebuild from the authoritative Novel file, which is never modified. Search and neighbor reads require the matching build and return one hop of edges or ranked candidates (limit defaults to 5); rebuild after editing or restoring the Novel. The read actions never mutate state. Use when: building or rebuilding the index or graph, checking staleness, ranking indexed items, or reading relations and graph structure. Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording beliefs or perceptions — use manage_belief.",
-      "description_bytes": 868,
+      "title": "Derived Knowledge (index, graph, search, neighbors)",
+      "description": "Manage derived, non-authoritative indexes and graphs over Novel sources — not canonical facts, beliefs, or external documents. index_build and graph_build are audited, replace the prior projection in one step, and do not persist a separate copy; both are safe to rebuild from the authoritative Novel file, which is never modified. Search and neighbor reads require the matching build and return one hop of edges or ranked candidates (limit defaults to 5); rebuild after editing or restoring the Novel. The read actions never mutate state. Use when: building or rebuilding the index or graph, checking staleness, ranking indexed items, or reading relations and graph structure. Do NOT use when: searching a bound ruleset's index — use manage_ruleset (action: search); recording knowledge — use manage_corpus; recording beliefs or perceptions — use manage_belief.",
+      "description_bytes": 869,
       "action_enum": [
         "index_build",
         "index_status",
@@ -1185,6 +1203,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 5,
         "requiredParamCount": 1,
@@ -1199,17 +1218,17 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2261,
-        "descriptionBytes": 868
+        "definitionBytes": 2296,
+        "descriptionBytes": 869
       },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_lore",
-      "title": "Lore Management",
-      "description": "Manage the active Novel's lore entries — durable facts every caller recalls. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible facts. import defaults to dry-run; merge overwrites colliding keys and keeps entries not in the import; replace clears first. Triggers fire on scene-text match; sticky counts scenes an entry stays active after its last match. visibility gates Player read access (gm_only default, shared, player_discovered). Mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling knowledge. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; handling cold-reference documents — use manage_corpus; storing scratch notes — use manage_note.",
-      "description_bytes": 1000,
+      "title": "Lore Management (set/update/remove/list/import, secrets)",
+      "description": "Manage canonical shared world facts and secrets — not beliefs, external documents, or scratch notes. set upserts a keyed entry, merging supplied fields into an existing key; update requires an existing key and changes only supplied fields; set_secret, reveal, secret_list, and knowledge control Player-visible facts. import defaults to dry-run; merge overwrites colliding keys and keeps entries not in the import; replace clears first. Triggers fire on scene-text match; sticky counts scenes an entry stays active after its last match. visibility gates Player read access (gm_only default, shared, player_discovered). Mutations require GM/Editor, persist to the Novel, and are undoable; reads are read-only. Use when: creating, revising, removing, toggling, grouping, suggesting, listing, exporting, importing, or controlling knowledge. Do NOT use when: recording one entity's beliefs or perceptions — use manage_belief; storing scratch notes — use manage_note.",
+      "description_bytes": 967,
       "action_enum": [
         "set",
         "update",
@@ -1256,6 +1275,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 15,
         "requiredParamCount": 1,
@@ -1270,8 +1290,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3459,
-        "descriptionBytes": 1000
+        "definitionBytes": 3467,
+        "descriptionBytes": 967
       },
       "category": "",
       "gate": ""
@@ -1279,8 +1299,8 @@
     {
       "name": "manage_note",
       "title": "Note Management",
-      "description": "Manage Novel-scoped scratch notes, badge-scoped to game_master (default), player, or shared. set replaces the note content; badge_scope defaults to game_master and controls which badge can read it; remove deletes one note, and the Player badge cannot remove a game_master note; list hides game_master notes from non-GM badges. set_server stores a GM-only server-level note with an optional narrative_tag; remove_server deletes it; list_server returns summaries unless detail is set. Mutating note actions persist and are audited, but are not undoable. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set); handling external documents — use manage_corpus; ranking derived text — use manage_knowledge.",
-      "description_bytes": 786,
+      "description": "Manage Novel-scoped scratch notes — not durable lore, external documents, or derived indexes. Notes are badge-scoped to game_master (default), player, or shared; set replaces the note content; badge_scope defaults to game_master and controls which badge can read it; remove deletes one note, and the Player badge cannot remove a game_master note; list hides game_master notes from non-GM badges. set_server stores a GM-only server-level note with an optional narrative_tag; remove_server deletes it; list_server returns summaries unless detail is set. Novel note mutations persist, are audited, and are undoable; server-level notes are not covered by Novel undo. Use when: storing scratch state the caller will reuse. Do NOT use when: recording durable world facts — use manage_lore (action: set); handling external documents — use manage_corpus; ranking derived text — use manage_knowledge.",
+      "description_bytes": 899,
       "action_enum": [
         "set",
         "remove",
@@ -1310,6 +1330,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 1,
@@ -1324,17 +1345,17 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2245,
-        "descriptionBytes": 786
+        "definitionBytes": 2358,
+        "descriptionBytes": 899
       },
       "category": "",
       "gate": ""
     },
     {
       "name": "manage_novel",
-      "title": "Novel Save Management",
-      "description": "Manage a Novel's save-file lifecycle: create, resume, switch, end, rename, describe, set genre, list, save/get play context, and record provenance. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create, save_context, and provenance persist; list, info, and get_context are read-only. export, import, archive/unarchive, clone/branch, and checkpoint actions remain callable here for compatibility, but manage_archive exposes them with clearer scope — prefer it. Lifecycle changes are not reversible via manage_history, so clone a Novel before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use the entity tools; use manage_archive for export, import, archiving, cloning, branching, and checkpoints.",
-      "description_bytes": 847,
+      "title": "Novel Save Management (create/resume/end, save context)",
+      "description": "Manage a Novel's save-file lifecycle: create, resume, switch, end, rename, describe, set genre, list, save/get play context, and record provenance. list returns one line per Novel unless detail is set, and filter selects active, archived, or all. create, save_context, and provenance persist; list, info, and get_context are read-only. Lifecycle changes are not reversible via manage_history, so clone a Novel before a risky change. Use when: handling a campaign's lifecycle or returning to saved context. Do NOT use when: managing content inside the Novel — use manage_scene.",
+      "description_bytes": 578,
       "action_enum": [
         "create",
         "resume",
@@ -1396,6 +1417,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 31,
         "requiredParamCount": 1,
@@ -1410,8 +1432,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4770,
-        "descriptionBytes": 847
+        "definitionBytes": 4535,
+        "descriptionBytes": 578
       },
       "category": "",
       "gate": ""
@@ -1461,6 +1483,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 16,
         "requiredParamCount": 1,
@@ -1512,6 +1535,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 7,
         "requiredParamCount": 1,
@@ -1575,6 +1599,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 14,
         "requiredParamCount": 1,
@@ -1598,8 +1623,8 @@
     {
       "name": "manage_scene",
       "title": "Scene Management",
-      "description": "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls. set overwrites the scene's description and metadata, derives the description from location only when description is omitted, and accepts fast_forward to skip an interval: changes applies NPC moves, conditions, or dispositions and skip_countdowns preserves narrative countdowns. directive replaces the active directive; choices replaces the offered options; oracle resolves a chance question and records the roll, so repeated calls are additive rather than idempotent. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable. Use when: setting scene state, issuing a directive, offering choices, consulting the oracle, or skipping time. Do NOT use when: recording a story beat — use manage_story (action: record); staging presence or autonomy — use manage_staging; changing the spatial model — use manage_world.",
-      "description_bytes": 973,
+      "description": "Manage the active scene and its narrative framing — scene description, directive, choices, and oracle rolls. set overwrites the scene's description and metadata, derives the description from location only when description is omitted, and accepts fast_forward to skip an interval: changes applies NPC moves, conditions, or dispositions and skip_countdowns preserves narrative countdowns. directive replaces the active directive; choices replaces the offered options; oracle resolves a chance question and records the roll, so repeated calls are additive rather than idempotent. set and directive require the GM or Editor badge, persist to the Novel, are audited, and are undoable. Use when: setting scene state, issuing a directive, offering choices, consulting the oracle, or skipping time. Do NOT use when: recording a story beat — use manage_story (action: record); changing the spatial model — use manage_world.",
+      "description_bytes": 920,
       "action_enum": [
         "set",
         "directive",
@@ -1639,6 +1664,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 18,
         "requiredParamCount": 1,
@@ -1653,8 +1679,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4185,
-        "descriptionBytes": 973
+        "definitionBytes": 4132,
+        "descriptionBytes": 920
       },
       "category": "",
       "gate": ""
@@ -1697,6 +1723,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 12,
         "requiredParamCount": 1,
@@ -1753,6 +1780,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 9,
         "requiredParamCount": 1,
@@ -1775,9 +1803,9 @@
     },
     {
       "name": "manage_synthesis",
-      "title": "Synthesis Management",
-      "description": "Manage synthesis content (voice examples, lore templates, action patterns, and other Ruleset Wisdom). Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted; ruling_list reads the ledger newest-first. Undo the latest mutation with manage_history. activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying, recording or reading rulings, or player-authoring items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
-      "description_bytes": 965,
+      "title": "Synthesis Management (run/revert, toggle, rulings)",
+      "description": "Manage generated synthesis content (voice examples, lore templates, action patterns) — not the stored codex library. Mutating actions (run, revert, activate, deactivate, toggle, toggle_action, player_add, player_remove, record_ruling, revert_ruling) persist to the Novel and are audited; read-only actions (list, player_list, verify) do not mutate state. verify checks each item's stored citation locally and reports pass/weak/unsupported; it never fetches and never changes state. record_ruling writes a ruling and its verified citations to the GM-only ruling ledger; revert_ruling marks a ledger entry reverted; ruling_list reads the ledger newest-first. Undo the latest mutation with manage_history. activate/deactivate with key omitted act on the whole module. Use when: running, reverting, listing, activating, deactivating, toggling, verifying, recording or reading rulings, or player-authoring items. Do NOT use when: browsing the codex — use manage_codex (action: list).",
+      "description_bytes": 982,
       "action_enum": [
         "run",
         "revert",
@@ -1823,6 +1851,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 14,
         "requiredParamCount": 1,
@@ -1837,8 +1866,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3345,
-        "descriptionBytes": 965
+        "definitionBytes": 3392,
+        "descriptionBytes": 982
       },
       "category": "",
       "gate": ""
@@ -1880,6 +1909,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 10,
         "requiredParamCount": 1,
@@ -1903,9 +1933,11 @@
     {
       "name": "manage_world",
       "title": "World Model Management",
-      "description": "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. There are no read-only actions here; inspect state with run_command (action: execute). Use when: creating, updating, removing, bulk-converting, or generating locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); proposing objective-state transitions — use manage_causality; recording what an entity believes — use manage_belief.",
-      "description_bytes": 849,
+      "description": "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. list enumerates rooms, things, and exits; get returns one record by id; both are read-only and require the Game Master or Editor badge. Use when: creating, updating, removing, bulk-converting, generating, or inspecting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); recording what an entity believes — use manage_belief.",
+      "description_bytes": 846,
       "action_enum": [
+        "list",
+        "get",
         "create_room",
         "update_room",
         "remove_room",
@@ -1917,7 +1949,7 @@
         "convert",
         "generate"
       ],
-      "param_count": 32,
+      "param_count": 33,
       "required": [
         "action"
       ],
@@ -1930,6 +1962,7 @@
         "enterable": "When true the thing can be entered (create_thing/update_thing).",
         "fixed": "When true the thing cannot be taken (create_thing/update_thing).",
         "from": "Source room alias for room_a (create_exit).",
+        "id": "Room or thing id (get; the lowercased name).",
         "key": "Bound key thing name required to unlock or lock this thing when lockable (create_thing/update_thing).",
         "kind": "Optional thing kind (create_thing).",
         "lit": "When true the thing is lit (create_thing/update_thing).",
@@ -1965,10 +1998,11 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
-        "paramCount": 33,
+        "paramCount": 34,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 33,
+        "paramsWithDescriptions": 34,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -1979,8 +2013,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5659,
-        "descriptionBytes": 849
+        "definitionBytes": 5764,
+        "descriptionBytes": 846
       },
       "category": "",
       "gate": ""
@@ -2007,6 +2041,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 2,
         "requiredParamCount": 0,
@@ -2083,6 +2118,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 23,
         "requiredParamCount": 1,
@@ -2128,6 +2164,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 2,
         "requiredParamCount": 2,
@@ -2179,6 +2216,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 0,
@@ -2222,6 +2260,7 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 1,
         "requiredParamCount": 1,
@@ -2266,6 +2305,7 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
+      "meta": null,
       "context_signals": {
         "paramCount": 2,
         "requiredParamCount": 1,

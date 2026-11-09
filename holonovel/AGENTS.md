@@ -67,7 +67,7 @@ src/library.ts          Package library entry: core and world namespaces plus
 - **Badges & Workflow:** set_badge, respond_decision, manage_history (action: undo/redo)
 - **manage_character** (action: create/stage/import/sheet/set_active/personality/voice/signal/update/remove/roster_remove/roster_list) — player characters, roster, step-by-step [NEED_INPUT] workflow
 - **manage_npc** (action: create/update/remove/list/get/import_card/export_card) — GM NPC management, Character Card V3 import/export
-- **manage_world** (action: create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate) — world-model rooms, things, and exits (REQ-484–REQ-495)
+- **manage_world** (action: list/get/create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate) — world-model rooms, things, and exits (REQ-484–REQ-495)
 - **manage_causality** (action: causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — objective causal state and transition ledger; split from `manage_world` (REQ-413/REQ-581)
 - **run_command** (action: execute/resolve/suggest/visibility/audibility) — parser dispatch, spatial intent resolution, action suggestions, and read-only visibility/audibility queries
 - **manage_combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle

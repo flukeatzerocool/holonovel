@@ -2,11 +2,11 @@
 
 **Spec hash:** 5537153c730a376b559f284e54570ecad5fc8fbbbe10523fd00d6c849d273d10
 
-**Recorded tool budget:** 37 listed (240 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (242 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,051 tokens; standard 24,452; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,066 tokens; standard 24,468; small 1,143; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,40 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Server coherence remediation — 2026-11-08
+
+- **D1 — no tool merge.** The surface stays at 37 tools. Rejected:
+  `manage_novel`→`manage_archive` (one 23-action tool reintroduces the
+  multiplexing the evaluator named), `manage_context`→`manage_diagnostics`
+  (mixes play-facing and maintenance), and `manage_codex`→`manage_synthesis`
+  (stored library vs generated content). The tool-count dimension is
+  structural at this domain size; improve disambiguation and completeness
+  instead. (REQ-429, REQ-554)
+- **D2 — retired split actions stay retired.** The four split originals keep
+  their canonical actions and the 27 split actions remain hidden tombstones;
+  only the prose that claimed they were still callable is removed.
+  (REQ-413, REQ-581)
+- **D3 — split routing is one-way.** The split tool points to its original
+  (`manage_archive` → `manage_novel` for lifecycle); the original no longer
+  points back, because the duplicated action is gone. This drops four mutual
+  `Do NOT use when` pairs while keeping the useful routing direction.
+  (REQ-554)
+- **D4 — deprecation metadata marks tombstones only.** `manage_world`,
+  `manage_scene`, `manage_lore`, and `manage_novel` are listed canonical
+  tools and no longer carry `_meta.deprecated`; only hidden aliases such as
+  `manage_session` do. (REQ-581)
+- **D5 — world reads are GM/Editor only.** `manage_world (action: list|get)`
+  uses `requireGM()`: Game Master and Editor can inspect, Player and Observer
+  are refused, and Player-facing surfaces never expose room/exit/thing ids.
+  (REQ-196, REQ-198, REQ-429)
+- **D6 — undo covers Novel state.** Novel-scoped note set/remove, corpus
+  access mutations, and causal mutations take a `novelSnapshot()`.
+  Server-level notes stay outside the Novel snapshot; corpus consumption
+  records remain append-only. (REQ-041)
+- **D7 — the knowledge cluster is a declared lint cluster.** The seven
+  knowledge/content tools must each record a disambiguation axis; the lint
+  fails a listed tool carrying `_meta.deprecated`. (REQ-554, REQ-581)
 
 ### Survivor race clock — 2026-11-08
 

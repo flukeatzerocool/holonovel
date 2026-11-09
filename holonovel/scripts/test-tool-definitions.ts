@@ -188,7 +188,7 @@ async function main() {
     }
     const readActionHints: Record<string, string[]> = {
       manage_novel: ["info", "list"], manage_character: ["sheet", "roster_list"], manage_npc: ["list", "get"],
-      manage_world: ["create_room"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
+      manage_world: ["list", "get"], manage_faction: ["list"], manage_vow: ["list"], manage_countdown: ["list"],
       manage_lore: ["list", "get"], manage_story: ["list"], manage_note: ["list"], manage_codex: ["list", "get"],
       manage_combat: ["status"], manage_condition: ["list"], manage_relationship: ["get"], resolve_mechanic: ["fate_roll", "fate_aspect", "fate_point", "fate_stress", "ironsworn_momentum", "ironsworn_move", "ironsworn_progress", "forged_action_roll", "forged_stress", "forged_downtime", "roll"],
       manage_belief: ["list", "get", "perception_list"], manage_identity: ["list", "snapshot"],

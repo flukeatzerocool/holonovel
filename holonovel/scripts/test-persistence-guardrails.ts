@@ -110,6 +110,23 @@ async function main() {
       assertContains(b, "note: 1");
     });
 
+    await test("T10/REQ-041: note, corpus, and causal mutations are undoable", async () => {
+      await call(proc, "manage_note", { action: "set",  key: "undo-note", content: "before" });
+      await call(proc, "manage_history", { action: "undo" });
+      const notes = await call(proc, "manage_note", { action: "list" });
+      assertNotContains(notes, "undo-note");
+
+      await call(proc, "manage_corpus", { action: "corpus_register",  corpus_title: "Undo Doc", corpus_body: "body", corpus_domain: "lore" });
+      assertContains(await call(proc, "manage_corpus", { action: "corpus_list" }), "Undo Doc");
+      await call(proc, "manage_history", { action: "undo" });
+      assertNotContains(await call(proc, "manage_corpus", { action: "corpus_list" }), "Undo Doc");
+
+      await call(proc, "manage_causality", { action: "causal_propose",  causal_entity: "npc_1", causal_key: "location", causal_value: "hall" });
+      assertContains(await call(proc, "manage_causality", { action: "causal_list" }), "npc_1");
+      await call(proc, "manage_history", { action: "undo" });
+      assertNotContains(await call(proc, "manage_causality", { action: "causal_list" }), "npc_1");
+    });
+
     await test("T476/REQ-407: persistence tools listed for GM regardless of scene type", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);

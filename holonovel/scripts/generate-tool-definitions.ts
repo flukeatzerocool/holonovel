@@ -45,6 +45,9 @@ interface ToolRecord {
   params: Record<string, string>;
   output_fields: Record<string, string>;
   annotations: Record<string, boolean> | null;
+  // REQ-581/REQ-554 — catalog metadata (`_meta.deprecated`, `replacement`)
+  // captured so the static lint can reject deprecation on a listed tool.
+  meta: Record<string, unknown> | null;
   // REQ-552/REQ-555 — deterministic context signals (schema depth, required
   // fields, union choices, invocation cost) for the static conformance lint.
   context_signals: Record<string, number | boolean>;
@@ -173,6 +176,7 @@ function buildRecord(t: any): ToolRecord {
     params: sortedKeys(params),
     output_fields: sortedKeys(outputFields),
     annotations: t.annotations && typeof t.annotations === "object" ? sortedKeys({ ...t.annotations }) as Record<string, boolean> : null,
+    meta: t._meta && typeof t._meta === "object" ? sortedKeys({ ...t._meta }) as Record<string, unknown> : null,
     context_signals: contextSignals as unknown as Record<string, number | boolean>,
     category: "", // populated by the consumer from TOOL_CATEGORIES; kept for schema stability
     gate: "",
@@ -200,7 +204,7 @@ function surfaceFootprint(tools: any[], registry: SurfaceRegistryLike): Artifact
 function buildArtifact(tools: any[], registry: SurfaceRegistryLike, hiddenAliases: HiddenAlias[] = []): Artifact {
   const records = tools.map(buildRecord).sort((a, b) => a.name.localeCompare(b.name));
   return {
-    schema_version: 2,
+    schema_version: 3,
     tool_count: records.length,
     tools_list_bytes: Buffer.byteLength(JSON.stringify(tools), "utf-8"),
     surface_footprint: surfaceFootprint(tools, registry),

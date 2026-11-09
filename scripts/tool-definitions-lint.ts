@@ -46,12 +46,17 @@ interface ToolRecord {
   name: string; title: string; description: string; description_bytes: number;
   action_enum: string[]; param_count: number; required: string[];
   params: Record<string, string>; output_fields: Record<string, string>;
-  annotations: Record<string, boolean> | null; context_signals?: ContextSignals;
+  annotations: Record<string, boolean> | null; meta?: Record<string, unknown> | null;
+  context_signals?: ContextSignals;
   category: string; gate: string;
 }
 interface Artifact { schema_version: number; tool_count: number; tools_list_bytes: number; tools: ToolRecord[]; }
 interface DisambiguationEntry { axis: string; resolves: string[]; }
-interface DisambiguationData { schema_version: number; axes: Record<string, DisambiguationEntry>; }
+interface DisambiguationData {
+  schema_version: number;
+  axes: Record<string, DisambiguationEntry>;
+  clusters?: Record<string, string[]>;
+}
 
 function loadDisambiguation(): DisambiguationData | null {
   if (!existsSync(DISAMBIGUATION)) return null;
@@ -162,6 +167,13 @@ if (coherence.namingConsistency < 5) {
 for (const [a, b] of coherence.overlappingPairs) {
   violations.push(`overlapping pair ${a} / ${b} not disambiguated in both descriptions (REQ-554)`);
 }
+// REQ-581 — deprecation metadata marks a hidden tombstone, never a listed
+// tool that still owns canonical actions.
+for (const t of artifact.tools) {
+  if (t.meta?.deprecated === true) {
+    violations.push(`${t.name}: listed tool carries _meta.deprecated; deprecation belongs to a hidden tombstone (REQ-581)`);
+  }
+}
 
 // REQ-554 — cross-reference density and recorded disambiguation axes. A
 // description may name at most three siblings; a mutual "Do NOT use when"
@@ -196,6 +208,17 @@ if (!disambiguation) {
   for (const [a, b] of mutualPairs) {
     const resolved = (disambiguation.axes?.[a]?.resolves ?? []).includes(b) || (disambiguation.axes?.[b]?.resolves ?? []).includes(a);
     if (!resolved) violations.push(`mutual reference ${a} / ${b} has no recorded disambiguation axis (REQ-554)`);
+  }
+  // REQ-554 — a declared near-neighbour cluster must record an axis for every
+  // member, so a new knowledge/content tool cannot inherit a fuzzy boundary.
+  for (const [cluster, members] of Object.entries(disambiguation.clusters ?? {})) {
+    for (const member of members) {
+      if (!hostNames.includes(member)) {
+        violations.push(`tool-disambiguation.json cluster '${cluster}' names unknown tool '${member}' (REQ-554)`);
+      } else if (!disambiguation.axes?.[member]) {
+        violations.push(`tool-disambiguation.json cluster '${cluster}' member '${member}' has no recorded axis (REQ-554)`);
+      }
+    }
   }
 }
 // REQ-555 — shadowing candidates are reported beside the score, never gated.

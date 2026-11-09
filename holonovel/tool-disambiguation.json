@@ -1,6 +1,17 @@
 {
   "schema_version": 1,
   "description": "Recorded disambiguation axes for near-neighbour host tools. A mutual 'Do NOT use when' pair is a defect unless one side records the axis that separates the pair here (REQ-554).",
+  "clusters": {
+    "knowledge": [
+      "manage_lore",
+      "manage_belief",
+      "manage_corpus",
+      "manage_knowledge",
+      "manage_note",
+      "manage_codex",
+      "manage_synthesis"
+    ]
+  },
   "axes": {
     "manage_artifact": {
       "axis": "host-level exchange registry of Novel packs, adventures, and ruleset packages",
@@ -55,7 +66,31 @@
     "manage_knowledge": {
       "axis": "derived semantic index and knowledge graph over Novel sources",
       "resolves": [
-        "manage_belief"
+        "manage_belief",
+        "manage_corpus",
+        "manage_ruleset"
+      ]
+    },
+    "manage_note": {
+      "axis": "Novel-scoped scratch notes",
+      "resolves": [
+        "manage_lore",
+        "manage_corpus",
+        "manage_knowledge"
+      ]
+    },
+    "manage_codex": {
+      "axis": "server-level reusable content library",
+      "resolves": [
+        "manage_synthesis",
+        "manage_lore",
+        "manage_note"
+      ]
+    },
+    "manage_synthesis": {
+      "axis": "generated synthesis content",
+      "resolves": [
+        "manage_codex"
       ]
     },
     "manage_causality": {

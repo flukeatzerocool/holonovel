@@ -7,7 +7,7 @@
 // Exit codes: 0 = pass, 1 = one or more assertions failed, 2 = fatal error.
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildSurfaceReport, type SurfaceRegistry } from "../src/surface-report.js";
@@ -397,6 +397,29 @@ async function run(): Promise<void> {
     const old = await call(proc, "manage_session", { action: "recap" });
     assert(old.includes("[NOT_FOUND]") && old.includes("manage_context.recap"),
       `tombstone refusal wrong: ${old.slice(0, 200)}`);
+  });
+
+  await test("T674/T675: split originals stay canonical and every retired action names its replacement", async () => {
+    const proc = await boot("full");
+    await call(proc, "manage_novel", { action: "create", name: "split-retirement-check" });
+    const tools = (await listTools(proc, { _meta: { profile: "full" } })).result.tools as any[];
+    const byName = new Map(tools.map((tool: any) => [tool.name, tool]));
+    for (const tool of tools) {
+      assert(!tool._meta?.deprecated, `${tool.name} is listed but marked _meta.deprecated`);
+    }
+    const registry = JSON.parse(readFileSync(join(import.meta.dirname, "..", "tool-surface-registry.json"), "utf-8"));
+    const retired = Object.entries(registry.actions).filter(
+      ([key, decl]: [string, any]) => key.includes(".") && decl.compatibility?.retired,
+    ) as Array<[string, any]>;
+    assert(retired.length >= 27, `expected the split-action tombstones, found ${retired.length}`);
+    for (const [key, decl] of retired) {
+      const [toolName, action] = key.split(".", 2);
+      const enumValues: string[] = byName.get(toolName)?.inputSchema?.properties?.action?.enum ?? [];
+      assert(!enumValues.includes(action), `${toolName} still advertises retired action '${action}'`);
+      const out = await call(proc, toolName, { action });
+      assert(out.includes("[NOT_FOUND]") && out.includes(decl.compatibility.replacement),
+        `${toolName} (action: ${action}) refusal wrong: ${out.slice(0, 200)}`);
+    }
   });
 
   await test("T676: standard is call-complete and lean", async () => {

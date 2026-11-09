@@ -349,6 +349,10 @@ async function main() {
 
     await test("T241/T261/T198: world-model CRUD — room/thing lifecycle", async () => {
       await call(proc, "manage_world", { action: "create_thing",  name: "candle", kind: "thing", description: "A candle.", location: "study" });
+      const listed = await call(proc, "manage_world", { action: "list", kind: "thing" });
+      assertContains(listed, "candle");
+      const got = await call(proc, "manage_world", { action: "get", id: "candle" });
+      assertContains(got, "candle");
       const gone = await callRaw(proc, "manage_world", { action: "remove_thing",  name: "candle" });
       const text = (gone.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(text, "[OK]");

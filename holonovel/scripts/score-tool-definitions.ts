@@ -18,7 +18,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { scoreTool, type ToolDefinition } from "../src/core/tdqs.js";
+import { coherenceProxies, scoreTool, type ToolDefinition } from "../src/core/tdqs.js";
 
 const ROOT = join(import.meta.dirname, "..");
 
@@ -84,5 +84,17 @@ for (const row of [...rows].sort((a, b) => a.tdqs - b.tdqs)) {
       `${scores.parameter_semantics} | ${scores.conciseness_structure} | ${scores.contextual_completeness} | ${row.tdqs.toFixed(1)} |`,
   );
 }
+const disambiguation = JSON.parse(readFileSync(join(ROOT, "tool-disambiguation.json"), "utf-8"));
+const axes = Object.fromEntries(
+  Object.entries(disambiguation.axes ?? {}).map(([name, entry]: [string, any]) => [name, entry.resolves ?? []]),
+);
+const coherence = coherenceProxies(definitions, axes);
+console.log("");
+console.log(
+  `Coherence proxy: ${coherence.coherence}/5 (disambiguation ${coherence.disambiguation}, ` +
+  `naming ${coherence.namingConsistency}, tool count ${coherence.toolCountAppropriateness}, ` +
+  `completeness ${coherence.completeness})`,
+);
+console.log(`Mutual pairs: ${coherence.mutualPairs.length}; overlapping pairs: ${coherence.overlappingPairs.length}`);
 console.log("");
 console.log("Advisory only — the authoritative score is LLM-graded (Glama) / external (tdqs.dev).");

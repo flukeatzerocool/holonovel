@@ -3329,7 +3329,9 @@ The mode persists for the session — the session discards it on connection clos
 **REQ-197d — Room description generation (Part d).**
 Setting `detail=terse` SHALL override both the room description mode and combat verbosity — all tool output follows the selected detail level. The detail signal is session-scoped (discarded on connection close) and visible in `badge_briefing` as a Player-Detail line. _Check:_ T240.
 **REQ-198 — World-model CRUD.** THE system SHALL provide tools to create
-and delete world-model object types: rooms, things, and exits. Every
+and delete world-model object types: rooms, things, and exits.
+`manage_world (action: list|get)` SHALL enumerate rooms, things, and exits or
+return one record by id; reads are Game Master/Editor only. Every
 mutation SHALL be snapshot-able, audit-logged, and Game Master only.
 Creating a room SHALL accept a name and optional description. Creating a
 thing SHALL accept a name, optional description, optional containment (a

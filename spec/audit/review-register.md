@@ -11,6 +11,41 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-08 server coherence remediation (REQ-429, REQ-554, REQ-581)
+
+- **F1 — canonical tools marked deprecated (resolved):** `manage_world`,
+  `manage_scene`, `manage_lore`, and `manage_novel` are listed tools that
+  still own canonical actions, so their `_meta.deprecated` was removed;
+  `manage_session` remains a hidden tombstone. Predicate:
+  `holonovel/src/index.ts` `registerTool` blocks for those four tools.
+- **F2 — stale split-action prose (resolved):** `manage_novel`'s description
+  claimed export/import/archive actions remained callable; the sentence is
+  removed, and the four originals no longer point back at their split tools.
+  Predicate: `holonovel/src/index.ts` `manage_novel` description.
+- **F3 — knowledge cluster had no recorded axes (resolved):**
+  `manage_note`, `manage_codex`, and `manage_synthesis` now carry axes, and
+  `tool-disambiguation.json` declares the seven-member `knowledge` cluster
+  that the lint requires. Predicate: `holonovel/tool-disambiguation.json`
+  `clusters.knowledge` and `axes`.
+- **F4 — world model had no read action (resolved):**
+  `manage_world (action: list|get)` enumerates rooms/things/exits and returns
+  one record by id under `requireGM()`. Predicate:
+  `holonovel/src/index.ts` `MANAGE_WORLD_SCHEMA` and the `list`/`get` cases.
+- **F5 — uneven undo coverage (resolved):** Novel-scoped notes, corpus access
+  mutations, and causal mutations now take a `novelSnapshot()`; server notes
+  and corpus consumption stay explicit exceptions. Predicate:
+  `holonovel/src/index.ts` `novelSnapshot()` calls in those handlers.
+- **F6 — multiplexing hidden by `manage_*` names (resolved as far as the
+  naming convention allows):** the eight widest tools carry an action-span
+  suffix in their title, and their descriptions name the retained action
+  span. Predicate: `holonovel/src/index.ts` titles for `manage_belief`,
+  `manage_lore`, `manage_synthesis`, `manage_novel`, `manage_character`,
+  `manage_diagnostics`, `manage_knowledge`, and `manage_archive`.
+- **F7 — tool count and naming remain structural (closed-P3):** the surface
+  stays at 37 tools; merging unrelated domains would raise multiplexing, so
+  the decision is recorded in DECISIONS.md D1. Predicate:
+  `holonovel/DECISIONS.md` "Server coherence remediation — 2026-11-08".
+
 ### 2026-11-08 survivor race clock (REQ-233)
 
 - **Survivor race is descriptive (resolved):** the roadmap decision is made —
