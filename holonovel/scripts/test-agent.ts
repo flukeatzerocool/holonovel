@@ -101,12 +101,18 @@ async function main() {
 
   await test("T613/REQ-530: Player cannot create; Observer is read-only", async () => {
     const p = await boot(); await newNovel(p, "ag9");
+    const id = await create(p, { subject: "npc_kael", goal: "g" });
     await call(p, "set_badge", { badge: "player" });
     const pc = await call(p, "manage_agent", { action: "create", subject: "x", goal: "y" });
     assert(pc.includes("[FORBIDDEN]"), "Player create not forbidden: " + pc.slice(0, 100));
     await call(p, "set_badge", { badge: "observer" });
     const ob = await call(p, "manage_agent", { action: "create", subject: "x", goal: "y" });
     assert(ob.includes("[FORBIDDEN]") || ob.includes("[ERROR]"), "Observer create not refused: " + ob.slice(0, 100));
+    // REQ-530 — the Observer reads without mutating.
+    const list = await call(p, "manage_agent", { action: "list" });
+    assert(!list.includes("FORBIDDEN") && list.includes(id), "Observer task list refused or empty: " + list.slice(0, 120));
+    const got = await call(p, "manage_agent", { action: "get", task_id: id });
+    assert(!got.includes("FORBIDDEN") && JSON.parse(got).id === id, "Observer task get refused: " + got.slice(0, 120));
     await kill(p);
   });
 

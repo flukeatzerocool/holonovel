@@ -11,6 +11,35 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
+
+- **F-P5-1 — a branch slice shared its `alternatives` array with the source (resolved 2026-11-09):**
+  `sliceThrough` mapped each entry with a shallow spread, so a branch that
+  superseded an entry pushed into the parent's (and siblings') array; a live
+  import probe produced parent `alternatives: [2,2]`, violating REQ-458's
+  "parent Novel SHALL remain unmodified" and REQ-459's isolation clause.
+  Predicate: `holonovel/src/core/event-log.ts:75-78` (pre-fix). Fix clones the
+  array in `event-log.ts:75-86`; the new `T548` unit assertion in
+  `test-event-log.ts` covers it.
+- **F-P5-2 — the supersede path omitted the projection version (resolved 2026-11-09):**
+  `manage_diagnostics (action: event, supersede)` set `state_hash` but not
+  `state_hash_projection`, so verify counted a freshly written entry as
+  historical; REQ-602 requires the hash "together with the projection version
+  in force". Predicate: `holonovel/src/index.ts:9541` (pre-fix) against
+  `recordEvent` at `:2434`. Fixed at `index.ts:9541-9543`; `T547` asserts
+  `historical event hashes: 0`.
+- **F-P5-3 — history returned requested ordinals in request order (resolved 2026-11-09):**
+  `history` with `ordinals` mapped `traverse` output in the caller's order, not
+  ordinal order as REQ-456 requires. Predicate: `holonovel/src/index.ts:9562`
+  (pre-fix). Fixed at `index.ts:9562-9563` (sort by ordinal); `T546` asserts
+  `[3,1]` returns `#1` before `#3` and covers the capped-eviction marker.
+- **F-P5-4 — Observer reads of agent tasks were refused (resolved 2026-11-09):**
+  `manage_agent` list/get called `requireNotObserver`, which refuses the
+  Observer, while REQ-530 says task reads are available to every badge and "the
+  Observer SHALL read without mutating". Predicate:
+  `holonovel/src/index.ts:9046,9056` (pre-fix). Fixed at `index.ts:9045-9077`;
+  `T613` now asserts Observer list/get succeed while create is refused.
+
 ### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
 
 - **F-P4-1 — archiving the active Novel was accepted (resolved 2026-11-09):**
@@ -1100,6 +1129,33 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
+
+- **F-P5-5 — REQ-612 `list` has no GM-order source (2026-11-09):**
+  `manage_staging (action: next_speaker, strategy: list)` iterates `novel.npcs`
+  insertion order; `social_cast.order` is persisted (`state.ts:724`, `:1186`)
+  but never read and no action sets it. Predicate: `index.ts:6360`. Scheduled
+  under ROADMAP § §5.20/§5.24 assertion and staging remediation; covers
+  `REQ-612`.
+- **F-P5-6 — turn handoff keys on badge, not AI role (2026-11-09):**
+  The REQ-412 directive branches on `badge` at `index.ts:13939-13945`, while
+  `TTRPG_AI_ROLE` is applied later only to orientation (`:13951-13955`), so an
+  AI-role override renders the wrong handoff variant. Predicate:
+  `index.ts:13939-13945`; `T482` asserts the GM-badge path only. Scheduled
+  under ROADMAP § §5.20/§5.24 assertion and staging remediation; covers
+  `REQ-412`.
+- **F-P5-7 — six narrow assertions (2026-11-09):**
+  `T545` never reproduces ordinals across a restart (`REQ-455`); `T550` never
+  asserts a derived record's cited ordinal (`REQ-460`); `T640` asserts the
+  orientation token once, not per AI role or at a minimal budget (`REQ-412a`);
+  `T712` never tests session-identity exclusion (`REQ-601`); `T713` never
+  tests the unhashed/older-projection branches (`REQ-602`); `T727` never
+  asserts manual-selection clearing on a scene transition (`REQ-611`).
+  Predicates: `test-event-log.ts:32-43`, `:113-123`, `:127-132`;
+  `test-lean-narrator.ts:115-119`; `test-competitive-gaps.ts:591-602`.
+  Scheduled under ROADMAP § §5.20/§5.24 assertion and staging remediation;
+  covers `REQ-412a`, `REQ-455`, `REQ-460`, `REQ-601`, `REQ-602`, `REQ-611`.
+
 ### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
 
 - **F-P4-2 — archiving over an existing archived Novel deletes it (2026-11-09):**
@@ -1551,6 +1607,14 @@ against Appendix F and the harness corpus, not on a gate message.
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
+
+- **F-P5-8 — `entriesByOrdinals` is dead code (2026-11-09):**
+  `event-log.ts:94-98` exports a helper with no call site in `src/` or
+  `scripts/`; the ordinal-range surface is served by `traverse`
+  (`core/memory.ts:178`, REQ-591). Recorded for a future cleanup; no
+  demonstrated failure and no normative REQ assigns it a caller.
 
 ### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
 

@@ -73,8 +73,15 @@ export function supersedeEvent(
 
 // REQ-458 — branch slice: entries up to and including the branch point.
 export function sliceThrough(log: EventLogEntry[], ordinal: number | null): EventLogEntry[] {
-  if (ordinal === null) return log.map((e) => ({ ...e }));
-  return log.filter((e) => e.ordinal <= ordinal).map((e) => ({ ...e }));
+  // REQ-458/REQ-459 — clone the alternatives array too: a shallow spread would
+  // share it with the source entry, so a branch supersede would mutate the
+  // parent (and sibling branches) through the shared array.
+  const clone = (e: EventLogEntry): EventLogEntry => ({
+    ...e,
+    ...(e.alternatives ? { alternatives: [...e.alternatives] } : {}),
+  });
+  if (ordinal === null) return log.map(clone);
+  return log.filter((e) => e.ordinal <= ordinal).map(clone);
 }
 
 // REQ-456 — non-semantic view: ordering, provenance, and supersession only.

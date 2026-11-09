@@ -9043,7 +9043,8 @@ server.registerTool("manage_agent", {
 }, async (args: any) => {
   switch (args.action) {
     case "list": {
-      requireNotObserver();
+      // REQ-530 — task reads are available to every badge, including Observer
+      // (read-only; mutation remains GM-only).
       const novel = requireNovel();
       let tasks = novel.agent_tasks;
       if (args.subject) tasks = tasks.filter((t) => t.subject === args.subject);
@@ -9052,7 +9053,7 @@ server.registerTool("manage_agent", {
       return raw(JSON.stringify(summaryEntries("agent_task", tasks), null, 2));
     }
     case "get": {
-      requireNotObserver();
+      // REQ-530 — task reads are available to every badge, including Observer.
       const novel = requireNovel();
       const task = requireTask(novel, args.task_id);
       if (!task) return err("NOT_FOUND", `Agent task '${args.task_id ?? "none"}' not found.`);
@@ -9537,8 +9538,10 @@ const handleContextTool = async (args: any): Promise<any> => {
       if (args.supersede !== undefined) {
         const replacement = supersedeEvent(novel.event_log, args.supersede, src, "event", text, new Date().toISOString());
         if (!replacement) return err("NOT_FOUND", `Event ordinal ${args.supersede} not found.`);
-        // REQ-602 — record the committed-state digest on the replacement.
+        // REQ-602 — record the committed-state digest and the projection
+        // version in force on the replacement.
         replacement.state_hash = state.stateDigest(novel);
+        replacement.state_hash_projection = STATE_HASH_PROJECTION_VERSION;
         state.saveNovel(novel);
         audit("record_event", { ordinal: replacement.ordinal, supersedes: args.supersede });
         return ok(`Event #${replacement.ordinal} recorded, superseding #${args.supersede}.`);
@@ -9556,7 +9559,8 @@ const handleContextTool = async (args: any): Promise<any> => {
       // ordinals are reported, never silently dropped.
       if (Array.isArray(args.ordinals)) {
         if (args.ordinals.some((o: any) => !Number.isInteger(o))) return err("INVALID_INPUT", "ordinals must be integers.");
-        const results = traverse(args.ordinals, novel.event_log);
+        const results = traverse(args.ordinals, novel.event_log)
+          .sort((a: any, b: any) => a.ordinal - b.ordinal);
         const visible = results.filter((r) => !(r.entry && (badge === "player" || badge === "observer") && r.entry.source === "game_master"));
         if (visible.length === 0) return ok("No matching events.");
         return ok(visible.map((r) => r.entry ? describeEntry(r.entry) : `[evicted] #${r.ordinal}`).join("\n"));

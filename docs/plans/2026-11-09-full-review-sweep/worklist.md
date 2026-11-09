@@ -177,6 +177,37 @@ restart the enumeration from scratch.
   cold pass 5/5 (report `/tmp/opencode/p4-independent-rereview.md`); 11 commits
   unpushed at session start; no push.
 
+### Decisions (2026-11-09, chunk P5)
+
+- **D52 — Chunk scope.** P5 is the sweep worklist's P5 row: the engine loop,
+  `core/event-{hub,log}.ts`, `core/agent.ts`, §5.20 (4 REQs), §5.24 (11), §5.31
+  (9), and `docs/engine-contract.md` §2–§6. One increment; a halt is the only
+  split.
+- **D53 — Fix policy.** D45 unchanged: P0 in-session, P1 roadmap, P2 only on a
+  demonstrated failure, P3 record-and-close.
+- **D54 — Increment record.** `docs/plans/2026-11-09-full-review-p5/`; this
+  worklist carries the P5 tables and D52–D60.
+- **D55 — Bucket resolution.** By base family ID (D14): §5.20 has three family
+  rows / four REQs (`REQ-412a` is a sub-part), §5.24 eleven, §5.31 nine — 24
+  REQs / 23 family rows, all bucket C.
+- **D56 — Boundaries (Q5).** P5 owns five event-path predicates: digest
+  ordering; the REQ-601 exclusion list and version; legacy/older-projection
+  reporting; verify/replay gating; save/load round-trip order and lineage.
+  Hash canonicalization → `deferred:P7`; storage mechanics → `Closed-P3` (P4);
+  resource projection → `deferred:P6`; staging cognition → `deferred:P8`.
+  Q5a: a REQ verdict is worst-of its predicates.
+- **D57 — Citation resolution.** D25/D49 method; `T0nn` shadowing is not
+  evidence.
+- **D58 — Fingerprint consequence.** §5.24/§5.31 are `DATA_SECTIONS` members;
+  §5.20 is not. No REQ body changed this increment, so no regeneration was
+  required.
+- **D59 — Row precedence.** D56's Q5a: `finding` > `deferred` > `Closed-P3` >
+  `holds`; cluster and cross-check aggregate verdicts are worst-of under that
+  order.
+- **D60 — Plan gate and publication.** Plan stamped `fresh`, standard depth,
+  cold pass 5/5 (report `/tmp/opencode/p5-cold/report.md`); 12 commits unpushed
+  at session start; one C0 baseline commit (`527e5da`) then one C1; no push.
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -189,7 +220,7 @@ restart the enumeration from scratch.
 | P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | **closed 2026-11-09** |
-| P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
+| P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | **closed 2026-11-09** |
 | P6 | `core/surface-{projection,aliases}.ts`, `world/*`, `rulesets.ts`, `library.ts` | §5.10, §5.11, §5.13, §5.15, §5.16–§5.18, §5.21–§5.23 | `code-review` | scheduled |
 | P7 | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts` | §5.2, §5.7, §5.8, §5.14, §5.28–§5.30 | `code-review` | scheduled |
 | P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 | `code-review` + `spec-review` | scheduled (pending Q1) |
@@ -1347,3 +1378,134 @@ F-P4-9 records narrow assertions on three holding REQs.
 54/54 PASS (baseline), `test:persistence` 41/41 after the F-P4-1 fix ·
 `check-roadmap` PASS · `check-registers` PASS · `check-loop-artifacts` PASS ·
 `build-order` clean.
+
+## Chunk P5 — engine loop, event stream, durable agent tasks
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p5/`.
+
+**Code targets:** `core/event-log.ts` (ordinals, append, supersede, slice,
+`describeEntry`, `evictToCap`), `core/event-hub.ts`, `core/agent.ts`,
+`core/state-hash.ts` (exclusion list and version), `index.ts` `recordEvent`
+(`:2422`), `manage_diagnostics` (`event`/`history`/`compact`/`subscribe`/
+`verify`/`replay`, `:9345`/`:9562`/`:9628`/`:9912`/`:9936`), `manage_agent`
+(`:9045-9107`), `manage_staging` (`:6328-6381`), branch creation
+(`:11007-11008`), and the briefing orientation/handoff blocks
+(`:13884`, `:13939`). `state.ts` persists the log, lineage, and tasks
+(`:2817-2819`, `:2827`).
+**Spec:** §5.20 (3 family rows, 4 REQs: `REQ-412`, `412a`, `611`, `612`),
+§5.24 (11 REQs: `REQ-455`–`460`, `REQ-601`–`605`), §5.31 (9 REQs:
+`REQ-522`–`530`) — 24 REQs / 23 family rows, all bucket C.
+
+### Cluster verdicts
+
+| Cluster | Surface | Verdict | Evidence |
+|---|---|---|---|
+| A | turn conventions and the loop | **finding F-P5-6**; narrow F-P5-7 | orientation `index.ts:13884`, handoff `:13939`; `T482`, `T640` |
+| B | temporal event log and hub | **findings F-P5-1, F-P5-3 (fixed)**; F-P5-7 | `event-log.ts:36-107`, `event-hub.ts:15-61`, `index.ts:2422-2434`, `:9562`, `:11007`; `T545`–`T550` |
+| C | determinism integration and replay | **finding F-P5-2 (fixed)**; F-P5-7 | `state-hash.ts:13-27`, `index.ts:9405-9490`, `:9541`, `:9912-9941`; `T712`–`T716`, `T547` |
+| D | durable agent tasks | **finding F-P5-4 (fixed)** | `agent.ts:30-74`, `index.ts:9045-9107`; `T605`–`T613` |
+
+**Engine-contract cross-check.** §2 state authority → A, **holds** (`audit()`
+`index.ts:2409-2417`; tools are the mutation surface). §3 turn semantics → A,
+**holds** (`take_turn` read-only; `test:engine-facade`). §4 determinism/replay →
+C, **holds** after F-P5-2 (`T712`–`T716`). §5 event stream → B, **holds** after
+F-P5-1/F-P5-3 (`T545`–`T550`). §6 save format → B for the event/agent path,
+**holds** (`state.ts:2817-2827`; `T548`, `T549`, `T605`); a §5.19-owned save
+defect remains P4's. **Aggregate: holds.**
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P5-1 | `sliceThrough` spread each entry shallowly, sharing its `alternatives` array with the source; a branch supersede then pushed into the parent's (and siblings') array, so the parent's persisted log changed (REQ-458/459). A live import probe produced parent `alternatives: [2,2]` | `event-log.ts:75-78` (pre-fix); probe via `sliceThrough` | P0 | **Resolved** — `sliceThrough` clones `alternatives` (`event-log.ts:75-86`); `T548` unit assertion |
+| F-P5-2 | The `supersede` path recorded `state_hash` but not `state_hash_projection`, so verify counted a freshly written entry as historical (REQ-602: hash "together with the projection version in force") | `index.ts:9541` (pre-fix) vs `:2434` | P0 | **Resolved** — projection set on the replacement (`index.ts:9541-9543`); `T547` asserts `historical event hashes: 0` |
+| F-P5-3 | `history` with `ordinals` returned the entries in request order, not ordinal order (REQ-456), and the branch was untested | `index.ts:9562` (pre-fix); `T546` | P0 | **Resolved** — results sorted by ordinal (`index.ts:9562-9563`); `T546` asserts `[3,1]` → `#1` before `#3` |
+| F-P5-4 | `manage_agent` list/get called `requireNotObserver`, refusing the Observer read that REQ-530 requires ("the Observer SHALL read without mutating") | `index.ts:9046`, `:9056` (pre-fix); `T613` | P0 | **Resolved** — reads gate on no badge; Observer list/get asserted in `T613` |
+| F-P5-5 | REQ-612's `list` strategy has no GM-order source: `cast.order` is persisted but never read, and `manage_staging (action: cast)` exposes no `order` parameter, so `list` follows NPC insertion order | `index.ts:6360`; `state.ts:724`, `:1186` | P1 | `Scheduled-roadmap` — ROADMAP § §5.20/§5.24 assertion and staging remediation |
+| F-P5-6 | The turn-handoff directive branches on the badge, not the AI narrative role; `TTRPG_AI_ROLE` affects the orientation block (`index.ts:13951-13955`) but not the handoff, so an AI-role override renders the wrong variant (REQ-412) | `index.ts:13939-13945`; `T482` asserts GM badge only | P1 | `Scheduled-roadmap` — ROADMAP § §5.20/§5.24 assertion and staging remediation |
+| F-P5-7 | Narrow assertions: `T545` never reproduces ordinals across a restart (REQ-455); `T550` never asserts a derived record's cited ordinal (REQ-460); `T640` asserts the token once, not per AI role or at a minimal budget (REQ-412a); `T712` never tests session-identity exclusion (REQ-601); `T713` never tests the unhashed/older-projection branches (REQ-602); `T727` never asserts manual-selection clearing on a scene transition (REQ-611) | `test-event-log.ts:32-43`, `:113-123`, `:127-132`; `test-lean-narrator.ts:115-119`; `test-competitive-gaps.ts:591-602` | P1 | `Scheduled-roadmap` — ROADMAP § §5.20/§5.24 assertion and staging remediation |
+| F-P5-8 | `entriesByOrdinals` is exported but never called; the ordinal-range surface is served by `traverse` (REQ-591). Dead code, no behavioural drift | `event-log.ts:94-98`; no call site in `src/` or `scripts/` | P3 | `Closed-P3` — no demonstrated failure; remove or adopt in a future cleanup |
+
+### Per-REQ verdict table (24 rows)
+
+Resolution method: own `*Check:*`, else family set; an `Automated` token must
+appear in a harness and its body must exercise the behaviour; bucket from the
+base family row (D55).
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-412 | 5.20 | C | finding:F-P5-6 | directive rendered, but keyed on badge not AI role; `T482` |
+| REQ-412a | 5.20 | C | holds | orientation token `index.ts:13884-13885`; `T640` (narrow, F-P5-7) |
+| REQ-611 | 5.20 | C | holds | default natural, mute/force, scene-transition clear (`index.ts:6267-6275`, `:6328-6343`); `T727` adds pooled rotation and Player refusal |
+| REQ-612 | 5.20 | C | finding:F-P5-5 | natural/pooled/manual/force hold; `list` has no GM-order source; `T728` |
+| REQ-455 | 5.24 | C | holds | monotonic ordinal, cap eviction, persistence (`event-log.ts:36-52`, `:101-107`); `T545` (replay narrow, F-P5-7) |
+| REQ-456 | 5.24 | C | holds | verbatim text/provenance; `history` ordinals now ordinal-ordered and evicted-marked (`index.ts:9557-9568`); `T546` |
+| REQ-457 | 5.24 | C | holds | replacement appended, prior retained/superseded (`event-log.ts:56-72`); `T547` |
+| REQ-458 | 5.24 | C | holds | branch shares through the point, parent untouched after the alternatives clone (`event-log.ts:75-86`, `index.ts:11007`); `T548` |
+| REQ-459 | 5.24 | C | holds | lineage recorded; sibling isolation (`index.ts:11008`); `T549` |
+| REQ-460 | 5.24 | C | holds | ordinal range returns contributing entries (`index.ts:9562`); `T550` (derived-citation narrow, F-P5-7) |
+| REQ-601 | 5.24 | C | holds | exclusion list and version (`state-hash.ts:13-27`); `T712` (session-identity narrow, F-P5-7) |
+| REQ-602 | 5.24 | C | holds | digest after perception derivation plus projection, append and supersede (`index.ts:2427-2434`, `:9541-9543`); `T713`, `T547` |
+| REQ-603 | 5.24 | C | holds | live vs save digest and checkpoint digests, stale reporting (`index.ts:9405-9455`); `T714` |
+| REQ-604 | 5.24 | C | holds | retained range, recorded hash, nearest checkpoint, `[evicted]` (`index.ts:9462-9490`); `T715` |
+| REQ-605 | 5.24 | C | holds | GM-only, read-only, identical repeats (`index.ts:9912-9941`); `T716` |
+| REQ-522 | 5.31 | C | holds | create requires subject/goal, queued, no actions (`index.ts:9061-9076`); `T605` |
+| REQ-523 | 5.31 | C | holds | queued→active→done/failed/cancelled (`agent.ts:30-52`); `T606` |
+| REQ-524 | 5.31 | C | holds | illegal transition refused (`index.ts:9086-9089`); `T607` |
+| REQ-525 | 5.31 | C | holds | append-only action with sequence/time (`agent.ts:55-60`); `T608` |
+| REQ-526 | 5.31 | C | holds | autonomy enum, config default, per-task override (`index.ts:9065-9066`); `T609` |
+| REQ-527 | 5.31 | C | holds | subject required and filter exact (`index.ts:9049`, `:9064`); `T610` |
+| REQ-528 | 5.31 | C | holds | terminal tasks refuse advance (`index.ts:9100-9101`); `T611` |
+| REQ-529 | 5.31 | C | holds | `source_goal` recorded (`index.ts:9069`); `T612` |
+| REQ-530 | 5.31 | C | holds | mutation GM-only; reads every badge incl. Observer (`index.ts:9045-9077`); `T613` |
+
+**Totals:** 24 rows — 22 holds, 2 findings (`F-P5-5`, `F-P5-6`); `F-P5-7`
+records narrow assertions on six holding REQs.
+
+### Behaviour table (31 behaviours)
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| Ordinal assignment | `event-log.ts:36-39` | `T545` | holds |
+| Append | `event-log.ts:42-52` | `T545` | holds |
+| Supersede and retain | `event-log.ts:56-72` | `T547` | holds |
+| Cap eviction | `event-log.ts:101-107`; `index.ts:2429` | `T546`, `T715` | holds |
+| Non-semantic preservation | `event-log.ts:88-91` | `T546` | holds |
+| Event-log save/load round-trip | `state.ts:2817-2819` | `T548`, `T549` | holds |
+| Branch creation | `index.ts:11007-11008` | `T548` | holds |
+| Branch lineage and sibling isolation | `event-log.ts:75-86`; `index.ts:11008` | `T549`, `T548` unit | holds (fixed F-P5-1) |
+| Provenance slicing and ordinals order | `event-log.ts:75-86`; `index.ts:9562-9568` | `T550`, `T546` | holds (fixed F-P5-3) |
+| Evicted-ordinal reporting | `index.ts:9562`; `memory.ts:178-183` | `T546`, `T715` | holds |
+| Event-hub subscribe/dispatch | `event-hub.ts:15-61` | `test:engine-facade:223` | holds |
+| Audit-log compaction | `index.ts:9628-9646` | `none (no row-set ID)` | holds (GM-gated; REQ-239 out of set) |
+| State-hash exclusion and version | `state-hash.ts:13-27` | `T712` | holds |
+| Per-event digest ordering | `index.ts:2427-2434` | `T713` | holds |
+| Supersede digest + version | `index.ts:9541-9543` | `T547` | holds (fixed F-P5-2) |
+| Verify divergence and stale | `index.ts:9405-9455`, `:9912-9934` | `T714`, `T716` | holds |
+| Replay inspection | `index.ts:9462-9490`, `:9936-9941` | `T715` | holds |
+| Verification read-only/gated | `index.ts:9912-9941` | `T716` | holds |
+| Turn-handoff directive | `index.ts:13939-13945` | `T482` | finding:F-P5-6 |
+| Orientation token | `index.ts:13884-13885` | `T640` | holds (narrow F-P5-7) |
+| Cast strategy and mute/force | `index.ts:6328-6343` | `T727` | holds |
+| Speaker selection (`list` gap) | `index.ts:6344-6381` | `T728` | finding:F-P5-5 |
+| Manual-selection clear | `index.ts:6267-6275` | `T727` (spoken only) | narrow F-P5-7 |
+| Agent create (queued) | `index.ts:9061-9076` | `T605` | holds |
+| Agent transition legality | `agent.ts:30-52`; `index.ts:9086-9089` | `T606`, `T607` | holds |
+| Agent action log | `agent.ts:55-60`; `index.ts:9094-9107` | `T608` | holds |
+| Agent autonomy | `index.ts:9065-9066` | `T609` | holds |
+| Agent subject filter | `index.ts:9049` | `T610` | holds |
+| Agent goal provenance | `index.ts:9069` | `T612` | holds |
+| Agent terminal immutability | `agent.ts:38-40`, `:71-74`; `index.ts:9100-9101` | `T611` | holds |
+| Agent badge gating | `index.ts:9045-9077` | `T613` | holds (fixed F-P5-4) |
+
+### Exit evidence (recorded 2026-11-09)
+
+C0 `527e5da` restored the baseline (two Holosuite anchors: `13824→13829`,
+`11383→11388`). C1 repointed twelve more anchors for shifted handler lines
+(conformance, invariants, novel, adversarial). `test:event-log` 12/12 PASS ·
+`test:agent` 9/9 PASS · `test:holosuite-conformance` 45/45 ·
+`test:holosuite-invariants` 25/25 · `test:holosuite-novel` 100/100 ·
+`test:holosuite-adversarial` 26/26 · root and server `typecheck` exit 0 ·
+`check` PASS · `test:all` PASS · `check-roadmap` PASS ·
+`check-registers --strict` PASS · `check-loop-artifacts` PASS.

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P5 (engine loop, event stream, agent tasks)
+
+- Chunk P5 reviews the engine loop and event path — `core/event-log.ts`,
+  `core/event-hub.ts`, `core/agent.ts`, the state-hash integration, and the
+  turn/event/staging/agent handlers — against §5.20 (4 REQs), §5.24 (11), and
+  §5.31 (9). The sweep worklist carries a 24-REQ verdict table (22 holds,
+  2 findings), a 31-row behaviour table, and the engine-contract §2–§6
+  cross-check.
+- Four P0s are fixed. A branch slice shared its `alternatives` array with the
+  source, so a branch supersede mutated the parent's persisted log
+  (REQ-458/459; F-P5-1). The supersede path omitted the projection version, so
+  verify counted a fresh entry as historical (REQ-602; F-P5-2). `history` with
+  `ordinals` returned request order, not ordinal order (REQ-456; F-P5-3).
+  `manage_agent` list/get refused the Observer read REQ-530 grants (F-P5-4).
+  `test:event-log` and `test:agent` now assert each fixed contract.
+- Three P1 findings are scheduled under the new *§5.20/§5.24 assertion and
+  staging remediation* roadmap section: REQ-612's `list` strategy has no GM
+  order source (F-P5-5), the REQ-412 handoff keys on badge rather than AI role
+  (F-P5-6), and six assertions are narrower than their REQs (F-P5-7).
+- One P3 note is recorded and closed: `entriesByOrdinals` is unused (F-P5-8).
+- A C0 baseline commit repairs two stale Holosuite evidence anchors
+  (`527e5da`); C1 repoints twelve more anchors whose `index.ts` lines shifted
+  with the fixes (conformance, invariants, novel, adversarial tiers).
+- Verification: `check` PASS (0 errors), server `test:all` PASS, `test:event-log`
+  12/12, `test:agent` 9/9, root and server `typecheck` exit 0.
+
 ## 2026-11-09 — Full-review sweep: chunk P4 (persistence and the §5.19 cross-check)
 
 - Chunk P4 reviews `core/state.ts` persistence, `core/data-dir.ts`, and the

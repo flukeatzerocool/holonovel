@@ -14,14 +14,26 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P5 (engine loop and event stream) and P6–P7 (adapters and rulesets;
-  determinism and knowledge).
+- Chunks P6–P7 (adapters and rulesets; determinism and knowledge).
 - Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
   Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
-  closed; §5.6 is complete and chunk P4 closed 2026-11-09.
+  closed; §5.6 is complete and chunks P4–P5 closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P5;
-closes when chunks P5–P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P6;
+closes when chunks P6–P8 and the closing M1 pass report.
+
+## §5.20/§5.24 assertion and staging remediation (P1)
+
+- Turn-role and staging order: drive the REQ-412 handoff from the AI narrative
+  role, and give REQ-612's `list` strategy a real GM-order source on
+  `manage_staging (action: cast)` (REQ-412, REQ-612; F-P5-5, F-P5-6).
+- Widen narrow assertions: T545 replay reproduction, T550 derived-record
+  citation, T640 per-role/budget orientation, T712 session-identity exclusion,
+  T713 legacy/older-projection branches, T727 manual-selection clear
+  (REQ-412a, REQ-455, REQ-460, REQ-601, REQ-602, REQ-611; F-P5-7).
+
+**Trigger:** the next §5.20/§5.24 remediation session; closes when F-P5-5,
+F-P5-6, and F-P5-7 are `Resolved`.
 
 ## §5.9/§5.19 persistence remediation (P1)
 
