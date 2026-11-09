@@ -11,6 +11,40 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 seam-drift remediation (REQ-030, REQ-088, REQ-092, REQ-095, REQ-238, REQ-240, REQ-256, REQ-334, REQ-401–REQ-406, REQ-613)
+
+- **F1 — `[session-no-mutations]` absent from `spec_health` (resolved):**
+  `buildSpecHealth` now emits a GM-gated `state_health` block whose `markers`
+  array carries the string, and T471 asserts it. Predicate:
+  `holonovel/src/index.ts:11938` (`state_health`), `state.ts` `NovelState.session_no_mutation_windows`.
+- **F2a — drift was unreachable (resolved):** `save_context` set
+  `gm_context.saved_at` and then `recordMutation` advanced `last_mutation_at`
+  to the same instant, so `saved_at > last_mutation_at` never held. Context
+  saves now go through `recordContextSave`, which counts the `context` group
+  without advancing the clock, and `stateDriftActive` treats a Novel with no
+  recorded story-state mutation as drifting. Predicate:
+  `holonovel/src/core/state.ts` `recordContextSave`, `stateDriftActive`;
+  `holonovel/src/index.ts:10987`.
+- **F2b — `TTRPG_STATE_GATE=warn` had no effect (resolved):** recap, `switch`,
+  and `end` now append the drift warning under `warn`; the block message no
+  longer advises `save_context`, which cannot clear drift. Predicates:
+  `index.ts:9712`, `:10536`, `:10555`.
+- **F2c / F3 — `[state-drift]`, `[state-regression]` absent from `spec_health` (resolved):**
+  both are emitted in `state_health.markers`; T472 and T475 assert the strings
+  and the regression audit gap. Predicate: `index.ts:11938`.
+- **F4 — REQ-403b listed `save_context` in block mode (resolved):** the REQ and
+  T472 now name `end` and `switch` only, matching the handler at
+  `index.ts:10542`/`:10563`. Predicate: `spec/02-requirements.md` REQ-403b.
+- **F5 — per-connection Novel claim contradicted the code (resolved):**
+  REQ-030, REQ-088a/c/d, REQ-095a/b, REQ-240b, REQ-256a, REQ-334a, and T98 now
+  describe the process-global `activeNovelId` (`state.ts:989`).
+- **F6 — engine-contract citations pointed at unrelated code (resolved):**
+  `docs/engine-contract.md:59,124,179,202` now cite the artifact writes,
+  verify/replay, `backupCandidates`, and the export/import audit sites.
+- **F7 — §5.9 hardcoded install-relative save paths (resolved):** eight
+  occurrences now read `<DATA_DIR>/…`; REQ-092f's legacy v1 JSONL path is
+  preserved by design (REQ-613 keeps an existing legacy directory).
+
 ### 2026-11-08 server coherence remediation (REQ-429, REQ-554, REQ-581)
 
 - **F1 — canonical tools marked deprecated (resolved):** `manage_world`,

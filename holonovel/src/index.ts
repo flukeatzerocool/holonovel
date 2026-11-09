@@ -139,7 +139,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.08",
+  version: "2026.11.09",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -9710,7 +9710,9 @@ Options: yes, cancel`);
         recap += `\n[session-no-mutations] sessions with zero state writes: ${novel.session_no_mutation_windows.join(", ")}`;
       }
       if (state.stateDriftActive(novel)) {
-        recap += `\n[state-drift] GM context saved after the last recorded mutation — narration may be uncommitted.`;
+        recap += state.stateGate() === "warn"
+          ? `\n${stateDriftWarning(novel.gm_context?.saved_at)}`
+          : `\n[state-drift] GM context saved after the last recorded mutation — narration may be uncommitted.`;
       }
       if (novel.uncommitted_rolls.length > 0) {
         for (const r of novel.uncommitted_rolls) {
@@ -10533,8 +10535,11 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
     }
     case "switch": {
       const active = state.activeNovel;
+      const driftWarn = active && state.stateGate() === "warn" && state.stateDriftActive(active)
+        ? `\n${stateDriftWarning(active.gm_context?.saved_at)}`
+        : "";
       if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
-        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_context (action: recap) before switching.");
+        return err("STATE_CONFLICT", stateDriftBlockMessage("before switching"));
       }
       if (active) {
         const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
@@ -10545,20 +10550,23 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
         if (!rulesets.isInstalled(novel.ruleset)) return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
         try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
       }
-      return ok(`Switched to novel: ${novel.name} (${novel.slug})`);
+      return ok(`Switched to novel: ${novel.name} (${novel.slug})${driftWarn}`);
     }
     case "end": {
       requireNotObserver();
       const novel = requireNovel();
       if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
+      const driftWarn = state.stateGate() === "warn" && state.stateDriftActive(novel)
+        ? `\n${stateDriftWarning(novel.gm_context?.saved_at)}`
+        : "";
       if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
-        return err("STATE_CONFLICT", "[state-drift] uncommitted narration detected — resolve with manage_novel (action: save_context) or manage_context (action: recap) before ending.");
+        return err("STATE_CONFLICT", stateDriftBlockMessage("before ending"));
       }
       novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
       state.saveNovel(novel);
       return needInput(`Decision: -end_novel-confirm
 Question: End Novel "${novel.name}"?
-Options: yes, cancel`);
+Options: yes, cancel${driftWarn}`);
     }
     case "export": {
       requireGM();
@@ -10976,7 +10984,7 @@ Options: yes, cancel`);
         active_vows: novel.vows.filter(v => v.state === "active").map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones })),
       };
       novel.gm_context = { ...novel.gm_context, ...f, saved_at: new Date().toISOString() };
-      state.recordMutation(novel, "set_pause_context", "context");
+      state.recordContextSave(novel);
       state.saveNovel(novel);
       return ok("Pause context saved.");
     }
@@ -11711,6 +11719,16 @@ function storageCapStatus(count: number, raw: string | undefined, fallback: numb
   return { count, cap: bounded ? cap : null, warning: bounded && count >= Math.ceil(cap * 0.8) };
 }
 
+// REQ-403b — operator-facing drift advice. The commit route is the state tool
+// for each narrated beat; `save_context` records context and cannot clear drift.
+function stateDriftWarning(savedAt: string | undefined): string {
+  return `[state-drift] context saved at ${savedAt ?? "(unknown)"}; no story-state mutation since. Commit each narrated beat with its state tool (manage_context (action: recap) lists them), then retry.`;
+}
+
+function stateDriftBlockMessage(when: string): string {
+  return `[state-drift] uncommitted narration detected — commit the narrated state, then retry; manage_context (action: recap) lists the uncommitted beats (${when}).`;
+}
+
 function buildSpecHealth(): Record<string, unknown> {
   const novel = state.activeNovel;
   const badge = getBadge();
@@ -11914,6 +11932,20 @@ function buildSpecHealth(): Record<string, unknown> {
           compression_mismatch: Object.fromEntries(state.compressionMismatch),
         }
       : undefined,
+    // REQ-402/REQ-403a/REQ-406 — persistence guardrail markers. The fields
+    // expose narration timing and an audit gap, so they are GM-gated like
+    // data_health (REQ-097c). Markers are observational (REQ-402).
+    state_health: isGM ? {
+      markers: [
+        ...(novel && state.stateDriftActive(novel) ? ["[state-drift]"] : []),
+        ...(novel && (novel.session_no_mutation_windows?.length ?? 0) > 0 ? ["[session-no-mutations]"] : []),
+        ...(novel?.state_regression ? ["[state-regression]"] : []),
+      ],
+      drift_active: novel ? state.stateDriftActive(novel) : false,
+      drift_since: novel?.gm_context?.saved_at ?? null,
+      session_no_mutation_windows: novel?.session_no_mutation_windows ?? [],
+      regression: novel?.state_regression ?? null,
+    } : undefined,
     // REQ-565, REQ-566 — bundled starter Novel seed outcome (informational).
     starter: state.starterStatus,
     build_timestamp: state.buildFingerprint.buildTimestamp,

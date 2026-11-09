@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-09 — Seam-drift remediation: drift reachability, warn mode, state health
+
+- State drift is now reachable. `save_context` previously set
+  `gm_context.saved_at` and then advanced `last_mutation_at` in the same call,
+  so `stateDriftActive` was always false and the `[state-drift]` marker, the
+  block refusals, and the `state_ledger` line were dead branches. Context saves
+  now use `recordContextSave`, which counts the `context` ledger group without
+  advancing the mutation clock, and a Novel with no recorded story-state
+  mutation counts as drifting (REQ-403a).
+- `TTRPG_STATE_GATE=warn` now speaks: recap, `switch`, and `end` append a
+  warning naming the drift-since timestamp, the commit route, and the recap
+  enumerator. The block message no longer points at `save_context`, which
+  cannot clear drift (REQ-403b).
+- `spec_health.state_health` (GM-gated) surfaces `[session-no-mutations]`,
+  `[state-drift]`, and `[state-regression]` as marker strings plus their
+  structured fields. T471, T472, and T475 now assert those strings instead of
+  only their titles; `test:persistence-guardrails` grows from 13 to 16 cases.
+- REQ-403b and T472 drop `save_context` from the block list, leaving `end` and
+  `switch` blocked, matching the handler.
+- The per-connection active-Novel claim is gone from REQ-030, REQ-088a/c/d,
+  REQ-095a/b, REQ-240b, REQ-256a, REQ-334a, and T98; the spec now describes the
+  process-global `activeNovelId` the engine implements.
+- §5.9 save paths read `<DATA_DIR>/…` instead of an install-relative
+  `.holonovel-state/…`; REQ-092f's legacy v1 JSONL path is preserved.
+- `docs/engine-contract.md` citations for the artifact writes, verify/replay,
+  legacy backup acceptance, and export/import audit now resolve to the code
+  they name.
+
 ## 2026-11-08 — Holosuite evidence anchor repoint
 
 - Repointed 25 drifted `path:line#symbol` evidence anchors across the five

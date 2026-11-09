@@ -2027,6 +2027,16 @@ export class StateManager {
     this.saveNovel(novel);
   }
 
+  // REQ-401/REQ-403a — a context save is ledger-visible but is NOT a
+  // story-state mutation: it advances neither `last_mutation_at` (so drift
+  // survives the save) nor the uncommitted-roll drain (REQ-404), and it is not
+  // subject to the REQ-449 AI agency ceiling.
+  recordContextSave(novel: NovelState): void {
+    const group = "context";
+    novel.mutation_counts_by_group[group] = (novel.mutation_counts_by_group[group] ?? 0) + 1;
+    this.saveNovel(novel);
+  }
+
   // REQ-449 — per-turn AI-initiated mutation counter. Counts only when the
   // Novel's autonomy is level=full with confirmation=auto; resets on scene
   // transition or combat-round resolution (the turn boundary).
@@ -2072,7 +2082,11 @@ export class StateManager {
 
   stateDriftActive(novel: NovelState): boolean {
     const savedAt = novel.gm_context?.saved_at;
-    if (!savedAt || !novel.last_mutation_at) return false;
+    if (!savedAt) return false;
+    // REQ-403a — a context save on a Novel that has never recorded a
+    // story-state mutation is drift: narration advanced before anything was
+    // committed.
+    if (!novel.last_mutation_at) return true;
     return new Date(savedAt).getTime() > new Date(novel.last_mutation_at).getTime();
   }
 

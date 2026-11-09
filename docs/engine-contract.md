@@ -56,7 +56,7 @@ Three consequences follow.
    the Novel.** The engine keeps no build state between calls, but the
    `StateManager` also writes `roster.json`, `codex.json`, `server-notes.json`,
    and `build-fingerprint.json` in the state directory
-   (`holonovel/src/core/state.ts:865-875,2315-2435`). Those surfaces are
+   (`holonovel/src/core/state.ts:2563-2569,2640-2645,2666-2671,1062`). Those surfaces are
    server- or roster-scoped, not Novel-scoped. Today the reference
    implementation constructs a module-level `StateManager` and a single MCP
    server, so one process hosts one engine instance
@@ -121,7 +121,7 @@ Replay rests on three artifacts.
    report as unhashed rather than fabricated (REQ-602).
 3. **Divergence checks.** Verification compares live state against the digest
    recorded at the last save and each checkpoint against its recorded digest
-   (REQ-603; `holonovel/src/index.ts:8045-8083`).
+   (REQ-603; `holonovel/src/index.ts:9335-9450`).
 
 Replay inspection returns the retained events through a target ordinal, the hash
 recorded there, and the nearest checkpoint at or below it (REQ-604). The target
@@ -176,7 +176,7 @@ The write path is conservative by design.
   crash cannot leave a half-written primary (REQ-092a).
 - **Rotating backups.** `<slug>.json.bak.1..N` retains previous good files
   (REQ-238). The implementation also accepts a legacy singular `.bak` as the
-  index-1 candidate (`holonovel/src/core/state.ts:2189-2194`); the REQ text
+  index-1 candidate (`holonovel/src/core/state.ts:2413-2420`); the REQ text
   names only the rotated chain.
 - **Checksum.** The payload carries a checksum over the serialized state
   excluding itself; a mismatch follows the same recovery path as structural
@@ -199,7 +199,7 @@ Export is a different contract from the on-disk save. The interchange payload is
 always uncompressed JSON or Markdown (REQ-096, Appendix Q), and the serialized
 tier set round-trips through `exportNovelJSON` / `importNovelJSON`. The
 tool-level export and import each append an audit entry
-(`holonovel/src/index.ts:9026,9190`), so a tool-level export → import → export is
+(`holonovel/src/index.ts:10589,10770`), so a tool-level export → import → export is
 not byte-identical even though the state tiers round-trip. Scopes select tiers;
 the player scope redacts GM-only fields (REQ-096b, REQ-096k).
 

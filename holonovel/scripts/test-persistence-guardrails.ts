@@ -171,11 +171,32 @@ async function main() {
     const proc = await boot({ TTRPG_STATE_GATE: "warn" });
     await call(proc, "manage_novel", { action: "create",  name: "gate-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await test("T472/REQ-403b: TTRPG_STATE_GATE=warn does not block session tools", async () => {
-      const pc = await call(proc, "manage_novel", { action: "save_context",  current_scene: "Gate scene" });
-      assertContains(pc, "[OK]");
+    await test("T472/REQ-403a: a context save alone activates drift", async () => {
+      await call(proc, "manage_novel", { action: "save_context",  current_scene: "Gate scene" });
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const markers = health.state_health?.markers ?? [];
+      if (!markers.includes("[state-drift]")) {
+        throw new Error(`[state-drift] missing from spec_health: ${JSON.stringify(health.state_health)}`);
+      }
+      const recap = await call(proc, "manage_context", { action: "recap" });
+      assertContains(recap, "[state-drift]");
+      assertContains(recap, "Commit each narrated beat");
+    });
+
+    await test("T472/REQ-403b: TTRPG_STATE_GATE=warn does not block and warns", async () => {
       const sw = await call(proc, "manage_novel", { action: "switch",  slug: "gate-novel" });
       assertContains(sw, "[OK]");
+      assertContains(sw, "Commit each narrated beat");
+    });
+
+    await test("T472/REQ-403a: a story-state mutation clears drift", async () => {
+      await call(proc, "manage_note", { action: "set",  key: "drift", content: "committed" });
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      if (health.state_health?.drift_active !== false) {
+        throw new Error(`drift did not clear: ${JSON.stringify(health.state_health)}`);
+      }
+      const markers = health.state_health?.markers ?? [];
+      if (markers.includes("[state-drift]")) throw new Error("[state-drift] survived a story-state mutation");
     });
     await kill(proc);
   }
@@ -184,8 +205,15 @@ async function main() {
     const proc = await boot({ TTRPG_STATE_GATE: "block" });
     await call(proc, "manage_novel", { action: "create",  name: "block-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await test("T472/REQ-403b: TTRPG_STATE_GATE=block permits clean session close", async () => {
+    await test("T472/REQ-403b: block refuses switch while drift is active", async () => {
       await call(proc, "manage_novel", { action: "save_context",  current_scene: "Clean" });
+      const sw = await call(proc, "manage_novel", { action: "switch",  slug: "block-novel" });
+      assertContains(sw, "STATE_CONFLICT");
+      const pc = await call(proc, "manage_novel", { action: "save_context",  current_scene: "Still clean" });
+      assertContains(pc, "[OK]");
+    });
+    await test("T472/REQ-403b: a story-state mutation clears the gate", async () => {
+      await call(proc, "manage_note", { action: "set",  key: "gate", content: "v" });
       const sw = await call(proc, "manage_novel", { action: "switch",  slug: "block-novel" });
       assertContains(sw, "[OK]");
     });
@@ -217,6 +245,13 @@ async function main() {
       await call(proc, "manage_novel", { action: "resume",  slug: "silent-session" });
       const recap = await call(proc, "manage_context", { action: "recap" });
       assertContains(recap, "session-no-mutations");
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const markers = health.state_health?.markers ?? [];
+      if (!markers.includes("[session-no-mutations]")) {
+        throw new Error(`[session-no-mutations] missing from spec_health: ${JSON.stringify(health.state_health)}`);
+      }
+      const windows = health.state_health?.session_no_mutation_windows ?? [];
+      if (windows.length === 0) throw new Error("no session window recorded in state_health");
     });
 
     await test("T475/REQ-406: backup restore surfaces [state-regression]", async () => {
@@ -238,7 +273,14 @@ async function main() {
       const resp = await call(proc, "manage_novel", { action: "resume",  slug: "corrupt-novel" });
       assertContains(resp, "[OK]");
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
-      // state_regression surfaces via the state_ledger token in briefing.
+      const markers = health.state_health?.markers ?? [];
+      if (!markers.includes("[state-regression]")) {
+        throw new Error(`[state-regression] missing from spec_health: ${JSON.stringify(health.state_health)}`);
+      }
+      if (health.state_health?.regression?.audit_gap !== 1) {
+        throw new Error(`unexpected regression audit gap: ${JSON.stringify(health.state_health?.regression)}`);
+      }
+      // state_regression also surfaces via the state_ledger token in briefing.
       const b = await briefing(proc);
       assertContains(b, "state-regression");
     });
