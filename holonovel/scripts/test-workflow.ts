@@ -76,6 +76,12 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
 
+async function raw(proc: ChildProcess, name: string, args: Record<string, unknown> = {}): Promise<any> {
+  const resp = await send(proc, { method: "tools/call", params: { name, arguments: args } });
+  if (resp.error) throw new Error(`RPC error: ${JSON.stringify(resp.error)}`);
+  return resp.result ?? {};
+}
+
 function kill(proc: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
     proc.on("exit", () => resolve());
@@ -146,6 +152,25 @@ async function main() {
       assertContains(r, "acrobatics");
       assertContains(r, "Acrobatics");
       assertContains(r, "arcana");
+    });
+
+    // REQ-042b / REQ-191 / REQ-548d — the machine-readable option set carries
+    // kebab values with display labels, a free-text option, and cancel last.
+    await test("T32/REQ-548d: structured option set carries kebab value + label pairs", async () => {
+      // Drain whatever the previous test raised so this assertion starts clean.
+      await call(proc, "respond_decision", { decision: "-present_choices-", option: "cancel" });
+      const res = await raw(proc, "manage_scene", { action: "choices",  prompt: "structured?", choices: [{ id: "acrobatics", label: "Acrobatics", description: "Balance" }, { id: "arcana", label: "Arcana" }] });
+      const opts: Array<{ value: string; label: string }> = res.structuredContent?.options ?? [];
+      const acro = opts.find((o) => o.value === "acrobatics");
+      if (!acro) throw new Error(`no kebab value 'acrobatics' in ${JSON.stringify(opts)}`);
+      if (acro.label !== "Acrobatics") throw new Error(`label=${acro.label}`);
+      if (!opts.some((o) => o.value === "arcana" && o.label === "Arcana")) throw new Error(`arcana pair missing: ${JSON.stringify(opts)}`);
+      if (!opts.some((o) => o.value === "")) throw new Error("free-text option missing");
+      const last = opts[opts.length - 1];
+      if (last.value !== "cancel" || last.label !== "Cancel") throw new Error(`cancel not last: ${JSON.stringify(last)}`);
+      if (opts.length > 25) throw new Error(`${opts.length} options exceeds the 25 cap`);
+      // Leave no workflow pending for the collision test.
+      await call(proc, "respond_decision", { decision: "-present_choices-", option: "cancel" });
     });
 
     await test("S22/REQ-192: second respond on drained workflow returns STATE_CONFLICT", async () => {

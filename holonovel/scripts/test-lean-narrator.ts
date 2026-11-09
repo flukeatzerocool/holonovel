@@ -97,6 +97,13 @@ async function main(): Promise<void> {
     assert(sc.status === "NEED_INPUT", `status=${sc.status}`);
     assert(Array.isArray(sc.options) && sc.options.length > 0, "no options");
     assert(sc.options.some((o: any) => o.value === "cancel"), "cancel option missing");
+    // REQ-042b/REQ-191 — every entry is a kebab value + display label, cancel is
+    // last, values are unique, and the set never exceeds 25 entries.
+    assert(sc.options.every((o: any) => typeof o.value === "string" && typeof o.label === "string" && o.label.length <= 60), "option pair/label invalid");
+    assert(sc.options[sc.options.length - 1].value === "cancel", "cancel is not last");
+    assert(sc.options[sc.options.length - 1].label === "Cancel", "cancel label is not 'Cancel'");
+    assert(new Set(sc.options.map((o: any) => o.value)).size === sc.options.length, "duplicate option values");
+    assert(sc.options.length <= 25, `${sc.options.length} options exceeds the 25 cap`);
   });
 
   await test("REQ-067d T636 task-map intent routing", async () => {

@@ -27,13 +27,35 @@ restart the enumeration from scratch.
 - **D4 — No push.** Publication stays user-authorized; 3 commits are already
   unpushed at session start.
 
+### Decisions (2026-11-09, chunk P3)
+
+- **D5 — Chunk scope split (user-decided).** P3 = §5.4 (32 REQs); §5.6 (265
+  REQs, 75 families) becomes chunk P3b with its own increment. The worklist's old
+  "§5.4, §5.6" P3 label is re-scoped; the mapping invariant holds (each
+  subsection assigned once).
+- **D6 — Fix policy.** Q2 = D2 unchanged: P0 in-session, P1 roadmap, P2 only on
+  a demonstrated failure, P3 record-and-close.
+- **D7 — Increment record.** New `docs/plans/2026-11-09-full-review-p3/` for
+  plan/tasks/AAR; this worklist carries the P3 table and decisions.
+- **D8 — Bucket resolution.** Bucket follows the base family row by family ID,
+  not section membership: `REQ-548d` (a §5.4 REQ) inherits `REQ-548`'s §5.1 row
+  (bucket C).
+- **D9 — §5.4/P4 boundary.** P3 reviews the handler and contract surface; a
+  predicate landing in `core/state.ts` internals is recorded and referenced to
+  chunk P4, not audited here.
+- **D10 — Citation resolution.** Chunk P2's method unchanged; a literal token is
+  not evidence the behaviour is exercised. T38 is Manual, S22 a scenario, T103
+  Automated with no harness (a finding).
+- **D11 — No push.** Publication stays user-authorized.
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
 |---|---|---|---|---|
 | P1 | routing, badge gates, `audit()`, error envelopes | §5.1, §5.5 | `code-review` | **closed 2026-11-09** |
 | P2 | tool registration, schemas, descriptions | §5.3 | `code-review` + citation resolution | **closed 2026-11-09** |
-| P3 | mutation and decision handlers, lifecycle transitions | §5.4, §5.6 | `code-review` + `spec-review` | scheduled |
+| P3 | decision and creation handlers, structured choices, staleness | §5.4 | `code-review` + citation resolution | **closed 2026-11-09** |
+| P3b | mutation, decision, and lifecycle handlers; entities; adventure content | §5.6 | `code-review` + citation resolution | scheduled |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
 | P6 | `core/surface-{projection,aliases}.ts`, `world/*`, `rulesets.ts`, `library.ts` | §5.10, §5.11, §5.13, §5.15, §5.16–§5.18, §5.21–§5.23 | `code-review` | scheduled |
@@ -446,3 +468,101 @@ Result: **76 holds, 20 builder-side, 19 findings** (9 F-P2-1, 1 F-P2-2,
 | REQ-579a | 5.3 | C | holds | no own Check; family exercised: T672 |
 | REQ-577 | 5.3 | C | holds | own Check exercised: T670 |
 | REQ-574 | 5.3 | C | holds | own Check exercised: T667 |
+
+## Chunk P3 — decision workflows (§5.4)
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p3/`.
+
+**Code targets:** `holonovel/src/index.ts` `respond_decision` (`:3290-3572`),
+`parseDecisionOptions`/`needInput` (`:2566-2608`, `:2788`), `manage_scene
+(action: choices)` (`:6342-6354`), `spec_health` pending-workflow payload
+(`:12041-12044`), `state.checkWorkflowStaleness` (`core/state.ts:1845-1873`),
+`manage_character (action: create)` (`:3839-3950`), `core/character-creation.ts`.
+**Spec:** §5.4 (32 REQs, 14 families — 13 C, 1 E; none A/B/D).
+**Already gated:** no §5.4-specific root gate. The assertions live in the server
+suite: `test-workflow` (T32/T138/T157/T266), `test-output-contracts` (T47/T141/
+T494), `test-backfill` (T261/T273), `test-character-creation` (T468),
+`test-lean-narrator` (T635), `test-persistence` (T158).
+
+### Cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A decision transport and staleness | 19 | **findings F-P3-1, F-P3-3, F-P3-5** | `respond_decision` drain, `parseDecisionOptions`, `spec_health.pending_workflow(_warning)` |
+| B creation and advancement | 13 | **findings F-P3-2, F-P3-6, F-P3-7, F-P3-8** | `manage_character create`, step-by-step drain, `core/character-creation.ts` |
+
+**Gate/harness assertion vs REQ text.** T32 asserted the *text* rendering of the
+choice list (ids and labels present) but never the structured option set, so
+REQ-548d/REQ-191 passed while `structuredContent.options` carried a mangled
+value. T635 asserted only "options non-empty and cancel present" — the narrow-
+assertion class this sweep exists to find.
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P3-1 | `parseDecisionOptions` returned the whole `**id** — label` line as both `value` and `label`, captured only the first choice, and emitted no kebab value, no display label, no free-text/cancel entry and no 25-entry cap — REQ-042b/REQ-191/REQ-548d violated | `index.ts:2566-2570` (pre-fix) | P0 | **Resolved** — parser rewritten (`index.ts:2566-2608`); T32/REQ-548d and T635 assertions widened |
+| F-P3-2 | Step-by-step creation collected the `equipment` answer (`index.ts:3480`) and never passed it into the build, so the player's equipment choice was discarded and defaults substituted | `index.ts:3512-3521` (pre-fix) | P0 | **Resolved** — `equipment: wf.answers.equipment ?? []` |
+| F-P3-3 | Partial drain: `pending_workflow` cleared before the class-validation error (`:3488` then `:3504`) and before the world-generate missing-payload error (`:3378`) — the state change never applied | `index.ts:3378`, `:3488-3504` (pre-fix) | P0 | **Resolved** — the field is cleared only after validation; error paths leave the workflow open and name it in the corrective action |
+| F-P3-4 | Baseline red: 19 holosuite evidence anchors were stale (`index.ts:2589#err`, `state.ts:2465#saveNovel`, …), so `adversarial` (6 findings) and `differential` (1) failed on `predicate_unresolved`; six more were stale but unattached | `holonovel/scripts/lib/holosuite-*.ts` | P0 | **Resolved** (C0 baseline commit) — all 19 repointed; `test:all` 54/54 |
+| F-P3-5 | REQ-140 requires the end-Novel disposal to be recorded in the audit log; `state.endNovel` moves the file to trash with no audit entry and `respond_decision` writes none | `index.ts:3406-3416`, `core/state.ts:1697-1725` | P1 | `Scheduled-roadmap` — ROADMAP § §5.4 remediation |
+| F-P3-6 | REQ-152a's `equipment` entries carry `name` and `quantity` but no ruleset `source` for player-supplied items, and an equipment-less creation stores `equipment: []` rather than omitting the field | `index.ts:3797-3799` | P1 | `Scheduled-roadmap` — ROADMAP § §5.4 remediation |
+| F-P3-7 | REQ-399b requires a *named creation error* when a declared formula fails; `evaluateFormula` throws inside `computeDerived` (`core/character-creation.ts:368`) and the create handler (`index.ts:3780`) does not catch, so the caller sees an uncaught tool failure | `core/character-creation.ts:368`, `index.ts:3780` | P1 | `Scheduled-roadmap` — ROADMAP § §5.4 remediation |
+| F-P3-8 | REQ-104c cites Automated T103; no harness implements it (Appendix F catalogues it) | `spec/appendices-reference.md:1564`; no `T103` in `holonovel/scripts` | P1 | `Scheduled-roadmap` — ROADMAP § §5.4 citation repair |
+| F-P3-9 | The drain-atomicity fix (F-P3-3) has no reachable in-tree assertion: the failing branch needs a ruleset package with character creation, which the repo does not ship | `index.ts:3503-3504`; `holonovel/scripts/fixtures/` has no ruleset package | P2 | `Scheduled-roadmap` — ROADMAP § §5.4 remediation |
+
+No P0 remains open. F-P3-4 landed as its own baseline commit (C0) because the
+baseline was red before the review work; F-P3-1–F-P3-3 landed with the chunk.
+
+### Exit evidence (recorded 2026-11-09)
+
+`check:fast` 37/37 PASS · `check` PASS (0 errors) · server suite `test:all`
+54/54 PASS (incl. `test:workflow` 14/14, `test:lean-narrator` 10/10) ·
+`check-roadmap` PASS · `check-registers` PASS · `check-loop-artifacts` PASS ·
+`build-order` clean.
+
+### P3 per-REQ verdict table (32 rows)
+
+Resolution method: each REQ's own `*Check:*` IDs; a REQ with no own Check
+inherits its family's citation set; an `Automated` citation must appear
+literally in a harness and its body must exercise the behaviour; `Manual` /
+scenario citations need none; bucket inherited from the base family row (D8).
+
+Result: **25 holds, 1 builder-side, 6 findings** (F-P3-1 → 191/548d, F-P3-2 and
+F-P3-6 → 152a, F-P3-7 → 399b, F-P3-8 → 104c, F-P3-5 → 140).
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-056 | 5.4 | E | builder-side | bucket E; T38 is Manual, T32 applies |
+| REQ-042a | 5.4 | C | holds | no own Check; family exercised: T32, T138, T157 |
+| REQ-042b | 5.4 | C | holds | no own Check; family exercised: T32, T138, T157; option contract asserted by T32/REQ-548d after F-P3-1 |
+| REQ-042c | 5.4 | C | holds | no own Check; family exercised: T32, T138, T157 |
+| REQ-042d | 5.4 | C | holds | no own Check; family exercised: T32, T138, T157 |
+| REQ-042e | 5.4 | C | holds | no own Check; family exercised: T32, T157 (restart survival) |
+| REQ-042f | 5.4 | C | holds | own Check exercised: T32, T138, T157; G2 by kind; S22 scenario |
+| REQ-190 | 5.4 | C | holds | own Check exercised: T138; atomicity branch reviewed, fixed under F-P3-3 (assertion gap F-P3-9) |
+| REQ-548d | 5.4 | C | finding:F-P3-1 | T635 asserted a narrow subset; parser fixed and assertion widened |
+| REQ-191 | 5.4 | C | finding:F-P3-1 | T32 asserted text only; kebab/label pairs now emitted and asserted |
+| REQ-192 | 5.4 | C | holds | scenario S22 exercised (test-workflow) |
+| REQ-193a | 5.4 | C | holds | no own Check; family exercised: T494 |
+| REQ-193b | 5.4 | C | holds | own Check exercised: T494 |
+| REQ-104a | 5.4 | C | holds | no own Check; family exercised: T32, T468, T141 |
+| REQ-104b | 5.4 | C | holds | no own Check; family exercised: T32, T468, T141 |
+| REQ-104c | 5.4 | C | finding:F-P3-8 | T32/T47 exercised; Automated T103 has no harness |
+| REQ-181a | 5.4 | C | holds | own Check exercised: T47 |
+| REQ-181b | 5.4 | C | holds | own Check exercised: T47 |
+| REQ-151a | 5.4 | C | holds | no own Check; family exercised: T32, T468 |
+| REQ-151b | 5.4 | C | holds | own Check exercised: T32 |
+| REQ-152a | 5.4 | C | finding:F-P3-6 | own Check: T32, G2; step-by-step drop fixed (F-P3-2), source field outstanding |
+| REQ-152b | 5.4 | C | holds | own Check exercised: T32, G2 |
+| REQ-399a | 5.4 | C | holds | own Check exercised: T468 |
+| REQ-399b | 5.4 | C | finding:F-P3-7 | own Check exercised: T468; failure naming unhandled |
+| REQ-399c | 5.4 | C | holds | own Check exercised: T260 (test-backfill), T468 |
+| REQ-140 | 5.4 | C | finding:F-P3-5 | own Check exercised: T158; disposal not audited |
+| REQ-224a | 5.4 | C | holds | no own Check; family exercised: T266 |
+| REQ-224b | 5.4 | C | holds | no own Check; family exercised: T266; `spec_health.pending_workflow` carries decision/counter/threshold |
+| REQ-224c | 5.4 | C | holds | own Check exercised: T266 |
+| REQ-235a | 5.4 | C | holds | no own Check; family exercised: T273 |
+| REQ-235b | 5.4 | C | holds | no own Check; family exercised: T273 |
+| REQ-235c | 5.4 | C | holds | own Check exercised: T273 |

@@ -2563,10 +2563,47 @@ function structured(status: string, text: string, extra?: Record<string, any>) {
   if (g) fields.grounding = g;
   return fields;
 }
+// REQ-042b / REQ-191 / REQ-548d — every [NEED_INPUT] decision carries a
+// machine-readable option set as kebab `value` + human `label` pairs, capped at
+// 25 entries, with an empty-string (free-text) option and `cancel` always last.
+function kebabOptionValue(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[`*_]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+function clampOptionLabel(raw: string): string {
+  const label = raw.replace(/[`*_]/g, "").replace(/[.\s]+$/, "").trim();
+  return label.length > 60 ? `${label.slice(0, 57)}...` : label;
+}
 function parseDecisionOptions(text: string): Array<{ value: string; label: string }> {
-  const m = text.match(/Options:\s*(.+)/);
-  if (!m) return [];
-  return m[1].split(",").map((s) => s.trim()).filter(Boolean).map((v) => ({ value: v, label: v === "cancel" ? "Cancel" : v }));
+  const parsed: Array<{ value: string; label: string }> = [];
+  const seen = new Set<string>();
+  const push = (value: string, label: string) => {
+    const v = value.trim() === "" ? "" : kebabOptionValue(value);
+    if (v === "" || v === "cancel" || seen.has(v)) return;
+    seen.add(v);
+    parsed.push({ value: v, label: clampOptionLabel(label) });
+  };
+  // Multi-line choice lists: `  **<id>** — <label>[: <description>]`.
+  for (const m of text.matchAll(/\*\*([^*\n]+)\*\*\s*[—–-]\s*([^\n:]+)/g)) {
+    push(m[1], m[2]);
+  }
+  // Single-line option lists: `Options: a, b, c` or `Options: a (A), b (B)`;
+  // the classes step phrases its list as `Classes: ...` (REQ-042b).
+  const line = text.match(/(?:Options|Classes):\s*([^\n]+)/);
+  if (line) {
+    for (const raw of line[1].split(",").map((s) => s.trim()).filter(Boolean)) {
+      const pair = raw.match(/^([^(]+?)\s*\((.+)\)\.?$/);
+      push(pair ? pair[1] : raw, pair ? pair[2] : raw);
+    }
+  }
+  // REQ-042b — free-text (empty-string) and cancel are always available.
+  const capped = parsed.slice(0, 23);
+  capped.push({ value: "", label: "(free-text)" });
+  capped.push({ value: "cancel", label: "Cancel" });
+  return capped;
 }
 function ok(text: string) {
   const expanded = expandMacros(text, buildMacroContext());
@@ -3375,7 +3412,7 @@ server.registerTool("respond_decision", {
   if (kind === "world_generate" || kwMatch(dec, ["world_generate", "world generate"])) {
     const payload = (pw as any).payload ?? {};
     if (opt === "apply") {
-      if (!payload.assertions) { novel.pending_workflow = null; state.saveNovel(novel); return err("STATE_CONFLICT", "No generation payload to apply."); }
+      if (!payload.assertions) return err("STATE_CONFLICT", "No generation payload to apply. Decline the workflow with 'discard' to close it.");
       worldSnapshot();
       const { world, result } = convertSource(payload.assertions, novel.world);
       novel.world = world;
@@ -3485,10 +3522,10 @@ server.registerTool("respond_decision", {
       state.saveNovel(novel);
       return needInput(creationStepPrompt(wf));
     }
-    novel.pending_workflow = null;
     const rules = wf.rules;
     if (!rules) {
       // Ruleset-free workflow completed — profile-only entity.
+      novel.pending_workflow = null;
       const name = wf.answers.name ?? "Unnamed";
       const species = wf.answers.species;
       const entity = state.createEntity(novel, name, undefined, species ? { species } : undefined);
@@ -3501,8 +3538,11 @@ Character '${name}' created as ${entity.id} (profile-only — no mechanical stat
     const species = wf.answers.species ?? Object.values(rules.species ?? {})[0]?.name ?? "";
     const classLevels = wf.answers.classLevels ?? [];
     for (const cl of classLevels) {
-      if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
+      if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'. The workflow is still open — respond with a valid class or 'cancel'.`);
     }
+    // REQ-190 — the drain is atomic: pending_workflow is cleared only once the
+    // character can actually be built.
+    novel.pending_workflow = null;
     const defaultScores = rules.default_ability_scores?.map(String).join(" ") ?? "15 14 13 12 10 8";
     const abilityScores = applySpeciesAdjustments(
       wf.answers.abilityScores ?? parseAbilityScores(defaultScores as any, rules),
@@ -3517,6 +3557,7 @@ Character '${name}' created as ${entity.id} (profile-only — no mechanical stat
       trainedSkills: wf.answers.trainedSkills ?? [],
       feats: [],
       talents: [],
+      equipment: wf.answers.equipment ?? [],
       statMethod: wf.answers.statMethod ?? "planned",
     };
     const stats = buildCharacterStats(build, rules);

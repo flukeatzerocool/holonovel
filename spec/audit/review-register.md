@@ -11,6 +11,38 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
+
+- **F-P3-1 — structured decision options were mangled (resolved):**
+  `parseDecisionOptions` matched the first `**id** — label` line and returned it
+  as both `value` and `label`, dropped every later option, and never emitted a
+  kebab value, a distinct display label, the free-text entry, `cancel`, or the
+  25-entry cap REQ-042b/REQ-191/REQ-548d require. Predicate:
+  `holonovel/src/index.ts:2566-2570` (pre-fix). Fix at `:2566-2608`; T32/REQ-548d
+  (`scripts/test-workflow.ts`) and T635 (`scripts/test-lean-narrator.ts`) now
+  assert value/label pairs, cancel-last, unique values, and the cap.
+- **F-P3-2 — step-by-step creation discarded the equipment answer (resolved):**
+  the `equipment` step wrote `wf.answers.equipment` (`index.ts:3480`) but the
+  completion build omitted the field, so the player's choice was replaced by
+  class defaults. Predicate: `index.ts:3512-3521` (pre-fix). Fix: the build now
+  passes `equipment: wf.answers.equipment ?? []` (REQ-152a).
+- **F-P3-3 — partial drain cleared the workflow before the state change
+  (resolved):** `pending_workflow` was nulled before the character-creation
+  class-validation error (`index.ts:3488` then `:3504`) and before the
+  world-generate missing-payload error (`:3378`), leaving the workflow drained and
+  the state unchanged — the defect REQ-190 names. Predicate: those lines
+  (pre-fix). Fix: the field is cleared only after validation succeeds; error
+  paths keep the workflow open and say so in the corrective action.
+- **F-P3-4 — holosuite evidence anchors were stale, so the suite was red
+  (resolved):** 19 `anchor(path, line, symbol)` predicates in
+  `holonovel/scripts/lib/holosuite-*.ts` no longer contained their symbol at the
+  recorded line (`index.ts:2589#err`, `state.ts:2465#saveNovel`,
+  `index.ts:9606#recap`, and 16 more; six were stale but unattached to a
+  finding). Predicate: `holonovel/src/index.ts:2589` vs
+  `holosuite-conformance.ts:37`; `holonovel/src/core/state.ts:2465` vs
+  `holosuite-differential.ts:25`. Fix: all 19 repointed by nearest
+  symbol-bearing line; `npm --prefix holonovel run test:all` 54/54.
+
 ### 2026-11-09 seam-drift remediation (REQ-030, REQ-088, REQ-092, REQ-095, REQ-238, REQ-240, REQ-256, REQ-334, REQ-401–REQ-406, REQ-613)
 
 - **F1 — `[session-no-mutations]` absent from `spec_health` (resolved):**
@@ -1037,6 +1069,36 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `test:adventure` and `test:backfill` T244)
 
 ## Scheduled-roadmap
+
+### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
+
+Scheduled under `ROADMAP.md` § *§5.4 remediation (P1)* and § *§5.4 citation
+repair (P1)*. Each finding cites the predicate that carries it.
+
+- **F-P3-5 — end-Novel disposal is not recorded in the audit log:** REQ-140
+  requires the disposal recorded; `respond_decision` calls `state.endNovel`
+  (`holonovel/src/index.ts:3406-3416`) and `endNovel`
+  (`holonovel/src/core/state.ts:1697-1725`) writes no audit entry before moving
+  the Novel to `.trash`. The record has no home once the Novel file is gone —
+  the remediation decides where it lives (server log, audit archive, or a
+  tombstone entry).
+- **F-P3-6 — creation equipment lacks the ruleset source:** REQ-152a requires
+  name, quantity, and ruleset source per assigned item; player-supplied names
+  become `{ name, quantity: 1 }` (`holonovel/src/index.ts:3797-3799`), and a
+  creation with no equipment stores `equipment: []` instead of omitting the
+  field (REQ-152b).
+- **F-P3-7 — a failing declared formula is not a named creation error:**
+  REQ-399b requires a named error; `evaluateFormula` throws inside
+  `computeDerived` (`holonovel/src/core/character-creation.ts:368`) and
+  `buildCharacterStats` (`holonovel/src/index.ts:3780`) does not catch, so the
+  caller receives an uncaught tool failure.
+- **F-P3-8 — REQ-104c cites Automated T103 with no harness:** Appendix F
+  catalogues T103 (`spec/appendices-reference.md:1564`); no `holonovel/scripts`
+  harness carries the token.
+- **F-P3-9 — the drain-atomicity fix has no in-tree assertion:** the failing
+  branch (`holonovel/src/index.ts:3503-3504`) needs a ruleset package that
+  defines character creation; the repo ships no such fixture, so the fix is
+  code-verified only.
 
 ### 2026-11-09 full-review sweep — chunk P1 (trust core, §5.1/§5.5)
 

@@ -14,19 +14,44 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P3–P4: mutation, decision, and lifecycle handlers against §5.4/§5.6;
-  `core/state.ts` persistence with the §5.19 guardrail cross-check.
+- Chunk P3b: §5.6 state, lifecycle, entities, and adventure content — 265 REQs
+  across 75 families; and chunk P4, `core/state.ts` persistence with the §5.19
+  guardrail cross-check.
 - Chunks P5–P7: engine loop and event stream (§5.20, §5.24, §5.31); adapters and
   rulesets (§5.10, §5.11, §5.13, §5.15–§5.18, §5.21–§5.23); determinism and
   knowledge (§5.2, §5.7, §5.8, §5.14, §5.28–§5.30).
 - Chunk P8 and M1: narrative cognition (§5.12, §5.25–§5.27, §5.32–§5.35) and a
   closing machine-evidence re-run. Scope is §5.1–§5.35 except §5.9 and §5.19,
-  which the 2026-11-09 seam pass closed; chunks P1 (trust core) and P2 (tool
-  surface and §5.3) landed the same day.
+  which the 2026-11-09 seam pass closed; chunks P1 (§5.1/§5.5), P2 (§5.3), and
+  P3 (§5.4) landed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P3
-(mutation, decision, and lifecycle handlers); closes when chunks P3–P8 and the
-closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P3b
+(§5.6); closes when chunks P3b–P8 and the closing M1 pass report.
+
+## §5.4 remediation (P1)
+
+- Record the end-Novel disposal in the audit log before the Novel file moves to
+  `.trash` (REQ-140; F-P3-5).
+- Carry the ruleset source on each creation equipment entry and omit the field
+  when the ruleset defines no starting equipment (REQ-152a, REQ-152b; F-P3-6).
+- Surface a named creation error when a declared formula fails to evaluate, and
+  add a ruleset-backed creation fixture so the drain-atomicity branch is
+  asserted in-tree (REQ-399b, REQ-190; F-P3-7, F-P3-9).
+
+**Trigger:** the next session that takes §5.4 remediation work; closes when
+F-P3-5, F-P3-6, F-P3-7, and F-P3-9 are `Resolved` in the review register.
+
+## §5.4 citation repair (P1)
+
+- Write the T103 assertion (character creation undo: step-by-step and quick
+  creation, undo blockage during a pending `[NEED_INPUT]`, empty-stack
+  `[STATE_CONFLICT]`) or re-point REQ-104c to the harness that exercises it;
+  then refresh the coverage register.
+
+**Trigger:** the next citation-remediation session, or the same session as the
+§5.4 remediation above; closes when REQ-104c's citation resolves to an exercised
+harness and F-P3-8 is `Resolved`.
+
 
 ## Trust-core contract remediation (P1)
 

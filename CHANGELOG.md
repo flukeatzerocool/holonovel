@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P3 (§5.4 decision workflows)
+
+- Chunk P3 of the full-review sweep reviewed §5.4's 32 REQs (14 families: 13
+  bucket C, 1 E) against the `respond_decision` drain and pending-workflow
+  surface, the structured choice payload, staleness reporting, the end-Novel
+  dispatch, and character creation/advancement. Every REQ carries a verdict in
+  `docs/plans/2026-11-09-full-review-sweep/worklist.md`: 25 hold, 1 is
+  builder-side, 6 produce findings. The chunk is split from §5.6 (265 REQs),
+  which becomes chunk P3b on the roadmap.
+- Three P0 defects are fixed with widened assertions. F-P3-1: the machine-
+  readable option set carried the whole `**id** — label` line as both value and
+  label and dropped every option after the first; `parseDecisionOptions` now
+  emits kebab value + display-label pairs, a free-text entry, and `cancel` last,
+  capped at 25 (REQ-042b/REQ-191/REQ-548d), asserted by T32 and T635. F-P3-2:
+  step-by-step creation collected the equipment answer and never used it
+  (REQ-152a). F-P3-3: the drain cleared `pending_workflow` before the
+  class-validation and world-generate error paths, the partial drain REQ-190
+  calls a defect.
+- A baseline fix lands first as its own commit: 19 holosuite evidence anchors
+  had drifted (`index.ts:2589#err`, `state.ts:2465#saveNovel`, and 17 more),
+  failing `adversarial` and `differential` with `predicate_unresolved`; all are
+  repointed and `holonovel test:all` is 54/54.
+- Five findings are scheduled: the end-Novel disposal audit record (REQ-140),
+  creation equipment's ruleset source and absent-when-empty shape (REQ-152a/b),
+  a named creation error for a failing declared formula (REQ-399b), the missing
+  in-tree assertion for drain atomicity, and REQ-104c's unexercised Automated
+  T103 citation. Roadmap gains *§5.4 remediation (P1)* and *§5.4 citation repair
+  (P1)*; the sweep trigger advances to chunk P3b.
+
 ## 2026-11-09 — Full-review sweep: chunk P2 (tool surface and §5.3)
 
 - Chunk P2 of the full-review sweep reviewed the tool surface — 42
