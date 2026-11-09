@@ -27,6 +27,11 @@
   replaces its vacuous assertions with a real clock read. Holosuite predicate
   anchors are refreshed for the shifted lines; the data-format fingerprint and
   the starter artifact are regenerated.
+- The §6.7 rebuild for revisions `6f16945a`→`86bb068c` is verified in-session
+  (`test:all` 54/54, package smoke 10/10, full `check` PASS, strict `validate`
+  0 errors) and recorded as a dated `Update-deferred` acknowledgement; the
+  publication fingerprint baseline advances on that evidence (REQ-394a), and
+  the dated Spec Update entry is written for Appendix V.4.
 
 ## 2026-11-08 — Torre knowledge depth: three player-facing pages
 
