@@ -10882,7 +10882,12 @@ Options: yes, cancel${driftWarn}`);
     }
     case "archive": {
       requireGM();
-      if (state.activeNovelId === args.slug) state.activeNovelId = null;
+      // REQ-334a — the Novel SHALL NOT be the process's active Novel; archiving
+      // it while active returns [STATE_CONFLICT] rather than silently
+      // deactivating the badge and archiving the Novel the caller is playing.
+      if (state.activeNovelId === args.slug) {
+        return err("STATE_CONFLICT", `Novel '${args.slug}' is the active Novel. Corrective action: switch to another Novel with manage_novel (action: switch) or end it before archiving.`);
+      }
       state.archiveNovel(args.slug);
       forgetPacingSession(args.slug);
       audit("archive_novel", { slug: args.slug });

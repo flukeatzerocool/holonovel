@@ -14,18 +14,33 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P4 (`core/state.ts` persistence with the §5.19 cross-check) and P5–P7
-  (engine loop and event stream; adapters and rulesets; determinism and
-  knowledge).
+- Chunks P5 (engine loop and event stream) and P6–P7 (adapters and rulesets;
+  determinism and knowledge).
 - Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
   Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
-  closed; §5.6 is complete — P3b-1 (core state and lifecycle) and P3b-2
-  (entities and NPCs) closed 2026-11-09, P3b-3 (adventure content) closed
-  2026-11-09, and P3b-4 (state surfaces and fingerprinting) closed 2026-11-09.
+  closed; §5.6 is complete and chunk P4 closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P4
-(`core/state.ts` persistence and the §5.19 cross-check); closes when chunks
-P4–P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P5;
+closes when chunks P5–P8 and the closing M1 pass report.
+
+## §5.9/§5.19 persistence remediation (P1)
+
+- Archive and corruption integrity: refuse archiving over an existing archived
+  slug, surface the primary/backup chain paths on total corruption, implement
+  `novel_format_version` with the v1 migration and `[format-future]` warning,
+  and run workflow-staleness accounting on the restore path (REQ-334b,
+  REQ-092c, REQ-092e, REQ-092f, REQ-092g, REQ-224a; F-P4-2, F-P4-4, F-P4-5,
+  F-P4-8).
+- Directive and warning completeness: append a `moment` on every combat-round
+  resolution, name the uncommitted beats and commit tools in warn mode (and
+  enumerate them in recap), and name the eight omitted state-tool categories in
+  the REQ-400 directive (REQ-405, REQ-403b, REQ-400; F-P4-3, F-P4-6, F-P4-7).
+- Citation repair: widen T470 to the ledger timestamp and drift/regression
+  markers, T471 to the recap's named session, and T475 to the timestamp gap and
+  the unparseable-primary branch (REQ-401, REQ-402, REQ-406; F-P4-9).
+
+**Trigger:** the next session that takes persistence remediation work; closes
+when F-P4-2–F-P4-9 are `Resolved` in the review register.
 
 ## §5.6 state surfaces remediation (P1)
 

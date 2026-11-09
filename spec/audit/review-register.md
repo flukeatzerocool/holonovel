@@ -11,6 +11,16 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
+
+- **F-P4-1 — archiving the active Novel was accepted (resolved 2026-11-09):**
+  `manage_archive (action: archive)` cleared `activeNovelId` and archived the
+  Novel the caller was playing, while REQ-334a requires `[STATE_CONFLICT]` when
+  the target is the process's active Novel. Predicate: `holonovel/src/index.ts:10885`
+  (pre-fix) and the wrong expectation encoded in `test-persistence.ts:421`.
+  Fix at `index.ts:10883-10892`: the handler refuses with a corrective action;
+  T381 asserts the refusal, switches away, then archives.
+
 ### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
 
 - **F-P3B1-1 — `audit://novel` was truncated JSON, unfiltered (resolved):** the
@@ -1090,6 +1100,59 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
+
+- **F-P4-2 — archiving over an existing archived Novel deletes it (2026-11-09):**
+  `archiveNovel` unlinks `archive/<slug>.json` when present, and `createNovel`
+  checks only the in-memory registry, so creating a same-slug Novel and
+  archiving it removes the previously archived copy — REQ-334b's "never
+  auto-deleted" is violated. Predicate: `state.ts:1736`, `state.ts:1152`.
+  Scheduled under `ROADMAP.md` § §5.9/§5.19 persistence remediation.
+- **F-P4-3 — combat-round resolution writes no auto-moment (2026-11-09):**
+  `advanceCombat` advances the turn/round and expires conditions but appends no
+  story-journal `moment`, which REQ-405 requires for every combat-round
+  resolution; T474 covers scene transitions only. Predicate: `state.ts:2313-2326`,
+  `test-persistence-guardrails.ts:158`. Scheduled under `ROADMAP.md`
+  § §5.9/§5.19 persistence remediation.
+- **F-P4-4 — total corruption surfaces no chain paths (2026-11-09):** the
+  `data_health.corrupted` map carries a reason string only ("corrupt primary, no
+  valid backup"), with no `[corrupted-novel]` marker and no backup/primary paths;
+  stderr likewise omits paths — REQ-092c requires both. Predicate:
+  `state.ts:1357`, `state.ts:1490`, `index.ts:11972`. Scheduled under
+  `ROADMAP.md` § §5.9/§5.19 persistence remediation.
+- **F-P4-5 — `novel_format_version` and its migrations are absent (2026-11-09):**
+  `saveNovel` stamps `data_format`/`spec_version` but never `novel_format_version`;
+  no v1 `.audit.jsonl` migration, `[migration-missing-audit]`, or
+  `[format-future]` warning exists (REQ-092e/f/g). A created Novel's JSON has no
+  such field (live probe, 2026-11-09). Predicate: `state.ts:2479-2555`; the only
+  occurrence is the export manifest at `index.ts:10658`. Scheduled under
+  `ROADMAP.md` § §5.9/§5.19 persistence remediation.
+- **F-P4-6 — warn-mode drift text names no beats or commit tools (2026-11-09):**
+  the warning says "Commit each narrated beat with its state tool" without naming
+  the beats or the tools, and recap prints the same sentence rather than
+  enumerating the beats — REQ-403b requires both. Predicate: `index.ts:9753-9756`,
+  `index.ts:11765-11767`. Scheduled under `ROADMAP.md`
+  § §5.9/§5.19 persistence remediation.
+- **F-P4-7 — the persistence directive omits eight tool categories (2026-11-09):**
+  REQ-400 enumerates event-log, belief/evidence, identity, causal-state, corpus,
+  agent-task, perception, and subjective-memory state tools; the directive text
+  names none of them. Predicate: `index.ts:14159-14160`;
+  `test-persistence-guardrails.ts:100`. Scheduled under `ROADMAP.md`
+  § §5.9/§5.19 persistence remediation.
+- **F-P4-8 — a restored backup skips workflow-staleness accounting (2026-11-09):**
+  the restore branch of `resumeNovel` returns before `checkWorkflowStaleness`,
+  while the normal branch calls it, so a pending workflow restored from backup
+  never ages toward auto-cancel (REQ-224a). Predicate: `state.ts:1341-1355` vs
+  `state.ts:1366`. Scheduled under `ROADMAP.md` § §5.9/§5.19 persistence
+  remediation.
+- **F-P4-9 — three §5.19 assertions are narrower than their REQs (2026-11-09):**
+  T470 asserts the ledger token and one count, not the timestamp or drift/
+  regression markers (REQ-401); T471 asserts the no-mutation marker and window
+  list, not that recap names the session (REQ-402); T475 asserts the audit gap
+  only, not the timestamp gap or the unparseable-primary branch (REQ-406).
+  Predicate: `test-persistence-guardrails.ts:106`, `:235`, `:257`. Scheduled
+  under `ROADMAP.md` § §5.9/§5.19 persistence remediation.
+
 ### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
 
 Scheduled under `ROADMAP.md` § *§5.6 core state and lifecycle remediation (P1)*.
@@ -1488,6 +1551,23 @@ against Appendix F and the harness corpus, not on a gate message.
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
+
+- **F-P4-10 — `reStampArtifact` does not fsync its temp file (2026-11-09):**
+  the migration writer uses `writeFileSync` + `renameSync` with no `fsync`,
+  unlike `saveNovel`. Predicate: `state.ts:189-192` vs `state.ts:2549`. No
+  demonstrated failure: a re-run of `holonovel update` or the next save re-stamps
+  the artifact.
+- **F-P4-11 — a corrupt `roster.json` aborts startup (2026-11-09):**
+  `state.loadRoster()` is unguarded (`index.ts:131`) and `loadRoster` parses
+  without a catch (`state.ts:2585-2586`), while server notes and codex catch
+  corruption. No normative REQ requires roster-corruption tolerance; recorded
+  for a future operational-hardening pass.
+- **F-P4-12 — `saveRoster` is a plain write (2026-11-09):** `state.ts:2577`
+  writes `roster.json` without the temp+rename pattern; the same class as
+  F-P3B4-6 (notes/codex), whose scheduled fix should adopt one atomic helper.
+  No roster-persistence REQ mandates atomicity.
 
 - **Prototype-key hardening in package tool schemas (2026-11-09):** `index.ts:2018-2032`
   builds `const shape = {}` and assigns `shape[k]`, where `k` comes from an

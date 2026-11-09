@@ -418,6 +418,10 @@ async function main() {
       await call(proc, "resolve_mechanic", { action: "fate_point",  op: "spend",  entity_id: "pc_1",  amount: 1 });
       const npcCreate = await call(proc, "manage_npc", { action: "create", name: "Archivist", mind: { directive: "Keep the archive sealed." } });
       const npcId = npcCreate.match(/\((\w+)\)/)?.[1];
+      // REQ-334a — archiving the active Novel is refused; the caller must switch.
+      const refused = await call(proc, "manage_archive", { action: "archive",  slug: "archive-me" });
+      assertContains(refused, "[STATE_CONFLICT]");
+      await call(proc, "manage_novel", { action: "switch",  slug: "restore-novel" });
       await call(proc, "manage_archive", { action: "archive",  slug: "archive-me" });
       const active = await call(proc, "manage_novel", { action: "list" });
       if (active.includes("archive-me")) throw new Error("archived novel still listed as active");

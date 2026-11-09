@@ -151,6 +151,32 @@ restart the enumeration from scratch.
 
 
 
+### Decisions (2026-11-09, chunk P4)
+
+- **D44 — Chunk scope.** P4 covers `core/state.ts` persistence, `core/data-dir.ts`,
+  and the save/load/archive/undo lifecycle, with the nine §5.19 REQs as its spec
+  row set. Executed as one increment; the stopped-run landing is the split point.
+- **D45 — Fix policy.** D2/D13 unchanged: P0 in-session, P1 roadmap, P2 only on
+  a demonstrated failure, P3 record-and-close.
+- **D46 — Increment record.** `docs/plans/2026-11-09-full-review-p4/` for
+  plan/tasks/AAR; this worklist carries the P4 tables and decisions D44–D51.
+- **D47 — Bucket resolution.** By base family ID (D14): the §5.19 block has eight
+  family rows and nine REQs (`REQ-403` carries `403a`/`403b`), all bucket C.
+- **D48 — Boundaries.** §5.9/§5.19 semantic review stays closed (seam pass);
+  P4 is a code-side review, so a persistence code defect is a finding. Event
+  log/engine loop → `deferred:P5`; projection → `deferred:P6`; determinism →
+  `deferred:P7`; subjective memory → `deferred:P8`. A badge-filter-only
+  predicate is `Closed-P3` with the P1 closure reference.
+- **D49 — Citation resolution.** D25 method: own `_Check:`, else family set; an
+  `Automated` token must appear in a harness and the body must exercise the
+  behaviour; `T0nn` shadowing is not evidence (F-P2-4).
+- **D50 — Fingerprint consequence.** §5.9 and §5.19 are `DATA_SECTIONS` members;
+  a REQ-body edit requires `build-order` regeneration. Review-only unless a P0
+  fix amends a body.
+- **D51 — Plan gate and publication.** Plan stamped `fresh`, standard depth,
+  cold pass 5/5 (report `/tmp/opencode/p4-independent-rereview.md`); 11 commits
+  unpushed at session start; no push.
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -162,7 +188,7 @@ restart the enumeration from scratch.
 | P3b-2 | entities, NPCs, personality, briefings | §5.6 entities and NPCs (93 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
+| P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | **closed 2026-11-09** |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
 | P6 | `core/surface-{projection,aliases}.ts`, `world/*`, `rulesets.ts`, `library.ts` | §5.10, §5.11, §5.13, §5.15, §5.16–§5.18, §5.21–§5.23 | `code-review` | scheduled |
 | P7 | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts` | §5.2, §5.7, §5.8, §5.14, §5.28–§5.30 | `code-review` | scheduled |
@@ -1222,3 +1248,102 @@ Result: **36 holds, 11 builder-side, 20 finding rows carrying 15 finding IDs**.
 
 **Totals:** 67 rows — 36 holds, 11 builder-side, 20 finding rows carrying
 15 finding IDs (all P1, no P0).
+
+## Chunk P4 — persistence and the §5.19 cross-check
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p4/`.
+
+**Code targets:** `core/state.ts` persistence (`saveNovel` `:2479`, backup
+rotation `:2422-2455`, checksum `:75-82`, `reStampArtifact` `:174`, roster/notes/
+codex `:2558-2691`), load/restore (`readNovelData` `:1304`, `resumeNovel` `:1321`,
+hydration `:1458`, `loadNovelFromData` `:1534`, `restoreFromBackups` `:2439`),
+lifecycle (`endNovel` `:1697`, `archiveNovel` `:1730`, `unarchiveNovel` `:1751`,
+`archivedNovels` `:1770`, snapshot/undo/redo `:1817-1915`), `core/data-dir.ts`,
+and the `manage_novel`/`manage_archive` handlers.
+**Spec:** §5.19 (8 family rows, 9 REQs: `REQ-400`–`407`, `403a`/`403b`), all
+bucket C.
+**Already gated:** no §5.19-specific root gate; the assertions live in
+`test-persistence`, `test-persistence-guardrails` (`T469`–`T476`), `test-limits`
+(`T475` compression), and `test-data-dir` (`T731`).
+
+### Cluster verdicts
+
+| Cluster | Surface | Verdict | Evidence |
+|---|---|---|---|
+| A | save path and integrity (atomic write, rotation, checksum, compression, flat stores, re-stamp) | **holds**, P3 note F-P4-10 | `saveNovel` temp+fsync+rename (`state.ts:2479-2555`), rotation `:2422-2455`; `T276`, `T475` |
+| B | load, restore, corruption | **findings F-P4-4, F-P4-9** | `resumeNovel`/hydration restore chain (`:1321-1532`); `T276`, `T175`, `T475` |
+| C | lifecycle file operations (end/trash, archive, checkpoints, undo/redo) | **findings F-P4-1 (fixed), F-P4-2, F-P4-8** | `endNovel` `:1697`, `archiveNovel` `:1730`, snapshots `:1817-1915`; `T158`, `T381`, `T122`, `T712` |
+| D | §5.19 cross-check | **findings F-P4-3, F-P4-6, F-P4-7, F-P4-9** | `index.ts` briefing/recap/health; `T469`–`T476` |
+
+**Gate/harness assertion vs REQ text.** T469 asserted the directive and one
+example tool while REQ-400 names eight state-tool categories the directive text
+omits. T470/T471/T475 assert only a token/count/one branch of their contracts.
+T474 asserts scene-transition moments only, so the missing combat-round moment
+went unseen. T381 archived the *active* Novel and asserted success — encoding
+the REQ-334a violation as the expected result.
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P4-1 | Archiving the process's active Novel succeeded and silently deactivated the badge; REQ-334a requires `[STATE_CONFLICT]`. T381 asserted the wrong behaviour | `index.ts:10885` (pre-fix); `test-persistence.ts:421` | P0 | **Resolved** — handler refuses with corrective action (`index.ts:10883-10892`); T381 asserts the refusal then switches away and archives |
+| F-P4-2 | `archiveNovel` silently `unlink`s an existing `archive/<slug>.json`, so archiving a same-slug Novel deletes the archived one; reachable because `createNovel` checks only the in-memory registry, not the archive directory (REQ-334b: never auto-deleted) | `state.ts:1736`, `state.ts:1152` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-3 | Combat-round resolution appends no `moment` entry; REQ-405 requires one for every round. `advanceCombat` advances turn/round with no story-journal write, and T474 covers only scene transitions | `state.ts:2313-2326`; `test-persistence-guardrails.ts:158` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-4 | When primary and backups are all corrupt, `spec_health.data_health.corrupted` carries a reason string only — no `[corrupted-novel]` marker and no chain paths; stderr likewise names no paths (REQ-092c) | `state.ts:1357`, `:1490`; `index.ts:11972` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-5 | `novel_format_version` is never written to the persisted Novel; no v1 `.audit.jsonl` migration, no `[migration-missing-audit]` entry, and no `[format-future]` warning exist (REQ-092e/f/g). Verified by a live probe: a created Novel has only `data_format` and `spec_version` | `state.ts:2479-2555`; only write is the export manifest `index.ts:10658` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-6 | `TTRPG_STATE_GATE=warn` appends only a generic sentence; it does not name the uncommitted beats or the state tools that commit them, and recap does not enumerate the beats (REQ-403b) | `index.ts:9753-9756`, `:11765-11767` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-7 | The REQ-400 persistence directive names scene/countdown/condition/NPC/story and base capabilities but omits event-log, belief/evidence, identity, causal-state, corpus, agent-task, perception, and subjective-memory tools | `index.ts:14159-14160`; `test-persistence-guardrails.ts:100` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-8 | The backup-restore branch of `resumeNovel` returns without `checkWorkflowStaleness`, while the normal branch calls it; a pending workflow restored from backup never ages toward auto-cancel (REQ-224a) | `state.ts:1341-1355` vs `:1366` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-9 | Narrow §5.19 assertions: T470 never asserts the ledger timestamp or drift/regression markers (REQ-401); T471 never asserts that recap names the zero-write session (REQ-402); T475 never asserts the timestamp gap or the unparseable-primary branch (REQ-406) | `test-persistence-guardrails.ts:106`, `:235`, `:257` | P1 | `Scheduled-roadmap` — ROADMAP § §5.9/§5.19 persistence remediation |
+| F-P4-10 | `reStampArtifact` writes its temp file and renames without `fsync`, unlike `saveNovel`; a crash during migration can lose the re-stamp (durability consistency, no explicit REQ) | `state.ts:189-192` vs `:2549` | P3 | `Closed-P3` — no demonstrated failure; the next `saveNovel` or `holonovel update` re-runs the re-stamp |
+| F-P4-11 | `state.loadRoster()` is unguarded at startup and `loadRoster` does `JSON.parse` without a catch, so a corrupt `roster.json` aborts boot; `loadServerNotes`/`loadCodex` catch corruption | `index.ts:131`; `state.ts:2585-2586` | P3 | `Closed-P3` — no normative REQ requires roster corruption tolerance; recorded for a future operational pass |
+| F-P4-12 | `saveRoster` writes `roster.json` non-atomically (plain `writeFileSync`), the same class as F-P3B4-6 for notes/codex; no roster-persistence REQ mandates atomicity | `state.ts:2577` | P3 | `Closed-P3` — the scheduled F-P3B4-6 fix covers the atomic-write helper; roster can adopt it then |
+
+### §5.19 per-REQ verdict table (9 rows)
+
+Resolution method: own `*Check:*`, else family set; an `Automated` token must
+appear in a harness and its body must exercise the behaviour; bucket from the
+base family row (D47).
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-400 | 5.19 | C | finding:F-P4-7 | T469 exercised; directive omits eight enumerated tool categories |
+| REQ-401 | 5.19 | C | holds | ledger renders timestamp, per-group counts, drift/regression markers (`index.ts:14163-14171`); T470 exercises token+counts (narrow, F-P4-9) |
+| REQ-402 | 5.19 | C | holds | marker in `state_health` and recap naming sessions (`index.ts:11982`, `:9750-9752`); T471 (narrow, F-P4-9) |
+| REQ-403a | 5.19 | C | holds | drift computed and surfaced in health, recap, ledger (`state.ts` `stateDriftActive`; T472) |
+| REQ-403b | 5.19 | C | finding:F-P4-6 | warn/block gate implemented; warn text omits beats and commit tools |
+| REQ-404 | 5.19 | C | holds | `[uncommitted-roll]` marker names the commit tool; T473 |
+| REQ-405 | 5.19 | C | finding:F-P4-3 | scene-transition moment holds; combat-round moment absent |
+| REQ-406 | 5.19 | C | holds | `[state-regression]` with audit gap and backup index; T475 (narrow, F-P4-9) |
+| REQ-407 | 5.19 | C | holds | full persist-tool list rendered for GM; T476 |
+
+**Totals:** 9 rows — 6 holds, 3 finding rows (F-P4-3, F-P4-6, F-P4-7);
+F-P4-9 records narrow assertions on three holding REQs.
+
+### Persistence code-surface table (14 behaviours)
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| Atomic save (temp → fsync → rename) | `state.ts:2479-2555` | `T156`, `T276` | holds |
+| Backup rotation and pruning | `state.ts:2422-2455`, `:2528-2546` | `T276` | holds |
+| Checksum stamp and verification | `state.ts:75-82`, `:2519` | `T276`, `T475` | holds |
+| Compression and mismatch warning | `state.ts:1297-1319`, `:2544` | `T475` | holds |
+| Restore from rotated/legacy backup | `state.ts:2434-2449`, `:1340-1358` | `T276`, `T475` | finding:F-P4-9 |
+| Roster / server-notes / codex writes | `state.ts:2558-2691` | `T366`, `T383`, `T402` | F-P3B4-6 already scheduled; roster P3 F-P4-12 |
+| Migration / re-stamp | `state.ts:174-218` | `T773`, `T774` | holds (P3 F-P4-10) |
+| Startup hydration scan | `state.ts:1458-1532` | `T159`, `T175` | holds |
+| End / trash move and retention | `state.ts:1697-1726`, `:1781-1794` | `T158`, `T122` | holds (audit gap F-P3-5 already scheduled) |
+| Archive / unarchive | `state.ts:1730-1779`; `index.ts:10883-10896` | `T381` | F-P4-1 fixed; F-P4-2 scheduled |
+| Checkpoint / snapshot / undo / redo | `state.ts:1817-1915` | `T10`, `T279` | holds |
+| Export/import reassembly | `index.ts` `manage_archive`; `state.ts` `exportNovelJSON`/`importNovelJSON` | `T100`, `T240`, `T693` | holds |
+| Data-directory resolution | `data-dir.ts:46-78` | `T731` | holds |
+| Slug-to-path safety | `data-dir.ts:80-97`; `index.ts:11487` | `T731`, import refusal | holds |
+| Persistence guardrails (§5.19) | `index.ts:14157-14179`, `:11979-11989`, `:9749-9762` | `T469`–`T476` | findings F-P4-3/6/7; F-P4-9 |
+
+### Exit evidence (recorded 2026-11-09)
+
+`check:fast` 37/37 PASS · `check` PASS (0 errors) · server suite `test:all`
+54/54 PASS (baseline), `test:persistence` 41/41 after the F-P4-1 fix ·
+`check-roadmap` PASS · `check-registers` PASS · `check-loop-artifacts` PASS ·
+`build-order` clean.

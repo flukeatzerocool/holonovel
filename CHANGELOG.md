@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P4 (persistence and the §5.19 cross-check)
+
+- Chunk P4 reviews `core/state.ts` persistence, `core/data-dir.ts`, and the
+  save/load/archive/undo lifecycle against the nine §5.19 guardrail REQs
+  (`REQ-400`–`407`). The sweep worklist carries a 9-REQ verdict table (6 holds,
+  3 findings) and a 14-row persistence code-surface table.
+- A P0 is fixed: `manage_archive (action: archive)` archived the process's active
+  Novel instead of returning `[STATE_CONFLICT]` (REQ-334a). The handler now
+  refuses with a corrective action, and T381 asserts the refusal before
+  switching away (F-P4-1).
+- Eight P1 findings are scheduled under the new *§5.9/§5.19 persistence
+  remediation* roadmap section: archiving over an archived slug deletes it
+  (F-P4-2), combat-round resolution writes no auto-moment (F-P4-3), total
+  corruption surfaces no chain paths (F-P4-4), `novel_format_version` and its
+  migrations are absent (F-P4-5), warn-mode drift text names no beats or tools
+  (F-P4-6), the persistence directive omits eight state-tool categories
+  (F-P4-7), a restored backup skips workflow-staleness accounting (F-P4-8), and
+  three §5.19 assertions are narrower than their REQs (F-P4-9).
+- Three P3 notes are recorded and closed: `reStampArtifact` fsync, corrupt-roster
+  startup, and non-atomic `saveRoster` (F-P4-10–F-P4-12).
+- Verification: `check:fast` 37/37, `check` PASS (0 errors), server `test:all`
+  54/54 baseline and `test:persistence` 41/41 after the fix.
+
 ## 2026-11-09 — Full-review sweep: chunk P3b-4 (§5.6 state surfaces and fingerprinting)
 
 - Chunk P3b-4 closes the §5.6 sweep. It reviews the 67 state-surface REQs (15
