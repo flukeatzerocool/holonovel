@@ -31,7 +31,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.23   | Forged in the Dark Base Capabilities                    | 441–443 |
 | 5.24   | Temporal Event Log and Branching                        | 455–460, 601–605 |
 | 5.25   | Belief and Evidence                                     | 461–472 |
-| 5.26   | Character Identity                                      | 473–483, 547, 636–643 |
+| 5.26   | Character Identity                                      | 473–483, 547, 636–643, 649 |
 | 5.27   | Causal Transition Validation                            | 484–495 |
 | 5.28   | Knowledge Corpus                                        | 496–503, 546 |
 | 5.29   | Build-time Semantic Index                               | 504–509 |
@@ -2966,7 +2966,7 @@ _Check:_ T74a.
 The server SHALL provide `manage_novel (action: complete_session_zero)`, callable by the Game Master, which records that session zero has been completed for the active Novel and persists the flag. *Acceptance criterion:* invoking the action flips `session_zero_completed` to true, `badge_briefing` reports the session-zero step as complete, and the flag survives a restart. _Check:_ T74a.
 **REQ-294 — Genre declaration.** The Novel SHALL carry a `genre` field, settable via
 `novel://current` metadata and `badge_briefing` under the `novel` section token. The field
-accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcery`, `sci_fi_horror` and `cosmic_horror`, `historical`, `western`, `modern` and `cyberpunk`.
+accepts a canonical set of genre tags: `noir`, `high_fantasy`, `sword_and_sorcery`, `sci_fi_horror`, `cosmic_horror` and `gothic_horror`, `historical`, `western`, `modern` and `cyberpunk`.
 Ruleset-derived genre tags merge with the canonical catalog. Default is unset. When a
 genre is set, `spec_health` SHALL report `active_genre`. When unset, the genre line is
 absent from briefing per §5.10.
@@ -4221,6 +4221,8 @@ The server SHALL bound the identity candidates it retains per character by a con
 **REQ-642 — Who-they-are renderer.** `badge_briefing` SHALL include a deterministic who-they-are section for the active entity, compiled from the identity kernel, ordered by the facet catalog, identical across two renders at one identity version and event-log head, and absent when no entity is active. *Acceptance criterion:* two renders match byte for byte, and an ended or secret facet is absent. _Check:_ T764.
 
 **REQ-643 — Identity Player projection.** Identity reads SHALL return the full kernel to the Game Master and a Player projection to the Player that omits facets whose awareness is not yes and clears false-but-held markings; a Player read of another character's identity through the tool or the identity resource SHALL be refused. *Acceptance criterion:* a Player read of a foreign character is refused and an own-character read omits unaware facets. _Check:_ T765.
+
+**REQ-649 — NPC identity summary.** The Game Master's `manage_npc (action: get)` read and the present-NPC briefing block SHALL include a compiled identity summary for an NPC with current accepted facets, listing each facet in the renderer's catalog order with its value, awareness mark, and false-belief mark. An NPC with no current facets SHALL omit the summary, and the summary SHALL be absent from every Player-badge surface, where a Player identity read of another subject remains refused per REQ-643. *Acceptance criterion:* the Game Master's get read for an NPC with three facets lists all three in catalog order, the Player's get read and briefing carry no NPC identity text, and two reads at one identity version are byte-identical. _Check:_ T772.
 
 ### 5.27 Causal Transition Validation
 

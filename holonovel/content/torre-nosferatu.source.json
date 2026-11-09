@@ -1173,7 +1173,7 @@
     }
   ],
   "description": "Torre Nosferatu — a gothic-horror descent. You wake at the top of a seven-floor tower with one candle and no memory of climbing. Every floor hides a key to the stair down. The wax burns with every step. Five strangers are hunting the same exit, each on their own light. Count Orlok rides the edge of your candle and does not cross it. You name yourself at the opening; the rest you earn on your own light.",
-  "genre": "historical",
+  "genre": "gothic_horror",
   "adventure_index": null,
   "adventure_scene_waypoint": null,
   "world": {
@@ -2226,7 +2226,7 @@
         "switched_on": true,
         "enterable": false,
         "vehiclePassengers": [],
-        "wearable": true,
+        "wearable": false,
         "worn_by": null,
         "readable": false,
         "read_text": null,
@@ -3080,22 +3080,22 @@
   "story_beats": [
     {
       "beat": "setup",
-      "scene_preview": "You wake flat on cold stone at the top of a tower, with no m",
+      "scene_preview": "You wake flat on cold stone at the top of a tower, with no memory of climbing.",
       "source": "gm"
     },
     {
       "beat": "escalation",
-      "scene_preview": "A caged iron stairwell winding down the tower's spine. Steps",
+      "scene_preview": "A caged iron stairwell winds down the tower's spine, deeper than the tower should go.",
       "source": "gm"
     },
     {
       "beat": "turning_point",
-      "scene_preview": "The first floor where the tower turns social. A jumble of ro",
+      "scene_preview": "The tower turns social on the first floor, where other people's candles move in the dark.",
       "source": "gm"
     },
     {
       "beat": "climax",
-      "scene_preview": "The bottom of the tower. Dust, a dead lantern, an ancestral ",
+      "scene_preview": "The bottom of the tower is dust, a dead lantern, and an ancestral portrait whose painted eyes track the flame.",
       "source": "gm"
     }
   ],

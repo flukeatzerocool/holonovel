@@ -11,6 +11,22 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-08 roadmap clearance (P1, P2)
+
+- **Story-beat previews cut at 60 chars (resolved):** `firstSentence()` replaces
+  the `substring(0, 60)` cut at the beat transition, and the four starter
+  previews are authored first sentences; T387/REQ-337 and the starter harness
+  assert it. Predicate: `holonovel/src/index.ts` `firstSentence` /
+  `recordBeatTransition`.
+- **`Your Candle` flagged wearable (resolved):** `wearable` is `false` on the
+  candle and the starter harness asserts no authored thing is wearable.
+  Predicate: `holonovel/content/torre-nosferatu.source.json`
+  `world.things["your candle"]`.
+- **NPC identity facets invisible in normal play (resolved):** REQ-649 makes
+  the Game Master's `manage_npc (action: get)` and the present-NPC briefing
+  block render the compiled identity summary; the Player badge stays free of
+  it. T772 asserts it. Predicate: `holonovel/src/index.ts` `npcIdentitySummary`.
+
 ### 2026-11-08 review remediation (CR-1..CR-22)
 
 - **CR-1 — Player open memory omitted the claim (resolved):** `index.ts`
@@ -931,16 +947,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Story-beat previews cut at 60 chars (2026-11-08):** `recordBeatTransition`
-  slices the scene description at 60 characters, mid-word, instead of the first
-  sentence REQ-337 requires. Predicate: `holonovel/src/index.ts:6005`.
-- **`Your Candle` flagged wearable (2026-11-08):** the only thing with
-  `wearable: true`; a candle is held, not worn. Predicate:
-  `holonovel/content/torre-nosferatu.source.json` `world.things["your candle"]`.
-- **NPC identity facets invisible in normal play (2026-11-08):** the Novel-tier
-  map supports NPCs, but `manage_npc (action: get)` and the briefing do not
-  surface them; only `manage_identity (action: list)` reads the map. Predicate:
-  `holonovel/src/index.ts` `manage_npc`; REQ-480, REQ-643.
 - **Player-facing knowledge is seven pages (2026-11-08):** 17 lore entries are
   GM-only; the Player gets one page per floor. Predicate:
   `holonovel/content/torre-nosferatu.source.json` readable things; REQ-083d,

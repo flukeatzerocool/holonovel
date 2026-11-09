@@ -124,6 +124,13 @@ async function main() {
       assertContains(b, "climax");
     });
 
+    await test("T387/REQ-337: a beat preview is the first sentence, not a character cut", async () => {
+      await call(proc, "manage_scene", { action: "set",  description: "The stair turns twice. Behind it, a door breathes.", beat: "resolution" });
+      const b = await briefing(proc);
+      assertContains(b, 'resolution ("The stair turns twice.")');
+      assertNotContains(b, 'resolution ("The stair turns twice. Behind it');
+    });
+
     await test("T404: climax beat accelerates on_scene_transition countdowns", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "climax scene", beat: "climax" });
       await call(proc, "manage_countdown", { action: "set",  name: "urgency", ticks: 5, on_scene_transition: true });

@@ -1406,6 +1406,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-646 | Evicted-source reporting | 2026-11-08 |
 | REQ-647 | Per-entity retention and consolidation | 2026-11-08 |
 | REQ-648 | Subjective recall probes | 2026-11-08 |
+| REQ-649 | NPC identity summary | 2026-11-08 |
 
 ---
 
@@ -2105,6 +2106,7 @@ diet.
 | T769 | Automated | Per-entity retention and consolidation: with a per-entity cap of two a third record evicts the lowest-scored one; the consolidation summary names its gist in the GM campaign recap and is absent from the Player recap; the summary survives a ladder refresh; re-folding after undo does not duplicate the line. | REQ-647 |
 | T770 | Automated | Subjective recall probes: the committed fixture renders at each declared budget for both badges and reports `subjective recall@budget`; a required probe that misses fails the run; aggregate recall below the O.12 floor fails; a synthetic probe whose expectation is withheld proves the miss detector fires. | REQ-648 |
 | T771 | Automated | Novel-tier identity: a Novel entity and an NPC stage and accept facets without a roster entry; snapshot and the who-they-are briefing render them; a Player read of a foreign NPC is refused; a Novel-tier mutation is undoable; save/reload preserves the map. | REQ-473, REQ-480, REQ-643 |
+| T772 | Automated | NPC identity summary: the Game Master's `manage_npc (action: get)` lists an NPC's current facets in catalog order with awareness marks; a Player read and the Player briefing carry no NPC identity text; two reads at one identity version are byte-identical. | REQ-649 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

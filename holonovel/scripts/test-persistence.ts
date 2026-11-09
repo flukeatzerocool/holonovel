@@ -395,6 +395,9 @@ async function main() {
       if (health.active_genre !== "noir") throw new Error(`active_genre missing: ${health.active_genre}`);
       const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
       if (info.genre !== "noir") throw new Error(`genre not in novel_info: ${info.genre}`);
+      await call(proc, "manage_novel", { action: "genre",  genre: "gothic_horror" });
+      const gothic = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
+      if (gothic.genre !== "gothic_horror") throw new Error(`gothic_horror is not a canonical genre: ${gothic.genre}`);
       const bad = await call(proc, "manage_novel", { action: "genre",  genre: "invalid_genre" });
       assertContains(bad, "[INVALID_INPUT]");
     });

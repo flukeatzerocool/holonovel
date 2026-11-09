@@ -604,4 +604,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-646 | Evicted-source reporting | 5.35 Subjective Memory | C | T768 | — |
 | REQ-647 | Per-entity retention and consolidation | 5.35 Subjective Memory | C | T769 | — |
 | REQ-648 | Subjective recall probes | 5.35 Subjective Memory | C | T770 | — |
+| REQ-649 | NPC identity summary | 5.26 Character Identity | C | T772 | — |
 

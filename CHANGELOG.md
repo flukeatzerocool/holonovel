@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-08 — Roadmap clearance: Torre polish and NPC identity in play
+
+- `firstSentence()` replaces the 60-character cut at the `manage_scene
+  (action: set)` beat transition, so the story-beat preview is the scene
+  description's first sentence per REQ-337; the starter's four authored
+  previews are rewritten as single sentences (T387).
+- `Your Candle` is no longer flagged wearable (REQ-565 starter content), and
+  the starter harness asserts no authored thing is wearable.
+- `gothic_horror` joins the canonical genre set (REQ-294) and
+  `GENRE_CATALOG`; T339 accepts it, and the starter Novel declares it.
+- REQ-649: the Game Master's `manage_npc (action: get)` and the present-NPC
+  briefing block render the compiled NPC identity summary, with awareness and
+  false-belief marks; the Player badge keeps the sanitized record and the
+  Player projection is unchanged (REQ-643, T772).
+- §5.26 and the §5 section map, the created-REQ table, and Appendix T record
+  REQ-649/T772; tool definitions, the surface baseline (27,980 / 24,382
+  tokens), the coverage register, and the assembled spec are regenerated.
+- ROADMAP drops the shipped P1 and P2 sections; their three review-register
+  rows move to `Resolved`.
+
 ## 2026-11-08 — Novel-tier identity for entities and NPCs
 
 - Identity resolves in two tiers: a Novel-level `identities` map for Novel

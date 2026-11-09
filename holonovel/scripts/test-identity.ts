@@ -393,6 +393,33 @@ async function main() {
     await kill(p);
   });
 
+  // ── T772: NPC identity summary (REQ-649) ─────────────────────────────
+  await test("T772/REQ-649: the GM reads an NPC's identity in the tool and the briefing", async () => {
+    const p = await boot(); await call(p, "manage_novel", { action: "create", name: "id23" }); await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "manage_npc", { action: "create", name: "Vlask Test" });
+    const npcId = created.match(/\((npc_\S+?)\)/)?.[1];
+    assert(npcId, "NPC id missing: " + created.slice(0, 160));
+    const calling = await stage(p, npcId, "calling", "the hoarder of the third floor");
+    const unaware = await stage(p, npcId, "wound", "a debt he hides", { kind: "wound", awareness: "no" });
+    for (const id of [calling, unaware]) await call(p, "manage_identity", { action: "accept", character_id: npcId, candidate_id: id });
+    const gmGet = JSON.parse(await call(p, "manage_npc", { action: "get", npc_id: npcId }));
+    assert(gmGet.identity?.summary?.includes("hoarder of the third floor"), "GM get lost the calling facet");
+    assert(gmGet.identity?.summary?.includes("[unaware]"), "GM get lost the unaware mark");
+    const gmBrief = await briefing(p);
+    assert(gmBrief.includes("Identity (v"), "briefing lost the NPC identity block");
+    assert(gmBrief.includes("a debt he hides"), "briefing lost the unaware facet");
+    assert((await briefing(p)) === gmBrief, "two GM briefings at one identity version differ");
+    await call(p, "set_badge", { badge: "player" });
+    const playerGet = JSON.parse(await call(p, "manage_npc", { action: "get", npc_id: npcId }));
+    assert(playerGet.identity === undefined, "Player get carried the identity summary");
+    const playerBrief = await briefing(p);
+    assert(!playerBrief.includes("a debt he hides") && !playerBrief.includes("Identity (v"), "Player briefing carried NPC identity");
+    await call(p, "set_badge", { badge: "game_master" });
+    const again = JSON.parse(await call(p, "manage_npc", { action: "get", npc_id: npcId }));
+    assert(JSON.stringify(again) === JSON.stringify(gmGet), "two GM reads at one identity version differ");
+    await kill(p);
+  });
+
   // ── T630: candidate retention bound (REQ-547) ────────────────────────
   await test("T630/REQ-547: the candidate cap evicts the oldest candidate", async () => {
     process.env.TTRPG_IDENTITY_MAX_CANDIDATES = "2";

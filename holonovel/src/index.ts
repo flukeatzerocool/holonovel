@@ -4103,6 +4103,20 @@ function recordNpcInteraction(novel: NovelState, npcId: string, entityName: stri
 
 // REQ-311d — surface NPC memory in badge_briefing when the NPC is present in
 // the current scene: one-sentence emotional state, last 3 interactions, goals.
+// REQ-649 — compiled identity summary for an NPC, Game Master only. Returns
+// null when the NPC has no current facets (or only secret/out-of-window ones),
+// so both the tool read and the briefing omit the key entirely.
+function npcIdentitySummary(novel: NovelState, npcId: string): { version: number; summary: string } | null {
+  const identity = identityFor(npcId);
+  if (!identity || identity.facets.length === 0) return null;
+  const kernel = compileKernel(identity);
+  const log = novel.event_log ?? [];
+  const at = log.length > 0 ? log[log.length - 1].at : null;
+  const summary = renderWhoTheyAre(kernel, { badge: "game_master", at });
+  if (summary === "[No identity facets to state.]") return null;
+  return { version: kernel.identity_version, summary };
+}
+
 function composeNpcMemorySection(novel: NovelState, npc: any): string {
   const m = npc.memory;
   const lines: string[] = ["## NPC Memory"];
@@ -4126,6 +4140,10 @@ function composeNpcMemorySection(novel: NovelState, npc: any): string {
   if (Array.isArray(core) && core.length > 0) lines.push(`Identity core: ${core.join("; ")}`);
   const shared = npc?.mind?.shared_notes;
   if (Array.isArray(shared) && shared.length > 0) lines.push(`Shared notes: ${shared.join("; ")}`);
+  // REQ-649 — compiled identity facets, so the GM reads an NPC's accepted
+  // identity mid-play without a separate manage_identity call.
+  const identity = npcIdentitySummary(novel, npc.id);
+  if (identity) lines.push(`Identity (v${identity.version}):\n${identity.summary}`);
   return `\n\n${lines.join("\n")}`;
 }
 
@@ -5672,6 +5690,16 @@ function deriveSceneDescription(location: string | undefined, novel: NovelState)
   return r.description || r.name;
 }
 
+// REQ-337a — the story-beat surface lists the first sentence of the scene
+// description that produced the beat. Split on a terminator followed by
+// whitespace or end of text, so an ellipsis or a mid-word cut never ends the
+// preview; a description with no terminator is carried whole.
+function firstSentence(text: string): string {
+  const trimmed = (text ?? "").trim();
+  const match = trimmed.match(/^[\s\S]*?[.!?](?=\s|$)/);
+  return (match ? match[0] : trimmed).trim();
+}
+
 // REQ-335/337 — record a beat transition into story_beats when the beat changes.
 function recordBeatTransition(novel: NovelState, newBeat: string, scenePreview: string): void {
   const effective = newBeat || DEFAULT_BEAT;
@@ -6002,7 +6030,7 @@ server.registerTool("manage_scene", {
         }
         audit("fast-forward", { interval: fast_forward.interval, ...ff }, "[fast-forward]");
       }
-      if (beat !== undefined) { recordBeatTransition(novel, beat, effectiveDescription.substring(0, 60)); novel.scene_beat = beat; }
+      if (beat !== undefined) { recordBeatTransition(novel, beat, firstSentence(effectiveDescription)); novel.scene_beat = beat; }
       const sceneRoomName = location || effectiveDescription;
       if (sceneRoomName) {
         const bareRoomName = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
@@ -6191,7 +6219,7 @@ server.registerTool("manage_scene", {
 // REQ-075g/075h/075i — talkativeness, card import, and card export.
 server.registerTool("manage_npc", {
   title: "NPC Management",
-  description: "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+  description: "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card"]).describe("create, update, remove, list, get, import_card, or export_card."),
     detail: z.boolean().optional().describe("Return full NPC records instead of summary entries (list)."),
@@ -6310,7 +6338,10 @@ server.registerTool("manage_npc", {
       const npc = novel.npcs.get(args.npc_id);
       if (!npc) return err("NOT_FOUND", `NPC '${args.npc_id}' not found.`);
       const isGM = getBadge() === "game_master" || getBadge() === "none";
-      return raw(JSON.stringify(sanitizeNpcForBadge(npc, isGM), null, 2));
+      const record = sanitizeNpcForBadge(npc, isGM);
+      // REQ-649 — the compiled identity summary is a Game Master read only.
+      const identity = isGM ? npcIdentitySummary(novel, npc.id) : null;
+      return raw(JSON.stringify(identity ? { ...record, identity } : record, null, 2));
     }
     // REQ-075h — Character Card V3 import.
     case "import_card": {
@@ -10034,7 +10065,7 @@ server.registerResource("adventure-navigation", new ResourceTemplate("adventure:
 // Novel lifecycle (REQ-041, REQ-088, REQ-094, REQ-096, REQ-232, REQ-259, REQ-294, REQ-332, REQ-334, REQ-352, REQ-402, REQ-403) — consolidated
 // create/resume/switch/end/export/import/rename/description/list/archive/
 // unarchive/info/genre/clone surface.
-const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "historical", "western", "modern", "cyberpunk"];
+const GENRE_CATALOG = ["noir", "high_fantasy", "sword_and_sorcery", "sci_fi_horror", "cosmic_horror", "gothic_horror", "historical", "western", "modern", "cyberpunk"];
 
 // REQ-096h/i1 — embed loaded adventure module content inline on export when
 // TTRPG_EXPORT_EMBED_ADVENTURES is true (default false) or the request sets
@@ -13796,7 +13827,8 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
       const sceneLoc = novel.scene_location?.toLowerCase();
       for (const [, npc] of novel.npcs) {
         const npcPresent = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
-        if (npcPresent && (npc.memory || npc.mind?.identity_core || npc.mind?.shared_notes)) briefing += composeNpcMemorySection(novel, npc);
+        const hasIdentity = (identityFor(npc.id)?.facets.length ?? 0) > 0;
+        if (npcPresent && (npc.memory || npc.mind?.identity_core || npc.mind?.shared_notes || hasIdentity)) briefing += composeNpcMemorySection(novel, npc);
       }
     }
 

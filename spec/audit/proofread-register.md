@@ -320,3 +320,14 @@ new REQ.
 
 **Disposition: all 257 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 10 — roadmap clearance delta (2026-11-08)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 271 warnings**.
+REQ-649 adds one identity REQ body and REQ-294's genre list gains one tag. The
+delta over Batch 9 is +14: +2 from this increment, and +12 recorded here for
+the first time from the 2026-11-08 identity-facet and subjective-recall batches,
+which landed without re-running the proofreading pass.
+
+**Disposition: all 271 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

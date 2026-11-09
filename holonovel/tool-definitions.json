@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 111820,
+  "tools_list_bytes": 111918,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 111820,
-        "tokens": 27955
+        "bytes": 111918,
+        "tokens": 27980
       },
       "standard": {
         "tools": 37,
-        "bytes": 97427,
-        "tokens": 24357
+        "bytes": 97525,
+        "tokens": 24382
       },
       "small": {
         "tools": 6,
@@ -1419,8 +1419,8 @@
     {
       "name": "manage_npc",
       "title": "NPC Management",
-      "description": "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
-      "description_bytes": 565,
+      "description": "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+      "description_bytes": 663,
       "action_enum": [
         "create",
         "update",
@@ -1475,8 +1475,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3478,
-        "descriptionBytes": 565
+        "definitionBytes": 3576,
+        "descriptionBytes": 663
       },
       "category": "",
       "gate": ""

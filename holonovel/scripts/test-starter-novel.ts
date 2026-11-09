@@ -129,11 +129,16 @@ async function main(): Promise<void> {
       assert(gm.includes("### Who They Are"), "who-they-are missing from the GM briefing");
       assert(gm.includes("A solicitor who came to Torre Nosferatu"), "authored calling facet missing");
       assert(gm.includes("You were sent to be a witness"), "unaware facet missing from the GM render");
+      const npcGet = JSON.parse((await c.call("manage_npc", { action: "get", npc_id: "npc_mv4m1599" })).text);
+      assert(npcGet.identity?.summary?.includes("calling"), "GM NPC read carries the identity summary");
+      assert(npcGet.identity?.summary?.includes("count"), "GM NPC read carries the second facet");
       const playerSet = await c.call("set_badge", { badge: "player" });
       assert(!playerSet.isError, `Player badge failed: ${playerSet.text}`);
       const player = await c.getPrompt("badge_briefing");
       assert(player.includes("Keep the record exact"), "aware facet missing from the Player render");
       assert(!player.includes("You were sent to be a witness"), "unaware facet leaked to the Player render");
+      const playerNpc = JSON.parse((await c.call("manage_npc", { action: "get", npc_id: "npc_mv4m1599" })).text);
+      assert(playerNpc.identity === undefined, "Player NPC read must not carry the identity summary");
       await c.call("set_badge", { badge: "game_master" });
     } finally {
       await c.close();
@@ -166,6 +171,13 @@ async function main(): Promise<void> {
 
       const candle = [...world.things.values()].find((t) => t.name === "Your Candle");
       assert(candle?.lit && candle?.switched_on, "the starting candle is lit and switched on");
+      assert(candle?.wearable === false, "the candle is held, not worn");
+      assert([...world.things.values()].every((t) => !t.wearable), "no authored thing is wearable");
+      assert(novel!.story_beats.length === 4, "the starter carries four authored beats");
+      assert(
+        novel!.story_beats.every((b) => /^[^.!?]*[.!?]$/.test(b.scene_preview)),
+        "every authored beat preview is exactly one sentence",
+      );
       assert(roomIsLit(world, "Seventh Floor — Spire"), "the Spire is lit");
       const candleClock = novel!.countdowns.get("The Candle");
       assert(candleClock?.ticks === 30, "the Candle starts at 30 wax");
