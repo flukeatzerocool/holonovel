@@ -1134,6 +1134,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-422 | Ruleset update entry point | 2026-08-30 |
 | REQ-423 | User-data format fingerprint | 2026-09-04 |
 | REQ-424 | User-data migration entry point | 2026-08-30 |
+| REQ-650 | Shipped update command | 2026-11-08 |
+| REQ-651 | Startup reconciliation of stale artifacts | 2026-11-08 |
+| REQ-652 | Stale-artifact health and notice | 2026-11-08 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -1330,6 +1333,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-577 | Composite session and turn actions | 2026-10-19 |
 | REQ-574 | Turn handles | 2026-10-19 |
 | REQ-579 | Legacy package rebuild | 2026-10-19 |
+| REQ-579a | Format-only package re-emit | 2026-11-08 |
 | REQ-581 | Split-tool compatibility | 2026-10-19 |
 | REQ-582 | Action user-goal classification | 2026-10-21 |
 | REQ-583 | Selection telemetry | 2026-10-21 |
@@ -2107,6 +2111,10 @@ diet.
 | T770 | Automated | Subjective recall probes: the committed fixture renders at each declared budget for both badges and reports `subjective recall@budget`; a required probe that misses fails the run; aggregate recall below the O.12 floor fails; a synthetic probe whose expectation is withheld proves the miss detector fires. | REQ-648 |
 | T771 | Automated | Novel-tier identity: a Novel entity and an NPC stage and accept facets without a roster entry; snapshot and the who-they-are briefing render them; a Player read of a foreign NPC is refused; a Novel-tier mutation is undoable; save/reload preserves the map. | REQ-473, REQ-480, REQ-643 |
 | T772 | Automated | NPC identity summary: the Game Master's `manage_npc (action: get)` lists an NPC's current facets in catalog order with awareness marks; a Player read and the Player briefing carry no NPC identity text; two reads at one identity version are byte-identical. | REQ-649 |
+| T773 | Automated | Shipped update command: with a prior-fingerprint artifact and a source-less stale package, run `holonovel update --dry-run` — assert one outcome per tier and no write; run without the flag — assert the artifact is re-stamped, backed up, and the package re-emitted or deferred with its reason. | REQ-650 |
+| T774 | Automated | Startup reconciliation: seed persisted artifacts under a prior data-format fingerprint and boot — assert each is current after startup with one backup and no stale flag; boot with `TTRPG_AUTO_MIGRATE=off` and an unwritable directory — assert startup succeeds and the flag remains. | REQ-651 |
+| T775 | Automated | Stale-artifact health and notice: with a prior-fingerprint artifact, assert `data_health` names the stored and current fingerprints and a remedy; a successful save clears the flag; startup writes one stderr line naming the count. | REQ-652 |
+| T776 | Automated | Packed launcher maintenance surface: pack and install the artifact, then run `bin/holonovel.js update --dry-run --json` — assert exit 0, a machine-readable report, and no change to the state directory. | REQ-650, REQ-614 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

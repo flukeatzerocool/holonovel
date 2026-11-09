@@ -113,6 +113,110 @@ export function migrateNovelData(data: any): any {
   return out;
 }
 
+// ─── REQ-424 / REQ-650 / REQ-651 — persisted-artifact reconciliation ───
+// The shipped update command and the startup self-heal share this routine.
+// scripts/migrate-user-data.ts is the build-time equivalent; the published
+// package cannot import it (build-only files are excluded, REQ-614), so the
+// runtime path lives here.
+export type PersistedArtifactKind = "novel" | "roster" | "codex" | "server-notes";
+
+export interface PersistedArtifactOutcome {
+  kind: PersistedArtifactKind;
+  name: string;
+  outcome: "current" | "updated" | "planned" | "deferred";
+  stored?: string | null;
+  reason?: string;
+}
+
+interface PersistedArtifact {
+  kind: PersistedArtifactKind;
+  name: string;
+  path: string;
+  stored: string | null;
+}
+
+const STALE_META_KEY = "__holonovel_meta";
+const FLAT_ARTIFACTS: ReadonlyArray<[PersistedArtifactKind, string]> = [
+  ["roster", "roster.json"],
+  ["codex", "codex.json"],
+  ["server-notes", "server-notes.json"],
+];
+
+export function findPersistedArtifacts(dataDir: string): PersistedArtifact[] {
+  const artifacts: PersistedArtifact[] = [];
+  const novelsDir = path.join(dataDir, "novels");
+  if (fs.existsSync(novelsDir)) {
+    for (const file of fs.readdirSync(novelsDir)) {
+      if (!file.endsWith(".json") || file.includes(".bak")) continue;
+      const p = path.join(novelsDir, file);
+      try {
+        const data = JSON.parse(fs.readFileSync(p, "utf-8"));
+        artifacts.push({ kind: "novel", name: data.slug ?? file.replace(/\.json$/, ""), path: p, stored: data.data_format ?? null });
+      } catch {
+        // Unparseable artifacts are surfaced by hydration (corruptData), not here.
+        artifacts.push({ kind: "novel", name: file.replace(/\.json$/, ""), path: p, stored: null });
+      }
+    }
+  }
+  for (const [kind, file] of FLAT_ARTIFACTS) {
+    const p = path.join(dataDir, file);
+    if (!fs.existsSync(p)) continue;
+    try {
+      const data = JSON.parse(fs.readFileSync(p, "utf-8"));
+      artifacts.push({ kind, name: file, path: p, stored: data[STALE_META_KEY]?.data_format ?? null });
+    } catch {
+      artifacts.push({ kind, name: file, path: p, stored: null });
+    }
+  }
+  return artifacts;
+}
+
+function reStampArtifact(artifact: PersistedArtifact, backup: boolean): void {
+  const raw = JSON.parse(fs.readFileSync(artifact.path, "utf-8"));
+  // REQ-065 — apply the current model first; inert fields survive the spread.
+  const data = artifact.kind === "novel" ? migrateNovelData(raw) : raw;
+  if (artifact.kind === "novel") {
+    data.data_format = DATA_FORMAT;
+  } else {
+    data[STALE_META_KEY] = { ...(data[STALE_META_KEY] ?? {}), data_format: DATA_FORMAT };
+  }
+  // REQ-092 / REQ-424 — recompute the checksum over the re-stamped payload.
+  if (data._checksum !== undefined) {
+    const payload = { ...data };
+    delete payload._checksum;
+    data._checksum = crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  }
+  if (backup) fs.copyFileSync(artifact.path, `${artifact.path}.bak-${Date.now()}`);
+  const tmp = `${artifact.path}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  fs.renameSync(tmp, artifact.path);
+}
+
+export function reconcileUserData(
+  dataDir: string,
+  opts: { apply: boolean; backup?: boolean },
+): PersistedArtifactOutcome[] {
+  const out: PersistedArtifactOutcome[] = [];
+  for (const artifact of findPersistedArtifacts(dataDir)) {
+    if (artifact.stored === DATA_FORMAT) {
+      out.push({ kind: artifact.kind, name: artifact.name, outcome: "current", stored: artifact.stored });
+      continue;
+    }
+    const reason = artifact.stored ? "data-format fingerprint mismatch" : "missing data-format fingerprint";
+    if (!opts.apply) {
+      out.push({ kind: artifact.kind, name: artifact.name, outcome: "planned", stored: artifact.stored, reason });
+      continue;
+    }
+    try {
+      reStampArtifact(artifact, opts.backup !== false);
+      out.push({ kind: artifact.kind, name: artifact.name, outcome: "updated", stored: artifact.stored, reason });
+    } catch (e) {
+      out.push({ kind: artifact.kind, name: artifact.name, outcome: "deferred", stored: artifact.stored, reason: `${reason}: ${(e as Error).message}` });
+    }
+  }
+  return out;
+}
+
 export interface NovelEntity {
   id: string;
   name: string;
@@ -901,6 +1005,9 @@ export class StateManager {
   // persisted artifacts whose fingerprint differs (flagged [data-stale]).
   readonly dataFormat = DATA_FORMAT;
   staleData = new Map<string, string>();
+  // REQ-652 — structured detail for the stale map: stored vs current
+  // fingerprint and the reason. `staleData` keeps the advisory string form.
+  staleDetail = new Map<string, { stored: string | null; current: string; reason: string }>();
   // REQ-001a — Novels whose save file could not be loaded at hydration or
   // resume (unparseable JSON, checksum mismatch, or data-migration failure),
   // surfaced as a [WARNING] in spec_health.data_health.corrupted.
@@ -1428,9 +1535,11 @@ export class StateManager {
     // REQ-423 — a Novel written under a prior (or absent) data-format
     // fingerprint is flagged [data-stale]; it still loads per REQ-065.
     if (data.data_format !== DATA_FORMAT) {
-      this.staleData.set(`novel:${data.slug}`, data.data_format
+      const reason = data.data_format
         ? "data-format fingerprint mismatch"
-        : "missing data-format fingerprint");
+        : "missing data-format fingerprint";
+      this.staleData.set(`novel:${data.slug}`, reason);
+      this.staleDetail.set(`novel:${data.slug}`, { stored: data.data_format ?? null, current: DATA_FORMAT, reason });
     }
     data = migrateNovelData(data);
     const novel: NovelState = {
@@ -2426,6 +2535,10 @@ ${turnOrder}`;
     fs.fsyncSync(fd);
     fs.closeSync(fd);
     fs.renameSync(tmpPath, filePath);
+    // REQ-652 — a successful write stamps the current format, so the artifact
+    // is no longer stale for this session.
+    this.staleData.delete(`novel:${novel.slug}`);
+    this.staleDetail.delete(`novel:${novel.slug}`);
   }
 
   saveRoster(): void {
@@ -2448,6 +2561,8 @@ ${turnOrder}`;
     }
     rosterData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
     fs.writeFileSync(path.join(dir, "roster.json"), JSON.stringify(rosterData, null, 2), "utf-8");
+    this.staleData.delete("roster");
+    this.staleDetail.delete("roster");
   }
 
   loadRoster(): void {
@@ -2479,7 +2594,11 @@ ${turnOrder}`;
   private checkFlatMeta(artifact: string, data: Record<string, any>): void {
     const meta = data[META_KEY];
     if (!meta || meta.data_format !== DATA_FORMAT) {
-      this.staleData.set(artifact, meta?.data_format ? "data-format fingerprint mismatch" : "missing data-format fingerprint");
+      const reason = meta?.data_format
+        ? "data-format fingerprint mismatch"
+        : "missing data-format fingerprint";
+      this.staleData.set(artifact, reason);
+      this.staleDetail.set(artifact, { stored: meta?.data_format ?? null, current: DATA_FORMAT, reason });
     }
   }
 
@@ -2527,6 +2646,8 @@ ${turnOrder}`;
       JSON.stringify(notesData, null, 2),
       "utf-8",
     );
+    this.staleData.delete("server-notes");
+    this.staleDetail.delete("server-notes");
   }
 
   loadCodex(): void {
@@ -2551,6 +2672,8 @@ ${turnOrder}`;
       JSON.stringify(codexData, null, 2),
       "utf-8",
     );
+    this.staleData.delete("codex");
+    this.staleDetail.delete("codex");
   }
 
   // ── Entity Factory (ruleset-free, REQ-219) ────────────────────

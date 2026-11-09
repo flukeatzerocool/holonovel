@@ -263,9 +263,13 @@ campaign bound to it, so unused packages cost nothing at startup. Install,
 remove, and list packages from the server's own tools, or move files and restart.
 
 Campaign data and installed packages stay in the state directory, outside the
-server tree, so updating Holonovel leaves both intact. The [Building a Server
+server tree, so updating Holonovel leaves both intact. After an upgrade,
+`npx -y holonovel update` re-stamps campaigns and rulesets (`--dry-run`
+previews; every rewrite is backed up). The [Building a Server
 guide](https://git.gay/flukeatzerocool/Holonovel/wiki/Building-a-Server) covers
-packaging a rulebook.
+packaging a rulebook; [Updating a
+Server](https://git.gay/flukeatzerocool/Holonovel/wiki/Updating-a-Server) covers
+upgrades and rollback.
 
 ## How it works
 

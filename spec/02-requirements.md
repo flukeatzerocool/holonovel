@@ -23,7 +23,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 394a, 395–398, 418, 420–424, 428, 429, 556–561, 563, 564 |
+| 5.18   | Workflow Entry Points                                   | 394a, 395–398, 418, 420–424, 428, 429, 556–561, 563, 564, 650–652 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412, 412a, 611, 612 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -1046,6 +1046,9 @@ A tool renamed, split, or consolidated SHALL remain callable under its prior nam
 
 **REQ-579 — Legacy package rebuild.**
 A package installed before the surface contract SHALL be rebuilt through its committed emitter before it is loadable; a package without a committed emitter SHALL be recorded deferred with its reason. The Update workflow SHALL report every stale package and its rebuild or deferral outcome. *Acceptance criterion:* a pre-contract package is reported for rebuild; a rebuilt package loads with declarations; a no-emitter package is deferred with its reason. _Check:_ T672.
+
+**REQ-579a — Format-only package re-emit.**
+A package whose rebuild source or emitter is unavailable SHALL be re-emitted from its installed package files at the host's current package format when the re-emission passes the package gates (REQ-430, REQ-559, REQ-560) and preserves the package's rules content. A package whose re-emission fails SHALL be recorded deferred with its reason and named in the startup notice (REQ-652).
 
 **REQ-577 — Composite session and turn actions.**
 The server SHALL expose deterministic composite actions for session open, turn resolution, and session close that bundle the constituent tool calls and return one result. A composite that mutates state SHALL be audited as one workflow and SHALL NOT exceed the parameter ceiling. *Acceptance criterion:* `open_session` resumes, sets the badge, and returns a recap in one result; `take_turn` returns a resolution, suggestions, and a handle; `close_session` returns a recap and saved context. _Check:_ T670.
@@ -4004,6 +4007,15 @@ Every persisted user-data artifact — Novel, roster, codex, and server-note sta
 
 **REQ-424 — User-data migration entry point.**
 The distribution SHALL expose `migrate-user-data`, an entry point listing artifacts whose data-format fingerprint (REQ-423) differs from the host's value or is absent. When invoked, it SHALL re-serialize each artifact via the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults (REQ-065) on disk. Re-serialization SHALL recompute any checksum over the migrated payload (REQ-092). The default invocation SHALL be a side-effect-free dry run. A migration failing before completion SHALL leave the original unchanged and name it. *Acceptance criterion:* the default invocation changes nothing; an explicit run brings stale artifacts current on disk; re-export is unchanged; a re-stamped checksummed Novel validates without backup fallback. _Check:_ T502, T504.
+
+**REQ-650 — Shipped update command.**
+The published package SHALL expose an `update` command through its launcher, reconciling persisted artifacts and installed packages to the host's current fingerprints. Without arguments it SHALL apply and back up every file it rewrites; `--dry-run` SHALL report the same plan and write nothing. A stale package with no rebuild source SHALL be re-emitted from its installed files through the package gates or deferred with its reason. It SHALL print one outcome per tier, exit zero only when every tier is current, updated, or deferred, and run from compiled code without build-only files (REQ-614). *Acceptance criterion:* a packed install runs `update --dry-run` with no write; `update` re-stamps and backs up a stale artifact; a source-less package is re-emitted or deferred. _Check:_ T773.
+
+**REQ-651 — Startup reconciliation of stale artifacts.**
+At startup the host SHALL reconcile each persisted artifact whose data-format fingerprint differs by re-serializing it through the interchange round-trip (REQ-096, Appendix Q), backing it up first, and writing it atomically with a recomputed checksum (REQ-092). Reconciliation SHALL preserve inert fields, apply defaults (REQ-065), and clear the artifact's `[data-stale]` flag on success. An unwritable directory SHALL NOT block startup; the artifact keeps its flag. It SHALL be disabled when `TTRPG_AUTO_MIGRATE` is `off`. A failed reconciliation SHALL leave the original unchanged and name the artifact. *Acceptance criterion:* a prior-fingerprint artifact is current after startup with one backup; a read-only directory still starts; a failed artifact is unchanged and named. _Check:_ T774.
+
+**REQ-652 — Stale-artifact health and notice.**
+`spec_health.data_health` SHALL report each stale artifact with its name, its stored and current fingerprints, a reason, and a remedy naming the shipped update command. A successful write of an artifact SHALL clear its `[data-stale]` flag for the running session. The host SHALL write one plain-English line to standard error at startup when any artifact or package is stale or deferred, naming the count and the remedy. Health detail SHALL remain Game Master-only; the startup line SHALL carry no artifact content. *Acceptance criterion:* a stale artifact reports both fingerprints and the remedy; a save clears it; startup prints one line naming the count. _Check:_ T775.
 
 **REQ-556 — Update-workflow user-data reconciliation.**
 When the Update workflow runs against a deployed instance, it SHALL invoke `update` (REQ-395c) to reconcile every tier to the host's fingerprints: stale packages SHALL be rebuilt through their committed emitter (REQ-563) from their sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. It SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.

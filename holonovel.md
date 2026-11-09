@@ -511,7 +511,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.15   | Mechanical Coupling                                     | 377, 378 |
 | 5.16   | Multi-Ruleset Build                                     | 379–387 |
 | 5.17   | Ruleset Packages                                        | 389–394, 419, 430, 432 |
-| 5.18   | Workflow Entry Points                                   | 394a, 395–398, 418, 420–424, 428, 429, 556–561, 563, 564 |
+| 5.18   | Workflow Entry Points                                   | 394a, 395–398, 418, 420–424, 428, 429, 556–561, 563, 564, 650–652 |
 | 5.19   | State Persistence Guardrails                            | 400–407 |
 | 5.20   | Narrative Turn Conventions                              | 412, 412a, 611, 612 |
 | 5.21   | Fate Base Capabilities                                  | 434–437 |
@@ -1534,6 +1534,9 @@ A tool renamed, split, or consolidated SHALL remain callable under its prior nam
 
 **REQ-579 — Legacy package rebuild.**
 A package installed before the surface contract SHALL be rebuilt through its committed emitter before it is loadable; a package without a committed emitter SHALL be recorded deferred with its reason. The Update workflow SHALL report every stale package and its rebuild or deferral outcome. *Acceptance criterion:* a pre-contract package is reported for rebuild; a rebuilt package loads with declarations; a no-emitter package is deferred with its reason. _Check:_ T672.
+
+**REQ-579a — Format-only package re-emit.**
+A package whose rebuild source or emitter is unavailable SHALL be re-emitted from its installed package files at the host's current package format when the re-emission passes the package gates (REQ-430, REQ-559, REQ-560) and preserves the package's rules content. A package whose re-emission fails SHALL be recorded deferred with its reason and named in the startup notice (REQ-652).
 
 **REQ-577 — Composite session and turn actions.**
 The server SHALL expose deterministic composite actions for session open, turn resolution, and session close that bundle the constituent tool calls and return one result. A composite that mutates state SHALL be audited as one workflow and SHALL NOT exceed the parameter ceiling. *Acceptance criterion:* `open_session` resumes, sets the badge, and returns a recap in one result; `take_turn` returns a resolution, suggestions, and a handle; `close_session` returns a recap and saved context. _Check:_ T670.
@@ -4493,6 +4496,15 @@ Every persisted user-data artifact — Novel, roster, codex, and server-note sta
 **REQ-424 — User-data migration entry point.**
 The distribution SHALL expose `migrate-user-data`, an entry point listing artifacts whose data-format fingerprint (REQ-423) differs from the host's value or is absent. When invoked, it SHALL re-serialize each artifact via the interchange round-trip (REQ-096, Appendix Q), preserving inert fields and applying defaults (REQ-065) on disk. Re-serialization SHALL recompute any checksum over the migrated payload (REQ-092). The default invocation SHALL be a side-effect-free dry run. A migration failing before completion SHALL leave the original unchanged and name it. *Acceptance criterion:* the default invocation changes nothing; an explicit run brings stale artifacts current on disk; re-export is unchanged; a re-stamped checksummed Novel validates without backup fallback. _Check:_ T502, T504.
 
+**REQ-650 — Shipped update command.**
+The published package SHALL expose an `update` command through its launcher, reconciling persisted artifacts and installed packages to the host's current fingerprints. Without arguments it SHALL apply and back up every file it rewrites; `--dry-run` SHALL report the same plan and write nothing. A stale package with no rebuild source SHALL be re-emitted from its installed files through the package gates or deferred with its reason. It SHALL print one outcome per tier, exit zero only when every tier is current, updated, or deferred, and run from compiled code without build-only files (REQ-614). *Acceptance criterion:* a packed install runs `update --dry-run` with no write; `update` re-stamps and backs up a stale artifact; a source-less package is re-emitted or deferred. _Check:_ T773.
+
+**REQ-651 — Startup reconciliation of stale artifacts.**
+At startup the host SHALL reconcile each persisted artifact whose data-format fingerprint differs by re-serializing it through the interchange round-trip (REQ-096, Appendix Q), backing it up first, and writing it atomically with a recomputed checksum (REQ-092). Reconciliation SHALL preserve inert fields, apply defaults (REQ-065), and clear the artifact's `[data-stale]` flag on success. An unwritable directory SHALL NOT block startup; the artifact keeps its flag. It SHALL be disabled when `TTRPG_AUTO_MIGRATE` is `off`. A failed reconciliation SHALL leave the original unchanged and name the artifact. *Acceptance criterion:* a prior-fingerprint artifact is current after startup with one backup; a read-only directory still starts; a failed artifact is unchanged and named. _Check:_ T774.
+
+**REQ-652 — Stale-artifact health and notice.**
+`spec_health.data_health` SHALL report each stale artifact with its name, its stored and current fingerprints, a reason, and a remedy naming the shipped update command. A successful write of an artifact SHALL clear its `[data-stale]` flag for the running session. The host SHALL write one plain-English line to standard error at startup when any artifact or package is stale or deferred, naming the count and the remedy. Health detail SHALL remain Game Master-only; the startup line SHALL carry no artifact content. *Acceptance criterion:* a stale artifact reports both fingerprints and the remedy; a save clears it; startup prints one line naming the count. _Check:_ T775.
+
 **REQ-556 — Update-workflow user-data reconciliation.**
 When the Update workflow runs against a deployed instance, it SHALL invoke `update` (REQ-395c) to reconcile every tier to the host's fingerprints: stale packages SHALL be rebuilt through their committed emitter (REQ-563) from their sources (REQ-422), and stale persisted artifacts — Novel, roster, codex, server notes, world-model data — SHALL be migrated (REQ-424). A tier whose source is unavailable or whose migration fails SHALL be recorded deferred with its reason; reconciliation SHALL NOT delete or revert user data. It SHALL record a per-tier outcome in DECISIONS.md (6) and SHALL NOT report the update complete while a tier is neither updated nor deferred. *Acceptance criterion:* every package and artifact carries the current fingerprint or is recorded deferred. _Check:_ T649.
 
@@ -7190,6 +7202,8 @@ touching a package-contract section (§5.16, §5.17, §6.3, §6.4.2) SHALL recom
 recommend `migrate-user-data` (REQ-424). Stale packages and state artifacts SHALL
 be flagged at startup per REQ-420 and REQ-423; user data SHALL NOT be blocked from
 loading by staleness (REQ-423), and reconciliation SHALL NOT delete or revert it.
+On a packaged install, operators SHALL use the runtime `update` command (REQ-650);
+the repository entry points remain the build-time interfaces.
 
 #### Synthesis consistency check
 
@@ -7441,6 +7455,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral — couples per P59. |
 | `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral — couples per P59. |
 | `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral — couples per P57. |
+| `TTRPG_AUTO_MIGRATE` | No | `off` disables the startup reconciliation of persisted artifacts written under a prior data format; detection and the `[data-stale]` advisory remain (REQ-651). Storage. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 | `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (default 50000; 0 = unlimited). Storage. |
@@ -10357,6 +10372,9 @@ date-stamps matching CHANGELOG entries.
 | REQ-422 | Ruleset update entry point | 2026-08-30 |
 | REQ-423 | User-data format fingerprint | 2026-09-04 |
 | REQ-424 | User-data migration entry point | 2026-08-30 |
+| REQ-650 | Shipped update command | 2026-11-08 |
+| REQ-651 | Startup reconciliation of stale artifacts | 2026-11-08 |
+| REQ-652 | Stale-artifact health and notice | 2026-11-08 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -10553,6 +10571,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-577 | Composite session and turn actions | 2026-10-19 |
 | REQ-574 | Turn handles | 2026-10-19 |
 | REQ-579 | Legacy package rebuild | 2026-10-19 |
+| REQ-579a | Format-only package re-emit | 2026-11-08 |
 | REQ-581 | Split-tool compatibility | 2026-10-19 |
 | REQ-582 | Action user-goal classification | 2026-10-21 |
 | REQ-583 | Selection telemetry | 2026-10-21 |
@@ -11330,6 +11349,10 @@ diet.
 | T770 | Automated | Subjective recall probes: the committed fixture renders at each declared budget for both badges and reports `subjective recall@budget`; a required probe that misses fails the run; aggregate recall below the O.12 floor fails; a synthetic probe whose expectation is withheld proves the miss detector fires. | REQ-648 |
 | T771 | Automated | Novel-tier identity: a Novel entity and an NPC stage and accept facets without a roster entry; snapshot and the who-they-are briefing render them; a Player read of a foreign NPC is refused; a Novel-tier mutation is undoable; save/reload preserves the map. | REQ-473, REQ-480, REQ-643 |
 | T772 | Automated | NPC identity summary: the Game Master's `manage_npc (action: get)` lists an NPC's current facets in catalog order with awareness marks; a Player read and the Player briefing carry no NPC identity text; two reads at one identity version are byte-identical. | REQ-649 |
+| T773 | Automated | Shipped update command: with a prior-fingerprint artifact and a source-less stale package, run `holonovel update --dry-run` — assert one outcome per tier and no write; run without the flag — assert the artifact is re-stamped, backed up, and the package re-emitted or deferred with its reason. | REQ-650 |
+| T774 | Automated | Startup reconciliation: seed persisted artifacts under a prior data-format fingerprint and boot — assert each is current after startup with one backup and no stale flag; boot with `TTRPG_AUTO_MIGRATE=off` and an unwritable directory — assert startup succeeds and the flag remains. | REQ-651 |
+| T775 | Automated | Stale-artifact health and notice: with a prior-fingerprint artifact, assert `data_health` names the stored and current fingerprints and a remedy; a successful save clears the flag; startup writes one stderr line naming the count. | REQ-652 |
+| T776 | Automated | Packed launcher maintenance surface: pack and install the artifact, then run `bin/holonovel.js update --dry-run --json` — assert exit 0, a machine-readable report, and no change to the state directory. | REQ-650, REQ-614 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -13284,7 +13307,9 @@ Update workflow (§6.7) driven manually.
    stale package through its recorded emitter and bring every stale Novel,
    roster, codex, and server-note artifact to the current data-format
    fingerprint. Record the per-tier outcome in `DECISIONS.md`; a tier whose
-   source is unavailable is recorded deferred, never dropped.
+   source is unavailable is recorded deferred, never dropped. On a packaged
+   install, run `holonovel update` instead of the repository entry point
+   (REQ-650).
 
 **Recovery.**
 
@@ -13326,7 +13351,8 @@ before re-binding.
 
 **Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts) for the
 compatibility report; `npm run update -- --packages-only` (scripts/update.ts,
-REQ-395c) to reconcile packages and user data together.
+REQ-395c) to reconcile packages and user data together; packaged installs use
+`holonovel update --packages-only` (REQ-650).
 
 **Happy path.**
 
@@ -13356,7 +13382,8 @@ host update; run it manually when only a package is stale.
 
 **Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts), or
 `npm run update -- --data-only` (scripts/update.ts, REQ-395c) when reconciling
-packages and user data together.
+packages and user data together; on a packaged install, `holonovel update`
+(REQ-650).
 
 **Happy path.**
 

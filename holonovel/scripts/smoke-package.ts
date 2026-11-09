@@ -15,7 +15,7 @@ import { strict as assert } from "node:assert";
 import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -267,6 +267,37 @@ async function main(): Promise<void> {
     });
     test("no state directory was created inside the installed package", () => {
       assert.ok(!existsSync(join(packageDir, ".holonovel-state")), "package-local .holonovel-state exists");
+    });
+
+    // REQ-650 / T776 — the shipped launcher must expose the update command and
+    // a dry run must not touch persisted state. This is the assertion that a
+    // launcher-with-no-verbs package fails (the F1 defect).
+    const snapshotDataDir = (): Record<string, string> => {
+      const out: Record<string, string> = {};
+      const walk = (dir: string): void => {
+        if (!existsSync(dir)) return;
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+          const p = join(dir, entry.name);
+          if (entry.isDirectory()) walk(p);
+          else out[p] = sha256(p);
+        }
+      };
+      walk(dataDir);
+      return out;
+    };
+    test("T776/REQ-650: packed launcher provides update --dry-run and writes nothing", () => {
+      const before = snapshotDataDir();
+      const run = spawnSync(process.execPath, ["bin/holonovel.js", "update", "--dry-run", "--json"], {
+        cwd: packageDir,
+        env,
+        encoding: "utf-8",
+        timeout: 15000,
+      });
+      assert.equal(run.status, 0, `update --dry-run exited ${run.status}: ${(run.stderr ?? "").slice(-500)}`);
+      const report = JSON.parse((run.stdout ?? "").trim());
+      assert.equal(report.dry_run, true, "dry run must report dry_run: true");
+      assert.ok(Array.isArray(report.outcomes), "dry run must report one outcome per tier");
+      assert.deepEqual(snapshotDataDir(), before, "dry run wrote persisted state");
     });
 
     const libraryCode = [

@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, reconcileUserData } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -114,6 +114,18 @@ try {
 const RULESET_DIR = process.env.TTRPG_RULESET_DIRS ?? path.join(DATA_DIR, "rulesets");
 
 // ── State ──────────────────────────────────────────────────────────
+
+// REQ-651 — reconcile persisted artifacts written under a prior data format
+// before hydration, so the in-memory load sees current files. Disabled by
+// TTRPG_AUTO_MIGRATE=off; a failed artifact keeps its advisory flag.
+let startupReconcile: ReturnType<typeof reconcileUserData> = [];
+if ((process.env.TTRPG_AUTO_MIGRATE ?? "on") !== "off") {
+  try {
+    startupReconcile = reconcileUserData(DATA_DIR, { apply: true });
+  } catch (e) {
+    process.stderr.write(`[holonovel] [data-stale] reconciliation skipped: ${(e as Error).message}\n`);
+  }
+}
 
 const state = new StateManager(DATA_DIR);
 state.loadRoster();
@@ -1877,6 +1889,18 @@ const scanErrors = rulesets.scan();
 // in spec_health.ruleset_package_alerts, never silently dropped (REQ-393).
 for (const e of scanErrors) {
   if (e.includes("[package-incompatible]")) console.error(`holonovel: ${e}`);
+}
+
+// REQ-652 — one plain-English startup line when anything is stale or deferred.
+// No artifact content is included.
+{
+  const deferred = startupReconcile.filter((item) => item.outcome === "deferred").length;
+  const stale = state.staleData.size + rulesets.incompatibleSlugs().length + deferred;
+  if (stale > 0) {
+    process.stderr.write(
+      `[holonovel] ${stale} item(s) predate the current format; run \`holonovel update\` to reconcile (a writable state directory re-stamps automatically at startup).\n`,
+    );
+  }
 }
 const eagerSlugs = (process.env.TTRPG_RULESETS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 for (const slug of eagerSlugs) {
@@ -11826,9 +11850,23 @@ function buildSpecHealth(): Record<string, unknown> {
           .map((s) => ({ slug: s.slug, source: s.source, reason: "[supplementary-gap] source missing" }))
       : undefined,
     // REQ-423 — [data-stale] artifacts, advisory (never block loading);
+    // REQ-652 — structured detail names stored/current and the remedy;
     // REQ-001a — [WARNING] enumeration of corrupted Novels (corruptData).
     data_health: isGM
-      ? { data_format: state.dataFormat, stale: Object.fromEntries(state.staleData), corrupted: Object.fromEntries(state.corruptData), compression_mismatch: Object.fromEntries(state.compressionMismatch) }
+      ? {
+          data_format: state.dataFormat,
+          stale: Object.fromEntries(state.staleData),
+          stale_detail: Object.fromEntries(
+            [...state.staleDetail].map(([name, detail]) => [
+              name,
+              { ...detail, remedy: "Run `holonovel update` to re-stamp this artifact." },
+            ]),
+          ),
+          stale_count: state.staleData.size,
+          remedy: state.staleData.size > 0 ? "Run `holonovel update` to re-stamp stale artifacts." : null,
+          corrupted: Object.fromEntries(state.corruptData),
+          compression_mismatch: Object.fromEntries(state.compressionMismatch),
+        }
       : undefined,
     // REQ-565, REQ-566 — bundled starter Novel seed outcome (informational).
     starter: state.starterStatus,

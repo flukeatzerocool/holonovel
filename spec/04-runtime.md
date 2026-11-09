@@ -197,6 +197,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_NARRATION_VALIDATION` | No | `on`/`off` pre-narration validation gate (REQ-312). Behavioral — couples per P59. |
 | `TTRPG_STATE_GATE` | No | `off` (default), `warn`, or `block` — state-drift enforcement (REQ-403). Behavioral — couples per P59. |
 | `TTRPG_AUTO_RECORD` | No | `true` (default) enables auto-`moment` story journal entries on scene transitions and combat rounds (REQ-405). Behavioral — couples per P57. |
+| `TTRPG_AUTO_MIGRATE` | No | `off` disables the startup reconciliation of persisted artifacts written under a prior data format; detection and the `[data-stale]` advisory remain (REQ-651). Storage. |
 | `TTRPG_SYNTHESIS_AUTO_TRIGGER` | No | `off` (default), `on_session_start`, or `on_scene_change`. Behavioral — couples per P47. |
 | `TTRPG_WORKFLOW_STALENESS_CONNECTIONS` | No | Connection count before a pending workflow auto-cancels (0 disables) |
 | `TTRPG_EVENT_LOG_MAX_ENTRIES` | No | Maximum event-log entries retained per Novel before oldest-first eviction (default 50000; 0 = unlimited). Storage. |

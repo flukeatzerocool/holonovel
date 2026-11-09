@@ -2101,6 +2101,8 @@ touching a package-contract section (§5.16, §5.17, §6.3, §6.4.2) SHALL recom
 recommend `migrate-user-data` (REQ-424). Stale packages and state artifacts SHALL
 be flagged at startup per REQ-420 and REQ-423; user data SHALL NOT be blocked from
 loading by staleness (REQ-423), and reconciliation SHALL NOT delete or revert it.
+On a packaged install, operators SHALL use the runtime `update` command (REQ-650);
+the repository entry points remain the build-time interfaces.
 
 #### Synthesis consistency check
 

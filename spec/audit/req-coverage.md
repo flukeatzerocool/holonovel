@@ -390,7 +390,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-421 | Ruleset source registry | 5.18 Workflow Entry Points | E | T499 | — |
 | REQ-422 | Ruleset update entry point | 5.18 Workflow Entry Points | E | T500 | — |
 | REQ-423 | User-data format fingerprint | 5.18 Workflow Entry Points | C | T501, T503 | — |
-| REQ-424 | User-data migration entry point | 5.18 Workflow Entry Points | E | T502, T504 | — |
+| REQ-424 | User-data migration entry point | 5.18 Workflow Entry Points | C | T502, T504 | — |
 | REQ-425 | Output format catalog (Part a) (4 sub-parts) | 5.1 Output and Error Contracts | C | T505, T506 | — |
 | REQ-426 | MCP Apps UI resource surface (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T507, T508 | — |
 | REQ-427 | Tool parameter semantics | 5.3 Tools, Resources, and Lookups | C | T509 | — |
@@ -534,7 +534,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-576 | Audited override | 5.3 Tools, Resources, and Lookups | C | T669 | — |
 | REQ-577 | Composite session and turn actions | 5.3 Tools, Resources, and Lookups | C | T670 | — |
 | REQ-578 | Generated surface conformance | 5.3 Tools, Resources, and Lookups | C | T671, T681 | — |
-| REQ-579 | Legacy package rebuild | 5.3 Tools, Resources, and Lookups | C | T672 | — |
+| REQ-579 | Legacy package rebuild (1 sub-part) | 5.3 Tools, Resources, and Lookups | C | T672 | — |
 | REQ-580 | Surface profile precedence | 5.3 Tools, Resources, and Lookups | C | T673, T676, T677 | — |
 | REQ-581 | Split-tool compatibility | 5.3 Tools, Resources, and Lookups | C | T674, T675 | — |
 | REQ-582 | Action user-goal classification | 5.2 Extraction and Confidence | E | T681 | — |
@@ -569,7 +569,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-611 | Social-scene cast strategy | 5.20 Narrative Turn Conventions | C | T727 | — |
 | REQ-612 | Social-scene speaker selection | 5.20 Narrative Turn Conventions | C | T728 | — |
 | REQ-613 | Portable data directory | 5.9 Novel Persistence and Transport | C | T731 | — |
-| REQ-614 | Published package integrity | 5.9 Novel Persistence and Transport | C | T732 | — |
+| REQ-614 | Published package integrity | 5.9 Novel Persistence and Transport | C | T732, T776 | — |
 | REQ-615 | Novel provenance record | 5.7 Determinism, Safety, and Performance | C | T733, S6 | — |
 | REQ-616 | Adventure module provenance (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T734 | — |
 | REQ-617 | Adventure provenance verification | 5.7 Determinism, Safety, and Performance | C | T735 | — |
@@ -605,4 +605,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-647 | Per-entity retention and consolidation | 5.35 Subjective Memory | C | T769 | — |
 | REQ-648 | Subjective recall probes | 5.35 Subjective Memory | C | T770 | — |
 | REQ-649 | NPC identity summary | 5.26 Character Identity | C | T772 | — |
+| REQ-650 | Shipped update command | 5.18 Workflow Entry Points | C | T773, T776 | — |
+| REQ-651 | Startup reconciliation of stale artifacts | 5.18 Workflow Entry Points | C | T774 | — |
+| REQ-652 | Stale-artifact health and notice | 5.18 Workflow Entry Points | C | T775 | — |
 

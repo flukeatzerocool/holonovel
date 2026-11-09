@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // §5.18 fingerprint/entry-point conformance harness (REQ-420 through REQ-424). [gate]
-// Exercises T498–T504: package-format fingerprint (REQ-420), source registry
+// Exercises T498–T504 and T773–T775: package-format fingerprint (REQ-420), source registry
 // (REQ-421), update entry point (REQ-422), data-format fingerprint (REQ-423),
 // migration entry point (REQ-424), legacy-artifact transition (REQ-420/423),
 // and migration-failure preservation (REQ-424). Each test name carries the
@@ -12,7 +12,7 @@
 // against the same temp dir, since those REQs are builder/verifier-side.
 
 import { spawn, spawnSync, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
@@ -74,7 +74,9 @@ function attach(proc: ChildProcess): void {
 }
 async function boot(env: Record<string, string> = {}): Promise<ChildProcess> {
   const proc = spawn("npx", ["tsx", SERVER_SCRIPT], {
-    env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env },
+    // T501/T503 assert the [data-stale] advisory, so automatic startup
+    // reconciliation is off by default in this harness; T774 turns it on.
+    env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, TTRPG_AUTO_MIGRATE: "off", ...env },
     stdio: ["pipe", "pipe", "pipe"],
   });
   attach(proc);
@@ -211,12 +213,19 @@ async function main() {
   // ── T501 + T503 (data side) — data-format fingerprint gate ────────
   {
     seedStateFixtures(DATA_DIR);
+    // REQ-423 — a legacy Novel with no data_format key, seeded before boot so
+    // the startup hydration flags it.
+    const legacySeed = JSON.parse(readFileSync(join(STATE_FIXTURE_DIR, "novel-prior.json"), "utf-8"));
+    delete legacySeed.data_format;
+    legacySeed.slug = "legacy-novel";
+    legacySeed.name = "legacy-novel";
+    writeFileSync(join(DATA_DIR, "novels", "legacy-novel.json"), JSON.stringify(legacySeed, null, 2) + "\n");
     const proc = await boot();
     await call(proc, "set_badge", { badge: "game_master" });
 
     await test("T501/REQ-423: prior data-format fingerprint flags Novel/roster/codex/notes, still loads", async () => {
-      const res = await call(proc, "manage_novel", { action: "resume",  slug: "prior-novel" });
-      assertContains(res, "prior-novel");
+      // Read the advisory before resuming: an activation that writes the Novel
+      // stamps the current format and clears the flag (REQ-652).
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const stale: Record<string, string> = health.data_health?.stale ?? {};
       if (!stale["novel:prior-novel"]) throw new Error(`novel not flagged stale; stale=${JSON.stringify(stale)}`);
@@ -224,21 +233,18 @@ async function main() {
         if (!stale[k]) throw new Error(`${k} not flagged stale; stale=${JSON.stringify(stale)}`);
       }
       if (health.data_health?.data_format !== DATA_FORMAT) throw new Error("current data_format not surfaced");
+      const res = await call(proc, "manage_novel", { action: "resume",  slug: "prior-novel" });
+      assertContains(res, "prior-novel");
     });
 
     await test("T503/REQ-423: Novel lacking a data_format stamp flagged [data-stale] and loads", async () => {
-      // Write a legacy novel (no data_format key) and resume it.
-      const legacy = JSON.parse(readFileSync(join(STATE_FIXTURE_DIR, "novel-prior.json"), "utf-8"));
-      delete legacy.data_format;
-      legacy.slug = "legacy-novel";
-      legacy.name = "legacy-novel";
-      writeFileSync(join(DATA_DIR, "novels", "legacy-novel.json"), JSON.stringify(legacy, null, 2) + "\n");
-      const res = await call(proc, "manage_novel", { action: "resume",  slug: "legacy-novel" });
-      assertContains(res, "legacy-novel");
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const stale: Record<string, string> = health.data_health?.stale ?? {};
       if (!stale["novel:legacy-novel"]) throw new Error(`legacy novel not flagged; stale=${JSON.stringify(stale)}`);
       assertContains(stale["novel:legacy-novel"], "missing data-format fingerprint");
+      // It still loads (REQ-423: staleness never blocks loading).
+      const res = await call(proc, "manage_novel", { action: "resume",  slug: "legacy-novel" });
+      assertContains(res, "legacy-novel");
     });
 
     await kill(proc);
@@ -390,6 +396,75 @@ async function main() {
       assertContains(r.stdout, "FAILED");
       const after = readFileSync(join(DATA_DIR, "novels", "corrupt.json"), "utf-8");
       if (after !== before) throw new Error("corrupt artifact was modified");
+    });
+  }
+
+  // ── T773/T774/T775 (REQ-650/651/652) — shipped command, self-heal, health ──
+  {
+    const runCli = (args: string[], env: Record<string, string> = {}) =>
+      spawnSync("npx", ["tsx", join(import.meta.dirname!, "..", "src", "cli", "update.ts"), ...args], {
+        env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env },
+        encoding: "utf-8",
+        timeout: 60000,
+      });
+
+    await test("T773/REQ-650: shipped update dry-run writes nothing; apply re-stamps with a backup", async () => {
+      const prior = JSON.parse(readFileSync(join(STATE_FIXTURE_DIR, "novel-prior.json"), "utf-8"));
+      prior.slug = "cli-novel";
+      const target = join(DATA_DIR, "novels", "cli-novel.json");
+      writeFileSync(target, JSON.stringify(prior, null, 2) + "\n");
+      const before = readFileSync(target, "utf-8");
+      const dry = runCli(["--dry-run", "--json"]);
+      if (dry.status !== 0) throw new Error(`dry run exited ${dry.status}: ${dry.stderr}`);
+      const report = JSON.parse(dry.stdout.trim());
+      if (report.dry_run !== true) throw new Error("report did not mark dry_run");
+      if (!Array.isArray(report.outcomes) || report.outcomes.length === 0) throw new Error("no tier outcomes");
+      if (readFileSync(target, "utf-8") !== before) throw new Error("dry run wrote state");
+      const apply = runCli(["--json"]);
+      if (apply.status !== 0) throw new Error(`apply exited ${apply.status}: ${apply.stderr}`);
+      const struck = JSON.parse(readFileSync(target, "utf-8"));
+      if (struck.data_format !== DATA_FORMAT) throw new Error(`not re-stamped: ${struck.data_format}`);
+      const backups = readdirSync(join(DATA_DIR, "novels")).filter((f) => f.startsWith("cli-novel.json.bak-"));
+      if (backups.length === 0) throw new Error("no backup written");
+    });
+
+    await test("T774/REQ-651: startup reconciliation re-stamps and backs up; TTRPG_AUTO_MIGRATE=off keeps the flag", async () => {
+      const prior = JSON.parse(readFileSync(join(STATE_FIXTURE_DIR, "novel-prior.json"), "utf-8"));
+      prior.slug = "auto-novel";
+      writeFileSync(join(DATA_DIR, "novels", "auto-novel.json"), JSON.stringify(prior, null, 2) + "\n");
+      const on = await boot({ TTRPG_AUTO_MIGRATE: "on" });
+      await kill(on);
+      const struck = JSON.parse(readFileSync(join(DATA_DIR, "novels", "auto-novel.json"), "utf-8"));
+      if (struck.data_format !== DATA_FORMAT) throw new Error(`startup did not re-stamp: ${struck.data_format}`);
+      const backups = readdirSync(join(DATA_DIR, "novels")).filter((f) => f.startsWith("auto-novel.json.bak-"));
+      if (backups.length === 0) throw new Error("startup re-stamp wrote no backup");
+
+      // A stale artifact survives when automatic reconciliation is off.
+      prior.slug = "off-novel";
+      writeFileSync(join(DATA_DIR, "novels", "off-novel.json"), JSON.stringify(prior, null, 2) + "\n");
+      const off = await boot({ TTRPG_AUTO_MIGRATE: "off" });
+      await kill(off);
+      const kept = JSON.parse(readFileSync(join(DATA_DIR, "novels", "off-novel.json"), "utf-8"));
+      if (kept.data_format === DATA_FORMAT) throw new Error("reconciliation ran despite TTRPG_AUTO_MIGRATE=off");
+    });
+
+    await test("T775/REQ-652: data_health names both fingerprints and a remedy", async () => {
+      const prior = JSON.parse(readFileSync(join(STATE_FIXTURE_DIR, "novel-prior.json"), "utf-8"));
+      prior.slug = "health-novel";
+      writeFileSync(join(DATA_DIR, "novels", "health-novel.json"), JSON.stringify(prior, null, 2) + "\n");
+      const proc = await boot({ TTRPG_AUTO_MIGRATE: "off" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const detail = health.data_health?.stale_detail?.["novel:health-novel"];
+      if (!detail) throw new Error(`no stale_detail; got ${JSON.stringify(health.data_health)}`);
+      if (detail.stored !== prior.data_format || detail.current !== DATA_FORMAT) {
+        throw new Error(`fingerprints not named: ${JSON.stringify(detail)}`);
+      }
+      if (typeof detail.remedy !== "string" || !detail.remedy.includes("holonovel update")) {
+        throw new Error(`no remedy: ${JSON.stringify(detail)}`);
+      }
+      if (health.data_health?.stale_count < 1) throw new Error("stale_count missing");
+      await kill(proc);
     });
   }
 

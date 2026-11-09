@@ -1897,8 +1897,10 @@ const INTENDED_GAP_REQS = new Set([
   // (scripts/update-rulesets.ts, scripts/migrate-user-data.ts, and the
   // build-ruleset registry), not runtime server behavior. REQ-420 and REQ-423
   // are server-runtime (fingerprint stamp/compare) and are cited in
-  // holonovel/src — they are NOT whitelisted.
-  "REQ-421", "REQ-422", "REQ-424", "REQ-428",
+  // holonovel/src — they are NOT whitelisted. REQ-424 moved to server-runtime
+  // on 2026-11-08: the shipped `holonovel update` command now implements the
+  // migration at runtime (REQ-650), so it is no longer a builder-side gap.
+  "REQ-421", "REQ-422", "REQ-428",
   // REQ-556 (Update-workflow user-data reconciliation) is a §6.7 workflow
   // contract owed by the update pipeline and scripts/migrate-user-data.ts,
   // not runtime server behavior. REQ-557 (supplement-build provenance) is the

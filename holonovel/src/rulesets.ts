@@ -126,6 +126,76 @@ export function computeContentHash(
   return h.digest("hex");
 }
 
+// ─── REQ-579a / REQ-650 — format-only package re-emit ───
+// A package built outside this repository has no committed emitter (the
+// committed-emitter requirement exempts it), so the shipped update command
+// advances it by re-stamping the manifest at the host's current package format. The rules content is preserved
+// byte-for-byte; the content hash must still match, tool schemas must still
+// conform (REQ-430), and the original is backed up first.
+export interface PackageUpgradeOutcome {
+  slug: string;
+  outcome: "current" | "updated" | "planned" | "deferred";
+  from?: string | null;
+  reason?: string;
+}
+
+export function upgradeInstalledPackage(
+  installDir: string,
+  slug: string,
+  opts: { apply: boolean; hostVersion: string },
+): PackageUpgradeOutcome {
+  if (!isSafeSlug(slug)) return { slug, outcome: "deferred", reason: "unsafe package slug" };
+  const dir = path.join(installDir, slug);
+  const manifestPath = path.join(dir, "manifest.json");
+  let manifest: RulesetManifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as RulesetManifest;
+  } catch (e) {
+    return { slug, outcome: "deferred", reason: `unreadable manifest: ${(e as Error).message}` };
+  }
+  if (manifest.package_format === PACKAGE_FORMAT) return { slug, outcome: "current" };
+  const from = manifest.package_format ?? null;
+  const reason = from ? "package-format fingerprint mismatch" : "missing package-format fingerprint";
+
+  const read = (file: string): any => JSON.parse(fs.readFileSync(path.join(dir, file), "utf-8"));
+  let index: any[], model: any, tools: RulesetToolSchema[], resources: any[], prompts: any[];
+  try {
+    index = read("index.json");
+    model = read("model.json");
+    tools = read("tools.json");
+    resources = read("resources.json");
+    prompts = read("prompts.json");
+  } catch (e) {
+    return { slug, outcome: "deferred", reason: `${reason}: unreadable package file (${(e as Error).message})` };
+  }
+  const defects = tools.flatMap((tool) => validateToolSchema(tool).map((defect) => `${tool.name}: ${defect}`));
+  if (defects.length > 0) {
+    return { slug, outcome: "deferred", reason: `${reason}: tool schema defect (${defects[0]})` };
+  }
+  const hash = computeContentHash(index, model, tools, resources, prompts);
+  if (hash !== manifest.content_hash) {
+    return { slug, outcome: "deferred", reason: `${reason}: content hash mismatch — package changed since build` };
+  }
+  if (!opts.apply) return { slug, outcome: "planned", from, reason };
+
+  try {
+    const backup = path.join(path.dirname(installDir), `rulesets-backup-${slug}-${Date.now()}`);
+    fs.cpSync(dir, backup, { recursive: true });
+    const next = {
+      ...manifest,
+      package_format: PACKAGE_FORMAT,
+      host_version: opts.hostVersion,
+      built_at: new Date().toISOString(),
+    };
+    const tmp = `${manifestPath}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(next, null, 2) + "\n", "utf-8");
+    fs.renameSync(tmp, manifestPath);
+    return { slug, outcome: "updated", from, reason };
+  } catch (e) {
+    return { slug, outcome: "deferred", reason: `${reason}: ${(e as Error).message}` };
+  }
+}
+
 // REQ-446 — manifest signature. The payload is the manifest with the signature
 // member removed and keys sorted, so emitter and host agree regardless of
 // property order in the serialized package.

@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-11-08 — Self-service update path for packaged installs
+
+- The published package now exposes `holonovel update` (REQ-650): it reconciles
+  saved campaigns and installed ruleset packages to the current format
+  fingerprints, applies by default with a backup beside every rewritten file,
+  and reports one outcome per tier. `--dry-run` writes nothing; `--json` is
+  machine-readable. The command runs from compiled code, so no build-only file
+  is shipped (REQ-614).
+- Startup reconciliation (REQ-651): artifacts stamped under a prior data format
+  are re-serialized through the interchange round-trip, backed up, and written
+  atomically before hydration, so the stale advisory no longer persists for
+  dormant campaigns. `TTRPG_AUTO_MIGRATE=off` disables the write; a read-only
+  state directory still starts.
+- The stale advisory became actionable (REQ-652): `data_health.stale_detail`
+  names the stored and current fingerprints plus a remedy, `stale_count` and a
+  top-level remedy are reported, a successful save clears the flag for the
+  session, and the host writes one plain-English startup line.
+- Format-only package re-emit (REQ-579a): a stale package with no rebuild source
+  is re-stamped at the current package format when its tool schemas conform and
+  its content hash still matches; the package is backed up and a failed re-emit
+  is deferred with its reason instead of being dropped.
+- The packed-artifact gate now runs the launcher's `update --dry-run` and asserts
+  no state write (T776), which is the check a launcher-with-no-verbs artifact
+  failed; `test-fingerprints` exercises the runtime command and the startup path
+  (T773–T775) and reads the stale advisory before a saving activation.
+- Docs: README "Updating Holonovel", a packaged-user note on the wiki's Updating
+  page, and Appendix V.4/V.7/V.8. REQ-424 moved off the builder-gap whitelist
+  now that the runtime implements it; REQ-650–652 and REQ-579a are in the §5
+  map, Appendix E, and Appendix T.
+- Validation: `check:fast` (37 gates), `test:package-smoke` (11 checks),
+  `test-fingerprints` (12 cases), and `check` all pass; package- and data-format
+  fingerprints are unchanged.
+
 ## 2026-11-08 — Faction clocks: real mechanism, descriptive Survivor race
 
 - REQ-233b2's scene-transition tick is implemented: `advanceFactionClock` is the

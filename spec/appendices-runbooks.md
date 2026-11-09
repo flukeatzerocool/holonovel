@@ -111,7 +111,9 @@ Update workflow (§6.7) driven manually.
    stale package through its recorded emitter and bring every stale Novel,
    roster, codex, and server-note artifact to the current data-format
    fingerprint. Record the per-tier outcome in `DECISIONS.md`; a tier whose
-   source is unavailable is recorded deferred, never dropped.
+   source is unavailable is recorded deferred, never dropped. On a packaged
+   install, run `holonovel update` instead of the repository entry point
+   (REQ-650).
 
 **Recovery.**
 
@@ -153,7 +155,8 @@ before re-binding.
 
 **Entry point.** `npm run update-rulesets` (scripts/update-rulesets.ts) for the
 compatibility report; `npm run update -- --packages-only` (scripts/update.ts,
-REQ-395c) to reconcile packages and user data together.
+REQ-395c) to reconcile packages and user data together; packaged installs use
+`holonovel update --packages-only` (REQ-650).
 
 **Happy path.**
 
@@ -183,7 +186,8 @@ host update; run it manually when only a package is stale.
 
 **Entry point.** `npm run migrate-user-data` (scripts/migrate-user-data.ts), or
 `npm run update -- --data-only` (scripts/update.ts, REQ-395c) when reconciling
-packages and user data together.
+packages and user data together; on a packaged install, `holonovel update`
+(REQ-650).
 
 **Happy path.**
 
