@@ -1038,8 +1038,100 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P1 (trust core, §5.1/§5.5)
+
+Scheduled under `ROADMAP.md` § *Trust-core contract remediation (P1)* and
+§ *Trust-core citation repair (P1)*. Each finding cites the predicate that
+carries it; none is derived from a gate message or a test failure (no gate
+currently asserts these contracts — that is the finding).
+
+- **F-P1-1 — GM-only refusals are bare `[FORBIDDEN]`, not `[ERROR] [FORBIDDEN]`
+  (scheduled):** `core/state.ts:1097-1098` throws
+  `"[FORBIDDEN] … Corrective action: …"` with the corrective action inline;
+  `core/server.ts:70-74` rethrows; the SDK builds a text-only error result.
+  Violates REQ-001 (response must begin with one of the five prefixes) and
+  REQ-002b1/b2 (standalone `Corrective action:` line) and REQ-548c (no
+  structured result). Every gated tool shares the path. Predicate:
+  `state.ts:1097`, `index.ts:229`.
+- **F-P1-2 — SDK schema errors are re-labelled `[ERROR] [INVALID_INPUT]`
+  (scheduled):** `index.ts:226-233` rewrites the SDK's `-32602` argument error
+  into a REQ-002 category result; REQ-001b2's acceptance criterion forbids
+  exactly that shape. The absent T180 is why no harness catches it. Predicate:
+  `index.ts:226-233`.
+- **F-P1-3 — `raw()` emits an undeclared `RAW` status and unprefixed text
+  (scheduled):** `index.ts:2735-2737` returns `structured("RAW", …)` for
+  payloads that start with `{` or prose; `raw("[WARNING] …")` reports `RAW`
+  while the text says `[WARNING]` (`index.ts:4557`, `:4560`, `:4638`, `:4828`,
+  `:10789`). Violates REQ-001, REQ-548a/b (declared statuses omit `RAW`).
+  Predicate: `index.ts:2737`, `:243`.
+- **F-P1-4 — audit at capacity aborts after the mutation is saved
+  (scheduled):** `index.ts:3274-3276` saves the Novel then calls `audit()`,
+  which throws at `state.ts:1938-1939`; the write persists while the caller
+  sees a failure and the audit chain has a gap. Violates REQ-040a/REQ-447
+  (refuse *before* mutating). Predicate: `index.ts:3274`, `state.ts:1938`.
+- **F-P1-5 — `output://` payloads are not badge-filtered (scheduled):**
+  `index.ts:12589` stores plain text keyed `<tool>/<counter>`; the resolver at
+  `:1531-1538` returns it with no badge check. REQ-004 ("session-local and
+  badge-filtered") and REQ-179a ("badge-filtered per REQ-032"). A Player can
+  read a payload produced under the GM badge. Predicate: `index.ts:12589`,
+  `:1531`.
+- **F-P1-6 — truncation covers four ruleset surfaces only and measures UTF-16
+  length (scheduled):** `truncateOutput` (`index.ts:2760-2769`) is called at
+  `:2094`, `:2117`, `:2196`, `:11148` only, and compares `text.length`, not
+  bytes. REQ-004 requires truncation of tool output generally; REQ-180b makes
+  the byte threshold authoritative. Predicate: `index.ts:2761`.
+- **F-P1-7 — no badge gate in the dispatcher (scheduled):**
+  `guardToolCall` (`index.ts:1821-1837`) handles retired aliases and the
+  surface profile only; authorization is 142 handler-local `requireGM()`
+  calls, and three tools delegate into another handler (`:5738`, `:6628`,
+  `:11321`). REQ-032a/REQ-137b describe server-side gating of the surface.
+  Predicate: `index.ts:1831-1836`.
+- **F-P1-8 — Observer `tools/list` is not the read-only subset (scheduled):**
+  `toolsVisibleToBadge` (`index.ts:315-318`) admits every non-GM-only tool for
+  `observer`, including mutating tools that then refuse. REQ-032a: "Observer
+  tools are a read-only subset … `tools/list` … filtered". Predicate:
+  `index.ts:317`.
+- **F-P1-9 — `prompts/list` and `resources/list` are unfiltered (scheduled):**
+  the prompt wrapper at `index.ts:14638` merges package prompts and applies a
+  budget, with no `getBadge()`; no resource-list handler exists in this file.
+  REQ-031a/REQ-032a make prompts and resources badge-filtered surfaces.
+  Predicate: `index.ts:14638`.
+- **F-P1-10 — structured errors omit valid values (scheduled):**
+  `err()` (`index.ts:2589-2593`) sets `category` and `corrective_action`; the
+  `Valid values: …` enumeration is built into the text only (`:2104-2108`).
+  REQ-548c requires the values where the enumeration is badge-visible.
+  Predicate: `index.ts:2593`.
+- **F-P1-11 — dispatcher refusals carry no structured result (scheduled):**
+  `guardToolCall` returns `{content, isError}` directly (`index.ts:1832`,
+  `:1835`), bypassing `ensureStructured`; the client receives
+  `structuredContent === undefined`. REQ-548c requires one on every error.
+  Predicate: `index.ts:1832`.
+- **F-P1-12 — badge-switch audit omits the old badge (scheduled):**
+  `index.ts:3273-3276` assigns `novel.badge` before `audit("set_badge", { badge })`,
+  so only the new value is recorded. REQ-040c requires old badge, new badge,
+  timestamp. Predicate: `index.ts:3274`.
+- **F-P1-13 — `set_badge` succeeds with no active Novel (scheduled):**
+  `index.ts:3268-3281` returns `[OK] Active badge: player` while `getBadge()`
+  still resolves `none` (Editor), so the next call runs with full access.
+  REQ-030 and REQ-066b. Predicate: `index.ts:3268`.
+- **F-S1 — five §5.1/§5.5 REQs cite automated tests no harness implements
+  (scheduled):** REQ-001b2 → T180, REQ-032b → T44, REQ-109f → T109/T110,
+  REQ-286c → T336, REQ-306e → T350. Each test is defined `Automated` in
+  Appendix F and absent from every `holonovel/scripts` harness; the coverage
+  register marks all five bucket C. Either the assertion is written or the
+  citation is re-pointed to the test that does exercise the behaviour.
+  Predicate: `spec/02-requirements.md` Check lines for those REQs;
+  `spec/appendices-reference.md` T44/T109/T110/T180/T336/T350 rows.
 
 ## Closed-P3 (recorded, no action)
+
+- **Prototype-key hardening in package tool schemas (2026-11-09):** `index.ts:2018-2032`
+  builds `const shape = {}` and assigns `shape[k]`, where `k` comes from an
+  installed package's `tools.json`. A `__proto__` key invokes the prototype
+  setter and silently drops the parameter; no path to `Object.prototype`
+  pollution was found (Zod reads own keys), so this is hardening, not a
+  demonstrated exploit. Record and close; use `Object.create(null)` if the
+  surface is ever opened to untrusted packages. (predicate `index.ts:2018`)
 
 - **T244's ruleset-search assertion for annotations is unexercised
   (2026-11-07):** the spec row requires `@encounter`/`@trap` annotations to be

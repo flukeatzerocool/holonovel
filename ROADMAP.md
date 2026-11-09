@@ -14,16 +14,52 @@
 
 ## Remaining full-review sweep (P1)
 
-- Code-side sweep with `code-review` over `holonovel/src` by subsystem:
-  tools/handlers, state/persistence, engine loop, adapters, plus security and
-  determinism passes.
-- Spec-side sweep of §5.1–5.8, §5.10–5.18, and §5.20–5.31 in cold chunks, then
-  `check:conformance`, `fmea`, and `graph-deps` for machine evidence.
-- The 2026-11-09 seam pass closed `docs/engine-contract.md` + §5.9/§5.19 only;
-  this item covers everything else.
+- Chunks P2–P4: tool surface and §5.3; mutation, decision, and lifecycle
+  handlers against §5.4/§5.6; `core/state.ts` persistence with the §5.19
+  guardrail cross-check.
+- Chunks P5–P7: engine loop and event stream (§5.20, §5.24, §5.31); adapters and
+  rulesets (§5.10, §5.11, §5.13, §5.15–§5.18, §5.21–§5.23); determinism and
+  knowledge (§5.2, §5.7, §5.8, §5.14, §5.28–§5.30).
+- Chunk P8 and M1: narrative cognition (§5.12, §5.25–§5.27, §5.32–§5.35) and a
+  closing machine-evidence re-run. Scope is §5.1–§5.35 except §5.9 and §5.19,
+  which the 2026-11-09 seam pass closed; chunk P1 (trust core, §5.1/§5.5)
+  landed the same day.
 
-**Trigger:** a session allocated to review work, starting with the code-side
-sweep; closes when both sweeps and the machine-evidence pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P2
+(tool surface and §5.3); closes when chunks P2–P8 and the closing M1 pass
+report.
+
+## Trust-core contract remediation (P1)
+
+- Error envelope normalization: refusals return `[ERROR] [FORBIDDEN]` with a
+  standalone `Corrective action:` line, every error carries a structured
+  result including the valid values, the SDK `-32602` re-label is removed, and
+  the `RAW` status is replaced by a declared one (REQ-001, REQ-002, REQ-002b1,
+  REQ-548a, REQ-548b, REQ-548c; F-P1-1, F-P1-2, F-P1-3, F-P1-10, F-P1-11).
+- Output and authorization surface: truncate every tool result by byte length,
+  badge-filter `output://`, gate badge class in the dispatcher, and make
+  `tools/list`, `prompts/list`, and `resources/list` the read-only subset
+  (REQ-004, REQ-179a, REQ-180b, REQ-031a, REQ-032a, REQ-137b; F-P1-5, F-P1-6,
+  F-P1-7, F-P1-8, F-P1-9).
+- Audit durability and badge truth: refuse before mutating when the log is at
+  capacity, record old and new badge on a switch, and make `set_badge` fail
+  when no Novel is active instead of reporting success (REQ-040a, REQ-040c,
+  REQ-447, REQ-030, REQ-066b; F-P1-4, F-P1-12, F-P1-13).
+
+**Trigger:** the first session that takes remediation work instead of a review
+chunk; closes when the §5.1/§5.5 findings in `spec/audit/review-register.md` are
+`Resolved` and their assertions run in a harness.
+
+## Trust-core citation repair (P1)
+
+- Five §5.1/§5.5 REQs cite `Automated` tests that no harness implements
+  (REQ-001b2 → T180, REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
+  REQ-306e → T350): write each assertion or re-point the citation to the test
+  that exercises the behaviour, then refresh the coverage register.
+
+**Trigger:** the same session as the remediation above, or the next one if that
+session reaches its cap; closes when all five citations resolve to an exercised
+harness.
 
 ## Holosuite anchor repoint automation (P2)
 

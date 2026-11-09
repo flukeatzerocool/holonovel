@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P1 (trust core) and machine evidence
+
+- Chunk P1 of the full-review sweep reviewed the trust core — request
+  dispatch, badge gating, the error envelope, and the audit log — against §5.1
+  and §5.5. 125 REQs carry a verdict in
+  `docs/plans/2026-11-09-full-review-sweep/worklist.md`; 105 hold, 15 are
+  builder-side, and five cite `Automated` tests no harness implements. No
+  source file changed: the sweep records and schedules, it does not remediate.
+- Thirteen code findings were confirmed against their predicates and scheduled
+  under two new `ROADMAP.md` items, *Trust-core contract remediation (P1)* and
+  *Trust-core citation repair (P1)*: bare `[FORBIDDEN]` refusals, the SDK
+  `-32602` re-label, the undeclared `RAW` status, incomplete byte truncation,
+  an unbadge-filtered `output://` store, no dispatcher-level badge gate,
+  observer and prompt/resource listings that are not the read-only subset,
+  structured errors without valid values, dispatcher refusals without a
+  structured result, audit-at-capacity aborting after the save, a badge-switch
+  audit that drops the old badge, and `set_badge` reporting success with no
+  active Novel.
+- One hardening observation (prototype keys in package tool schemas) is
+  recorded as `Closed-P3`.
+- The roadmap item's scope is corrected to §5.1–§5.35 except §5.9 and §5.19
+  and restated as chunks P2–P8 plus a closing machine-evidence pass; §5.32–§5.35
+  join chunk P8.
+- Machine evidence: `check:conformance` passes with zero bundle-dependent REQs;
+  `fmea` places every severity-4/5 REQ in §5.1/§5.5; `graph-deps` reports no
+  isolated-REQ defect. Recorded in the worklist's Delta amendment.
+
 ## 2026-11-09 — Seam-drift remediation: drift reachability, warn mode, state health
 
 - State drift is now reachable. `save_context` previously set
