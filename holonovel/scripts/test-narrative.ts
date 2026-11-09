@@ -456,6 +456,111 @@ async function main() {
     await kill(proc);
   }
 
+  // ── Social graph: name/id resolution, sheet, briefing, dedupe ──────
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create",  name: "social-graph" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_scene", { action: "set", description: "Opening scene." });
+    const charOut = await call(proc, "manage_character", { action: "create",  name: "Mara" });
+    const charId = charOut.match(/Entity id (\S+?)\./)?.[1] ?? charOut.match(/created as (\S+?)\./)?.[1] ?? "character_01";
+    const npcOut = await call(proc, "manage_npc", { action: "create",  name: "Kestrel", disposition: "neutral" });
+    const npcId = npcOut.match(/\(([^)]+)\)/)?.[1] ?? "npc_1";
+    const coraOut = await call(proc, "manage_npc", { action: "create",  name: "Cora", disposition: "neutral" });
+    const coraId = coraOut.match(/\(([^)]+)\)/)?.[1] ?? "npc_2";
+    await call(proc, "manage_character", { action: "set_active",  entity_id: charId });
+    await call(proc, "manage_relationship", {
+      action: "set",  entity_a: "Mara", entity_b: "Kestrel", type: "ally", value: 1,
+      description: "Opening posture.",
+    });
+
+    await test("T-new: relationship get resolves name and id", async () => {
+      const byName = JSON.parse(await call(proc, "manage_relationship", { action: "get",  entity_id: "Kestrel" }));
+      const byId = JSON.parse(await call(proc, "manage_relationship", { action: "get",  entity_id: npcId }));
+      if (byName.incoming.length !== 1 || byId.incoming.length !== 1) {
+        throw new Error(`incoming mismatch: byName=${byName.incoming.length} byId=${byId.incoming.length}`);
+      }
+    });
+
+    await test("T-new: sheet shows the relationship by display name", async () => {
+      const sheet = await call(proc, "manage_character", { action: "sheet",  entity_id: charId });
+      assertContains(sheet, "### Relationships");
+      assertContains(sheet, "Kestrel");
+      const json = JSON.parse(await call(proc, "manage_character", { action: "sheet",  entity_id: charId, format: "json" }));
+      if (!Array.isArray(json.relationships) || json.relationships.length !== 1) {
+        throw new Error(`json relationships: ${JSON.stringify(json.relationships)}`);
+      }
+    });
+
+    await test("T-new: GM briefing shows the relationship in the knowledge state", async () => {
+      const b = await briefing(proc);
+      assertContains(b, "Relationship: Mara -> Kestrel (ally)");
+    });
+
+    await test("T-new: set by id updates the name-keyed row instead of duplicating", async () => {
+      await call(proc, "manage_relationship", { action: "set",  entity_a: charId, entity_b: npcId, type: "ally", value: 2 });
+      const byName = JSON.parse(await call(proc, "manage_relationship", { action: "get",  entity_id: "Mara" }));
+      if (byName.outgoing.length !== 1 || byName.outgoing[0].value !== 2) {
+        throw new Error(`dedupe failed: ${JSON.stringify(byName.outgoing)}`);
+      }
+    });
+
+    await test("T-new: set updates the relationship type in place", async () => {
+      await call(proc, "manage_relationship", { action: "set",  entity_a: charId, entity_b: npcId, type: "rival" });
+      const byName = JSON.parse(await call(proc, "manage_relationship", { action: "get",  entity_id: "Mara" }));
+      if (byName.outgoing.length !== 1 || byName.outgoing[0].type !== "rival") {
+        throw new Error(`type write failed: ${JSON.stringify(byName.outgoing)}`);
+      }
+    });
+
+    await test("T-new: rival flip marks narrative threads and shifts the NPC", async () => {
+      const b = await briefing(proc);
+      assertContains(b, "Relationship changed: Mara and Kestrel are now rival.");
+      const npc = JSON.parse(await call(proc, "manage_npc", { action: "get",  npc_id: npcId }));
+      if (npc.disposition !== "suspicious") {
+        throw new Error(`disposition: ${npc.disposition}`);
+      }
+    });
+
+    await test("T-new: same-type set does not duplicate the marker", async () => {
+      await call(proc, "manage_relationship", { action: "set",  entity_a: "Mara", entity_b: "Kestrel", type: "rival", value: 3 });
+      const b = await briefing(proc);
+      const count = b.split("Relationship changed: Mara and Kestrel are now rival.").length - 1;
+      if (count !== 1) throw new Error(`marker count: ${count}`);
+    });
+
+    await test("T-new: a second rival pair shifts its NPCs and stays off the Player surface", async () => {
+      await call(proc, "manage_relationship", { action: "set",  entity_a: "Kestrel", entity_b: "Cora", type: "rival" });
+      const cora = JSON.parse(await call(proc, "manage_npc", { action: "get",  npc_id: coraId }));
+      if (cora.disposition !== "suspicious") throw new Error(`Cora disposition: ${cora.disposition}`);
+      await call(proc, "set_badge", { badge: "player" });
+      const player = await briefing(proc);
+      await call(proc, "set_badge", { badge: "game_master" });
+      assertNotContains(player, "Relationship changed:");
+    });
+
+    await test("T-new: a hostile NPC is not softened by a rival flip", async () => {
+      await call(proc, "manage_npc", { action: "update",  npc_id: coraId, disposition: "hostile" });
+      await call(proc, "manage_relationship", { action: "set",  entity_a: "Cora", entity_b: "Kestrel", type: "rival" });
+      const cora = JSON.parse(await call(proc, "manage_npc", { action: "get",  npc_id: coraId }));
+      if (cora.disposition !== "hostile") throw new Error(`Cora softened: ${cora.disposition}`);
+    });
+
+    await test("T-new: a scene transition clears the markers", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "Next scene." });
+      const b = await briefing(proc);
+      assertNotContains(b, "Relationship changed:");
+    });
+
+    await test("T-new: suggest names the related party", async () => {
+      const r = await call(proc, "run_command", { action: "suggest",  intent: "convince Kestrel to help" });
+      assertContains(r, "relationship");
+      assertContains(r, "Kestrel");
+    });
+
+    await kill(proc);
+  }
+
   // ── T394 / T397: voice feedback + codex capture ───────────────────
   {
     const proc = await boot();

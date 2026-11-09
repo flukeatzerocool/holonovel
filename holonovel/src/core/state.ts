@@ -21,6 +21,7 @@ import { stateHash, STATE_HASH_PROJECTION_VERSION } from "./state-hash.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 import { normalizePerceptionRecord } from "./perception.js";
 import { normalizeSubjectiveRecord } from "./subjective.js";
+import { normalizeIdentityMap } from "./identity.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
 import { auditNotation } from "./lonelog.js";
 
@@ -741,6 +742,9 @@ export interface NovelState {
   perception_ledger: import("./perception.js").PerceptionRecord[];
   // REQ-623 — append-only per-entity record of what a character remembers.
   subjective_memory: import("./subjective.js").SubjectiveMemoryRecord[];
+  // REQ-473 — Novel-tier identity for Novel entities and NPCs. Roster
+  // characters keep identity on the roster baseline.
+  identities: Record<string, import("./identity.js").IdentityState>;
   // REQ-496/REQ-498/REQ-500 — cold knowledge corpus, access profiles, and the
   // per-entity acquisition ledger.
   corpus_documents: import("./corpus.js").CorpusDocument[];
@@ -1132,6 +1136,7 @@ export class StateManager {
       agent_tasks: [],
       perception_ledger: [],
       subjective_memory: [],
+      identities: {},
       corpus_documents: [],
       corpus_access: [],
       corpus_consumption: [],
@@ -1523,6 +1528,7 @@ export class StateManager {
       agent_tasks: data.agent_tasks ?? [],
       perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
       subjective_memory: (data.subjective_memory ?? []).map((raw: any, index: number) => normalizeSubjectiveRecord(raw, index)),
+      identities: normalizeIdentityMap(data.identities),
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
       corpus_consumption: data.corpus_consumption ?? [],
@@ -2678,6 +2684,9 @@ function novelToJSON(novel: NovelState): any {
     agent_tasks: novel.agent_tasks,
     perception_ledger: novel.perception_ledger,
     subjective_memory: novel.subjective_memory,
+    // REQ-473 — the Novel-tier identity map is omitted while empty so an
+    // existing Novel's canonical state hash and old checkpoints are unchanged.
+    ...(Object.keys(novel.identities ?? {}).length > 0 ? { identities: novel.identities } : {}),
     // REQ-496/REQ-498/REQ-500 — corpus documents, access, and acquisitions persist.
     corpus_documents: novel.corpus_documents,
     corpus_access: novel.corpus_access,
@@ -2804,7 +2813,7 @@ function novelFromJSON(data: any): NovelState {
     synthesis_activated: normalizeActivationMap(data.synthesis_activated),
     synthesis_deactivated: normalizeActivationMap(data.synthesis_deactivated),
     synthesis_module_enabled: data.synthesis_module_enabled ?? {},
-    campaign_memory: data.campaign_memory ?? {},
+    campaign_memory: data.campaign_memory ?? [],
     compression_ladder: data.compression_ladder ?? emptyCompressionLadder(),
     player_synthesis: data.player_synthesis ?? {},
     ruling_ledger: data.ruling_ledger ?? [],
@@ -2846,6 +2855,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     agent_tasks: data.agent_tasks ?? [],
     perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
     subjective_memory: (data.subjective_memory ?? []).map((raw: any, index: number) => normalizeSubjectiveRecord(raw, index)),
+    identities: normalizeIdentityMap(data.identities),
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
     corpus_consumption: data.corpus_consumption ?? [],

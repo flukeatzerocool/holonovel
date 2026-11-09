@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -40,6 +40,7 @@ import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type Tra
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
+import { dedupeRelationships, isRelationshipInvolving, relationshipEdgesFor, relationshipEndpoints, relationshipLines, relationshipPairKey, relationshipTokenPairKey, resolveRelationshipParty } from "./core/relationships.js";
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
@@ -594,6 +595,16 @@ function shiftDisposition(current: string, toward: "hostile" | "friendly"): stri
   return DISPOSITION_SCALE[Math.min(DISPOSITION_SCALE.length - 1, base + 1)];
 }
 
+// P48 — shift one step toward a target disposition. An NPC already at or
+// beyond the target is not softened.
+function shiftDispositionToward(current: string, target: "hostile" | "suspicious"): string {
+  const idx = DISPOSITION_SCALE.indexOf(current);
+  const targetIdx = DISPOSITION_SCALE.indexOf(target);
+  const base = idx === -1 ? DISPOSITION_SCALE.indexOf("neutral") : idx;
+  if (base <= targetIdx) return DISPOSITION_SCALE[base];
+  return DISPOSITION_SCALE[base - 1];
+}
+
 // The pacing counter increments on every read of a scene-affecting surface;
 // the transition hook (REQ-125, REQ-336) resets it. Counted in badge_briefing.
 function currentBeat(novel: NovelState): string {
@@ -606,6 +617,13 @@ function currentBeat(novel: NovelState): string {
 // `manage_diagnostics (action: verify)` report divergence (REQ-605).
 interface PacingSession { count: number; fired: boolean }
 const pacingSessions = new Map<string, PacingSession>();
+
+// REQ-236b — scene-scoped relationship-change markers. The list lives for the
+// current scene and is cleared on the next scene transition, matching the
+// pacing session. It is deliberately in memory: a persisted Novel field would
+// need a §7.7 class contract for a transient briefing line.
+interface RelationshipMarker { text: string; entity_ids: string[] }
+const relationshipMarkers = new Map<string, RelationshipMarker[]>();
 
 function pacingSession(novel: NovelState): PacingSession {
   let session = pacingSessions.get(novel.slug);
@@ -863,8 +881,11 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
   for (const s of knownSecrets) lines.push(`Secret: ${s.key} — ${s.content}`);
 
   // Participant relationships (REQ-236/286).
-  const rels = novel.relationships.filter((r) => r.entity_a === activeId || r.entity_b === activeId);
-  for (const r of rels) lines.push(`Relationship: ${r.entity_a} -> ${r.entity_b} (${r.type})`);
+  const rels = dedupeRelationships(novel).filter((r) => isRelationshipInvolving(novel, r, activeId));
+  for (const r of rels) {
+    const { a, b } = relationshipEndpoints(novel, r);
+    lines.push(`Relationship: ${a.name} -> ${b.name} (${r.type})`);
+  }
 
   // Presence-scoped shared lore (REQ-286/308): lore triggered while entity present.
   for (const [, entry] of novel.lore) {
@@ -936,6 +957,57 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
     section += `\n${lines.join("\n")}`;
   }
   return section;
+}
+
+// REQ-236b — the transition set: ally ↔ rival, ally ↔ suspicious,
+// rival ↔ suspicious, and any change involving neutral. A new row's previous
+// type reads as neutral.
+function shouldMarkRelationshipChange(previous: string | undefined, next: string | undefined): boolean {
+  if (!next || previous === next) return false;
+  if (!previous || previous === "neutral" || next === "neutral") return true;
+  const pair = [previous, next].sort().join("|");
+  return pair === "ally|rival" || pair === "ally|suspicious" || pair === "rival|suspicious";
+}
+
+function recordRelationshipMarker(novel: NovelState, row: Relationship, type: string): void {
+  const { a, b } = relationshipEndpoints(novel, row);
+  const text = `Relationship changed: ${a.name} and ${b.name} are now ${type}.`;
+  const list = relationshipMarkers.get(novel.slug) ?? [];
+  if (!list.some((marker) => marker.text === text)) {
+    list.push({ text, entity_ids: [a.id, b.id] });
+    relationshipMarkers.set(novel.slug, list);
+  }
+}
+
+function relationshipMarkerLines(novel: NovelState, badge: Badge, activeId?: string): string[] {
+  const list = relationshipMarkers.get(novel.slug) ?? [];
+  if (badge === "game_master" || badge === "none") return list.map((marker) => marker.text);
+  if (badge === "player" && activeId) {
+    return list.filter((marker) => marker.entity_ids.includes(activeId)).map((marker) => marker.text);
+  }
+  return [];
+}
+
+// P48 — each involved NPC shifts one step toward suspicious on a flip to
+// rival. Characters and factions are skipped; a more-hostile NPC is not
+// softened.
+function shiftRelationshipDispositions(novel: NovelState, row: Relationship): void {
+  for (const token of [row.entity_a, row.entity_b]) {
+    const party = resolveRelationshipParty(novel, token);
+    if (!party) continue;
+    const npc = novel.npcs.get(party.id);
+    if (!npc) continue;
+    const previous = npc.disposition ?? "neutral";
+    const next = shiftDispositionToward(previous, "suspicious");
+    if (next === previous) continue;
+    npc.disposition = next;
+    audit("relationship_disposition", {
+      npc: npc.id,
+      relationship: `${row.entity_a} -> ${row.entity_b}`,
+      from: previous,
+      to: next,
+    });
+  }
 }
 
 // REQ-598 — narrator clearance follows the AI's narrative role (REQ-304), not
@@ -3868,13 +3940,18 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
     case "sheet": {
       const entity = resolveEntityOrNpc(args.entity_id);
       if (!entity) return err("NOT_FOUND", `Entity or NPC '${args.entity_id || "none"}' not found. Corrective action: list entities with party://current or NPCs with npcs://.`);
+      const novel = requireNovel();
       const fmt = resolveFormat(args.format, STATBLOCK_FORMATS);
       if (typeof fmt !== "string") return fmt;
+      const relationLines = relationshipLines(novel, entity.id ?? entity.name);
+      const relationSection = relationLines.length > 0
+        ? `\n### Relationships\n${relationLines.map((line) => `- ${line}`).join("\n")}\n`
+        : "";
       let result: any;
-      if (fmt === "ascii") result = raw(`[OK] ${entity.name}  Room: ${entity.current_room || "(none)"}  Held: ${entity.inventory?.length || 0}`);
-      else if (fmt === "json") result = raw(JSON.stringify(entitySheetJson(entity), null, 2));
-      else if (fmt === "html") result = raw(toHtml(fmtEntitySheet(entity)));
-      else result = ok(fmtEntitySheet(entity));
+      if (fmt === "ascii") result = raw(`[OK] ${entity.name}  Room: ${entity.current_room || "(none)"}  Held: ${entity.inventory?.length || 0}  Relations: ${relationLines.length}`);
+      else if (fmt === "json") result = raw(JSON.stringify({ ...entitySheetJson(entity), relationships: relationLines }, null, 2));
+      else if (fmt === "html") result = raw(toHtml(`${fmtEntitySheet(entity)}${relationSection}`));
+      else result = ok(`${fmtEntitySheet(entity)}${relationSection}`);
       return withUiLinkage(result, `ui://character-sheet/${entity.id}`);
     }
     case "set_active": {
@@ -4389,10 +4466,12 @@ server.registerTool("run_command", {
       for (const [, npc] of novel.npcs) {
         domains.social.push(`${npc.name} (disposition: ${npc.disposition ?? "neutral"}) — skill check with persuasion`);
       }
-      for (const r of novel.relationships) {
-        if (r.entity_a === (entity?.id ?? "") || r.entity_b === (entity?.id ?? "")) {
-          domains.social.push(`relationship (${r.type}) with ${r.entity_a === entity?.id ? r.entity_b : r.entity_a}`);
-        }
+      const self = resolveRelationshipParty(novel, entity?.id ?? "");
+      for (const r of dedupeRelationships(novel)) {
+        if (!isRelationshipInvolving(novel, r, entity?.id ?? "")) continue;
+        const { a, b } = relationshipEndpoints(novel, r);
+        const other = self && a.id === self.id ? b.name : a.name;
+        domains.social.push(`relationship (${r.type}) with ${other}`);
       }
     }
     // REQ-084b3/b4, REQ-115 — synthesis action patterns supplement the matching
@@ -5941,6 +6020,7 @@ server.registerTool("manage_scene", {
           if (entity) entity.current_room = matchRoom[1].name;
         }
       }
+      if (isTransition) relationshipMarkers.delete(novel.slug);
       if (isTransition && !skip_transition_hook) {
         // REQ-449 — a scene transition closes the current turn: the excessive-
         // agency mutation counter resets for the next turn.
@@ -6944,24 +7024,39 @@ server.registerTool("manage_relationship", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const idx = novel.relationships.findIndex(r => r.entity_a === args.entity_a && r.entity_b === args.entity_b);
+      const pairKey = relationshipTokenPairKey(novel, args.entity_a, args.entity_b);
+      const idx = novel.relationships.findIndex(r => relationshipPairKey(novel, r) === pairKey);
+      const previousType = idx >= 0 ? novel.relationships[idx].type : "neutral";
+      let row: Relationship;
       if (idx >= 0) {
-        const r = novel.relationships[idx];
-        if (args.type !== undefined) r.type = args.type;
-        if (args.value !== undefined) r.value = args.value;
-        if (args.description !== undefined) r.description = args.description;
+        row = novel.relationships[idx];
+        if (args.type !== undefined) row.type = args.type;
+        if (args.value !== undefined) row.value = args.value;
+        if (args.description !== undefined) row.description = args.description;
       } else {
-        novel.relationships.push({ entity_a: args.entity_a, entity_b: args.entity_b, type: args.type, value: args.value, description: args.description });
+        row = { entity_a: args.entity_a, entity_b: args.entity_b, type: args.type, value: args.value, description: args.description };
+        novel.relationships.push(row);
+      }
+      const effType = row.type;
+      if (shouldMarkRelationshipChange(previousType, effType)) {
+        recordRelationshipMarker(novel, row, effType ?? "");
+      }
+      if (previousType !== "rival" && effType === "rival") {
+        shiftRelationshipDispositions(novel, row);
       }
       state.saveNovel(novel);
-      const effType = idx >= 0 ? novel.relationships[idx].type : args.type;
+      audit("relationship_set", {
+        entity_a: row.entity_a,
+        entity_b: row.entity_b,
+        type: effType,
+        previous: previousType,
+      });
       return ok(`Relationship set: ${args.entity_a} -> ${args.entity_b} (${effType}).`);
     }
     case "get": {
       requireGM();
       const novel = requireNovel();
-      const outgoing = novel.relationships.filter(r => r.entity_a === args.entity_id);
-      const incoming = novel.relationships.filter(r => r.entity_b === args.entity_id);
+      const { outgoing, incoming } = relationshipEdgesFor(novel, args.entity_id);
       return raw(JSON.stringify({ outgoing, incoming }, null, 2));
     }
     default:
@@ -7980,16 +8075,52 @@ server.registerTool("manage_belief", {
 
 // --- Identity ---
 
-// Character Identity (REQ-473–REQ-483) — Roster-tier identity, staged,
-// perspective-tagged, stability-classed, and version-compiled. Identity is the
-// only writer of identity; conversation, belief, and memory never touch it.
-function identityFor(characterId: string): IdentityState | null {
+// Character Identity (REQ-473–483, 636–643) — durable identity in two tiers:
+// a Novel-level map for Novel entities and NPCs, and the roster baseline for
+// roster-only characters. Identity is the only writer of identity; conversation,
+// belief, and memory never touch it.
+function isNovelIdentitySubject(characterId: string): boolean {
+  const novel = state.activeNovel;
+  return !!novel && (novel.entities.has(characterId) || novel.npcs.has(characterId));
+}
+
+function identityFor(characterId: string, create = false): IdentityState | null {
+  const novel = state.activeNovel;
+  if (novel) {
+    const existing = novel.identities?.[characterId];
+    if (existing) return normalizeIdentityState(existing);
+    if (novel.entities.has(characterId) || novel.npcs.has(characterId)) {
+      const baseline = state.roster.get(characterId)?.identity;
+      if (!create) {
+        // A Novel subject with no Novel-tier map reads the roster baseline
+        // when one exists, so a staged character keeps its imported facets.
+        return baseline ? normalizeIdentityState(baseline) : emptyIdentity(characterId);
+      }
+      // The first Novel-tier mutation copies the baseline into the Novel and
+      // shadows it; the roster baseline is never mutated by Novel play.
+      const created = baseline
+        ? JSON.parse(JSON.stringify(baseline)) as IdentityState
+        : emptyIdentity(characterId);
+      novel.identities = novel.identities ?? {};
+      novel.identities[characterId] = created;
+      return normalizeIdentityState(created);
+    }
+  }
   const entity = state.roster.get(characterId);
   if (!entity) return null;
   if (!entity.identity) entity.identity = emptyIdentity(characterId);
   // REQ-636–641 — the single defaulting seam: roster files written before the
   // psyche attributes load with the neutral defaults (fact / yes / not false).
   return normalizeIdentityState(entity.identity);
+}
+
+function saveIdentity(characterId: string): void {
+  const novel = state.activeNovel;
+  if (novel && (novel.identities?.[characterId] || novel.entities.has(characterId) || novel.npcs.has(characterId))) {
+    state.saveNovel(novel);
+    return;
+  }
+  state.saveRoster();
 }
 
 // REQ-643 — the Player projection for the list surface: the character knows
@@ -8020,10 +8151,10 @@ function identityReadGate(characterId: string) {
 
 server.registerTool("manage_identity", {
   title: "Identity Management",
-  description: "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material with a psyche kind, self-awareness, optional false-but-held belief, valence, date bounds, and contradiction links; accept replaces a facet, retains the displaced value internally, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only, and a Player badge reads its own character's projected kernel. Use when: staging psyche facets, accepting, rejecting, reverting, or reading identity. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+  description: "Manage a character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. A Novel entity or NPC uses the Novel-tier identity map; a roster-only character uses its roster baseline. stage imports or authors identity material with a psyche kind, self-awareness, optional false-but-held belief, valence, date bounds, and contradiction links; accept replaces a facet, retains the displaced value, and bumps the version; reject marks a candidate rejected; revert restores the most recently displaced facet; bootstrap seeds from a character card. Mutation persists to the owning tier, is audited, and a Novel-tier mutation is undoable; list and snapshot are read-only, and a Player reads its own projected kernel. Use when: staging, accepting, rejecting, reverting, or reading identity. Do NOT use when: recording knowledge or belief — use manage_belief; editing narrative personality — use manage_character (action: personality).",
   inputSchema: {
     action: z.enum(["stage", "accept", "reject", "revert", "list", "snapshot", "bootstrap"]).describe("stage, accept, reject, revert, list, snapshot, or bootstrap."),
-    character_id: z.string().describe("Roster character id."),
+    character_id: z.string().describe("Character id: a Novel entity, NPC, or roster character."),
     candidate_id: z.string().optional().describe("Identity candidate id (accept/reject)."),
     facet: z.string().optional().describe("Identity facet key, e.g. name or calling (stage)."),
     value: z.string().optional().describe("Identity facet value (stage)."),
@@ -8045,7 +8176,7 @@ server.registerTool("manage_identity", {
       requireNotObserver();
       const gate = identityReadGate(args.character_id); if (gate) return gate;
       const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       const { history: _history, ...publicIdentity } = identity;
       // REQ-643 — a Player reads the projected record, not the GM's view.
       if (getBadge() === "player") {
@@ -8062,15 +8193,16 @@ server.registerTool("manage_identity", {
       requireNotObserver();
       const gate = identityReadGate(args.character_id); if (gate) return gate;
       const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       const kernel = compileKernel(identity);
       // REQ-480/REQ-643 — one kernel, projected for a Player badge.
       return raw(JSON.stringify(getBadge() === "player" ? playerIdentityProjection(kernel) : kernel, null, 2));
     }
     case "stage": {
       requireGM();
-      const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (isNovelIdentitySubject(args.character_id)) novelSnapshot();
+      const identity = identityFor(args.character_id, true);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       if (!args.facet || !args.value) return err("INVALID_INPUT", "facet and value are required for stage.");
       if (args.stability && !STABILITY_CLASSES.includes(args.stability)) return err("INVALID_INPUT", `Unknown stability '${args.stability}'.`);
       if (args.perspective && !PERSPECTIVES.includes(args.perspective)) return err("INVALID_INPUT", `Unknown perspective '${args.perspective}'.`);
@@ -8107,49 +8239,53 @@ server.registerTool("manage_identity", {
       };
       identity.candidates.push(candidate);
       enforceIdentityCandidateCap(identity);
-      state.saveRoster();
+      saveIdentity(args.character_id);
       audit("identity_stage", { character_id: args.character_id, candidate_id: candidate.id, facet: candidate.facet, stability: candidate.stability });
       return ok(`Identity candidate ${candidate.id} staged for '${args.character_id}'.`);
     }
     case "accept": {
       requireGM();
+      if (isNovelIdentitySubject(args.character_id)) novelSnapshot();
       const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       const candidate = identity.candidates.find((c) => c.id === args.candidate_id);
       if (!candidate) return err("NOT_FOUND", `Identity candidate '${args.candidate_id}' not found.`);
       if (candidate.status !== "pending") return err("STATE_CONFLICT", `Candidate '${candidate.id}' is already ${candidate.status}.`);
       const perspective = (args.perspective ?? candidate.perspective) as IdentityPerspective;
       applyFacet(identity, candidate, perspective, new Date().toISOString());
       candidate.status = "accepted";
-      state.saveRoster();
+      saveIdentity(args.character_id);
       audit("identity_accept", { character_id: args.character_id, candidate_id: candidate.id, facet: candidate.facet, version: identity.version });
       return ok(`Accepted identity candidate ${candidate.id}; identity version is now ${identity.version}.`);
     }
     case "reject": {
       requireGM();
+      if (isNovelIdentitySubject(args.character_id)) novelSnapshot();
       const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       const candidate = identity.candidates.find((c) => c.id === args.candidate_id);
       if (!candidate) return err("NOT_FOUND", `Identity candidate '${args.candidate_id}' not found.`);
       candidate.status = "rejected";
-      state.saveRoster();
+      saveIdentity(args.character_id);
       audit("identity_reject", { character_id: args.character_id, candidate_id: candidate.id });
       return ok(`Rejected identity candidate ${candidate.id}.`);
     }
     case "revert": {
       requireGM();
+      if (isNovelIdentitySubject(args.character_id)) novelSnapshot();
       const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       const restored = revertFacet(identity, new Date().toISOString());
       if (!restored) return err("STATE_CONFLICT", "No displaced identity facet to revert. Accept a replacement first.");
-      state.saveRoster();
+      saveIdentity(args.character_id);
       audit("identity_revert", { character_id: args.character_id, facet: restored.facet, revision: restored.revision, version: identity.version });
       return ok(`Reverted identity facet '${restored.facet}' to revision ${restored.revision}; identity version is now ${identity.version}.`);
     }
     case "bootstrap": {
       requireGM();
-      const identity = identityFor(args.character_id);
-      if (!identity) return err("NOT_FOUND", `Roster character '${args.character_id}' not found.`);
+      if (isNovelIdentitySubject(args.character_id)) novelSnapshot();
+      const identity = identityFor(args.character_id, true);
+      if (!identity) return err("NOT_FOUND", `Character '${args.character_id}' not found. Corrective action: pass a Novel entity, NPC, or roster character id.`);
       if (!args.card || typeof args.card !== "object") return err("INVALID_INPUT", "card is required for bootstrap.");
       const staged = candidatesFromCard(args.character_id, args.card, new Date().toISOString());
       const autoAccept = (process.env.TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED ?? "true") !== "false";
@@ -8163,7 +8299,7 @@ server.registerTool("manage_identity", {
         }
       }
       enforceIdentityCandidateCap(identity);
-      state.saveRoster();
+      saveIdentity(args.character_id);
       audit("identity_bootstrap", { character_id: args.character_id, staged: staged.length, auto_accept: autoAccept });
       return ok(`Bootstrapped ${staged.length} identity candidate(s) for '${args.character_id}'.`);
     }
@@ -8488,13 +8624,22 @@ function gatherIndexSources(novel: NovelState): IndexSourceItem[] {
 // graph over Novel sources. The Novel file is authoritative; graph reads never
 // mutate state.
 function gatherGraphSources(novel: NovelState): GraphSourceSet {
+  const roomByName = new Map<string, string>();
+  for (const [id, room] of novel.world.rooms.entries()) roomByName.set(room.name.trim().toLowerCase(), id);
+  const roomKey = (token?: string | null): string | null | undefined => {
+    if (!token) return token;
+    const key = token.trim().toLowerCase();
+    if (novel.world.rooms.has(key)) return key;
+    return roomByName.get(key) ?? token;
+  };
+  const partyId = (token: string): string => resolveRelationshipParty(novel, token)?.id ?? token;
   return {
-    characters: [...novel.entities.values()].map((e) => ({ id: e.id, name: e.name, current_room: e.current_room })),
-    npcs: [...novel.npcs.values()].map((n) => ({ id: n.id, name: n.name, location: n.location, room_id: n.room_id })),
+    characters: [...novel.entities.values()].map((e) => ({ id: e.id, name: e.name, current_room: roomKey(e.current_room) })),
+    npcs: [...novel.npcs.values()].map((n) => ({ id: n.id, name: n.name, location: roomKey(n.location), room_id: roomKey(n.room_id) })),
     lore: [...novel.lore.entries()].map(([key, l]) => ({ key, scope: l.visibility === "gm_only" ? "game_master" : "shared" })),
-    factions: novel.factions.map((f) => ({ id: f.id, name: f.name, territory: f.territory })),
+    factions: novel.factions.map((f) => ({ id: f.id, name: f.name, territory: (f.territory ?? []).map((t) => roomKey(t) ?? t) })),
     rooms: [...novel.world.rooms.entries()].map(([id, r]) => ({ id, name: r.name })),
-    relationships: novel.relationships.map((r) => ({ entity_a: r.entity_a, entity_b: r.entity_b, type: r.type })),
+    relationships: dedupeRelationships(novel).map((r) => ({ entity_a: partyId(r.entity_a), entity_b: partyId(r.entity_b), type: r.type })),
   };
 }
 
@@ -11854,8 +11999,12 @@ server.registerResource("scene-history", "scene://history", { title: "Scene Hist
 // the kernel; a Player badge reads only the active character, projected.
 server.registerResource("identity-kernel", new ResourceTemplate("identity://{id}", { list: () => {
   const badge = getBadge();
-  const active = state.activeNovel?.active_entity_id;
-  const ids = [...state.roster.keys()].filter((id) => badge !== "player" || id === active);
+  const novel = state.activeNovel;
+  const active = novel?.active_entity_id;
+  const ids = [...new Set([
+    ...state.roster.keys(),
+    ...(novel ? [...novel.entities.keys(), ...novel.npcs.keys()] : []),
+  ])].filter((id) => badge !== "player" || id === active);
   return { resources: ids.map(id => ({ uri: `identity://${id}`, name: id })) };
 } }), { title: "Identity Kernel" }, async (uri) => {
   const id = resourceKey(uri);
@@ -12096,7 +12245,10 @@ function buildNovelGraph(novel: NovelState, projection: string | undefined): Rec
       projection: "political",
       factions: novel.factions.map(f => ({ id: f.id, name: f.name, goals: f.goals ?? [] })),
       npcs: [...novel.npcs.values()].map(n => ({ id: n.id, name: n.name, disposition: n.disposition, location: n.location })),
-      relationships: novel.relationships ?? [],
+      relationships: dedupeRelationships(novel).map((r) => {
+        const { a, b } = relationshipEndpoints(novel, r);
+        return { entity_a: a.name, entity_b: b.name, type: r.type, value: r.value, description: r.description };
+      }),
     };
   }
   if (projection === "timeline") {
@@ -13734,6 +13886,9 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
 
     const pacing = pacingSignalText(novel);
     if (pacing) threadLines.push(pacing);
+
+    // REQ-236b — relationship-change markers for the current scene.
+    threadLines.push(...relationshipMarkerLines(novel, badge, entity?.id));
 
     const unresolvedDecisions = novel.story_journal.filter((s) => s.type === "decision" && !novel.story_journal.some((c) => c.type === "consequence" && c.scene_anchor === s.scene_anchor));
     for (const s of unresolvedDecisions.slice(-3)) threadLines.push(`Unresolved: ${s.entry}`);

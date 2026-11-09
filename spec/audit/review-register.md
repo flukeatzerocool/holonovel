@@ -931,7 +931,23 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-_Nothing scheduled._
+- **Story-beat previews cut at 60 chars (2026-11-08):** `recordBeatTransition`
+  slices the scene description at 60 characters, mid-word, instead of the first
+  sentence REQ-337 requires. Predicate: `holonovel/src/index.ts:6005`.
+- **`Your Candle` flagged wearable (2026-11-08):** the only thing with
+  `wearable: true`; a candle is held, not worn. Predicate:
+  `holonovel/content/torre-nosferatu.source.json` `world.things["your candle"]`.
+- **NPC identity facets invisible in normal play (2026-11-08):** the Novel-tier
+  map supports NPCs, but `manage_npc (action: get)` and the briefing do not
+  surface them; only `manage_identity (action: list)` reads the map. Predicate:
+  `holonovel/src/index.ts` `manage_npc`; REQ-480, REQ-643.
+- **Player-facing knowledge is seven pages (2026-11-08):** 17 lore entries are
+  GM-only; the Player gets one page per floor. Predicate:
+  `holonovel/content/torre-nosferatu.source.json` readable things; REQ-083d,
+  REQ-565.
+- **Survivor race is descriptive (2026-11-08):** The Survivors' 0/10 faction
+  clock has no advancing event. Predicate:
+  `holonovel/content/torre-nosferatu.source.json` `factions`; REQ-233.
 
 
 ## Closed-P3 (recorded, no action)

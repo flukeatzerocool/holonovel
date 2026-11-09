@@ -66,6 +66,8 @@ export function projectGraph(sources: GraphSourceSet, builtAt: string): Knowledg
   const nodes: GraphNode[] = [];
   const roomIds = new Set(sources.rooms.map((r) => r.id));
   const characterIds = new Set(sources.characters.map((c) => c.id));
+  const npcIds = new Set(sources.npcs.map((n) => n.id));
+  const factionIds = new Set(sources.factions.map((f) => f.id));
 
   for (const c of sources.characters) nodes.push({ id: nodeId.character(c.id), type: "character", label: c.name, scope: "shared" });
   for (const r of sources.rooms) nodes.push({ id: nodeId.room(r.id), type: "room", label: r.name, scope: "shared" });
@@ -74,16 +76,22 @@ export function projectGraph(sources: GraphSourceSet, builtAt: string): Knowledg
   for (const f of sources.factions) nodes.push({ id: nodeId.faction(f.id), type: "faction", label: f.name, scope: "game_master" });
 
   const nodeIds = new Set(nodes.map((n) => n.id));
+  const partyNode = (id: string): string | null => {
+    if (characterIds.has(id)) return nodeId.character(id);
+    if (npcIds.has(id)) return nodeId.npc(id);
+    if (factionIds.has(id)) return nodeId.faction(id);
+    return null;
+  };
   const edges: GraphEdge[] = [];
   const pushEdge = (from: string, to: string, type: GraphEdgeType, label?: string) => {
     if (nodeIds.has(from) && nodeIds.has(to)) edges.push(label ? { from, to, type, label } : { from, to, type });
   };
 
-  // REQ-512 — relationship edges.
+  // REQ-512 — relationship edges between any two resolvable party nodes.
   for (const rel of sources.relationships) {
-    if (characterIds.has(rel.entity_a) && characterIds.has(rel.entity_b)) {
-      pushEdge(nodeId.character(rel.entity_a), nodeId.character(rel.entity_b), "relates_to", rel.type);
-    }
+    const from = partyNode(rel.entity_a);
+    const to = partyNode(rel.entity_b);
+    if (from && to) pushEdge(from, to, "relates_to", rel.type);
   }
   // REQ-512 — location edges.
   for (const c of sources.characters) {

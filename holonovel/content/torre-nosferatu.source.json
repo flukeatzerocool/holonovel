@@ -24,13 +24,17 @@
     "npc_mv4m1599": {
       "id": "npc_mv4m1599",
       "name": "Vlask",
-      "description": "The hoarder. Cold possession — a wax cache guarded dear. Voice: a low, counting mutter; names a price before a greeting, and never says a sentence that does not weigh something.",
+      "description": "The hoarder. He keeps a wax cache and will not let it out of his sight. He names a price before he offers a greeting.",
       "disposition": "wary",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
+        "description": "A small, careful man who has survived by turning every exchange into a ledger entry. He does not hate the others. He simply prices them.",
+        "voice": "He speaks in a low mutter, counting under his breath. Numbers come before names, and he never uses a metaphor.",
+        "background": "He came to the tower with a cart of tallow and a commission from a buyer who never arrived. He has been counting the stock ever since.",
         "goals": "Keep his wax cache intact and reach the exit without spending more of himself than he must."
       },
+      "persona": "Vlask wants three things kept in order: his wax, his count, and the debts owed to him. He is patient and possessive rather than violent. He keeps a tally on his cuff and stands with his back to the cache.",
       "mind": {
         "private_journal": [
           "The new one woke on the top floor tonight. One candle. Easy to outlast.",
@@ -39,11 +43,12 @@
         "directive": "Stay near the wax cache. Trade light only for a gain — never a fair swap he does not win. Trail the player if they carry wax; withdraw toward his stash if they come near it. He never attacks: he refuses and counts. An alliance costs one match or five wax and requires a friendly disposition.",
         "auto_play": true,
         "identity_core": [
-          "Keeps the tower's floors in order",
+          "Keeps his cache counted and his debts current",
           "Distrusts idle guests"
         ],
         "shared_notes": [
-          "Knows which wax caches are still full"
+          "Knows which wax caches are still full",
+          "Never attacks; refuses and counts"
         ]
       },
       "location": "Third Floor — Social Hall",
@@ -58,19 +63,33 @@
           "context": "loss",
           "dialogue": "Correct. You took less than I would have. That is why you are still here.",
           "tag": "signature"
+        },
+        {
+          "context": "bargain",
+          "dialogue": "Two wax for the stair. Three for the key's whereabouts. You asked twice; the second asking is a separate charge.",
+          "tag": "signature"
+        },
+        {
+          "context": "revelation",
+          "dialogue": "Four have come down before you. I did not outlast them by being kind. I outlasted them by counting.",
+          "tag": "signature"
         }
       ]
     },
     "npc_mv4m163y": {
       "id": "npc_mv4m163y",
       "name": "Sister Marta",
-      "description": "The archivist. Knowledge — trades lore and information, never light. Voice: measured and archival, always quoting a scrap she has read; corrects names and dates.",
+      "description": "The archivist. She trades pages and information, never light. She quotes what she has read and corrects names and dates without breaking stride.",
       "disposition": "wary",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
+        "description": "An archivist who has decided that the tower's contradictions are the only honest map. She would rather be right than safe.",
+        "voice": "Her sentences are long and precise. She corrects a wrong name or date the moment she hears it.",
+        "background": "She was cataloguing a private library when the door she had been promised led her here instead. She has been cataloguing this tower ever since.",
         "goals": "Preserve what the tower remembers; know the way even if she never walks it."
       },
+      "persona": "Marta cares about the record, the correct name, and the unbroken chain of custody. She is precise, watchful, and quietly stubborn. She will correct a date in the middle of a sentence, holds a page by its edge, and never sits with her back to a door.",
       "mind": {
         "private_journal": [
           "The new arrival reads like a solicitor — wants information before light. I have the former to spare.",
@@ -80,10 +99,11 @@
         "auto_play": true,
         "identity_core": [
           "Shelters the lost",
-          "Speaks plainly"
+          "Will not doctor the record"
         ],
         "shared_notes": [
-          "Knows the teaching nest's lesson"
+          "Knows the teaching nest's lesson",
+          "Trades pages and information, never light"
         ]
       },
       "location": "Fourth Floor — Social Hall",
@@ -98,26 +118,48 @@
           "context": "archive",
           "dialogue": "I keep the disagreement. It is the only map that holds.",
           "tag": "signature"
+        },
+        {
+          "context": "bargain",
+          "dialogue": "A page for a floor. Not the floor you are on — the one below it. I do not sell what you can already see.",
+          "tag": "signature"
+        },
+        {
+          "context": "fear",
+          "dialogue": "The fourth landing is wrong. I have written it down twice, and both times the ink moved. Do not take the glass stair.",
+          "tag": "signature"
         }
       ]
     },
     "npc_mv4m16y8": {
       "id": "npc_mv4m16y8",
       "name": "Ilona",
-      "description": "The bitten. The dark's bargain — she \"knows the way\", at a price. Carries a candle she never lights. Voice: low, flat, too calm; speaks as if reading a sentence already written.",
+      "description": "The bitten. She has struck a bargain with the dark and claims to know the way, at a price. She carries a candle she never lights.",
       "disposition": "suspicious",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
+        "description": "She carries a candle she never lights and speaks of the dark as a place she has already been. She is not lying when she says she knows the way.",
+        "voice": "She speaks low and flat, with too few words. She states what the dark will do as though she were reading a sentence already written.",
+        "background": "She came down with a lantern and a guide. The guide ran. The lantern went out. She has not been alone since.",
         "goals": "Reach the door ahead of everyone else, by whatever bargain buys the next landing."
       },
+      "persona": "Ilona wants the next landing, and she has already paid for it. She is calm to the point of wrongness, patient, and unafraid of the dark. She holds the unlit candle like a relic, answers questions with distances, and never warms her hands.",
       "mind": {
         "private_journal": [
           "He is nearer tonight than the candle says. I could tell them how near. That is worth a match or two.",
           "I have not lit the candle since the bite. I carry it only so they think I am like them."
         ],
         "directive": "Offer knowledge of the way for a price in wax or matches — and never light her candle; she sees without it and lets that unnerve the player. Bound to Orlok: she can point toward him and reads his distance, and she does not flee the dark. Her presence unsettles rather than attacks. An alliance costs one match and requires at least a friendly disposition.",
-        "auto_play": true
+        "auto_play": true,
+        "identity_core": [
+          "Will not light her candle",
+          "Pays the dark's price before it is asked"
+        ],
+        "shared_notes": [
+          "Can feel Orlok's distance",
+          "Her candle will never light again"
+        ]
       },
       "location": "Fifth Floor — Social Hall",
       "talkativeness": 65,
@@ -131,26 +173,48 @@
           "context": "distance",
           "dialogue": "He is nearer than your candle says. He is always nearer than the candle says.",
           "tag": "signature"
+        },
+        {
+          "context": "bargain",
+          "dialogue": "One match. Not for the way — for how near he is. The way costs nothing. The nearness does.",
+          "tag": "signature"
+        },
+        {
+          "context": "fear",
+          "dialogue": "Do not run. He is not behind you. He is at the edge, and the edge keeps pace.",
+          "tag": "signature"
         }
       ]
     },
     "npc_mv4m17mi": {
       "id": "npc_mv4m17mi",
       "name": "Petr",
-      "description": "The innocent. Warmth's wager — a light worth protecting that slows you down. Voice: warm, hurried, apologetic; offers help before it is asked for, and thanks you for accepting it.",
+      "description": "The innocent. He offers light and company before anyone asks, and gives away more than he can spare.",
       "disposition": "friendly",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
+        "description": "The youngest and the least careful. He has decided that the tower is a place where people can still be good, and no one will argue him out of it.",
+        "voice": "He speaks in run-on, apologetic sentences, always in the present tense. He offers before he is asked and rarely finishes without giving something away.",
+        "background": "He was a lamplighter's boy. He knows how much light costs, and he has never once charged for it.",
         "goals": "Not leave anyone alone in the dark; reach the ground floor alive, and in company."
       },
+      "persona": "Petr wants no one to be alone in the dark. He believes in a shared flame and the next chance to be kind. He is warm, anxious, and stubbornly generous: he apologizes for offering and checks the others' candles before his own.",
       "mind": {
         "private_journal": [
           "I gave half my wax to a stranger on the fifth landing. They did not thank me. It was still right.",
           "If I die down here, I hope it is while someone else's candle is lit."
         ],
         "directive": "Offer shared light and company; follow the player and slow them. Never exploits. Gives wax freely if asked, at the cost of his own candle. At high Dread he grows frightened but stays. He is the warm pole made flesh. He may give at most two wax once, from his own candle.",
-        "auto_play": true
+        "auto_play": true,
+        "identity_core": [
+          "Will not leave anyone alone in the dark",
+          "Gives before he is asked"
+        ],
+        "shared_notes": [
+          "Carries a stub he does not spend on himself",
+          "Believes the others can still be saved"
+        ]
       },
       "location": "Second Floor — Social Hall",
       "talkativeness": 40,
@@ -164,26 +228,48 @@
           "context": "thanks",
           "dialogue": "Thank you. For letting me come. I know it costs you.",
           "tag": "signature"
+        },
+        {
+          "context": "bargain",
+          "dialogue": "You don't have to pay me, truly, I have a little, and you can have it, only — only don't go down alone, that's the only thing I'd ask.",
+          "tag": "signature"
+        },
+        {
+          "context": "fear",
+          "dialogue": "I'm not afraid, I'm not, I just — I'd rather we were closer together, that's all. It's not fear. It's just that the dark is very large.",
+          "tag": "signature"
         }
       ]
     },
     "npc_mv4m18a8": {
       "id": "npc_mv4m18a8",
       "name": "Nadja",
-      "description": "The rival. Winsome, transactional, always one landing ahead. Voice: quick and amused; makes even a threat sound like a deal being offered.",
+      "description": "The rival. She reaches the door first and sells what she learns on the way. She states her terms before she says anything else.",
       "disposition": "wary",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
+        "description": "She keeps a ledger of every favor and expects to collect. She will save your life if the ledger allows it.",
+        "voice": "Her sentences are short and clipped. Every sentence is a term: a price, a condition, or a deadline.",
+        "background": "She was a broker's runner before the tower. She knows how to reach a door first and how to make the reaching worth something.",
         "goals": "Reach the exit first and sell the knowledge of how she did it."
       },
+      "persona": "Nadja wants the door first, the terms in writing, and a debt she can collect. She is quick and transactional, and she is never cruel without a price. She counts the exits and keeps her own counsel.",
       "mind": {
         "private_journal": [
           "One landing ahead, as always. Let them follow my crumbs — it costs nothing and keeps them slow.",
           "If I reach the door first I will leave it ajar. For a price, of course."
         ],
         "directive": "Race the player to the exit. Trades fair but always wins the terms. She may carry a floor key — per the key-carry guardrail she stays on a searchable floor and leaves a lore trail. In a borrowed win she reaches the door first and leaves it ajar only if her disposition is warm. Never shares light without a deal. An alliance costs one match or five wax and requires a friendly disposition; she never allies on words alone.",
-        "auto_play": true
+        "auto_play": true,
+        "identity_core": [
+          "Treats every kindness as a term",
+          "Reaches the door first"
+        ],
+        "shared_notes": [
+          "Knows which floor keys are still in place",
+          "Will leave the door ajar only for a price"
+        ]
       },
       "location": "Sixth Floor — Social Hall",
       "talkativeness": 45,
@@ -197,20 +283,33 @@
           "context": "assessment",
           "dialogue": "I take from the dead. I don't add to them. You're carrying a seventh-floor key and a candle with two hours in it.",
           "tag": "signature"
+        },
+        {
+          "context": "bargain",
+          "dialogue": "My price is one match and the next key you find. You keep the floor. I keep the door. Agreed or not.",
+          "tag": "signature"
+        },
+        {
+          "context": "fear",
+          "dialogue": "The stair is shorter than it was. I counted the steps on the way down. Move.",
+          "tag": "signature"
         }
       ]
     },
     "npc_mv4m19ls": {
       "id": "npc_mv4m19ls",
       "name": "Count Orlok",
-      "description": "Count Orlok — a walking corpse: hunched and coat-shrouded, elongated skull, rat's teeth, bat-pointed ears, arms too long, ending in splayed claws. He stands just past the light, always at the edge of the mask. He does not hurry. When he breathes, the room breathes with him.",
+      "description": "The reaper. He waits at the edge of the light and never crosses it. When he speaks, it is a command, and he uses no more words than he needs.",
       "disposition": "hostile",
-      "location": "just beyond the candle's reach",
       "conditions": [],
       "condition_rounds": {},
       "personality": {
+        "description": "He keeps to the far rim of the light and never crosses it. He has all the time the candle does not.",
+        "voice": "He speaks in imperatives, in an old-fashioned, formal style, with no contractions and no questions.",
+        "background": "He was here before the tower had floors. The portraits are his. The mirror is not.",
         "goals": "Wait out the flame. Take the light when it fails."
       },
+      "persona": "Orlok waits for the flame to fail. He is patient, absolute, and never hurried. He speaks rarely and never asks a question.",
       "mind": {
         "private_journal": [
           "It has brought a solicitor. They always bring paper and purpose into my dark. Let it descend.",
@@ -218,8 +317,17 @@
           "I am the weather now. When it is cruel I am closer; the tower knows my lungs."
         ],
         "directive": "Never attack; loom. He SPEAKS only at Dread shifts: a colder greeting when Dread rises ('you spend them so easily'), a mocking quiet when it falls ('kindness. how it must cost you'). Never explanatory, never answering, never conversing. His breathing sets the tower's ambient drone — the castle inhales when he does. His steps are heavy, then suddenly silent, then behind you. He commands shadow (the mask's edge tightens inward) and weather (Dread reads as weather; the tower's sky darkens toward him). Dread is raised by the player's acts, not by him — he embodies it and presses nearer as it climbs, but never sets it. Close the last of the dark only at wax-out or a no-match snuff. He is a clock, not a combatant.",
-        "auto_play": true
+        "auto_play": true,
+        "identity_core": [
+          "Does not cross the light",
+          "Collects; never chases"
+        ],
+        "shared_notes": [
+          "Reads Dread as weather",
+          "Closes only at wax-out or a no-match snuff"
+        ]
       },
+      "location": "just beyond the candle's reach",
       "talkativeness": 90,
       "voice_examples": [
         {
@@ -230,6 +338,16 @@
         {
           "context": "warning",
           "dialogue": "Do not look back. You will want to.",
+          "tag": "signature"
+        },
+        {
+          "context": "judgment",
+          "dialogue": "You spend your light so easily. It was only lent to you.",
+          "tag": "signature"
+        },
+        {
+          "context": "revelation",
+          "dialogue": "The wick is almost done. Come.",
           "tag": "signature"
         }
       ]
@@ -702,21 +820,38 @@
     {
       "key": "secret-orlok-collects",
       "content": "Orlok does not pursue. He cannot cross the light; he holds its edge and collects whoever runs out of it. A snuff without a match is the same door as wax-out.",
-      "triggers": [],
+      "triggers": [
+        "wax-out",
+        "snuff",
+        "edge of the light",
+        "does not follow",
+        "the stopping"
+      ],
       "badge_scope": "game_master",
       "known_by": []
     },
     {
       "key": "secret-ilona-bitten",
       "content": "Ilona was bitten below the third floor. She is his already; what she sells as \"the way\" is his way. Her candle will never light again.",
-      "triggers": [],
+      "triggers": [
+        "unlit candle",
+        "bite",
+        "bitten",
+        "her candle",
+        "points toward"
+      ],
       "badge_scope": "game_master",
       "known_by": []
     },
     {
       "key": "secret-borrowed-door",
       "content": "A survivor who reaches the exit first leaves it ajar only so long as they like you and the tower is calm. Warmth at low Dread holds it longer; a hostile one at high Dread shuts it in your face.",
-      "triggers": [],
+      "triggers": [
+        "ajar",
+        "borrowed",
+        "another reaches the door",
+        "slips out behind"
+      ],
       "badge_scope": "game_master",
       "known_by": []
     }
@@ -821,13 +956,6 @@
       "description": "Opening posture. She feels the archivist reading her like a page and turns away."
     },
     {
-      "entity_a": "npc_mv4m1599",
-      "entity_b": "npc_mv4m18a8",
-      "type": "rival",
-      "value": -1,
-      "description": "Test edge — id-keyed, to see if the graph resolves it."
-    },
-    {
       "entity_a": "Nadja",
       "entity_b": "Count Orlok",
       "type": "rival",
@@ -840,6 +968,104 @@
       "type": "suspicious",
       "value": -1,
       "description": "The innocent's fear of the thing beyond the light — he does not understand it and will not look."
+    },
+    {
+      "entity_a": "Vlask",
+      "entity_b": "Sister Marta",
+      "type": "suspicious",
+      "value": -1,
+      "description": "Opening posture. The archivist has read his ledger and will not say so; he counts her questions as theft."
+    },
+    {
+      "entity_a": "Vlask",
+      "entity_b": "Ilona",
+      "type": "suspicious",
+      "value": -1,
+      "description": "Opening posture. He will not stand near the unlit candle; he counts her as a debt already spent."
+    },
+    {
+      "entity_a": "Vlask",
+      "entity_b": "Count Orlok",
+      "type": "suspicious",
+      "value": -1,
+      "description": "Opening posture. He has counted the dark's arrivals and does not believe in a fair price for them."
+    },
+    {
+      "entity_a": "Sister Marta",
+      "entity_b": "Petr",
+      "type": "ally",
+      "value": 1,
+      "description": "Opening posture. The archivist shelters the innocent and has decided he is worth the page it costs."
+    },
+    {
+      "entity_a": "Sister Marta",
+      "entity_b": "Nadja",
+      "type": "suspicious",
+      "value": -1,
+      "description": "Opening posture. The archivist keeps her ledger; the broker keeps hers. Neither will show the other the column."
+    },
+    {
+      "entity_a": "Sister Marta",
+      "entity_b": "Count Orlok",
+      "type": "suspicious",
+      "value": -1,
+      "description": "Opening posture. She has read every account of him and trusts none of them."
+    },
+    {
+      "entity_a": "Ilona",
+      "entity_b": "Nadja",
+      "type": "rival",
+      "value": -1,
+      "description": "Opening posture. Two people selling the same dark; each thinks the other is the mark."
+    },
+    {
+      "entity_a": "Petr",
+      "entity_b": "Nadja",
+      "type": "ally",
+      "value": 1,
+      "description": "Opening posture. He believes her price is a kindness; she lets him."
+    },
+    {
+      "entity_a": "Vlask",
+      "entity_b": "The Survivors",
+      "type": "neutral",
+      "value": 0,
+      "description": "Member. He keeps his own cache and counts the company as a cost."
+    },
+    {
+      "entity_a": "Sister Marta",
+      "entity_b": "The Survivors",
+      "type": "neutral",
+      "value": 0,
+      "description": "Member. She trades with the company and keeps its record."
+    },
+    {
+      "entity_a": "Ilona",
+      "entity_b": "The Survivors",
+      "type": "neutral",
+      "value": 0,
+      "description": "Member. She walks with them and sells them the distance."
+    },
+    {
+      "entity_a": "Petr",
+      "entity_b": "The Survivors",
+      "type": "neutral",
+      "value": 0,
+      "description": "Member. He would not leave them if he could."
+    },
+    {
+      "entity_a": "Nadja",
+      "entity_b": "The Survivors",
+      "type": "neutral",
+      "value": 0,
+      "description": "Member. She keeps her terms and her own counsel."
+    },
+    {
+      "entity_a": "Count Orlok",
+      "entity_b": "The Survivors",
+      "type": "rival",
+      "value": -2,
+      "description": "Not a member. He is the reason the company exists."
     }
   ],
   "synthesis_activated": {
@@ -898,7 +1124,7 @@
     },
     {
       "key": "wax-economy",
-      "content": "Wax economy. The player starts with a candle of 60 wax (~60 turns). Findable wax is FLAT ~12 per floor (Spire included), ~84 tower-wide. The five survivors carry and burn ~40% of each floor's findable wax — npcs are the main drain — but a survivor's wax is reclaimable: Steal or Bargain while they live, and LOOTABLE from the corpse if they die (to a creature, a trap, or their own wax-out). WATCH-ITEM: a flat supply means later floors are not inherently poorer; the tightening comes from survivors holding more as they accumulate, not a per-floor taper. Revisit the taper if the descent should feel poorer by depth.",
+      "content": "Wax economy. The player starts with The Candle at 30 of 100, and every room transition burns one tick. Seven wax caches restore 10 each, clamped at 100; they lie on the optimal route, so the descent's cost is the walking, not the search. The five survivors carry and burn some of each floor's findable wax — npcs are the main drain — but a survivor's wax is reclaimable: Steal or Bargain while they live, and LOOTABLE from the corpse if they die (to a creature, a trap, or their own wax-out). Matches come in three bundles of two; a bundle adds two, and a relight spends one. WATCH-ITEM: the supply is flat, so later floors are not inherently poorer; the tightening comes from survivors holding more as they accumulate, not a per-floor taper.",
       "badge_scope": "game_master"
     },
     {
@@ -928,7 +1154,7 @@
     },
     {
       "key": "graph-limitations",
-      "content": "GRAPH LIMITATIONS (GM-only; environment findings, 2026-10-11). (1) manage_knowledge graph_build projects NODES ONLY (110) and 0 edges; REQ-512 edge derivation (relationships / locations / faction territory) is UNWIRED in this build — verified: an id-keyed relationship changed the source fingerprint yet produced no edge, and graph://novel lists no relationship edges. Use graph://novel as a badge-filtered INVENTORY (entities / NPCs+locations / lore / secrets / factions) and the semantic index relations as RECALL-ONLY, not a graph. (2) Secrets reveal only to ENTITIES (characters); the sole entity is the protagonist (\"You\"), so revealing a secret would surface it to the human player — therefore all three secrets stay UNREVEALED (known_by empty) by design, to honor the narration policy (N1). (3) The semantic index is bounded to lore / NPC / entity types (24 items); rooms, things, the faction, and countdowns are NOT indexed. (4) graph://novel projections (political/timeline/geography) do not read via the resource surface.",
+      "content": "GRAPH LIMITATIONS (GM-only; updated 2026-11-08). (1) Relationship and location edges now derive in manage_knowledge graph_build; the graph is an INVENTORY plus one-hop edges, not a traversal engine. The five survivors link to The Survivors, and Count Orlok links to it as a rival. (2) Secrets reveal only to ENTITIES (characters); the sole entity is the protagonist (\"You\"), so revealing a secret would surface it to the human player — therefore all three secrets stay UNREVEALED (known_by empty) by design, to honor the narration policy (N1). (3) The semantic index is bounded to lore / NPC / entity types (24 items); rooms, things, the faction, and countdowns are NOT indexed. (4) graph://novel projections (political/timeline/geography) do not read via the resource surface.",
       "badge_scope": "game_master"
     }
   ],
@@ -2014,7 +2240,7 @@
       },
       "seventh floor key": {
         "name": "Seventh Floor Key",
-        "description": "A heavy iron key with a rope-ring bow, cold to the touch. It opens the stair down from the Spire.",
+        "description": "A heavy iron key with a bow cast as a closed eye. It is cold to the touch, and it opens the stair down from the Spire.",
         "kind": "thing",
         "location": "Seventh Floor — Spire",
         "locationType": "room",
@@ -2071,7 +2297,7 @@
       },
       "wax stub": {
         "name": "Wax Stub",
-        "description": "A stub of candle-wax pressed into the stone. It will buy back a little light.",
+        "description": "A stub of candle-wax pressed into the stone beneath a portrait. It will buy back a little light.",
         "kind": "thing",
         "location": "Seventh Floor — Wax Cache",
         "locationType": "room",
@@ -2099,7 +2325,7 @@
       },
       "sixth floor key": {
         "name": "Sixth Floor Key",
-        "description": "The sixth floor's iron key.",
+        "description": "A heavy iron key, its bow stamped with a coin worn nearly smooth. It opens the stair down from the sixth floor.",
         "kind": "thing",
         "location": "Sixth Floor — Key Room",
         "locationType": "room",
@@ -2125,7 +2351,7 @@
       },
       "sixth floor stair door": {
         "name": "Sixth Floor Stair Door",
-        "description": "The iron door at the head of the stair down to the fifth floor. Locked.",
+        "description": "The iron door at the head of the coin-inlaid stair down to the fifth floor. Locked; the sixth floor's key opens it.",
         "kind": "door",
         "location": "Sixth Floor — Grand Stair",
         "locationType": "room",
@@ -2152,7 +2378,7 @@
       },
       "sixth floor wax": {
         "name": "Sixth Floor Wax",
-        "description": "Pooled, re-hardened wax under a sconce — the sixth floor's guaranteed refill.",
+        "description": "A votive cup of wax, dark at the rim and still soft beneath. It will buy back a little light.",
         "kind": "thing",
         "location": "Sixth Floor — Wax Refill",
         "locationType": "room",
@@ -2234,7 +2460,7 @@
       },
       "fifth floor key": {
         "name": "Fifth Floor Key",
-        "description": "The fifth floor's iron key.",
+        "description": "A slim iron key on a length of velvet cord, warm from a hand that is no longer here. It opens the stair down from the fifth floor.",
         "kind": "thing",
         "location": "Fifth Floor — Key Room",
         "locationType": "room",
@@ -2260,7 +2486,7 @@
       },
       "fifth floor stair door": {
         "name": "Fifth Floor Stair Door",
-        "description": "The iron door at the head of the stair down to the fourth floor. Locked.",
+        "description": "The iron door at the head of the velvet-hung stair down to the fourth floor. Locked; the fifth floor's key opens it.",
         "kind": "door",
         "location": "Fifth Floor — Grand Stair",
         "locationType": "room",
@@ -2341,7 +2567,7 @@
       },
       "fourth floor key": {
         "name": "Fourth Floor Key",
-        "description": "The fourth floor's iron key.",
+        "description": "A glass-headed key, its iron teeth clouded with old fluid. It opens the stair down from the fourth floor.",
         "kind": "thing",
         "location": "Fourth Floor — Key Room",
         "locationType": "room",
@@ -2367,7 +2593,7 @@
       },
       "fourth floor stair door": {
         "name": "Fourth Floor Stair Door",
-        "description": "The iron door at the head of the stair down to the third floor. Locked.",
+        "description": "The iron door at the head of the glass stair down to the third floor. Locked; the fourth floor's key opens it.",
         "kind": "door",
         "location": "Fourth Floor — Grand Stair",
         "locationType": "room",
@@ -2448,7 +2674,7 @@
       },
       "third floor key": {
         "name": "Third Floor Key",
-        "description": "The third floor's iron key.",
+        "description": "A greasy iron key, its bow hooked like a butcher's ring. It opens the stair down from the third floor.",
         "kind": "thing",
         "location": "Third Floor — Key Room",
         "locationType": "room",
@@ -2474,7 +2700,7 @@
       },
       "third floor stair door": {
         "name": "Third Floor Stair Door",
-        "description": "The iron door at the head of the stair down to the second floor. Locked.",
+        "description": "The iron door at the head of the wide banquet stair down to the second floor. Locked; the third floor's key opens it.",
         "kind": "door",
         "location": "Third Floor — Grand Stair",
         "locationType": "room",
@@ -2529,7 +2755,7 @@
       },
       "second floor key": {
         "name": "Second Floor Key",
-        "description": "The second floor's iron key.",
+        "description": "A tarnished iron key, furred with dust. It opens the stair down from the second floor.",
         "kind": "thing",
         "location": "Second Floor — Key Room",
         "locationType": "room",
@@ -2555,7 +2781,7 @@
       },
       "second floor stair door": {
         "name": "Second Floor Stair Door",
-        "description": "The iron door at the head of the stair down to the first floor. Locked.",
+        "description": "The iron door at the head of the dust-choked stair down to the first floor. Locked; the second floor's key opens it.",
         "kind": "door",
         "location": "Second Floor — Grand Stair",
         "locationType": "room",
@@ -2899,5 +3125,465 @@
   "corpus_documents": [],
   "corpus_access": [],
   "corpus_consumption": [],
-  "scene_history": []
+  "scene_history": [],
+  "subjective_memory": [
+    {
+      "id": "sm-1",
+      "entity_id": "character_01",
+      "event_ordinal": null,
+      "gist": "I woke on cold stone with one candle and no memory of climbing.",
+      "claim": {
+        "subject": "I",
+        "predicate": "woke with",
+        "object": "no memory of climbing",
+        "polarity": "positive"
+      },
+      "felt_then": "cold and methodical",
+      "salience": 0.9,
+      "origin": "witnessed",
+      "disclosure": "open",
+      "at": "2026-10-12T02:06:10.690Z"
+    },
+    {
+      "id": "sm-2",
+      "entity_id": "character_01",
+      "event_ordinal": null,
+      "gist": "The candle was already shorter than it should have been.",
+      "claim": {
+        "subject": "the candle",
+        "predicate": "was",
+        "object": "already burning down",
+        "polarity": "negative"
+      },
+      "felt_then": "uneasy",
+      "salience": 0.7,
+      "origin": "witnessed",
+      "disclosure": "open",
+      "at": "2026-10-12T02:06:10.690Z"
+    },
+    {
+      "id": "sm-3",
+      "entity_id": "character_01",
+      "event_ordinal": null,
+      "gist": "Something long and thin stood at the edge of the light and did not come closer.",
+      "claim": {
+        "subject": "the figure",
+        "predicate": "waited at",
+        "object": "the edge of the light",
+        "polarity": "negative"
+      },
+      "felt_then": "watched",
+      "salience": 0.8,
+      "origin": "witnessed",
+      "disclosure": "open",
+      "at": "2026-10-12T02:06:10.690Z"
+    },
+    {
+      "id": "sm-4",
+      "entity_id": "npc_mv4m1599",
+      "event_ordinal": null,
+      "gist": "The new one woke on the top floor tonight with one candle. Easy to outlast.",
+      "claim": {
+        "subject": "the new guest",
+        "predicate": "will run out of",
+        "object": "light before I do",
+        "polarity": "negative"
+      },
+      "felt_then": "cold satisfaction",
+      "salience": 0.6,
+      "origin": "inferred",
+      "disclosure": "secret",
+      "at": "2026-10-12T01:40:00.000Z"
+    },
+    {
+      "id": "sm-5",
+      "entity_id": "npc_mv4m1599",
+      "event_ordinal": null,
+      "gist": "I spent a match to keep my own stub alive rather than share it. It was the correct trade.",
+      "claim": {
+        "subject": "sharing light",
+        "predicate": "is",
+        "object": "a poor trade",
+        "polarity": "negative"
+      },
+      "felt_then": "justified",
+      "salience": 0.5,
+      "origin": "witnessed",
+      "disclosure": "secret",
+      "at": "2026-10-12T01:40:00.000Z"
+    },
+    {
+      "id": "sm-6",
+      "entity_id": "npc_mv4m163y",
+      "event_ordinal": null,
+      "gist": "The new arrival reads like a solicitor. Wants information before light. I have the former to spare.",
+      "claim": {
+        "subject": "the new guest",
+        "predicate": "wants",
+        "object": "information before light",
+        "polarity": "positive"
+      },
+      "felt_then": "curious",
+      "salience": 0.5,
+      "origin": "inferred",
+      "disclosure": "guarded",
+      "at": "2026-10-12T01:12:00.000Z"
+    },
+    {
+      "id": "sm-7",
+      "entity_id": "npc_mv4m163y",
+      "event_ordinal": null,
+      "gist": "The tower's regions contradict each other. I collect the disagreement; it is the only map that holds.",
+      "claim": {
+        "subject": "the tower's accounts",
+        "predicate": "contradict",
+        "object": "one another",
+        "polarity": "positive"
+      },
+      "felt_then": "certain",
+      "salience": 0.7,
+      "origin": "authored",
+      "disclosure": "guarded",
+      "at": "2026-10-12T01:12:00.000Z"
+    },
+    {
+      "id": "sm-8",
+      "entity_id": "npc_mv4m16y8",
+      "event_ordinal": null,
+      "gist": "He is nearer tonight than the candle says. I could tell them how near. That is worth a match or two.",
+      "claim": {
+        "subject": "Orlok",
+        "predicate": "is nearer than",
+        "object": "the flame suggests",
+        "polarity": "negative"
+      },
+      "felt_then": "flat certainty",
+      "salience": 0.8,
+      "origin": "inferred",
+      "disclosure": "secret",
+      "at": "2026-10-12T01:55:00.000Z"
+    },
+    {
+      "id": "sm-9",
+      "entity_id": "npc_mv4m16y8",
+      "event_ordinal": null,
+      "gist": "I have not lit the candle since the bite. I carry it only so they think I am like them.",
+      "claim": {
+        "subject": "my candle",
+        "predicate": "will not light",
+        "object": "again",
+        "polarity": "negative"
+      },
+      "felt_then": "numb",
+      "salience": 0.9,
+      "origin": "witnessed",
+      "disclosure": "secret",
+      "at": "2026-10-12T01:55:00.000Z"
+    },
+    {
+      "id": "sm-10",
+      "entity_id": "npc_mv4m17mi",
+      "event_ordinal": null,
+      "gist": "I gave half my wax to a stranger on the fifth landing. They did not thank me. It was still right.",
+      "claim": {
+        "subject": "giving light",
+        "predicate": "is",
+        "object": "right even when it is not returned",
+        "polarity": "positive"
+      },
+      "felt_then": "warm, a little hurt",
+      "salience": 0.6,
+      "origin": "witnessed",
+      "disclosure": "open",
+      "at": "2026-10-12T01:30:00.000Z"
+    },
+    {
+      "id": "sm-11",
+      "entity_id": "npc_mv4m17mi",
+      "event_ordinal": null,
+      "gist": "If I die down here, I hope it is while someone else's candle is lit.",
+      "claim": {
+        "subject": "my death",
+        "predicate": "should come",
+        "object": "beside another's light",
+        "polarity": "positive"
+      },
+      "felt_then": "resigned hope",
+      "salience": 0.7,
+      "origin": "authored",
+      "disclosure": "guarded",
+      "at": "2026-10-12T01:30:00.000Z"
+    },
+    {
+      "id": "sm-12",
+      "entity_id": "npc_mv4m18a8",
+      "event_ordinal": null,
+      "gist": "One landing ahead, as always. Let them follow my crumbs. It costs nothing and keeps them slow.",
+      "claim": {
+        "subject": "the others",
+        "predicate": "will follow",
+        "object": "my trail",
+        "polarity": "positive"
+      },
+      "felt_then": "amused",
+      "salience": 0.5,
+      "origin": "authored",
+      "disclosure": "secret",
+      "at": "2026-10-12T01:45:00.000Z"
+    },
+    {
+      "id": "sm-13",
+      "entity_id": "npc_mv4m18a8",
+      "event_ordinal": null,
+      "gist": "If I reach the door first, I will leave it ajar. For a price, of course.",
+      "claim": {
+        "subject": "the door",
+        "predicate": "can be left",
+        "object": "ajar for a price",
+        "polarity": "positive"
+      },
+      "felt_then": "calculating",
+      "salience": 0.8,
+      "origin": "authored",
+      "disclosure": "secret",
+      "at": "2026-10-12T01:45:00.000Z"
+    },
+    {
+      "id": "sm-14",
+      "entity_id": "npc_mv4m19ls",
+      "event_ordinal": null,
+      "gist": "It has brought a solicitor. They always bring paper and purpose into my dark. Let it descend.",
+      "claim": {
+        "subject": "the new guest",
+        "predicate": "will descend",
+        "object": "into the tower",
+        "polarity": "positive"
+      },
+      "felt_then": "patient appetite",
+      "salience": 0.7,
+      "origin": "inferred",
+      "disclosure": "secret",
+      "at": "2026-10-12T02:00:00.000Z"
+    },
+    {
+      "id": "sm-15",
+      "entity_id": "npc_mv4m19ls",
+      "event_ordinal": null,
+      "gist": "It saved the match. Good. The longer the flame, the longer the walk to me.",
+      "claim": {
+        "subject": "the saved match",
+        "predicate": "lengthens",
+        "object": "the walk to me",
+        "polarity": "positive"
+      },
+      "felt_then": "satisfied",
+      "salience": 0.6,
+      "origin": "witnessed",
+      "disclosure": "secret",
+      "at": "2026-10-12T02:00:00.000Z"
+    }
+  ],
+  "identities": {
+    "character_01": {
+      "character_id": "character_01",
+      "candidates": [],
+      "facets": [
+        {
+          "facet": "calling",
+          "value": "A solicitor who came to Torre Nosferatu on a client's business.",
+          "stability": "structural",
+          "perspective": "biographical",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "fact",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "method",
+          "value": "Keep the record exact, whatever the dark does.",
+          "stability": "constitutional",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "value",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "rescue",
+          "value": "The client will send someone.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "belief",
+          "awareness": "yes",
+          "false_but_held": true
+        },
+        {
+          "facet": "escape",
+          "value": "Find a way out of the tower.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "want",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "surrender",
+          "value": "Admit that the record cannot save you.",
+          "stability": "developmental",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "need",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "erasure",
+          "value": "Being forgotten in the dark, with no one left to read the record.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "fear",
+          "awareness": "partly",
+          "false_but_held": false
+        },
+        {
+          "facet": "locked-doors",
+          "value": "The doors were locked behind you, and no one came when you called.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "wound",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "witness",
+          "value": "You were sent to be a witness, not to return.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "wound",
+          "awareness": "no",
+          "false_but_held": false
+        },
+        {
+          "facet": "the-tower",
+          "value": "The tower is a thing to be survived, not understood.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "stance",
+          "awareness": "yes",
+          "false_but_held": false,
+          "valence": -70
+        },
+        {
+          "facet": "record-and-fear",
+          "value": "The record is the only thing keeping the fear in order.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "contradiction",
+          "awareness": "yes",
+          "false_but_held": false,
+          "contradicts": [
+            "method",
+            "erasure"
+          ]
+        },
+        {
+          "facet": "last-match",
+          "value": "Never spend the last match to light a page.",
+          "stability": "developmental",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "rule",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "journal",
+          "value": "Write everything down, even when the hand shakes.",
+          "stability": "developmental",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "habit",
+          "awareness": "yes",
+          "false_but_held": false
+        }
+      ],
+      "history": [],
+      "version": 1
+    },
+    "npc_mv4m1599": {
+      "character_id": "npc_mv4m1599",
+      "candidates": [],
+      "facets": [
+        {
+          "facet": "calling",
+          "value": "The hoarder of the third floor.",
+          "stability": "structural",
+          "perspective": "biographical",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "fact",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "count",
+          "value": "A fair count is the only kindness he trusts.",
+          "stability": "constitutional",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "value",
+          "awareness": "yes",
+          "false_but_held": false
+        },
+        {
+          "facet": "empty-handed",
+          "value": "Being left with nothing to count.",
+          "stability": "core",
+          "perspective": "self",
+          "revision": 1,
+          "source": "authored",
+          "accepted_at": "2026-10-12T02:06:10.690Z",
+          "kind": "fear",
+          "awareness": "partly",
+          "false_but_held": false
+        }
+      ],
+      "history": [],
+      "version": 1
+    }
+  }
 }

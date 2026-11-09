@@ -32,9 +32,9 @@ interface ArtifactTool {
 const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
-const PREDICATE_TOOLS = anchor("holonovel/src/index.ts", 161, "TOOL_ANNOTATIONS");
-const PREDICATE_RESOURCES = anchor("holonovel/src/index.ts", 9837, "registerResource");
-const PREDICATE_PROMPTS = anchor("holonovel/src/index.ts", 13338, "prompt");
+const PREDICATE_TOOLS = anchor("holonovel/src/index.ts", 162, "TOOL_ANNOTATIONS");
+const PREDICATE_RESOURCES = anchor("holonovel/src/index.ts", 9982, "registerResource");
+const PREDICATE_PROMPTS = anchor("holonovel/src/index.ts", 13529, "prompt");
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");
@@ -167,7 +167,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
         `${scopedNames.length}/${serverNames.length} tools; outside=${outside.slice(0, 3).join(", ") || "none"}; manage_npc=${scopedNames.includes("manage_npc")}`,
         step,
         ["REQ-570"],
-        anchor("holonovel/src/index.ts", 1399, "surfaceProfile"),
+        anchor("holonovel/src/index.ts", 1471, "surfaceProfile"),
       );
     } finally {
       await scoped.close();
@@ -189,7 +189,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       classified.prefix === "[?]" ? `negative probe returned unclassified output: ${probe.text.slice(0, 80)}` : `negative probe returned ${classified.prefix}`,
       step,
       ["REQ-001", "REQ-002"],
-      anchor("holonovel/src/index.ts", 1952, "err"),
+      anchor("holonovel/src/index.ts", 2564, "err"),
     );
   } finally {
     await client.close();

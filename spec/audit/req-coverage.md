@@ -439,14 +439,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-470 | Single-value predicates | 5.25 Belief and Evidence | C | T560 | — |
 | REQ-471 | Belief branch inheritance | 5.25 Belief and Evidence | C | T561 | — |
 | REQ-472 | Belief visibility and badge gating | 5.25 Belief and Evidence | C | T562 | — |
-| REQ-473 | Identity candidate staging | 5.26 Character Identity | C | T563, T631 | — |
+| REQ-473 | Identity candidate staging | 5.26 Character Identity | C | T563, T631, T771 | — |
 | REQ-474 | Identity stability classes | 5.26 Character Identity | C | T564 | — |
 | REQ-475 | Identity perspective | 5.26 Character Identity | C | T565 | — |
 | REQ-476 | Compiled identity kernel | 5.26 Character Identity | C | T566 | — |
 | REQ-477 | Identity write-authority isolation | 5.26 Character Identity | C | T567 | — |
 | REQ-478 | Identity revision | 5.26 Character Identity | C | T568 | — |
 | REQ-479 | Character-card bootstrap exclusions | 5.26 Character Identity | C | T569, T631 | — |
-| REQ-480 | Identity kernel exposure | 5.26 Character Identity | C | T570 | — |
+| REQ-480 | Identity kernel exposure | 5.26 Character Identity | C | T570, T771 | — |
 | REQ-481 | Identity visibility and badge gating | 5.26 Character Identity | C | T571 | — |
 | REQ-482 | Developmental proposal-only | 5.26 Character Identity | C | T572 | — |
 | REQ-483 | Identity source provenance | 5.26 Character Identity | C | T573 | — |
@@ -598,7 +598,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-640 | Facet temporal bounds | 5.26 Character Identity | C | T762 | — |
 | REQ-641 | Owned contradiction | 5.26 Character Identity | C | T763 | — |
 | REQ-642 | Who-they-are renderer | 5.26 Character Identity | C | T764 | — |
-| REQ-643 | Identity Player projection | 5.26 Character Identity | C | T765 | — |
+| REQ-643 | Identity Player projection | 5.26 Character Identity | C | T765, T771 | — |
 | REQ-644 | Deterministic recall score | 5.35 Subjective Memory | C | T766 | — |
 | REQ-645 | Budgeted section assembly | 5.35 Subjective Memory | C | T767 | — |
 | REQ-646 | Evicted-source reporting | 5.35 Subjective Memory | C | T768 | — |

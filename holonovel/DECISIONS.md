@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 27,953 tokens; standard 24,355; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 27,955 tokens; standard 24,357; small 1,149; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,52 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Relationship change marker and disposition coupling — 2026-11-08
+
+- **D1 — The marker is scene-scoped in memory.** `relationshipMarkers` is a
+  module-level map keyed by Novel slug, cleared on every scene transition,
+  like the pacing session. Rejected: a persisted Novel field, which would need
+  a §7.7 class contract and the REQ-240a/241a/334b enumerations for a transient
+  briefing line. A restart mid-scene drops it. (REQ-236b)
+- **D2 — The marker is a GM advisory.** The Player briefing does not render the
+  `narrative_threads` section in this build; the marker never reaches the
+  Player. The helper retains the active-entity filter for a future Player
+  section. (REQ-236b, REQ-236a)
+- **D3 — P48's reachable target is suspicious.** A flip to `rival` shifts each
+  involved NPC one step toward `suspicious`; a more-hostile NPC is not
+  softened. `hostile` is not a valid relationship type, so no path exists.
+  (P48, REQ-075)
+- **D4 — Marker transitions follow REQ-236b exactly.** ally↔rival,
+  ally↔suspicious, rival↔suspicious, and any change involving neutral; a new
+  row's previous type reads neutral. (REQ-236b)
+- **D5 — The set and any disposition shift are audited.** `relationship_set`
+  and `relationship_disposition` entries. (REQ-040a)
+
+### Relationship resolution and graph edges — 2026-11-08
+
+- **D1 — Names and ids are equivalent on read.** A relationship endpoint
+  resolves by id or display name, case-insensitively, in Novel entity → NPC →
+  faction order. Storage keeps the supplied token; display always resolves to
+  the party name. Rejected: rewriting every row to ids on load. (REQ-236a,
+  REQ-286)
+- **D2 — Dedupe by ordered canonical pair.** `manage_relationship (action:
+  set)` updates an existing row when the resolved ordered pair matches, and
+  every read surface keeps the first row per pair. This closes the duplicate
+  created when the same pair was written once by name and once by id.
+  (REQ-236a)
+- **D3 — The graph derives edges for any resolvable party pair.** A
+  relationship produces a `relates_to` edge when both ends resolve to a
+  character, NPC, or faction node. REQ-512's "including relationship edges
+  between characters" is a non-exhaustive minimum. (REQ-512)
+- **D4 — Room names resolve case-insensitively in the graph source set.**
+  `current_room`, `location`/`room_id`, and faction territory resolve to the
+  canonical room key before projection, so capitalized display names produce
+  location edges. (REQ-512)
+- **Pre-existing gap.** REQ-236b's relationship-change marker and P48's
+  relationship-to-disposition coupling are not implemented in this build.
+  This increment does not change that; it records the gap for the next review.
+  (REQ-236b, P48)
 
 ### Subjective recall quality and retention — 2026-11-08
 

@@ -36,6 +36,12 @@ async function makeCharacter(p: any, name: string): Promise<string> {
   if (!m) throw new Error("could not determine character id from: " + r.slice(0, 200));
   return m[1];
 }
+async function makeNovelCharacter(p: any, name: string): Promise<string> {
+  const r = await call(p, "manage_character", { action: "create", name });
+  const m = r.match(/Entity id (\S+?)\./) || r.match(/created as (\S+?)\./);
+  if (!m) throw new Error("could not determine Novel entity id from: " + r.slice(0, 200));
+  return m[1];
+}
 async function stage(p: any, character_id: string, facet: string, value: string, extra: any = {}): Promise<string> {
   const r = await call(p, "manage_identity", { action: "stage", character_id, facet, value, ...extra });
   const m = r.match(/candidate (idc-\d+)/);
@@ -422,6 +428,55 @@ async function main() {
     delete process.env.TTRPG_IDENTITY_AUTO_ACCEPT_AUTHORED;
     assert(staged.facets.length === 0, "staging-only bootstrap created facets: " + JSON.stringify(staged.facets));
     assert(staged.candidates.every((c: any) => c.status === "pending"), "staging-only bootstrap accepted candidates: " + JSON.stringify(staged.candidates));
+  });
+
+  // ── T771: Novel-tier identity (REQ-473, REQ-480, REQ-643) ────────────
+  await test("T771/REQ-473,REQ-480,REQ-643: a Novel entity and an NPC carry identity without a roster entry", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "novel-id" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const hero = await makeNovelCharacter(p, "Novel Hero");
+    const c1 = await stage(p, hero, "calling", "A surveyor of the tower", { kind: "fact" });
+    await call(p, "manage_identity", { action: "accept", character_id: hero, candidate_id: c1 });
+    const snap = await snapshotIdentity(p, hero);
+    assert(kernelFacets(snap).some((f: any) => f.facet === "calling"), "Novel entity facet missing from the kernel");
+    const b = await briefing(p);
+    assert(b.includes("### Who They Are") && b.includes("A surveyor of the tower"), "who-they-are did not render the Novel facet");
+
+    const npcOut = await call(p, "manage_npc", { action: "create", name: "Kestrel" });
+    const npcId = npcOut.match(/\(([^)]+)\)/)?.[1] ?? "npc_1";
+    const c2 = await stage(p, npcId, "fear", "Being counted", { kind: "fear" });
+    await call(p, "manage_identity", { action: "accept", character_id: npcId, candidate_id: c2 });
+    const npcSnap = await snapshotIdentity(p, npcId);
+    assert(kernelFacets(npcSnap).some((f: any) => f.facet === "fear"), "NPC facet missing from the kernel");
+
+    await call(p, "manage_character", { action: "set_active", entity_id: hero });
+    await call(p, "set_badge", { badge: "player" });
+    const foreign = await call(p, "manage_identity", { action: "list", character_id: npcId });
+    assert(foreign.includes("[FORBIDDEN]"), "Player read of a foreign NPC identity was not refused");
+    const foreignRes = await readRes(p, `identity://${npcId}`);
+    assert(String(foreignRes).includes("FORBIDDEN"), "Player resource read of a foreign NPC identity was not refused");
+    const own = await snapshotIdentity(p, hero);
+    assert(kernelFacets(own).some((f: any) => f.facet === "calling"), "Player own snapshot missing the Novel facet");
+    await call(p, "set_badge", { badge: "game_master" });
+
+    const c3 = await stage(p, hero, "method", "Precision");
+    await call(p, "manage_identity", { action: "accept", character_id: hero, candidate_id: c3 });
+    const beforeUndo = await snapshotIdentity(p, hero);
+    assert(kernelFacets(beforeUndo).length === 2, "second accept did not add a facet");
+    await call(p, "manage_history", { action: "undo" });
+    const afterUndo = await snapshotIdentity(p, hero);
+    assert(kernelFacets(afterUndo).length === 1, "undo did not revert the Novel-tier accept");
+
+    await kill(p);
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume", slug: "novel-id" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    const persisted = await snapshotIdentity(p2, hero);
+    assert(kernelFacets(persisted).some((f: any) => f.facet === "calling"), "Novel-tier identity did not persist");
+    const persistedNpc = await snapshotIdentity(p2, npcId);
+    assert(kernelFacets(persistedNpc).some((f: any) => f.facet === "fear"), "NPC identity did not persist");
+    await kill(p2);
   });
 
   harnessComplete();

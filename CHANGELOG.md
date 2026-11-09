@@ -1,5 +1,66 @@
 # Changelog
 
+## 2026-11-08 — Novel-tier identity for entities and NPCs
+
+- Identity resolves in two tiers: a Novel-level `identities` map for Novel
+  entities and NPCs, with the roster baseline as a read fallback; the first
+  Novel-tier mutation copies the baseline into the Novel and shadows it.
+- `manage_identity` and `identity://<id>` accept Novel entities and NPCs;
+  Novel-tier mutations take a Novel snapshot and are undoable, while roster
+  mutations keep `saveRoster`.
+- The starter's protagonist carries 12 authored facets and Vlask carries 3;
+  `### Who They Are` renders from the first GM/Player briefing, with the
+  Player projection omitting unaware facets and clearing the false-belief mark.
+- The empty identity map is omitted from serialization, so existing Novels and
+  old checkpoints keep their state hashes; a populated map joins the hash and
+  the clone/checkpoint/archive payloads.
+- §5.26, §7.7.0, REQ-473, REQ-240a/241a/334b, and T771 record the two tiers;
+  tool definitions, surface budget, and contract fingerprints regenerated.
+- Fixed a pre-existing `campaign_memory: {}` default that crashed the starter's
+  cancel-path briefing, and repointed the drifted Holosuite anchors.
+
+## 2026-11-08 — Torre Nosferatu content: cast, memory, and item texture
+
+- The six NPCs gain a persona, full personality fields, GM-only identity cores
+  and shared notes, and four voice examples each; the prose is rewritten for
+  clarity and the novel's gothic register.
+- Fifteen subjective-memory records seed the opening for the protagonist and
+  the cast, with open/guarded/secret disclosure; the three secret-reveal
+  trigger lists are filled.
+- Seven keys, seven stair doors, and the two thinnest wax caches now carry
+  floor-specific descriptions instead of one-line templates.
+- The GM-only wax-economy note and the Playing Torre Nosferatu wiki page now
+  match the shipped 94-room, 17-lore, three-countdown, 30/100-Candle content.
+
+## 2026-11-08 — Relationship change marker and disposition coupling
+
+- `manage_relationship (set)` now injects the REQ-236b
+  `Relationship changed: A and B are now T.` marker into the GM
+  `narrative_threads` section for ally↔rival, ally↔suspicious,
+  rival↔suspicious, and any change involving neutral; the marker is
+  scene-scoped and clears on the next scene transition.
+- A flip to `rival` shifts each involved NPC one step toward `suspicious`
+  without softening a more-hostile NPC (P48); the set and the shift are
+  audited.
+- The marker is GM-only in this build because the Player briefing does not
+  render `narrative_threads`; the helper keeps the active-entity filter for a
+  future Player section.
+
+## 2026-11-08 — Social graph: relationship resolution and Torre cast links
+
+- Relationships resolve by display name or id across `manage_relationship`
+  (get/set), the knowledge-state briefing, the character sheet, and intent
+  suggestions; `set` dedupes by the ordered canonical pair and read surfaces
+  drop the id-keyed duplicate (REQ-236a, REQ-286).
+- The knowledge graph derives `relates_to` edges for character, NPC, and
+  faction pairs and resolves room names case-insensitively for location edges
+  (REQ-512).
+- Torre Nosferatu gains the eight missing cast pairs and six faction links
+  (30 rows), removes the id-keyed duplicate, and refreshes the graph note.
+- `relationships.ts` is the single read seam; `test-narrative`, `test-graph`,
+  and `test-starter-novel` cover name/id resolution, cross-key dedupe, the
+  sheet section, and NPC/faction edges.
+
 ## 2026-11-08 — Review remediation: memory, identity, and evidence anchors
 
 - The Player subjective-memory brief renders an `open` record's claim

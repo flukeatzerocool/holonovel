@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
   "tool_count": 37,
-  "tools_list_bytes": 111811,
+  "tools_list_bytes": 111820,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 111811,
-        "tokens": 27953
+        "bytes": 111820,
+        "tokens": 27955
       },
       "standard": {
         "tools": 37,
-        "bytes": 97418,
-        "tokens": 24355
+        "bytes": 97427,
+        "tokens": 24357
       },
       "small": {
         "tools": 6,
@@ -1084,8 +1084,8 @@
     {
       "name": "manage_identity",
       "title": "Identity Management",
-      "description": "Manage a roster character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. stage imports or authors identity material with a psyche kind, self-awareness, optional false-but-held belief, valence, date bounds, and contradiction links; accept replaces a facet, retains the displaced value internally, and bumps the identity version; reject marks a candidate rejected without touching accepted facets; revert restores the most recently displaced facet. bootstrap seeds from a character card; accept's perspective defaults to the candidate's stored perspective. Mutation persists the roster and is audited; list and snapshot are read-only, and a Player badge reads its own character's projected kernel. Use when: staging psyche facets, accepting, rejecting, reverting, or reading identity. Do NOT use when: recording what a character knows or believes — use manage_belief; editing narrative personality — use manage_character (action: personality).",
-      "description_bytes": 989,
+      "description": "Manage a character's durable identity: staged candidates, accepted facets, and the versioned compiled kernel. A Novel entity or NPC uses the Novel-tier identity map; a roster-only character uses its roster baseline. stage imports or authors identity material with a psyche kind, self-awareness, optional false-but-held belief, valence, date bounds, and contradiction links; accept replaces a facet, retains the displaced value, and bumps the version; reject marks a candidate rejected; revert restores the most recently displaced facet; bootstrap seeds from a character card. Mutation persists to the owning tier, is audited, and a Novel-tier mutation is undoable; list and snapshot are read-only, and a Player reads its own projected kernel. Use when: staging, accepting, rejecting, reverting, or reading identity. Do NOT use when: recording knowledge or belief — use manage_belief; editing narrative personality — use manage_character (action: personality).",
+      "description_bytes": 963,
       "action_enum": [
         "stage",
         "accept",
@@ -1104,7 +1104,7 @@
         "awareness": "Whether the character knows this about itself (stage; default yes).",
         "candidate_id": "Identity candidate id (accept/reject).",
         "card": "Character-card fields to stage (bootstrap).",
-        "character_id": "Roster character id.",
+        "character_id": "Character id: a Novel entity, NPC, or roster character.",
         "contradicts": "Facet keys a contradiction facet holds in tension (stage).",
         "facet": "Identity facet key, e.g. name or calling (stage).",
         "false_but_held": "Belief kind only: the character holds it and it is false (stage).",
@@ -1141,8 +1141,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3732,
-        "descriptionBytes": 989
+        "definitionBytes": 3741,
+        "descriptionBytes": 963
       },
       "category": "",
       "gate": ""

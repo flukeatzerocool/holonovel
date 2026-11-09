@@ -150,6 +150,25 @@ export function normalizeIdentityState(state: IdentityState): IdentityState {
   return state;
 }
 
+// REQ-473 — a Novel-tier identity map keyed by subject id (Novel entity or
+// NPC). Missing arrays and versions default so a hand-authored Novel source
+// and an older save both load. Non-object input yields an empty map.
+export function normalizeIdentityMap(raw: unknown): Record<string, IdentityState> {
+  const out: Record<string, IdentityState> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [id, value] of Object.entries(raw as Record<string, any>)) {
+    const state = value && typeof value === "object" ? value : {};
+    out[id] = normalizeIdentityState({
+      character_id: typeof state.character_id === "string" ? state.character_id : id,
+      candidates: Array.isArray(state.candidates) ? state.candidates : [],
+      facets: Array.isArray(state.facets) ? state.facets : [],
+      history: Array.isArray(state.history) ? state.history : [],
+      version: typeof state.version === "number" ? state.version : 0,
+    });
+  }
+  return out;
+}
+
 // REQ-479 — character-card bootstrap stages candidates but excludes the
 // scenario and first-message fields, which describe play, not identity.
 const EXCLUDED_CARD_FIELDS = new Set(["scenario", "first_mes", "first_message", "mes_example", "example_dialogue"]);

@@ -367,8 +367,9 @@ the compression ladder travels with clone, checkpoint, and archive and is
 preserved across undo and restore.
 
 **Character identity.** Character identity state (REQ-473–483, 636–643) — the
-staged candidates, accepted facets, and compiled kernel — is Roster-tier,
-permanent state attached to roster baselines. Every candidate and facet
+staged candidates, accepted facets, and compiled kernel — is durable state in
+two tiers: attached to roster baselines for roster characters, and carried in a
+Novel-tier identity map for Novel entities and NPCs. Every candidate and facet
 carries a psyche kind drawn from the catalog value, belief, want, need, fear,
 wound, stance, taste, habit, contradiction, rule, and fact, where fact is the
 default for an authored identity fact; the renderer's facet order is that
@@ -379,7 +380,9 @@ taste, a start and an end date, and the facet keys of an owned contradiction.
 A tension exists while a contradiction facet's named ends are both current
 facets. Identity is self-contained: it mutates only through `manage_identity`,
 does not couple to any Novel property group, and is preserved with roster
-baselines wherever roster references are preserved (REQ-240a). A future
+baselines and with the Novel for clone, checkpoint, and archive (REQ-240a,
+REQ-241a, REQ-334b). A Novel-tier identity shadows the roster baseline for the
+same id; a Novel-tier mutation persists to the Novel and is undoable. A future
 identity surface that defines cross-property effects SHALL register as a
 property group with archetypes and coupling rows per REQ-370.
 

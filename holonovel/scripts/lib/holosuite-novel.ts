@@ -28,12 +28,12 @@ import type { TierResult } from "./eval-schema.js";
 const P_STRUCTURE = anchor("holonovel/scripts/lib/starter-novel.ts", 54, "buildStarterArtifact");
 const P_LOCK = anchor("holonovel/src/world/parser.ts", 292, "door");
 const P_HASH = anchor("holonovel/src/core/state-hash.ts", 59, "stateHash");
-const P_CONTEXT = anchor("holonovel/src/index.ts", 9445, "context_report");
-const P_VISIBILITY = anchor("holonovel/src/index.ts", 9466, "visibility_check");
-const P_KNOWLEDGE = anchor("holonovel/src/index.ts", 7855, "knowledge_query");
-const P_INTEGRITY = anchor("holonovel/src/index.ts", 10020, "computeBundleIntegrity");
-const P_RESTART = anchor("holonovel/src/core/state.ts", 2344, "saveNovel");
-const P_NARRATOR = anchor("holonovel/src/index.ts", 9240, "recap");
+const P_CONTEXT = anchor("holonovel/src/index.ts", 9590, "context_report");
+const P_VISIBILITY = anchor("holonovel/src/index.ts", 9611, "visibility_check");
+const P_KNOWLEDGE = anchor("holonovel/src/index.ts", 7950, "knowledge_query");
+const P_INTEGRITY = anchor("holonovel/src/index.ts", 10165, "computeBundleIntegrity");
+const P_RESTART = anchor("holonovel/src/core/state.ts", 2350, "saveNovel");
+const P_NARRATOR = anchor("holonovel/src/index.ts", 9385, "recap");
 
 const NOVEL_NAME = "Torre Nosferatu";
 // Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the

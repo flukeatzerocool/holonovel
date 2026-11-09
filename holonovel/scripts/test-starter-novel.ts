@@ -20,6 +20,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { StateManager } from "../src/core/state.js";
 import { roomIsLit } from "../src/world/parser.js";
+import { relationshipPairKey, resolveRelationshipParty } from "../src/core/relationships.js";
 import { bootServer } from "./lib/mcp-client.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -119,6 +120,21 @@ async function main(): Promise<void> {
       const visibility = await c.call("run_command", { action: "visibility", target: "Your Candle" });
       assert(!visibility.isError, `visibility failed: ${visibility.text}`);
       assert(visibility.text.includes('"can_see": true'), "the lit Spire is visible to the active entity");
+
+      const cancel = await c.call("respond_decision", { decision: "present_choices", option: "cancel" });
+      assert(!cancel.isError, `cancel failed: ${cancel.text}`);
+      const gmSet = await c.call("set_badge", { badge: "game_master" });
+      assert(!gmSet.isError, `GM badge failed: ${gmSet.text}`);
+      const gm = await c.getPrompt("badge_briefing");
+      assert(gm.includes("### Who They Are"), "who-they-are missing from the GM briefing");
+      assert(gm.includes("A solicitor who came to Torre Nosferatu"), "authored calling facet missing");
+      assert(gm.includes("You were sent to be a witness"), "unaware facet missing from the GM render");
+      const playerSet = await c.call("set_badge", { badge: "player" });
+      assert(!playerSet.isError, `Player badge failed: ${playerSet.text}`);
+      const player = await c.getPrompt("badge_briefing");
+      assert(player.includes("Keep the record exact"), "aware facet missing from the Player render");
+      assert(!player.includes("You were sent to be a witness"), "unaware facet leaked to the Player render");
+      await c.call("set_badge", { badge: "game_master" });
     } finally {
       await c.close();
     }
@@ -181,6 +197,42 @@ async function main(): Promise<void> {
       assert(talkative.length >= 3, "starter NPCs carry talkativeness");
       const identity = [...novel!.npcs.values()].filter((n) => ((n as any).mind?.identity_core?.length ?? 0) > 0);
       assert(identity.length >= 2, "starter NPCs carry identity cores");
+
+      const relationships = novel!.relationships;
+      assert(relationships.length === 30, `30 relationships, got ${relationships.length}`);
+      const pairKeys = new Set<string>();
+      for (const rel of relationships) {
+        assert(resolveRelationshipParty(novel!, rel.entity_a), `relationship source resolves: ${rel.entity_a}`);
+        assert(resolveRelationshipParty(novel!, rel.entity_b), `relationship target resolves: ${rel.entity_b}`);
+        const key = relationshipPairKey(novel!, rel);
+        assert(!pairKeys.has(key), `duplicate relationship pair: ${rel.entity_a} -> ${rel.entity_b}`);
+        pairKeys.add(key);
+      }
+      const hasPair = (a: string, b: string): boolean => relationships.some((rel) => {
+        const ra = resolveRelationshipParty(novel!, rel.entity_a);
+        const rb = resolveRelationshipParty(novel!, rel.entity_b);
+        return ra?.id === resolveRelationshipParty(novel!, a)?.id && rb?.id === resolveRelationshipParty(novel!, b)?.id;
+      });
+      for (const [a, b] of [
+        ["Vlask", "Sister Marta"],
+        ["Vlask", "Ilona"],
+        ["Vlask", "Count Orlok"],
+        ["Sister Marta", "Petr"],
+        ["Sister Marta", "Nadja"],
+        ["Sister Marta", "Count Orlok"],
+        ["Ilona", "Nadja"],
+        ["Petr", "Nadja"],
+      ]) {
+        assert(hasPair(a, b), `missing pair: ${a} -> ${b}`);
+      }
+      for (const name of ["Vlask", "Sister Marta", "Ilona", "Petr", "Nadja", "Count Orlok"]) {
+        assert(hasPair(name, "The Survivors"), `missing faction link: ${name} -> The Survivors`);
+      }
+
+      const identities = novel!.identities;
+      assert(identities?.character_01?.facets.length === 12, "protagonist identity facets missing");
+      assert(identities?.npc_mv4m1599?.facets.length === 3, "NPC identity facets missing");
+      assert(identities?.character_01?.facets.some((f) => f.kind === "contradiction"), "protagonist contradiction facet missing");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
