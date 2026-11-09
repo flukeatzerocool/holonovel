@@ -12,6 +12,19 @@
   this rule; `## Non-goals` is exempt.
 -->
 
+## Remaining full-review sweep (P1)
+
+- Code-side sweep with `code-review` over `holonovel/src` by subsystem:
+  tools/handlers, state/persistence, engine loop, adapters, plus security and
+  determinism passes.
+- Spec-side sweep of §5.1–5.8, §5.10–5.18, and §5.20–5.31 in cold chunks, then
+  `check:conformance`, `fmea`, and `graph-deps` for machine evidence.
+- The 2026-11-09 seam pass closed `docs/engine-contract.md` + §5.9/§5.19 only;
+  this item covers everything else.
+
+**Trigger:** a session allocated to review work, starting with the code-side
+sweep; closes when both sweeps and the machine-evidence pass report.
+
 ## Holosuite anchor repoint automation (P2)
 
 - Add a fix mode to the evidence-anchor tooling (`npm run fix-anchors` or
