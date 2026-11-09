@@ -14,20 +14,41 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunk P3b-4 (state surfaces and fingerprinting, 67 REQs) — the last §5.6
-  sub-chunk.
 - Chunks P4 (`core/state.ts` persistence with the §5.19 cross-check) and P5–P7
   (engine loop and event stream; adapters and rulesets; determinism and
   knowledge).
 - Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
   Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
-  closed; P3b-1 (core state and lifecycle) closed 2026-11-09 and P3b-2
-  (entities and NPCs) closed 2026-11-09; P3b-3 (adventure content) closed
-  2026-11-09.
+  closed; §5.6 is complete — P3b-1 (core state and lifecycle) and P3b-2
+  (entities and NPCs) closed 2026-11-09, P3b-3 (adventure content) closed
+  2026-11-09, and P3b-4 (state surfaces and fingerprinting) closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P3b-4
-(§5.6 state surfaces and fingerprinting); closes when chunks P3b-4–P8 and the
-closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P4
+(`core/state.ts` persistence and the §5.19 cross-check); closes when chunks
+P4–P8 and the closing M1 pass report.
+
+## §5.6 state surfaces remediation (P1)
+
+- Pause/resume and world reactivity: return the `badge_briefing` payload from
+  `get_context`, filter the story capture to `decision`/`bond`, include the
+  `gm_context` summary in `intro`, add non-NPC World in Motion entries with
+  one-hop ripple tracing, a `modify` option and a three-deferral cap, add the
+  ally↔rival lore prompt, include `neutral` transitions in the relationship
+  marker, and redact `session_id` from Player-visible session markers (REQ-232b,
+  REQ-232c, REQ-233a1, REQ-233a2, REQ-233a3, REQ-236a, REQ-236b, REQ-236c,
+  REQ-237b1, REQ-237b2; F-P3B4-1–F-P3B4-4, F-P3B4-11, F-P3B4-13).
+- Notes, persistence, and codex truth: surface Novel notes in `badge_briefing`,
+  write `server-notes.json` and `codex.json` atomically with backup rotation,
+  partition `spec_health.codex` by kind, default a captured entry's `ruleset`
+  to the source Novel's scope, and implement the `[codex-stale]` flag (REQ-242b,
+  REQ-242d, REQ-285a, REQ-285c, REQ-321g, REQ-321k, REQ-321l, REQ-332b,
+  REQ-332c, REQ-065f; F-P3B4-5–F-P3B4-10, F-P3B4-14, F-P3B4-15).
+- Citation repair: write or re-point the unexercised assertions for T52
+  (REQ-065), T270 (REQ-236), T358 (REQ-233), and widen T275 (REQ-237), T280
+  (REQ-242), and T334 (REQ-285) to the full contracts (F-P3B4-10–F-P3B4-15).
+
+**Trigger:** the first session that takes §5.6 state-surface remediation work;
+closes when F-P3B4-1–F-P3B4-15 are `Resolved` in the review register.
 
 ## §5.6 adventure content remediation (P1)
 

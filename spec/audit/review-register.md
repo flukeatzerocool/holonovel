@@ -1270,6 +1270,65 @@ Each finding cites the predicate that carries it.
   `lookup_monster` fuzzy-match suggestion is produced for pre-populated NPCs
   (REQ-079d).
 
+### 2026-11-09 full-review sweep — chunk P3b-4 (§5.6 state surfaces and fingerprinting)
+
+Scheduled under `ROADMAP.md` § *§5.6 state surfaces remediation (P1)*.
+Each finding cites the predicate that carries it.
+
+- **F-P3B4-1 — pause/resume context gaps:** `get_context` returns JSON without
+  the required `badge_briefing` prompt (REQ-232b; `holonovel/src/index.ts:11032-11041`);
+  `save_context` captures the last three story entries with no `decision`/`bond`
+  type filter (REQ-232c; `:11025`); and the `intro` prompt never includes the
+  `gm_context` summary (REQ-232c; `:13824-13858`, `core/prompt-composition.ts`
+  has no `gm_context` input).
+- **F-P3B4-2 — world reactivity is NPC-only:** the World in Motion block
+  (`index.ts:14260-14300`) lists NPC goal suggestions only — no non-NPC pending
+  changes, no one-hop ripple-effect tracing (REQ-233a1), no `modify` option and
+  no max-3-deferral escalation to a `[WARNING]` (REQ-233a2; resolution at
+  `:3339-3359`). REQ-233a3's T358 has no harness.
+- **F-P3B4-3 — relationship gaps:** no `badge_briefing` prompt to consider a
+  lore entry when a relationship flips `ally`↔`rival` (REQ-236a;
+  `index.ts:7263-7310`), and the marker transition set is only ally↔rival,
+  ally↔suspicious, rival↔suspicious — any change involving `neutral` is omitted
+  (REQ-236b; `:975-982`).
+- **F-P3B4-4 — session markers are not badge-filtered:** the `audit://novel`
+  resource renders each entry's raw `args`, so a Player whose badge wrote the
+  `[session-boundary]` marker sees its `session_id` (REQ-237b1;
+  `index.ts:12450-12463`).
+- **F-P3B4-5 — notes are absent from the briefing:** no `notes` section token is
+  rendered in `badge_briefing` (REQ-242b; `index.ts:13863-14320`; `:10681` only
+  names the token).
+- **F-P3B4-6 — server-note and codex stores are not atomically written:**
+  `saveServerNotes` and `saveCodex` call `writeFileSync` directly with no
+  temp-and-rename and no backup rotation, unlike the Novel writer
+  (`core/state.ts:2654-2666`, `:2680-2692`; atomic+backup writer at `:174-193`)
+  (REQ-285a, REQ-321k).
+- **F-P3B4-7 — codex health count is not partitioned by kind:**
+  `spec_health.codex` is `state.codex.size` (REQ-321l; `index.ts:12030`).
+- **F-P3B4-8 — captured entries carry no ruleset scope:** the capture entry
+  construction sets no `ruleset` field (REQ-321g; `index.ts:13360-13377`).
+- **F-P3B4-9 — `[codex-stale]` is unimplemented:** no staleness computation or
+  flag exists in `spec_health` (REQ-332b/REQ-332c; `index.ts:12025-12035`; no
+  `codex-stale` literal in `holonovel/src`). T384's title claims "reports stale"
+  but its body asserts only that the health payload contains `codex`
+  (`holonovel/scripts/test-output-contracts.ts:854-877`).
+- **F-P3B4-10 — REQ-065f cites Automated T52 with no harness** (T224 is
+  exercised; `spec/appendices-reference.md:1508` classifies T52 Automated).
+- **F-P3B4-11 — REQ-236c cites Automated T270 with no harness.**
+- **F-P3B4-12 — REQ-233a3 cites Automated T358 with no harness.**
+- **F-P3B4-13 — REQ-237b2's T275 is narrower than the contract:**
+  `holonovel/scripts/test-output-contracts.ts:713-724` asserts only that
+  `spec_health.sessions` is an array — no boundary markers, recap scoping, or
+  per-session metrics (REQ-237b1/b2).
+- **F-P3B4-14 — REQ-242d's T280 is narrower than the contract:**
+  `holonovel/scripts/test-backfill.ts:248-253` asserts set/list/remove only — not
+  the default `game_master` scope, Player filtering, `notes://` `[FORBIDDEN]`,
+  or briefing visibility.
+- **F-P3B4-15 — REQ-285c's T334 is narrower than the contract:**
+  `holonovel/scripts/test-backfill.ts:255-260` asserts set/list only — not
+  restart persistence, Player `[FORBIDDEN]`, the `server-notes://` resource, or
+  the `spec_health` count.
+
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
 Scheduled under `ROADMAP.md` § *§5.4 remediation (P1)* and § *§5.4 citation

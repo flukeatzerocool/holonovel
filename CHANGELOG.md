@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P3b-4 (§5.6 state surfaces and fingerprinting)
+
+- Chunk P3b-4 closes the §5.6 sweep. It reviews the 67 state-surface REQs (15
+  families: 11 bucket C, 4 bucket E) against build-fingerprint drift, pause/
+  resume context, factions and world reactivity, entity relationships, session
+  segmentation, audit compaction, checkpoints, Novel and server notes, the codex
+  and its provenance. Every REQ carries a verdict in
+  `docs/plans/2026-11-09-full-review-sweep/worklist.md`: 36 hold, 11 are
+  builder-side, and 20 rows carry 15 findings.
+- The fifteen P1 findings are scheduled under a new *§5.6 state surfaces
+  remediation (P1)* roadmap section: the pause/resume payload gaps, NPC-only
+  world reactivity (no ripple tracing, `modify`, or deferral cap), the
+  relationship lore prompt and `neutral` marker set, Player-visible
+  `session_id` in session markers, notes missing from `badge_briefing`,
+  non-atomic server-note and codex writes, the scalar codex health count, the
+  missing captured-entry `ruleset`, the unimplemented `[codex-stale]` flag, and
+  six unexercised or narrow citations (T52, T270, T358, T275, T280, T334).
+  No source or REQ body changed; the roadmap trigger advances to chunk P4.
+
 ## 2026-11-09 — Full-review sweep: chunk P3b-3 (§5.6 adventure content)
 
 - Chunk P3b-3 reviews the 39 §5.6 adventure-content REQs (11 families: 8 bucket

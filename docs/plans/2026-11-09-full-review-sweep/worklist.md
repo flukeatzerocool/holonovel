@@ -120,6 +120,36 @@ restart the enumeration from scratch.
 - **D35 — No push.** 9 commits unpushed at session start; publication stays
   user-authorized.
 
+### Decisions (2026-11-09, chunk P3b-4)
+
+- **D36 — Chunk scope.** P3b-4 is 67 REQs across 15 families (§5.6 state
+  surfaces and fingerprinting): `REQ-044`, `065`, `232`, `233`, `236`, `237`,
+  `239`, `241`, `242`, `285`, `302`, `313`, `314`, `321`, `332`. Executed as one
+  increment; the family fence is fixed and the only split point is the
+  stopped-run landing. `REQ-073a1/a2` belong to P3b-1 and are excluded.
+- **D37 — Fix policy.** D13 unchanged: P0 in-session, P1 roadmap, P2 only on
+  demonstrated failure, P3 record-and-close.
+- **D38 — Increment record.** `docs/plans/2026-11-09-full-review-p3b4/` for
+  plan/tasks/AAR; this worklist carries the P3b-4 table and decisions.
+- **D39 — Bucket resolution.** By base family ID (D14): 11 families / 56 REQs
+  bucket C; 4 families / 11 REQs bucket E (`REQ-044`, `REQ-302a/b`,
+  `REQ-313a–d`, `REQ-314a–d`); none A/B/D.
+- **D40 — Boundaries.** `state.ts` persistence → P4; event-log ordinals and the
+  engine loop → P5; resource projection and world-model tier internals → P6;
+  badge-filter-only predicates → P1; subjective-memory internals → P8. A
+  predicate wholly in a later chunk's surface is recorded `deferred:<chunk>`.
+- **D41 — Citation resolution.** P2/P3b-1 method: own `_Check:`, else family
+  set; an `Automated` token must appear in a harness and the body must exercise
+  the behaviour; `T0nn` shadowing is not evidence (F-P2-4).
+- **D42 — Fingerprint consequence.** §5.6 is in `DATA_SECTIONS`
+  (`scripts/lib/contract-fingerprint.ts:38`); a REQ-body edit requires
+  `build-order` regeneration. This increment is review-only and changed no REQ
+  body.
+- **D43 — Plan gate and publication.** Plan stamped `fresh`, standard depth,
+  cold pass 5/5 (report `/tmp/opencode/p3b4-independent-review.md`); 10 commits
+  unpushed at session start; no push.
+
+
 
 ## Status
 
@@ -131,7 +161,7 @@ restart the enumeration from scratch.
 | P3b-1 | mutation, decision, and lifecycle handlers; audit resource | §5.6 core state and lifecycle | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-2 | entities, NPCs, personality, briefings | §5.6 entities and NPCs (93 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | scheduled |
+| P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
 | P6 | `core/surface-{projection,aliases}.ts`, `world/*`, `rulesets.ts`, `library.ts` | §5.10, §5.11, §5.13, §5.15, §5.16–§5.18, §5.21–§5.23 | `code-review` | scheduled |
@@ -1038,3 +1068,157 @@ must exercise the stated behaviour.
 
 **Totals:** 39 rows — 6 holds, 5 builder-side, 28 finding rows carrying 12
 findings (all P1; no P0).
+
+## Chunk P3b-4 — state surfaces and fingerprinting (§5.6)
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p3b4/`.
+
+**Code targets:** `core/state.ts` build-fingerprint persistence and drift
+(`:1060-1090`), session-boundary markers (`:1935-1990`), audit compaction
+(`:2121-2180`), server-notes and codex persistence (`:2642-2692`); `index.ts`
+`manage_novel` `save_context`/`get_context`/`info` (`:11013`, `:11032`,
+`:10907`), checkpoints (`:11043-11059`), `manage_archive` (`:11354`),
+`manage_faction` (`:7181`), `manage_relationship` (`:7263`), `manage_note`
+(`:8016`), `manage_context`/`manage_diagnostics` (`:9945`, `:9958`),
+`manage_codex` (`:13218`), session tools (`:14416`, `:14455`, `:14478`), the
+`notes://`, `server-notes://`, `codex://`, `faction://`, `factions://`,
+`audit://novel`, and `audit://novel/archive` resources, and `spec_health`
+integrity fields (`:11912-12063`).
+**Spec:** the *Fingerprinting and State Integrity* block — 16 families / 69
+REQs, less `REQ-073a1/a2` (P3b-1) = **67 REQs, 15 families**: 11 bucket C
+(56 REQs), 4 bucket E (11 REQs); none A/B/D.
+**Already gated:** no §5.6-specific root gate. The assertions live in the server
+suite: `test-persistence` / `test-backfill` (T224, T268, T280, T334),
+`test-narrative` (T269, T397, T402, T408, T410, T413, T415, T416),
+`test-output-contracts` (T275, T366, T380, T382, T383, T384),
+`test-limits` (T277, T279), `test-persistence-guardrails` (T471),
+`test-fingerprints`. `check:fast` says nothing about these behaviours.
+
+### Cluster verdicts
+
+| Cluster | REQs | Count | Verdict | Evidence |
+|---|---|---|---|---|
+| A fingerprinting and rebuild | 044, 302a–b, 065a–f, 313a–d, 314a–d | 17 | **finding F-P3B4-10**; 10 builder-side; 6 holds | `core/state.ts:1060-1090` emits each drift marker and `spec_health.build_drift`; the four bucket-E families are builder contracts (no runtime harness expected) |
+| B continuity and world reactivity | 232a–d, 233a1–a3/b1–b3, 236a–c, 237a/b1–b2 | 16 | **findings F-P3B4-1, -2, -3, -4, -11, -13**; 8 holds | `save_context`/`get_context` (`index.ts:11013-11042`), faction clock mirror (`:7181-7255`), relationship handler (`:7263-7310`), session boundary (`core/state.ts:1943-1971`) |
+| C durability and notes | 239a–d, 241a–c, 242a–d, 285a–c | 14 | **findings F-P3B4-5, -6, -14, -15**; 10 holds | `compactAuditLog` (`core/state.ts:2121-2180`), checkpoints (`index.ts:11043-11059`), notes (`:8016-8098`), server notes (`core/state.ts:2642-2666`) |
+| D codex and provenance | 321a–n, 332a–c | 20 | **findings F-P3B4-6, -7, -8, -9**; 17 holds | `manage_codex` (`index.ts:13218-13445`), `codex://` (`:12683`), `spec_health.codex` (`:12030`), `codex_sources` (`:10907`, `:12032`) |
+
+**Gate/harness assertion vs REQ text.** T268 asserted one `get_context` field,
+not the `badge_briefing` payload, the `decision`/`bond` story filter, or the
+intro summary. T275 asserted only that `spec_health.sessions` is an array, never
+the boundary markers, recap scoping, or per-session metrics. T280 and T334
+asserted set/list/remove only, not the default scope, badge filtering,
+`[FORBIDDEN]`, persistence, or resources. T384's title claims "reports stale"
+but its body asserts only that the health payload contains the substring
+`codex` — the `[codex-stale]` flag it names does not exist in the source at all.
+These narrow assertions are why the gaps survived.
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P3B4-1 | Pause/resume context gaps: `get_context` returns JSON without the required `badge_briefing` prompt (REQ-232b); `save_context` captures the last three story entries without the `decision`/`bond` type filter (REQ-232c); the `intro` prompt never includes the `gm_context` summary (REQ-232c) | `index.ts:11013-11042`, `:13824-13858`; `core/prompt-composition.ts` has no `gm_context` input | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-2 | World reactivity is implemented only as NPC goal-pursuit suggestions: no non-NPC World in Motion entries, no one-hop ripple-effect tracing, no `modify` option (accept/defer/dismiss/auto-apply only), and no max-3-deferral escalation to a `[WARNING]` (REQ-233a1/a2/a3) | `index.ts:14260-14300`, `:3339-3359`; `core/state.ts:771` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-3 | Relationship gaps: no `badge_briefing` prompt to consider a lore entry when a relationship flips `ally`↔`rival` (REQ-236a), and the marker transition set omits any change involving `neutral` (REQ-236b) | `index.ts:975-982` (set is only ally↔rival, ally↔suspicious, rival↔suspicious); `:7263-7310` emits no prompt | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-4 | Session-boundary markers are not badge-filtered: a Player whose badge wrote the marker sees the raw `args` string, including `session_id` (REQ-237b1) | `index.ts:12450-12463` (renders `e.args` with no marker-specific redaction) | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-5 | Novel notes never appear in `badge_briefing` under the `notes` section token (REQ-242b) | `index.ts:13863-14320` has no notes block; `:10681` only names the token | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-6 | `server-notes.json` and `codex.json` are written with a bare `writeFileSync` — no temp-and-rename atomic write and no backup rotation, unlike the Novel writer (`reStampArtifact`) (REQ-285a, REQ-321k) | `core/state.ts:2654-2666`, `:2680-2692`; atomic+backup writer at `:174-193` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-7 | `spec_health.codex` is a scalar count, not "count partitioned by kind" (REQ-321l) | `index.ts:12030` (`state.codex.size`) | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-8 | A captured Codex entry does not default its `ruleset` field to the source Novel's ruleset scope (REQ-321g) | `index.ts:13360-13377` (capture entry construction carries no `ruleset`) | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-9 | No `[codex-stale]` computation or flag exists anywhere; `spec_health` never compares an entry's `codex_modified_at` to the artifact's import timestamp (REQ-332b, REQ-332c) | `index.ts:12025-12035`; no `codex-stale` literal in `holonovel/src` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-10 | Citation repair: REQ-065f cites Automated T52; no harness or root script carries `T52` (T224 is exercised) | `spec/02-requirements.md:2099`; `spec/appendices-reference.md:1508` classifies T52 Automated | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-11 | Citation repair: REQ-236c cites Automated T270; no harness or root script carries `T270` | `spec/02-requirements.md:2156`; Appendix F T270 Automated | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-12 | Citation repair: REQ-233a3 cites Automated T358; no harness or root script carries `T358` | `spec/02-requirements.md:2148`; Appendix F T358 Automated | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-13 | REQ-237b2 cites T275, but the harness asserts only that `spec_health.sessions` is an array — no boundary markers, recap scoping, or per-session metrics | `holonovel/scripts/test-output-contracts.ts:713-724` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-14 | REQ-242d cites T280, but the harness asserts set/list/remove only — not the default `game_master` scope, Player filtering, `notes://` `[FORBIDDEN]`, or briefing visibility | `holonovel/scripts/test-backfill.ts:248-253` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+| F-P3B4-15 | REQ-285c cites T334, but the harness asserts set/list only — not restart persistence, Player `[FORBIDDEN]`, the `server-notes://` resource, or the `spec_health` count | `holonovel/scripts/test-backfill.ts:255-260` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 state surfaces remediation |
+
+No P0. No source file and no REQ body changed by this chunk.
+
+### Exit evidence (recorded 2026-11-09)
+
+Baseline before review: `check:fast` 37/37 PASS · `check` PASS (0 errors) ·
+`npm --prefix holonovel run test:all` 54/54 PASS, tree clean at `3994590`.
+
+### P3b-4 per-REQ verdict table (67 rows)
+
+Resolution method: each REQ's own `*Check:*` IDs; a REQ with no own Check
+inherits its family's citation set; an `Automated` citation must appear
+literally in a harness and its body must exercise the behaviour; `Manual` /
+scenario citations need none; bucket inherited from the base family row (D14).
+
+Result: **36 holds, 11 builder-side, 20 finding rows carrying 15 finding IDs**.
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-044 | 5.6 | E | builder-side | build-time ruleset hash (Appendix F T17 is a build acceptance); no runtime predicate |
+| REQ-302a | 5.6 | E | builder-side | build-time per-section hashing |
+| REQ-302b | 5.6 | E | builder-side | T346 is a build acceptance; no runtime harness |
+| REQ-065a | 5.6 | C | holds | fingerprint persisted and reloaded (`core/state.ts:1060-1080`) |
+| REQ-065b | 5.6 | C | holds | four drift markers field-by-field (`core/state.ts:1083-1086`); T224 exercised |
+| REQ-065c | 5.6 | C | holds | current values take precedence; stored retained for diff (`index.ts:11912-11916`) |
+| REQ-065d | 5.6 | C | holds | unknown fields inert; corrupt state → stderr + `corruptData` |
+| REQ-065e | 5.6 | C | holds | fresh start is a match; corrupt Novel not loaded |
+| REQ-065f | 5.6 | C | finding:F-P3B4-10 | drift warnings implemented; T52 has no harness |
+| REQ-313a | 5.6 | E | builder-side | build-time component hashing |
+| REQ-313b | 5.6 | E | builder-side | build-time component hashing |
+| REQ-313c | 5.6 | E | builder-side | build-time sentinel/exclusion |
+| REQ-313d | 5.6 | E | builder-side | build-time sentinel |
+| REQ-314a | 5.6 | E | builder-side | build-time scoping |
+| REQ-314b | 5.6 | E | builder-side | build-time scoping |
+| REQ-314c | 5.6 | E | builder-side | build-time full-build fallback |
+| REQ-314d | 5.6 | E | builder-side | build-time fallback rule |
+| REQ-232a | 5.6 | C | holds | `gm_context` fields persisted (`index.ts:11013-11028`) |
+| REQ-232b | 5.6 | C | finding:F-P3B4-1 | `get_context` omits the `badge_briefing` prompt (`:11032-11041`) |
+| REQ-232c | 5.6 | C | finding:F-P3B4-1 | no story-type filter; intro omits the gm_context summary |
+| REQ-232d | 5.6 | C | holds | `story_context` and `active_vows` captured into `gm_context` and returned |
+| REQ-233b1 | 5.6 | C | holds | faction create/update/remove, resources, briefing, fill warning (T269) |
+| REQ-233b2 | 5.6 | C | holds | faction clock mirror advances on transitions (`test-narrative.ts:227-283`) |
+| REQ-233b3 | 5.6 | C | holds | faction name accepted in either direction; T269 |
+| REQ-233a1 | 5.6 | C | finding:F-P3B4-2 | no non-NPC world changes and no one-hop ripple tracing |
+| REQ-233a2 | 5.6 | C | finding:F-P3B4-2 | no `modify`, no deferral cap, NPC-only entries |
+| REQ-233a3 | 5.6 | C | finding:F-P3B4-2 | reactivity is NPC-gated; T358 has no harness |
+| REQ-236a | 5.6 | C | finding:F-P3B4-3 | no lore-entry prompt on ally↔rival change |
+| REQ-236b | 5.6 | C | finding:F-P3B4-3 | marker set omits changes involving `neutral` |
+| REQ-236c | 5.6 | C | finding:F-P3B4-11 | set/get/sheet implemented; T270 has no harness |
+| REQ-237a | 5.6 | C | holds | `[session-boundary]` marker with session_id/started_at (`core/state.ts:1943-1971`) |
+| REQ-237b1 | 5.6 | C | finding:F-P3B4-4 | Player sees `session_id` in the raw marker args |
+| REQ-237b2 | 5.6 | C | finding:F-P3B4-13 | T275 asserts only that `sessions` is an array |
+| REQ-239a | 5.6 | C | holds | compaction summaries carry every required field incl. source pointers (`core/state.ts:2121-2180`) |
+| REQ-239b | 5.6 | C | holds | `audit_archive` + re-anchored chain + `audit://novel/archive` |
+| REQ-239c | 5.6 | C | holds | `[NEED_INPUT]` confirmation; active session excluded (T277) |
+| REQ-239d | 5.6 | C | holds | Player refusal and retention window exercised (T277) |
+| REQ-241a | 5.6 | C | holds | set/list/restore/remove with digest check (T279) |
+| REQ-241b | 5.6 | C | holds | capacity eviction, export inclusion, end removal (T279) |
+| REQ-241c | 5.6 | C | holds | GM-only; `checkpoint_count` and `checkpoint_bytes` in spec_health |
+| REQ-242a | 5.6 | C | holds | scope default, preserve-on-omit, preview and filtering (`index.ts:8021-8070`) |
+| REQ-242b | 5.6 | C | finding:F-P3B4-5 | not surfaced in `badge_briefing` |
+| REQ-242c | 5.6 | C | holds | notes are the unstructured complement to `gm_context` by design |
+| REQ-242d | 5.6 | C | finding:F-P3B4-14 | FORBIDDEN enforced in code; T280 asserts only set/list/remove |
+| REQ-285a | 5.6 | C | finding:F-P3B4-6 | plain write, no atomic write or backup rotation |
+| REQ-285b | 5.6 | C | holds | `spec_health.server_notes`, `server-notes://`, exclusion from Novel bundles |
+| REQ-285c | 5.6 | C | finding:F-P3B4-15 | Player FORBIDDEN enforced; T334 asserts only set/list |
+| REQ-321a | 5.6 | C | holds | 14 kinds enumerated and supported (`index.ts:13190`) |
+| REQ-321b | 5.6 | C | holds | set/upsert/merge semantics; import by id or array |
+| REQ-321c | 5.6 | C | holds | atomic batch precheck then one snapshot (`:13396-13432`); T382 |
+| REQ-321d | 5.6 | C | holds | per-kind materialization delegates (`materializeCodexEntry`) |
+| REQ-321e | 5.6 | C | holds | adventure import populates world/NPC/faction/lore (T366, T402) |
+| REQ-321f | 5.6 | C | holds | `source` values `generated`/`loaded:`/`captured:` + `source_novel` |
+| REQ-321g | 5.6 | C | finding:F-P3B4-8 | captured entry does not default `ruleset` |
+| REQ-321h | 5.6 | C | holds | `update_source` updates the source entry in place (T383) |
+| REQ-321i | 5.6 | C | holds | `[STATE_CONFLICT]` without provenance; filterable list |
+| REQ-321j | 5.6 | C | holds | get/delete with undo restore |
+| REQ-321k | 5.6 | C | finding:F-P3B4-6 | badge gates hold; persistence is not atomic and has no rotation |
+| REQ-321l | 5.6 | C | finding:F-P3B4-7 | codex count is scalar; badge-gated `codex://` holds |
+| REQ-321m1 | 5.6 | C | holds | codex-first when no Novel; import/capture `[STATE_CONFLICT]` |
+| REQ-321m2 | 5.6 | C | holds | acceptance exercised (T366) |
+| REQ-321m3 | 5.6 | C | holds | batch import and adventure import (T366, T382) |
+| REQ-321m4 | 5.6 | C | holds | capture and health assertions (T366, T383) |
+| REQ-321n | 5.6 | C | holds | capture resolves ids, `[NOT_FOUND]`, provenance rules |
+| REQ-332a | 5.6 | C | holds | `codex_source` on import; `manage_novel (action: info)` reports `codex_sources` (T384) |
+| REQ-332b | 5.6 | C | finding:F-P3B4-9 | no `[codex-stale]` computation |
+| REQ-332c | 5.6 | C | finding:F-P3B4-9 | in-place re-import and `codex_sources` hold; stale flag absent |
+
+**Totals:** 67 rows — 36 holds, 11 builder-side, 20 finding rows carrying
+15 finding IDs (all P1, no P0).
