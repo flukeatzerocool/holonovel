@@ -14,18 +14,50 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P3b-2 (entities and NPCs, 93 REQs), P3b-3 (adventure content, 39), and
-  P3b-4 (state surfaces and fingerprinting, 67).
+- Chunks P3b-3 (adventure content, 39 REQs) and P3b-4 (state surfaces and
+  fingerprinting, 67).
 - Chunks P4 (`core/state.ts` persistence with the §5.19 cross-check) and P5–P7
   (engine loop and event stream; adapters and rulesets; determinism and
   knowledge).
 - Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
   Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
-  closed; P3b-1 (core state and lifecycle) closed 2026-11-09.
+  closed; P3b-1 (core state and lifecycle) closed 2026-11-09 and P3b-2
+  (entities and NPCs) closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P3b-2
-(§5.6 entities and NPCs); closes when chunks P3b-2–P8 and the closing M1 pass
+**Trigger:** the next session allocated to review work, starting with chunk P3b-3
+(§5.6 adventure content); closes when chunks P3b-3–P8 and the closing M1 pass
 report.
+
+## §5.6 entities and NPCs remediation (P1)
+
+- Entity, roster, and scene surfaces: add the duplicate-import `[STATE_CONFLICT]`
+  guard, `party://current` HP, removal presence/audit, the roster listing fields
+  and `roster://<id>`/`<type>` resources, valid-ID enumeration on
+  `roster_remove`, the scene-history cap with `[truncated]`, `scene_tick`, the
+  lore contradiction warning, fast-forward round clocks/lore triggers/bridging
+  summary, and `last_location`/`[not present]`/`presence location`
+  (REQ-074b, REQ-074c, REQ-176a, REQ-177, REQ-178a, REQ-178b, REQ-076b2,
+  REQ-076b3, REQ-076b4, REQ-076b5, REQ-076b6, REQ-076b7, REQ-252a, REQ-252b,
+  REQ-252c, REQ-307a, REQ-307b, REQ-307c; F-P3B2-1–F-P3B2-5).
+- NPC depth and memory: maintain `appearance_count`/`first_seen`/`last_seen` with
+  the `[recurring]`/`[campaign]`/`[distant]` markers and recap heatmap, unify the
+  NPC description field across surfaces, and deepen the memory model with party
+  knowledge, emotional state, social/mechanical ingestion, and campaign-memory
+  coupling (REQ-075c, REQ-075d, REQ-075e, REQ-075g, REQ-156, REQ-311b, REQ-311c,
+  REQ-311d, REQ-311f; F-P3B2-6–F-P3B2-8).
+- Personality, signal, and citation surfaces: render the briefing personality
+  group and voice examples, gate and tag-filter NPC voice directives, reshape and
+  badge-filter the personality resources, store signals as
+  `{value, connection_counter}` with removal semantics and briefing ages, extend
+  boundary collision to every free-text entry point, and repair the unexercised
+  Automated citations (REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-077f,
+  REQ-126a, REQ-126b, REQ-166a, REQ-166b, REQ-166c, REQ-282a, REQ-282b,
+  REQ-282c, REQ-167a, REQ-167b, REQ-069a, REQ-069b, REQ-069c, REQ-128a,
+  REQ-128b, REQ-173b, REQ-255b, REQ-124b, plus T55/T56/T57/T58/T65/T112/T132/
+  T140/T142/T723/T131; F-P3B2-9–F-P3B2-14).
+
+**Trigger:** the first session that takes §5.6 entities-and-NPCs remediation
+work; closes when F-P3B2-1–F-P3B2-14 are `Resolved` in the review register.
 
 ## §5.6 core state and lifecycle remediation (P1)
 

@@ -71,6 +71,29 @@ restart the enumeration from scratch.
 - **D19 — Baseline.** `check:fast` 37/37 PASS, `check` PASS, nine server
   harnesses green before the review; tree clean at `cfaad6b`.
 
+### Decisions (2026-11-09, chunk P3b-2)
+
+- **D20 — Chunk scope.** P3b-2 is 93 REQs across 30 families (§5.6 entities and
+  NPCs), executed as one increment; the family fence is fixed and the only
+  split point is the stopped-run landing.
+- **D21 — Fix policy.** D13 unchanged: P0 in-session, P1 roadmap, P2 only on
+  demonstrated failure, P3 record-and-close.
+- **D22 — Increment record.** `docs/plans/2026-11-09-full-review-p3b2/` for
+  plan/tasks/AAR; this worklist carries the P3b-2 table and decisions.
+- **D23 — Bucket resolution.** By base family ID (D14): 27 families / 88 REQs
+  bucket C; 3 families / 5 REQs bucket E (`REQ-123`, `REQ-124a/b`,
+  `REQ-127a/b`); none A/B/D.
+- **D24 — Boundaries.** `state.ts` persistence → P4; engine loop, event stream,
+  durable agent tasks → P5; subjective-memory internals → P8; badge-filter-only
+  predicates → P1. Record and defer across each boundary.
+- **D25 — Citation resolution.** P2/P3b-1 method: own `_Check:`, else family
+  set; an `Automated` token must appear in a harness and the body must exercise
+  the behaviour; `T0nn` shadowing is not evidence (F-P2-4).
+- **D26 — Fingerprint consequence.** §5.6 is in `DATA_SECTIONS`; a REQ-body
+  edit requires `build-order` regeneration.
+- **D27 — No push.** 8 commits unpushed at session start; publication stays
+  user-authorized.
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -79,7 +102,7 @@ restart the enumeration from scratch.
 | P2 | tool registration, schemas, descriptions | §5.3 | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3 | decision and creation handlers, structured choices, staleness | §5.4 | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-1 | mutation, decision, and lifecycle handlers; audit resource | §5.6 core state and lifecycle | `code-review` + citation resolution | **closed 2026-11-09** |
-| P3b-2 | entities, NPCs, personality, briefings | §5.6 entities and NPCs (93 REQs) | `code-review` + citation resolution | scheduled |
+| P3b-2 | entities, NPCs, personality, briefings | §5.6 entities and NPCs (93 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | scheduled |
 | P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | scheduled |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
@@ -733,3 +756,174 @@ Rows marked `holds (fixed …)` carried a P0 that this increment resolved.
 | REQ-322d | 5.6 | C | finding:F-P3B1-8 | resolve does not remove the linked countdown |
 | REQ-073a1 | 5.6 | C | finding:F-P3B1-6 | clock_type interaction models unimplemented |
 | REQ-073a2 | 5.6 | C | finding:F-P3B1-6, F-P3B1-9 | no `clock_type` parameter; T271 has no harness |
+
+## Chunk P3b-2 — entities and NPCs (§5.6)
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p3b2/`.
+
+**Code targets:** `manage_character` (`index.ts:3846`), `manage_npc` (`:6424`),
+`manage_scene` (`:6166`), `manage_staging` (`:6661`), `manage_story` (`:7895`),
+`manage_knowledge` (`:8912`); `entities://`/`party://current` (`:12545`),
+`roster://current` (`:12287`), `scene://current`/`history` (`:12292`),
+`entity://{id}/personality` (`:12269`), `npc://{id}` (`:12353`),
+`npc://{id}/personality` (`:12391`), `npcs://` (`:12378`); personality group and
+NPC voice directive (`:14126-14155`); signals/boundaries (`:4074-4086`,
+`:14010-14040`); `core/state.ts` entity factory/roster (`:984`, `:2621`,
+`:2695`); `core/limits.ts`.
+**Spec:** entities, NPCs, personality, and briefings family block —
+**93 REQs across 30 families; 88 bucket C, 5 bucket E.**
+
+### Cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A roster, entities, scene, presence | 33 | **findings F-P3B2-1, F-P3B2-2, F-P3B2-3, F-P3B2-4, F-P3B2-5, F-P3B2-14** | roster and presence basics hold; duplicate import, roster listing/resources, scene cap/tick/warning, fast-forward, and presence markers scheduled |
+| B NPC records, stat blocks, memory | 28 | **findings F-P3B2-6, F-P3B2-7, F-P3B2-8, F-P3B2-14** | stat-block reference/rendering/resources and card import/export hold; depth metadata, description unification, and memory depth scheduled |
+| C personality, voice, signal, briefing | 32 | **findings F-P3B2-9, F-P3B2-10, F-P3B2-11, F-P3B2-12, F-P3B2-13, F-P3B2-14** | ownership gating, boundary section, and connection counter hold; personality/voice briefing rendering, directives, resources, signals, and boundary collision scheduled |
+
+**Gate/harness assertion vs REQ text.** T201 asserted that
+`npc://<id>/personality` contains `gruff` — not the briefing personality group,
+voice ordering, or empty-field omission. T216/T217/T219 asserted `[OK]` /
+`[NOT_FOUND]` only — not roster-baseline independence, valid-ID enumeration, or
+the race/class/level listing. T220 asserted the entity count, not the duplicate
+import conflict. T331 exercised scene fields, not the lore contradiction
+warning. T356 asserted `npc_memory_count ≥ 1`, not the memory model.
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P3B2-1 | Entity/roster lifecycle: import has no per-Novel duplicate guard (REQ-074c); `party://current` omits HP (REQ-074b); entity removal leaves presence and audit stale (REQ-176a); `roster_remove` enumerates no valid IDs and writes no audit (REQ-177) | `index.ts:3996-4001`, `:12560-12566`, `:4120-4126`, `:4122` | P1 | `Scheduled-roadmap` — ROADMAP § §5.6 entities and NPCs remediation |
+| F-P3B2-2 | Roster listing/resources: `roster_list` returns id+name only, omitting race/class/level (REQ-178a); `roster://<id>` and `roster://<type>` do not exist (REQ-178b) | `index.ts:4127-4130`, `:12287` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-3 | Scene ledger: `scene_history` is unbounded with no cap or `[truncated]` marker (REQ-076b2/129c); `scene_tick` is absent (REQ-076b3); no lore/disposition contradiction warning (REQ-076b5–b7) | `index.ts:12295-12307`, `:6189`; `scene_tick` absent | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-4 | Fast-forward: `round` countdowns are not advanced proportionally, lore triggers are absent from the audit/summary, and no bridging prose is emitted (REQ-252a/b/c) | `index.ts:6211-6237` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-5 | Presence: no `last_location` field (party uses `current_room`), no `[not present]` marker in the entity listing, and `manage_staging (action: presence)` accepts no `location` (REQ-307a/b/c) | `index.ts:12561`, `:6299`, `:6661-6674` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-6 | NPC depth metadata is unimplemented: no `appearance_count`/`first_seen`/`last_seen`, no `[recurring]`/`[campaign]`/`[distant]` markers, no recap heatmap (REQ-075c/d/e) | NPC record in `core/state.ts`; no predicate exists | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-7 | NPC `description` diverges: create/update writes `npc.description`, while `npc://<id>/personality` reads `npc.personality` (REQ-156) | `index.ts:6503`, `:12398` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-8 | NPC memory depth: only combat calls `recordNpcInteraction`; no party knowledge, emotional-state summary, social/mechanical ingestion, or campaign-memory coupling (REQ-311b/c/d/f) | `index.ts:5727`, `:4143-4186` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-9 | Personality surfaces: `badge_briefing` renders no entity personality group, `voice_examples` never render ahead of traits, `persona` is NPC-only, and the 5-example cap is unenforced (REQ-077a/b/d/e, REQ-126a/b, REQ-166a/b/c) | `index.ts:14126-14155`, `:3105-3115`; no personality group | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-10 | NPC voice directive: Player badge never sees shared-scope directives, NPCs carry no `scope`, and no tag/`scene_type` filtering or role field is implemented (REQ-282a/b/c) | `index.ts:14138-14155`, `:6452-6464` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-11 | Personality resources return the bare personality object (no `entity_id`/`npc_id`, `name`, or `voice_examples`) and are not badge-filtered (REQ-167a/b) | `index.ts:12276-12277`, `:12398` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-12 | Player signals: storage is a string map, empty value is stored rather than removed, no timestamp/`connection_counter`, the briefing shows no age, and the audit tool/prefix differ from the contract (REQ-069a/b/c, REQ-128a/b, REQ-173b) | `index.ts:4085`, `:14031-14040`; `core/state.ts:711` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-13 | Boundary propagation: the collision warning runs only on `manage_scene (action: set)`, not on NPC create/update, lore set/update, or `manage_scene (action: directive)` (REQ-255b) | `index.ts:6283` | P1 | `Scheduled-roadmap` — same |
+| F-P3B2-14 | Citation repair: Automated tokens with no harness or a false match — T55 (074b), T56 (075e), T57/T112/T132 (076b4), T58/T65/T140 (077f/126b/167b), T8/T142 (069c/128b), T723 (075g), T131 (124b); narrow assertions T201/T216/T220/T331 | per-REQ `_Check:_` lines; `holonovel/scripts` search | P1 | `Scheduled-roadmap` — same |
+
+No P0 remains open. **No source or REQ body changed** in this increment.
+
+### Baseline and exit evidence (recorded 2026-11-09)
+
+Baseline: `check:fast` 37/37 PASS · `check` PASS · `npm --prefix holonovel run
+test:all` 54/54 PASS — tree at `aad37c2` with only the increment directory
+untracked.
+
+Exit evidence: `npm run assemble` exit 0 · `check:fast` 37/37 PASS ·
+`check` PASS · `npm --prefix holonovel run test:all` 54/54 PASS ·
+`check-registers --strict` PASS · `check-roadmap` OK (11 sections) ·
+`check-loop-artifacts` PASS · `build-order` 0 errors. No source or REQ body
+changed; no fingerprint regeneration was required.
+
+### P3b-2 per-REQ verdict table (93 rows)
+
+Resolution method: each REQ's own `*Check:*` IDs; a REQ with no own Check
+inherits its family's citation set; an `Automated` citation must appear
+literally in a `holonovel/scripts` harness and its body must exercise the
+behaviour; bucket inherited from the base family row (D23).
+
+Result: **38 holds, 50 finding rows carrying 14 findings, 5 builder-side.**
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-074a | 5.6 | C | holds | entities:// + set_active + party-move path; family T216/T218/T220/S17 |
+| REQ-074b | 5.6 | C | finding:F-P3B2-1 | party://current omits HP (`index.ts:12560-12566`); Automated T55 has no harness |
+| REQ-074c | 5.6 | C | finding:F-P3B2-1 | no duplicate-import guard (`index.ts:3996-4001`); T220 asserts entity count only |
+| REQ-176a | 5.6 | C | finding:F-P3B2-1 | removal does not clear presence or audit (`index.ts:4120-4126`) |
+| REQ-176b | 5.6 | C | holds | requireGM guard (`index.ts:4116`); T216 exercises GM removal |
+| REQ-177 | 5.6 | C | finding:F-P3B2-1 | roster_remove NOT_FOUND lists no valid IDs and writes no audit (`index.ts:4122`) |
+| REQ-178a | 5.6 | C | finding:F-P3B2-2 | roster_list returns id+name only, omits race/class/level (`index.ts:4127-4130`) |
+| REQ-178b | 5.6 | C | finding:F-P3B2-2 | only roster://current exists; no roster://<id> or roster://<type> (`index.ts:12287`) |
+| REQ-129a | 5.6 | C | holds | capGuard names group/current/max (`core/limits.ts:40-47`) |
+| REQ-129b1 | 5.6 | C | holds | own Check exercised: T143 |
+| REQ-129b2 | 5.6 | C | holds | own Check exercised: T218 |
+| REQ-129c | 5.6 | C | holds | T143/spec_health per-group counts |
+| REQ-129d | 5.6 | C | holds | own Check exercised: T143, T218 |
+| REQ-076b1 | 5.6 | C | holds | fields preserved; T137 exercised |
+| REQ-076b2 | 5.6 | C | finding:F-P3B2-3 | scene history unbounded; no cap, truncated marker, or suppressed count (`index.ts:12295-12307`) |
+| REQ-076b3 | 5.6 | C | finding:F-P3B2-3 | scene_tick counter absent from state and briefing |
+| REQ-076b4 | 5.6 | C | finding:F-P3B2-14 | T57/T112/T132 absent; T137 exercises the stored fields only |
+| REQ-076b5 | 5.6 | C | finding:F-P3B2-3 | no lore-contradiction warning in manage_scene set |
+| REQ-076b6 | 5.6 | C | finding:F-P3B2-3 | no lore/disposition contradiction comparison exists |
+| REQ-076b7 | 5.6 | C | finding:F-P3B2-3 | T331 exercises scene state, not the contradiction warning |
+| REQ-076a1 | 5.6 | C | holds | own Check exercised: T133/T137 |
+| REQ-076a2 | 5.6 | C | holds | own Check exercised: T133 |
+| REQ-252a | 5.6 | C | finding:F-P3B2-4 | round clocks not advanced; no bridging prose of lore/NPC changes (`index.ts:6211-6237`) |
+| REQ-252b | 5.6 | C | finding:F-P3B2-4 | audit entry lacks lore triggers; round-clock adjustments absent |
+| REQ-252c | 5.6 | C | finding:F-P3B2-4 | T312 exercises narrative clocks and undo; round clocks/lore triggers unasserted |
+| REQ-307a | 5.6 | C | finding:F-P3B2-5 | no last_location field; party uses current_room (`index.ts:12561`) |
+| REQ-307b | 5.6 | C | finding:F-P3B2-5 | no [not present] marker in the entity listing; manage_staging presence has no location parameter |
+| REQ-307c | 5.6 | C | finding:F-P3B2-5 | presence [] works; marker and location gaps remain; T351 partial |
+| REQ-308a | 5.6 | C | holds | knowledge_state presence marker (`index.ts:966`) |
+| REQ-308b | 5.6 | C | holds | own Check exercised: T352 |
+| REQ-330a | 5.6 | C | holds | exploration auto-presence path exercised |
+| REQ-330b | 5.6 | C | holds | Explored grouping in knowledge_state (`index.ts:943-954`) |
+| REQ-330c | 5.6 | C | holds | own Check exercised: T374, T377 |
+| REQ-075a | 5.6 | C | holds | family T129/T409/T513/T722/T724/T725 |
+| REQ-075b | 5.6 | C | holds | family exercised; mind stripped by sanitizeNpcForBadge |
+| REQ-075c | 5.6 | C | finding:F-P3B2-6 | appearance_count/first_seen/last_seen absent; no [recurring]/[campaign] markers |
+| REQ-075d | 5.6 | C | finding:F-P3B2-6 | no [distant] marker or session-distance computation |
+| REQ-075e | 5.6 | C | finding:F-P3B2-6 | no recap NPC heatmap; Automated T56 has no harness |
+| REQ-075f | 5.6 | C | holds | own Check exercised: T513, T722 |
+| REQ-075g | 5.6 | C | finding:F-P3B2-14 | talkativeness default 50 implemented (`index.ts:380-383`); T723 absent |
+| REQ-075h | 5.6 | C | holds | own Check exercised: T724 |
+| REQ-075i | 5.6 | C | holds | own Check exercised: T725 |
+| REQ-119a | 5.6 | C | holds | reference-populated stats (`index.ts:6470-6478`) |
+| REQ-119b | 5.6 | C | holds | own Check exercised: T126 |
+| REQ-119c | 5.6 | C | holds | caller fields extend the stat surface |
+| REQ-119d | 5.6 | C | holds | family T126; builder mapping recorded |
+| REQ-120 | 5.6 | C | holds | own Check exercised: T127 |
+| REQ-121 | 5.6 | C | holds | own Check exercised: T128; npcs:// badge-filtered |
+| REQ-122a | 5.6 | C | holds | narrative fields on NPCs via manage_character |
+| REQ-122b | 5.6 | C | holds | own Check exercised: T129 |
+| REQ-156 | 5.6 | C | finding:F-P3B2-7 | create/update writes npc.description (`index.ts:6503`); npc://<id>/personality reads personality only (`:12398`) |
+| REQ-123 | 5.6 | E | builder-side | bucket E; builder-defined stat surface (T130) |
+| REQ-124a | 5.6 | E | builder-side | bucket E; acceptance tool `roll_weapon_damage` is absent |
+| REQ-124b | 5.6 | E | builder-side | bucket E; T131 exercises conflict lifecycle, not NPC damage |
+| REQ-311a | 5.6 | C | holds | per-NPC memory store (`recordNpcInteraction`) |
+| REQ-311b | 5.6 | C | finding:F-P3B2-8 | combat-only ingestion; no party knowledge or emotional-state summary |
+| REQ-311c | 5.6 | C | finding:F-P3B2-8 | no per-entity party knowledge (capabilities/relationship status) |
+| REQ-311d | 5.6 | C | finding:F-P3B2-8 | only combat calls recordNpcInteraction (`index.ts:5727`); no social/mechanical updates |
+| REQ-311e | 5.6 | C | holds | presence-gated NPC memory section |
+| REQ-311f | 5.6 | C | finding:F-P3B2-8 | no campaign-memory coupling on disposition flips |
+| REQ-311g | 5.6 | C | finding:F-P3B2-8 | T356 asserts npc_memory_count only |
+| REQ-077a | 5.6 | C | finding:F-P3B2-9 | persona is an NPC field only; voice_examples is not capped at 5 |
+| REQ-077b | 5.6 | C | finding:F-P3B2-9 | personality edits target the Novel entity; no roster-baseline edit path |
+| REQ-077c | 5.6 | C | holds | update shallow-merges stats; Player allowed |
+| REQ-077d | 5.6 | C | finding:F-P3B2-9 | badge_briefing renders no entity personality group |
+| REQ-077e | 5.6 | C | finding:F-P3B2-9 | voice_examples are not rendered ahead of traits (sheet or briefing) |
+| REQ-077f | 5.6 | C | finding:F-P3B2-9 | T58/T65/T140 absent |
+| REQ-126a | 5.6 | C | finding:F-P3B2-9 | no voice_examples rendering in prompt context |
+| REQ-126b | 5.6 | C | finding:F-P3B2-9 | sheet/briefing omit voice_examples; T140 absent |
+| REQ-282a | 5.6 | C | finding:F-P3B2-10 | Player badge never sees shared-scope NPC directives; no scope field |
+| REQ-282b | 5.6 | C | finding:F-P3B2-10 | directive omits role; placement after personality fields moot |
+| REQ-282c | 5.6 | C | finding:F-P3B2-10 | no tag/scene_type filtering (`index.ts:14146-14153`) |
+| REQ-282d | 5.6 | C | holds | own Check exercised: T332 |
+| REQ-127a | 5.6 | E | builder-side | bucket E; builder mapping |
+| REQ-127b | 5.6 | E | builder-side | bucket E; builder mapping |
+| REQ-165a | 5.6 | C | holds | ownership is non-exclusive per REQ-165b |
+| REQ-165b | 5.6 | C | holds | own Check exercised: T200 |
+| REQ-166a | 5.6 | C | finding:F-P3B2-9 | no entity personality block in badge_briefing |
+| REQ-166b | 5.6 | C | finding:F-P3B2-9 | no empty-state marker for the personality group |
+| REQ-166c | 5.6 | C | finding:F-P3B2-9 | T201 asserts the personality resource, not briefing rendering |
+| REQ-167a | 5.6 | C | finding:F-P3B2-11 | resources return the bare personality object; no entity_id/name/voice_examples (`index.ts:12276-12277`) |
+| REQ-167b | 5.6 | C | finding:F-P3B2-11 | no badge filtering; T58/T65 absent |
+| REQ-069a | 5.6 | C | finding:F-P3B2-12 | empty value is stored, not removed (`index.ts:4085`); no last_updated |
+| REQ-069b | 5.6 | C | finding:F-P3B2-12 | player_signals is Record<string,string>; no {value, connection_counter} (`core/state.ts:711`) |
+| REQ-069c | 5.6 | C | finding:F-P3B2-12 | audit tool/prefix differ from the contract; T8/T142 absent |
+| REQ-128a | 5.6 | C | finding:F-P3B2-12 | signals section has no age or 'set N connections ago' (`index.ts:14031-14040`) |
+| REQ-128b | 5.6 | C | finding:F-P3B2-12 | empty signals render as blank entries; T142 absent |
+| REQ-255a | 5.6 | C | holds | Boundaries section (GM only, untruncated) |
+| REQ-255b | 5.6 | C | finding:F-P3B2-13 | collision check runs only on manage_scene set (`index.ts:6283`) |
+| REQ-255c | 5.6 | C | holds | own Check exercised: T314 |
+| REQ-173a | 5.6 | C | holds | connection_counter increments per connect (`core/state.ts:1805`) |
+| REQ-173b | 5.6 | C | finding:F-P3B2-12 | no age display; blocked by the string-only signal store |
+| REQ-173c | 5.6 | C | holds | own Check exercised: T211 |

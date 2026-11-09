@@ -1130,6 +1130,74 @@ Each finding cites the predicate that carries it.
   T54/T139 (REQ-073c3), and T335 (REQ-289e) appear in per-REQ
   `_Check:_` lines but in no `holonovel/scripts` harness.
 
+### 2026-11-09 full-review sweep — chunk P3b-2 (§5.6 entities and NPCs)
+
+Scheduled under `ROADMAP.md` § *§5.6 entities and NPCs remediation (P1)*.
+Each finding cites the predicate that carries it.
+
+- **F-P3B2-1 — entity/roster lifecycle gaps:** `import` has no per-Novel
+  duplicate guard, so REQ-074c's `[STATE_CONFLICT]` never fires
+  (`holonovel/src/index.ts:3996-4001`); `party://current` omits HP
+  (REQ-074b; `:12560-12566`); `remove` clears `active_entity_id` but not presence
+  and writes no audit entry (REQ-176a; `:4120-4126`); `roster_remove` enumerates
+  no valid IDs and writes no audit (REQ-177; `:4122`).
+- **F-P3B2-2 — roster listing and resources:** `roster_list` returns id and
+  name only, omitting race, class, and level (REQ-178a; `:4127-4130`), and only
+  `roster://current` exists — `roster://<id>` and `roster://<type>` are absent
+  (REQ-178b; `:12287`).
+- **F-P3B2-3 — scene-ledger gaps:** `scene_history` is unbounded with no cap,
+  suppressed count, or `[truncated]` marker (REQ-076b2/129c;
+  `:12295-12307`); `scene_tick` is absent (REQ-076b3); no lore/disposition
+  contradiction warning exists (REQ-076b5–b7; `:6189`).
+- **F-P3B2-4 — fast-forward gaps:** `round` countdowns are not advanced
+  proportionally, lore triggers are absent from the audit entry and bridging
+  summary, and no bridging prose is emitted (REQ-252a/b/c; `:6211-6237`).
+- **F-P3B2-5 — presence surface gaps:** no `last_location` field (party uses
+  `current_room`, `:12561`), no `[not present]` marker in the entity listing,
+  and `manage_staging (action: presence)` accepts no `location`
+  (REQ-307a/b/c; `:6299`, `:6661-6674`).
+- **F-P3B2-6 — NPC depth metadata is unimplemented:** no `appearance_count`,
+  `first_seen`, or `last_seen`, no `[recurring]`/`[campaign]`/`[distant]`
+  markers, and no recap NPC heatmap (REQ-075c/d/e; NPC record in
+  `core/state.ts`).
+- **F-P3B2-7 — NPC description diverges across surfaces:** `create`/`update`
+  writes `npc.description` (`:6503`), while `npc://<id>/personality` reads
+  `npc.personality` (`:12398`); REQ-156 requires one field and most-recent-wins.
+- **F-P3B2-8 — NPC memory is combat-only:** `recordNpcInteraction` is called
+  only from the combat path (`:5727`); party knowledge, emotional-state summary,
+  social/mechanical ingestion, and campaign-memory coupling are absent
+  (REQ-311b/c/d/f; `:4143-4186`).
+- **F-P3B2-9 — personality surfaces are missing from the briefing:**
+  `badge_briefing` renders no entity personality group, `voice_examples` never
+  render ahead of trait descriptions, `persona` is NPC-only, and the 5-example
+  cap is unenforced (REQ-077a/b/d/e, REQ-126a/b, REQ-166a/b/c;
+  `:14126-14155`, `:3105-3115`).
+- **F-P3B2-10 — NPC voice-directive scope and tagging:** Player badge never sees
+  shared-scope directives (NPCs have no `scope`), the role field is absent, and
+  no `tag`/`scene_type` filtering is applied (REQ-282a/b/c; `:14138-14155`,
+  `:6452-6464`).
+- **F-P3B2-11 — personality resources are unstructured and unfiltered:**
+  `entity://<id>/personality` and `npc://<id>/personality` return the bare
+  personality object, omitting `entity_id`/`npc_id`, `name`, and
+  `voice_examples`, and apply no badge filter (REQ-167a/b; `:12276-12277`,
+  `:12398`).
+- **F-P3B2-12 — player signals violate the storage and briefing contract:**
+  `player_signals` is `Record<string, string>` (`core/state.ts:711`), an empty
+  value is stored instead of removing the signal (`:4085`), no
+  `connection_counter` or timestamp is recorded, and the briefing shows no
+  "set N connections ago" age (`:14031-14040`); the audit tool and output prefix
+  also differ from REQ-069c.
+- **F-P3B2-13 — boundary collision covers only one entry point:** the advisory
+  runs on `manage_scene (action: set)` (`:6283`) but not on `manage_npc`
+  create/update, `manage_lore` set/update, or `manage_scene (action: directive)`
+  (REQ-255b).
+- **F-P3B2-14 — citations and narrow assertions:** T55, T56, T57, T58, T65,
+  T112, T132, T140, T142, and T723 appear in per-REQ `_Check:_` lines but in no
+  `holonovel/scripts` harness; T131 matches a conflict-lifecycle test, not NPC
+  damage; and T201/T216/T220/T331 assert a substring or an unrelated surface
+  rather than the REQ contract (REQ-069c, REQ-074b, REQ-075e/g, REQ-076b4/b7,
+  REQ-077f, REQ-124b, REQ-126b, REQ-128b, REQ-167b).
+
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
 Scheduled under `ROADMAP.md` § *§5.4 remediation (P1)* and § *§5.4 citation

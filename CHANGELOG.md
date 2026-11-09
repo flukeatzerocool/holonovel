@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P3b-2 (§5.6 entities and NPCs)
+
+- Chunk P3b-2 reviews the 93 §5.6 entity-and-NPC REQs (30 families: 27 bucket C,
+  3 bucket E) against roster and entity lifecycle, scene and presence surfaces,
+  NPC records and stat blocks, NPC memory, personality and voice rendering,
+  player signals, and boundary propagation. Every REQ carries a verdict in
+  `docs/plans/2026-11-09-full-review-sweep/worklist.md`: 38 hold, 5 are
+  builder-side, and 50 rows carry 14 findings.
+- Twelve P1 findings are scheduled under a new *§5.6 entities and NPCs
+  remediation (P1)* roadmap section: entity/roster lifecycle (REQ-074b/c,
+  REQ-176a, REQ-177), roster listing and resources (REQ-178a/b), the scene ledger
+  cap/tick/contradiction warning (REQ-076b2/b3/b5–b7), fast-forward round clocks
+  and bridging summary (REQ-252a–c), presence markers (REQ-307a–c), NPC depth
+  metadata (REQ-075c/d/e), NPC description unification (REQ-156), NPC memory
+  depth (REQ-311b/c/d/f), personality/voice briefing rendering (REQ-077, REQ-126,
+  REQ-166), NPC voice-directive scope and tag filtering (REQ-282a–c), personality
+  resource shape and filtering (REQ-167a/b), and player-signal storage/ages
+  (REQ-069, REQ-128, REQ-173b).
+- Two further P1 findings are scheduled: boundary collision coverage across every
+  free-text entry point (REQ-255b), and a citation-repair set of eleven
+  unexercised or false-matching Automated tokens (T55, T56, T57, T58, T65, T112,
+  T132, T140, T142, T723, T131) plus four narrow assertions (T201, T216, T220,
+  T331). No source or REQ body changed; the roadmap trigger advances to chunk
+  P3b-3.
+
 ## 2026-11-09 — Full-review sweep: chunk P3b-1 (§5.6 core state and lifecycle)
 
 - Chunk P3b-1 reviews the 66 §5.6 core-state-and-lifecycle REQs (19 families,
