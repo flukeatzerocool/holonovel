@@ -94,6 +94,33 @@ restart the enumeration from scratch.
 - **D27 — No push.** 8 commits unpushed at session start; publication stays
   user-authorized.
 
+### Decisions (2026-11-09, chunk P3b-3)
+
+- **D28 — Chunk scope.** P3b-3 is 39 REQs across 11 families (§5.6 adventure
+  content): `REQ-079`, `132`, `170`, `171`, `172`, `229`, `247`, `248`, `249`,
+  `250`, `292`. Executed as one increment; the family fence is fixed and the
+  only split point is the stopped-run landing.
+- **D29 — Fix policy.** D13 unchanged: P0 in-session, P1 roadmap, P2 only on
+  demonstrated failure, P3 record-and-close.
+- **D30 — Increment record.** `docs/plans/2026-11-09-full-review-p3b3/` for
+  plan/tasks/AAR; this worklist carries the P3b-3 table and decisions.
+- **D31 — Bucket resolution.** By base family ID (D14): 8 families / 32 REQs
+  bucket C; 3 families / 7 REQs bucket E (`REQ-171a/b`, `REQ-172`,
+  `REQ-247a/b1/b2/c`); none A/B/D.
+- **D32 — Boundaries.** `state.ts` persistence → P4; engine loop, event stream,
+  durable agent tasks → P5; generic search ranking and adapters/rulesets → P6;
+  subjective-memory internals → P8. A predicate wholly in a later chunk's
+  surface is recorded with verdict `deferred:<chunk>`, not as a finding.
+- **D33 — Citation resolution.** P2/P3b-1 method: own `_Check:`, else family
+  set; an `Automated` token must appear in a harness and the body must exercise
+  the behaviour; `T0nn` shadowing is not evidence (F-P2-4).
+- **D34 — Fingerprint consequence.** §5.6 is in `DATA_SECTIONS`; a REQ-body
+  edit requires `build-order` regeneration. This increment is review-only
+  unless a P0 fix amends a body.
+- **D35 — No push.** 9 commits unpushed at session start; publication stays
+  user-authorized.
+
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -103,7 +130,7 @@ restart the enumeration from scratch.
 | P3 | decision and creation handlers, structured choices, staleness | §5.4 | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-1 | mutation, decision, and lifecycle handlers; audit resource | §5.6 core state and lifecycle | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-2 | entities, NPCs, personality, briefings | §5.6 entities and NPCs (93 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | scheduled |
+| P3b-3 | adventure content, resources, generation | §5.6 adventure content (39 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | scheduled |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
@@ -927,3 +954,87 @@ Result: **38 holds, 50 finding rows carrying 14 findings, 5 builder-side.**
 | REQ-173a | 5.6 | C | holds | connection_counter increments per connect (`core/state.ts:1805`) |
 | REQ-173b | 5.6 | C | finding:F-P3B2-12 | no age display; blocked by the string-only signal store |
 | REQ-173c | 5.6 | C | holds | own Check exercised: T211 |
+
+## Chunk P3b-3 — adventure content
+
+**Code targets:** `holonovel/src/index.ts` `manage_adventure` (`:10004`, actions
+`generate` `:10017`, `generate_encounter` `:10084`, `load` `:10133`, `list`
+`:10214`); `adventures://` (`:10246`), `adventure://{slug}/overview` (`:10264`),
+`adventure://{slug}/navigation` (`:10277`); `spec_health` adventure fields
+(`:12033-12037`); briefing waypoint block (`:13895-13901`); `manage_scene`
+waypoint path (`:6139`, `:6180`, `:6203-6209`); adventure file helpers
+(`:2492-2521`); `core/adventure-provenance.ts`; `core/state.ts:761`.
+**Spec:** §5.6 adventure block `spec/02-requirements.md:1940-2065` (39 REQs, 11
+families).
+**Already gated:** nothing adventure-specific. `check:fast` says nothing about
+adventure behaviour; the carrying assertions live in `test-adventure.ts`
+(`T75`, `T367`, `T244`, `T734`, `T735`, `T740`, `T741`) and
+`test-output-contracts.ts:1080-1130` (`T146`, `T207`, `T284`, `T285`, `T286`,
+`T305`, `T338`).
+**Exit evidence (recorded 2026-11-09):** `check:fast` 37/37 PASS, `check` PASS,
+`npm --prefix holonovel run test:all` 54/54 PASS; tree at `6ca27ba` with only
+this increment's directory untracked. Findings F-P3B3-1…F-P3B3-12 scheduled
+under a new roadmap section; no source file or REQ body changed (review-only),
+so no fingerprint regeneration was needed.
+
+### P3b-3 per-REQ verdict table
+
+One row per REQ: `holds`, `finding:<ID>`, `builder-side`, or
+`deferred:<chunk>`. Resolution method per D33: each REQ's own `_Check:` IDs; a
+REQ with no own Check inherits its family citation set; an `Automated` token
+must appear literally in a `holonovel/scripts` harness **and** the harness body
+must exercise the stated behaviour.
+
+| REQ | § | Bucket | Verdict | Reason |
+|---|---|---|---|---|
+| REQ-079a | 5.6 | C | holds | World extraction and `@npc`/`@lore`/hazard materialization; T244 and the REQ-622 case exercise it (`test-adventure.ts:260`, `:290`) |
+| REQ-079b | 5.6 | C | finding:F-P3B3-3 | flat-prose search absent: `manage_ruleset (action: search)` never queries adventure content (`index.ts:11161-11201`) |
+| REQ-079c | 5.6 | C | finding:F-P3B3-2 | load builds `adventure_index` only; no extracted NPC/faction entities, lore entries, or hook (`index.ts:10149-10160`) |
+| REQ-079d | 5.6 | C | finding:F-P3B3-12 | duplicate skip with note exists (`index.ts:2680-2700`); the fuzzy `lookup_monster` suggestion is absent |
+| REQ-079e | 5.6 | C | finding:F-P3B3-3 | no adventure search, confidence tiering, or active-first sort; no `adventure://<slug>/<anchor>` resource (`index.ts:10246-10295`) |
+| REQ-079f | 5.6 | C | finding:F-P3B3-2 | briefing carries no adventure hook/location/room block (`index.ts:13880-13910`) |
+| REQ-079g | 5.6 | C | finding:F-P3B3-12 | env var is `TTRPG_ADVENTURE_DIR` (`index.ts:2493`), not `TTRPG_ADVENTURE`; NOT_FOUND enumerates directories, not slugs (`:10136`) |
+| REQ-079h | 5.6 | C | finding:F-P3B3-1 | `load` ignores `target` and requires an active Novel (`index.ts:10133-10138`); no codex scaffold path |
+| REQ-079i | 5.6 | C | finding:F-P3B3-1 | `load` cannot run without a Novel; `target` is not read |
+| REQ-079j1 | 5.6 | C | holds | embed/export implemented (`embeddedAdventureContent` `index.ts:10307-10324`); family citations are stale (F-P3B3-11) |
+| REQ-079j2 | 5.6 | C | finding:F-P3B3-11 | cites T59/T60/T61/T206/T287/T368; none appears in a harness title |
+| REQ-292a | 5.6 | C | finding:F-P3B3-6 | filter is bypassed for the GM (`index.ts:10235`); T338 asserts only the empty state and count |
+| REQ-292b | 5.6 | C | finding:F-P3B3-6 | no `player_visible`/`shared` hook rule; Player sees every entry with a preview (`index.ts:10236`) |
+| REQ-292c | 5.6 | C | holds | empty-state message and count exercised (T338, `test-output-contracts.ts:1094`); narrative sections are MAY |
+| REQ-292d | 5.6 | C | finding:F-P3B3-2 | narrative-only load creates no faction/lore/NPC entities from the index |
+| REQ-170 | 5.6 | C | finding:F-P3B3-5 | `indexed_adventures` is GM-only, one scaffold string, no build-time hashes (`index.ts:12033-12035`); T207 never reads it |
+| REQ-171a | 5.6 | E | builder-side | build-time validation (§6.3); no runtime predicate |
+| REQ-171b | 5.6 | E | finding:F-P3B3-5 | `[malformed-adventure]` is never emitted; partial-index retrieval is a runtime surface |
+| REQ-172 | 5.6 | E | finding:F-P3B3-5 | no startup hash comparison and no `[adventure-drift]` entry (`index.ts` has neither string) |
+| REQ-247a | 5.6 | E | builder-side | build-time extraction; the runtime load path is not this contract |
+| REQ-247b1 | 5.6 | E | builder-side | build-time extraction |
+| REQ-247b2 | 5.6 | E | builder-side | build-time extraction |
+| REQ-247c | 5.6 | E | builder-side | build-time extraction; T283 (build acceptance) has no runtime harness |
+| REQ-248a | 5.6 | C | finding:F-P3B3-7 | overview omits NPC roles and location descriptions; Players lose factions entirely rather than badge-filtering per section (`index.ts:10271`) |
+| REQ-248b | 5.6 | C | holds | `[WARNING] No structured overview available for '<slug>'` (`index.ts:10269`); T285 |
+| REQ-249a | 5.6 | C | finding:F-P3B3-7 | no heading anchors, no GM-section badge filter; STATE_CONFLICT tests Novel absence, not adventure absence (`index.ts:10277-10295`) |
+| REQ-249b | 5.6 | C | holds | `[WARNING] No navigation index available.` (`index.ts:10283`); T286 |
+| REQ-250a | 5.6 | C | holds | briefing labels slug and heading and lists adjacent scenes (`index.ts:13895-13901`); own Check is narrow (F-P3B3-11) |
+| REQ-250b | 5.6 | C | finding:F-P3B3-8 | waypoint-only change leaves `isTransition` false, so no scene-transition hook or audit (`index.ts:6180`, `:6203-6209`) |
+| REQ-250c | 5.6 | C | finding:F-P3B3-7 | briefing renders regardless of badge, but the resource prose is never badge-filtered; T284 asserts neither |
+| REQ-229a | 5.6 | C | finding:F-P3B3-10 | only wisdom voice/lore matches; no `@encounter` pattern or theme matching (`index.ts:10198-10203`) |
+| REQ-229b | 5.6 | C | finding:F-P3B3-10 | no automatic activation or briefing/resource presence of matched items |
+| REQ-229c | 5.6 | C | finding:F-P3B3-10 | no community-tier "Synthesis X items found" prompt |
+| REQ-229d | 5.6 | C | finding:F-P3B3-11 | T305 asserts the augmentation line only; the omission branch is unasserted |
+| REQ-132a | 5.6 | C | finding:F-P3B3-3 | Novel scope and discard hold; search/briefing surfacing of generated content does not (`index.ts:11161-11201`) |
+| REQ-132b | 5.6 | C | finding:F-P3B3-9 | `load` clears `novel.generated_adventure` (`index.ts:10195`, `:10205`), so coexistence is impossible |
+| REQ-132c | 5.6 | C | finding:F-P3B3-9 | no briefing ordering, no `[generated]` search tag, no `## World` generation (`index.ts:10017-10082`) |
+| REQ-132d | 5.6 | C | finding:F-P3B3-9 | generated output carries no `## World` section, rooms, or exits |
+| REQ-132e | 5.6 | C | finding:F-P3B3-11 | T146 asserts overview/navigation only; restart, replace, and end-discard branches are unasserted |
+
+### Cluster verdicts
+
+| Cluster | REQs | Verdict |
+|---|---|---|
+| A indexed module load and catalog | 079a–j2, 292a–d (15) | findings F-P3B3-1…F-P3B3-6, F-P3B3-11, F-P3B3-12 |
+| B discovery, validation, drift, extraction | 170, 171a–b, 172, 247a–c (8) | finding F-P3B3-5; five builder-side rows (171a, 247a/b1/b2/c) |
+| C resources, waypoint, synthesis linkage | 248a–b, 249a–b, 250a–c, 229a–d (11) | findings F-P3B3-7, F-P3B3-8, F-P3B3-10, F-P3B3-11; holds on 248b/249b/250a |
+| D generated-adventure lifecycle | 132a–e (5) | findings F-P3B3-9, F-P3B3-3, F-P3B3-11 |
+
+**Totals:** 39 rows — 6 holds, 5 builder-side, 28 finding rows carrying 12
+findings (all P1; no P0).

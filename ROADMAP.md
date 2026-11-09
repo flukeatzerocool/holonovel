@@ -14,19 +14,49 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P3b-3 (adventure content, 39 REQs) and P3b-4 (state surfaces and
-  fingerprinting, 67).
+- Chunk P3b-4 (state surfaces and fingerprinting, 67 REQs) — the last §5.6
+  sub-chunk.
 - Chunks P4 (`core/state.ts` persistence with the §5.19 cross-check) and P5–P7
   (engine loop and event stream; adapters and rulesets; determinism and
   knowledge).
 - Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
   Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
   closed; P3b-1 (core state and lifecycle) closed 2026-11-09 and P3b-2
-  (entities and NPCs) closed 2026-11-09.
+  (entities and NPCs) closed 2026-11-09; P3b-3 (adventure content) closed
+  2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P3b-3
-(§5.6 adventure content); closes when chunks P3b-3–P8 and the closing M1 pass
-report.
+**Trigger:** the next session allocated to review work, starting with chunk P3b-4
+(§5.6 state surfaces and fingerprinting); closes when chunks P3b-4–P8 and the
+closing M1 pass report.
+
+## §5.6 adventure content remediation (P1)
+
+- Module load, catalog, and discovery: give `load` a real `target: "codex"`
+  path, pre-populate NPC/faction/lore state from the structural index, surface
+  the adventure hook in `badge_briefing`, search adventure prose with
+  active-first and confidence tiers, serve `adventure://<slug>/<anchor>`, emit
+  build-time hashes in `indexed_adventures` plus `[malformed-adventure]` and
+  `[adventure-drift]`, apply the genre filter and `player_visible`/shared-hook
+  rule under both badges, enumerate slugs on `[NOT_FOUND]`, honour
+  `TTRPG_ADVENTURE`, and add the `lookup_monster` suggestion (REQ-079b, REQ-079c,
+  REQ-079d, REQ-079e, REQ-079f, REQ-079g, REQ-079h, REQ-079i, REQ-079j2,
+  REQ-170, REQ-171b, REQ-172, REQ-247c, REQ-292a, REQ-292b, REQ-292d; F-P3B3-1, F-P3B3-2,
+  F-P3B3-3, F-P3B3-4, F-P3B3-5, F-P3B3-6, F-P3B3-12).
+- Resources, waypoint, and synthesis linkage: render NPC roles and location
+  descriptions in the overview, badge-filter per adventure section marker, add
+  navigation anchors and real `[STATE_CONFLICT]` detection on the adventure
+  presence, fire the scene-transition hook on a waypoint change, and complete
+  the synthesis augmentation (encounter/theme matching, community prompt,
+  automatic activation, omission branch) (REQ-229a, REQ-229b, REQ-229c,
+  REQ-229d, REQ-248a, REQ-249a, REQ-250b, REQ-250c; F-P3B3-7, F-P3B3-10).
+- Generated-adventure lifecycle: keep the generated adventure across a `load`,
+  emit a `## World` section with rooms and exits for spatial premises, order
+  indexed-then-generated content in the briefing, tag generated search results,
+  and widen the lifecycle assertions (REQ-132a, REQ-132b, REQ-132c, REQ-132d,
+  REQ-132e; F-P3B3-8, F-P3B3-9, F-P3B3-11).
+
+**Trigger:** the next session that takes adventure-content remediation work;
+closes when F-P3B3-1–F-P3B3-12 are `Resolved` in the review register.
 
 ## §5.6 entities and NPCs remediation (P1)
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P3b-3 (§5.6 adventure content)
+
+- Chunk P3b-3 reviews the 39 §5.6 adventure-content REQs (11 families: 8 bucket
+  C, 3 bucket E) against module load and pre-population, the adventure catalog
+  and discovery surface, build-time validation, drift detection and structural
+  extraction, the overview/navigation resources, the scene waypoint, synthesis
+  linkage, and generated-adventure lifecycle. Every REQ carries a verdict in
+  `docs/plans/2026-11-09-full-review-sweep/worklist.md`: 6 hold, 5 are
+  builder-side, and 28 rows carry 12 findings.
+- The twelve P1 findings are scheduled under a new *§5.6 adventure content
+  remediation (P1)* roadmap section: the missing `target: codex` load path, the
+  absent structural pre-population and briefing hook, the absent adventure
+  search and per-anchor prose resource, the wrong discovery/drift health fields,
+  the catalog filter and badge rules, the overview/navigation field and badge
+  gaps, the missing waypoint transition hook, the generated-adventure
+  coexistence and `## World` violations, partial synthesis linkage, twelve
+  unexercised or narrow citations (T59, T60, T61, T206, T287, T368, T209, T283,
+  T284, T305, T338, T146), and the not-found/environment/suggestion deviations.
+  No source or REQ body changed; the roadmap trigger advances to chunk P3b-4.
+
 ## 2026-11-09 — Full-review sweep: chunk P3b-2 (§5.6 entities and NPCs)
 
 - Chunk P3b-2 reviews the 93 §5.6 entity-and-NPC REQs (30 families: 27 bucket C,
