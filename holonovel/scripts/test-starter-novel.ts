@@ -173,6 +173,11 @@ async function main(): Promise<void> {
       assert(candle?.lit && candle?.switched_on, "the starting candle is lit and switched on");
       assert(candle?.wearable === false, "the candle is held, not worn");
       assert([...world.things.values()].every((t) => !t.wearable), "no authored thing is wearable");
+      const pages = [...world.things.values()].filter((t) => /^Page — /.test(t.name));
+      assert(pages.length === 10, "ten readable pages are authored");
+      assert(pages.every((p) => p.readable && (p.read_text ?? "").trim().length > 0), "every page is readable and carries text");
+      assert(pages.every((p) => [...world.rooms.values()].some((r) => r.name === p.location)), "every page is placed in an existing room");
+      assert(new Set(pages.map((p) => (p.location ?? "").split(" — ")[0])).size === 7, "all seven floors carry a page");
       assert(novel!.story_beats.length === 4, "the starter carries four authored beats");
       assert(
         novel!.story_beats.every((b) => /^[^.!?]*[.!?]$/.test(b.scene_preview)),

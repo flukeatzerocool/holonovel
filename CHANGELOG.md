@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-08 — Torre knowledge depth: three player-facing pages
+
+- The starter Novel carries ten readable `Page — …` fragments, up from seven:
+  `the tower's origin` (Seventh Floor — Teaching Nest), `the bargain` (Second
+  Floor — Social Hall), and `the matches` (Fifth Floor — Wax Refill), each
+  voiced to the system its floor carries (REQ-565).
+- `test-starter-novel` asserts the page surface — ten pages, every one
+  readable with text and placed in an existing room, all seven floors
+  represented — and the Holosuite novel tier's thing pin moves to 35.
+- The "Torre player-facing knowledge depth" roadmap item ships and its
+  review-register row resolves; the Survivor race clock stays on `ROADMAP.md`
+  under its trigger.
+
 ## 2026-11-08 — Roadmap clearance: Torre polish and NPC identity in play
 
 - `firstSentence()` replaces the 60-character cut at the `manage_scene

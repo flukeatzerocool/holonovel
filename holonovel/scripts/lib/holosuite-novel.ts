@@ -182,7 +182,7 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
     // --- Structure ----------------------------------------------------------
     const counts: Array<[string, number, number, string]> = [
       ["rooms", Object.keys(novel.world?.rooms ?? {}).length, 94, "REQ-565"],
-      ["things", Object.keys(novel.world?.things ?? {}).length, 32, "REQ-565"],
+      ["things", Object.keys(novel.world?.things ?? {}).length, 35, "REQ-565"],
       ["npcs", Object.keys(novel.npcs ?? {}).length, 6, "REQ-565"],
       ["lore", Object.keys(novel.lore ?? {}).length, 17, "REQ-565"],
       ["secrets", (novel.secrets ?? []).length, 3, "REQ-565"],

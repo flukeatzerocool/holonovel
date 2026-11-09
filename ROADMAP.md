@@ -12,17 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Torre player-facing knowledge depth (P3)
-
-- Add two or three pages (the tower's origin, the survivors' bargain, the
-  matches) or mark a few lore entries `player_discovered` with a page-reveal
-  path (REQ-083d, REQ-565).
-- Keep the one-fragment-per-floor rhythm unless the added pages earn their
-  place.
-
-**Trigger:** after the seven current pages have been played through and
-exploration still feels thin.
-
 ## Survivor race clock (P3)
 
 - Decide whether The Survivors' 0/10 faction clock should advance on scene

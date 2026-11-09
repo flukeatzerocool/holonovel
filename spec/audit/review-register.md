@@ -27,6 +27,14 @@ condition — not a gate's emitted message; a message alone is not evidence.
   block render the compiled identity summary; the Player badge stays free of
   it. T772 asserts it. Predicate: `holonovel/src/index.ts` `npcIdentitySummary`.
 
+### 2026-11-08 Torre knowledge depth
+
+- **Player-facing knowledge is ten pages (resolved):** the starter carries ten
+  readable `Page — …` fragments, at least one per floor; `the tower's origin`,
+  `the bargain`, and `the matches` join the seven. Predicate:
+  `holonovel/content/torre-nosferatu.source.json` `world.things`; asserted by
+  `test:starter-novel` and the Holosuite novel tier's `things` pin (REQ-565).
+
 ### 2026-11-08 review remediation (CR-1..CR-22)
 
 - **CR-1 — Player open memory omitted the claim (resolved):** `index.ts`
@@ -947,10 +955,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-- **Player-facing knowledge is seven pages (2026-11-08):** 17 lore entries are
-  GM-only; the Player gets one page per floor. Predicate:
-  `holonovel/content/torre-nosferatu.source.json` readable things; REQ-083d,
-  REQ-565.
 - **Survivor race is descriptive (2026-11-08):** The Survivors' 0/10 faction
   clock has no advancing event. Predicate:
   `holonovel/content/torre-nosferatu.source.json` `factions`; REQ-233.
