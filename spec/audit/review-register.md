@@ -1123,6 +1123,49 @@ currently asserts these contracts — that is the finding).
   Predicate: `spec/02-requirements.md` Check lines for those REQs;
   `spec/appendices-reference.md` T44/T109/T110/T180/T336/T350 rows.
 
+### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
+
+Scheduled under `ROADMAP.md` § *§5.3 citation repair (P1)* and
+§ *Harness test-ID label hygiene (P2)*. Each finding cites the predicate that
+carries it; the citation findings rest on an enumeration of the §5.3 blocks
+against Appendix F and the harness corpus, not on a gate message.
+
+- **F-P2-1 — nine §5.3 REQs cite T22 with no implementing harness
+  (scheduled):** REQ-023a and REQ-023b cite T22 (prompt registration lifecycle:
+  stub tool appears/absent across restart, exactly one user-role message, a
+  title on every prompt, a description on every argument). No harness under
+  `holonovel/scripts` or `scripts` references T22. The only literal token is
+  `T022` at `holonovel/scripts/test-backfill.ts:164`, whose title is
+  `T16/T022: resources/list exposes world + spec resources` — a different
+  assertion, so it is a false match. REQ-078a–078d inherit the same citation
+  but are already exercised by T124
+  (`holonovel/scripts/test-output-contracts.ts:320`), so they need a re-point,
+  not a new assertion. Predicate: `test-backfill.ts:164`;
+  `spec/02-requirements.md` REQ-023b and REQ-078a–078d Check lines.
+- **F-P2-2 — REQ-024a cites T35 (fixture isolation) with no implementing
+  harness (scheduled):** T35 asserts fixture-only tool names
+  (`create_delver`, `roll_move`, `start_confrontation`) are absent from
+  `tools/list` for the target ruleset and present when serving the fixture.
+  Neither token appears in any harness, and `test-tool-surface.ts` only asserts
+  alias/retirement behaviour. Predicate: `spec/02-requirements.md` REQ-024a
+  Check line; `holonovel/scripts/test-tool-surface.ts:225-252`.
+- **F-P2-3 — nine §5.3 REQs cite stale test IDs whose behaviour is exercised
+  under another ID (scheduled):** REQ-025a/b1/b2/c cite
+  T45/T154/T165/T166/T170 (behaviour asserted by
+  `holonovel/scripts/test-output-contracts.ts:281` under T105/T486/T487/T488);
+  REQ-138a/b cite T167 (asserted at `:419` under T152); REQ-139 cites T168
+  (asserted at `:427` under T153); REQ-057a/b cite T40 (asserted at `:305`
+  under T39). Action is a citation re-point, not a new assertion. Predicate:
+  the cited Check lines against the named harness lines.
+- **F-P2-4 — zero-padded harness test IDs shadow real catalogue IDs
+  (scheduled):** `holonovel/scripts/test-backfill.ts:157` (`T5/T020`),
+  `:164` (`T16/T022`), and `:802` (`T176/T177/T178/T002`) use tokens that do
+  not exist in Appendix F. A naive literal-match resolution treats `T022` as
+  T22 and records REQ-023b as covered when it is not; the same shadowing
+  applies to any REQ citing T20/T2. Fix is to enumerate the padded tokens,
+  correct them to the IDs the assertions actually implement, and re-run the
+  coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
+
 ## Closed-P3 (recorded, no action)
 
 - **Prototype-key hardening in package tool schemas (2026-11-09):** `index.ts:2018-2032`

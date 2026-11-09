@@ -32,7 +32,7 @@ restart the enumeration from scratch.
 | Chunk | Surface | Spec | Skill | Status |
 |---|---|---|---|---|
 | P1 | routing, badge gates, `audit()`, error envelopes | §5.1, §5.5 | `code-review` | **closed 2026-11-09** |
-| P2 | tool registration, schemas, descriptions | §5.3 | `code-review` + `spec-review` | scheduled |
+| P2 | tool registration, schemas, descriptions | §5.3 | `code-review` + citation resolution | **closed 2026-11-09** |
 | P3 | mutation and decision handlers, lifecycle transitions | §5.4, §5.6 | `code-review` + `spec-review` | scheduled |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | scheduled |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | scheduled |
@@ -240,3 +240,209 @@ Findings: **none new.**
 
 `§5.9` and `§5.19` semantic review — closed by the 2026-11-09 seam pass
 (`review-register.md:14`). Chunk P4 reads `core/state.ts` code-side only.
+
+## Chunk P2 — tool surface and §5.3
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p2/`.
+
+**Code targets:** `holonovel/src/index.ts` tool/resource/prompt registration
+(42 `registerTool` sites, 56 `registerResource`, 6 `server.prompt`),
+`holonovel/src/tool-registry.ts`, `holonovel/src/surface-report.ts`,
+`holonovel/scripts/generate-tool-definitions.ts` and the generated
+`holonovel/tool-definitions.json`, `spec_health` / `manage_diagnostics` handlers.
+**Spec:** §5.3 (115 REQs).
+**Already gated:** seven tool-definition gates (`check-tool-definitions-sync`,
+`tool-definitions-lint`, `check-tool-surface`, `surface-budget`,
+`surface-replay`, `check-tdqs-scoreboard`, `tool-citation-check`) plus
+`action-conflicts` and `check-package-manifest`; the TDQS harnesses
+(`test-tool-definitions.ts` T509/T644–T648/T679–T680, `test-security.ts` T536)
+run in the server suite, outside the root manifest.
+
+### Decisions (2026-11-09)
+
+- **D1 — Fix policy.** Chunk P1's D2 adopted unchanged: P0 fixed in-session,
+  P1 scheduled on `ROADMAP.md`, P2 fixed only with a demonstrated failure, P3
+  record-and-close.
+- **D2 — Increment record.** New `docs/plans/2026-11-09-full-review-p2/` for
+  plan/tasks/AAR; this worklist stays the cross-session tracker and carries the
+  P2 table.
+- **D3 — Verdict vocabulary.** No fourth verdict. Bucket is inherited from the
+  register's family row; the 38 sub-REQs with no own `_Check:_` inherit their
+  family's citation set. Verdicts: `holds`, `finding:<ID>`, `builder-side`.
+  §5.3 has **69 family rows — 58 C, 11 E, none A/B/D** (verified by base-ID
+  comparison: no family missing, no extra). The 38 is produced by enumerating
+  the §5.3 blocks and testing each for `_Check:_`.
+- **D4 — §5.3/P6 boundary.** P2 reviewed the registration surface and the
+  advertised payload; resource projection and adapter internals stay with P6.
+- **D5 — Surface arithmetic.** 42 `registerTool` sites = 37 canonical + 4
+  retired hidden tombstones (`resolve_fate`, `resolve_ironsworn`,
+  `resolve_forged`, `manage_session`) + 1 dynamic loop (`index.ts:2229`).
+  `tool_count` is compared against canonical entries only, never the site count.
+- **D6 — No push.** Publication stays user-authorized.
+
+### Cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A tool surface and economy | 21 | holds | `check-tool-surface`, `surface-budget`, `action-conflicts`, `tool-definitions-lint`; DECISIONS per-tool justification table = 37 rows = live registry; `spec_health` surfaces asserted by T105/T486/T487/T488 |
+| B tool documentation and TDQS | 10 | holds | T536 (`test-security.ts:236`), T642/T644–T648/T679–T680 (`test-tool-definitions.ts`), `check-tdqs-scoreboard` |
+| C resources and UI | 13 | holds | 56 `registerResource` sites cover the REQ-022a catalog; `ui://` resources with empty-origin CSP (`index.ts:3188`); `graph://` + projections; `spec://build`; REQ-139 asserted by T153 |
+| D prompts and guidance | 18 | **finding:F-P2-1** | prompts registered via `server.prompt(name, title, handler)`; REQ-023b's cited T22 has no harness — the only literal `T022` is an unrelated resource-list test |
+| E spec_health and diagnostics | 19 | holds | `prompt_health`/`resource_uris` asserted under T152/T153; context ledger `context_ledger`/`prefix_ratio` (`index.ts:12106`); T105/T488 surfaces |
+| F surface profiles and projection | 15 | holds | `surface-budget`, `surface-replay` (T682 in `scripts/surface-replay.ts:264`), `check-tool-surface` |
+| G build metadata and configuration | 19 | holds | `build-order` version sync (REQ-107a), `check-fingerprint-sync`, phase-map hash (REQ-278); the rest bucket E |
+
+**Gate assertion vs REQ text.** Each carrying gate was read against its REQ.
+No gate was found asserting something narrower than the REQ it is credited
+with, so no gate-class finding is raised. `check-tdqs-scoreboard` reads the
+committed scoreboard rather than the live surface as REQ-552 requires — it
+passes only because `score:tools` regenerates the scoreboard from the live
+registry; recorded as an observation, not a finding (no demonstrated drift).
+
+### Findings
+
+| ID | Finding | Predicate | Severity | Disposition |
+|---|---|---|---|---|
+| F-P2-1 | Nine §5.3 REQs cite T22; no harness implements prompt registration/lifecycle. The only literal token is `T022` in a test that asserts resource listing. REQ-023a/023b need the T22 assertion written; REQ-078a–078d are already exercised by T124 and need only a re-point | `holonovel/scripts/test-backfill.ts:164`; REQ-023b Check; REQ-078a–078d Check | P1 | `Scheduled-roadmap` — ROADMAP § §5.3 citation repair |
+| F-P2-2 | REQ-024a cites T35 (fixture isolation); no harness asserts fixture-only tool names are absent from a target ruleset's `tools/list` or present when serving the fixture | cite T35; no `create_delver`/`roll_move` in `holonovel/scripts` | P1 | `Scheduled-roadmap` — ROADMAP § §5.3 citation repair |
+| F-P2-3 | Stale citations: REQ-025a/b1/b2/c cite T45/T154/T165/T166/T170, REQ-138a/b cite T167, REQ-139 cites T168, REQ-057a/b cite T40. Each behaviour is exercised under a different ID (T105/T486/T487/T488, T152, T153, T39) | `holonovel/scripts/test-output-contracts.ts:281`, `:419`, `:305` | P1 | `Scheduled-roadmap` — ROADMAP § §5.3 citation repair |
+| F-P2-4 | Harness titles carry zero-padded test IDs that do not exist in Appendix F (`T020`, `T022`, `T002`, and others) and shadow real IDs; demonstrated false hold on REQ-023b | `holonovel/scripts/test-backfill.ts:157`, `:164`, `:802` | P2 | `Scheduled-roadmap` — ROADMAP § Harness test-ID label hygiene |
+
+No P0. No source file was changed by this chunk.
+
+### Exit evidence (recorded 2026-11-09)
+
+`check:fast` 37/37 PASS · `check` PASS (0 errors) ·
+`npm --prefix holonovel run test:tool-definitions` 17/17 · `test:security` 12/12 ·
+`check-roadmap` PASS · `check-registers` PASS · `check-loop-artifacts` PASS ·
+`build-order` clean.
+
+### P2 per-REQ verdict table (115 rows)
+
+Resolution method: each REQ's own `*Check:*` IDs; a REQ with no own Check
+inherits its family's citation set; an `Automated` citation must appear
+literally in a harness under `holonovel/scripts` or root `scripts`; `Manual`
+citations need no harness; bucket inherited from the base family row in
+`spec/audit/req-coverage.md`.
+
+Result: **76 holds, 20 builder-side, 19 findings** (9 F-P2-1, 1 F-P2-2,
+9 F-P2-3). No bucket A/B/D row exists in §5.3.
+
+| REQ | § | Bucket | Verdict | Evidence |
+|---|---|---|---|---|
+| REQ-020a | 5.3 | C | holds | no own Check; family exercised: G2,T3,T32,T33,T5 |
+| REQ-020b | 5.3 | C | holds | own Check exercised: T3,T5,T32,T33,G2 |
+| REQ-021 | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-408 | 5.3 | C | holds | own Check exercised: T477 |
+| REQ-413 | 5.3 | C | holds | own Check exercised: T486 |
+| REQ-414 | 5.3 | C | holds | own Check exercised: T487 |
+| REQ-415 | 5.3 | C | holds | own Check exercised: T488 |
+| REQ-022a | 5.3 | C | holds | no own Check; family exercised: T104,T16 |
+| REQ-022b | 5.3 | C | holds | own Check exercised: T16,T104 |
+| REQ-296a | 5.3 | C | holds | no own Check; family exercised: T341,T516 |
+| REQ-296b | 5.3 | C | holds | own Check exercised: T341 |
+| REQ-296c | 5.3 | C | holds | own Check exercised: T516 |
+| REQ-426a | 5.3 | C | holds | own Check exercised: T507 |
+| REQ-426b | 5.3 | C | holds | own Check exercised: T507 |
+| REQ-426c | 5.3 | C | holds | own Check exercised: T507,T508 |
+| REQ-426d | 5.3 | C | holds | own Check exercised: T507 |
+| REQ-023a | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-023b | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-024a | 5.3 | C | finding:F-P2-2 | automated citation unexercised: T35 |
+| REQ-024b | 5.3 | C | holds | own Check exercised: T3,T49 |
+| REQ-024c | 5.3 | C | holds | own Check exercised: T642 |
+| REQ-584 | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-427 | 5.3 | C | holds | own Check exercised: T509 |
+| REQ-450 | 5.3 | C | holds | own Check exercised: T536 |
+| REQ-552 | 5.3 | C | holds | own Check exercised: T644,T679,T680,T730 |
+| REQ-553 | 5.3 | C | holds | own Check exercised: T645 |
+| REQ-554 | 5.3 | C | holds | own Check exercised: T646 |
+| REQ-555 | 5.3 | C | holds | own Check exercised: T647 |
+| REQ-025a | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T45,T154,T165,T166,T170 |
+| REQ-025b1 | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T45,T154,T165,T166,T170 |
+| REQ-025b2 | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T45,T154,T165,T166,T170 |
+| REQ-025c | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T45,T154,T165,T166,T170 |
+| REQ-411 | 5.3 | C | holds | own Check exercised: T480 |
+| REQ-587 | 5.3 | C | holds | own Check exercised: T687 |
+| REQ-588 | 5.3 | C | holds | own Check exercised: T688 |
+| REQ-606 | 5.3 | C | holds | own Check exercised: T717 |
+| REQ-607 | 5.3 | C | holds | own Check exercised: T718 |
+| REQ-608 | 5.3 | C | holds | own Check exercised: T719 |
+| REQ-609 | 5.3 | C | holds | own Check exercised: T720 |
+| REQ-610 | 5.3 | C | holds | own Check exercised: T721 |
+| REQ-160a | 5.3 | C | holds | no own Check; family exercised: T195 |
+| REQ-160b | 5.3 | C | holds | no own Check; family exercised: T195 |
+| REQ-160c | 5.3 | C | holds | own Check exercised: T195 |
+| REQ-169a | 5.3 | C | holds | no own Check; family exercised: T204 |
+| REQ-169b | 5.3 | C | holds | own Check exercised: T204 |
+| REQ-138a | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T167 |
+| REQ-138b | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T167 |
+| REQ-139 | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T168 |
+| REQ-269 | 5.3 | C | holds | own Check exercised: T289 |
+| REQ-388a | 5.3 | C | holds | no own Check; family exercised: T450 |
+| REQ-388b | 5.3 | C | holds | no own Check; family exercised: T450 |
+| REQ-388c | 5.3 | C | holds | no own Check; family exercised: T450 |
+| REQ-388d | 5.3 | C | holds | own Check exercised: T450 |
+| REQ-105 | 5.3 | C | holds | own Check exercised: T104 |
+| REQ-106 | 5.3 | C | holds | own Check exercised: T105 |
+| REQ-107a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-107b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-187a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-187b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-278 | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-161a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-161b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-161c | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-162a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-162b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-162c | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-163a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-163b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-164a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-164b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-067a | 5.3 | C | holds | no own Check; family exercised: T118,T62,T636 |
+| REQ-067b | 5.3 | C | holds | no own Check; family exercised: T118,T62,T636 |
+| REQ-067c | 5.3 | C | holds | own Check exercised: T62,T118 |
+| REQ-067d | 5.3 | C | holds | own Check exercised: T636 |
+| REQ-063a | 5.3 | C | holds | no own Check; family exercised: T259,T49,T50 |
+| REQ-063b | 5.3 | C | holds | no own Check; family exercised: T259,T49,T50 |
+| REQ-063c | 5.3 | C | holds | own Check exercised: T49,T50,T259 |
+| REQ-078a | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-078b | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-078c1 | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-078c2 | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-078c3 | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-078c4 | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-078d | 5.3 | C | finding:F-P2-1 | automated citation unexercised: T22 |
+| REQ-057a | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T40 |
+| REQ-057b | 5.3 | C | finding:F-P2-3 | automated citation unexercised: T40 |
+| REQ-112 | 5.3 | C | holds | own Check exercised: T115 |
+| REQ-058 | 5.3 | C | holds | own Check exercised: T41,T42 |
+| REQ-110 | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-059a | 5.3 | C | holds | no own Check; family exercised: T39,T39a |
+| REQ-059b | 5.3 | C | holds | no own Check; family exercised: T39,T39a |
+| REQ-059c | 5.3 | C | holds | own Check exercised: T39,T39a |
+| REQ-182a | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-182b | 5.3 | E | builder-side | bucket E; verifier-side |
+| REQ-183a | 5.3 | C | holds | no own Check; family exercised: T39b |
+| REQ-183b | 5.3 | C | holds | own Check exercised: T39b |
+| REQ-323a | 5.3 | C | holds | no own Check; family exercised: T367 |
+| REQ-323b | 5.3 | C | holds | own Check exercised: T367 |
+| REQ-567 | 5.3 | C | holds | own Check exercised: T660 |
+| REQ-568 | 5.3 | C | holds | own Check exercised: T661 |
+| REQ-583 | 5.3 | C | holds | own Check exercised: T683 |
+| REQ-569 | 5.3 | C | holds | own Check exercised: T662,T682 |
+| REQ-570 | 5.3 | C | holds | own Check exercised: T663,T676,T677 |
+| REQ-571 | 5.3 | C | holds | own Check exercised: T664,T678 |
+| REQ-572 | 5.3 | C | holds | own Check exercised: T665 |
+| REQ-580 | 5.3 | C | holds | own Check exercised: T673,T676,T677 |
+| REQ-573 | 5.3 | C | holds | own Check exercised: T666 |
+| REQ-575 | 5.3 | C | holds | own Check exercised: T668,T676 |
+| REQ-576 | 5.3 | C | holds | own Check exercised: T669 |
+| REQ-578 | 5.3 | C | holds | own Check exercised: T671 |
+| REQ-581 | 5.3 | C | holds | own Check exercised: T674,T675 |
+| REQ-579 | 5.3 | C | holds | own Check exercised: T672 |
+| REQ-579a | 5.3 | C | holds | no own Check; family exercised: T672 |
+| REQ-577 | 5.3 | C | holds | own Check exercised: T670 |
+| REQ-574 | 5.3 | C | holds | own Check exercised: T667 |

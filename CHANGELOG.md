@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P2 (tool surface and §5.3)
+
+- Chunk P2 of the full-review sweep reviewed the tool surface — 42
+  `registerTool` sites resolving to 37 advertised tools, 56 resources, 6
+  prompts, the generated `tool-definitions.json` payload, and the
+  `spec_health`/`manage_diagnostics` reporting — against all 115 REQs of §5.3.
+  Every REQ carries a verdict in
+  `docs/plans/2026-11-09-full-review-sweep/worklist.md`: 76 hold, 20 are
+  builder-side, and 19 cite `Automated` tests whose behaviour sits elsewhere or
+  is unexercised. No source file changed.
+- Four findings are scheduled. F-P2-1: REQ-023a/REQ-023b cite T22 with no
+  prompt-registration harness (REQ-078a–078d inherit the citation but are
+  already exercised by T124). F-P2-2: REQ-024a cites T35 (fixture isolation)
+  with no harness. F-P2-3: nine stale citations (REQ-025a/b1/b2/c, REQ-138a/b,
+  REQ-139, REQ-057a/b) whose behaviour is asserted under T105/T486/T487/T488,
+  T152, T153, and T39. F-P2-4: zero-padded harness test IDs (`T020`, `T022`,
+  `T002`) shadow real Appendix F IDs and produced a false hold for REQ-023b.
+- The register's §5.3 rows are family-level: 69 families cover all 115
+  sub-REQs (58 bucket C, 11 bucket E, none A/B/D); 38 sub-REQs have no own
+  `Check:` line and inherit their family's citation set. The header records the
+  rule so the next chunk does not re-derive it.
+- Two roadmap items are added — *§5.3 citation repair (P1)* and *Harness
+  test-ID label hygiene (P2)* — and the sweep trigger advances to chunk P3
+  (mutation, decision, and lifecycle handlers against §5.4/§5.6).
+
 ## 2026-11-09 — Full-review sweep: chunk P1 (trust core) and machine evidence
 
 - Chunk P1 of the full-review sweep reviewed the trust core — request

@@ -14,20 +14,19 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P2–P4: tool surface and §5.3; mutation, decision, and lifecycle
-  handlers against §5.4/§5.6; `core/state.ts` persistence with the §5.19
-  guardrail cross-check.
+- Chunks P3–P4: mutation, decision, and lifecycle handlers against §5.4/§5.6;
+  `core/state.ts` persistence with the §5.19 guardrail cross-check.
 - Chunks P5–P7: engine loop and event stream (§5.20, §5.24, §5.31); adapters and
   rulesets (§5.10, §5.11, §5.13, §5.15–§5.18, §5.21–§5.23); determinism and
   knowledge (§5.2, §5.7, §5.8, §5.14, §5.28–§5.30).
 - Chunk P8 and M1: narrative cognition (§5.12, §5.25–§5.27, §5.32–§5.35) and a
   closing machine-evidence re-run. Scope is §5.1–§5.35 except §5.9 and §5.19,
-  which the 2026-11-09 seam pass closed; chunk P1 (trust core, §5.1/§5.5)
-  landed the same day.
+  which the 2026-11-09 seam pass closed; chunks P1 (trust core) and P2 (tool
+  surface and §5.3) landed the same day.
 
-**Trigger:** the next session allocated to review work, starting with chunk P2
-(tool surface and §5.3); closes when chunks P2–P8 and the closing M1 pass
-report.
+**Trigger:** the next session allocated to review work, starting with chunk P3
+(mutation, decision, and lifecycle handlers); closes when chunks P3–P8 and the
+closing M1 pass report.
 
 ## Trust-core contract remediation (P1)
 
@@ -60,6 +59,33 @@ chunk; closes when the §5.1/§5.5 findings in `spec/audit/review-register.md` a
 **Trigger:** the same session as the remediation above, or the next one if that
 session reaches its cap; closes when all five citations resolve to an exercised
 harness.
+
+## §5.3 citation repair (P1)
+
+- Write the T22 prompt-registration assertion (REQ-023a/REQ-023b) and the T35
+  fixture-isolation assertion (REQ-024a), or re-point them to a harness that
+  exercises the stated behaviour; REQ-078a and REQ-078d already have T124 and
+  need only a citation re-point.
+- Re-point the nine stale citations REQ-025a/b1/b2/c → T45/T154/T165/T166/T170,
+  REQ-138a/b → T167, REQ-139 → T168, REQ-057a/b → T40, each already exercised
+  under T105/T486/T487/T488, T152, T153, and T39; then refresh the coverage
+  register.
+
+**Trigger:** the next session that takes citation-remediation work; closes when
+every §5.3 Check citation resolves to an exercised harness and
+`spec/audit/review-register.md` marks F-P2-1–F-P2-3 `Resolved`.
+
+## Harness test-ID label hygiene (P2)
+
+- Enumerate the zero-padded tokens in the server harness titles that are absent
+  from Appendix F (`T020`, `T022`, `T002`, and the rest of the `T0nn` set),
+  correct each to the catalogue ID its assertion implements, and re-run the
+  coverage resolution — the padded tokens shadow real IDs and produced a false
+  citation match for REQ-023b.
+
+**Trigger:** the next harness-maintenance session, or any session whose
+citation resolution reports an unexpected hold; closes when no harness title
+carries an ID absent from Appendix F.
 
 ## Holosuite anchor repoint automation (P2)
 
