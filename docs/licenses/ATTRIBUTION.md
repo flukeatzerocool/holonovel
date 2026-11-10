@@ -5,7 +5,7 @@ itself is generated from Appendix U (`spec/appendices-licenses.md`) into the
 README footer; this file adds what the footer cannot carry: **license links,
 upstream links, what we use, and whether we modified it.**
 
-Reviewed 2026-11-08. Re-open when a source is added, replaced, or updated.
+Reviewed 2026-11-10. Re-open when a source is added, replaced, or updated.
 
 ## Register
 
@@ -24,6 +24,23 @@ Reviewed 2026-11-08. Re-open when a source is added, replaced, or updated.
 | Fate SRD | CC BY 3.0 | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | <https://fate-srd.com> | Base capabilities reimplemented in the host (§5.21, REQ-434–443) | No — reimplemented |
 | Ironsworn SRD | CC BY 4.0 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | <https://ironswornrpg.com> | Base capabilities reimplemented in the host (§5.22) | No — reimplemented |
 | COF — Character Open File | CC BY 4.0 (spec) / CC0 1.0 (schemas) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) · [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | <https://github.com/yannsouetre/cof> | Memory and psyche vocabulary, adapted into Holonovel's own model and REQs | Adapted — vocabulary only, no text or code reproduced |
+
+## Competitive-review licences (2026-11-10)
+
+Due diligence on the four projects named in the Rev 3 competitive report before
+any mechanic is reimplemented. No code or text is copied from any of them; this
+records whether adaptation would be lawful if it were.
+
+| Upstream | Licence found | Basis | Decision |
+|---|---|---|---|
+| `thegreystone/rpg-mcp` | BSD-3-Clause | `LICENSE` text: three-clause BSD, Copyright (C) 2026 Marcus Hirt. GitHub metadata reports `NOASSERTION` because the file omits the standard header. | Independent reimplementation permitted with attribution; no code copy planned. |
+| `ShinRalexis/Silly-Tavern-MemPalace-Extension` | MIT | `LICENSE` text: MIT, Copyright (c) 2026 MetaDarko and MemPalace Contributors. GitHub metadata reports `NOASSERTION` because of the dual copyright line. | Independent reimplementation permitted with attribution; no code copy planned. |
+| `bal-spec/sillytavern-character-memory` | None found | No `LICENSE`, `COPYING`, or `NOTICE` in the repository tree; no SPDX identifier in the API. | Do not use code or text. Mechanics may be studied; no adaptation. |
+| `muyoou/st-memory-enhancement` | None found | No `LICENSE`, `COPYING`, or `NOTICE` in the repository tree; no SPDX identifier in the API. | Do not use code or text. Mechanics may be studied; no adaptation. |
+
+The two `NOASSERTION` rows are metadata artifacts, not missing licences: the
+licence text resolves them. The two unlicensed rows default to all rights
+reserved; Holonovel does not adopt their memory-export or schema mechanics.
 
 ## Requested attribution strings
 
