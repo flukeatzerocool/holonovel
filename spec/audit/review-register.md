@@ -11,6 +11,18 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 §5.2/§5.8 assertion repair (F-P7b-8)
+
+- **F-P7b-8 — prompt-ordering citations leaned on a builder-side test
+  (resolved 2026-11-09):** REQ-082c cited `T66, T205` while REQ-082a/082b cited
+  nothing, so the runtime ordering contract rested on T205's DECISIONS.md
+  section-token assertion (`spec/appendices-reference.md:1605`). The citations
+  now split by contract: REQ-082a and REQ-082c cite `T66` (the exercised server
+  ordering assertion, `holonovel/scripts/test-backfill.ts:811`), and REQ-082b
+  cites `T205`, which asserts the builder-side mapping and default ordering that
+  REQ-082b actually states (`spec/02-requirements.md:2607,2610,2613`).
+  REQ-082a, REQ-082b, REQ-082c.
+
 ### 2026-11-09 server-note narrative coupling (P1 remediation)
 
 - **F-P8-1 — server-note narrative coupling is stored but never surfaced
@@ -1227,54 +1239,76 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
-- **F-P7b-1 — story-journal citations name an unimplemented test (2026-11-09):**
-  `spec/02-requirements.md:2525,2534` cite T282, which no `test("...")` title
-  under `holonovel/scripts` carries, while the surface is implemented
-  (`holonovel/src/index.ts:7989`, `:14387`) and only partially exercised by
-  T408/T474. REQ-246a, REQ-246b1, REQ-246b2. Scheduled under §5.2/§5.8
-  assertion repair.
-- **F-P7b-2 — dynamic-lore lifecycle cites five unimplemented tests
-  (2026-11-09):** `spec/02-requirements.md:2635` cites T67/T79/T81/T82/T83;
-  none appears in a harness title, while `manage_lore` implements triggers,
-  grouping, suggestion, and budget (`holonovel/src/index.ts:6908`). REQ-083c.
-  Scheduled under §5.2/§5.8 assertion repair.
-- **F-P7b-3 — synthesis run, reversion, and rebuild cite unimplemented tests
-  (2026-11-09):** REQ-080g2 cites T102/T288/T63/T95/T97, REQ-103a–d cite T94,
-  and REQ-130a–c cite T144; only T125 is exercised, while the engine is
-  implemented at `holonovel/src/index.ts:13540` and
-  `holonovel/src/core/wisdom.ts:61`. REQ-080g2, REQ-103a, REQ-103b, REQ-103c,
-  REQ-103d, REQ-130a, REQ-130b, REQ-130c. Scheduled under §5.2/§5.8 assertion
-  repair.
-- **F-P7b-4 — scene tagging and the transition hook cite unimplemented tests
-  (2026-11-09):** REQ-087a–c cite T135/T71 and REQ-125a–b cite T136; none is
-  carried by a harness, while the transition tick exists at
-  `holonovel/src/index.ts:6167`. REQ-087a, REQ-087b, REQ-087c, REQ-125a,
-  REQ-125b. Scheduled under §5.2/§5.8 assertion repair.
-- **F-P7b-5 — secrets and knowledge cite an unimplemented test (2026-11-09):**
-  REQ-234a–d cite T274; no harness carries it, while
-  `set_secret`/`reveal`/`secret_list`/`knowledge` are implemented
-  (`holonovel/src/index.ts:6874`, `:6908`). REQ-234a, REQ-234b, REQ-234c,
-  REQ-234d. Scheduled under §5.2/§5.8 assertion repair.
-- **F-P7b-6 — proactive suggestion surfacing cites an unimplemented test
-  (2026-11-09):** REQ-084a1–a3 and REQ-084b1–b3 cite T359; REQ-084b4 cites it
-  beside T120/T96 (exercised) and T68 (absent). No harness carries T359.
-  REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3,
-  REQ-084b4. Scheduled under §5.2/§5.8 assertion repair.
-- **F-P7b-7 — synthesis removal and confidence rows cite unimplemented
-  assertions (2026-11-09):** REQ-265a–c also cite T324 and REQ-266a–b also
-  cite T325; the families are exercised (T326/T327) but these assertions are
-  not. REQ-265a, REQ-265b, REQ-265c, REQ-266a, REQ-266b. Scheduled under
-  §5.2/§5.8 assertion repair.
-- **F-P7b-8 — prompt section ordering leans on a builder-side test
-  (2026-11-09):** REQ-082a–c cite T205, which asserts a DECISIONS.md
-  section-token table, beside T66 (exercised); the server ordering contract has
-  no assertion of its own. REQ-082a, REQ-082b, REQ-082c. Scheduled under
-  §5.2/§5.8 assertion repair.
-- **F-P7b-9 — a §5.2 row cites server-side behaviour (2026-11-09):**
-  REQ-214a–c cite T255 (`resolve_mechanic (action: roll)` refusing a
-  lookup-table name), which no harness carries, while the family is exempted
-  builder-side. REQ-214a, REQ-214b, REQ-214c. Scheduled under §5.2/§5.8
-  assertion repair.
+Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
+against live harnesses. Four rows now pass and are committed (T136, T94, T144,
+T324); the rows below could not be asserted because the behaviour they name is
+absent, so each finding carries the failing predicate rather than a test.
+
+- **F-P7b-1 — story journal attribution is never populated (2026-11-09):**
+  `novel.story_journal.push({… entity_ids: [] …})` is the sole assignment
+  (`holonovel/src/index.ts:8006`), so REQ-246b1's "entries SHALL record entity
+  IDs" and T282's `entity_ids: ["eira"]` cannot pass. The remaining T282
+  clauses (record/undo/export/Player/end) are unasserted while this fails.
+  REQ-246a, REQ-246b1, REQ-246b2. Scheduled under §5.2/§5.8 assertion and
+  behaviour remediation.
+- **F-P7b-2 — dynamic lore has no GM briefing surface, groups, or budget
+  (2026-11-09):** a plain `manage_lore (action: set)` defaults to `gm_only`
+  (`holonovel/src/index.ts:6933`) and the briefing composes lore only in the
+  `shared` + presence branch of `composeKnowledgeState` (`:887-912`), so a GM
+  entry triggered by scene text never renders and T67/T79 fail; no
+  `lore://groups` resource is registered (`:11726-11728`), and
+  `TTRPG_MAX_LORE_TOKENS` is stored in `maxLoreTokens` (`core/state.ts:1000,
+  1052`) and never read, so T81/T83 fail. `manage_lore (action: suggest)`
+  returns content previews only (`index.ts:6999-7004`), missing the key,
+  triggers, confidence, and source_url REQ-083b requires, so T82 fails.
+  REQ-083c. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
+- **F-P7b-3 — synthesis run/rebuild rows diverge, revert/rebuild pass
+  (2026-11-09):** T94 and T144 pass and are committed (`test:backfill`,
+  "T94/REQ-103" and "T144/REQ-130"). T97 fails — the manifest carries one
+  `collected_at` (`core/wisdom.ts:77`) and no item does; T95 fails — no
+  `MEDIUM` or `LOW` confidence item exists in the default manifest
+  (`core/wisdom.ts`, zero occurrences); T288 fails — `run` installs the static
+  `DEFAULT_WISDOM` manifest (`index.ts:13568`), so adventure load cannot
+  auto-activate ruleset-native items; T63 fails — Tier 1 items carry
+  `tag: "vendor"`, not `[supplementary]`. T102 is exercised under T195.
+  REQ-080g2, REQ-103a, REQ-103b, REQ-103c, REQ-103d, REQ-130a, REQ-130b,
+  REQ-130c. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
+- **F-P7b-4 — scene catalog is a closed enum; the transition hook passes
+  (2026-11-09):** T136 passes and is committed (`test:backfill`, "T136/REQ-125").
+  T135/T71 fail on the catalog clauses: `scene_type` is
+  `z.union([z.enum([combat, social, exploration, neutral]), …])`
+  (`index.ts:6185`), so an extracted type such as `investigation` (REQ-087a) is
+  rejected by the SDK and an unknown type returns a protocol error rather than
+  `[NOT_FOUND]` with the valid enumeration; `availableActionsSection` uses
+  `else if` (`index.ts:2296-2307`), so `["social","exploration"]` prioritizes
+  only the social family. REQ-087a, REQ-087b, REQ-087c, REQ-125a, REQ-125b.
+  Scheduled under §5.2/§5.8 assertion and behaviour remediation.
+- **F-P7b-5 — secrets work, the sheet surface does not (2026-11-09):**
+  `set_secret`/`reveal`/`knowledge` are implemented (`index.ts:7047-7134`) but
+  `fmtEntitySheet` (`index.ts:3128-3150`) renders no "Known Information"
+  section, so T274's sheet clause fails. REQ-234a, REQ-234b, REQ-234c,
+  REQ-234d. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
+- **F-P7b-6 — suggestions lack the proactive slot model and the empty-list
+  case (2026-11-09):** `availableActionsSection` has no spell/slot logic
+  (`index.ts:2286-2316`), so T359's "Cast Fireball only with a 3rd-level slot"
+  is unassertable; `run_command (action: suggest)` falls back to spatial
+  suggestions when no domain matches (`index.ts:4609-4611`), so the
+  REQ-084b4 "xyzzy returns an empty list" case fails. REQ-084a1, REQ-084a2,
+  REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3, REQ-084b4. Scheduled under
+  §5.2/§5.8 assertion and behaviour remediation.
+- **F-P7b-7 — synthesis removal passes; confidence rows do not (2026-11-09):**
+  T324 passes and is committed (`test:backfill`, "T324/REQ-265"). T325 fails:
+  the default manifest carries only `HIGH` items, so the `MEDIUM`
+  explicit-field and `LOW` inference tags the row names cannot be produced and
+  `collected_at` is not per item. REQ-265a, REQ-265b, REQ-265c, REQ-266a,
+  REQ-266b. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
+- **F-P7b-9 — table classification needs a dynamic enum and a 5e fixture
+  (2026-11-09):** `resolve_mechanic`'s `table` parameter is a static
+  `z.string()` (`index.ts:7940`); REQ-214c requires the generation-table
+  enumeration to come from the ruleset model; no D&D 5e package exists in-tree
+  (`.gitignore` excludes `scripts/ruleset-builds/`; F-P6b-7), so T255 cannot
+  run. REQ-214a, REQ-214b, REQ-214c. Scheduled under §5.2/§5.8 assertion and
+  behaviour remediation.
 
 ### 2026-11-09 full-review sweep — chunk P7a (determinism and knowledge artifacts)
 

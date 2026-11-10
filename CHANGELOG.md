@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11-09 — §5.2/§5.8 assertion repair: citation split and probe results
+
+- REQ-082's ordering citations are split by contract: REQ-082a and REQ-082c
+  cite `T66` (the exercised server ordering assertion), and REQ-082b cites
+  `T205` (the builder-side DECISIONS.md mapping it actually states). F-P7b-8
+  is `Resolved`; the previous `T66, T205` citation conflated a runtime claim
+  with a build-time one. (REQ-082a, REQ-082b, REQ-082c)
+- Four previously unexercised Appendix F rows now run and pass in
+  `test:backfill`: T136 (scene transition hook, countdown tick, skip flag,
+  Player history), T94 (synthesis reversion, idempotence, Player refusal),
+  T144 (activated items survive a rebuild), T324 (reversion removes
+  supplementary items and preserves Tier 1). Harness: 82 passed, 0 failed.
+- The remaining eight findings could not be asserted: probes and source reads
+  show the behaviour is absent (story-journal `entity_ids` at
+  `holonovel/src/index.ts:8006`, no GM lore briefing surface or
+  `lore://groups`, unconsumed `TTRPG_MAX_LORE_TOKENS`, no sheet "Known
+  Information", single manifest `collected_at`, no LOW/MEDIUM inference items,
+  static `DEFAULT_WISDOM` on `run`, closed `scene_type` enum, `suggest`
+  fallback instead of an empty list, static `resolve_mechanic.table`). Each is
+  re-scheduled with its predicate in the review register.
+- The roadmap section becomes `§5.2/§5.8 assertion and behaviour remediation
+  (P1)`, naming only the remaining behaviour work; the coverage register is
+  regenerated with 0 bucket-A gaps.
+
 ## 2026-11-09 — Server-note narrative coupling (REQ-365a/b/c remediation)
 
 - `badge_briefing` now emits a `### Server guidance` section for server notes

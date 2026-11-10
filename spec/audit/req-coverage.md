@@ -53,14 +53,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
 | REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T272, T518, T699 | — |
-| REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T261, T312, T404, T406, T409, T410, T411 | — |
+| REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T136, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, T218, T220, S17 | — |
 | REQ-075 | Named-NPC state (Part a) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513, T722, T724, T725 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124, T141 | — |
 | REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207, T146, T285 | — |
-| REQ-080 | Synthesis boundaries (Part a) (9 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T125, T194, T695 | — |
+| REQ-080 | Synthesis boundaries (Part a) (9 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T94, T125, T194, T144, T695 | — |
 | REQ-081 | Narrative directive (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T64, T134, T450 | — |
 | REQ-082 | Prompt section ordering (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T66, T225 | — |
 | REQ-083 | Dynamic lore (Part a) (6 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T342, T400, T407, T411 | — |
@@ -83,7 +83,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-100 | Performance benchmark (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | E | T479 | — |
 | REQ-101 | Assumption audit trail (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | E | — | — |
 | REQ-102 | Source conversion contract (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T93 | — |
-| REQ-103 | Synthesis reversion (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T125, T321 | — |
+| REQ-103 | Synthesis reversion (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T94, T125, T144, T321, T324 | — |
 | REQ-104 | Character creation workflow (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T32, T468, T141 | — |
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
@@ -105,12 +105,12 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-122 | NPC narrative fields (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129 | — |
 | REQ-123 | Builder-defined NPC stat fields | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
 | REQ-124 | NPC damage resolution (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T131 | — |
-| REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T284, T312, T404 | — |
+| REQ-125 | Scene transition hook (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T136, T284, T312, T404 | — |
 | REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T202 | — |
 | REQ-127 | Ruleset-native personality mapping (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T141 | — |
 | REQ-128 | Signal briefing surface (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T314 | — |
 | REQ-129 | Property group cardinality (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T218, T143 | — |
-| REQ-130 | Synthesis rebuild contract (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | — | — |
+| REQ-130 | Synthesis rebuild contract (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | T144 | — |
 | REQ-131 | Novel initialization order (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | E | — | — |
 | REQ-132 | Adventure generation lifecycle (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T146 | — |
 | REQ-133 | Forbidden-call audit (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T203, T147, S6 | — |
@@ -162,7 +162,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T39a | — |
 | REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39b | — |
 | REQ-184 | Anti-slop resource rendering (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
-| REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T300 | — |
+| REQ-185 | Section token vocabulary (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T94, T300 | — |
 | REQ-186 | Section token discoverability (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T225 | — |
 | REQ-187 | Spec content hash computation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T226 | — |
 | REQ-190 | Respond drain result | 5.4 Decision workflows | C | T138 | — |
@@ -239,7 +239,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-262 | Synthesis tool (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321 | — |
 | REQ-263 | Synthesis auto-trigger (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T322 | — |
 | REQ-264 | Synthesis confidence model (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T323 | — |
-| REQ-265 | Synthesis in badge_briefing (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321, T326 | — |
+| REQ-265 | Synthesis in badge_briefing (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321, T324, T326 | — |
 | REQ-266 | Synthesis in dashboard (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T327 | — |
 | REQ-269 | Safety protocol status | 5.3 Tools, Resources, and Lookups | C | T289 | — |
 | REQ-270 | Artifact version identification | 5.2 Extraction and Confidence | E | — | — |

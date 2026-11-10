@@ -12,24 +12,32 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.2/§5.8 assertion repair (P1)
+## §5.2/§5.8 assertion and behaviour remediation (P1)
 
-- Story journal and dynamic lore: write the T282 assertion and the
-  T67/T79/T81/T82/T83 lifecycle assertions, or re-point the rows to the
-  harnesses that exercise them (REQ-246a, REQ-246b1, REQ-246b2, REQ-083c).
-- Synthesis: write or re-point the run/revert/rebuild, removal, and
-  confidence assertions that T102/T288/T63/T95/T97/T94/T144/T324/T325 name
-  (REQ-080g2, REQ-103a, REQ-103b, REQ-103c, REQ-103d, REQ-130a, REQ-130b,
-  REQ-130c, REQ-265a, REQ-265b, REQ-265c, REQ-266a, REQ-266b).
-- Prompt, scenes, secrets, suggestions, and §5.2: write or re-point the
-  ordering, scene-tag/transition, secret, proactive-suggestion, and
-  lookup-refusal assertions (REQ-082a, REQ-082b, REQ-082c, REQ-087a,
-  REQ-087b, REQ-087c, REQ-125a, REQ-125b, REQ-234a, REQ-234b, REQ-234c,
-  REQ-234d, REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2,
-  REQ-084b3, REQ-084b4, REQ-214a, REQ-214b, REQ-214c).
+- Story journal, lore, and secrets — probe findings from the assertion-repair
+  session: story entries write `entity_ids: []` (`holonovel/src/index.ts:8006`,
+  REQ-246b1); no GM lore section renders triggered entries and no
+  `lore://groups` resource exists (REQ-083a, REQ-083b); `TTRPG_MAX_LORE_TOKENS`
+  is read but never consumed (`core/state.ts:1052`); the character sheet has no
+  "Known Information" section (REQ-234). REQ-246a, REQ-246b1, REQ-246b2,
+  REQ-083c, REQ-234a, REQ-234b, REQ-234c, REQ-234d.
+- Synthesis and suggestions — per-item `collected_at` is absent (one manifest
+  timestamp only), no LOW/MEDIUM-confidence inference items exist, adventure
+  load does not auto-activate voice examples, and `run_command (action: suggest)`
+  returns fallback spatial actions for a nonsense intent instead of an empty
+  list (REQ-080g2, REQ-130a–c, REQ-084b4). REQ-080g2, REQ-103a, REQ-103b,
+  REQ-103c, REQ-103d, REQ-130a, REQ-130b, REQ-130c, REQ-084a1, REQ-084a2,
+  REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3, REQ-084b4, REQ-265a, REQ-265b,
+  REQ-265c, REQ-266a, REQ-266b.
+- Scene catalog and table classification — `scene_type` is a closed enum
+  (`holonovel/src/index.ts:6185`), so the extractable catalog (REQ-087a) and the
+  `[NOT_FOUND]` enumeration (REQ-087c, REQ-125) are unassertable, and
+  `resolve_mechanic.table` is a static `z.string()` (`:7940`) with no dynamic
+  generation-table enum and no in-tree D&D 5e package (REQ-214c). REQ-087a,
+  REQ-087b, REQ-087c, REQ-125a, REQ-125b, REQ-214a, REQ-214b, REQ-214c.
 
-**Trigger:** the next citation-remediation session; closes when F-P7b-1–F-P7b-9
-are `Resolved` in the review register.
+**Trigger:** the next §5.2/§5.8 remediation session; closes when F-P7b-1–F-P7b-7
+and F-P7b-9 are `Resolved` (F-P7b-8 resolved 2026-11-09 by citation re-point).
 
 ## §5.7 determinism and citation repair (P1)
 

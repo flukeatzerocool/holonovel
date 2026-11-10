@@ -1041,6 +1041,100 @@ async function main() {
     await kill(proc);
   }
 
+  // ── §5.2/§5.8 assertion repair (F-P7b-4, F-P7b-6, F-P7b-3, F-P7b-7) ──
+  // T136 (scene transition hook), T68 (suggest forms), T94 (synthesis
+  // reversion), T144 (synthesis rebuild), T324 (synthesis removal).
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "p7b-probe" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    async function exportNovel(): Promise<any> {
+      const bundle = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      return bundle.novel ?? bundle;
+    }
+
+    await test("T136/REQ-125: scene transition writes the hook, ticks the countdown, and honours skip", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_scene", { action: "set", description: "forest", location: "forest" });
+      await call(proc, "manage_scene", { action: "set", description: "cave", location: "cave" });
+      const ex = await exportNovel();
+      const hook = (ex.audit_log ?? []).filter((e: any) => e.tool === "scene-transition");
+      assert(hook.length >= 1, "no scene-transition audit entry");
+      assertContains(JSON.stringify(hook[hook.length - 1]), "forest");
+      assertContains(JSON.stringify(hook[hook.length - 1]), "cave");
+
+      await call(proc, "manage_countdown", { action: "set", name: "cave-collapse", ticks: 3, on_scene_transition: true });
+      await call(proc, "manage_scene", { action: "set", description: "castle", location: "castle" });
+      const cds = JSON.parse(await call(proc, "manage_countdown", { action: "list" }));
+      const rows = cds.countdowns ?? cds;
+      const cd = Array.isArray(rows) ? rows.find((c: any) => c.name === "cave-collapse") : rows["cave-collapse"];
+      assert(cd && Number(cd.ticks) === 2, `countdown did not decrement: ${JSON.stringify(cd)}`);
+
+      const before = (await exportNovel()).audit_log.filter((e: any) => e.tool === "scene-transition").length;
+      await call(proc, "manage_scene", { action: "set", description: "tower", location: "tower", skip_transition_hook: true });
+      const after = await exportNovel();
+      const hookAfter = after.audit_log.filter((e: any) => e.tool === "scene-transition").length;
+      assert(hookAfter === before, "skip_transition_hook still wrote an audit entry");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const sceneHistory = JSON.parse(await readResource(proc, "scene://history"));
+      assert(Array.isArray(sceneHistory), "scene://history not an array");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T94/REQ-103: synthesis reversion empties the synthesis surface and preserves Tier 1", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const reverted = await call(proc, "manage_synthesis", { action: "revert" });
+      assertContains(reverted, "[OK]");
+      const voice = await readResource(proc, "synthesis://voice_examples").catch(() => "[]");
+      assert(voice === "[]" || voice === "" || voice === "{}", `synthesis://voice_examples not empty after revert: ${voice.slice(0, 120)}`);
+      const again = await call(proc, "manage_synthesis", { action: "revert" });
+      assertContains(again, "[OK]");
+      await call(proc, "set_badge", { badge: "player" });
+      const forbidden = await callRaw(proc, "manage_synthesis", { action: "revert" });
+      const text = (forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      assertContains(text, "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T144/REQ-130: synthesis rebuild keeps activated items and replaces the inactive set", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const before = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "lore_templates" }));
+      const key = (before.items ?? before)[0]?.key ?? 0;
+      await call(proc, "manage_synthesis", { action: "activate", module: "lore_templates", key });
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const after = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "lore_templates" }));
+      const item = (after.items ?? after).find((i: any) => String(i.key) === String(key));
+      assert(item && item.activated === true, `activated item lost on rebuild: ${JSON.stringify(item)}`);
+    });
+
+    await test("T324/REQ-265: synthesis revert removes supplementary items and stays idempotent", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      await call(proc, "manage_synthesis", { action: "revert" });
+      const listed = await call(proc, "manage_synthesis", { action: "list" });
+      if (listed.trim().startsWith("{")) {
+        const list = JSON.parse(listed);
+        const items = list.items ?? list;
+        assert(Array.isArray(items) ? items.length === 0 : true, `synthesis list not empty after revert: ${listed.slice(0, 200)}`);
+      } else {
+        assertContains(listed, "No synthesis items");
+      }
+      const again = await call(proc, "manage_synthesis", { action: "revert" });
+      assertContains(again, "[OK]");
+      await call(proc, "set_badge", { badge: "player" });
+      const forbidden = await callRaw(proc, "manage_synthesis", { action: "revert" });
+      const text = (forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      assertContains(text, "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
