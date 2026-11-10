@@ -51,6 +51,21 @@ scheduled are explicitly parked, not "in progress".
   no findings across 20 consecutive runs to advisory. Deleting a gate is still a
   manual decision.
 
+## Quarterly
+
+- **Competitive integration-layer sweep.** Re-run the single-axis sweep over
+  the SillyTavern extension ecosystem, agent-memory engines, and VTT modules.
+  Surfaces: GitHub repository search, the SillyTavern extension index, and the
+  source register in
+  `report://mcp-servers-similar-to-holonovel-competitive-feature-report-rev-3`.
+  Record new candidates, their axis delta, licence, and disposition.
+- **W7 — memory policy.** Fires when a competitor adds badge-scoped disclosure
+  gating or memory-versus-truth divergence verdicts. Response: ship the GM
+  memory audit and divergence surface before the feature is commoditized.
+- **Report revision trigger.** Refresh the competitive report when any
+  watchlist threshold fires, a second independent COF implementation appears,
+  or the quarter ends.
+
 ## Limits
 
 - **WIP:** one uncommitted logical change; at most three open threads.
