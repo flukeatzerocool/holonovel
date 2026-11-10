@@ -1487,6 +1487,9 @@ function registeredToolDefinitions(): ToolDefinition[] {
     inputSchema: zodToJsonSchema(tool?.inputSchema),
     outputSchema: tool?.outputSchema ?? null,
     annotations: tool?.annotations ?? null,
+    // REQ-379b — the same ruleset annotation the served `tools/list` carries,
+    // so the measured footprint and the served catalog cannot drift.
+    _meta: { ruleset: packageSlugForTool(name) ?? null },
   }));
 }
 
@@ -1969,6 +1972,21 @@ function packageToolVisible(name: string): boolean {
   const slug = packageSlugForTool(name);
   return slug === undefined || rulesets.isInstalled(slug);
 }
+
+// REQ-379b/REQ-379c/REQ-381b — every listed tool reports its ruleset scope in
+// the MCP extension slot (`_meta.ruleset`, a slug or null). Under
+// `tools/list(scope=all)` a tool whose scope differs from the active Novel's
+// is annotated `_meta.inapplicable: true` rather than filtered, so discovery
+// survives (REQ-381b). No active Novel means no marks.
+function annotateRulesetScope<T extends { name: string; _meta?: Record<string, any> }>(tools: T[], all: boolean): T[] {
+  const active = state.activeNovel?.ruleset ?? null;
+  return tools.map((tool) => {
+    const slug = packageSlugForTool(tool.name) ?? null;
+    const meta: Record<string, any> = { ...(tool._meta ?? {}), ruleset: slug };
+    if (all && slug !== null && active !== null && slug !== active) meta.inapplicable = true;
+    return { ...tool, _meta: meta };
+  });
+}
 const scanErrors = rulesets.scan();
 // REQ-420 — incompatible packages are held inactive and surfaced on stderr and
 // in spec_health.ruleset_package_alerts, never silently dropped (REQ-393).
@@ -2296,13 +2314,17 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
 // REQ-389b/REQ-393 — a package that fails loading (e.g. content-hash mismatch)
 // is recorded and skipped; the host boots and serves the other packages.
 const rulesetLoadErrors: { slug: string; reason: string }[] = [];
-for (const slug of rulesets.installedSlugs()) {
+// REQ-558 — register one installed package's derived tools. Extracted from the
+// startup loop so `manage_ruleset (action: install)` serves a package
+// immediately, without a restart.
+function registerPackageTools(slug: string): void {
+  if (registeredPackageSlugs.has(slug)) return;
   let schemas: ReturnType<typeof rulesets.toolSchemas>;
   try {
     schemas = rulesets.toolSchemas(slug);
   } catch (e: any) {
     rulesetLoadErrors.push({ slug, reason: e.message });
-    continue;
+    return;
   }
   registeredPackageSlugs.add(slug);
   // REQ-430 — flag non-conformant declared tools at load (no index hydration).
@@ -2314,7 +2336,7 @@ for (const slug of rulesets.installedSlugs()) {
     // state, so read-only is honest and destructiveHint is false throughout.
     const annotations: ToolAnnotation = rulesetAnnotations(schema.kind);
     try {
-server.registerTool(toolName, {
+      server.registerTool(toolName, {
         title: schema.title ?? schema.name,
         description: `${schema.description ?? ""} (ruleset: ${slug})`,
         inputSchema: jsonSchemaToZod(schema.inputSchema),
@@ -2324,6 +2346,42 @@ server.registerTool(toolName, {
       // Tool name already registered or schema unrecoverable — skip.
     }
   }
+}
+
+// REQ-389c — register a package's declared resources. The MCP SDK has no
+// resource-deregistration API, so removal is realised as an installed-package
+// filter in the reader (the prompt-surface precedent).
+const packageResourceKeys = new Set<string>();
+function registerPackageResources(slug: string): void {
+  let declarations: any[];
+  try {
+    declarations = rulesets.resourceDeclarations(slug);
+  } catch {
+    // An unreadable resources.json contributes nothing; tools still serve.
+    return;
+  }
+  for (const declaration of declarations) {
+    const name = typeof declaration?.name === "string" ? declaration.name.trim() : "";
+    if (!name) continue;
+    const key = `pkg:${slug}:${name}`;
+    if (packageResourceKeys.has(key)) continue;
+    const uri = typeof declaration?.uri === "string" && declaration.uri ? declaration.uri : `ruleset://${slug}/${name}`;
+    const mimeType = typeof declaration?.mimeType === "string" ? declaration.mimeType : "application/json";
+    const text = typeof declaration?.text === "string" ? declaration.text : JSON.stringify(declaration?.content ?? null);
+    try {
+      server.registerResource(key, uri, { title: declaration?.title ?? name, mimeType }, async () => ({
+        contents: rulesets.isInstalled(slug) ? [{ uri, text, mimeType }] : [],
+      }));
+      packageResourceKeys.add(key);
+    } catch {
+      // Duplicate URI/name: the first registration wins.
+    }
+  }
+}
+
+for (const slug of rulesets.installedSlugs()) {
+  registerPackageTools(slug);
+  registerPackageResources(slug);
 }
 
 // REQ-310 — campaign memory: engine-recorded facts derived from state-changing
@@ -4113,7 +4171,7 @@ server.registerTool("manage_character", {
         const profileStats = species && !hasPersonality ? { species } : undefined;
         const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, profileStats);
         state.addEntity(novel, entity);
-        if (stage_to_roster) state.addToRoster(entity);
+        if (stage_to_roster) state.addToRoster(entity, novel.ruleset ?? null);
         state.saveNovel(novel);
         return ok(`${fmtEntitySheet(entity)}
 
@@ -4158,7 +4216,7 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
       novelSnapshot();
       const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, stats);
       state.addEntity(novel, entity);
-      if (stage_to_roster) state.addToRoster(entity);
+      if (stage_to_roster) state.addToRoster(entity, novel.ruleset ?? null);
       state.saveNovel(novel);
 
       const inputs = [`name=${name}`, `species=${species}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
@@ -4179,7 +4237,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       // REQ-129b2 — roster cardinality.
       const rosterRefusal = capGuard("roster", state.roster.size);
       if (rosterRefusal) return rosterRefusal;
-      const id = state.addToRoster(entity);
+      const id = state.addToRoster(entity, novel.ruleset ?? null);
       state.saveNovel(novel);
       return ok(`Character '${entity.name}' staged to roster as ${id}.`);
     }
@@ -4188,6 +4246,12 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       const rosterEntity = state.roster.get(args.roster_id);
       if (!rosterEntity) return err("NOT_FOUND", `Roster entity '${args.roster_id}' not found.`);
+      // REQ-386a/REQ-386b — a roster character carries the ruleset it was
+      // staged under; a mismatch with the Novel's scope is a STATE_CONFLICT
+      // naming both. An untagged entry (null) imports into any scope.
+      if (rosterEntity.ruleset && novel.ruleset && rosterEntity.ruleset !== novel.ruleset) {
+        return err("STATE_CONFLICT", `Roster character '${rosterEntity.name}' is bound to ruleset '${rosterEntity.ruleset}', but the active Novel uses '${novel.ruleset}'. Corrective action: import it into a '${rosterEntity.ruleset}' Novel, or create the character under '${novel.ruleset}'.`);
+      }
       // REQ-129b2 — entity cardinality.
       const importRefusal = capGuard("entities", novel.entities.size);
       if (importRefusal) return importRefusal;
@@ -4765,6 +4829,27 @@ server.registerTool("run_command", {
         for (const a of (p.suggested_actions ?? [String(p.intent)])) {
           domains.mechanical.push(`${a} — synthesis pattern: ${p.intent}`);
         }
+      }
+    }
+    // REQ-385a/REQ-385b — suggestions drawn from the active Novel's ruleset
+    // model use the prefixed tool names, so a D&D Novel never suggests a
+    // Starfinder tool. Parser (infrastructure) suggestions stay; when the
+    // package declares no matching tool the generic prose is the fallback.
+    if (novel.ruleset && rulesets.isInstalled(novel.ruleset)) {
+      try {
+        const words = intentLower.split(/[^a-z0-9]+/).filter((w: string) => w.length >= 4);
+        if (words.length > 0) {
+          const matched: string[] = [];
+          for (const schema of rulesets.toolSchemas(novel.ruleset)) {
+            const hay = `${schema.name} ${schema.title ?? ""} ${schema.description ?? ""}`.toLowerCase();
+            if (!words.some((w: string) => hay.includes(w))) continue;
+            matched.push(`${novel.ruleset}_${schema.name}`);
+            if (matched.length >= 3) break;
+          }
+          if (matched.length > 0) domains.mechanical = matched;
+        }
+      } catch {
+        // A package that fails to load falls back to the generic prose.
       }
     }
     if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
@@ -10967,11 +11052,16 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
         const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
         state.closeSessionWindow(active, sessionId);
       }
+      // REQ-384b — switching is an audited mutation recording both endpoints'
+      // slugs and rulesets.
+      const from = active ? { slug: active.slug, ruleset: active.ruleset ?? null } : null;
       const novel = state.switchNovel(args.slug);
       if (novel.ruleset) {
         if (!rulesets.isInstalled(novel.ruleset)) return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
         try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
       }
+      audit("switch_novel", { from, to: { slug: novel.slug, ruleset: novel.ruleset ?? null } });
+      state.saveNovel(novel);
       return ok(`Switched to novel: ${novel.name} (${novel.slug})${driftWarn}`);
     }
     case "end": {
@@ -11038,6 +11128,9 @@ Options: yes, cancel${driftWarn}`);
         manifest: {
           novel_format_version: 2,
           server_spec_version: state.buildFingerprint.specVersion,
+          // REQ-386b — the export manifest names the Novel's ruleset so another
+          // conformant host can validate it on import.
+          ruleset: novel.ruleset ?? null,
           ruleset_hash: rulesets.contentHashFor(novel.ruleset),
           builder_implementation: { name: "holonovel", version: state.buildFingerprint.specVersion },
           adventure_module_slugs: novel.adventure_slug ? [novel.adventure_slug] : [],
@@ -11081,6 +11174,15 @@ Options: yes, cancel${driftWarn}`);
       try { parsed = JSON.parse(args.data); } catch { return err("INVALID_INPUT", "Could not parse novel data."); }
       const flat = parsed && parsed.novel && typeof parsed.novel === "object" ? parsed.novel : parsed;
       const manifest = parsed && parsed.manifest && typeof parsed.manifest === "object" ? parsed.manifest : null;
+      // REQ-386a — an imported Novel's ruleset must be a slug this host knows;
+      // an unknown slug is refused with the valid set enumerated.
+      const incomingRuleset = flat?.ruleset ?? manifest?.ruleset ?? null;
+      if (incomingRuleset !== null) {
+        const known = rulesets.prefixMap();
+        if (!Object.prototype.hasOwnProperty.call(known, incomingRuleset)) {
+          return err("INVALID_INPUT", `Imported Novel is bound to ruleset '${incomingRuleset}', which this host does not recognize. Valid rulesets: ${Object.keys(known).join(", ") || "(none)"}.`);
+        }
+      }
       // REQ-096j — verify the integrity envelope before reference validation or
       // any mutation. Legacy bundles (no envelope) are warn-only, even strict.
       const integrityWarnings: string[] = [];
@@ -11596,6 +11698,15 @@ server.registerTool("manage_ruleset", {
           creator: pkg.manifest.creator ?? null,
           attribution: pkg.manifest.attribution ?? null,
         });
+        // REQ-558 — the installed package serves immediately; a registration
+        // failure rolls the package back so it is never installed-but-inert.
+        try {
+          registerPackageTools(pkg.slug);
+          registerPackageResources(pkg.slug);
+        } catch (e: any) {
+          rulesets.removePackage(pkg.slug);
+          return err("STATE_CONFLICT", `Ruleset '${pkg.slug}' installed but could not be registered: ${e?.message ?? e}. The package was removed.`);
+        }
         reloadPackagePrompts();
         return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
       } catch (e: any) {
@@ -12158,6 +12269,47 @@ function stateDriftBlockMessage(when: string): string {
   return `[state-drift] uncommitted narration detected — commit the narrated state, then retry; manage_context (action: recap) lists the uncommitted beats (${when}).`;
 }
 
+// REQ-383a — per-ruleset health, computed from each installed package's
+// metadata and index WITHOUT hydrating it (REQ-390b). Fields a package does
+// not declare report `not-declared` rather than a fabricated value.
+function buildRulesetHealthSections(): Record<string, any> {
+  const out: Record<string, any> = {};
+  const alerts = rulesets.toolQualityAlerts();
+  const incompatible = new Set(rulesets.incompatibleSlugs().map((e) => e.slug));
+  for (const { slug, manifest } of rulesets.manifests()) {
+    const entries = rulesets.indexForReport(slug);
+    const totals: Record<string, number> = {};
+    const perFile: Record<string, Record<string, number>> = {};
+    for (const e of entries) {
+      const c = String((e as any).confidence ?? "unknown").toUpperCase();
+      totals[c] = (totals[c] ?? 0) + 1;
+      const f = (e as any).source_file ?? "(unknown)";
+      (perFile[f] ??= {})[c] = (perFile[f][c] ?? 0) + 1;
+    }
+    const n = entries.length;
+    const high = totals.HIGH ?? 0;
+    const overall = n === 0 ? "N/A" : high / n >= 0.9 ? "HIGH" : high / n >= 0.5 ? "MEDIUM" : "LOW";
+    const counts = manifest.counts ?? {};
+    out[slug] = {
+      confidence: { overall, entries: n, totals, per_file: perFile },
+      indexed_counts: {
+        anchors: n,
+        concepts: counts.concepts ?? 0,
+        entity_types: counts.entities ?? 0,
+        actions: counts.actions ?? 0,
+        tables: counts.tables ?? 0,
+        procedures: counts.resolution ?? 0,
+        guidance_items: counts.guidance ?? 0,
+        synthesis_items: counts.synthesis ?? 0,
+      },
+      must_action_coverage: manifest.must_action_coverage ?? "not-declared",
+      defect_count: alerts.filter((a) => a.slug === slug).length + (incompatible.has(slug) ? 1 : 0),
+      verification_dispositions: manifest.verification_dispositions ?? "not-declared",
+    };
+  }
+  return out;
+}
+
 function buildSpecHealth(): Record<string, unknown> {
   const novel = state.activeNovel;
   const badge = getBadge();
@@ -12168,6 +12320,27 @@ function buildSpecHealth(): Record<string, unknown> {
   const countdowns = novel ? novel.countdowns.size : 0;
   const rooms = novel ? novel.world.rooms.size : 0;
   const things = novel ? novel.world.things.size : 0;
+  const hiddenTools = hiddenAliasNames(surfaceRegistry());
+  const visibleToolCount = toolRegistry.names().filter((name) => !hiddenTools.has(name)).length;
+  const promptCount = ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0) + packagePrompts.size;
+  const resourceCount = ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0);
+  // REQ-383a/REQ-383b — per-ruleset health plus the `combined` summary. A
+  // Player badge sees only the active Novel's ruleset section (or none), while
+  // `combined` stays visible to every badge.
+  const rulesetHealth = (() => {
+    const sections = buildRulesetHealthSections();
+    const combined = {
+      tool_count: visibleToolCount,
+      resource_count: resourceCount,
+      prompt_count: promptCount,
+      active_novels: state.novels.size,
+      ruleset_prefix_map: rulesets.prefixMap(),
+    };
+    const visible = isGM
+      ? sections
+      : (novel?.ruleset && sections[novel.ruleset] ? { [novel.ruleset]: sections[novel.ruleset] } : {});
+    return { ...visible, combined };
+  })();
 
   const registeredResourceURIs = new Set<string>();
   const listedResources: Record<string, any> = (server as any)._registeredResources ?? {};
@@ -12309,6 +12482,10 @@ function buildSpecHealth(): Record<string, unknown> {
     active_ruleset: isGM ? (novel?.ruleset ?? null) : undefined,
     rulesets_installed: rulesets.installedSlugs().length,
     rulesets_hydrated: rulesets.installedSlugs().filter((s) => rulesets.isHydrated(s)).length,
+    // REQ-390b — aggregate installed index bytes, read without hydrating.
+    ruleset_index_bytes: rulesets.installedIndexBytes(),
+    // REQ-383a/REQ-383b — per-ruleset health keyed by slug plus `combined`.
+    ruleset_health: rulesetHealth,
     ruleset_prefix_map: isGM ? rulesets.prefixMap() : undefined,
     // REQ-420 — incompatible packages, held inactive (REQ-393);
     // REQ-430 — non-conformant ruleset-derived tools, flagged (never blocked).
@@ -12382,10 +12559,10 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-515–REQ-521 — the event-log cursor this health/briefing reflects and
     // derived-surface freshness (read-only advisory).
     briefing_consistency: briefingConsistency(),
-    tool_count: (() => { const hidden = hiddenAliasNames(surfaceRegistry()); return toolRegistry.names().filter((name) => !hidden.has(name)).length; })(),
-    prompt_count: ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0) + packagePrompts.size,
+    tool_count: visibleToolCount,
+    prompt_count: promptCount,
     package_prompts: { installed: packagePrompts.size, errors: packagePromptErrors },
-    resource_count: ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0),
+    resource_count: resourceCount,
     resource_uris, // REQ-139 — resource URI presence from the live resource map.
     prompt_health, // REQ-138 — per-prompt presence, length, budget, stale refs.
     // REQ-425d — the output format catalog (universal + surface sets + any
@@ -12630,6 +12807,27 @@ function buildSpecHealth(): Record<string, unknown> {
 
 // Novel resources
 // REQ-572 — group directory: the same intent groups the projection uses.
+// REQ-012/REQ-214a — a ruleset resource resolves an indexed section by id or
+// anchor. `manage_ruleset (action: search)` points truncation carets here.
+server.registerResource("ruleset-entry", new ResourceTemplate("ruleset://{slug}/{anchor}", { list: undefined }), { title: "Ruleset Entry" }, async (uri) => {
+  const slug = uri.href.split("/")[2] ?? "";
+  const anchor = decodeURIComponent(uri.href.split("/").slice(3).join("/"));
+  const plain = (text: string) => ({ contents: [{ uri: uri.href, text, mimeType: "text/plain" }] });
+  if (!rulesets.isInstalled(slug)) return plain(`[ERROR] [NOT_FOUND] Ruleset '${slug}' is not installed.`);
+  const entries = rulesets.indexForReport(slug) as any[];
+  const hit = entries.find((e) => e.id === anchor || e.anchor === anchor)
+    ?? entries.find((e) => String(e.id ?? "").toLowerCase() === anchor.toLowerCase()
+      || String(e.anchor ?? "").toLowerCase() === anchor.toLowerCase());
+  if (!hit) return plain(`[ERROR] [NOT_FOUND] No ruleset entry '${anchor}' in '${slug}'.`);
+  // REQ-381b — resources that draw from a ruleset model badge-filter their
+  // output; a GM-scoped category is not served to a Player.
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  if (!isGM && ["gm", "game_master"].includes(String(hit.category ?? "").toLowerCase())) {
+    return plain(`[ERROR] [FORBIDDEN] Entry '${anchor}' is Game Master only.`);
+  }
+  return { contents: [{ uri: uri.href, text: JSON.stringify(hit, null, 2), mimeType: "application/json" }] };
+});
+
 server.registerResource("tool-groups", "holonovel://tool-groups", { title: "Tool Groups", mimeType: "application/json" }, async () => ({
   contents: [{
     uri: "holonovel://tool-groups",
@@ -13649,6 +13847,11 @@ function materializeCodexEntry(
 // REQ-321c/d/k — validate a Codex import before any mutation so a partial
 // failure leaves novel state untouched. Returns an error message, or null.
 function codexImportPrecheck(novel: any, entry: any): string | null {
+  // REQ-387b — a ruleset-specific entry cannot enter a Novel of another scope;
+  // both slugs are named. An untagged entry imports into any scope.
+  if (entry.ruleset && novel.ruleset && entry.ruleset !== novel.ruleset) {
+    return `entry ruleset '${entry.ruleset}' does not match the Novel's ruleset '${novel.ruleset}'.`;
+  }
   const supported = ["npc", "character", "scene", "encounter", "lore_entry", "faction", "countdown", "room", "thing", "equipment_template", "spell_template", "relationship_template", "voice_profile", "adventure"];
   if (!supported.includes(entry.kind)) return `kind '${entry.kind}' is not supported for import.`;
   const content = (entry.content ?? {}) as any;
@@ -13693,6 +13896,7 @@ server.registerTool("manage_codex", {
     entity_id: z.string().optional().describe("Entity whose voice to capture (for capture, voice_profile kind)."),
     source_id: z.string().optional().describe("Novel artifact key/name/entity id to capture (for capture). Defaults per kind."),
     update_source: z.boolean().optional().describe("When true, update the source Codex entry in place (for capture)."),
+    ruleset: z.string().optional().describe("Ruleset slug (for set/list); set defaults to the active Novel's scope, list returns matching plus untagged entries."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -13706,6 +13910,11 @@ server.registerTool("manage_codex", {
       const mergedContent = (merge && content && typeof content === "object" && existing?.content && typeof existing.content === "object")
         ? { ...existing.content, ...content }
         : (content ?? existing?.content);
+      // REQ-387a — default the scope to the active Novel's ruleset (or null
+      // when none is active); an explicit `ruleset` overrides.
+      const entryRuleset = args.ruleset !== undefined
+        ? args.ruleset
+        : (existing?.ruleset ?? state.activeNovel?.ruleset ?? null);
       const entry: any = {
         id,
         kind,
@@ -13715,6 +13924,7 @@ server.registerTool("manage_codex", {
         tags: tags ?? existing?.tags ?? [],
         imported_at: existing?.imported_at ?? now,
         codex_modified_at: now,
+        ruleset: entryRuleset,
       };
       state.codex.set(id, entry);
       state.saveCodex();
@@ -13724,7 +13934,10 @@ server.registerTool("manage_codex", {
       requireGM();
       let entries = [...state.codex.values()];
       if (args.kind) entries = entries.filter((e: any) => e.kind === args.kind);
-      return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, tags: e.tags })), null, 2));
+      // REQ-387a — a ruleset filter returns matching entries plus untagged
+      // (null) ones, so shared library content stays visible.
+      if (args.ruleset) entries = entries.filter((e: any) => !e.ruleset || e.ruleset === args.ruleset);
+      return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, tags: e.tags, ruleset: e.ruleset ?? null })), null, 2));
     }
     case "get": {
       requireGM();
@@ -13847,6 +14060,8 @@ server.registerTool("manage_codex", {
         id: captured.id, kind, name: captured.name, content: captured.content,
         tags: [],
         source: `captured:${novel.slug}`, source_novel: novel.slug,
+        // REQ-387a — a captured entry defaults to the source Novel's scope.
+        ruleset: novel.ruleset ?? null,
         imported_at: now, codex_modified_at: now,
       };
       state.codex.set(entry.id, entry);
@@ -15138,7 +15353,39 @@ function installBadgeFilteredToolList(): void {
     const base = requestedGroup
       ? visible
       : scopedCatalog(visible as Array<{ name: string }>, requestedScope === "all");
-    const tools = projectToolList(base as Array<{ name: string }>, requestedGroup, requestedProfile);
+    const tools = annotateRulesetScope(
+      projectToolList(base as Array<{ name: string }>, requestedGroup, requestedProfile) as any,
+      requestedScope === "all",
+    );
+    // REQ-391c — paginate an oversized listing at a tool boundary. The cursor
+    // binds to this request's scope/profile/group so a page cannot be resumed
+    // under a different projection; the default scoped listing's size depends
+    // on the active scope, never on the installed-package count.
+    const pageSignature = `${requestedScope ?? "scoped"}|${requestedProfile ?? "full"}|${requestedGroup ?? ""}`;
+    const maxBytes = Number(process.env.TTRPG_TOOLS_LIST_MAX_BYTES ?? 262144);
+    const cursor = typeof params.cursor === "string" ? params.cursor : undefined;
+    let start = 0;
+    if (cursor) {
+      try {
+        const decoded = JSON.parse(Buffer.from(cursor, "base64url").toString("utf-8"));
+        if (decoded?.s !== pageSignature || !Number.isInteger(decoded?.o) || decoded.o < 0) throw new Error("cursor mismatch");
+        start = decoded.o;
+      } catch {
+        throw new McpError(ErrorCode.InvalidParams, "[INVALID_INPUT] invalid tools/list cursor. Corrective action: restart the listing without a cursor.");
+      }
+    }
+    const finish = (list: any[]): any => {
+      const remaining = list.slice(start);
+      if (!Number.isFinite(maxBytes) || maxBytes <= 0
+        || Buffer.byteLength(JSON.stringify({ tools: remaining }), "utf-8") <= maxBytes) {
+        return { ...full, tools: remaining };
+      }
+      let end = remaining.length;
+      while (end > 1 && Buffer.byteLength(JSON.stringify({ tools: remaining.slice(0, end) }), "utf-8") > maxBytes) end--;
+      const page = remaining.slice(0, end);
+      const nextCursor = Buffer.from(JSON.stringify({ s: pageSignature, o: start + end }), "utf-8").toString("base64url");
+      return { ...full, tools: page, nextCursor };
+    };
     // REQ-214c — when the active Novel is bound to a ruleset, `resolve_mechanic`'s
     // `table` parameter advertises the generation-table domain from that
     // ruleset's model. A zero-table ruleset keeps the permissive string; the
@@ -15155,11 +15402,11 @@ function installBadgeFilteredToolList(): void {
             if (!props?.table) return tool;
             return { ...tool, inputSchema: { ...tool.inputSchema, properties: { ...props, table: { ...props.table, enum: names } } } };
           });
-          return { ...full, tools: patched };
+          return finish(patched);
         }
       } catch { /* hydration failures surface at call time */ }
     }
-    return { ...full, tools };
+    return finish(tools);
   });
 }
 

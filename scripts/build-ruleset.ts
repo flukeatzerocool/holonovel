@@ -17,6 +17,7 @@ import { readdirSync, existsSync, statSync, writeFileSync, mkdirSync } from "nod
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
 import { loadRegistry, saveRegistry, type RegistryEntry } from "./lib/ruleset-registry.js";
+import { APPENDIX_U_LICENSES } from "../holonovel/src/rulesets.js";
 
 const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
@@ -37,6 +38,8 @@ function printUsage(): void {
   console.log("");
   console.log("  <slug>  A valid ruleset slug (§7.1a): lowercase-hyphenated, e.g. dnd5e");
   console.log("  <path>  Absolute or relative path to a directory of Markdown sources");
+  console.log("");
+  console.log("  --license=<value>  Record the source's Appendix U license (REQ-432a).");
   console.log("");
   console.log(`Install directory: ${installDir}`);
   console.log("No valid arguments given — nothing built. See Appendix V (Workflow Runbooks).");
@@ -78,6 +81,9 @@ function recordIntake(intakes: Intake[]): void {
 }
 
 const intakes = parseArgs(process.argv.slice(2));
+// REQ-432a — the Appendix U license for the registered source, when declared.
+const licenseArg = process.argv.slice(2).find((a) => a.startsWith("--license="));
+const sourceLicense = licenseArg ? licenseArg.slice("--license=".length) : undefined;
 
 if (intakes.length === 0) {
   printUsage();
@@ -103,6 +109,9 @@ for (const intake of intakes) {
     failures.push(`${intake.slug}: path '${intake.path}' is not a directory containing Markdown`);
   }
 }
+if (sourceLicense !== undefined && !APPENDIX_U_LICENSES.has(sourceLicense)) {
+  failures.push(`--license '${sourceLicense}': not an Appendix U license (§U: ${[...APPENDIX_U_LICENSES].join(", ")})`);
+}
 
 if (failures.length > 0) {
   console.error("build-ruleset: intake rejected");
@@ -127,6 +136,10 @@ recordIntake(intakes);
   const next = loadRegistry(dataDir);
   for (const intake of intakes) {
     const entry: RegistryEntry = { source: intake.path, package_format: packageFormat, built_at: stamp };
+    // REQ-432a — carry the declared license; a re-run without --license keeps
+    // the previously recorded value.
+    const license = sourceLicense ?? next[intake.slug]?.source_license;
+    if (license) entry.source_license = license;
     // REQ-563/REQ-564 — record a committed emitter when the slug has one so
     // `update` can rebuild without re-deriving the recipe.
     const repoEmitter = join(root, "scripts", "ruleset-builds", intake.slug, "build-package.mjs");

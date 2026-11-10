@@ -16,7 +16,7 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { validateToolSchema, type RulesetToolSchema } from "../holonovel/src/rulesets.js";
+import { validateToolSchema, RULESET_PACKAGE_TOOL_BUDGET, type RulesetToolSchema } from "../holonovel/src/rulesets.js";
 
 const argv = process.argv.slice(2);
 if (argv.includes("--help") || argv.includes("-h")) {
@@ -54,6 +54,13 @@ for (const schema of tools) {
   for (const defect of validateToolSchema(schema)) {
     violations.push(`${schema.name}: ${defect}`);
   }
+}
+
+// REQ-430 — the package's aggregate tools/list contribution must fit the
+// configured budget; the Build workflow refuses an over-budget package.
+const aggregateTokens = Math.ceil(Buffer.byteLength(JSON.stringify(tools), "utf-8") / 4);
+if (aggregateTokens > RULESET_PACKAGE_TOOL_BUDGET) {
+  violations.push(`(package): aggregate tool budget exceeded: ${aggregateTokens} tokens > ${RULESET_PACKAGE_TOOL_BUDGET}`);
 }
 
 if (violations.length > 0) {

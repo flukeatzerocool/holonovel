@@ -501,6 +501,9 @@ export interface CodexEntry {
   // `captured:<novel_slug>`; a captured entry also records its origin Novel.
   source?: string;
   source_novel?: string;
+  // REQ-387a — ruleset scope: a known slug, or null for a ruleset-agnostic
+  // entry. Absent on a legacy entry reads as ruleset-agnostic.
+  ruleset?: string | null;
 }
 
 export interface VowState {
@@ -869,6 +872,9 @@ export interface RosterEntity extends NovelEntity {
   // Roster baselines are immutable except narrative fields (REQ-077).
   // REQ-473/REQ-476 — staged identity candidates, accepted facets, and version.
   identity: import("./identity.js").IdentityState;
+  // REQ-386a — the ruleset scope the character was staged under. Additive and
+  // loader-compatible: an older roster entry reads as null (untagged).
+  ruleset?: string | null;
 }
 
 const VALID_SCENE_TYPES = ["combat", "social", "exploration", "neutral"] as const;
@@ -1275,10 +1281,28 @@ export class StateManager {
     if (novel.ruleset) {
       throw new Error(`[STATE_CONFLICT] Novel '${novel.slug}' is already bound to ruleset '${novel.ruleset}'. Binding is one-way.`);
     }
+    // REQ-380c — refuse to bind over mechanics-derived state created under no
+    // ruleset: the new package would reinterpret values it did not produce.
+    const mechanics = this.mechanicsStatePresent(novel);
+    if (mechanics) {
+      throw new Error(`[STATE_CONFLICT] Novel '${novel.slug}' carries mechanics-derived state (${mechanics}), so binding to '${slug}' would reinterpret it. Corrective action: bind a Novel with no mechanics-derived state, or start a new Novel under '${slug}'.`);
+    }
     novel.ruleset = slug;
     this.audit(novel, novel.badge, "bind_novel_ruleset", { slug });
     this.saveNovel(novel);
     return novel;
+  }
+
+  // REQ-380c — the mechanics-derived state a late bind would reinterpret.
+  private mechanicsStatePresent(novel: NovelState): string | null {
+    if (novel.combat) return "an active combat encounter";
+    for (const entity of novel.entities.values()) {
+      if (entity.stats && Object.keys(entity.stats).length > 0) return `entity '${entity.name}' mechanical stats`;
+      if ((entity.conditions?.length ?? 0) > 0 || Object.keys(entity.condition_rounds ?? {}).length > 0) {
+        return `entity '${entity.name}' conditions`;
+      }
+    }
+    return null;
   }
 
   // REQ-406 — compute the content regression incurred by a backup restore:
@@ -2623,6 +2647,7 @@ ${turnOrder}`;
         condition_rounds: e.condition_rounds || {},
         stats: e.stats,
         identity: e.identity ?? { character_id: e.id || id, candidates: [], facets: [], version: 0 },
+        ruleset: e.ruleset ?? null,
       });
     }
   }
@@ -2644,7 +2669,7 @@ ${turnOrder}`;
 
   // Stage an entity into the roster (REQ-219 roster staging). Persists the
   // roster. The entity keeps its stats, personality, and inventory baseline.
-  addToRoster(entity: NovelEntity): string {
+  addToRoster(entity: NovelEntity, ruleset: string | null = null): string {
     const id = entity.id;
     this.roster.set(id, {
       id: entity.id,
@@ -2657,6 +2682,8 @@ ${turnOrder}`;
       condition_rounds: entity.condition_rounds || {},
       stats: entity.stats,
       identity: { character_id: entity.id, candidates: [], facets: [], version: 0 },
+      // REQ-386a — the roster entry records the staging Novel's ruleset scope.
+      ruleset,
     });
     this.saveRoster();
     return id;

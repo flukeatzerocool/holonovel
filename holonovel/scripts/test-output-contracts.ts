@@ -1650,14 +1650,31 @@ async function main() {
   await test("T453/REQ-389c: runtime install registers prompts without restart", async () => {
     const p = await boot();
     await call(p, "set_badge", { badge: "game_master" });
+    const runtimeTool = {
+      name: "lookup_runtime", title: "Lookup Runtime",
+      description: "Look up a runtime entry. Use when: testing runtime install. Do NOT use when: another package serves it.",
+      kind: "lookup", group: "lookup", phases: ["none", "setup", "scene", "combat", "downtime", "closed"], collection: "concepts",
+      inputSchema: { type: "object", properties: { key: { type: "string", description: "The entry key." } } },
+    };
+    const runtimeResources = [{ name: "runtime_entry", uri: "runtime://entry", title: "Runtime Entry", mimeType: "text/plain", text: "runtime resource text" }];
     const runtime: any = {
-      manifest: { slug: "rtprompt", name: "Runtime Prompt", host_version: "2026.10.20", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-10-20", counts: { index: 0 } },
-      index: [], model: {}, tools: [], resources: [],
+      manifest: { slug: "rtprompt", name: "Runtime Prompt", host_version: "2026.10.20", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-10-20", counts: { index: 1 } },
+      index: [{ id: "runtime_entry", anchor: "Runtime > Entry", source_file: "runtime.md", content: "runtime entry text", category: "Entry", confidence: "high" }],
+      model: { concepts: { runtime_entry: { name: "Runtime Entry" } }, tables: {}, generation_tables: {} },
+      tools: [runtimeTool], resources: runtimeResources,
       prompts: [{ name: "runtime_intro", title: "Runtime Introduction", text: "A runtime-installed package prompt." }],
     };
     runtime.manifest.content_hash = contentHash(runtime);
-    const installed = await call(p, "manage_ruleset", { action: "install", slug: "rtprompt", manifest: runtime.manifest, index: [], model: {}, tools: [], resources: [], prompts: runtime.prompts });
+    const installed = await call(p, "manage_ruleset", { action: "install", slug: "rtprompt", manifest: runtime.manifest, index: runtime.index, model: runtime.model, tools: runtime.tools, resources: runtime.resources, prompts: runtime.prompts });
     assertContains(installed, "installed", "runtime package installed");
+    // REQ-558 — the runtime-installed package's tools serve immediately.
+    const immediate = await call(p, "rtprompt_lookup_runtime", { key: "runtime_entry" });
+    assertContains(immediate, "runtime entry text", "runtime package tool did not serve without restart");
+    // REQ-389c — declared resources are listed and readable.
+    const resourceList = await send(p, { method: "resources/list", params: {} });
+    assertContains(JSON.stringify(resourceList?.result ?? {}), "runtime://entry", "runtime resource not listed");
+    const read = await send(p, { method: "resources/read", params: { uri: "runtime://entry" } });
+    assertContains(JSON.stringify(read?.result ?? {}), "runtime resource text", "runtime resource not readable");
     const listed = await send(p, { method: "prompts/list", params: {} });
     assertContains((listed?.result?.prompts ?? []).map((x: any) => x.name).join(","), "runtime_intro", "runtime prompt registered without restart");
     const removed = await call(p, "manage_ruleset", { action: "remove", slug: "rtprompt" });
@@ -1700,6 +1717,35 @@ async function main() {
     if (h.rulesets_hydrated !== 1) throw new Error(`REQ-390b hydrated ${h.rulesets_hydrated} (expected only the used package; spec_health must not hydrate)`);
     const after = await call(p, "wave1test_lookup_spell", { key: "fireball" });
     assertContains(after, "Evocation", "REQ-390a used package serves after activation");
+    // REQ-390b — the aggregate installed index bytes are reported without
+    // hydrating another package.
+    if (typeof h.ruleset_index_bytes !== "number" || h.ruleset_index_bytes <= 0) {
+      throw new Error(`REQ-390b ruleset_index_bytes ${h.ruleset_index_bytes}`);
+    }
+    // Seed three more copies so the installed set is five; the default scoped
+    // listing must stay independent of the package count (REQ-391c).
+    for (const extra of ["wave3test", "wave4test", "wave5test"]) {
+      const dir = join(DATA_DIR, "rulesets", extra);
+      mkdirSync(dir, { recursive: true });
+      for (const [name, obj] of Object.entries({
+        "manifest.json": { ...RULESET_PKG.manifest, slug: extra, name: `${extra} ruleset` },
+        "index.json": RULESET_PKG.index,
+        "model.json": RULESET_PKG.model,
+        "tools.json": RULESET_PKG.tools,
+        "resources.json": [],
+        "prompts.json": RULESET_PKG.prompts,
+      })) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
+    }
+    const five = await boot();
+    await call(five, "manage_novel", { action: "create", name: "w11five", ruleset: "wave1test" });
+    const h5 = JSON.parse(await call(five, "manage_diagnostics", { action: "health" }));
+    if (h5.rulesets_installed !== 5) throw new Error(`REQ-390b five-package installed ${h5.rulesets_installed}`);
+    if (h5.rulesets_hydrated !== 1) throw new Error(`REQ-390b spec_health hydrated ${h5.rulesets_hydrated} packages (only the bound one may load)`);
+    const scoped = await send(five, { method: "tools/list", params: {} });
+    const scopedNames = ((scoped?.result?.tools ?? []) as any[]).map((t: any) => t.name);
+    if (scopedNames.some((n: string) => n.startsWith("wave2test_"))) throw new Error("REQ-391a default listing included an unbound package");
+    if (Buffer.byteLength(JSON.stringify(scoped?.result?.tools ?? []), "utf-8") > 200000) throw new Error("REQ-391c default scoped listing grew with installed packages");
+    await kill(five);
     passed++;
     await kill(p);
   });

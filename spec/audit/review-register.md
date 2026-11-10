@@ -11,7 +11,60 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
-### 2026-11-10 §5.7 determinism and citation repair
+### 2026-11-10 §5.16/§5.17 ruleset surface remediation
+
+- **F-P6b-9 — listing annotation, per-ruleset health, and prefix map
+  (resolved 2026-11-10):** every listed tool reports its scope via
+  `annotateRulesetScope` (`holonovel/src/index.ts:1981-1991`); `scope=all`
+  marks mismatched tools `_meta.inapplicable`; `buildRulesetHealthSections`
+  (`:12275`) plus the `combined` summary and Player filter are in
+  `spec_health.ruleset_health` (`:12488`); the prefix map is recorded in
+  `holonovel/DECISIONS.md` and reported for every badge inside `combined`.
+  Exercised by T440 and T444 in `test:ruleset-surface-remediation`.
+  REQ-379b, REQ-379c, REQ-381b, REQ-381c, REQ-382b, REQ-382c, REQ-383a,
+  REQ-383b.
+- **F-P6b-9a — `ruleset://` resource absent (resolved 2026-11-10):** split
+  from F-P6b-9 because its governing REQs are REQ-012/REQ-214a, not
+  REQ-389c. The `ruleset-entry` template
+  (`holonovel/src/index.ts:12812-12829`) resolves an index entry by id or
+  anchor; `test:selection` T688 now reads the pointer that truncation
+  prints. REQ-012, REQ-214a.
+- **F-P6b-10 — identity, import/export, switching, and codex ruleset gaps
+  (resolved 2026-11-10):** `bindNovelRuleset` refuses mechanics-derived state
+  (`holonovel/src/core/state.ts:1286-1303`); switch audits both endpoints
+  (`holonovel/src/index.ts:11055-11062`); archive import validates the
+  incoming slug (`:11177-11185`); export names `ruleset` in its manifest
+  (`:11131`); `CodexEntry.ruleset` defaults on set/capture, filters list, and
+  refuses a cross-ruleset import (`:13850`, `:13913`, `:14063`). Exercised by
+  T441/T451, T445, T447, and T448. REQ-380c, REQ-384b, REQ-384c, REQ-386a,
+  REQ-386b, REQ-387a, REQ-387b.
+- **F-P6b-11 — `run_command (action: suggest)` ignores the ruleset model
+  (resolved 2026-11-10):** a matched intent emits prefixed package tools
+  (`holonovel/src/index.ts:4834-4852`); parser suggestions stay
+  infrastructure and prose remains the no-match fallback. Exercised by T446.
+  REQ-385a, REQ-385b.
+- **F-P6b-12 — metrics, budget, license, and registry gaps (resolved
+  2026-11-10):** `spec_health.ruleset_index_bytes` reads the install
+  directory without hydrating (`holonovel/src/rulesets.ts:638-649`,
+  `holonovel/src/index.ts:12485`); `RULESET_PACKAGE_TOOL_BUDGET` is enforced
+  at load (`rulesets.ts:607-611`) and by the package gate
+  (`scripts/check-ruleset-package.ts:59-63`); `APPENDIX_U_LICENSES` equals
+  Appendix U's license column (`rulesets.ts:51-61`, parity asserted by
+  `test:ruleset-gates`); the registry records `source_license`
+  (`scripts/lib/ruleset-registry.ts:31`) and `build-ruleset` accepts
+  `--license=` (`scripts/build-ruleset.ts:139-143`). REQ-421's recipe-role
+  clause already holds (`sources[{path, role}]`); its supplement-provenance
+  half remains tracked by F-P6b-15. REQ-390b, REQ-430, REQ-432a, REQ-432b.
+- **F-P6b-16 — runtime-installed packages register no tools (resolved
+  2026-11-10):** `registerPackageTools`/`registerPackageResources`
+  (`holonovel/src/index.ts:2320-2381`) run at startup and from
+  `manage_ruleset (action: install)`, rolling the package back on a
+  registration failure; removal stays an installed-package filter. Exercised
+  by T453 and T454 in `test:output-contracts`. REQ-389c, REQ-558.
+- **F-P6b-20 — `tools/list` never paginates (resolved 2026-11-10):** an
+  over-cap listing slices at a tool boundary and returns a scope/profile/
+  group-bound `nextCursor`; an unknown cursor is `[INVALID_INPUT]`
+  (`holonovel/src/index.ts:15360-15385`). Exercised by T458. REQ-391c.
 
 - **F-P7a-1 — seed-conflict warning (resolved 2026-11-10):**
   `seedConflictWarning` (`holonovel/src/core/rng.ts:60-66`) emits
@@ -1362,33 +1415,6 @@ absent, so each finding carries the failing predicate rather than a test.
   in-tree directory silently and the four root entry scripts hardcode
   `holonovel/.holonovel-state`. REQ-397. Scheduled under §5.18 deploy, state,
   and publication remediation.
-- **F-P6b-9 — listing annotation, per-ruleset health, and prefix-map record
-  (2026-11-09):** no `ruleset` annotation or `inapplicable` hint
-  (`index.ts:1712-1723`), no `ruleset_health`/`combined`
-  (`index.ts:11948-12070`), the prefix map is GM-only and absent from
-  DECISIONS.md, and no `ruleset://` resource is registered although search
-  points at one (`index.ts:11219`). REQ-379b, REQ-379c, REQ-381b, REQ-381c,
-  REQ-382b, REQ-382c, REQ-383a, REQ-383b, REQ-389c. Scheduled under
-  §5.16/§5.17 ruleset surface remediation.
-- **F-P6b-10 — identity, import/export, switching, and codex ruleset gaps
-  (2026-11-09):** bind checks no mechanics state (`state.ts:1271-1273`), switch
-  is unaudited (`index.ts:10611-10628`), import validates no ruleset
-  (`index.ts:10729-10866`), export omits `ruleset`
-  (`index.ts:10691-10703`), and codex has no ruleset axis
-  (`index.ts:13294-13313`). REQ-380c, REQ-384b, REQ-384c, REQ-386a, REQ-386b,
-  REQ-387a, REQ-387b. Scheduled under §5.16/§5.17 ruleset surface
-  remediation.
-- **F-P6b-11 — `run_command (action: suggest)` ignores the ruleset model
-  (2026-11-09):** `index.ts:4548-4550` emits generic prose, never prefixed
-  names from the bound package. REQ-385a, REQ-385b. Scheduled under
-  §5.16/§5.17 ruleset surface remediation.
-- **F-P6b-12 — metrics, budget, license, and registry recipe gaps
-  (2026-11-09):** no aggregate index bytes (`index.ts:11961-11963`), no
-  aggregate package tool budget (`rulesets.ts:268,310-312`), the license set
-  diverges from Appendix U (`rulesets.ts:45-53`), and the registry records no
-  recipe roles or license (`scripts/lib/ruleset-registry.ts:22-31`).
-  REQ-390b, REQ-430, REQ-432a, REQ-432b, REQ-421. Scheduled under
-  §5.16/§5.17 ruleset surface remediation.
 - **F-P6b-13 — deploy clean and verification guards (2026-11-09):**
   `scripts/publish/steps.ts:585-588` cleans the deploy tree with no state-dir
   assertion, the fast-forward failure names no server, and
@@ -1403,10 +1429,6 @@ absent, so each finding carries the failing predicate rather than a test.
   writer (`scripts/lib/ruleset-registry.ts:29`), and `update-rulesets` never
   compares one. REQ-395a, REQ-421, REQ-557. Scheduled under §5.17/§5.18
   package build and update remediation.
-- **F-P6b-16 — runtime-installed packages register no tools (2026-11-09):**
-  registration happens only in the startup loop (`index.ts:2215-2242`), so
-  `manage_ruleset (action: install)` serves nothing until restart. REQ-558.
-  Scheduled under §5.16/§5.17 ruleset surface remediation.
 - **F-P6b-17 — Forged resist does not reduce a named consequence
   (2026-11-09):** `index.ts:7828-7834` adds stress only and the Forged state
   has no consequence slot. REQ-442. Scheduled under §5.21–§5.23 capability
@@ -1420,10 +1442,6 @@ absent, so each finding carries the failing predicate rather than a test.
   (2026-11-09):** REQ-428's image half is absent and `server.json` is checked
   for version equality only (`scripts/version-check.ts:92-103`). REQ-428.
   Scheduled under §5.18 deploy, state, and publication remediation.
-- **F-P6b-20 — `tools/list` never paginates (2026-11-09):**
-  `index.ts:14718-14725` returns the full scoped catalog with no size cap or
-  `nextCursor`. REQ-391c. Scheduled under §5.16/§5.17 ruleset surface
-  remediation.
 - **F-P6b-21 — §5.16–§5.18 citation gaps (2026-11-09):** absent or
   non-exercising assertions — T440, T442–T447, T451, T457, T458, T463–T467,
   T491, T492, T650, T656, T657; weak T454, T455, T456, T459, T460, T462,

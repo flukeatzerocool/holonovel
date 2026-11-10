@@ -468,6 +468,11 @@ async function main() {
     assert(String(bad.stderr).includes("lookup_spell"), "gate did not name the offending tool");
     const good = spawnSync("npx", ["tsx", gate, goodDir], { cwd: ROOT, encoding: "utf-8" });
     assert(good.status === 0, `conformant package should exit 0, got ${good.status}: ${good.stdout}${good.stderr}`);
+    // REQ-430 — the aggregate package budget is a hard gate: a tiny configured
+    // budget refuses an otherwise conformant package.
+    const over = spawnSync("npx", ["tsx", gate, goodDir], { cwd: ROOT, encoding: "utf-8", env: { ...process.env, TTRPG_PACKAGE_TOOL_BUDGET: "5" } });
+    assert(over.status === 1, `over-budget package should exit 1, got ${over.status}`);
+    assert(String(over.stderr).includes("aggregate tool budget"), "gate did not name the aggregate budget defect");
   });
 
   // ── T450 (REQ-388a–d) ───────────────────────────────────────────────

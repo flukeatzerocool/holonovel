@@ -202,140 +202,140 @@
         "retired": true
       }
     ],
-    "full_tokens": 28174,
-    "tools_list_bytes": 112694
+    "full_tokens": 28445,
+    "tools_list_bytes": 113779
   },
   "measurements": {
     "full": {
       "tools": 37,
-      "bytes": 112694,
-      "tokens": 28174
+      "bytes": 113779,
+      "tokens": 28445
     },
     "standard": {
       "tools": 37,
-      "bytes": 98301,
-      "tokens": 24576
+      "bytes": 99386,
+      "tokens": 24847
     },
     "small": {
       "tools": 6,
-      "bytes": 4570,
-      "tokens": 1143,
+      "bytes": 4720,
+      "tokens": 1180,
       "groups": {
         "table": {
           "tools": 6,
-          "bytes": 4570,
-          "tokens": 1143
+          "bytes": 4720,
+          "tokens": 1180
         },
         "explore": {
           "tools": 6,
-          "bytes": 3538,
-          "tokens": 885
+          "bytes": 3688,
+          "tokens": 922
         },
         "resolve": {
           "tools": 6,
-          "bytes": 4456,
-          "tokens": 1114
+          "bytes": 4606,
+          "tokens": 1152
         },
         "narrate": {
           "tools": 6,
-          "bytes": 4066,
-          "tokens": 1017
+          "bytes": 4216,
+          "tokens": 1054
         },
         "lookup": {
           "tools": 6,
-          "bytes": 3799,
-          "tokens": 950
+          "bytes": 3949,
+          "tokens": 988
         },
         "referee": {
           "tools": 6,
-          "bytes": 3825,
-          "tokens": 957
+          "bytes": 3975,
+          "tokens": 994
         },
         "author": {
           "tools": 6,
-          "bytes": 3725,
-          "tokens": 932
+          "bytes": 3903,
+          "tokens": 976
         },
         "maintain": {
           "tools": 6,
-          "bytes": 4468,
-          "tokens": 1117
+          "bytes": 4618,
+          "tokens": 1155
         }
       }
     }
   },
   "budgets": {
-    "standard": 25357,
-    "small": 2818
+    "standard": 25601,
+    "small": 2845
   },
   "worst_case": {
-    "standard_tokens": 24576,
-    "small_tokens": 1143
+    "standard_tokens": 24847,
+    "small_tokens": 1180
   },
   "groups": [
     {
       "group": "table",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 1143
+      "small_tokens": 1180
     },
     {
       "group": "explore",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 885
+      "small_tokens": 922
     },
     {
       "group": "resolve",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 1114
+      "small_tokens": 1152
     },
     {
       "group": "narrate",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 1017
+      "small_tokens": 1054
     },
     {
       "group": "lookup",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 950
+      "small_tokens": 988
     },
     {
       "group": "referee",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 957
+      "small_tokens": 994
     },
     {
       "group": "author",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 932
+      "small_tokens": 976
     },
     {
       "group": "maintain",
       "tools": 6,
       "standard_tools": 37,
-      "standard_tokens": 24576,
+      "standard_tokens": 24847,
       "small_tools": 6,
-      "small_tokens": 1117
+      "small_tokens": 1155
     }
   ],
   "defects": []

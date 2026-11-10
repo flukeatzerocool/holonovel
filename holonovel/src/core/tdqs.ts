@@ -17,6 +17,8 @@ export interface ToolDefinition {
   inputSchema?: unknown;
   outputSchema?: unknown;
   annotations?: Record<string, boolean> | null;
+  // REQ-379b — the ruleset scope carried into the measured/listed surface.
+  _meta?: Record<string, unknown>;
 }
 
 export interface ContextSignals {

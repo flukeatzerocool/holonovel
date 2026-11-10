@@ -1,64 +1,64 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 112694,
+  "tools_list_bytes": 113779,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 112694,
-        "tokens": 28174
+        "bytes": 113779,
+        "tokens": 28445
       },
       "standard": {
         "tools": 37,
-        "bytes": 98301,
-        "tokens": 24576
+        "bytes": 99386,
+        "tokens": 24847
       },
       "small": {
         "tools": 6,
-        "bytes": 4570,
-        "tokens": 1143,
+        "bytes": 4720,
+        "tokens": 1180,
         "groups": {
           "table": {
             "tools": 6,
-            "bytes": 4570,
-            "tokens": 1143
+            "bytes": 4720,
+            "tokens": 1180
           },
           "explore": {
             "tools": 6,
-            "bytes": 3538,
-            "tokens": 885
+            "bytes": 3688,
+            "tokens": 922
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4456,
-            "tokens": 1114
+            "bytes": 4606,
+            "tokens": 1152
           },
           "narrate": {
             "tools": 6,
-            "bytes": 4066,
-            "tokens": 1017
+            "bytes": 4216,
+            "tokens": 1054
           },
           "lookup": {
             "tools": 6,
-            "bytes": 3799,
-            "tokens": 950
+            "bytes": 3949,
+            "tokens": 988
           },
           "referee": {
             "tools": 6,
-            "bytes": 3825,
-            "tokens": 957
+            "bytes": 3975,
+            "tokens": 994
           },
           "author": {
             "tools": 6,
-            "bytes": 3725,
-            "tokens": 932
+            "bytes": 3903,
+            "tokens": 976
           },
           "maintain": {
             "tools": 6,
-            "bytes": 4468,
-            "tokens": 1117
+            "bytes": 4618,
+            "tokens": 1155
           }
         }
       }
@@ -84,7 +84,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 0,
         "requiredParamCount": 0,
@@ -137,7 +139,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 1,
@@ -196,7 +200,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 8,
         "requiredParamCount": 1,
@@ -263,7 +269,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 14,
         "requiredParamCount": 1,
@@ -315,7 +323,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 5,
         "requiredParamCount": 1,
@@ -410,7 +420,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 35,
         "requiredParamCount": 1,
@@ -470,7 +482,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 11,
         "requiredParamCount": 1,
@@ -553,7 +567,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 28,
         "requiredParamCount": 1,
@@ -587,7 +603,7 @@
         "import",
         "delete"
       ],
-      "param_count": 11,
+      "param_count": 12,
       "required": [
         "action"
       ],
@@ -600,6 +616,7 @@
         "kind": "Entry kind (for set/list/capture).",
         "merge": "For set: when true and the entry exists, shallow-merge the provided content into the stored content instead of replacing it.",
         "name": "Entry name (for set).",
+        "ruleset": "Ruleset slug (for set/list); set defaults to the active Novel's scope, list returns matching plus untagged entries.",
         "source_id": "Novel artifact key/name/entity id to capture (for capture). Defaults per kind.",
         "tags": "Optional tags (for set).",
         "update_source": "When true, update the source Codex entry in place (for capture)."
@@ -614,11 +631,13 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
-        "paramCount": 12,
+        "paramCount": 13,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 12,
+        "paramsWithDescriptions": 13,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -629,7 +648,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3117,
+        "definitionBytes": 3277,
         "descriptionBytes": 976
       },
       "category": "",
@@ -669,7 +688,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 1,
@@ -719,7 +740,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 4,
         "requiredParamCount": 1,
@@ -778,7 +801,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 12,
         "requiredParamCount": 1,
@@ -843,7 +868,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 13,
         "requiredParamCount": 1,
@@ -901,7 +928,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 11,
         "requiredParamCount": 1,
@@ -981,7 +1010,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 25,
         "requiredParamCount": 1,
@@ -1036,7 +1067,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 8,
         "requiredParamCount": 1,
@@ -1079,7 +1112,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 1,
         "requiredParamCount": 0,
@@ -1146,7 +1181,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 16,
         "requiredParamCount": 2,
@@ -1205,7 +1242,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 5,
         "requiredParamCount": 1,
@@ -1277,7 +1316,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 15,
         "requiredParamCount": 1,
@@ -1332,7 +1373,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 1,
@@ -1419,7 +1462,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 31,
         "requiredParamCount": 1,
@@ -1487,7 +1532,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 17,
         "requiredParamCount": 1,
@@ -1539,7 +1586,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 7,
         "requiredParamCount": 1,
@@ -1603,7 +1652,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 14,
         "requiredParamCount": 1,
@@ -1668,7 +1719,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 18,
         "requiredParamCount": 1,
@@ -1727,7 +1780,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 12,
         "requiredParamCount": 1,
@@ -1784,7 +1839,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 9,
         "requiredParamCount": 1,
@@ -1855,7 +1912,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 14,
         "requiredParamCount": 1,
@@ -1913,7 +1972,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 10,
         "requiredParamCount": 1,
@@ -2002,7 +2063,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 34,
         "requiredParamCount": 1,
@@ -2045,7 +2108,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 2,
         "requiredParamCount": 0,
@@ -2122,7 +2187,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 23,
         "requiredParamCount": 1,
@@ -2168,7 +2235,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 2,
         "requiredParamCount": 2,
@@ -2220,7 +2289,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 6,
         "requiredParamCount": 0,
@@ -2264,7 +2335,9 @@
         "openWorldHint": false,
         "readOnlyHint": false
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 1,
         "requiredParamCount": 1,
@@ -2309,7 +2382,9 @@
         "openWorldHint": false,
         "readOnlyHint": true
       },
-      "meta": null,
+      "meta": {
+        "ruleset": null
+      },
       "context_signals": {
         "paramCount": 2,
         "requiredParamCount": 1,

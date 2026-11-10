@@ -26,6 +26,11 @@ export interface RulesetManifest {
   content_hash: string;
   built_at: string;
   counts: Record<string, number>;
+  // REQ-383a — per-ruleset health fields. Optional and loader-compatible: a
+  // package that does not carry them reports `not-declared` rather than a
+  // fabricated value (REQ-383a requires the fields to be present).
+  must_action_coverage?: number | string;
+  verification_dispositions?: Record<string, number> | string;
   // REQ-432 — vendor package certification: a package built from an Appendix U
   // content source records its license here; the host flags any declared
   // license not present in Appendix U as [license-unattributed].
@@ -41,15 +46,15 @@ export interface RulesetManifest {
 
 // REQ-432 — the Appendix U license values a vendor package may declare. A
 // package declaring a source_license outside this set is held inactive with a
-// [license-unattributed] flag.
+// [license-unattributed] flag. Keep this set equal to Appendix U's License
+// column (parity asserted by `test-ruleset-gates`).
 export const APPENDIX_U_LICENSES: ReadonlySet<string> = new Set([
   "CC BY 4.0",
-  "CC BY 4.0 + OGL 1.0a",
-  "CC BY 3.0",
   "CC BY-SA 4.0",
+  "CC BY 3.0",
+  "CC BY 4.0 / CC0 1.0",
   "Artistic License 2.0",
   "MIT",
-  "OGL 1.0a",
 ]);
 
 export interface RulesetIndexEntry {
@@ -266,6 +271,11 @@ export function rollDice(notation: string, seed?: string): RollResult {
 // hard-gate defect (REQ-553), and a description within the recorded budget
 // (REQ-024c). Returns the list of defects (empty = conformant).
 export const RULESET_DESCRIPTION_BUDGET = Number(process.env.TTRPG_DESCRIPTION_BUDGET ?? 1000);
+
+// REQ-430 — a package's aggregate declared-tool contribution (estimated
+// tokens) must stay within the configured budget. Distinct from the per-tool
+// description budget above; env-overridable for tests and large packages.
+export const RULESET_PACKAGE_TOOL_BUDGET = Number(process.env.TTRPG_PACKAGE_TOOL_BUDGET ?? 4000);
 
 export type RulesetToolAnnotations = {
   readOnlyHint: boolean;
@@ -570,6 +580,19 @@ export class RulesetManager {
     }
   }
 
+  // REQ-389c — a package's declared resources, read WITHOUT hydrating its
+  // index/model so install-time registration stays lazy (REQ-390).
+  resourceDeclarations(slug: string): any[] {
+    const p = path.join(this.installDir, slug, "resources.json");
+    if (!fs.existsSync(p)) return [];
+    try {
+      const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   // REQ-430 — validate a package's declared tool schemas at load (from
   // tools.json) without hydrating its index/model, so non-conformant tools are
   // flagged in spec_health while REQ-390 lazy hydration is preserved.
@@ -580,6 +603,11 @@ export class RulesetManager {
       const defects = validateToolSchema(schema);
       if (defects.length === 0) conformant++;
       else alerts.push({ tool: schema.name, defects });
+    }
+    // REQ-430 — the package's aggregate tools/list contribution.
+    const aggregateTokens = Math.ceil(Buffer.byteLength(JSON.stringify(tools), "utf-8") / 4);
+    if (aggregateTokens > RULESET_PACKAGE_TOOL_BUDGET) {
+      alerts.push({ tool: "(package)", defects: [`aggregate tool budget exceeded: ${aggregateTokens} tokens > ${RULESET_PACKAGE_TOOL_BUDGET}`] });
     }
     this.toolQuality.set(slug, { conformant, alerts });
   }
@@ -605,6 +633,22 @@ export class RulesetManager {
       // rejection surfaces via hydration at call time (REQ-389b).
       return [];
     }
+  }
+
+  // REQ-390b — aggregate installed index bytes, read from the filesystem
+  // without hydrating a package. The value is the sum of each installed
+  // package's index.json size; a missing file contributes zero.
+  installedIndexBytes(): number {
+    let total = 0;
+    for (const slug of this.installed.keys()) {
+      try {
+        total += fs.statSync(path.join(this.installDir, slug, "index.json")).size;
+      } catch {
+        // A package without an index.json contributes no bytes; its rejection
+        // (if any) surfaces through the load-failure path.
+      }
+    }
+    return total;
   }
 
   // Full-text search over the hydrated index. Simple normalized substring

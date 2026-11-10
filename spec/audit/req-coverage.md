@@ -11,7 +11,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-004 | Truncation (1 sub-part) | 5.1 Output and Error Contracts | C | T13 | — |
 | REQ-010 | Traceability | 5.2 Extraction and Confidence | E | T15 | — |
 | REQ-011 | Confidence (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T15, T93 | — |
-| REQ-012 | Graceful fallback | 5.2 Extraction and Confidence | E | T91 | — |
+| REQ-012 | Graceful fallback | 5.2 Extraction and Confidence | C | T91 | — |
 | REQ-013 | No assumed mechanics | 5.2 Extraction and Confidence | E | T32 | — |
 | REQ-014 | Source immutability | 5.2 Extraction and Confidence | E | T224 | — |
 | REQ-015 | Action classification | 5.2 Extraction and Confidence | E | T15 | — |
@@ -345,19 +345,19 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-376 | Holonovel Pattern Buffer traceability (Part a1) (5 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-377 | Mechanical coupling extraction (Part a) (4 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
 | REQ-378 | Mechanical coupling verification (Part a) (2 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
-| REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T441 | — |
-| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T456 | — |
-| REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-385 | command suggest cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
-| REQ-387 | Codex ruleset annotation (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
+| REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T440 | — |
+| REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T441, T451 | — |
+| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T442, T456 | — |
+| REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T443 | — |
+| REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | C | T444 | — |
+| REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T445 | — |
+| REQ-385 | command suggest cross-ruleset scoping (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | C | T446 | — |
+| REQ-386 | Cross-ruleset import rejection (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | C | T447 | — |
+| REQ-387 | Codex ruleset annotation (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | C | T448 | — |
 | REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T450 | — |
 | REQ-389 | Ruleset package format (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T452, T453 | — |
 | REQ-390 | Lazy ruleset hydration (Part a) (2 sub-parts) | 5.17 Ruleset Packages | C | T454, T455 | — |
-| REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456 | — |
+| REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456, T458 | — |
 | REQ-392 | Tool-description budget | 5.17 Ruleset Packages | C | T479, T459 | — |
 | REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460 | — |
 | REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T84e | — |

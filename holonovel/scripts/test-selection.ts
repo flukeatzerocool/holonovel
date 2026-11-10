@@ -228,6 +228,13 @@ async function main(): Promise<void> {
     await test("T688/REQ-588: search budget suppresses and truncates with a resource pointer", async () => {
       const body = await text(proc, "manage_ruleset", { action: "search", query: "goblin", slug: "fixture" });
       assert(body.includes("ruleset://fixture/"), "oversized passage did not carry a ruleset:// pointer");
+      // REQ-012/REQ-214a — the pointer must resolve, not merely be printed.
+      const pointer = body.match(/ruleset:\/\/fixture\/[^\s\]]+/)?.[0];
+      assert(Boolean(pointer), "no resolvable ruleset:// pointer found");
+      const read = await send(proc, { method: "resources/read", params: { uri: pointer } });
+      const readText = JSON.stringify(read?.result ?? {});
+      assert(!readText.includes("[NOT_FOUND]"), `ruleset:// pointer did not resolve: ${readText.slice(0, 200)}`);
+      assert(readText.length > 40, "ruleset:// resource returned no content");
       const h = await health(proc);
       assert(h.search_budget?.max_tokens === 50, "configured search budget not reported");
       assert(h.search_budget.last_returned < 2, "budget did not suppress a result");

@@ -16,7 +16,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
-import { validateToolSchema, CORE_TOOL_GROUPS, CORE_TOOL_PHASES } from "../src/rulesets.js";
+import { validateToolSchema, CORE_TOOL_GROUPS, CORE_TOOL_PHASES, APPENDIX_U_LICENSES } from "../src/rulesets.js";
 import { isColophonHeading } from "../../scripts/lib/front-matter.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -357,6 +357,23 @@ test("T737/REQ-619: reference emitter populates creator/attribution from its pro
   } finally {
     renameSync(parked, provPath);
   }
+});
+
+test("REQ-432: APPENDIX_U_LICENSES matches Appendix U's license column", () => {
+  const spec = readFileSync(join(import.meta.dirname, "..", "..", "spec", "appendices-licenses.md"), "utf-8");
+  const declared = new Set<string>();
+  for (const line of spec.split("\n")) {
+    if (!line.startsWith("| ")) continue;
+    const cells = line.split("|").map((c) => c.trim());
+    if (cells.length < 5) continue;
+    if (!["Ruleset data", "World model conventions", "Narrative frameworks", "Borrowed mechanics"].includes(cells[2])) continue;
+    declared.add(cells[3]);
+  }
+  assert(declared.size > 0, "no Appendix U license rows parsed");
+  const missing = [...declared].filter((l) => !APPENDIX_U_LICENSES.has(l));
+  const extra = [...APPENDIX_U_LICENSES].filter((l) => !declared.has(l));
+  assert(missing.length === 0, `license constant omits Appendix U rows: ${missing.join(", ")}`);
+  assert(extra.length === 0, `license constant carries values no Appendix U row authorizes: ${extra.join(", ")}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

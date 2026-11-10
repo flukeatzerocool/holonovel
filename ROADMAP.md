@@ -12,27 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.16/§5.17 ruleset surface remediation (P1)
-
-- Scope, annotation, and health: ruleset-scoped dispatch and listing
-  annotations, `inapplicable` hints, per-ruleset `ruleset_health` with a
-  combined summary and Player filtering, and ruleset-derived `suggest` names
-  (REQ-379b, REQ-379c, REQ-381b, REQ-381c, REQ-382b, REQ-382c, REQ-383a,
-  REQ-383b, REQ-385a, REQ-385b).
-- Novel identity, import/export, and codex: bind's mechanics-state check,
-  audited cross-ruleset switching, import validation with valid-slug
-  enumeration, export manifest ruleset, and the codex ruleset axis with
-  mismatched-import refusal (REQ-380c, REQ-384b, REQ-384c, REQ-386a, REQ-386b,
-  REQ-387a, REQ-387b).
-- Metrics, budget, and lifecycle: the `ruleset://` resource surface, aggregate
-  installed index bytes, the aggregate package tool budget, an Appendix
-  U-derived license set, runtime install registration, and `tools/list`
-  pagination (REQ-389c, REQ-390b, REQ-391c, REQ-430, REQ-432a, REQ-432b,
-  REQ-558).
-
-**Trigger:** the next §5.16/§5.17 remediation session; closes when F-P6b-9,
-F-P6b-10, F-P6b-11, F-P6b-12, F-P6b-16, and F-P6b-20 are `Resolved`.
-
 ## §5.17/§5.18 package build and update remediation (P1)
 
 - A committed ruleset emitter invoked by `build-ruleset`, with `update`

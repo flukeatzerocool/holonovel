@@ -369,6 +369,8 @@ async function main() {
   {
     seedPackage("vendor-ok", {}, "CC BY 4.0");
     seedPackage("vendor-bad", {}, "PROPRIETARY-NO-SUCH-LICENSE");
+    // REQ-432b — the COF combined license is an Appendix U row.
+    seedPackage("vendor-cof", {}, "CC BY 4.0 / CC0 1.0");
     const proc = await boot();
     await newNovel(proc, "vendor-test");
     await test("T517/REQ-432: licensed vendor package lists license; unattributed one is held inactive", async () => {
@@ -377,6 +379,8 @@ async function main() {
       assert(ok, "vendor-ok should be listed");
       assert(ok.licensed === true, "vendor-ok should be licensed");
       assert(ok.source_license === "CC BY 4.0", "vendor-ok should carry its source_license");
+      const cof = list.find((p: any) => p.slug === "vendor-cof");
+      assert(cof && cof.licensed === true && cof.source_license === "CC BY 4.0 / CC0 1.0", "the COF combined license must load");
       const bad = list.find((p: any) => p.slug === "vendor-bad");
       assert(!bad, "vendor-bad should be held inactive (absent from list)");
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));

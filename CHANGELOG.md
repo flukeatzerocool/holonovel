@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-10 — §5.16/§5.17 ruleset surface remediation
+
+- `tools/list` reports `_meta.ruleset` on every entry and
+  `_meta.inapplicable` for mismatched scopes under `scope=all`; the measured
+  surface and `tool-definitions.json` carry the same annotation (REQ-379b,
+  REQ-379c, REQ-381b, REQ-381c).
+- `spec_health.ruleset_health` reports per-slug confidence, indexed counts,
+  coverage, defects, and dispositions with a `combined` summary, Player-
+  filtered; `ruleset_index_bytes` and the prefix map are reported without
+  hydrating a package (REQ-383a, REQ-383b, REQ-390b, REQ-382b, REQ-382c).
+- `run_command (action: suggest)` emits prefixed tools from the active
+  package, keeping parser suggestions and prose fallback (REQ-385a,
+  REQ-385b).
+- Ruleset identity: bind refuses mechanics-derived state, switching is
+  audited with both endpoints, imports validate the ruleset slug, exports
+  name it, and the codex gains a ruleset axis with a roster ruleset field
+  (REQ-380c, REQ-384b, REQ-384c, REQ-386a, REQ-386b, REQ-387a, REQ-387b).
+- Package lifecycle: install registers tools, declared resources, and prompts
+  immediately with rollback; `ruleset://` resolves the search pointer;
+  `tools/list` paginates on a byte budget; the package tool budget is
+  enforced; the license set equals Appendix U and `build-ruleset` records
+  `--license` (REQ-389c, REQ-391c, REQ-430, REQ-432a, REQ-432b, REQ-558,
+  REQ-012, REQ-214a).
+- Closed F-P6b-9, F-P6b-10, F-P6b-11, F-P6b-12, F-P6b-16, and F-P6b-20; the
+  `ruleset://` clause is split out as F-P6b-9a and closed with them.
+
 ## 2026-11-10 — Tooling and process follow-ups from the AAR
 
 - Added `npm run refresh-predicates`: reports and repairs holosuite anchor line

@@ -1870,7 +1870,7 @@ interface CoverageRow {
 // subset of §5.3), not by the runtime `holonovel/src` server. Their absence
 // from server source is correct, so they are exempt from `--impl-audit=strict`.
 const INTENDED_GAP_REQS = new Set([
-  "REQ-010", "REQ-011", "REQ-012", "REQ-013", "REQ-014", "REQ-015", "REQ-016",
+  "REQ-010", "REQ-011", "REQ-013", "REQ-014", "REQ-015", "REQ-016",
   "REQ-017", "REQ-018", "REQ-099", "REQ-102", "REQ-111", "REQ-147", "REQ-153",
   "REQ-154", "REQ-207", "REQ-209", "REQ-210", "REQ-212", "REQ-214", "REQ-215",
   "REQ-225", "REQ-272", "REQ-315", "REQ-324",
@@ -1891,7 +1891,11 @@ const INTENDED_GAP_REQS = new Set([
   // by design, so the REQ is never implemented and has no re-activation trigger
   // — see INTENDED_GAP_CITED_DISPOSITIONS.
   "REQ-373",
-  "REQ-379", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
+  "REQ-379", "REQ-382",
+  // REQ-383–REQ-387 became server-runtime on 2026-11-10 (§5.16/§5.17 surface
+  // remediation): per-ruleset health, audited switching, suggest scoping,
+  // import/export validation, and the codex ruleset axis are cited in
+  // holonovel/src, so they are NOT whitelisted (see REQ-454).
   "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
   // §5.18 update/migration entry points are build-tooling contracts
   // (scripts/update-rulesets.ts, scripts/migrate-user-data.ts, and the

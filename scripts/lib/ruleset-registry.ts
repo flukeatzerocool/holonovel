@@ -28,6 +28,9 @@ export interface RegistryEntry {
   built_at?: string;
   base_content_hash?: string;
   supplements?: string[];
+  // REQ-432a — the Appendix U license recorded at intake, so a package built
+  // from a registered source can name it.
+  source_license?: string;
 }
 
 export function registryFile(dataDir: string): string {

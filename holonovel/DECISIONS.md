@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,174 tokens; standard 24,576; small 1,143; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,445 tokens; standard 24,847; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -42,6 +42,51 @@ dated entries below record changes to this list.
   `"none"`, so the two are indistinguishable in persisted state. The narrower
   reading (honour an explicit Editor choice) would need a new persisted field
   for no operational gain. (REQ-055a)
+
+### Ruleset surface and package lifecycle — 2026-11-10
+
+- **Prefix map.** A ruleset-derived tool's prefix is its slug, so
+  `ruleset_prefix_map` is the identity map over installed slugs. It is
+  reported in `spec_health.ruleset_prefix_map` (GM) and in
+  `spec_health.ruleset_health.combined` (all badges). (REQ-379b)
+- **The ruleset annotation lives in `_meta`.** `tools/list` entries carry
+  `_meta.ruleset` (slug or `null`) and `_meta.inapplicable: true` for a
+  mismatched-ruleset tool under `scope=all`. "Annotation" is read as a
+  reported field, not an MCP `ToolAnnotations` key; T536 constrains the four
+  hint booleans, not the key set. (REQ-379a, REQ-379c, REQ-381b)
+- **Undeclared health metrics report `not-declared`.** `must_action_coverage`
+  and `verification_dispositions` are optional package-manifest fields; a
+  package that does not carry them reports the string rather than a
+  fabricated number. (REQ-383a)
+- **Suggest resolves package tools by keyword.** A matched mechanical intent
+  emits `<slug>_<tool>` from the active package, replacing generic prose;
+  parser suggestions stay infrastructure, and prose remains the fallback when
+  no package tool matches. (REQ-385a, REQ-385b)
+- **`tools/list` pagination is a byte budget.** `TTRPG_TOOLS_LIST_MAX_BYTES`
+  (default 262144) caps a page; `nextCursor` is an opaque offset bound to the
+  request's scope/profile/group, and an unknown cursor is
+  `[INVALID_INPUT]`. (REQ-391c)
+- **Roster entries carry the staging ruleset.** `RosterEntity.ruleset` is
+  additive: an older roster reads `null` (untagged), imports into any scope,
+  and requires no migration; the data-format fingerprint is spec-derived and
+  unchanged. (REQ-386a)
+- **Late bind refuses mechanics-derived state.** An active combat, an entity
+  with non-empty `stats`, or an entity with conditions blocks
+  `manage_ruleset (action: bind)`; inventory alone does not, because
+  ruleset-free play populates it. (REQ-380c)
+- **Install registers the package immediately.** `manage_ruleset
+  (action: install)` registers tools, declared resources, and prompts; a
+  registration failure rolls the package back. A reinstalled slug keeps its
+  first registration (the MCP transport has no tool deregistration).
+  (REQ-389c, REQ-558)
+- **The license set is Appendix U's exact value set.** `APPENDIX_U_LICENSES`
+  matches the appendix's License column, including the COF combined row and
+  excluding OGL composites no row authorizes; parity is asserted by
+  `test-ruleset-gates`. (REQ-432a, REQ-432b)
+- **The package tool budget is 4000 tokens.** `TTRPG_PACKAGE_TOOL_BUDGET`
+  estimates a package's aggregate `tools.json` contribution at four bytes per
+  token; the host flags an over-budget package and the package gate refuses
+  it. (REQ-430)
 
 ### Server coherence remediation — 2026-11-08
 
@@ -1098,6 +1143,14 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` are retired tombstones for `resolve_mechanic`; `manage_ruleset (action: roll)` is a retired action tombstone for `resolve_mechanic (action: roll)`. Each returns `[NOT_FOUND]` naming its replacement, is omitted from `tools/list`, and is advertised in `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).
 
 ## Configuration classification (REQ-388c)
+
+- **`TTRPG_TOOLS_LIST_MAX_BYTES`** (default 262144) is a presentation setting:
+  the byte cap above which `tools/list` paginates. It changes response shape,
+  not game state, and is classified Behavioral beside the surface profile.
+- **`TTRPG_PACKAGE_TOOL_BUDGET`** (default 4000) is a build-time budget: the
+  estimated-token ceiling for a package's aggregate declared tools. It is read
+  by the host load validator and by `check-ruleset-package`, and it refuses a
+  package rather than changing play.
 
 Behavioral `TTRPG_*` variables are classified in §7.6 and mirrored in the
 `HOLODECK_BEHAVIORAL` catalog in `src/index.ts`, surfaced by

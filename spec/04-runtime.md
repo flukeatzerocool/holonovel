@@ -141,6 +141,8 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_DATA_DIR`     | No       | State directory holding all user data (Novels, roster, codex, server notes, world-model data) and the ruleset install directory (`<DATA_DIR>/rulesets/`). Default resolves to the per-operating-system user-data location (`$XDG_DATA_HOME/holonovel` or `~/.local/share/holonovel`, `~/Library/Application Support/holonovel`, `%LOCALAPPDATA%\holonovel`); an existing legacy `<install>/.holonovel-state` is honored but never newly created. `TTRPG_RULESET_DIRS` may relocate the install directory. (REQ-613, REQ-396, REQ-397) |
 | `TTRPG_PORT`         | No       | Optional inbound MCP transport port (HTTP); the server makes no outbound requests (REQ-051)                                  |
 | `TTRPG_MAX_NPCS`     | No       | Maximum NPCs per Novel (default 500)          |
+| `TTRPG_TOOLS_LIST_MAX_BYTES` | No | Byte cap above which `tools/list` returns a page with `nextCursor` (default 262144; REQ-391c). Presentation only — it changes response shape, not game state. |
+| `TTRPG_PACKAGE_TOOL_BUDGET` | No | Estimated-token ceiling for a ruleset package's aggregate declared tools (default 4000). The host flags an over-budget package and `check-ruleset-package` refuses it (REQ-430). |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
 | `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale (default 90) |
