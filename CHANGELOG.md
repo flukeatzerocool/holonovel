@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-10 — §5.16–§5.17 capability citation gaps
+
+- `tools/list` accepts a `ruleset` slug filter that returns a single package's
+  registered tools with no infrastructure tool and no foreign package's tools.
+  It refuses an unknown slug and any `ruleset` combined with `scope` or `group`,
+  reading ruleset identity from the install set so an inactive package is never
+  hydrated, and it binds the filter into the pagination cursor signature
+  (REQ-391a, REQ-391b; F-P6b-28).
+- T457 in `test:selection` now exercises the ruleset tool set alongside the
+  schema-disclosure half: the filtered set, the absent infrastructure and
+  foreign tools, both refusals, an unchanged `rulesets_hydrated`, and a cursor
+  minted under another projection (REQ-391a, REQ-391b, REQ-391c).
+- T459 in `test:output-contracts` now asserts every live-registry description —
+  host and installed-package tools — fits the budget recorded in DECISIONS.md,
+  and that `spec_health.tools_list_bytes` equals the default listing's catalog
+  projection. The budget parser moved to `holonovel/scripts/lib/tool-budget.ts`
+  so T459 and T642 share one copy (REQ-392, REQ-024c; F-P6b-27).
+- Appendix F T457 and T459 rows rewritten to the asserted contracts; F-P6b-27
+  and F-P6b-28 moved to `Resolved`, and the §5.16–§5.17 roadmap section retired.
+  No REQ body changed, so no contract fingerprint advanced (REQ-392, REQ-391b).
+- Verification: `test:output-contracts` 358/358, `test:selection` 10/10,
+  `test:tool-definitions` 22/22, `npm run validate` 0 errors, `check:registers`,
+  `check-roadmap`, `check:script-quality`, `check:script-discipline`,
+  `typecheck` (root and server).
+
 ## 2026-11-10 — §5.16–§5.18 citation repair
 
 - Citation repair across §5.16–§5.18: REQ-387b cites T448 (the codex ruleset

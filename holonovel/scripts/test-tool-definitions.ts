@@ -52,6 +52,7 @@ import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { validateManifest, unsupportedKeywords } from "../../scripts/lib/server-manifest.js";
 import { applyHardGates, shadowCandidates, computeContextSignals, scoreTool } from "../src/core/tdqs.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { recordedDescriptionBudget } from "./lib/tool-budget.js";
 installHarnessGuard();
 
 const ROOT = join(import.meta.dirname!, "..", "..");
@@ -69,12 +70,7 @@ function recordedToolBudget(): number {
 
 // REQ-024c — the description-size budget recorded in DECISIONS.md is the
 // single source of truth; read it rather than hardcoding a byte count.
-function recordedDescriptionBudget(): number {
-  const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
-  const m = md.match(/\*\*Recorded description budget:\*\*\s*(\d+)/);
-  if (!m) throw new Error("DECISIONS.md is missing the REQ-024c 'Recorded description budget' line");
-  return parseInt(m[1], 10);
-}
+// The parser lives in ./lib/tool-budget.ts so T459 shares it.
 
 let passed = 0;
 let failed = 0;

@@ -1507,23 +1507,26 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `version`, out-of-enum transport, and the gate refusing a scratch manifest).
   REQ-428.
 
-## Scheduled-roadmap
-
 ### 2026-11-10 §5.16–§5.17 capability citation gaps
 
-- **F-P6b-27 — REQ-392 cites T459 whose description-budget clause no harness
-  asserts (2026-11-10):** T459's row requires "every tool description fits the
-  build-time budget recorded in DECISIONS.md"; no harness computes that, and
-  the output-contracts case asserts only `spec_health.tools_list_bytes`
-  (`holonovel/scripts/test-output-contracts.ts:1810-1812`).
-  `spec/02-requirements.md:3958`, `spec/appendices-reference.md:1914`.
-  Scheduled under §5.16–§5.17 capability citation gaps.
-- **F-P6b-28 — REQ-391b's ruleset tool-set clause has no surface (2026-11-10):**
-  the requirement names "a single ruleset's tool set on demand, distinct from
-  the default listing", but `tools/list` is the only listing and it is the
-  scoped default (`holonovel/src/index.ts:15360-15385`), so the clause is
-  unimplemented rather than mis-cited. `spec/02-requirements.md:3952`.
-  Scheduled under §5.16–§5.17 capability citation gaps.
+- **F-P6b-27 — REQ-392's description-budget clause is now asserted (resolved
+  2026-11-10):** T459 reads the budget recorded in DECISIONS.md through the
+  shared parser (`holonovel/scripts/lib/tool-budget.ts`) and asserts every
+  description in the live `scope=all` registry — host and installed-package
+  tools — fits it (`holonovel/scripts/test-output-contracts.ts:1815-1821`); the
+  same case asserts `tools_list_bytes` equals the served default listing before
+  the `_meta.ruleset` annotation (`:1822-1836`). Exercised by T459 in
+  `test:output-contracts`. REQ-392.
+- **F-P6b-28 — REQ-391b's ruleset tool set has a surface (resolved
+  2026-11-10):** `tools/list` accepts a `ruleset` slug filter, selecting that
+  package's registered tools and refusing `scope`/`group` combinations and
+  unknown slugs (`holonovel/src/index.ts:15405-15427`), with the filter bound
+  into the pagination signature (`:15438`). Exercised by T457 in
+  `test:selection` (filtered set, no infrastructure, no foreign package,
+  unknown slug, conflicting filters, unchanged `rulesets_hydrated`, foreign
+  cursor) at `holonovel/scripts/test-selection.ts:268-299`. REQ-391b.
+
+## Scheduled-roadmap
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

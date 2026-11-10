@@ -96,7 +96,20 @@ const INDEX = [
   { id: "goblin_king", anchor: "Monsters > Goblin King", source_file: "fixture.md", content: "Goblin King: AC 17, HP 22.", category: "Monsters", confidence: "high", line_range: "3-4" },
 ];
 const MODEL = { monsters: { goblin: { name: "Goblin" }, goblin_king: { name: "Goblin King" } }, info: {}, tables: {}, generation_tables: {}, concepts: {}, resolution: {}, roles: {} };
-const TOOLS: any[] = [];
+// REQ-391b — a package tool so the ruleset-filtered listing has something to
+// select (registered as `fixture_lookup_alpha`).
+const TOOLS: any[] = [
+  {
+    name: "lookup_alpha",
+    title: "Lookup Alpha",
+    description: "Look up an alpha fixture entry. Use when: you need the alpha entry. Do NOT use when: you need the beta entry — use lookup_beta.",
+    kind: "lookup",
+    group: "lookup",
+    phases: ["none", "setup", "scene", "combat", "downtime", "closed"],
+    collection: "concepts",
+    inputSchema: { type: "object", properties: { key: { type: "string", description: "The alpha entry to look up." } } },
+  },
+];
 const RESOURCES: any[] = [];
 const PROMPTS: any[] = [];
 function packageFixture(): any {
@@ -106,6 +119,38 @@ function packageFixture(): any {
   };
   manifest.content_hash = sha256Canonical(INDEX, MODEL, TOOLS, RESOURCES, PROMPTS);
   return { slug: "fixture", manifest, index: INDEX, model: MODEL, tools: TOOLS, resources: RESOURCES, prompts: PROMPTS };
+}
+
+// REQ-391b — a second installed package proves the ruleset filter returns one
+// package's tools and no foreign one.
+function secondPackageFixture(): any {
+  const index = [
+    { id: "shield", anchor: "Items > Shield", source_file: "fixture2.md", content: "Shield: +2 AC.", category: "Items", confidence: "high", line_range: "1-2" },
+  ];
+  const model = {
+    concepts: { shield: { name: "Shield", ac_bonus: 2 } }, tables: {}, generation_tables: {},
+    prompt_inputs: { display_name: "Second Fixture", sourcebooks: ["fixture2"] },
+  };
+  const tools = [
+    {
+      name: "lookup_beta",
+      title: "Lookup Beta",
+      description: "Look up a beta fixture entry. Use when: you need the beta entry. Do NOT use when: you need the alpha entry — use lookup_alpha.",
+      kind: "lookup",
+      group: "lookup",
+      phases: ["none", "setup", "scene", "combat", "downtime", "closed"],
+      collection: "concepts",
+      inputSchema: { type: "object", properties: { key: { type: "string", description: "The beta entry to look up." } } },
+    },
+  ];
+  const resources: any[] = [];
+  const prompts: any[] = [];
+  const manifest: any = {
+    slug: "fixture2", name: "Second Fixture", host_version: "0.0.0", package_format: PACKAGE_FORMAT,
+    built_at: "2026-10-21", counts: { index: index.length },
+  };
+  manifest.content_hash = sha256Canonical(index, model, tools, resources, prompts);
+  return { slug: "fixture2", manifest, index, model, tools, resources, prompts };
 }
 
 let passed = 0;
@@ -134,6 +179,8 @@ async function main(): Promise<void> {
   try {
     const pkg = packageFixture();
     await call(proc, "manage_ruleset", { action: "install", slug: pkg.slug, manifest: pkg.manifest, index: pkg.index, model: pkg.model, tools: pkg.tools, resources: pkg.resources, prompts: pkg.prompts });
+    const pkg2 = secondPackageFixture();
+    await call(proc, "manage_ruleset", { action: "install", slug: pkg2.slug, manifest: pkg2.manifest, index: pkg2.index, model: pkg2.model, tools: pkg2.tools, resources: pkg2.resources, prompts: pkg2.prompts });
 
     await test("T686/REQ-586: spec_health reports an installed performance record", async () => {
       const h = await health(proc);
@@ -213,6 +260,42 @@ async function main(): Promise<void> {
       assert(unknown.includes("INVALID_INPUT"), "unknown detail did not refuse");
       const noQuery = await text(proc, "manage_context", { action: "discover", detail: "schema" });
       assert(noQuery.includes("INVALID_INPUT"), "schema detail without a query did not refuse");
+      // REQ-391b — a single ruleset's tool set on demand, distinct from the
+      // default listing. A dedicated process at the default profile with a
+      // small listing cap: `proc` runs `small`, and a ruleset-filtered set is
+      // too small to paginate on its own, so the cursor comes from the
+      // unscoped listing.
+      const rp = await boot({ TTRPG_SURFACE_PROFILE: "full", TTRPG_TOOLS_LIST_MAX_BYTES: "4096" });
+      try {
+        const nameOf = (r: any): string[] => (r.result?.tools ?? []).map((t: any) => t.name);
+        const filtered = await send(rp, { method: "tools/list", params: { _meta: { ruleset: pkg.slug, profile: "full" } } });
+        const filteredNames = nameOf(filtered);
+        assert(filteredNames.includes("fixture_lookup_alpha"), "ruleset filter omitted the package's own tool");
+        assert(!filteredNames.some((n: string) => n.startsWith("fixture2_")), "ruleset filter leaked a foreign package's tool");
+        assert(!filteredNames.includes("manage_novel"), "ruleset filter included an infrastructure tool");
+        assert(filteredNames.every((n: string) => n.startsWith("fixture_")), `ruleset filter returned a tool outside the package: ${filteredNames.join(", ")}`);
+
+        const unknown = await send(rp, { method: "tools/list", params: { _meta: { ruleset: "no-such-ruleset" } } });
+        assert(String(unknown.error?.message ?? "").includes("[INVALID_INPUT] unknown ruleset"), "unknown ruleset did not refuse [INVALID_INPUT]");
+
+        const withScope = await send(rp, { method: "tools/list", params: { _meta: { ruleset: pkg.slug, scope: "all" } } });
+        assert(String(withScope.error?.message ?? "").includes("[INVALID_INPUT]"), "ruleset + scope did not refuse");
+        const withGroup = await send(rp, { method: "tools/list", params: { _meta: { ruleset: pkg.slug, group: "lookup" } } });
+        assert(String(withGroup.error?.message ?? "").includes("[INVALID_INPUT]"), "ruleset + group did not refuse");
+
+        const before = await health(rp);
+        await send(rp, { method: "tools/list", params: { _meta: { ruleset: pkg2.slug, profile: "full" } } });
+        const after = await health(rp);
+        assert(before.rulesets_hydrated === after.rulesets_hydrated, "ruleset-filtered listing forced hydration");
+
+        const unscoped = await send(rp, { method: "tools/list", params: {} });
+        const cursor = unscoped.result?.nextCursor;
+        assert(typeof cursor === "string", "unscoped listing did not paginate at the 4096-byte cap");
+        const replay = await send(rp, { method: "tools/list", params: { cursor, _meta: { ruleset: pkg.slug } } });
+        assert(String(replay.error?.message ?? "").includes("[INVALID_INPUT]"), "cursor from another projection was accepted");
+      } finally {
+        close(rp);
+      }
     });
 
     await test("T721/REQ-610: budget allocator drops volatile first and refuses an invalid budget", async () => {

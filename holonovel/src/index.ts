@@ -15399,15 +15399,34 @@ function installBadgeFilteredToolList(): void {
     const requestedScope = typeof params.scope === "string"
       ? params.scope
       : typeof meta.scope === "string" ? meta.scope : undefined;
+    // REQ-391b — a single ruleset's tool set on demand, distinct from the
+    // default listing. Ruleset identity comes from the registered catalog and
+    // the install set, never from hydration (REQ-390a).
+    const requestedRuleset = typeof params.ruleset === "string"
+      ? params.ruleset
+      : typeof meta.ruleset === "string" ? meta.ruleset : undefined;
     if (requestedGroup && !surfaceRegistry()?.taxonomy.groups.includes(requestedGroup)) {
       throw new McpError(ErrorCode.InvalidParams, `[INVALID_INPUT] unknown group: ${requestedGroup}`);
     }
-    // REQ-391a — absent a group filter, the default listing is infrastructure
-    // plus the active Novel's ruleset; `scope=all` returns the full catalog. A
+    if (requestedRuleset !== undefined) {
+      // REQ-391a/REQ-570 give `scope` and `group` their own meanings; combining
+      // either with a ruleset filter is refused rather than given a precedence
+      // the spec does not define.
+      if (requestedScope !== undefined || requestedGroup !== undefined) {
+        throw new McpError(ErrorCode.InvalidParams, "[INVALID_INPUT] conflicting filters: ruleset cannot be combined with scope or group");
+      }
+      if (!rulesets.installedSlugs().includes(requestedRuleset)) {
+        throw new McpError(ErrorCode.InvalidParams, `[INVALID_INPUT] unknown ruleset: ${requestedRuleset}`);
+      }
+    }
+    // REQ-391a — absent a filter, the default listing is infrastructure plus
+    // the active Novel's ruleset; `scope=all` returns the full catalog. A
     // group selection is itself the filter, so it spans the full catalog.
-    const base = requestedGroup
-      ? visible
-      : scopedCatalog(visible as Array<{ name: string }>, requestedScope === "all");
+    const base = requestedRuleset !== undefined
+      ? visible.filter((tool: any) => packageSlugForTool(tool.name) === requestedRuleset)
+      : requestedGroup
+        ? visible
+        : scopedCatalog(visible as Array<{ name: string }>, requestedScope === "all");
     const tools = annotateRulesetScope(
       projectToolList(base as Array<{ name: string }>, requestedGroup, requestedProfile) as any,
       requestedScope === "all",
@@ -15416,7 +15435,7 @@ function installBadgeFilteredToolList(): void {
     // binds to this request's scope/profile/group so a page cannot be resumed
     // under a different projection; the default scoped listing's size depends
     // on the active scope, never on the installed-package count.
-    const pageSignature = `${requestedScope ?? "scoped"}|${requestedProfile ?? "full"}|${requestedGroup ?? ""}`;
+    const pageSignature = `${requestedScope ?? "scoped"}|${requestedProfile ?? "full"}|${requestedGroup ?? ""}|${requestedRuleset ?? ""}`;
     const maxBytes = Number(process.env.TTRPG_TOOLS_LIST_MAX_BYTES ?? 262144);
     const cursor = typeof params.cursor === "string" ? params.cursor : undefined;
     let start = 0;

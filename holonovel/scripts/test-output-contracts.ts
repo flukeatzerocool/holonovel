@@ -14,6 +14,7 @@ import { deriveAnchor } from "../src/core/anchors.js";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { recordedDescriptionBudget } from "./lib/tool-budget.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
@@ -1797,6 +1798,22 @@ async function main() {
     const defNames = (def.result?.tools ?? []).map((t: any) => t.name);
     if (!defNames.includes("manage_novel")) throw new Error("default listing omitted infrastructure tools");
     if (defNames.some((n: string) => n.startsWith("wave1test_"))) throw new Error("default listing exposed a package tool with no Novel");
+    // REQ-392 — tools_list_bytes reflects the default listing. The figure is
+    // the catalog projection, measured before the REQ-379b host `_meta`
+    // annotation and before the REQ-214c per-ruleset table-enum patch, so
+    // compare against the served listing with those extensions removed.
+    const stripAnnotations = (tools: any[]): any[] => tools.map((t: any) => {
+      if (!t || typeof t._meta !== "object" || t._meta === null) return t;
+      const { ruleset, inapplicable, ...rest } = t._meta;
+      if (Object.keys(rest).length > 0) return { ...t, _meta: rest };
+      const { _meta, ...without } = t;
+      return without;
+    });
+    const defHealth = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    const projectionBytes = Buffer.byteLength(JSON.stringify(stripAnnotations(def.result?.tools ?? [])), "utf-8");
+    if (defHealth.tools_list_bytes !== projectionBytes) {
+      throw new Error(`REQ-392 tools_list_bytes ${defHealth.tools_list_bytes} != default listing projection ${projectionBytes}`);
+    }
     const all = await send(p, { method: "tools/list", params: { _meta: { scope: "all" } } });
     const allNames = (all.result?.tools ?? []).map((t: any) => t.name);
     if (!allNames.some((n: string) => n.startsWith("wave1test_"))) throw new Error("scope=all omitted package tools");
@@ -1809,6 +1826,15 @@ async function main() {
     const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof h.rulesets_hydrated !== "number") throw new Error("rulesets_hydrated missing");
     if (typeof h.tools_list_bytes !== "number") throw new Error("REQ-392 tools_list_bytes");
+    // REQ-392 — every registered tool's description fits the build-time budget
+    // recorded in DECISIONS.md, host and package tools alike.
+    const budget = recordedDescriptionBudget();
+    const overBudget = (all.result?.tools ?? [])
+      .map((t: any) => ({ name: t.name, bytes: Buffer.byteLength(typeof t.description === "string" ? t.description : "", "utf-8") }))
+      .filter((t: any) => t.bytes > budget);
+    if (overBudget.length > 0) {
+      throw new Error(`REQ-392 description budget ${budget}B exceeded: ${overBudget.map((t: any) => `${t.name} ${t.bytes}B`).join(", ")}`);
+    }
     const list = await call(p, "manage_ruleset", { action: "list" });
     assertContains(list, "wave1test", "REQ-391 scoped listing");
     passed++;
