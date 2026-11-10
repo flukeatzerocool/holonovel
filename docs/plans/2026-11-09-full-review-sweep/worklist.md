@@ -327,11 +327,11 @@ restart the enumeration from scratch.
 | P6b | ruleset packages, host entry points, Fate/Ironsworn/Forged | §5.16–§5.18, §5.21–§5.23 (73 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P7a | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts`, knowledge handlers | §5.7, §5.14, §5.28–§5.30 (91 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P7b | extraction and synthesis handlers; `core/wisdom.ts` | §5.2, §5.8 (189 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 | `code-review` + `spec-review` | scheduled (pending Q1) |
+| P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 (166 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | M1 | `check:conformance`, `fmea`, `graph-deps` | all | machine evidence | **closed 2026-11-09** |
 
 **Mapping invariant.** Every subsection of §5.1–§5.8, §5.10–§5.18, §5.20–§5.31 is
-assigned exactly once, plus §5.32–§5.35 in P8 pending Q1. §5.9 and §5.19 are the
+assigned exactly once, plus §5.32–§5.35 in P8. §5.9 and §5.19 are the
 only exclusions (deferred by the seam pass). Verify with
 `grep -n '^### 5\.' spec/02-requirements.md` before starting any chunk.
 
@@ -2460,3 +2460,310 @@ row in `spec/audit/req-coverage.md` (D84).
 | REQ-234c | C | finding:F-P7b-5 (P1) |
 | REQ-234d | C | finding:F-P7b-5 (P1) |
 | REQ-589 | C | holds |
+
+
+## Chunk P8 — narrative cognition (§5.12, §5.25–§5.27, §5.32–§5.35)
+
+**Closed 2026-11-09.** Increment record:
+`docs/plans/2026-11-09-full-review-p8/`.
+
+**Code targets:** `holonovel/src/core/belief.ts` (163 lines),
+`core/identity.ts` (373), `core/causal.ts` (133), `core/subjective.ts` (280),
+`core/perception.ts` (59), `core/memory.ts` (184), `core/divergence.ts` (431);
+handlers `manage_belief` (`index.ts:8234`, dispatching `perception_*` and
+`subjective_*`), `manage_identity` (`:8479`), `manage_causality` (`:5820`);
+briefing assembly (`:2332-2430`, `:13800-14550`); the §5.12 canonical list
+(`:325`) and attestation (`:12295-12300`); the §5.12 disposition derivation
+(`scripts/validate.ts:2060-2066`).
+
+**Scope:** §5.12 (84 REQs), §5.25 (12), §5.26 (21), §5.27 (12), §5.32 (8),
+§5.33 (7), §5.34 (4), §5.35 (18) — 166 REQs / 113 family rows, 165 bucket C and
+one bucket E (`REQ-593`, a whitelisted verifier-harness contract).
+
+### Decisions (2026-11-09, chunk P8)
+
+- **D101 — Chunk scope.** P8 = §5.12 plus §5.25–§5.27 and §5.32–§5.35, one
+  increment (Q1). Measured 166 REQs / 113 rows; the worklist's "pending Q1" is
+  stale and is corrected here.
+- **D102 — Fix policy.** D2/D13/D62 unchanged: P0 in-session, P1 roadmap, P2
+  only on a demonstrated failure, P3 record-and-close.
+- **D103 — Increment record.** `docs/plans/2026-11-09-full-review-p8/` holds
+  plan/tasks/AAR; this worklist carries the P8 tables and D101 onward.
+- **D104 — Bucket resolution.** By base family ID from
+  `spec/audit/req-coverage.md`: 112 C / 1 E at row level, 165 C / 1 E at header
+  level. `REQ-593` is whitelisted by `INTENDED_GAP_REQS` (`scripts/validate.ts:1924`)
+  because the recall-probe contract is verifier-harness work.
+- **D105 — Boundaries.** §5.12 owned here including REQ-355–365 and
+  REQ-366a–d; §5.13–§5.18 stay with closed chunks; §5.33 briefing rendering is
+  read for its own predicates only; `core/state.ts` storage mechanics stay
+  `Closed-P3`.
+- **D106 — Row precedence.** `finding` > `deferred` > `builder-side` > `holds`;
+  cluster verdicts are worst-of.
+- **D107 — Citation resolution.** D10/D25/D49/D67/D77 method. The reused IDs
+  `T408`–`T412` are resolved against the harness whose title matches the
+  Appendix F assertion.
+- **D108 — Fingerprint consequence.** §5.25/§5.26/§5.27/§5.32 are in
+  `DATA_SECTIONS`; no REQ body changed, so no fingerprint regeneration is
+  required. No bucket changed, so the coverage register is unchanged.
+- **D109 — Baseline.** `check:fast` 37/37 PASS, `check` PASS, `test:all` 56/56
+  PASS on a clean tree at `edc7062` with 19 commits unpushed.
+- **D110 — Delta amendment.** During Phase 1 the plan's "no canonical §5.12
+  list" assumption was refuted: the list is `SECTION_512_REQS` at
+  `index.ts:325`. The delta was reviewed (`delta review passed.`) and the
+  plan re-stamped.
+
+### P8 cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A — narrative architecture (§5.12) | 84 | finding:F-P8-1 (P1) | `index.ts:745-865`, `:14073`; T408–T412; one unsurfaced coupling |
+| B — belief and causal integrity (§5.25 + §5.27) | 24 | holds | `core/belief.ts:87-162`, `core/causal.ts:68-129`, `:8684-8760` |
+| C — character identity (§5.26) | 21 | holds | `core/identity.ts:216-313`, `:8479-8630`, identity resource `:12395` |
+| D — perception and briefing consistency (§5.32 + §5.33) | 15 | holds | `core/perception.ts:31-50`, `:2473-2522`, `:11766-11776` |
+| E — compression and subjective memory (§5.34 + §5.35) | 22 | builder-side | `core/memory.ts:40-184`, `core/subjective.ts:94-280`; REQ-593 is the verifier gap |
+
+### P8 behaviour table
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| §5.12 canonical list, attestation, and register coverage | `index.ts:325`, `:12295-12300`; `validate.ts:2060-2066` | register gate; T406–T417 | holds |
+| Scene beat taxonomy and pacing signal | `index.ts:337-345`, `:5849` | T385, T386 | holds |
+| Narrative arc visibility and faction autonomy | `index.ts:5849`, `:5879` | T387, T388 | holds |
+| NPC goal pursuit and faction-NPC coordination | `index.ts:714-733`, `:14345-14354` | T389, T398 | holds |
+| Discovered consequences and consequence-knowledge coupling | `index.ts:925-931` | T390, T399 | holds |
+| Player spatial surface and scene description | `index.ts:5830-5849` | T391, T392 | holds |
+| Unified intent resolution and voice feedback | `run_command (action: resolve)`; `:14073` | T393, T394 | holds |
+| Background knowledge and lore triggering | `index.ts:932-943` | T395, T400 | holds |
+| Coherence attestation and voice codex capture | `index.ts:12295-12300`; `manage_codex` `:13359` | T396, T397 | holds |
+| Pacing autonomy, codex beats, beat countdowns | `index.ts:680`, `:5864`, `:6158` | T401, T402, T404 | holds |
+| Coupling advisories REQ-355–REQ-365 | `index.ts:745-865` | T408–T412 | finding:F-P8-1 (P1) |
+| Observer narrative surface REQ-366a–d | `index.ts:14204`, `:14264-14268` | T417 | holds |
+| Evidence admissibility, reconciliation, conflicts | `core/belief.ts:87-162`; `manage_belief` | T551–T553 | holds |
+| Causal evaluation, admission, ingress | `core/causal.ts:68-129`; `:8684-8760` | T574–T585 | holds |
+| Identity staging, acceptance, revert, compile, projection | `core/identity.ts:216-313`; `:8479-8630` | T563–T573, T758–T772 | holds |
+| Perception witness provenance and derived attribution | `core/perception.ts:31-50`; `:2473-2522` | T704, T705 | holds |
+| Briefing consistency and divergence marker | `:11766-11776`, `:2410-2425`; `core/divergence.ts:335-431` | T620–T626 | holds |
+| Compression tiers, pointers, budget, recall | `core/memory.ts:40-184` | T697–T700 | holds |
+| Subjective memory record/select/evict/summarise/privacy | `core/subjective.ts:94-280`; `:9275-9430` | T743–T770 | holds |
+
+### P8 findings
+
+- **F-P8-1 — Server-note narrative coupling is stored but never surfaced
+  (P1, scheduled).** REQ-365a/b/c require server notes carrying a
+  `narrative_tag` to appear in the `badge_briefing` supplementary guidance. The
+  tag is accepted and stored (`holonovel/src/index.ts:8095`, `:8145`) and the
+  notes resource exists (`:12754`, `:12760`), but the briefing's Supplementary
+  guidance section renders only synthesis items (`:14073`); no `serverNotes`
+  read occurs anywhere in the briefing builder (`:13800-14550`). The register's
+  cited `T416` exercises set/list only (`holonovel/scripts/test-backfill.ts:255`).
+  Predicate: `index.ts:14073` + the absent `serverNotes` read in the briefing
+  path. Covers REQ-365a, REQ-365b, REQ-365c.
+- **F-P8-2 — Duplicate test IDs shadow coverage resolution (P2, scheduled).**
+  `T408` titles three different assertions across harnesses
+  (`test-narrative.ts:767` coupling advisory, `test-backfill.ts:722` parameter
+  ceiling, `test-limits.ts:403` server notes), and `T409`–`T412` likewise appear
+  in both `test-narrative.ts:774-813` and `test-backfill.ts:731-821`. The
+  register maps `T408`–`T412` to REQ-073, REQ-075, REQ-077, REQ-083, REQ-233,
+  REQ-236, REQ-246, REQ-289, REQ-357, REQ-358, REQ-359, REQ-360, and REQ-361, so
+  a token-presence match can evidence a REQ with an unrelated assertion. No
+  wrong runtime output was demonstrated, so the fix is scheduled, not
+  in-session.
+- **Observation (P3, closed) — stranded `scripts/validate.ts:1866` comment.**
+  The comment names the canonical §5.12 list but sits above `INTENDED_GAP_REQS`;
+  the list lives at `holonovel/src/index.ts:325`. The list exists, so the
+  comment is mislocated rather than false. Covers REQ-346.
+
+### P8 REQ verdicts (166)
+
+| REQ | Section | Bucket | Verdict | Note |
+|---|---|---|---|---|
+| REQ-335a | 5.12 | C | holds | T385, T404 |
+| REQ-335b | 5.12 | C | holds | T385, T404 |
+| REQ-335c | 5.12 | C | holds | T385, T404 |
+| REQ-353 | 5.12 | C | holds | T404 |
+| REQ-336a | 5.12 | C | holds | T386, T401 |
+| REQ-336b | 5.12 | C | holds | T386, T401 |
+| REQ-351a | 5.12 | C | holds | T401 |
+| REQ-351b | 5.12 | C | holds | T401 |
+| REQ-351c | 5.12 | C | holds | T401 |
+| REQ-337a | 5.12 | C | holds | T387, T402 |
+| REQ-337b | 5.12 | C | holds | T387, T402 |
+| REQ-352a | 5.12 | C | holds | T402 |
+| REQ-352b | 5.12 | C | holds | T402 |
+| REQ-352c | 5.12 | C | holds | T402 |
+| REQ-352d | 5.12 | C | holds | T402 |
+| REQ-338a | 5.12 | C | holds | T388, T401 |
+| REQ-338b | 5.12 | C | holds | T388, T401 |
+| REQ-338c | 5.12 | C | holds | T388, T401 |
+| REQ-339a | 5.12 | C | holds | T389, T401, T514, T726 |
+| REQ-339b | 5.12 | C | holds | T389, T401, T514, T726 |
+| REQ-339c | 5.12 | C | holds | T389, T401, T514, T726 |
+| REQ-339d | 5.12 | C | holds | T389, T401, T514, T726 |
+| REQ-339e | 5.12 | C | holds | T389, T401, T514, T726 |
+| REQ-348a | 5.12 | C | holds | T398 |
+| REQ-348b | 5.12 | C | holds | T398 |
+| REQ-348c | 5.12 | C | holds | T398 |
+| REQ-340a | 5.12 | C | holds | T390, T399, T690 |
+| REQ-340b | 5.12 | C | holds | T390, T399, T690 |
+| REQ-340c | 5.12 | C | holds | T390, T399, T690 |
+| REQ-349a | 5.12 | C | holds | T399, T690 |
+| REQ-349b | 5.12 | C | holds | T399, T690 |
+| REQ-349c | 5.12 | C | holds | T399, T690 |
+| REQ-349d | 5.12 | C | holds | T399, T690 |
+| REQ-341a | 5.12 | C | holds | T391 |
+| REQ-341b | 5.12 | C | holds | T391 |
+| REQ-341c | 5.12 | C | holds | T391 |
+| REQ-342a | 5.12 | C | holds | T392 |
+| REQ-342b | 5.12 | C | holds | T392 |
+| REQ-343a | 5.12 | C | holds | T393 |
+| REQ-343b | 5.12 | C | holds | T393 |
+| REQ-343c | 5.12 | C | holds | T393 |
+| REQ-343d | 5.12 | C | holds | T393 |
+| REQ-344a | 5.12 | C | holds | T394 |
+| REQ-344b | 5.12 | C | holds | T394 |
+| REQ-344c | 5.12 | C | holds | T394 |
+| REQ-347a | 5.12 | C | holds | T397 |
+| REQ-347b | 5.12 | C | holds | T397 |
+| REQ-347c | 5.12 | C | holds | T397 |
+| REQ-345a | 5.12 | C | holds | T395, T400 |
+| REQ-345b | 5.12 | C | holds | T395, T400 |
+| REQ-345c | 5.12 | C | holds | T395, T400 |
+| REQ-350a | 5.12 | C | holds | T400 |
+| REQ-350b | 5.12 | C | holds | T400 |
+| REQ-350c | 5.12 | C | holds | T400 |
+| REQ-355a | 5.12 | C | holds | T406 |
+| REQ-355b | 5.12 | C | holds | T406 |
+| REQ-356a | 5.12 | C | holds | T407 |
+| REQ-356b | 5.12 | C | holds | T407 |
+| REQ-357a | 5.12 | C | holds | T408 |
+| REQ-357b | 5.12 | C | holds | T408 |
+| REQ-358a | 5.12 | C | holds | T409 |
+| REQ-358b | 5.12 | C | holds | T409 |
+| REQ-359a | 5.12 | C | holds | T410 |
+| REQ-359b | 5.12 | C | holds | T410 |
+| REQ-360a | 5.12 | C | holds | T411 |
+| REQ-360b | 5.12 | C | holds | T411 |
+| REQ-361a | 5.12 | C | holds | T412 |
+| REQ-361b | 5.12 | C | holds | T412 |
+| REQ-362a | 5.12 | C | holds | T413 |
+| REQ-362b | 5.12 | C | holds | T413 |
+| REQ-363a | 5.12 | C | holds | T414 |
+| REQ-363b | 5.12 | C | holds | T414 |
+| REQ-364a | 5.12 | C | holds | T415 |
+| REQ-364b | 5.12 | C | holds | T415 |
+| REQ-365a | 5.12 | C | finding:F-P8-1 (P1) | T416 (test-backfill) sets/lists a server note; briefing never renders it |
+| REQ-365b | 5.12 | C | finding:F-P8-1 (P1) | T416 (test-backfill) sets/lists a server note; briefing never renders it |
+| REQ-365c | 5.12 | C | finding:F-P8-1 (P1) | T416 (test-backfill) sets/lists a server note; briefing never renders it |
+| REQ-366a | 5.12 | C | holds | T417 |
+| REQ-366b | 5.12 | C | holds | T417 |
+| REQ-366c | 5.12 | C | holds | T417 |
+| REQ-366d | 5.12 | C | holds | T417 |
+| REQ-346a1 | 5.12 | C | holds | T396, T403 |
+| REQ-346a2 | 5.12 | C | holds | T396, T403 |
+| REQ-346b | 5.12 | C | holds | T396, T403 |
+| REQ-461 | 5.25 | C | holds | T551 |
+| REQ-462 | 5.25 | C | holds | T552 |
+| REQ-463 | 5.25 | C | holds | T553 |
+| REQ-464 | 5.25 | C | holds | T554 |
+| REQ-465 | 5.25 | C | holds | T555, T629 |
+| REQ-466 | 5.25 | C | holds | T556 |
+| REQ-467 | 5.25 | C | holds | T557 |
+| REQ-468 | 5.25 | C | holds | T558, T629 |
+| REQ-469 | 5.25 | C | holds | T559 |
+| REQ-470 | 5.25 | C | holds | T560 |
+| REQ-471 | 5.25 | C | holds | T561 |
+| REQ-472 | 5.25 | C | holds | T562 |
+| REQ-473 | 5.26 | C | holds | T563, T631, T771 |
+| REQ-474 | 5.26 | C | holds | T564 |
+| REQ-475 | 5.26 | C | holds | T565 |
+| REQ-476 | 5.26 | C | holds | T566 |
+| REQ-477 | 5.26 | C | holds | T567 |
+| REQ-478 | 5.26 | C | holds | T568 |
+| REQ-479 | 5.26 | C | holds | T569, T631 |
+| REQ-480 | 5.26 | C | holds | T570, T771 |
+| REQ-481 | 5.26 | C | holds | T571 |
+| REQ-482 | 5.26 | C | holds | T572 |
+| REQ-483 | 5.26 | C | holds | T573 |
+| REQ-547 | 5.26 | C | holds | T630 |
+| REQ-636 | 5.26 | C | holds | T758 |
+| REQ-637 | 5.26 | C | holds | T759 |
+| REQ-638 | 5.26 | C | holds | T760 |
+| REQ-639 | 5.26 | C | holds | T761 |
+| REQ-640 | 5.26 | C | holds | T762 |
+| REQ-641 | 5.26 | C | holds | T763 |
+| REQ-642 | 5.26 | C | holds | T764 |
+| REQ-643 | 5.26 | C | holds | T765, T771 |
+| REQ-649 | 5.26 | C | holds | T772 |
+| REQ-484 | 5.27 | C | holds | T574 |
+| REQ-485 | 5.27 | C | holds | T575 |
+| REQ-486 | 5.27 | C | holds | T576 |
+| REQ-487 | 5.27 | C | holds | T577 |
+| REQ-488 | 5.27 | C | holds | T578 |
+| REQ-489 | 5.27 | C | holds | T579 |
+| REQ-490 | 5.27 | C | holds | T580 |
+| REQ-491 | 5.27 | C | holds | T581 |
+| REQ-492 | 5.27 | C | holds | T582 |
+| REQ-493 | 5.27 | C | holds | T583 |
+| REQ-494 | 5.27 | C | holds | T584 |
+| REQ-495 | 5.27 | C | holds | T585 |
+| REQ-540 | 5.32 | C | holds | T614 |
+| REQ-541 | 5.32 | C | holds | T615 |
+| REQ-542 | 5.32 | C | holds | T616, T704 |
+| REQ-543 | 5.32 | C | holds | T617 |
+| REQ-544 | 5.32 | C | holds | T618 |
+| REQ-545 | 5.32 | C | holds | T619, T704 |
+| REQ-594 | 5.32 | C | holds | T705 |
+| REQ-595 | 5.32 | C | holds | T704 |
+| REQ-515 | 5.33 | C | holds | T620 |
+| REQ-516 | 5.33 | C | holds | T621 |
+| REQ-517 | 5.33 | C | holds | T622 |
+| REQ-518 | 5.33 | C | holds | T623 |
+| REQ-519 | 5.33 | C | holds | T624 |
+| REQ-520 | 5.33 | C | holds | T625 |
+| REQ-521 | 5.33 | C | holds | T626 |
+| REQ-590 | 5.34 | C | holds | T697 |
+| REQ-591 | 5.34 | C | holds | T698 |
+| REQ-592 | 5.34 | C | holds | T699 |
+| REQ-593 | 5.34 | E | builder-side | verifier harness T700 (test-memory-recall); whitelisted intended gap |
+| REQ-623 | 5.35 | C | holds | T743, T753 |
+| REQ-624 | 5.35 | C | holds | T743, T744, T753 |
+| REQ-625 | 5.35 | C | holds | T744, T754 |
+| REQ-626 | 5.35 | C | holds | T745, T755 |
+| REQ-627 | 5.35 | C | holds | T746, T757 |
+| REQ-628 | 5.35 | C | holds | T747 |
+| REQ-629 | 5.35 | C | holds | T748 |
+| REQ-630 | 5.35 | C | holds | T749 |
+| REQ-631 | 5.35 | C | holds | T750 |
+| REQ-632 | 5.35 | C | holds | T751 |
+| REQ-633 | 5.35 | C | holds | T752 |
+| REQ-634 | 5.35 | C | holds | T755 |
+| REQ-635 | 5.35 | C | holds | T756 |
+| REQ-644 | 5.35 | C | holds | T766 |
+| REQ-645 | 5.35 | C | holds | T767 |
+| REQ-646 | 5.35 | C | holds | T768 |
+| REQ-647 | 5.35 | C | holds | T769 |
+| REQ-648 | 5.35 | C | holds | T770 |
+
+## Delta amendment — M1 closing machine-evidence re-run (2026-11-09, post-P8)
+
+Run after chunk P8's review tables landed; outputs archived under
+`/tmp/opencode/sweep-p8/`.
+
+| Command | Exit | Result |
+|---|---|---|
+| `npm run check:conformance` | 0 | `Bundle-dependent REQs (0):` — PASS, no bundle-dependent REQ |
+| `npm run fmea` | 0 | 1311 REQs analysed; 0 high-severity REQs with no detection coverage |
+| `npm run graph-deps` | 0 | 1035 orphaned, 126 source-only, 95 sink-only nodes |
+
+Findings: **none new.**
+
+- `check:conformance` is a gate and passed clean; no predicate to confirm.
+- `fmea` reports zero high-severity REQs without detection coverage, so it
+  corroborates rather than contradicts the chunk verdicts; its Detection
+  column restates each REQ's `_Check:_`, so it cannot raise a finding the REQ
+  body has not already stated.
+- `graph-deps` colours nodes by citation degree; the orphan/source-only counts
+  are normal for requirement prose and raise no finding.
+
+The sweep item closes with this run: chunks P1–P8 and both M1 passes are
+recorded, and `ROADMAP.md` no longer carries the sweep section.

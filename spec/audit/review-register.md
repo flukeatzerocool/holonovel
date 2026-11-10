@@ -1200,6 +1200,25 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
+
+- **F-P8-1 — server-note narrative coupling is stored but never surfaced
+  (2026-11-09):** `manage_note (action: set_server)` accepts and stores a
+  `narrative_tag` (`holonovel/src/index.ts:8095`, `:8145`) and the
+  `server-notes://` resource serves it (`:12754`, `:12760`), but the briefing's
+  Supplementary guidance section renders synthesis items only (`:14073`) and no
+  `serverNotes` read occurs in the briefing builder (`:13800-14550`). The cited
+  T416 exercises set/list only (`holonovel/scripts/test-backfill.ts:255`).
+  REQ-365a, REQ-365b, REQ-365c. Scheduled under Server-note narrative coupling.
+- **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
+  `T408` titles three different assertions (`test-narrative.ts:767`,
+  `test-backfill.ts:722`, `test-limits.ts:403`) and `T409`–`T412` are each
+  titled twice (`test-narrative.ts:774-813`, `test-backfill.ts:731-821`), so a
+  token-presence match can evidence a REQ with an unrelated test. REQ-073,
+  REQ-075, REQ-077, REQ-083, REQ-233, REQ-236, REQ-246, REQ-289, REQ-357,
+  REQ-358, REQ-359, REQ-360, REQ-361. Scheduled under Harness test-ID label
+  hygiene.
+
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
 - **F-P7b-1 — story-journal citations name an unimplemented test (2026-11-09):**
@@ -1898,6 +1917,14 @@ against Appendix F and the harness corpus, not on a gate message.
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
+
+- **Stranded §5.12 list comment (2026-11-09):** `scripts/validate.ts:1866`
+  carries a comment naming the canonical §5.12 REQ list above
+  `INTENDED_GAP_REQS` (`:1872`); the list itself is `SECTION_512_REQS`
+  (`holonovel/src/index.ts:325`) and the comment is mislocated, not false.
+  REQ-346. No action follows: the list exists and is exercised.
 
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 

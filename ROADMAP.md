@@ -12,16 +12,15 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Remaining full-review sweep (P1)
+## Server-note narrative coupling (P1)
 
-- Chunk P8 (narrative cognition: §5.12, §5.25–§5.27, §5.32–§5.35).
-- The closing M1 machine-evidence re-run over the post-P8 tree, covering
-  `check:conformance`, `fmea`, and `graph-deps`. Scope is §5.1–§5.35 except
-  §5.9 and §5.19, which the 2026-11-09 seam pass closed; §5.6, chunks P1–P7b
-  closed 2026-11-09.
+- Surface server notes carrying a `narrative_tag` in `badge_briefing`
+  supplementary guidance with their tag (`[lore-seed]`, `[session-reminder]`,
+  and the rest), leave untagged notes resource-only, and keep server notes off
+  every Player surface (REQ-365a, REQ-365b, REQ-365c).
 
-**Trigger:** the next session allocated to review work; closes when chunk P8
-and the closing M1 pass report.
+**Trigger:** the next §5.12 remediation session; closes when F-P8-1 is
+`Resolved` in the review register.
 
 ## §5.2/§5.8 assertion repair (P1)
 
@@ -361,6 +360,11 @@ every §5.3 Check citation resolves to an exercised harness and
   correct each to the catalogue ID its assertion implements, and re-run the
   coverage resolution — the padded tokens shadow real IDs and produced a false
   citation match for REQ-023b.
+- Resolve duplicated test IDs across harnesses: `T408`–`T412` are titled by
+  different assertions in `test-narrative`, `test-backfill`, and `test-limits`,
+  so a token-presence match can evidence a REQ with the wrong test (REQ-073,
+  REQ-075, REQ-077, REQ-083, REQ-233, REQ-236, REQ-246, REQ-289, REQ-357,
+  REQ-358, REQ-359, REQ-360, REQ-361).
 
 **Trigger:** the next harness-maintenance session, or any session whose
 citation resolution reports an unexpected hold; closes when no harness title

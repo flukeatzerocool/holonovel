@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P8 (narrative cognition and the closing M1)
+
+- Chunk P8 closes the review program: 166 REQs across 113 family rows (§5.12
+  84/31, §5.25 12/12, §5.26 21/21, §5.27 12/12, §5.32 8/8, §5.33 7/7,
+  §5.34 4/4, §5.35 18/18), 165 bucket C and one whitelisted verifier gap
+  (REQ-593). The sweep worklist carries a 166-REQ verdict table, a 19-row
+  behaviour table, and five cluster verdicts.
+- The closing M1 machine-evidence re-run executes over the post-P8 tree
+  (`check:conformance`, `fmea`, `graph-deps`) and records its result as a Delta
+  amendment. With both done, the § Remaining full-review sweep item leaves
+  `ROADMAP.md`.
+- Two findings are scheduled. **P1:** server notes carrying a `narrative_tag`
+  are stored and served as a resource but never rendered in the briefing's
+  supplementary guidance (REQ-365a, REQ-365b, REQ-365c) — a new roadmap section
+  carries the repair. **P2:** `T408`–`T412` are each titled by different
+  assertions in `test-narrative`, `test-backfill`, and `test-limits`, so a
+  token-presence coverage match can resolve to the wrong test (REQ-073,
+  REQ-075, REQ-077, REQ-083, REQ-233, REQ-236, REQ-246, REQ-289, REQ-357,
+  REQ-358, REQ-359, REQ-360, REQ-361); the harness-hygiene section takes it.
+- A stranded `scripts/validate.ts:1866` comment naming the canonical §5.12 list
+  (which lives at `holonovel/src/index.ts:325`) is recorded and closed as P3.
+
 ## 2026-11-09 — Full-review sweep: chunk P7b (extraction and synthesis)
 
 - Chunk P7b closes the review program's §5.2 and §5.8 surface: 189 REQs across
