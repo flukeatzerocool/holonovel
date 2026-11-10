@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-09 — §5.2/§5.8 remediation 4: dynamic table classification
+
+- `tools/list` now advertises the active Novel's generation-table domain on
+  `resolve_mechanic`'s `table` parameter, taken from the bound ruleset model;
+  a zero-table ruleset keeps the permissive string. `resolve_mechanic
+  (action: roll)` refuses a lookup-table name with `[NOT_FOUND]` and returns
+  the "No random generation tables" message when the domain is empty.
+  Exercised by `test:backfill` T255/T255b with seeded ruleset packages; the
+  D&D 5e build clause is exercised by fixture substitution because no 5e
+  package exists in-tree (F-P6b-7). (REQ-214a, REQ-214b, REQ-214c; F-P7b-9)
+- The §5.2/§5.8 assertion and behaviour remediation roadmap section retires;
+  all nine P7b findings are `Resolved`, and the coverage register regenerates
+  with the new evidence.
+
 ## 2026-11-09 — §5.2/§5.8 remediation 3: scene catalog, actions, suggestions
 
 - `manage_scene (action: set)` accepts an open scene-type catalog: a string or

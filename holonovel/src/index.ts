@@ -11504,9 +11504,12 @@ server.registerTool("manage_ruleset", {
         return normId(k) === want || normId(tables[k]?.name) === want
           || (Array.isArray(tables[k]?.aliases) && tables[k].aliases.some((a: any) => normId(a) === want));
       });
+      if (Object.keys(tables).length === 0) {
+        return err("NOT_FOUND", "No random generation tables in this ruleset. Corrective action: bind a ruleset whose package defines generation tables, or use a lookup tool for reference data.");
+      }
       if (!key) {
         const valid = Object.keys(tables);
-        return err("NOT_FOUND", `Table '${args.table}' not found. Valid tables: ${valid.join(", ") || "(none)"}.`);
+        return err("NOT_FOUND", `Table '${args.table}' not found. Valid tables: ${valid.join(", ")}.`);
       }
       const entry = tables[key];
       if (entry?.badge_scope === "game_master" && getBadge() === "player") {
@@ -14974,6 +14977,26 @@ function installBadgeFilteredToolList(): void {
       ? visible
       : scopedCatalog(visible as Array<{ name: string }>, requestedScope === "all");
     const tools = projectToolList(base as Array<{ name: string }>, requestedGroup, requestedProfile);
+    // REQ-214c — when the active Novel is bound to a ruleset, `resolve_mechanic`'s
+    // `table` parameter advertises the generation-table domain from that
+    // ruleset's model. A zero-table ruleset keeps the permissive string; the
+    // call path returns the "no tables" message.
+    const activeNovel = state.activeNovel;
+    if (activeNovel?.ruleset && rulesets.isInstalled(activeNovel.ruleset)) {
+      try {
+        const model: any = rulesets.hydrate(activeNovel.ruleset).model;
+        const names = Object.keys(model?.generation_tables ?? {});
+        if (names.length > 0) {
+          const patched = tools.map((tool: any) => {
+            if (tool?.name !== "resolve_mechanic") return tool;
+            const props = tool.inputSchema?.properties;
+            if (!props?.table) return tool;
+            return { ...tool, inputSchema: { ...tool.inputSchema, properties: { ...props, table: { ...props.table, enum: names } } } };
+          });
+          return { ...full, tools: patched };
+        }
+      } catch { /* hydration failures surface at call time */ }
+    }
     return { ...full, tools };
   });
 }

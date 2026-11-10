@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.2/§5.8 assertion and behaviour remediation (P1)
-
-- Scene catalog and table classification — `scene_type` is a closed enum
-  (`holonovel/src/index.ts:6185`), so the extractable catalog (REQ-087a) and the
-  `[NOT_FOUND]` enumeration (REQ-087c, REQ-125) are unassertable, and
-  `resolve_mechanic.table` is a static `z.string()` (`:7940`) with no dynamic
-  generation-table enum and no in-tree D&D 5e package (REQ-214c). REQ-087a,
-  REQ-087b, REQ-087c, REQ-125a, REQ-125b, REQ-214a, REQ-214b, REQ-214c.
-
-**Trigger:** the next §5.2/§5.8 remediation session; closes when F-P7b-9 is
-`Resolved` (F-P7b-1–F-P7b-8 resolved 2026-11-09).
-
 ## §5.7 determinism and citation repair (P1)
 
 - Emit the REQ-050a seed-conflict `[WARNING]` when a per-call seed is supplied

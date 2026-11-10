@@ -189,7 +189,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-211 | Evidence record field contract (Part a) (3 sub-parts) | 5.5 Badges and Access | E | S22 | — |
 | REQ-212 | Generation table rolling (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-213 | Weighted table result mapping (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T254 | — |
-| REQ-214 | Table classification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
+| REQ-214 | Table classification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T255 | — |
 | REQ-215 | Table content extraction (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T256 | — |
 | REQ-216 | Generation table badge filtering (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T257 | — |
 | REQ-217 | Condition tools (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T258 | — |

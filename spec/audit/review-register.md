@@ -11,6 +11,19 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 §5.2/§5.8 behaviour remediation — table classification
+
+- **F-P7b-9 — generation tables are advertised from the ruleset model (resolved
+  2026-11-09):** the badge-filtered `tools/list` wrapper patches
+  `resolve_mechanic.inputSchema.properties.table` with the active Novel's
+  generation-table names, and keeps the permissive string for a zero-table
+  ruleset (`holonovel/src/index.ts:14890-14912`); the roll handler refuses a
+  lookup name with `[NOT_FOUND]` and returns the "No random generation tables"
+  message when the domain is empty (`:11524-11536`). Exercised by
+  `test:backfill` T255 and T255b with seeded ruleset packages — the D&D 5e
+  build clause is exercised by fixture substitution because no 5e package
+  exists in-tree (F-P6b-7). (REQ-214a, REQ-214b, REQ-214c)
+
 ### 2026-11-09 §5.2/§5.8 behaviour remediation — scenes and suggestions
 
 - **F-P7b-4 — the scene catalog is open and every type contributes actions
@@ -1309,13 +1322,7 @@ against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
-- **F-P7b-9 — table classification needs a dynamic enum and a 5e fixture
-  (2026-11-09):** `resolve_mechanic`'s `table` parameter is a static
-  `z.string()` (`index.ts:7940`); REQ-214c requires the generation-table
-  enumeration to come from the ruleset model; no D&D 5e package exists in-tree
-  (`.gitignore` excludes `scripts/ruleset-builds/`; F-P6b-7), so T255 cannot
-  run. REQ-214a, REQ-214b, REQ-214c. Scheduled under §5.2/§5.8 assertion and
-  behaviour remediation.
+
 
 ### 2026-11-09 full-review sweep — chunk P7a (determinism and knowledge artifacts)
 

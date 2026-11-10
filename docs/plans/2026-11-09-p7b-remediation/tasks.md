@@ -1,6 +1,6 @@
 # Tasks — §5.2/§5.8 behaviour remediation
 
-Status: in progress · Plan: `plan.md` · Gate: plan-review (self, conditions recorded)
+Status: complete · Plan: `plan.md` · Gate: plan-review (self, conditions recorded)
 
 ## Phase 0 — scaffolding
 
@@ -40,7 +40,7 @@ Status: in progress · Plan: `plan.md` · Gate: plan-review (self, conditions re
 
 ## Commit 4 — table classification (F-P7b-9)
 
-- [ ] dynamic `table` enum in `tools/list`
-- [ ] runtime refusal of non-generation names
-- [ ] Test T255 with seeded package
-- [ ] build-order, full gates, AAR terminal token
+- [x] dynamic `table` enum in `tools/list`
+- [x] runtime refusal of non-generation names
+- [x] Test T255/T255b with seeded packages (test:backfill 94 passed)
+- [x] build-order, full gates, AAR terminal token

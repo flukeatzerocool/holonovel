@@ -6,6 +6,8 @@
 
 import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
+import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -1354,6 +1356,70 @@ async function main() {
       await call(proc, "manage_synthesis", { action: "run", force: true });
       const synth = await call(proc, "run_command", { action: "suggest", intent: "persuade the merchant" });
       assertContains(synth, "Social:");
+    });
+
+    await kill(proc);
+  }
+
+  // ── §5.2/§5.8 remediation 4: table classification (F-P7b-9) ──────
+  {
+    const seedRuleset = (slug: string, generation: Record<string, any>, extraTables?: Record<string, any>): void => {
+      const dir = join(DATA_DIR, "rulesets", slug);
+      rmSync(dir, { recursive: true, force: true });
+      mkdirSync(dir, { recursive: true });
+      const model = { generation_tables: generation, ...(extraTables ? { tables: extraTables } : {}) };
+      const contentHash = sha256Canonical([], model, [], [], []);
+      writeFileSync(join(dir, "manifest.json"), JSON.stringify({ slug, name: slug, host_version: "0.0.0", package_format: PACKAGE_FORMAT, content_hash: contentHash, built_at: "2026-01-01T00:00:00.000Z", counts: {} }));
+      writeFileSync(join(dir, "model.json"), JSON.stringify(model));
+      writeFileSync(join(dir, "index.json"), "[]");
+      writeFileSync(join(dir, "tools.json"), "[]");
+      writeFileSync(join(dir, "resources.json"), "[]");
+      writeFileSync(join(dir, "prompts.json"), "[]");
+      writeFileSync(join(dir, "reasoning.jsonl"), "");
+    };
+
+    // Packages are discovered at startup, so both are seeded before boot.
+    seedRuleset("gentbl", {
+      trinkets: { dice_expression: "1d100", ranges: [{ min: 1, max: 100, result: "a dusty trinket" }] },
+      madness: { dice_expression: "1d100", ranges: [{ min: 1, max: 100, result: "a fleeting dread" }] },
+      equipment_d100: { dice_expression: "1d100", ranges: [{ min: 1, max: 100, result: "a coil of rope" }] },
+    }, { ability_modifiers: { rows: [{ score: 10, modifier: 0 }] } });
+    seedRuleset("notables", {});
+
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "p7b-tables" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    await test("T255/REQ-214: generation tables enumerate and lookups refuse", async () => {
+      const bound = await call(proc, "manage_ruleset", { action: "bind", slug: "gentbl" });
+      assertContains(bound, "[OK]");
+      const listResp = await send(proc, { method: "tools/list", params: {} });
+      const tools = listResp.result?.tools ?? [];
+      const resolve = tools.find((t: any) => t.name === "resolve_mechanic");
+      const tableSchema = resolve?.inputSchema?.properties?.table;
+      assert(Array.isArray(tableSchema?.enum), `table enum missing: ${JSON.stringify(tableSchema)}`);
+      for (const name of ["trinkets", "madness", "equipment_d100"]) {
+        assert(tableSchema.enum.includes(name), `generation table '${name}' missing from the enum`);
+      }
+      assert(!tableSchema.enum.includes("ability_modifiers"), "lookup table leaked into the enum");
+
+      const roll = await call(proc, "resolve_mechanic", { action: "roll", table: "trinkets" });
+      assertContains(roll, "dusty trinket");
+      const lookup = await call(proc, "resolve_mechanic", { action: "roll", table: "ability_modifiers" });
+      assertContains(lookup, "[NOT_FOUND]");
+      assertContains(lookup, "Valid tables:");
+    });
+
+    await test("T255b/REQ-214b: a zero-table ruleset returns the no-tables message", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "p7b-tables-2" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      const switched = await call(proc, "manage_ruleset", { action: "bind", slug: "notables" });
+      assertContains(switched, "[OK]");
+      const listResp = await send(proc, { method: "tools/list", params: {} });
+      const resolve = (listResp.result?.tools ?? []).find((t: any) => t.name === "resolve_mechanic");
+      assert(resolve?.inputSchema?.properties?.table?.enum === undefined, "zero-table ruleset advertised an enum");
+      const roll = await call(proc, "resolve_mechanic", { action: "roll", table: "weather" });
+      assertContains(roll, "No random generation tables");
     });
 
     await kill(proc);
