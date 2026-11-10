@@ -347,7 +347,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-378 | Mechanical coupling verification (Part a) (2 sub-parts) | 5.15 Mechanical Coupling | E | — | — |
 | REQ-379 | Tool namespacing (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-380 | Novel ruleset binding (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T441 | — |
-| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | T456 | — |
+| REQ-381 | Ruleset-scoped tool gating (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | C | T456 | — |
 | REQ-382 | Per-ruleset extraction isolation (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-383 | Host ruleset health (Part a) (2 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |
 | REQ-384 | Cross-ruleset Novel switching (Part a) (3 sub-parts) | 5.16 Multi-Ruleset Build | E | — | — |

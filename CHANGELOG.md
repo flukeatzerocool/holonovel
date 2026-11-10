@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P6b (ruleset packages and host entry points)
+
+- Chunk P6b closes the sweep's second half: §5.16 (23 REQs), §5.17 (15),
+  §5.18 (25), and §5.21–§5.23 (10) — 73 REQs across 50 family rows. The sweep
+  worklist carries a 73-REQ verdict table, a 20-row behaviour table, and four
+  cluster verdicts.
+- Six P0s are fixed with a new `test:ruleset-surface-remediation` harness.
+  Ruleset scope was enforced only in `tools/list`, so a foreign-ruleset tool
+  stayed callable (REQ-381a/380c/384a; F-P6b-1). The read-only
+  `manage_ruleset (action: list)` hydrated every package and always reported
+  `loaded`, defeating lazy hydration (REQ-389c/390; F-P6b-2). Removed package
+  tools stayed live and a truncation hint pointed at an unregistered
+  `ruleset://` URI (REQ-389c; F-P6b-3). Import or checkpoint restore could
+  silently change a Novel's ruleset (REQ-380a; F-P6b-4). A content-hash
+  rejection never reached `spec_health` (REQ-389b; F-P6b-5). Malformed Fate
+  notation escaped the handler instead of refusing (REQ-002/434; F-P6b-6).
+- Fifteen P1 findings are scheduled across five new roadmap sections: the
+  ruleset surface (annotations, per-ruleset health, import/export/codex,
+  suggest, pagination, runtime install), the package build and update entry
+  points (no committed emitter, supplement provenance), deploy/state/publication
+  guards, capability remediation (Forged consequences, refusal snapshots), and
+  §5.16–§5.18 citation repair.
+- Five P3 notes are recorded and closed. The baseline was red on `test:all`
+  before the review (three Holosuite tiers, 13 stale evidence anchors); the
+  separate C0 commit `40a8808` repointed them, restoring green.
+
 ## 2026-11-09 — Full-review sweep: chunk P6a (world model and the adapter seam)
 
 - Chunk P6 split in two because the whole surface is 180 REQs across 86 family

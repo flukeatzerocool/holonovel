@@ -1428,7 +1428,7 @@ function zodToJsonSchema(schema: any, depth = 0): any {
 function registeredToolDefinitions(): ToolDefinition[] {
   const tools: Record<string, any> = registeredToolMap();
   const hidden = hiddenAliasNames(surfaceRegistry());
-  return Object.entries(tools).filter(([name]) => !hidden.has(name)).map(([name, tool]) => ({
+  return Object.entries(tools).filter(([name]) => !hidden.has(name) && packageToolVisible(name)).map(([name, tool]) => ({
     name,
     title: typeof tool?.title === "string" ? tool.title : "",
     description: typeof tool?.description === "string" ? tool.description : "",
@@ -1831,6 +1831,22 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
   }
   const retired = retiredAliasRefusal(surfaceRegistry(), toolName, callArgs);
   if (retired) return { content: [{ type: "text", text: retired }], isError: true };
+  // REQ-381a/REQ-380c — ruleset scope is enforced at dispatch, not only in
+  // tools/list. A package tool whose slug differs from the active Novel's
+  // ruleset is refused, naming both scopes.
+  const activeRuleset = state.activeNovel?.ruleset;
+  if (toolName && activeRuleset) {
+    const callee = packageSlugForTool(toolName);
+    if (callee && callee !== activeRuleset) {
+      return {
+        content: [{
+          type: "text",
+          text: `[ERROR] [INVALID_INPUT] Tool '${toolName}' belongs to ruleset '${callee}'; the active Novel uses '${activeRuleset}'. Next: call a '${activeRuleset}' tool, or create or switch to a Novel bound to '${callee}'.`,
+        }],
+        isError: true,
+      };
+    }
+  }
   const refusal = surfaceGuard(toolName, callArgs);
   if (refusal) return { content: [{ type: "text", text: refusal }], isError: true };
   return null;
@@ -1887,6 +1903,20 @@ function wantsDetail(detail?: boolean): boolean {
 // ── Ruleset packages (REQ-389, REQ-390, REQ-379) ───────────────────
 
 const rulesets = new RulesetManager(RULESET_DIR);
+// REQ-389c — package tools registered at startup remain in the SDK registry
+// after removal (the SDK has no unregister), so visibility is filtered by this
+// set plus the current install set.
+const registeredPackageSlugs = new Set<string>();
+function packageSlugForTool(name: string): string | undefined {
+  for (const slug of registeredPackageSlugs) {
+    if (name.startsWith(`${slug}_`)) return slug;
+  }
+  return undefined;
+}
+function packageToolVisible(name: string): boolean {
+  const slug = packageSlugForTool(name);
+  return slug === undefined || rulesets.isInstalled(slug);
+}
 const scanErrors = rulesets.scan();
 // REQ-420 — incompatible packages are held inactive and surfaced on stderr and
 // in spec_health.ruleset_package_alerts, never silently dropped (REQ-393).
@@ -2058,7 +2088,9 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
     try {
       pkg = rulesets.hydrate(slug);
     } catch (e: any) {
-      return err("STATE_CONFLICT", `Ruleset '${slug}' failed to load: ${e.message}`);
+      // REQ-389b — record the failed load so spec_health surfaces the rejection.
+  rulesets.recordLoadFailure(slug, e.message);
+  return err("STATE_CONFLICT", `Ruleset '${slug}' failed to load: ${e.message}`);
     }
     switch (schema.kind) {
       case "lookup": {
@@ -2220,6 +2252,7 @@ for (const slug of rulesets.installedSlugs()) {
     rulesetLoadErrors.push({ slug, reason: e.message });
     continue;
   }
+  registeredPackageSlugs.add(slug);
   // REQ-430 — flag non-conformant declared tools at load (no index hydration).
   rulesets.validateDeclaredToolSchemas(slug, schemas);
   for (const schema of schemas) {
@@ -7483,7 +7516,14 @@ server.registerTool("resolve_fate", {
       const extra = Number(args.modifier ?? 0);
       const difficulty = Number(args.difficulty ?? 0);
       const label = args.skill ? `${args.skill} check` : notation;
-      let r = rollDice(notation, args.seed);
+      let r;
+      try {
+        r = rollDice(notation, args.seed);
+      } catch (e: any) {
+        // REQ-002/REQ-434 — a malformed dice notation is an input error, not a
+        // thrown handler failure.
+        return err("INVALID_INPUT", e?.message ?? String(e));
+      }
       if (extra !== 0) r = { total: r.total + extra, dice: r.dice, modifier: r.modifier + extra, notation: r.notation };
       const faces = r.dice.map((d) => (d > 0 ? `+${d}` : `${d}`)).join(" ");
       const ladder = r.total >= difficulty + 3 ? "Succeed with style"
@@ -11272,26 +11312,21 @@ server.registerTool("manage_ruleset", {
       }
     }
     case "list": {
-      // REQ-389b/REQ-393 — a package whose content hash fails validation is
-      // reported as rejected (with the reason) rather than crashing the host;
-      // other installed packages continue to serve.
-      const list = rulesets.installedSlugs().map((slug) => {
-        try {
-          const pkg = rulesets.hydrate(slug);
-          return {
-            slug: pkg.slug, name: pkg.manifest.name, host_version: pkg.manifest.host_version,
-            built_at: pkg.manifest.built_at, state: rulesets.isHydrated(pkg.slug) ? "loaded" : "installed",
-            // REQ-432a — vendor package license attribution.
-            licensed: pkg.manifest.source_license !== undefined,
-            source_license: pkg.manifest.source_license ?? null,
-            // REQ-618 — creator rights.
-            creator: pkg.manifest.creator ?? null,
-            attribution: pkg.manifest.attribution ?? null,
-          };
-        } catch (e: any) {
-          return { slug, state: "rejected", error: e.message };
-        }
-      });
+      // REQ-389c — report installed-versus-loaded state WITHOUT hydrating: the
+      // hydration state is read before any load, so an idle package reports
+      // `installed` and this read-only action never inflates rulesets_hydrated.
+      // REQ-432a — vendor license attribution; `licensed` requires a string.
+      const list = rulesets.manifests().map(({ slug, manifest }) => ({
+        slug,
+        name: manifest.name,
+        host_version: manifest.host_version,
+        built_at: manifest.built_at,
+        state: rulesets.isHydrated(slug) ? "loaded" : "installed",
+        licensed: typeof manifest.source_license === "string",
+        source_license: manifest.source_license ?? null,
+        creator: manifest.creator ?? null,
+        attribution: manifest.attribution ?? null,
+      }));
       return raw(JSON.stringify(list, null, 2));
     }
     case "bind": {
@@ -11969,6 +12004,7 @@ function buildSpecHealth(): Record<string, unknown> {
           // REQ-389b — packages that failed to load (e.g. content-hash mismatch),
           // recorded at startup so the rejection is surfaced in spec_health.
           ...rulesetLoadErrors.map((e) => ({ slug: e.slug, reason: `[load-rejected] ${e.reason}` })),
+          ...rulesets.loadFailuresFor(),
           ...rulesets.toolQualityAlerts().map((a) => ({ slug: a.slug, reason: `[tool-quality] ${a.tool}: ${a.defects.join("; ")}` })),
         ]
       : undefined,
@@ -14598,7 +14634,7 @@ export function createEngine(): Engine {
   eventHub.add(engineId, [], dispatch);
   return {
     tools: {
-      list: () => toolRegistry.list().map(engineToolMeta),
+      list: () => toolRegistry.list().filter((tool) => packageToolVisible(tool.name)).map(engineToolMeta),
       get: (name: string) => {
         const tool = toolRegistry.get(name);
         return tool ? engineToolMeta(tool) : undefined;

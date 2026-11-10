@@ -1891,7 +1891,7 @@ const INTENDED_GAP_REQS = new Set([
   // by design, so the REQ is never implemented and has no re-activation trigger
   // — see INTENDED_GAP_CITED_DISPOSITIONS.
   "REQ-373",
-  "REQ-379", "REQ-381", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
+  "REQ-379", "REQ-382", "REQ-383", "REQ-384", "REQ-385", "REQ-386", "REQ-387",
   "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
   // §5.18 update/migration entry points are build-tooling contracts
   // (scripts/update-rulesets.ts, scripts/migrate-user-data.ts, and the

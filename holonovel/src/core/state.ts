@@ -3054,7 +3054,7 @@ export function applyNovelState(
   source: NovelState,
   mode: ApplyNovelMode = "undo",
 ): void {
-  const preserve = new Set<string>(["undo_stacks", "redo_stacks"]);
+  const preserve = new Set<string>(["undo_stacks", "redo_stacks", "ruleset"]);
   if (mode === "undo") {
     for (const key of APPEND_ONLY_STATE_FIELDS) preserve.add(key);
     for (const key of BOOKKEEPING_STATE_FIELDS) preserve.add(key);

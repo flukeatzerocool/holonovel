@@ -240,6 +240,43 @@ restart the enumeration from scratch.
   cold pass 5/5 with two diff re-reviews (report `/tmp/opencode/p6a-cold/`);
   14 commits unpushed at session start; baseline green (no C0); one C1; no push.
 
+### Decisions (2026-11-09, chunk P6b)
+
+- **D71 — Chunk scope.** P6b is the second half of the P6 split: §5.16 (23
+  REQs / 9 family rows), §5.17 (15 / 9), §5.18 (25 / 22), §5.21–§5.23
+  (10 / 10) = 73 REQs / 50 family rows. Executed whole; no second split.
+- **D72 — Fix policy.** D62 unchanged: P0 fixed in-session (bounded), P1
+  scheduled on `ROADMAP.md`, P2 fixed only on a demonstrated failure, P3
+  record-and-close. A non-demonstrated P2 is recorded as P3.
+- **D73 — Increment record.** `docs/plans/2026-11-09-full-review-p6b/` holds
+  plan/tasks/AAR; this worklist is the tracker and carries the P6b tables.
+- **D74 — Bucket resolution.** By base family row: §5.16 `REQ-380` C and the
+  other eight E; §5.17 `REQ-389`, `430`, `432`, `390`, `391`, `392`, `393` C and
+  `394`, `419` E; §5.18 `420`, `423`, `424`, `429`, `558`, `650`, `651`, `652`
+  C and the rest E; §5.21–§5.23 all C.
+- **D75 — Boundaries.** P6b owns the package manager, the ruleset-scoped
+  surface, the host entry points, and the base capabilities. World model →
+  P6a (closed); semantic index/corpus/graph → P7; narrative cognition → P8;
+  user-data storage mechanics → P4 (closed) except §5.18 fingerprint
+  reconciliation. A cross-cutting undo defect (F-P6b-18) is recorded against
+  its capability REQs and REQ-041a/b even though §5.1 closed in chunk P1.
+- **D76 — Row precedence.** `finding` > `deferred` > `builder-side` > `holds`;
+  a resolved finding counts as `holds` for the cluster aggregate.
+- **D77 — Citation resolution.** Own `_Check:_` IDs; family inheritance when
+  absent; an `Automated` token must appear literally in a harness whose body
+  exercises the behaviour; `Manual`/`Gate`/scenario need none; `T0nn` titles
+  are shadowing, not evidence. A mis-citation (T431 on REQ-387b) is a finding.
+- **D78 — Fingerprint consequence.** `PACKAGE_SECTIONS` = §5.16/§5.17/§6.3/
+  §6.4.2; `DATA_SECTIONS` includes §5.21–§5.23. No REQ body changed this
+  increment, so no fingerprint regeneration was required; `build-order` ran for
+  version sync only.
+- **D79 — Row granularity.** One row per REQ (73), bucket inherited per family
+  row; behaviour table 20 rows; four cluster verdicts.
+- **D80 — Baseline and publication.** Baseline was red on `test:all` (three
+  Holosuite tiers, 13 stale evidence anchors); a C0 commit (`40a8808`)
+  repointed them before the review. 15 commits unpushed at session start; no
+  push.
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -254,7 +291,7 @@ restart the enumeration from scratch.
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | **closed 2026-11-09** |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | **closed 2026-11-09** |
 | P6a | world model, parser, conversion, coupling, ruleset-free mode | §5.10, §5.11, §5.13, §5.15 (107 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P6b | ruleset packages, host entry points, Fate/Ironsworn/Forged | §5.16–§5.18, §5.21–§5.23 (73 REQs) | `code-review` + citation resolution | scheduled |
+| P6b | ruleset packages, host entry points, Fate/Ironsworn/Forged | §5.16–§5.18, §5.21–§5.23 (73 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P7 | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts` | §5.2, §5.7, §5.8, §5.14, §5.28–§5.30 | `code-review` | scheduled |
 | P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 | `code-review` + `spec-review` | scheduled (pending Q1) |
 | M1 | `check:conformance`, `fmea`, `graph-deps` | all | machine evidence | **closed 2026-11-09** |
@@ -1735,3 +1772,172 @@ aggregate.
 | F-P6a-16 | P3 | REQ-319c, REQ-319d | `climb` hardcodes the `up` exit; `all` is not handled as a pronoun | Closed-P3 |
 | F-P6a-17 | P3 | REQ-320b, REQ-320c | `give`/`show` fall back outside the room; `throw` deposits in the current room; no-NPC `give` records `[OK]` | Closed-P3 |
 | F-P6a-18 | P3 | REQ-431d, REQ-622c | generated door-role objects carry no exit/doorRefs; `annotations.bundle_of` has no producer | Closed-P3 |
+## Chunk P6b — ruleset packages and host entry points
+
+**Code targets:** `holonovel/src/rulesets.ts` (684 lines), the
+`manage_ruleset` / `spec_health` / listing handlers and the capability branches
+in `holonovel/src/index.ts`, `core/surface-{projection,aliases}.ts`,
+`core/state.ts` (`reconcileUserData`, `applyNovelState`), the host entry points
+`scripts/{build-ruleset,update,update-rulesets,migrate-user-data,update-server}.ts`,
+`scripts/lib/ruleset-registry.ts`, `holonovel/server.json`, and
+the package staging/smoke scripts.
+**Spec:** §5.16 (23 REQs), §5.17 (15), §5.18 (25), §5.21–§5.23 (10) — 73 REQs /
+50 family rows.
+**Decisions:** D71–D80 (chunk scope, fix policy, buckets, boundaries,
+citations, fingerprints, row granularity, publication).
+**Exit evidence (recorded 2026-11-09):** `check:fast` 37/37 PASS, `check` PASS,
+`test:all` PASS (new `test:ruleset-surface-remediation` included),
+`check-roadmap` PASS, `check-registers:strict` PASS, `check-loop-artifacts`
+PASS. Six P0 findings fixed in-session with a new harness; the remaining
+findings are scheduled or closed as recorded below.
+
+### P6b per-REQ verdict table
+
+One row per REQ. Bucket is inherited from the base family row in
+`spec/audit/req-coverage.md` (D74). `Resolved` findings were fixed in-session;
+`P1` rows are scheduled on `ROADMAP.md`; `P3` rows are recorded and closed.
+
+| REQ | Bucket | Verdict | Evidence |
+|---|---|---|---|
+| REQ-379a | E | holds | § P6b behaviour table / findings |
+| REQ-379b | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-379c | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-380a | C | finding:F-P6b-4 (Resolved) | § P6b behaviour table / findings |
+| REQ-380b | C | holds | § P6b behaviour table / findings |
+| REQ-380c | C | finding:F-P6b-1 (Resolved) + F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-381a | E | finding:F-P6b-1 (Resolved) | § P6b behaviour table / findings |
+| REQ-381b | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-381c | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-382a | E | holds | § P6b behaviour table / findings |
+| REQ-382b | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-382c | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-383a | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-383b | E | finding:F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-384a | E | finding:F-P6b-1 (Resolved) | § P6b behaviour table / findings |
+| REQ-384b | E | finding:F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-384c | E | finding:F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-385a | E | finding:F-P6b-11 (P1) | § P6b behaviour table / findings |
+| REQ-385b | E | finding:F-P6b-11 (P1) | § P6b behaviour table / findings |
+| REQ-386a | E | finding:F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-386b | E | finding:F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-387a | E | finding:F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-387b | E | finding:F-P6b-10 (P1) | § P6b behaviour table / findings |
+| REQ-389a | C | holds | § P6b behaviour table / findings |
+| REQ-389b | C | finding:F-P6b-5 (Resolved) + F-P6b-21 (P1) | § P6b behaviour table / findings |
+| REQ-389c | C | finding:F-P6b-2/F-P6b-3 (Resolved) + F-P6b-9 (P1) | § P6b behaviour table / findings |
+| REQ-430 | C | finding:F-P6b-12 (P1) | § P6b behaviour table / findings |
+| REQ-432a | C | finding:F-P6b-12 (P1) | § P6b behaviour table / findings |
+| REQ-432b | C | finding:F-P6b-12 (P1) | § P6b behaviour table / findings |
+| REQ-390a | C | holds | § P6b behaviour table / findings |
+| REQ-390b | C | finding:F-P6b-12 (P1) | § P6b behaviour table / findings |
+| REQ-391a | C | holds (F-P6b-25 P3 note) | § P6b behaviour table / findings |
+| REQ-391b | C | holds | § P6b behaviour table / findings |
+| REQ-391c | C | finding:F-P6b-20 (P1) | § P6b behaviour table / findings |
+| REQ-392 | C | holds | § P6b behaviour table / findings |
+| REQ-393 | C | holds | § P6b behaviour table / findings |
+| REQ-394 | E | finding:F-P6b-14 (P1) | § P6b behaviour table / findings |
+| REQ-419 | E | holds | § P6b behaviour table / findings |
+| REQ-394a | E | holds | § P6b behaviour table / findings |
+| REQ-395a | E | finding:F-P6b-7 (P1) | § P6b behaviour table / findings |
+| REQ-395b | E | finding:F-P6b-21 (P1) | § P6b behaviour table / findings |
+| REQ-395c | E | finding:F-P6b-7 (P1) | § P6b behaviour table / findings |
+| REQ-396 | E | finding:F-P6b-13 (P1) | § P6b behaviour table / findings |
+| REQ-397 | E | finding:F-P6b-8 (P1) | § P6b behaviour table / findings |
+| REQ-398 | E | holds | § P6b behaviour table / findings |
+| REQ-418 | E | finding:F-P6b-13 (P1) | § P6b behaviour table / findings |
+| REQ-420 | C | holds | § P6b behaviour table / findings |
+| REQ-558 | C | finding:F-P6b-16 (P1) | § P6b behaviour table / findings |
+| REQ-560 | E | holds | § P6b behaviour table / findings |
+| REQ-561 | E | holds | § P6b behaviour table / findings |
+| REQ-421 | E | finding:F-P6b-15 (P1) | § P6b behaviour table / findings |
+| REQ-563 | E | finding:F-P6b-7 (P1) | § P6b behaviour table / findings |
+| REQ-557 | E | finding:F-P6b-15 (P1) | § P6b behaviour table / findings |
+| REQ-422 | E | finding:F-P6b-24 (P3) | § P6b behaviour table / findings |
+| REQ-423 | C | holds | § P6b behaviour table / findings |
+| REQ-424 | C | holds | § P6b behaviour table / findings |
+| REQ-650 | C | finding:F-P6b-7 (P1) | § P6b behaviour table / findings |
+| REQ-651 | C | holds | § P6b behaviour table / findings |
+| REQ-652 | C | holds | § P6b behaviour table / findings |
+| REQ-556 | E | holds | § P6b behaviour table / findings |
+| REQ-564 | E | finding:F-P6b-7 (P1) | § P6b behaviour table / findings |
+| REQ-428 | E | finding:F-P6b-19 (P1) | § P6b behaviour table / findings |
+| REQ-429 | C | holds | § P6b behaviour table / findings |
+| REQ-434 | C | finding:F-P6b-6 (Resolved) | § P6b behaviour table / findings |
+| REQ-435 | C | finding:F-P6b-18 (P1) | § P6b behaviour table / findings |
+| REQ-436 | C | finding:F-P6b-18 (P1) | § P6b behaviour table / findings |
+| REQ-437 | C | finding:F-P6b-18 (P1) | § P6b behaviour table / findings |
+| REQ-438 | C | holds | § P6b behaviour table / findings |
+| REQ-439 | C | finding:F-P6b-21 (P1) | § P6b behaviour table / findings |
+| REQ-440 | C | finding:F-P6b-18 (P1) | § P6b behaviour table / findings |
+| REQ-441 | C | finding:F-P6b-22 (P3) | § P6b behaviour table / findings |
+| REQ-442 | C | finding:F-P6b-17 (P1) + F-P6b-18 (P1) | § P6b behaviour table / findings |
+| REQ-443 | C | holds | § P6b behaviour table / findings |
+
+### P6b behaviour table
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| Package manifest and six-file format | `rulesets.ts:17-40,658-667` | T452 `test-output-contracts.ts:1590` | holds |
+| Content hash over the five canonical parts | `rulesets.ts:114-127,637-646` | T654 `test-ruleset-gates.ts:144` | holds |
+| Package-format fingerprint comparison | `rulesets.ts:384-393,634-636` | T498/T503 `test-fingerprints.ts:182` | holds |
+| Install / remove / list surface | `index.ts:11276-11300` | T453; `test-ruleset-surface-remediation` | finding:F-P6b-2/F-P6b-3 (Resolved) + F-P6b-9 (P1) |
+| Tool namespacing and prefix map | `index.ts:2226,2234,11963` | T512; `test-ruleset-surface-remediation` | finding:F-P6b-9 (P1) |
+| Lazy hydration and health counts | `rulesets.ts:362-407,486-539`; `index.ts:1908-1913` | T454; `test-ruleset-surface-remediation` | finding:F-P6b-2 (Resolved) |
+| Vendor license certification | `rulesets.ts:45-53,396-400`; `index.ts:11285` | T517 `test-competitive-gaps.ts:374` | finding:F-P6b-12 (P1) |
+| TDQS schema validation and alerts | `rulesets.ts:287-334,561-570` | T512/T648 `test-tool-definitions.ts:423` | holds |
+| Ruleset-scoped gating at dispatch | `index.ts:1820-1840`; `2051` | `test-ruleset-surface-remediation` | finding:F-P6b-1 (Resolved) |
+| Default vs `scope=all` listing | `index.ts:1447-1455,14718-14725` | T456 `test-output-contracts.ts:1745` | holds |
+| Per-ruleset `spec_health` and Player filtering | `index.ts:11948-12070` | T444 absent | finding:F-P6b-9 (P1) |
+| Codex / import / export ruleset axis | `index.ts:13294-13313,10729-10866,10691-10703` | T447/T431 mis-cited | finding:F-P6b-10 (P1) |
+| `run_command (action: suggest)` ruleset scoping | `index.ts:4522-4585` | T446 absent | finding:F-P6b-11 (P1) |
+| `build-ruleset` intake and source registry | `scripts/build-ruleset.ts:87-149` | T463 absent; T499 `test-fingerprints.ts:258` | finding:F-P6b-7/F-P6b-15 (P1) |
+| Committed emitter and deterministic emission | `scripts/lib/ruleset-package.mjs:14-42`; `.gitignore:22` | T654; T656 absent | finding:F-P6b-7 (P1) |
+| `update` / `update-rulesets` / `migrate-user-data` | `scripts/update.ts:43-157`; `update-rulesets.ts:24-51` | T689/T500/T502/T504 | holds (F-P6b-24 P3 note) |
+| Startup reconciliation and stale health | `index.ts:118-128,11999-12014`; `state.ts:195-218` | T774/T775 | holds |
+| Deploy preservation and verification | `publish/steps.ts:575-642` | T465/T466/T491 absent | finding:F-P6b-13 (P1) |
+| Shipped compiled `update` command | `bin/holonovel.js:6-14`; `src/cli/update.ts:88-103` | T773/T776 | holds |
+| Fate / Ironsworn / Forged capabilities | `index.ts:7479-7864`; `rulesets.ts:218-261` | T520–T529 | finding:F-P6b-17/F-P6b-18 (P1) |
+
+### P6b cluster verdicts
+
+Cluster verdicts are worst-of their own REQ rows (`finding` > `deferred` >
+`builder-side` > `holds`); a resolved finding counts as `holds` for the aggregate.
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A package format and manager | REQ-379, 382, 389, 430, 432, 390, 393 | finding:F-P6b-9 (P1) | two P0s resolved (F-P6b-2, F-P6b-3); package metrics, namespacing annotation, and license drift remain |
+| B ruleset-scoped surface | REQ-380, 381, 383–387, 391, 392, 429, 558 | finding:F-P6b-9 (P1) | scope gating fixed (F-P6b-1); per-ruleset health, codex, import/export, suggest, pagination remain |
+| C host entry points and lifecycle | REQ-394, 419, 394a, 395–398, 418, 420–424, 428, 556, 557, 560, 561, 563, 564, 650–652 | finding:F-P6b-7 (P1) | no committed emitter; state-location and deploy guards remain |
+| D base capabilities | REQ-434–443 | finding:F-P6b-17 (P1) | fate_roll refusal fixed (F-P6b-6); Forged consequences and refusal snapshots remain |
+
+### P6b findings
+
+| ID | Severity | REQs | Predicate | Disposition |
+|---|---|---|---|---|
+| F-P6b-1 | P0 | REQ-381a, REQ-380c, REQ-384a | `index.ts:1820-1836` checked only retired aliases and the surface profile; ruleset scope was read only by `scopedCatalog` for listing | Resolved |
+| F-P6b-2 | P0 | REQ-389c, REQ-390 | `index.ts:11280` hydrated every package in the read-only `list` action and then reported `isHydrated`, so the state was always "loaded" | Resolved |
+| F-P6b-3 | P0 | REQ-389c | removed package tools stayed in the SDK registry (`index.ts:1453`); the search truncation pointed at an unregistered `ruleset://` URI (`:11219`) | Resolved |
+| F-P6b-4 | P0 | REQ-380a | `state.ts:3067` copied every serialized key on import/restore, so a bundle could silently replace a Novel`s ruleset | Resolved |
+| F-P6b-5 | P0 | REQ-389b, REQ-390a | `rulesets.ts:504-508` threw on a content-hash mismatch but nothing recorded it; the `[load-rejected]` channel was unreachable | Resolved |
+| F-P6b-6 | P0 | REQ-002, REQ-434 | `index.ts:7519` called `rollDice` with no guard, so malformed notation escaped the handler instead of returning `[INVALID_INPUT]` | Resolved |
+| F-P6b-7 | P1 | REQ-395a, 395c, 563, 564, 650 | `scripts/build-ruleset.ts:142-149` prints the Build invocation but never emits; `.gitignore:22` excludes `scripts/ruleset-builds/`, so no committed emitter resolves and `update --apply` can only defer | Scheduled-roadmap |
+| F-P6b-8 | P1 | REQ-397 | `core/data-dir.ts:60-61` returns a legacy in-tree state dir silently; `[state-in-tree]` appears nowhere, and the four root entry scripts hardcode `holonovel/.holonovel-state` | Scheduled-roadmap |
+| F-P6b-9 | P1 | REQ-379b, 379c, 381b, 381c, 382b, 382c, 383a, 383b | no `ruleset` annotation or `inapplicable` hint in the listing; no `ruleset_health`/`combined` sections; the prefix map is GM-only and not recorded in DECISIONS.md | Scheduled-roadmap |
+| F-P6b-10 | P1 | REQ-380c, 384b, 384c, 386a, 386b, 387a, 387b | bind has no mechanics-state check; switch is unaudited; import validates no ruleset; export omits it; codex has no ruleset axis (T431 is a mis-citation) | Scheduled-roadmap |
+| F-P6b-11 | P1 | REQ-385a, 385b | `index.ts:4548-4550` emits generic prose and never derives prefixed suggestions from the bound package model | Scheduled-roadmap |
+| F-P6b-12 | P1 | REQ-390b, 430, 432a, 432b, 421 | no aggregate index bytes; no aggregate package tool budget; `APPENDIX_U_LICENSES` drifts from Appendix U (OGL present, COF form absent); registry has no recipe roles or license field | Scheduled-roadmap |
+| F-P6b-13 | P1 | REQ-396, 418 | `publish/steps.ts:585-588` cleans the deploy tree with no state-dir assertion; the fast-forward failure names no server; the stub path marks the deploy complete | Scheduled-roadmap |
+| F-P6b-14 | P1 | REQ-394 | `scripts/spec-delta.ts:138-140` falls back to the working-tree `DECISIONS.md` hash when no published hash resolves | Scheduled-roadmap |
+| F-P6b-15 | P1 | REQ-395a, 421, 557 | supplement intake/overlay and `base_content_hash` are unimplemented; `update-rulesets` never compares a recorded base hash | Scheduled-roadmap |
+| F-P6b-16 | P1 | REQ-558 | package tools register only in the startup loop; a runtime `manage_ruleset (action: install)` registers no tools until restart | Scheduled-roadmap |
+| F-P6b-17 | P1 | REQ-442 | `index.ts:7828-7834` adds stress without reducing a named consequence; the Forged state has no consequence slot | Scheduled-roadmap |
+| F-P6b-18 | P1 | REQ-041a, REQ-041b, 435, 436, 440, 442 | `novelSnapshot()` precedes validation in the capability branches, so a refused action pushes undo state and clears redo | Scheduled-roadmap |
+| F-P6b-19 | P1 | REQ-428 | no container image exists and `server.json` is version-checked but not schema-validated | Scheduled-roadmap |
+| F-P6b-20 | P1 | REQ-391c | `tools/list` returns `{ ...full, tools }` with no size cap or `nextCursor` pagination | Scheduled-roadmap |
+| F-P6b-21 | P1 | REQ-379c, 381c, 383b, 384c, 385b, 386b, 387b, 391b, 391c, 395a, 395b, 396, 397, 398, 418, 419, 557, 563, 564, 389b, 389c, 393, 428, 439 | absent or non-exercising `_Check:_` citations (T440, T442–T447, T451, T457, T458, T463–T467, T491, T492, T650, T656, T657, plus weak T454/T455/T456/T459/T460/T462/T499/T510 and the T431 mis-citation) | Scheduled-roadmap |
+| F-P6b-22 | P3 | REQ-434–442 | capability edge cases: zero-dice Forged display, `-0` modifier, unguarded compel, silent stress no-op, negative quantities, defaulted required fields | Closed-P3 |
+| F-P6b-23 | P3 | REQ-389c, REQ-390b, REQ-392, REQ-393, REQ-429 | assertion breadth: T453/T455/T459/T460 are vacuous or weak; T511 uses a partial persisted-type allowlist | Closed-P3 |
+| F-P6b-24 | P3 | REQ-395b, REQ-422, REQ-424, REQ-428 | entry-point polish: `update` prints no runbook pointer, `update-rulesets` prints no usage, `migrate-user-data` duplicates the runtime re-stamp, `prepare-package` omits the compiled update entry | Closed-P3 |
+| F-P6b-25 | P3 | REQ-391a, REQ-392 | surface polish: the no-Novel default listing omits installed-ruleset metadata; `tools_list_bytes` is a canonical-cache approximation | Closed-P3 |
+| F-P6b-26 | P3 | REQ-432a, REQ-389b, REQ-390a | provenance labels the license as `source`; `search`/`roll` hydrate failures escape the error taxonomy | Closed-P3 |
+

@@ -346,6 +346,10 @@ export class RulesetManager {
   // REQ-430 — per-package tool-quality results computed at hydration: the count
   // of conformant tool schemas and the list of non-conformant ones with defects.
   private toolQuality = new Map<string, { conformant: number; alerts: { tool: string; defects: string[] }[] }>();
+  // REQ-389b/REQ-390a — packages whose load failed (content hash, unreadable
+  // file) are recorded here so spec_health can surface the rejection without a
+  // second hydration attempt.
+  private loadFailures = new Map<string, string>();
   // REQ-390b — report-only index cache keyed by file mtime/size. Distinct from
   // hydration: this does not populate `hydrated` or change the hydrated count.
   private indexReportCache = new Map<string, { mtimeMs: number; size: number; entries: RulesetIndexEntry[] }>();
@@ -363,6 +367,7 @@ export class RulesetManager {
     this.installed.clear();
     this.incompatible.clear();
     this.toolQuality.clear();
+    this.loadFailures.clear();
     this.indexReportCache.clear();
     const errors: string[] = [];
     if (!fs.existsSync(this.installDir)) return errors;
@@ -443,6 +448,16 @@ export class RulesetManager {
   // and never silently dropped (REQ-393).
   incompatibleSlugs(): { slug: string; reason: string }[] {
     return [...this.incompatible.values()];
+  }
+
+  // REQ-389b — record a failed load (content-hash mismatch, missing file) so
+  // the rejection is reported in spec_health.ruleset_package_alerts.
+  recordLoadFailure(slug: string, reason: string): void {
+    this.loadFailures.set(slug, reason);
+  }
+
+  loadFailuresFor(): { slug: string; reason: string }[] {
+    return [...this.loadFailures.entries()].map(([slug, reason]) => ({ slug, reason: `[load-rejected] ${reason}` }));
   }
 
   // REQ-430 — non-conformant ruleset-derived tools, surfaced in spec_health

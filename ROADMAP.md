@@ -14,14 +14,88 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunk P6b (ruleset packages and host entry points; Fate, Ironsworn, and
-  Forged base capabilities) and chunk P7 (determinism and knowledge).
-- Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
-  Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
-  closed; §5.6 is complete and chunks P4, P5, and P6a closed 2026-11-09.
+- Chunk P7 (determinism and knowledge: §5.2, §5.7, §5.8, §5.14, §5.28–§5.30)
+  and chunk P8 (narrative cognition: §5.12, §5.25–§5.27, §5.32–§5.35).
+- The closing M1 machine-evidence re-run over the post-P8 tree, covering
+  `check:conformance`, `fmea`, and `graph-deps`. Scope is §5.1–§5.35 except
+  §5.9 and §5.19, which the 2026-11-09 seam pass closed; §5.6 and chunks P4,
+  P5, P6a, and P6b closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P6b;
-closes when chunks P6b–P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P7;
+closes when chunks P7–P8 and the closing M1 pass report.
+
+## §5.16/§5.17 ruleset surface remediation (P1)
+
+- Scope, annotation, and health: ruleset-scoped dispatch and listing
+  annotations, `inapplicable` hints, per-ruleset `ruleset_health` with a
+  combined summary and Player filtering, and ruleset-derived `suggest` names
+  (REQ-379b, REQ-379c, REQ-381b, REQ-381c, REQ-382b, REQ-382c, REQ-383a,
+  REQ-383b, REQ-385a, REQ-385b).
+- Novel identity, import/export, and codex: bind's mechanics-state check,
+  audited cross-ruleset switching, import validation with valid-slug
+  enumeration, export manifest ruleset, and the codex ruleset axis with
+  mismatched-import refusal (REQ-380c, REQ-384b, REQ-384c, REQ-386a, REQ-386b,
+  REQ-387a, REQ-387b).
+- Metrics, budget, and lifecycle: the `ruleset://` resource surface, aggregate
+  installed index bytes, the aggregate package tool budget, an Appendix
+  U-derived license set, runtime install registration, and `tools/list`
+  pagination (REQ-389c, REQ-390b, REQ-391c, REQ-430, REQ-432a, REQ-432b,
+  REQ-558).
+
+**Trigger:** the next §5.16/§5.17 remediation session; closes when F-P6b-9,
+F-P6b-10, F-P6b-11, F-P6b-12, F-P6b-16, and F-P6b-20 are `Resolved`.
+
+## §5.17/§5.18 package build and update remediation (P1)
+
+- A committed ruleset emitter invoked by `build-ruleset`, with `update`
+  rebuilding stale packages through it and running the package gates before a
+  re-stamp (REQ-395a, REQ-395c, REQ-563, REQ-564, REQ-650).
+- Supplement intake and overlay with recorded base/supplement/result hashes,
+  registry recipe roles and license, and `update-rulesets` base-hash reporting
+  (REQ-421, REQ-422, REQ-557).
+
+**Trigger:** the next package-build remediation session; closes when F-P6b-7
+and F-P6b-15 are `Resolved`.
+
+## §5.18 deploy, state, and publication remediation (P1)
+
+- State location: emit the `[state-in-tree]` warning in `spec_health` and on
+  stderr, and route the host entry scripts through the resolved data directory
+  (REQ-397).
+- Deploy guards, delta classification, and distribution: refuse a deploy clean
+  that would touch state, name the server on a fast-forward failure, stop the
+  stub path reporting a completed deploy, fail closed when no published spec
+  hash resolves, and add the container image plus `server.json` schema
+  validation (REQ-394, REQ-396, REQ-418, REQ-428).
+
+**Trigger:** the next §5.18 remediation session; closes when F-P6b-8,
+F-P6b-13, F-P6b-14, and F-P6b-19 are `Resolved`.
+
+## §5.21–§5.23 capability remediation (P1)
+
+- Forged consequences and refusal atomicity: model the named Forged
+  consequence so a resist reduces it, and move the Novel snapshot below every
+  validation guard so a refused capability action writes no undo state
+  (REQ-041a, REQ-041b, REQ-435, REQ-436, REQ-440, REQ-442).
+
+**Trigger:** the next capability-remediation session; closes when F-P6b-17 and
+F-P6b-18 are `Resolved`.
+
+## §5.16–§5.18 citation repair (P1)
+
+- §5.16/§5.17: write or re-point the missing assertions for the listing,
+  health, import/export, codex, suggest, pagination, package-integrity, and
+  Ironsworn-burn contracts (REQ-379c, REQ-381c, REQ-383b, REQ-384c, REQ-385b,
+  REQ-386b, REQ-387b, REQ-389b, REQ-389c, REQ-391b, REQ-391c, REQ-393,
+  REQ-439).
+- §5.18: write or re-point the missing assertions for the entry points, deploy
+  preservation, publication integrity, distribution, supplement provenance,
+  and package emission (REQ-395a, REQ-395b, REQ-396, REQ-397, REQ-398,
+  REQ-418, REQ-419, REQ-428, REQ-557, REQ-563, REQ-564).
+
+**Trigger:** the next citation-remediation session; closes when F-P6b-21 is
+`Resolved` and every §5.16–§5.18 `_Check:_` citation resolves to an exercised
+harness.
 
 ## §5.10 world-model contract remediation (P1)
 

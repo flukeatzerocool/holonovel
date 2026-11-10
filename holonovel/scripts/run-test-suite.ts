@@ -41,6 +41,7 @@ const TESTS = [
   "test:memory-recall",
   "test:adventure",
   "test:world-remediation",
+  "test:ruleset-surface-remediation",
   "test:artifact-registry",
   "test:hazard",
   "test:g7",
