@@ -59,13 +59,37 @@ REQ-055/055a/055b's T31/T108 citations.
 
 | ID | Finding | Disposition |
 |---|---|---|
-| P0-1 | `test:output-contracts` REQ-229 failure | Pre-existing (confirmed by stash at HEAD `1854cbb`); recorded here, no action. Test evidence owned by the synthesis track. |
+| P0-1 | `test:output-contracts` REQ-229 failure | **Fixed after the increment** — see *Follow-up* below; root cause was the load-response wording drifting from REQ-229c's quoted string. |
 | P0-2 | Plan-gate stamp cited a FAILED cold artifact | Fixed: re-stamped `self` with the user's recorded risk acceptance; process lesson above. |
 | P3-1 | Character-create seed warning has no assertion inside the ruleset-free backfill suite; covered in `test-competitive-gaps` instead | Record-and-close — covered, not a gap. |
 | P3-2 | `state.ts:652` comment drifted from behaviour | Fixed in this increment (comment amended). |
 
 No new `ROADMAP.md` entry and no new review-register row: every finding raised
 during execution was fixed or is the pre-existing P0-1.
+
+## Follow-up — REQ-229c linkage wording (2026-11-10)
+
+The pre-existing `test:output-contracts` failure was traced and fixed in a
+follow-up commit.
+
+- **Symptom:** `T305/REQ-229: load_adventure synthesis augmentation section`
+  asserted `Synthesis found` and saw `Synthesis: 1 item(s) active …`.
+- **Root cause:** commit `3b05c2c` reworded the load-response linkage line and
+  did not update REQ-229c, whose text quotes the original string verbatim
+  ("Synthesis found X voice examples for adventure NPCs, Y lore templates for
+  adventure locations. Review at `synthesis://status`."). The test was right;
+  the implementation had drifted.
+- **Fix:** restored the REQ-229c string in the world-model load branch. The
+  community-inert line added by `3b05c2c` is unchanged.
+- **Verification:** `test:output-contracts` 355/0, `test:backfill` 99/0
+  (T288 still passes).
+
+Residual drift, not fixed here: REQ-229c also quotes a community prompt
+("Synthesis X items found. Review at `synthesis://status` and activate
+individually.") while the code renders "Community synthesis items: N inert —
+activate with manage_synthesis (action: activate)." T288 asserts the code's
+wording. Aligning that one is a wording decision for the synthesis track, not
+a test failure.
 
 ## Loop status
 

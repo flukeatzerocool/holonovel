@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-10 — Restore the REQ-229c adventure-synthesis linkage wording
+
+- `manage_adventure (action: load)` again reports an active match as
+  "Synthesis found X voice examples for adventure NPCs, Y lore templates for
+  adventure locations. Review at `synthesis://status`." — the string REQ-229c
+  quotes. An earlier increment had reworded it without updating the
+  requirement, which left `test:output-contracts` T305 asserting a line the
+  server no longer produced. (REQ-229c; T305)
+
 ## 2026-11-10 — §5.7 determinism and citation repair
 
 - A per-call seed supplied while `TTRPG_SEED` is set now emits
