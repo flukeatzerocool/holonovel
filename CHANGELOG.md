@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-10 — Unscoped-surface review program
+
+- The review coverage the 2026-11-09 full-review sweep left out is now a
+  scheduled eight-chunk program: spec §1–§4 and §6–§11, Appendices A–Z,
+  `docs/engine-contract.md` §1/§7–§10, root tooling and CI, the governance
+  docs, `spec/audit/`, and the vendored and content assets.
+- `docs/plans/2026-11-10-unscoped-surface-review/` carries the plan, the
+  cross-session worklist with its mapping invariant, and this increment's AAR;
+  every chunk pairs a prose surface with the artifact that implements it and
+  reuses the sweep's P0–P3 disposition policy.
+- `ROADMAP.md` gains one P2 section naming the chunk series; U1 (foundations
+  and constitution) is the next session.
+
 ## 2026-11-10 — §5.18 deploy, state, and publication remediation
 
 - State location is one resolver again: `locateStateDir` reports the source and
