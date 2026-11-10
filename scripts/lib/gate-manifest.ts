@@ -203,6 +203,12 @@ const RAW_GATES: Gate[] = [
     fast: npm("check-starter-freshness"),
     full: npm("check-starter-freshness"),
   },
+  {
+    name: "check-fixture-emitter",
+    description: "Covered reference package re-emits byte-identically",
+    fast: npm("check-fixture-emitter"),
+    full: npm("check-fixture-emitter"),
+  },
   // Full-gate only: spawns a child per shipped Novel, too slow for check:fast.
   {
     name: "playability",

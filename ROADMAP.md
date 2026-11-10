@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.17/§5.18 package build and update remediation (P1)
-
-- A committed ruleset emitter invoked by `build-ruleset`, with `update`
-  rebuilding stale packages through it and running the package gates before a
-  re-stamp (REQ-395a, REQ-395c, REQ-563, REQ-564, REQ-650).
-- Supplement intake and overlay with recorded base/supplement/result hashes,
-  registry recipe roles and license, and `update-rulesets` base-hash reporting
-  (REQ-421, REQ-422, REQ-557).
-
-**Trigger:** the next package-build remediation session; closes when F-P6b-7
-and F-P6b-15 are `Resolved`.
-
 ## §5.18 deploy, state, and publication remediation (P1)
 
 - State location: emit the `[state-in-tree]` warning in `spec_health` and on

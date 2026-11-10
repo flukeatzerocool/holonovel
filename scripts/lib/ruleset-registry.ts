@@ -10,7 +10,8 @@
 // `emitter`/`emitter_args` (the rebuild invocation), `base_content_hash` and
 // `supplements` (REQ-557). No filesystem side effects beyond the exported calls.
 
-import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, realpathSync, unlinkSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, realpathSync, unlinkSync, cpSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join, sep } from "node:path";
 import { CORE_TOOL_GROUPS } from "../../holonovel/src/rulesets.js";
 
@@ -119,6 +120,103 @@ export interface ResolvedEmitter {
   args: string[];
 }
 
+export interface RebuildResult {
+  ok: boolean;
+  reason?: string;
+}
+
+export interface BaseEmissionState {
+  state: "none" | "current" | "changed" | "unavailable" | "no-hash";
+  recorded?: string;
+  current?: string;
+  reason?: string;
+}
+
+// REQ-557 — base drift is measured against the base's *current emission* (the
+// emitter's committed baseline, dry-run), never the frozen overlay snapshot and
+// never the overlaid package manifest. Four distinct states keep a caller from
+// reporting "current" when it could not resolve the base.
+export function baseEmissionState(
+  root: string, installDir: string, slug: string, entry: RegistryEntry | undefined,
+): BaseEmissionState {
+  const recorded = entry?.base_content_hash;
+  if (!recorded) return { state: "none" };
+  const resolved = resolveEmitter(root, installDir, slug, entry);
+  if (!resolved) return { state: "unavailable", recorded, reason: "no recorded emitter or source" };
+  const r = spawnSync("node", [resolved.emitter, ...resolved.args, "--dry-run", "--json"], {
+    cwd: root, encoding: "utf-8",
+  });
+  if (r.status !== 0) {
+    return { state: "no-hash", recorded, reason: `emitter exited ${r.status}` };
+  }
+  try {
+    const lines = (r.stdout ?? "").trim().split("\n");
+    const parsed = JSON.parse(lines[lines.length - 1] ?? "{}");
+    const current = parsed.content_hash;
+    if (typeof current !== "string") throw new Error("no content_hash");
+    return { state: current === recorded ? "current" : "changed", recorded, current };
+  } catch {
+    return { state: "no-hash", recorded, reason: "emitter did not report a content hash" };
+  }
+}
+
+// REQ-563/REQ-564 — one staged rebuild path shared by `build-ruleset` and
+// `update`: run the emitter into `<install>/<slug>.staging-<pid>` via its
+// `--out` argument, run the package gates there, then back up and swap. A gate
+// defect or emitter failure removes staging and leaves the installed package
+// untouched. An emitter that cannot stage is refused, never installed un-gated.
+//
+// The gate set is REQ-430 (tool schemas), REQ-559 (model shape) and REQ-560
+// (ruleset-free replay). It is duplicated from the emitter kit's
+// `runPackageGates` because this module is TypeScript and the kit is `.mjs`;
+// keep the two lists in step.
+export function runRebuildWithGates({
+  root, installDir, slug, emitter, args,
+}: { root: string; installDir: string; slug: string; emitter: string; args: string[] }): RebuildResult {
+  const target = join(installDir, slug);
+  const staging = `${target}.staging-${process.pid}`;
+  const outIdx = args.indexOf("--out");
+  if (outIdx < 0 || outIdx === args.length - 1) {
+    return { ok: false, reason: "emitter cannot stage (no --out argument)" };
+  }
+  const staged = [...args];
+  staged[outIdx + 1] = staging;
+  rmSync(staging, { recursive: true, force: true });
+  // Some emitters write straight into `--out` instead of creating it.
+  mkdirSync(staging, { recursive: true });
+
+  const run = spawnSync("node", [emitter, ...staged], { cwd: root, encoding: "utf-8" });
+  const output = `${run.stdout ?? ""}${run.stderr ?? ""}`.trim();
+  if (run.status !== 0) {
+    rmSync(staging, { recursive: true, force: true });
+    return { ok: false, reason: `emitter exited ${run.status}: ${output.slice(-400)}` };
+  }
+
+  const gates: Array<[string, string[]]> = [
+    ["scripts/check-ruleset-package.ts", [staging]],
+    ["scripts/check-ruleset-model.ts", [staging]],
+    ["holonovel/scripts/test-ruleset-nonovel.ts", ["--package", staging]],
+  ];
+  for (const [gate, gateArgs] of gates) {
+    const r = spawnSync("npx", ["tsx", join(root, gate), ...gateArgs], {
+      cwd: root, encoding: "utf-8",
+    });
+    if (r.status !== 0) {
+      const detail = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim().slice(-600);
+      rmSync(staging, { recursive: true, force: true });
+      return { ok: false, reason: `${gate} failed: ${detail}` };
+    }
+  }
+
+  if (existsSync(target)) {
+    const backup = join(installDir, "..", `rulesets-backup-${slug}-${Date.now()}`);
+    cpSync(target, backup, { recursive: true });
+  }
+  cpSync(staging, target, { recursive: true });
+  rmSync(staging, { recursive: true, force: true });
+  return { ok: true };
+}
+
 // REQ-563/REQ-564 — resolve the per-slug rebuild invocation. Order: recorded
 // emitter → committed repo emitter → an emitter discovered beside the recorded
 // source. Repo emitters take a baseline flag; discovered external emitters
@@ -159,8 +257,9 @@ export function resolveEmitter(
   };
   const emitter = candidates.find((c) => existsSync(c) && isTrusted(c));
   if (!emitter) return null;
-  const isRepoEmitter = emitter === repoEmitter;
-  const args = entry?.emitter_args
-    ?? (isRepoEmitter ? ["--baseline", "{dir}", "--out", "{dir}"] : ["--out", "{dir}"]);
+  // REQ-563 — a repo emitter supplies its own committed baseline, so `--out`
+  // is the only argument it needs; injecting `--baseline {dir}` would make a
+  // fresh clone depend on an installed package.
+  const args = entry?.emitter_args ?? ["--out", "{dir}"];
   return { emitter, args: args.map((a) => a.replaceAll("{dir}", join(installDir, slug))) };
 }

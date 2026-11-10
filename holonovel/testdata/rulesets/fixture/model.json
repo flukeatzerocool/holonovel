@@ -125,7 +125,7 @@
   "guidance": {},
   "prompt_inputs": {
     "display_name": "Fixture Ruleset",
-    "tagline": "Fixture Ruleset \u2014 a compact test ruleset for verification.",
+    "tagline": "Fixture Ruleset — a compact test ruleset for verification.",
     "core_mechanic": "Stat Check (roll d100 under the stat)",
     "sourcebooks": [
       "fixture"

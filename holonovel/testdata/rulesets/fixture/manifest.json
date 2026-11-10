@@ -1,17 +1,9 @@
 {
   "slug": "fixture",
   "name": "Holonovel Character-Creation Fixture",
-  "host_version": "2026.08.18",
-  "content_hash": "5b0194883b37bf9901de833d5f846945afc1a21f50fd95cc829e0d9932703d4c",
-  "built_at": "2026-08-21T00:00:00Z",
-  "counts": {
-    "anchor": 0,
-    "concepts": 0,
-    "entities": 0,
-    "actions": 0,
-    "tables": 0,
-    "resolution": 0,
-    "roles": 0,
-    "guidance": 0
-  }
+  "host_version": "2026.11.10",
+  "content_hash": "ca7a4b21c95484bd47aa9bfb0fc740b5e6621cf1e085643318218fac7ff51dce",
+  "built_at": "2026-11-10T00:00:00.000Z",
+  "counts": {},
+  "package_format": "cf905514307c40bcfde27ced920db10ecb923eb6e9e4aa130bb02edf84b26a1c"
 }

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-10 — §5.17/§5.18 package build and update remediation
+
+- The covered non-commercial reference package ships a committed deterministic
+  emitter (`scripts/ruleset-builds/fixture/build-package.mjs`) with a pinned
+  build timestamp; `build-ruleset` invokes the resolved emitter instead of only
+  printing the Build command, and the fixture is exempted by exact slug in
+  `.gitignore` and `check-reference-server-cleanliness` (REQ-395a, REQ-563).
+- `build-ruleset` and `update` share one staged rebuild path: emit into
+  `<slug>.staging-<pid>`, run the REQ-430/REQ-559/REQ-560 package gates, then
+  back up and swap; a gate defect defers the slug by name and leaves the
+  installed package and registry untouched (REQ-395c, REQ-564, REQ-650).
+- Supplement builds accept `slug+=path`, overlay durable parts by key through
+  the emitter, record `base_content_hash` plus per-source hashes in the registry
+  and the state-dir provenance log, and are idempotent; `update` and
+  `update-rulesets` report base drift against the base's current emission
+  (REQ-421, REQ-422, REQ-557).
+- New `check-fixture-emitter` gate (wired into `check`/`check:fast`) and
+  `version-bump` re-emission keep the committed package byte-identical; T463,
+  T650, T656, T657, and T689 assertions added, T499 extended (REQ-561).
+- Closed F-P6b-7 and F-P6b-15; recorded the deferred REQ-395a
+  arbitrary-new-package half in DECISIONS.md.
+
 ## 2026-11-10 — §5.16/§5.17 ruleset surface remediation
 
 - `tools/list` reports `_meta.ruleset` on every entry and

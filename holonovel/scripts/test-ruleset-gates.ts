@@ -12,7 +12,7 @@
  * Exit codes: 0 = pass, 1 = one or more assertions failed.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
@@ -323,6 +323,24 @@ test("T689/REQ-563+REQ-578: emitter declares surfaces and is deterministic at a 
   for (const f of ["manifest.json", "index.json", "model.json", "tools.json", "resources.json", "prompts.json"]) {
     assert(readFileSync(join(outs[0], f), "utf-8") === readFileSync(join(outs[1], f), "utf-8"), `${f} differs between emissions`);
   }
+});
+
+test("T656/REQ-563: the committed fixture emitter reproduces all six files byte-identically", () => {
+  const repo = join(import.meta.dirname, "..", "..");
+  const emitter = join(repo, "scripts", "ruleset-builds", "fixture", "build-package.mjs");
+  const current = spawnSync("node", [emitter, "--check"], { cwd: repo, encoding: "utf-8" });
+  assert(current.status === 0, `fresh emission drifted: ${(current.stdout ?? "")}${(current.stderr ?? "")}`);
+
+  // A defective copy is refused by the emitter, naming the defect.
+  const base = join(TMP, "fixture-defect");
+  cpSync(join(repo, "holonovel", "testdata", "rulesets", "fixture"), base, { recursive: true });
+  writeFileSync(join(base, "tools.json"), JSON.stringify([{
+    name: "bad_tool", title: "Bad Tool", kind: "lookup",
+    inputSchema: { type: "object", properties: {} },
+  }], null, 2) + "\n");
+  const bad = spawnSync("node", [emitter, "--baseline", base, "--out", join(TMP, "fixture-defect-out"), "--no-backup"], { cwd: repo, encoding: "utf-8" });
+  assert(bad.status !== 0, "emitter accepted a gate-defective package");
+  assert(/bad_tool/.test(`${bad.stdout ?? ""}${bad.stderr ?? ""}`), `defect not named: ${(bad.stdout ?? "")}${(bad.stderr ?? "")}`);
 });
 
 test("T737/REQ-619: reference emitter populates creator/attribution from its provenance record", () => {

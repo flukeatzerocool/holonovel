@@ -1380,6 +1380,27 @@ pass and completion-oracle green. Fix evidence: regression tests in
   `holonovel/src/index.ts:materializeAnnotations`; exercised by
   `test:adventure` and `test:backfill` T244)
 
+## Resolved — 2026-11-10 package build and update remediation
+
+- **F-P6b-7 — no committed ruleset emitter; `build-ruleset` never emits
+  (resolved 2026-11-10):** the covered non-commercial fixture ships a committed
+  deterministic emitter (`scripts/ruleset-builds/fixture/build-package.mjs`),
+  `build-ruleset` invokes the resolved emitter and propagates its exit code
+  (`scripts/build-ruleset.ts:263`), and both it and `update` stage, gate, then
+  swap (`scripts/lib/ruleset-registry.ts:173`); drift is gated by
+  `scripts/check-fixture-emitter.ts`. Exercised by T656
+  (`holonovel/scripts/test-ruleset-gates.ts:328`) and T689
+  (`holonovel/scripts/test-update-workflow.ts`). REQ-395a, REQ-395c, REQ-563,
+  REQ-564, REQ-650.
+- **F-P6b-15 — supplement provenance and base-hash reporting absent
+  (resolved 2026-11-10):** `build-ruleset` parses `slug+=path`, overlays merged
+  parts through the emitter
+  (`scripts/lib/ruleset-supplement.ts`), records `base_content_hash` and
+  per-source hashes, and appends the state-dir provenance log; `update` and
+  `update-rulesets` compare the recorded base hash against the current base
+  emission (`scripts/lib/ruleset-registry.ts:139`). Exercised by T650
+  (`holonovel/scripts/test-fingerprints.ts:298`). REQ-395a, REQ-421, REQ-557.
+
 ## Scheduled-roadmap
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
@@ -1404,12 +1425,6 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 
-- **F-P6b-7 — no committed ruleset emitter; `build-ruleset` never emits
-  (2026-11-09):** `scripts/build-ruleset.ts:142-149` prints the Build
-  invocation only, and `.gitignore:22` excludes `scripts/ruleset-builds/`, so
-  `resolveEmitter` trusts a path that cannot exist and `update --apply` can
-  only defer. REQ-395a, REQ-395c, REQ-563, REQ-564, REQ-650. Scheduled under
-  §5.17/§5.18 package build and update remediation.
 - **F-P6b-8 — no `[state-in-tree]` warning; scripts create in-tree state
   (2026-11-09):** `holonovel/src/core/data-dir.ts:60-61` returns a legacy
   in-tree directory silently and the four root entry scripts hardcode
@@ -1424,11 +1439,6 @@ absent, so each finding carries the failing predicate rather than a test.
   (2026-11-09):** `scripts/spec-delta.ts:138-140` falls back to the
   `DECISIONS.md` working copy when no published hash resolves. REQ-394.
   Scheduled under §5.18 deploy, state, and publication remediation.
-- **F-P6b-15 — supplement provenance and base-hash reporting absent
-  (2026-11-09):** no supplement intake/overlay and no `base_content_hash`
-  writer (`scripts/lib/ruleset-registry.ts:29`), and `update-rulesets` never
-  compares one. REQ-395a, REQ-421, REQ-557. Scheduled under §5.17/§5.18
-  package build and update remediation.
 - **F-P6b-17 — Forged resist does not reduce a named consequence
   (2026-11-09):** `index.ts:7828-7834` adds stress only and the Forged state
   has no consequence slot. REQ-442. Scheduled under §5.21–§5.23 capability
@@ -1444,13 +1454,13 @@ absent, so each finding carries the failing predicate rather than a test.
   Scheduled under §5.18 deploy, state, and publication remediation.
 - **F-P6b-21 — §5.16–§5.18 citation gaps (2026-11-09):** absent or
   non-exercising assertions — T440, T442–T447, T451, T457, T458, T463–T467,
-  T491, T492, T650, T656, T657; weak T454, T455, T456, T459, T460, T462,
+  T491, T492; weak T454, T455, T456, T459, T460, T462,
   T499, T510; and T431 is cited for codex though it is the Pattern Buffer
-  traceability test.
+  traceability test. T650, T656, and T657 are exercised as of 2026-11-10.
   REQ-379c, REQ-381c, REQ-383b, REQ-384c, REQ-385b, REQ-386b, REQ-387b,
   REQ-389b, REQ-389c, REQ-391b, REQ-391c, REQ-393, REQ-395a, REQ-395b,
-  REQ-396, REQ-397, REQ-398, REQ-418, REQ-419, REQ-428, REQ-439, REQ-557,
-  REQ-563, REQ-564. Scheduled under §5.16–§5.18 citation repair.
+  REQ-396, REQ-397, REQ-398, REQ-418, REQ-419, REQ-428, REQ-439.
+  Scheduled under §5.16–§5.18 citation repair.
 
 ### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
 

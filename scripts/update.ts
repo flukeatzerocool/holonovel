@@ -20,7 +20,7 @@ import { join } from "node:path";
 import { handleHelp, parseFlag, rejectUnknown } from "./lib/args.js";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
 import {
-  loadRegistry, saveRegistry, installedManifests, resolveEmitter,
+  loadRegistry, saveRegistry, installedManifests, resolveEmitter, runRebuildWithGates, baseEmissionState,
   type RegistryEntry,
 } from "./lib/ruleset-registry.js";
 import { validateToolSchema } from "../holonovel/src/rulesets.js";
@@ -78,14 +78,10 @@ function toolQualityDefects(slug: string): number {
   }
 }
 
-function staleReason(slug: string, pkg: { package_format?: string; missing_surface: boolean }, current: string, entry?: RegistryEntry): string | null {
+function staleReason(slug: string, pkg: { package_format?: string; missing_surface: boolean }, current: string): string | null {
   if (pkg.package_format !== current) return pkg.package_format ? "fingerprint mismatch" : "no package-format fingerprint";
   if (pkg.missing_surface) return "missing surface declaration";
   if (toolQualityDefects(slug) > 0) return "tool-quality defects";
-  if (entry?.base_content_hash) {
-    const installed = readManifest(slug).content_hash;
-    if (installed && installed !== entry.base_content_hash) return "supplement base hash mismatch";
-  }
   return null;
 }
 
@@ -103,7 +99,7 @@ function main(): number {
   // ── Package tier ────────────────────────────────────────────────────
   if (!dataOnly) {
     for (const pkg of packages) {
-      const reason = staleReason(pkg.slug, pkg, current, registry[pkg.slug]);
+      const reason = staleReason(pkg.slug, pkg, current);
       if (!reason) {
         outcomes.push({ tier: "package", name: pkg.slug, outcome: "current" });
         continue;
@@ -117,12 +113,27 @@ function main(): number {
         outcomes.push({ tier: "package", name: pkg.slug, outcome: "planned", reason: `${resolved.emitter} ${resolved.args.join(" ")}` });
         continue;
       }
-      const r = run("node", [resolved.emitter, ...resolved.args]);
-      if (r.status === 0) {
+      const result = runRebuildWithGates({
+        root, installDir, slug: pkg.slug, emitter: resolved.emitter, args: resolved.args,
+      });
+      if (result.ok) {
         registry[pkg.slug] = { ...(registry[pkg.slug] ?? { source: "" }), package_format: current, built_at: new Date().toISOString() };
         outcomes.push({ tier: "package", name: pkg.slug, outcome: "updated" });
       } else {
-        outcomes.push({ tier: "package", name: pkg.slug, outcome: "deferred", reason: `emitter exited ${r.status}: ${r.out.trim().slice(-200)}` });
+        outcomes.push({ tier: "package", name: pkg.slug, outcome: "deferred", reason: result.reason ?? "emitter failed" });
+      }
+    }
+    // REQ-557 — supplement base drift is reported separately and never
+    // silently rebuilt from the frozen overlay snapshot.
+    for (const [slug, entry] of Object.entries(registry)) {
+      const base = baseEmissionState(root, installDir, slug, entry);
+      if (base.state === "changed") {
+        outcomes.push({
+          tier: "package", name: slug, outcome: "deferred",
+          reason: `supplement base changed (${base.recorded?.slice(0, 12)}… → ${base.current?.slice(0, 12)}…); re-run build-ruleset ${slug}+=<path>`,
+        });
+      } else if (base.state === "unavailable" || base.state === "no-hash") {
+        outcomes.push({ tier: "package", name: slug, outcome: "deferred", reason: `base hash unresolved: ${base.reason}` });
       }
     }
     if (apply) saveRegistry(dataDir, registry);

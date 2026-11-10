@@ -166,16 +166,21 @@ export function backupInstallDir(outDir, installDir, slug) {
   return backup;
 }
 
-// REQ-430 — the emitter runs the ruleset-package gates over the emitted package
-// and refuses to finalize on any defect. Returns the combined output; callers
-// treat a non-null message as a refusal.
+// REQ-563 — the emitter runs the ruleset-package gates over the emitted package
+// and refuses to finalize on any defect: REQ-430 (tool schemas), REQ-559
+// (model shape) and REQ-560 (ruleset-free replay). Returns the combined output;
+// callers treat a non-null message as a refusal.
 export function runPackageGates(dir, repoRoot) {
-  const gates = ["check-ruleset-package.ts", "check-ruleset-model.ts"];
+  const gates = [
+    ["scripts/check-ruleset-package.ts", [dir]],
+    ["scripts/check-ruleset-model.ts", [dir]],
+    ["holonovel/scripts/test-ruleset-nonovel.ts", ["--package", dir]],
+  ];
   const failures = [];
-  for (const gate of gates) {
-    const r = spawnSync("npx", ["tsx", path.join("scripts", gate), dir], { cwd: repoRoot, encoding: "utf-8" });
+  for (const [gate, args] of gates) {
+    const r = spawnSync("npx", ["tsx", path.join(repoRoot, gate), ...args], { cwd: repoRoot, encoding: "utf-8" });
     const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-    if (r.status !== 0) failures.push(`${gate}:\n${out.trim()}`);
+    if (r.status !== 0) failures.push(`${path.basename(gate)}:\n${out.trim()}`);
   }
   return failures.length > 0 ? failures.join("\n") : null;
 }
@@ -192,28 +197,34 @@ export function writePackageFiles(outDir, files) {
 // the package gates and refuse to finalize on any defect. Returns an exit code
 // (0 = written or dry-run, 1 = gate refusal / failure). Thin per-slug recipes
 // call this so the emitter logic lives in one place.
-export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
+//
+// `defaultBaselineDir` names a committed package directory (five parts) used
+// when neither `--baseline` nor `<scriptDir>/baseline.json` exists, so a fresh
+// clone emits without an installed package.
+export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv, defaultBaselineDir }) {
   const opts = parseBuildArgs(argv, {
-    baseline: "baselineDir", out: "out", "dry-run": "dryRun", "no-backup": "noBackup",
+    baseline: "baselineDir", out: "out", "dry-run": "dryRun", "no-backup": "noBackup", json: "json",
   });
   if (opts.help) {
-    console.log(`usage: node scripts/ruleset-builds/${slug}/build-package.mjs [--baseline <dir>] [--out <dir>] [--dry-run] [--no-backup]`);
+    console.log(`usage: node scripts/ruleset-builds/${slug}/build-package.mjs [--baseline <dir>] [--out <dir>] [--dry-run] [--no-backup] [--json]`);
     return 0;
   }
   const installDir = process.env.TTRPG_RULESET_DIRS ?? path.join(repoRoot, "holonovel", ".holonovel-state", "rulesets");
   const outDir = path.resolve(opts.out ?? path.join(installDir, slug));
 
+  const readParts = (dir) => ({
+    index: readJson(path.join(dir, "index.json")),
+    model: readJson(path.join(dir, "model.json")),
+    tools: readJson(path.join(dir, "tools.json")),
+    resources: readJson(path.join(dir, "resources.json")),
+    prompts: readJson(path.join(dir, "prompts.json")),
+  });
+
   let base;
   if (opts.baselineDir) {
-    base = {
-      name,
-      counts: {},
-      index: readJson(path.join(opts.baselineDir, "index.json")),
-      model: readJson(path.join(opts.baselineDir, "model.json")),
-      tools: readJson(path.join(opts.baselineDir, "tools.json")),
-      resources: readJson(path.join(opts.baselineDir, "resources.json")),
-      prompts: readJson(path.join(opts.baselineDir, "prompts.json")),
-    };
+    base = { name, counts: {}, ...readParts(opts.baselineDir) };
+  } else if (defaultBaselineDir) {
+    base = { name, counts: {}, ...readParts(defaultBaselineDir) };
   } else {
     base = readJson(path.join(scriptDir, "baseline.json"));
   }
@@ -234,14 +245,26 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
     package_format: packageFormat,
   };
 
-  console.log(`build-package — ${slug}`);
-  console.log(`  baseline:       ${opts.baselineDir ?? path.join(scriptDir, "baseline.json")}`);
-  console.log(`  output:         ${outDir}`);
-  console.log(`  host_version:   ${hostVersion}`);
-  console.log(`  package_format: ${packageFormat}`);
-  console.log(`  content_hash:   ${contentHash}`);
+  const baselineLabel = opts.baselineDir ?? defaultBaselineDir ?? path.join(scriptDir, "baseline.json");
+  if (opts.json) {
+    console.log(JSON.stringify({
+      slug, out: outDir, baseline: baselineLabel, host_version: hostVersion,
+      package_format: packageFormat, content_hash: contentHash, built_at: manifest.built_at,
+      dry_run: Boolean(opts.dryRun),
+    }));
+  } else {
+    console.log(`build-package — ${slug}`);
+    console.log(`  baseline:       ${baselineLabel}`);
+    console.log(`  output:         ${outDir}`);
+    console.log(`  host_version:   ${hostVersion}`);
+    console.log(`  package_format: ${packageFormat}`);
+    console.log(`  content_hash:   ${contentHash}`);
+  }
 
-  if (opts.dryRun) { console.log("\nDry run — no files written."); return 0; }
+  if (opts.dryRun) {
+    if (!opts.json) console.log("\nDry run — no files written.");
+    return 0;
+  }
 
   // Gate before install: emit into a staging directory, run the package gates,
   // and only then back up and copy over the target. A gate refusal leaves the
@@ -262,10 +285,11 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv }) {
     return 1;
   }
   if (!opts.noBackup && fs.existsSync(outDir)) {
-    console.log(`  backup:         ${backupInstallDir(outDir, installDir, slug)}`);
+    const backup = backupInstallDir(outDir, installDir, slug);
+    if (!opts.json) console.log(`  backup:         ${backup}`);
   }
   fs.cpSync(staging, outDir, { recursive: true });
   fs.rmSync(staging, { recursive: true, force: true });
-  console.log(`\nWrote ${PACKAGE_FILES.length} files to ${outDir}`);
+  if (!opts.json) console.log(`\nWrote ${PACKAGE_FILES.length} files to ${outDir}`);
   return 0;
 }

@@ -361,7 +361,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-392 | Tool-description budget | 5.17 Ruleset Packages | C | T479, T459 | — |
 | REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460 | — |
 | REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T84e | — |
-| REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T689 | — |
+| REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T463, T650, T689 | — |
 | REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | — | — |
 | REQ-397 | Untracked state location | 5.18 Workflow Entry Points | E | — | — |
 | REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | — | — |
@@ -512,14 +512,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-554 | Server tool-surface coherence | 5.3 Tools, Resources, and Lookups | C | T646 | — |
 | REQ-555 | Shadowing-risk report | 5.3 Tools, Resources, and Lookups | C | T647 | — |
 | REQ-556 | Update-workflow user-data reconciliation | 5.18 Workflow Entry Points | E | T649 | — |
-| REQ-557 | Supplement-build provenance | 5.18 Workflow Entry Points | E | — | — |
+| REQ-557 | Supplement-build provenance | 5.18 Workflow Entry Points | E | T650 | — |
 | REQ-558 | Host-level ruleset content access | 5.18 Workflow Entry Points | C | T651 | — |
 | REQ-559 | Package model contract | 5.2 Extraction and Confidence | E | T652 | — |
 | REQ-560 | Build-time package replay | 5.18 Workflow Entry Points | E | T653 | — |
 | REQ-561 | Deterministic package emission | 5.18 Workflow Entry Points | E | T654 | — |
 | REQ-562 | Convert front-matter exclusion | 5.2 Extraction and Confidence | E | T655 | — |
-| REQ-563 | Ruleset package emitter | 5.18 Workflow Entry Points | E | — | — |
-| REQ-564 | Update-workflow tool-quality remediation | 5.18 Workflow Entry Points | E | — | — |
+| REQ-563 | Ruleset package emitter | 5.18 Workflow Entry Points | E | T656 | — |
+| REQ-564 | Update-workflow tool-quality remediation | 5.18 Workflow Entry Points | E | T657 | — |
 | REQ-565 | Bundled starter Novel | 5.9 Novel Persistence and Transport | C | T658 | — |
 | REQ-566 | Starter freshness and provenance | 5.9 Novel Persistence and Transport | C | T659 | — |
 | REQ-567 | Tool surface declaration | 5.3 Tools, Resources, and Lookups | C | T660 | — |

@@ -18,5 +18,7 @@ plans/*
 AGENTS.md
 
 # Per-book build assets live in the deployed content pipeline, never here
-# (holonovel/DECISIONS.md — reference-server content boundary).
-scripts/ruleset-builds/
+# (holonovel/DECISIONS.md — reference-server content boundary). The one
+# sanctioned exception is the covered non-commercial reference fixture emitter.
+scripts/ruleset-builds/*
+!scripts/ruleset-builds/fixture/

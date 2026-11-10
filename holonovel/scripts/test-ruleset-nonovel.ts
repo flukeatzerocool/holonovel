@@ -6,12 +6,15 @@
 // when no model entry backs them, name/alias resolution, and declared defaultDice.
 //
 // Uses a self-contained synthetic package fixture, so the reference server's test
-// surface carries no ruleset-specific content.
+// surface carries no ruleset-specific content. With `--package <dir>`, replays
+// that package instead (REQ-560 reuse by the package gates): lists its declared
+// tools, calls each once with an argument derived from its model, and asserts no
+// [NOT_FOUND].
 //
 // Exit codes: 0 = pass, 1 = one or more assertions failed.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { computeContentHash } from "../src/rulesets.js";
@@ -21,7 +24,18 @@ installHarnessGuard();
 
 const SERVER_SCRIPT = process.env.HOLONOVEL_SERVER ?? join(import.meta.dirname!, "..", "src", "index.ts");
 const DATA_DIR = mkdtempSync(join(tmpdir(), "holonovel-ruleset-nonovel-"));
-const SLUG = "fixture558";
+const DEFAULT_SLUG = "fixture558";
+
+// REQ-560 — the package gates replay an emitted package through this harness.
+const pkgFlag = process.argv.indexOf("--package");
+const EXTERNAL_DIR = pkgFlag >= 0 ? process.argv[pkgFlag + 1] : null;
+if (pkgFlag >= 0 && (!EXTERNAL_DIR || !existsSync(join(EXTERNAL_DIR, "manifest.json")))) {
+  console.error(`--package requires a directory containing manifest.json (got: ${EXTERNAL_DIR ?? "<none>"})`);
+  process.exit(2);
+}
+const SLUG = EXTERNAL_DIR
+  ? JSON.parse(readFileSync(join(EXTERNAL_DIR, "manifest.json"), "utf-8")).slug
+  : DEFAULT_SLUG;
 
 let passed = 0;
 let failed = 0;
@@ -77,6 +91,48 @@ function installFixture(): void {
   }
 }
 
+// REQ-560 — replay an emitted package supplied with `--package`.
+function installExternal(dir: string): { tools: any[]; index: any[]; model: any } {
+  const target = join(DATA_DIR, "rulesets", SLUG);
+  mkdirSync(target, { recursive: true });
+  for (const file of ["manifest.json", "index.json", "model.json", "tools.json", "resources.json", "prompts.json"]) {
+    if (existsSync(join(dir, file))) cpSync(join(dir, file), join(target, file));
+  }
+  return {
+    tools: JSON.parse(readFileSync(join(dir, "tools.json"), "utf-8")),
+    index: JSON.parse(readFileSync(join(dir, "index.json"), "utf-8")),
+    model: JSON.parse(readFileSync(join(dir, "model.json"), "utf-8")),
+  };
+}
+
+// A canonical argument per tool kind, derived from the package's own parts.
+function replayArgs(tool: any, index: any[], model: any): Record<string, unknown> {
+  const firstKey = (obj: any): string | undefined => (obj && typeof obj === "object" ? Object.keys(obj)[0] : undefined);
+  const required: string[] = Array.isArray(tool?.inputSchema?.required) ? tool.inputSchema.required : [];
+  const valueFor = (prop: string): unknown => {
+    const schema = tool?.inputSchema?.properties?.[prop] ?? {};
+    if (schema.type === "number" || schema.type === "integer") return 50;
+    if (schema.type === "boolean") return false;
+    return firstKey(model?.[tool?.collection])
+      ?? firstKey(model?.generation_tables)
+      ?? firstKey(model?.tables)
+      ?? index?.[0]?.id
+      ?? index?.[0]?.anchor
+      ?? "test";
+  };
+  const args: Record<string, unknown> = {};
+  if (tool?.kind === "search") {
+    args[required[0] ?? "query"] = index?.[0]?.anchor ?? "test";
+  } else if (tool?.kind === "table") {
+    args[required[0] ?? "table"] = firstKey(model?.generation_tables) ?? firstKey(model?.tables) ?? "test";
+  } else if (tool?.kind === "roll" || tool?.kind === "info") {
+    for (const prop of required) args[prop] = valueFor(prop);
+  } else {
+    for (const prop of required) args[prop] = valueFor(prop);
+  }
+  return args;
+}
+
 let msgId = 0;
 const pending = new Map<number, (msg: any) => void>();
 let buffer = "";
@@ -129,6 +185,31 @@ function kill(proc: ChildProcess): Promise<void> {
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function main() {
+  if (EXTERNAL_DIR) {
+    console.log(`=== Ruleset replay for an emitted package (REQ-560) — ${SLUG} ===\n`);
+    const parts = installExternal(EXTERNAL_DIR);
+    await test(`T653/REQ-560: every declared tool replays without [NOT_FOUND] (${SLUG})`, async () => {
+      const p = await boot();
+      const listed = await send(p, { method: "tools/list", params: { _meta: { scope: "all" } } });
+      const names = ((listed.result?.tools ?? []) as any[]).map((t) => t.name);
+      let called = 0;
+      for (const tool of parts.tools) {
+        const name = `${SLUG}_${tool.name}`;
+        assertContains(names.join(","), name, `tool ${name} registered`);
+        const out = await call(p, name, replayArgs(tool, parts.index, parts.model));
+        assertNotContains(out, "[ERROR] [NOT_FOUND]", `replay ${name} answered`);
+        assertNotContains(out, "[ERROR]", `replay ${name} did not error`);
+        called++;
+      }
+      console.log(`  replay: ${called} declared tool(s)`);
+      await kill(p);
+    });
+    console.log(`\n${passed} passed, ${failed} failed`);
+    rmSync(DATA_DIR, { recursive: true, force: true });
+    if (failed === 0) harnessComplete();
+    process.exit(failed > 0 ? 1 : 0);
+  }
+
   console.log("=== Ruleset no-Novel access (REQ-558 / T651) ===\n");
   installFixture();
 

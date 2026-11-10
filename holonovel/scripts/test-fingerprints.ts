@@ -270,6 +270,70 @@ async function main() {
     });
   }
 
+  // ── T463 (REQ-395a) — build entry point contract ──────────────────
+  {
+    await test("T463/REQ-395a: build-ruleset prints usage and rejects a Markdown-less path", async () => {
+      const usage = runRootScript("build-ruleset.ts");
+      if (usage.status !== 0) throw new Error(`no-argument invocation failed: ${usage.stdout} ${usage.stderr}`);
+      assertContains(usage.stdout, "Usage:");
+      assertContains(usage.stdout, "Install directory:");
+      const empty = join(DATA_DIR, "empty-intake");
+      mkdirSync(empty, { recursive: true });
+      const bad = runRootScript("build-ruleset.ts", [`baddemo=${empty}`]);
+      if (bad.status === 0) throw new Error("expected a nonzero exit for a Markdown-less path");
+      assertContains(bad.stderr, "not a directory containing");
+    });
+  }
+
+  // ── T650 (REQ-395a, REQ-557) — supplement overlay + provenance ────
+  {
+    const suppDir = join(DATA_DIR, "supp");
+    mkdirSync(suppDir, { recursive: true });
+    writeFileSync(join(suppDir, "index.json"), JSON.stringify([{ id: "supp-rule", anchor: "Supplement Rule", source_file: "supp.md", content: "A supplement rule.", category: "concepts", confidence: "HIGH" }], null, 2) + "\n");
+    writeFileSync(join(suppDir, "model.json"), JSON.stringify({ concepts: { "supp-rule": { name: "Supplement Rule", content: "A supplement rule.", source_file: "supp.md" } } }, null, 2) + "\n");
+    for (const f of ["tools.json", "resources.json", "prompts.json"]) writeFileSync(join(suppDir, f), "[]\n");
+
+    const fixtureManifest = () => JSON.parse(readFileSync(join(DATA_DIR, "rulesets", "fixture", "manifest.json"), "utf-8"));
+
+    await test("T650/REQ-557: supplement overlay is idempotent and base drift is reported", async () => {
+      const base = runRootScript("build-ruleset.ts", [`fixture=${FIXTURE_DIR}`]);
+      if (base.status !== 0) throw new Error(`base emission failed: ${base.stdout} ${base.stderr}`);
+      const first = runRootScript("build-ruleset.ts", [`fixture+=${suppDir}`]);
+      if (first.status !== 0) throw new Error(`supplement overlay failed: ${first.stdout} ${first.stderr}`);
+      const hash1 = fixtureManifest().content_hash;
+      const second = runRootScript("build-ruleset.ts", [`fixture+=${suppDir}`]);
+      if (second.status !== 0) throw new Error(`second overlay failed: ${second.stdout} ${second.stderr}`);
+      if (fixtureManifest().content_hash !== hash1) throw new Error("re-running the overlay changed the content hash (not idempotent)");
+
+      const registry = JSON.parse(readFileSync(join(DATA_DIR, "ruleset-registry.json"), "utf-8"));
+      if (!registry.fixture.base_content_hash) throw new Error("base_content_hash not recorded");
+      if ((registry.fixture.supplements ?? []).length === 0) throw new Error("supplement source hashes not recorded");
+      const model = JSON.parse(readFileSync(join(DATA_DIR, "rulesets", "fixture", "model.json"), "utf-8"));
+      if (Object.keys(model.concepts ?? {}).length !== 1) throw new Error("supplement content was duplicated");
+
+      // Drift: the recorded base hash no longer matches the current base emission.
+      registry.fixture.base_content_hash = "0".repeat(64);
+      writeFileSync(join(DATA_DIR, "ruleset-registry.json"), JSON.stringify(registry, null, 2) + "\n");
+      const report = runRootScript("update-rulesets.ts");
+      if (report.status !== 0) throw new Error(`update-rulesets failed: ${report.stdout} ${report.stderr}`);
+      assertContains(report.stdout, "base content hash changed");
+      assertContains(report.stdout, "fixture");
+    });
+  }
+
+  // ── T657 (REQ-564) — tool-quality remediation through the emitter ─
+  {
+    await test("T657/REQ-564: a tool-quality defect is rebuilt through the emitter and clears", async () => {
+      const toolsPath = join(DATA_DIR, "rulesets", "fixture", "tools.json");
+      writeFileSync(toolsPath, JSON.stringify([{ name: "bad_tool", title: "Bad Tool", kind: "lookup", inputSchema: { type: "object", properties: {} } }], null, 2) + "\n");
+      const run = runRootScript("update.ts", ["--packages-only", "--apply"]);
+      if (run.status !== 0) throw new Error(`update failed: ${run.stdout} ${run.stderr}`);
+      assertContains(run.stdout, "fixture: updated");
+      const tools = JSON.parse(readFileSync(toolsPath, "utf-8"));
+      if (tools.length !== 0) throw new Error("the defective tool survived the rebuild");
+    });
+  }
+
   // ── T500 (REQ-422) — update entry point ──────────────────────────
   {
     const registry = { stale: { source: join(DATA_DIR, "src"), package_format: PACKAGE_FORMAT, built_at: "2026-08-30T00:00:00Z" } };

@@ -7,7 +7,8 @@
  * rulesets; no per-book build assets belong here — converted sources, build
  * tooling, and emitted packages live in the deploy content pipeline. This gate
  * fails when:
- *   (a) any tracked file under `scripts/ruleset-builds/` exists; or
+ *   (a) a tracked file under `scripts/ruleset-builds/` exists outside the one
+ *       sanctioned covered package (`scripts/ruleset-builds/fixture/`); or
  *   (b) a ruleset package triple (manifest.json + model.json + index.json) is
  *       tracked outside the sanctioned fixtures / gitignored build output; or
  *   (c) a vendored narrative corpus, its Appendix U row, and its attribution
@@ -20,8 +21,11 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-// Reference rulesets whose build assets are committed to this repository: none.
-// Per-book assets live in the deploy content pipeline (see DECISIONS.md).
+// Reference rulesets whose build assets are committed to this repository:
+// exactly one — the non-commercial `fixture` package emitted by
+// `scripts/ruleset-builds/fixture/build-package.mjs` (REQ-563). Every other
+// per-book asset lives in the deploy content pipeline (DECISIONS.md).
+const SANCTIONED_BUILD_PREFIXES = ["scripts/ruleset-builds/fixture/"];
 const SANCTIONED_PACKAGE_PREFIXES = ["holonovel/testdata/rulesets/"];
 
 const root = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
@@ -29,9 +33,10 @@ const tracked = execSync("git ls-files", { cwd: root, encoding: "utf-8" }).trim(
 
 const violations: string[] = [];
 
-// (a) build assets.
+// (a) build assets — only the sanctioned covered package may be tracked.
 for (const f of tracked) {
-  if (f.startsWith("scripts/ruleset-builds/")) {
+  if (f.startsWith("scripts/ruleset-builds/")
+    && !SANCTIONED_BUILD_PREFIXES.some((p) => f.startsWith(p))) {
     violations.push(`tracked ruleset build asset: ${f} — per-book build assets belong in the deploy content pipeline, not the reference server`);
   }
 }

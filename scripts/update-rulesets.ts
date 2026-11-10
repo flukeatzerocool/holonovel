@@ -14,7 +14,7 @@
 
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
-import { loadRegistry, installedManifests } from "./lib/ruleset-registry.js";
+import { loadRegistry, installedManifests, baseEmissionState } from "./lib/ruleset-registry.js";
 
 const root = join(import.meta.dirname, "..");
 const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
@@ -25,6 +25,7 @@ const registry = loadRegistry(dataDir);
 const packages = installedManifests(installDir);
 
 console.log("update-rulesets — package compatibility summary");
+console.log("Usage: npx tsx scripts/update-rulesets.ts  (no arguments; reports installed packages)");
 console.log(`Current package-format fingerprint: ${current}`);
 console.log(`Install directory: ${installDir}`);
 console.log("");
@@ -49,4 +50,22 @@ if (stale.length === 0) {
     console.log(`  ${pkg.slug}${source ? ` — source: ${source}` : " — no registry entry; supply an explicit path"}`);
     console.log(`  Invoking: opencode run --agent build "Perform Build workflow on ${pkg.slug}. B1 intake: ${pkg.slug}=${source ?? "<path>"}. Follow Appendix V.1 happy path."`);
   }
+}
+
+// REQ-557 — report supplement base drift against the base's current emission,
+// with the recorded and current hashes. Unresolvable states are named rather
+// than folded into "current".
+const drift: string[] = [];
+for (const [slug, entry] of Object.entries(registry)) {
+  const base = baseEmissionState(join(import.meta.dirname, ".."), installDir, slug, entry);
+  if (base.state === "changed") {
+    drift.push(`  ${slug}: base content hash changed — recorded ${base.recorded?.slice(0, 12)}…, current ${base.current?.slice(0, 12)}… (re-run build-ruleset ${slug}+=<path>)`);
+  } else if (base.state === "unavailable" || base.state === "no-hash") {
+    drift.push(`  ${slug}: base hash unresolved — ${base.reason}`);
+  }
+}
+if (drift.length > 0) {
+  console.log("");
+  console.log(`${drift.length} supplement base(s) drifted or unresolved:`);
+  for (const line of drift) console.log(line);
 }

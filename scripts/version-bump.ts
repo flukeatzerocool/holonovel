@@ -8,6 +8,7 @@
  * Exit codes: 0 = bumped, 1 = a pattern not found.
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
@@ -141,6 +142,20 @@ if (serverChanged) {
 } else {
   console.log(`  OK   holonovel/server.json: already ${canonical}`);
 }
+
+// REQ-563 — the covered reference package's manifest carries `host_version`,
+// so a version advance re-emits it in the same step. The freshness gate
+// (`check-fixture-emitter`) verifies the committed package afterwards.
+const emit = spawnSync("node", [
+  join(root, "scripts", "ruleset-builds", "fixture", "build-package.mjs"),
+  "--out", join(root, "holonovel", "testdata", "rulesets", "fixture"),
+  "--no-backup",
+], { cwd: root, encoding: "utf-8" });
+if (emit.status !== 0) {
+  console.error(`  FAIL covered reference package re-emit: ${(emit.stdout ?? "")}${(emit.stderr ?? "")}`);
+  process.exit(1);
+}
+console.log("  OK   covered reference package: re-emitted");
 
 console.log(`\nAll version references bumped to ${version}.`);
 process.exit(0);

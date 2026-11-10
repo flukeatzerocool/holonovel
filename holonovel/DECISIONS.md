@@ -761,6 +761,27 @@ dated entries below record changes to this list.
 - Ruleset package gates: `check-ruleset-model` (REQ-559) validates the model a package's tools resolve against (info backing, human table names, `defaultDice`↔description); the Build-time replay (`test:ruleset-nonovel`, REQ-560) calls every declared tool against a ruleset-free host; `emitPackage` + T654 (REQ-561) guarantee deterministic emission.
 - **License records.** Appendix U is normative; `docs/licenses/ATTRIBUTION.md` carries the due-diligence detail (links, what each source contributes, modification status); `check-reference-server-cleanliness` gates the four-way parity between a vendored corpus, its LICENSE file, its Appendix U row, and its register row. `DECISIONS.md` records the decision only — a third copy would drift.
 
+### Covered reference package — 2026-11-10
+
+- **Decision.** Exactly one non-commercial reference package is authored in
+  this repository: `holonovel/testdata/rulesets/fixture`, emitted by the
+  committed `scripts/ruleset-builds/fixture/build-package.mjs` from its
+  committed durable parts. This satisfies REQ-563's committed-emitter
+  requirement without re-introducing per-book commercial assets.
+  `check-reference-server-cleanliness` sanctions that one prefix; `.gitignore`
+  keeps every other slug out of the tree.
+- **Determinism.** The emitter pins `built_at`, reads `host_version` from
+  `package.json`, and reads `package_format` from the generated contract
+  fingerprints, so re-emission is byte-identical. `version-bump` re-emits the
+  package, and `check-fixture-emitter` (wired into `check`/`check:fast`) fails
+  on any drift with the stale file names.
+- **Deferred.** REQ-395a's arbitrary-new-package half — `build-ruleset
+  example=<path>` producing a package from raw Markdown — remains deferred.
+  Extraction is not deterministic, so a new slug records intake and prints the
+  Build invocation; its emitter exists only after the Build workflow authors
+  it. Registered slugs with a committed or recorded emitter are invoked
+  directly.
+
 ### Holonovel Spec Update — 2026-11-08 (Holosuite evidence anchor repoint)
 
 - **Delta class:** minor. Changed surfaces: Holosuite evidence anchor repoint; Server coherence remediation; Self-service update path for packaged installs; Faction clocks: real mechanism, descriptive Survivor race; Torre knowledge depth: three player-facing pages.

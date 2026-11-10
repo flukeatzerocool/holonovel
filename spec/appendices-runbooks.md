@@ -18,7 +18,11 @@ invoke the Build workflow directly on the builder with a `slug=path` pair.
 **Happy path.**
 
 1. Run `build-ruleset example=/abs/path/to/books` to confirm intake and record the
-   build in `DECISIONS.md`.
+   build in `DECISIONS.md`. When the slug has a committed or recorded emitter
+   (REQ-563), `build-ruleset` emits the package immediately through it and
+   exits; the steps below apply only when extraction is still pending. The
+   covered reference fixture is emitted with `npm run build:covered-package`
+   and freshness-gated by `npm run check-fixture-emitter`.
 2. Discovery (§6.3): identify the ruleset name, subsystems, and cover books in
    the source; reject source that is incomplete or unrecoverable.
 3. Construction (§6.4): write the ruleset profile, maps, and tables.
@@ -167,9 +171,14 @@ REQ-395c) to reconcile packages and user data together; packaged installs use
 2. For each stale slug, rebuild against the recorded recipe: `build-ruleset
    <slug>=<path>` — the source registry (REQ-421) defaults the path when it is
    omitted; a supplement slug rebuilds with its recipe's supplement pairs
-   (`<slug>+=<path>`) per REQ-557.
-3. Restart the host to load the rebuilt package (boot-time scan; no hot reload).
-4. Confirm `spec_health` no longer reports `[package-incompatible]` for the
+   (`<slug>+=<path>`) per REQ-557. A rebuild stages into `<slug>.staging-<pid>`,
+   runs the three package gates, and only then backs up and swaps, so a gate
+   defect leaves the installed package untouched and the slug deferred by name.
+3. `update-rulesets` reports a supplement slug whose recorded base content hash
+   no longer matches the base's current emission, naming both hashes; re-run
+   `build-ruleset <slug>+=<path>` to re-overlay against the new base.
+4. Restart the host to load the rebuilt package (boot-time scan; no hot reload).
+5. Confirm `spec_health` no longer reports `[package-incompatible]` for the
    slug after the rebuild.
 
 The Update job (§6.7, REQ-556) drives this runbook for every stale slug after a

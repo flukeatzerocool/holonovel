@@ -342,6 +342,7 @@ This runs (the table is generated from the gate manifest):
 | `check-reference-server-cleanliness` | yes | yes | Reference server stays inside the content boundary |
 | `check-vendor-manifest` | yes | yes | Vendored content hashes match the manifest |
 | `check-starter-freshness` | yes | yes | Starter Novel artifacts are current |
+| `check-fixture-emitter` | yes | yes | Covered reference package re-emits byte-identically |
 | `playability` | no | yes | Headless playability run for every shipped Novel |
 | `check-package-manifest` | yes | yes | Published package manifest assertions |
 | `test:package-manifest` | yes | yes | Self-tests for the package manifest gate |

@@ -207,7 +207,11 @@ const i = process.argv.indexOf("--out");
 const out = i >= 0 ? process.argv[i + 1] : process.cwd();
 const src = readFileSync(${JSON.stringify(join(ROOT, "holonovel", "src", "generated", "contract-fingerprints.ts"))}, "utf-8");
 const m = src.match(/export const PACKAGE_FORMAT = "([0-9a-f]+)";/);
-writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", package_format: m[1] }, null, 2) + "\\n");
+const files = {
+  "manifest.json": { slug: "emitted", name: "Emitted", host_version: "0.0.0", package_format: m[1], content_hash: "emitted", built_at: "2026-01-01T00:00:00.000Z", counts: {} },
+  "index.json": [], "model.json": {}, "tools.json": [], "resources.json": [], "prompts.json": [],
+};
+for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.stringify(o, null, 2) + "\\n");
 `);
     const registryPath = join(RECONCILE_DIR, "ruleset-registry.json");
     let seeded: any = {};
@@ -233,6 +237,42 @@ writeFileSync(join(out, "manifest.json"), JSON.stringify({ slug: "emitted", pack
       if (manifest.package_format === "old") throw new Error("package was not rebuilt");
       const registry = JSON.parse(readFileSync(registryPath, "utf-8"));
       if (registry.emitted.package_format === "old") throw new Error("registry was not advanced");
+    });
+
+    // REQ-563 — a gate-defective emitter output is refused before the swap.
+    const defectDir = join(RECONCILE_DIR, "rulesets", "defectpkg");
+    mkdirSync(defectDir, { recursive: true });
+    writeFileSync(join(defectDir, "manifest.json"), JSON.stringify({ slug: "defectpkg", package_format: "old" }, null, 2) + "\n");
+    const defectEmitter = join(RECONCILE_DIR, "defect-emitter.mjs");
+    writeFileSync(defectEmitter, `#!/usr/bin/env node
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+const i = process.argv.indexOf("--out");
+const out = i >= 0 ? process.argv[i + 1] : process.cwd();
+const src = readFileSync(${JSON.stringify(join(ROOT, "holonovel", "src", "generated", "contract-fingerprints.ts"))}, "utf-8");
+const m = src.match(/export const PACKAGE_FORMAT = "([0-9a-f]+)";/);
+const files = {
+  "manifest.json": { slug: "defectpkg", name: "Defect", host_version: "0.0.0", package_format: m[1], content_hash: "defect", built_at: "2026-01-01T00:00:00.000Z", counts: {} },
+  "index.json": [], "model.json": {},
+  "tools.json": [{ name: "bad_tool", title: "Bad Tool", kind: "lookup", inputSchema: { type: "object", properties: {} } }],
+  "resources.json": [], "prompts.json": [],
+};
+for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.stringify(o, null, 2) + "\\n");
+`);
+    const seededAgain = JSON.parse(readFileSync(registryPath, "utf-8"));
+    seededAgain.defectpkg = { source: RECONCILE_DIR, emitter: defectEmitter, emitter_args: ["--out", "{dir}"], package_format: "old" };
+    writeFileSync(registryPath, JSON.stringify(seededAgain, null, 2) + "\n");
+
+    test("T689/REQ-395c: a gate-defective rebuild is deferred and leaves the installed package untouched", () => {
+      const before = readFileSync(join(defectDir, "manifest.json"), "utf-8");
+      const run = runScript("update.ts", ["--packages-only", "--apply"], { TTRPG_DATA_DIR: RECONCILE_DIR, HOLONOVEL_TRUSTED_EMITTER_ROOT: RECONCILE_DIR });
+      if (run.status !== 0) throw new Error(`update apply failed: ${run.stdout} ${run.stderr}`);
+      assertContains(run.stdout, "defectpkg: deferred");
+      assertContains(run.stdout, "bad_tool");
+      const after = readFileSync(join(defectDir, "manifest.json"), "utf-8");
+      if (after !== before) throw new Error("gate refusal mutated the installed package");
+      const registry = JSON.parse(readFileSync(registryPath, "utf-8"));
+      if (registry.defectpkg.package_format !== "old") throw new Error("registry advanced despite a gate defect");
     });
 
     test("T689/REQ-395c: the data tier runs in the same invocation", () => {
