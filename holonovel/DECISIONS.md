@@ -27,6 +27,22 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Seed conflict and env badge semantics — 2026-11-10
+
+- **"Active session seed" means `TTRPG_SEED` is set.** REQ-050a does not say
+  whether the default seed 0 counts as active; treating it as active would warn
+  on every per-call seed in every ordinary session. The helper keys on
+  `process.env.TTRPG_SEED !== undefined` (an empty string counts as set, because
+  `core/rng.ts` preserves it) and REQ-050a states the rule directly. The startup
+  log still reports `source: default` for an empty value — a cosmetic mismatch,
+  not a behaviour change. (REQ-050a)
+- **`TTRPG_BADGE` overrides a persisted Editor badge on resume and switch.**
+  REQ-055a seeds the badge only when "no badge became active during a prior
+  session"; `normalizeBadge` maps both "never set" and an explicit `none` to
+  `"none"`, so the two are indistinguishable in persisted state. The narrower
+  reading (honour an explicit Editor choice) would need a new persisted field
+  for no operational gain. (REQ-055a)
+
 ### Server coherence remediation — 2026-11-08
 
 - **D1 — no tool merge.** The surface stays at 37 tools. Rejected:
@@ -1101,7 +1117,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.09 |
+| Spec version | 2026.11.10 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

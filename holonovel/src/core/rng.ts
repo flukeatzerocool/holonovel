@@ -51,6 +51,18 @@ export function sessionRoll(faces: number): number {
   return sessionRng.roll(faces);
 }
 
+// REQ-050a — seed conflict: a caller-supplied per-call seed while TTRPG_SEED is
+// set. The per-call seed wins for that draw (it builds an isolated Rng), and
+// the conflict is surfaced as a [WARNING] line. An empty string is treated as
+// no seed, matching the handlers that test `args.seed` for truthiness.
+// An empty TTRPG_SEED counts as set: rng.ts preserves it (`?? "0"`), even though
+// the startup log reports `source: default` for that case.
+export function seedConflictWarning(perCallSeed: unknown): string | null {
+  if (perCallSeed === undefined || perCallSeed === null || perCallSeed === "") return null;
+  if (process.env.TTRPG_SEED === undefined) return null;
+  return `[WARNING] [seed-conflict] Per-call seed '${String(perCallSeed)}' overrides session seed '${SESSION_SEED}'; the per-call seed wins for this draw.`;
+}
+
 // Roll NdM (drop-lowest support) with a given Rng. Returns per-die results.
 export interface DiceRoll {
   dice: number[];

@@ -457,6 +457,22 @@ async function main() {
       assertContains(g, "trinkets 1 is a room.");
       assertNotContains(g, "trinkets 2 is a room.");
     });
+
+    await test("REQ-050a: a table draw and a world generate warn on a seed conflict", async () => {
+      const sp = await boot({ TTRPG_SEED: "7" });
+      try {
+        await newNovel(sp, "seeded-tables");
+        await call(sp, "manage_ruleset", { action: "bind", slug: "gentest" });
+        const table = await call(sp, "resolve_mechanic", { action: "roll", table: "trinkets", seed: "42" });
+        assertContains(table, "[WARNING] [seed-conflict]");
+        const gen = await call(sp, "manage_world", { action: "generate", seed: "42" });
+        assertContains(gen, "NEED_INPUT");
+        assertContains(gen, "[WARNING] [seed-conflict]");
+        await call(sp, "respond_decision", { decision: "world_generate", option: "discard" });
+      } finally {
+        sp.kill("SIGKILL");
+      }
+    });
     proc.kill("SIGKILL");
   }
 
@@ -481,6 +497,29 @@ async function main() {
       const go = await call(proc, "run_command", { action: "execute", command: "go north" });
       assertContains(go, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("REQ-050a: character generation warns on a seed conflict", async () => {
+      seedPackage("cgen", {
+        character_creation: {
+          steps: [],
+          ability_names: ["Might", "Grace", "Wits"],
+          stat_methods: { roll_4d6: { dice: "4d6", drop_lowest: 1 } },
+          default_ability_scores: [10, 10, 10],
+          species: { human: { name: "Human", size: "Medium", speed: 6, abilityAdjustments: {}, traits: [] } },
+          classes: { warrior: { name: "Warrior", hitDie: 10, startingHp: 10, babType: "good", bab: 1, defenseBonuses: {}, classSkills: [] } },
+          starting_equipment: {},
+        },
+      });
+      const sp = await boot({ TTRPG_SEED: "7" });
+      try {
+        await newNovel(sp, "seeded-cgen");
+        await call(sp, "manage_ruleset", { action: "bind", slug: "cgen" });
+        const created = await call(sp, "manage_character", { action: "create", name: "Seeded", species: "human", classes: "warrior 1", stat_method: "roll_4d6", seed: "7" });
+        assertContains(created, "[WARNING] [seed-conflict]");
+      } finally {
+        sp.kill("SIGKILL");
+      }
     });
     proc.kill("SIGKILL");
   }

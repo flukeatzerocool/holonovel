@@ -34,9 +34,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | S17 | — |
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
-| REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T20 | — |
+| REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T739 | — |
 | REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | C | T20, T42, T487 | — |
-| REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T27, T98, T261, S17 | — |
+| REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T31, T98, T261, S17, T108 | — |
 | REQ-056 | Advancement workflow | 5.4 Decision workflows | E | T32 | — |
 | REQ-057 | Canonical lookup tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39 | — |
 | REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | C | T41, T42 | — |

@@ -11,6 +11,31 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-10 §5.7 determinism and citation repair
+
+- **F-P7a-1 — seed-conflict warning (resolved 2026-11-10):**
+  `seedConflictWarning` (`holonovel/src/core/rng.ts:60-66`) emits
+  `[WARNING] [seed-conflict] …` when a per-call seed is supplied while
+  `TTRPG_SEED` is set, and the per-call seed wins for that draw. Rendered at
+  the oracle, combat-init, character-create, Fate, Ironsworn, Forged, ruleset
+  roll, generation-table, and world-generate sites
+  (`holonovel/src/index.ts:2893-2906`). Exercised by `test:backfill` T27 and
+  T111, and by `test:competitive-gaps` REQ-050a cases (`:461`, `:502`).
+  REQ-050a.
+- **F-P7a-2 — REQ-055 family evidence and the resume notice (resolved
+  2026-11-10):** T31 and T108 are implemented in
+  `holonovel/scripts/test-persistence.ts:761-830`; `applyEnvBadge`
+  (`holonovel/src/core/state.ts:1327-1336`) applies `TTRPG_BADGE` to a Novel
+  with no active badge on resume and switch, and the resume response names the
+  effective badge (`holonovel/src/index.ts:10825`). REQ-055, REQ-055a,
+  REQ-055b.
+- **F-P7a-3 — REQ-052 path containment (resolved 2026-11-10):** REQ-052 now
+  cites T739, whose case submits `../../etc/passwd` and asserts
+  `[ERROR] [INVALID_INPUT]` plus "outside the exchange inbox"
+  (`holonovel/scripts/test-artifact-registry.ts:147-151`). The T20 case is
+  retitled to the contract it asserts
+  (`holonovel/scripts/test-backfill.ts:606`). REQ-052.
+
 ### 2026-11-09 §5.2/§5.8 behaviour remediation — table classification
 
 - **F-P7b-9 — generation tables are advertised from the ruleset model (resolved
@@ -1323,30 +1348,6 @@ T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
 
-
-### 2026-11-09 full-review sweep — chunk P7a (determinism and knowledge artifacts)
-
-- **F-P7a-1 — seed-conflict warning is not emitted (2026-11-09):**
-  `holonovel/src/index.ts:6458` (oracle) and `:2162` (`rollDice`) consume a
-  per-call `seed` with no `[WARNING]` seed-conflict line, and no such site
-  exists in `holonovel/src`; demonstrated by `manage_scene (action: oracle,
-  seed: "7")` under `TTRPG_SEED=42` returning `[OK]` with no warning.
-  REQ-050a. Scheduled under §5.7 determinism and citation repair.
-- **F-P7a-2 — REQ-055/055a/055b cite Automated T31/T108 with no harness
-  (2026-11-09):** `spec/02-requirements.md:2428,2436,2444` cite T31/T108;
-  neither token appears under `holonovel/scripts`, while Appendix F defines
-  both as Automated (`spec/appendices-reference.md:1450,1569`). The behaviour
-  is exercised under other IDs (`test-limits.ts:386` T9/REQ-055a; S17
-  lifecycle), so the fix is a citation repair. REQ-055, REQ-055a, REQ-055b.
-  Scheduled under §5.7 determinism and citation repair.
-- **F-P7a-3 — REQ-052's T20 citation does not exercise path containment
-  (2026-11-09):** `spec/02-requirements.md:2337` cites T20; the
-  token-bearing assertions are `holonovel/scripts/test-backfill.ts:503`
-  (creates a room, reads `world://map`) and
-  `holonovel/scripts/test-output-contracts.ts:1235` (adversarial text), and
-  neither submits a traversal path; the traversal assertion lives at
-  `holonovel/scripts/test-artifact-registry.ts:148` under T739 (artifact path
-  containment). REQ-052. Scheduled under §5.7 determinism and citation repair.
 
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 

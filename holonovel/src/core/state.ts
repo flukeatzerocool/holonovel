@@ -650,9 +650,10 @@ export function autonomyDefaultsFromEnv(): AutonomyState {
 }
 
 // REQ-030 / REQ-055a — TTRPG_BADGE sets the initial active badge for a new or
-// unbadged Novel; a persisted Novel badge always takes precedence on resume.
-// REQ-405 / §7.6 — TTRPG_AUTO_RECORD supplies the default auto-moment flag for
-// a new or unflagged Novel (true unless explicitly "false").
+// unbadged Novel; a persisted non-`none` badge always takes precedence on
+// resume or switch. REQ-405 / §7.6 — TTRPG_AUTO_RECORD supplies the default
+// auto-moment flag for a new or unflagged Novel (true unless explicitly
+// "false").
 export function autoRecordDefaultFromEnv(): boolean {
   return (process.env.TTRPG_AUTO_RECORD ?? "true") !== "false";
 }
@@ -1318,6 +1319,21 @@ export class StateManager {
     }
   }
 
+  // REQ-055a — TTRPG_BADGE seeds the active badge for a Novel where no badge
+  // became active in a prior session (persisted "none"). An explicit Editor
+  // badge is indistinguishable from "never set" and is overridden; the
+  // rationale is recorded in DECISIONS.md. Idempotent: once applied the
+  // persisted badge is non-"none", so a later switch is a no-op.
+  private applyEnvBadge(novel: NovelState): boolean {
+    if (novel.badge !== "none") return false;
+    const seeded = initialBadgeFromEnv();
+    if (seeded === "none") return false;
+    novel.badge = seeded;
+    this.audit(novel, seeded, "env_badge_applied", { badge: seeded });
+    this.saveNovel(novel);
+    return true;
+  }
+
   resumeNovel(slug: string): NovelState {
     const filePath = path.join(this.stateDir, "novels", `${slug}.json`);
     if (!fs.existsSync(filePath)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' does not exist on disk.`);
@@ -1352,6 +1368,7 @@ export class StateManager {
         this.novelPaths.set(slug, filePath);
         this.restoredThisSession.add(slug);
         this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: restored.index });
+        this.applyEnvBadge(loaded);
         return loaded;
       }
       this.corruptData.set(slug, "corrupt primary, no valid backup");
@@ -1363,6 +1380,7 @@ export class StateManager {
     this.activeNovelId = slug;
     this.novelPaths.set(slug, filePath);
     this.audit(novel, novel.badge, "resume_novel", { slug });
+    this.applyEnvBadge(novel);
     this.checkWorkflowStaleness(novel);
     return novel;
   }
@@ -1662,7 +1680,9 @@ export class StateManager {
       return this.resumeNovel(slug);
     }
     this.activeNovelId = slug;
-    return this.novels.get(slug)!;
+    const novel = this.novels.get(slug)!;
+    this.applyEnvBadge(novel);
+    return novel;
   }
 
   renameNovel(novel: NovelState, newSlug: string): NovelState {

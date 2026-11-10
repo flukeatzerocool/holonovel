@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.7 determinism and citation repair (P1)
-
-- Emit the REQ-050a seed-conflict `[WARNING]` when a per-call seed is supplied
-  while a session seed is active, in the oracle, dice, combat-init, and
-  character-generation paths (REQ-050a).
-- Re-point the stale citations: REQ-052 to the T739 traversal assertion,
-  REQ-055/REQ-055a/REQ-055b off the unimplemented T31/T108 tokens, then refresh
-  the coverage register (REQ-052, REQ-055, REQ-055a, REQ-055b).
-
-**Trigger:** the next citation-remediation session; closes when F-P7a-1,
-F-P7a-2, and F-P7a-3 are `Resolved`.
-
 ## §5.16/§5.17 ruleset surface remediation (P1)
 
 - Scope, annotation, and health: ruleset-scoped dispatch and listing

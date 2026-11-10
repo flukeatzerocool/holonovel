@@ -72,7 +72,7 @@ import {
   computeDerived, startingEquipmentFor, creationSteps, CreationWorkflowState,
   creationStepPrompt, applySpeciesAdjustments,
 } from "./core/character-creation.js";
-import { createRng, sessionRoll, rollNotationWithRng, type Rng } from "./core/rng.js";
+import { createRng, sessionRoll, rollNotationWithRng, seedConflictWarning, type Rng } from "./core/rng.js";
 import { deriveAnchor } from "./core/anchors.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
 import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
@@ -139,7 +139,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.09",
+  version: "2026.11.10",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -2224,7 +2224,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
           if (r.dice.length > 1) parts.push(`(${r.dice.join(" + ")})`);
           if (extra !== 0) parts.push(`modifier ${extra > 0 ? "+" : "-"} ${Math.abs(extra)}`);
           else parts.push(`modifier +0`);
-          return ok(parts.join(" → "));
+          return ok(parts.join(" → ") + seedWarningSuffix(args.seed));
         } catch (e: any) {
           return err("INVALID_INPUT", e.message);
         }
@@ -2256,7 +2256,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
           const rng = args.seed ? createRng(args.seed) : null;
           const idx = rng ? rng.roll(rows.length) - 1 : sessionRoll(rows.length) - 1;
           const row = rows[Math.max(0, Math.min(idx, rows.length - 1))];
-          return raw(JSON.stringify(row, null, 2));
+          return withSeedWarning(raw(JSON.stringify(row, null, 2)), args.seed);
         }
         return raw(JSON.stringify(table, null, 2));
       }
@@ -2887,6 +2887,24 @@ function needInput(text: string) {
   return { content: [{ type: "text" as const, text: `[NEED_INPUT] ${expanded}` }], structuredContent: structured("NEED_INPUT", expanded, { options: parseDecisionOptions(expanded) }) };
 }
 
+// REQ-050a — seed conflict. A caller-supplied per-call seed while TTRPG_SEED is
+// set appends one advisory line; the tool's own status is unchanged (the draw
+// completed, and the per-call seed won).
+function seedWarningSuffix(seed: unknown): string {
+  const warning = seedConflictWarning(seed);
+  return warning ? `\n${warning}` : "";
+}
+
+// REQ-050a — a JSON-bodied result stays parseable: the conflict line rides as a
+// second content block plus a `warnings` field, never inside the JSON text.
+function withSeedWarning<T extends { content: Array<{ type: "text"; text: string }>; structuredContent?: any }>(result: T, seed: unknown): T {
+  const warning = seedConflictWarning(seed);
+  if (!warning) return result;
+  result.content = [...result.content, { type: "text" as const, text: warning }];
+  if (result.structuredContent) result.structuredContent.warnings = [...(result.structuredContent.warnings ?? []), warning];
+  return result;
+}
+
 // ── §5.1 Output and Error Contracts ────────────────────────────────
 //
 // REQ-004 — truncation: tool output longer than a configurable limit is
@@ -3417,6 +3435,16 @@ function resourceKey(uri: URL): string {
 function badgeLabel(badge: Badge): string {
   if (badge === "none") return "Editor";
   return badge;
+}
+
+// REQ-055b — the resume notice names the active badge in display form
+// ("Player badge active."). badgeLabel is a raw token renderer used in other
+// prose and is not reworded.
+function badgeDisplayLabel(badge: Badge): string {
+  if (badge === "player") return "Player";
+  if (badge === "game_master") return "Game Master";
+  if (badge === "observer") return "Observer";
+  return "Editor";
 }
 
 // REQ-066 — set_badge switches the active badge (player/game_master/observer/none).
@@ -4102,7 +4130,7 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
 
 Created (inputs): ${inputs.join(" · ")}
 Derived: ${derived.join(" · ")}
-${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' created as ${entity.id}.`}`);
+${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' created as ${entity.id}.`}${seedWarningSuffix(effAbilityScores ? undefined : seed)}`);
     }
     case "stage": {
       requireNotObserver();
@@ -5728,7 +5756,7 @@ server.registerTool("manage_world", {
         },
       };
       state.saveNovel(novel);
-      return needInput(`World generation — ${parsed.result.rooms} rooms, ${parsed.result.things} things, ${parsed.result.exits} exits proposed (seed ${args.seed ?? "session"}).\n\n${batch.join("\n")}${provenance}${droppedNote}\n\n${report}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.`);
+      return needInput(`World generation — ${parsed.result.rooms} rooms, ${parsed.result.things} things, ${parsed.result.exits} exits proposed (seed ${args.seed ?? "session"}).\n\n${batch.join("\n")}${provenance}${droppedNote}\n\n${report}\n\nRespond 'apply' to populate the world model, or 'discard' to cancel.${seedWarningSuffix(args.seed)}`);
     }
     default:
       return err("INVALID_INPUT", `Unknown world action '${args.action}'.`);
@@ -5858,7 +5886,7 @@ server.registerTool("manage_combat", {
       }
       const combat = state.initCombat(novel, args.participants ?? [], args.dangers ?? [], args.seed);
       state.saveNovel(novel);
-      return ok(`Combat started. Round ${combat.round}, ${combat.turn_order.length} participants. Turn: ${combat.turn_order[0]} (auto-advance mode).`);
+      return ok(`Combat started. Round ${combat.round}, ${combat.turn_order.length} participants. Turn: ${combat.turn_order[0]} (auto-advance mode).${seedWarningSuffix(args.seed)}`);
     }
     case "advance": {
       requireGM();
@@ -6578,7 +6606,7 @@ server.registerTool("manage_scene", {
       let flavor = "";
       if (!isDoubles && Math.abs(target - roll) <= 5) flavor = " (barely)";
       else if (!isDoubles && Math.abs(target - roll) >= 30) flavor = " (decisively)";
-      return ok(`Question: "${args.question}"\nLikelihood: ${band} (roll ≥ ${target})\nRoll: ${roll}/100 → ${marker}${flavor}`);
+      return ok(`Question: "${args.question}"\nLikelihood: ${band} (roll ≥ ${target})\nRoll: ${roll}/100 → ${marker}${flavor}${seedWarningSuffix(args.seed)}`);
     }
     default:
       return err("INVALID_INPUT", `Unknown scene action '${args.action}'. Valid actions: set, directive, presence, autonomy, choices, oracle.`);
@@ -7676,7 +7704,7 @@ server.registerTool("resolve_fate", {
         if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
         state.saveNovel(novel);
       }
-      return ok(`${label} (${r.notation}${extra !== 0 ? ` ${sign} ${Math.abs(extra)}` : ""}) vs ${difficulty}\nfaces [ ${faces} ]  total ${r.total}  modifier ${sign}${Math.abs(extra)}\n${ladder}`);
+      return ok(`${label} (${r.notation}${extra !== 0 ? ` ${sign} ${Math.abs(extra)}` : ""}) vs ${difficulty}\nfaces [ ${faces} ]  total ${r.total}  modifier ${sign}${Math.abs(extra)}\n${ladder}${seedWarningSuffix(args.seed)}`);
     }
     case "aspect": {
       // REQ-435 — Fate aspects: create/invoke/compel/remove/list.
@@ -7888,7 +7916,7 @@ server.registerTool("resolve_ironsworn", {
       novel.uncommitted_rolls.push({ roll: `${args.name ?? "Move"} → ${band}`, suggested_tool: "resolve_mechanic (action: ironsworn_progress)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
-      return ok(`${args.name ?? "Move"}\nAction die: ${actionDie}${adds !== 0 ? ` + ${adds}` : ""} = ${actionScore}${burned ? " (momentum burn)" : ""}\nChallenge dice: ${c1}, ${c2}\n${band}`);
+      return ok(`${args.name ?? "Move"}\nAction die: ${actionDie}${adds !== 0 ? ` + ${adds}` : ""} = ${actionScore}${burned ? " (momentum burn)" : ""}\nChallenge dice: ${c1}, ${c2}\n${band}${seedWarningSuffix(args.seed)}`);
     }
     case "progress": {
       // REQ-440 — progress tracks.
@@ -7919,7 +7947,7 @@ server.registerTool("resolve_ironsworn", {
         const c1 = draw(10);
         const c2 = draw(10);
         audit("ironsworn_progress_test", { name, boxes: track.ticks, challenge_dice: [c1, c2], band: bandFor(track.ticks, c1, c2) });
-        return ok(`Progress test '${name}': ${track.ticks} boxes vs ${c1}, ${c2}\n${bandFor(track.ticks, c1, c2)}`);
+        return ok(`Progress test '${name}': ${track.ticks} boxes vs ${c1}, ${c2}\n${bandFor(track.ticks, c1, c2)}${seedWarningSuffix(args.seed)}`);
       }
       return err("INVALID_INPUT", `Unknown progress op '${op}'. Valid ops: create, mark, test, list.`);
     }
@@ -7969,7 +7997,7 @@ server.registerTool("resolve_forged", {
       novel.uncommitted_rolls.push({ roll: `${args.name ?? "Action"} → ${band}`, suggested_tool: "resolve_mechanic (action: forged_stress)", at: new Date().toISOString() });
       if (novel.uncommitted_rolls.length > 3) novel.uncommitted_rolls.shift();
       state.saveNovel(novel);
-      return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}`);
+      return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}${seedWarningSuffix(args.seed)}`);
     }
     case "stress": {
       // REQ-442 — stress/trauma + resistance.
@@ -10794,7 +10822,7 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
         if (!rulesets.isInstalled(novel.ruleset)) return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
         try { rulesets.hydrate(novel.ruleset); } catch (e: any) { return err("INVALID_INPUT", e.message); }
       }
-      return ok(`Novel resumed: ${novel.name} (${novel.slug})`);
+      return ok(`Novel resumed: ${novel.name} (${novel.slug})${novel.badge !== "none" ? `\n${badgeDisplayLabel(novel.badge)} badge active.` : ""}`);
     }
     case "switch": {
       const active = state.activeNovel;
@@ -11521,7 +11549,7 @@ server.registerTool("manage_ruleset", {
       if (!range) {
         return warn(`Roll ${roll} on ${entry.dice_expression ?? "d100"} matched no range in table '${key}'.`);
       }
-      return ok(`Table: ${key}\nDice: ${entry.dice_expression ?? "d100"}\nRoll: ${roll}\nRange: ${range.min}-${range.max}\nResult: ${range.result}`);
+      return ok(`Table: ${key}\nDice: ${entry.dice_expression ?? "d100"}\nRoll: ${roll}\nRange: ${range.min}-${range.max}\nResult: ${range.result}${seedWarningSuffix(args.seed)}`);
     }
     case "import_supplementary": {
       requireGM();

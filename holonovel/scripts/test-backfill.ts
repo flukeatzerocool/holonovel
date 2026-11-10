@@ -525,13 +525,85 @@ async function main() {
       if (!rollA || !rollB || rollA !== rollB) throw new Error(`nondeterministic: ${rollA} vs ${rollB}`);
     });
 
+    await test("T27/REQ-050a: a seed conflict warns and the per-call seed wins", async () => {
+      const oracle = await call(proc, "manage_scene", { action: "oracle",  question: "Rain?", seed: "7" });
+      assertContains(oracle, "[WARNING] [seed-conflict]");
+      assertContains(oracle, "Per-call seed '7'");
+
+      const roll = await call(proc, "resolve_mechanic", { action: "fate_roll",  dice: "1d20", seed: "7" });
+      assertContains(roll, "[WARNING] [seed-conflict]");
+      const fate = await call(proc, "resolve_mechanic", { action: "fate_roll",  dice: "4dF", seed: "7" });
+      assertContains(fate, "[WARNING] [seed-conflict]");
+      const move = await call(proc, "resolve_mechanic", { action: "ironsworn_move",  name: "Face Danger", seed: "7" });
+      assertContains(move, "[WARNING] [seed-conflict]");
+      const forged = await call(proc, "resolve_mechanic", { action: "forged_action_roll",  name: "Skirmish", seed: "7" });
+      assertContains(forged, "[WARNING] [seed-conflict]");
+      const init = await call(proc, "manage_combat", { action: "init",  participants: [], dangers: [{ name: "goblin" }, { name: "orc" }], seed: "7" });
+      assertContains(init, "[WARNING] [seed-conflict]");
+      await call(proc, "manage_combat", { action: "end" });
+      const clean = await call(proc, "manage_scene", { action: "oracle",  question: "Rain?" });
+      assertNotContains(clean, "[seed-conflict]");
+    });
+
+    await test("T27/REQ-050a: no conflict line when TTRPG_SEED is unset", async () => {
+      const p = await boot();
+      try {
+        await call(p, "manage_novel", { action: "create",  name: "unseeded-novel" });
+        const oracle = await call(p, "manage_scene", { action: "oracle",  question: "Rain?", seed: "7" });
+        assertNotContains(oracle, "[seed-conflict]");
+      } finally {
+        await kill(p);
+      }
+    });
+
+    await test("T27/T111/REQ-050: Appendix B.4 witness values reproduce", async () => {
+      const d6 = await call(proc, "resolve_mechanic", { action: "fate_roll",  dice: "10d6", seed: "42" });
+      assertContains(d6, "faces [ +2 +1 +4 +2 +3 +1 +3 +1 +6 +6 ]");
+      const d20 = await call(proc, "resolve_mechanic", { action: "fate_roll",  dice: "10d20", seed: "42" });
+      assertContains(d20, "faces [ +6 +2 +12 +5 +8 +1 +9 +3 +18 +20 ]");
+    });
+
+    await test("T111/REQ-050b: a per-call seed does not advance the session PRNG", async () => {
+      const a = await boot({ TTRPG_SEED: "7" });
+      const b = await boot({ TTRPG_SEED: "7" });
+      try {
+        await call(a, "manage_novel", { action: "create",  name: "stream-a" });
+        await call(b, "manage_novel", { action: "create",  name: "stream-b" });
+        await call(a, "manage_scene", { action: "oracle",  question: "First?", seed: "99" });
+        const afterA = await call(a, "manage_scene", { action: "oracle",  question: "First?" });
+        const afterB = await call(b, "manage_scene", { action: "oracle",  question: "First?" });
+        const ra = afterA.match(/Roll: (\d+)\/100/)?.[1];
+        const rb = afterB.match(/Roll: (\d+)\/100/)?.[1];
+        if (!ra || !rb || ra !== rb) throw new Error(`override advanced the session PRNG: ${ra} vs ${rb}`);
+      } finally {
+        await kill(a);
+        await kill(b);
+      }
+    });
+
+    await test("T111/REQ-050c: two unseeded restarts reproduce identical draws", async () => {
+      const run = async (name: string): Promise<string | undefined> => {
+        const p = await boot();
+        try {
+          await call(p, "manage_novel", { action: "create",  name });
+          const o = await call(p, "manage_scene", { action: "oracle",  question: "Same?" });
+          return o.match(/Roll: (\d+)\/100/)?.[1];
+        } finally {
+          await kill(p);
+        }
+      };
+      const first = await run("unseeded-a");
+      const second = await run("unseeded-b");
+      if (!first || first !== second) throw new Error(`default-seed restart diverged: ${first} vs ${second}`);
+    });
+
     await test("T41/T051: no outbound network access — server stays local", async () => {
       // The server is STDIO-local; assert no network endpoints are registered.
       const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "spec_version");
     });
 
-    await test("T20/T052: path containment — world resources render map", async () => {
+    await test("T20/REQ-054: stored free text renders verbatim in world://map", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "containment-room", description: "Contained." });
       const map = await readResource(proc, "world://map");
       assertContains(map, "containment-room");

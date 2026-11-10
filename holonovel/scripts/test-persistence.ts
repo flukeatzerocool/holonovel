@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Novel persistence and transport conformance harness (§5.9 — REQ-089/093/095/ [gate]
 // 096/097/238/240/256/257/258, plus REQ-065 hydration keying and REQ-088
-// startup auto-load). Exercises the Appendix F tests T74, T78, T99,
-// T100, T101, T159, T160, T276, T278, T281, T315, T316, T317 against a live
+// startup auto-load). Exercises the Appendix F tests T31, T74, T78, T99,
+// T100, T101, T108, T159, T160, T276, T278, T281, T315, T316, T317 against a live
 // server: lifecycle, switching, rename, listing, metadata, interchange
 // round-trip, backup rotation, clone, hydration keying, and health reporting.
 
@@ -753,6 +753,79 @@ async function main() {
       }
     });
     await kill(proc);
+  }
+
+  // ── T31/T108 — Novel isolation and badge precedence (REQ-055/055a/055b) ──
+  {
+    const proc = await boot();
+    await test("T31/REQ-055: Novels isolate entities and the roster survives an end", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "iso-a" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      const created = await call(proc, "manage_character", { action: "create", name: "Iso", stage_to_roster: true });
+      const id = created.match(/Entity id ([a-z0-9_]+)/i)?.[1] ?? created.match(/as (character_\d+)/i)?.[1];
+      if (!id) throw new Error(`create did not report an entity id: ${created.slice(0, 200)}`);
+      const roster = await call(proc, "manage_character", { action: "roster_list" });
+      assertContains(roster, "Iso");
+
+      await call(proc, "manage_novel", { action: "create", name: "iso-b" });
+      const crossSheet = await call(proc, "manage_character", { action: "sheet", entity_id: id });
+      assertContains(crossSheet, "[NOT_FOUND]");
+
+      await call(proc, "manage_novel", { action: "switch", slug: "iso-a" });
+      await call(proc, "manage_novel", { action: "end" });
+      const confirmed = await call(proc, "respond_decision", { decision: "end novel", option: "yes" });
+      assertContains(confirmed, "[OK]");
+      const rosterAfter = await call(proc, "manage_character", { action: "roster_list" });
+      assertContains(rosterAfter, "Iso");
+      const ended = await call(proc, "manage_novel", { action: "resume", slug: "iso-a" });
+      assertContains(ended, "[STATE_CONFLICT]");
+    });
+    await kill(proc);
+
+    const setup = await boot();
+    await call(setup, "manage_novel", { action: "create", name: "badge-a" });
+    await call(setup, "set_badge", { badge: "game_master" });
+    await call(setup, "manage_novel", { action: "create", name: "badge-b" });
+    await kill(setup);
+
+    await test("T108/REQ-055a: a persisted badge beats TTRPG_BADGE on resume", async () => {
+      const p = await boot({ TTRPG_BADGE: "player" });
+      try {
+        const resumed = await call(p, "manage_novel", { action: "resume", slug: "badge-a" });
+        assertContains(resumed, "Game Master badge active.");
+        const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+        if (health.active_badge !== "game_master") throw new Error(`persisted badge not honored: ${health.active_badge}`);
+      } finally {
+        await kill(p);
+      }
+    });
+
+    await test("T108/REQ-055a/REQ-055b: TTRPG_BADGE seeds an unbadged Novel and the notice names it", async () => {
+      const p = await boot({ TTRPG_BADGE: "player" });
+      try {
+        const resumed = await call(p, "manage_novel", { action: "resume", slug: "badge-b" });
+        assertContains(resumed, "Player badge active.");
+        const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+        if (health.active_badge !== "player") throw new Error(`env badge not applied: ${health.active_badge}`);
+      } finally {
+        await kill(p);
+      }
+    });
+
+    await test("T108/REQ-055a: a switch restores each Novel's own badge", async () => {
+      const p = await boot({ TTRPG_BADGE: "player" });
+      try {
+        await call(p, "manage_novel", { action: "resume", slug: "badge-a" });
+        await call(p, "manage_novel", { action: "switch", slug: "badge-b" });
+        let health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+        if (health.active_badge !== "player") throw new Error(`badge-b badge wrong: ${health.active_badge}`);
+        await call(p, "manage_novel", { action: "switch", slug: "badge-a" });
+        health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+        if (health.active_badge !== "game_master") throw new Error(`badge-a badge wrong: ${health.active_badge}`);
+      } finally {
+        await kill(p);
+      }
+    });
   }
 
   harnessComplete();

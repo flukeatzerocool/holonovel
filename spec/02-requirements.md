@@ -2267,13 +2267,13 @@ Updating the blacksmith Codex entry via `manage_codex (action: set)`, then calli
 ### 5.7 Determinism, Safety, and Performance
 
 **REQ-050a — Determinism (Part a).**
-All random draws come from a single deterministic PRNG, seedable via `TTRPG_SEED`. Any tool that performs a random draw — dice-roll tools, `manage_combat (action: init)` (danger initiative), `manage_character (action: create)` (stat generation), and any ruleset-derived tool that includes dice resolution — accepts an optional per-call seed. Same seed + same call sequence = same results across sessions and games. Seed conflict (a tool-call seed when a session seed is active) is a `[WARNING]` and the per-call seed wins for that draw.
+All random draws come from a single deterministic PRNG, seedable via `TTRPG_SEED`. Any tool that performs a random draw — dice-roll tools, `manage_combat (action: init)` (danger initiative), `manage_character (action: create)` (stat generation), and any ruleset-derived tool that includes dice resolution — accepts an optional per-call seed. Same seed + same call sequence = same results across sessions and games. Seed conflict (a tool-call seed while `TTRPG_SEED` is set) is a `[WARNING]` and the per-call seed wins for that draw. _Check:_ T27.
 
 **REQ-050b — Determinism (Part b).**
 During a per-call seed override, the override uses an isolated draw that does not advance the session PRNG position — after the override completes, the next session-seeded draw produces the same result it would have produced had the override never occurred. The session seed persists across draws unless explicitly reseeded. When `TTRPG_SEED` is not set, the PRNG shall use a fixed default seed (0). The server logs the active seed at startup — `[info] PRNG seed: <value> (source: env|default)` — so operators can verify determinism.
 
 **REQ-050c — Determinism (Part c).**
-The acceptance criterion below — that `roll_save("dexterity", seed="42")` produces the same d20 face on two separate server restarts — extends to the unset case. Two restarts without `TTRPG_SEED` shall produce identical event sequences for identical tool-call sequences. *Acceptance criterion:* `roll_save("dexterity", seed="42")` produces the same d20 face on two separate server restarts; a per-call seed does not advance the session PRNG position. _Check:_ G2, T27, T111.
+The acceptance criterion below — that `roll_save("dexterity", seed="42")` produces the same d20 face on two separate server restarts — extends to the unset case. Two restarts without `TTRPG_SEED` shall produce identical event sequences for identical tool-call sequences. *Acceptance criterion:* `roll_save("dexterity", seed="42")` produces the same d20 face on two separate server restarts; a per-call seed does not advance the session PRNG position. _Check:_ G2, T111.
 **REQ-273a — Independent verification reproducibility tolerance (Part a).**
 When the independent verifier (§10) compares its results to the builder's, seed-pinned dice rolls, status prefixes (`[OK]`, `[ERROR]`, `[WARNING]`, `[NEED_INPUT]`), exit codes, and tool names with parameter values SHALL match exactly. Natural-language prose (scene descriptions, NPC dialogue, lore content) is non-adversarial — a match is structural (non-empty and within the Appendix O prose word-count tolerance). Counts (entity count, lore entry count, audit entry count) SHALL match within zero tolerance for exact-count fields and the Appendix O open-ended count tolerance. A comparison that satisfies all applicable tolerance rules is a match.
 
@@ -2334,7 +2334,7 @@ path-traversal and malformed input.
 *Acceptance criterion:* A tool call with `../../etc/passwd` as a path parameter
 returns `[ERROR] [INVALID_INPUT]` without reading any file outside the configured
 directories.
-_Check:_ T20.
+_Check:_ T739.
 
 **REQ-251a — Generation intent guard (Part a).**
 Before producing generation output, `manage_adventure (action: generate)` and `manage_adventure (action: generate_encounter)` SHALL assess the premise or context string. The assessment checks for direct and implied harm, for power-inversion requests ("create an adversary capable of defeating <specific entity>"), and for content that exceeds the ruleset's mechanical ceiling. Any request whose resolution would require the server to fabricate mechanics, void the ruleset's stated constraints, or generate content likely to violate participant consent SHALL return `[WARNING]`. The warning describes the concern and requests clarification or modification — the server SHALL NOT silently comply.
@@ -2425,7 +2425,7 @@ ended Novel fails with `[ERROR] [STATE_CONFLICT]`.
 *Acceptance criterion:* Server restart restores entities, HP, conditions, and
 slots, and a restart without `TTRPG_SEED` reproduces the default-seed draw
 sequence; `manage_novel (action: resume, "ended-novel")` returns `[STATE_CONFLICT]`.
-_Check:_ T9, T31, T108.
+_Check:_ T9, T31, T98, T111.
 
 **REQ-055a — Badge precedence on resume.** WHEN the operator resumes or switches to a Novel, the Novel's persisted badge state takes precedence over `TTRPG_BADGE`. The `TTRPG_BADGE` variable
 sets the initial active badge ONLY WHEN the starting Novel has no
@@ -2433,7 +2433,7 @@ persisted badge state — either because the Novel is new, or because no
 badge became active during a prior session.
 *Acceptance criterion:* Create Novel with Player badge, end connection, resume —
 badge is Player, not `TTRPG_BADGE` value.
-_Check:_ T108.
+_Check:_ T9, T108.
 
 **REQ-055b — Story-in-progress notice.** WHEN `manage_novel (action: resume)` restores a Novel
 with an active badge, THE server SHALL include a notice identifying the active

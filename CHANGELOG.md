@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11-10 — §5.7 determinism and citation repair
+
+- A per-call seed supplied while `TTRPG_SEED` is set now emits
+  `[WARNING] [seed-conflict]` on the oracle, combat init, character creation,
+  Fate, Ironsworn, Forged, ruleset roll, generation-table, and world-generate
+  paths; the per-call seed still wins for that draw. REQ-050a's "active
+  session seed" is defined normatively. (REQ-050a, REQ-050c; F-P7a-1)
+- REQ-052 now cites T739, whose traversal case is the assertion that actually
+  submits a path parameter; the T20 case is retitled to the free-text
+  round-trip it asserts. (REQ-052, REQ-054; F-P7a-3)
+- T31 and T108 are implemented, so REQ-055/REQ-055a/REQ-055b cite exercising
+  assertions. `TTRPG_BADGE` now seeds an unbadged Novel on resume and switch,
+  and the resume response names the active badge. (REQ-055, REQ-055a,
+  REQ-055b; F-P7a-2)
+
 ## 2026-11-09 — §5.2/§5.8 remediation 4: dynamic table classification
 
 - `tools/list` now advertises the active Novel's generation-table domain on
