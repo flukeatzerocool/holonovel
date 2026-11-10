@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-10 — Comparable recall benchmark
+
+- Added REQ-658: `recall@5` and `recall@10` over the committed synthetic
+  multi-session fixture, reported alongside `recall@budget` (T781).
+- Classified REQ-658 as an intended-gap verifier contract beside REQ-593 in the
+  coverage audit.
+
 ## 2026-11-10 — GM memory audit fields
 
 - `manage_belief (action: subjective_verify)` now returns each record's score

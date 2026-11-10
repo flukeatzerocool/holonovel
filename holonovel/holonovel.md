@@ -528,7 +528,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–656 |
+| 5.35   | Subjective Memory                                       | 623–658 |
 
 ### 5.1 Output and Error Contracts
 
@@ -5144,6 +5144,17 @@ SHALL prefer that verdict over the object-mismatch verdict. A closed window with
 an agreeing successor SHALL remain `confirmed`. The check SHALL NOT rewrite the
 memory or the event log. *Acceptance criterion:* a claim superseded by a later
 claim reports `displaced`, and two checks of unchanged state agree. _Check:_ T780.
+
+**REQ-658 — Comparable recall benchmark.**
+The recall-probe harness SHALL compute `recall@5` and `recall@10` over a
+committed, synthetic multi-session fixture of memories, questions, and
+expected evidence strings, by rendering the top k records at an unbounded
+token budget and reporting the fraction of questions whose expected string
+appears. The benchmark SHALL run offline with no model call, SHALL be
+deterministic across runs, and SHALL score zero for a deliberately broken
+retriever. The benchmark SHALL be reported alongside `recall@budget` and SHALL NOT replace
+the REQ-593 or REQ-648 floors. *Acceptance criterion:* the benchmark reports both
+k values, a broken retriever scores zero, and two runs agree. _Check:_ T781.
 
 #### End of requirements
 
@@ -10440,6 +10451,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-654 | Reinforcement ledger | 2026-11-10 |
 | REQ-655 | Derived validity windows | 2026-11-10 |
 | REQ-656 | Window-aware displaced verdict | 2026-11-10 |
+| REQ-658 | Comparable recall benchmark | 2026-11-10 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -11422,6 +11434,7 @@ diet.
 | T778 | Automated | Reinforcement ledger: a Game Master `subjective_recall` appends one entry and a twice-reinforced record outranks an equally salient unreinforced one; the entry survives restart; a Player or Observer call is refused; the ledger is excluded from a checkpoint and carried by clone and export. | REQ-654 |
 | T779 | Automated | Derived validity windows: two records with the same subject and predicate but different objects keep open windows; a later same-key record closes the earlier window; no window is stored on the record. | REQ-655 |
 | T780 | Automated | Window-aware displaced verdict: a claim superseded by a later disagreeing claim reports `displaced`; an agreeing successor stays `confirmed`; two checks of unchanged state agree and the event-log cursor is unchanged. | REQ-656 |
+| T781 | Automated | Comparable recall benchmark: the harness renders the top 5 and top 10 records at an unbounded budget over the committed synthetic fixture and reports `recall@5` and `recall@10`; a deliberately broken retriever scores zero; two runs agree; the result is reported alongside `recall@budget`. | REQ-658 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

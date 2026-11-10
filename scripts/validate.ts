@@ -1919,9 +1919,11 @@ const INTENDED_GAP_REQS = new Set([
   // and the end-to-end performance record are builder-side contracts owed by
   // the Build/Convert workflows and scripts/, not runtime `holonovel/src`.
   "REQ-582", "REQ-584", "REQ-585",
-  // REQ-593 (recall probes) is a verifier-harness contract owed by
-  // holonovel/scripts/test-memory-recall.ts, not runtime server behavior.
+  // REQ-593 (recall probes) and REQ-658 (comparable benchmark) are
+  // verifier-harness contracts owed by holonovel/scripts/test-memory-recall.ts,
+  // not runtime server behavior.
   "REQ-593",
+  "REQ-658",
   // REQ-619 (E6 artifact provenance) is the reference-package emitter
   // contract owed by scripts/ruleset-builds/*/build-package.mjs, not runtime
   // server behavior. REQ-615–618 are server-runtime and cited in holonovel/src.

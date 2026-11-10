@@ -40,7 +40,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–656 |
+| 5.35   | Subjective Memory                                       | 623–658 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4656,5 +4656,16 @@ SHALL prefer that verdict over the object-mismatch verdict. A closed window with
 an agreeing successor SHALL remain `confirmed`. The check SHALL NOT rewrite the
 memory or the event log. *Acceptance criterion:* a claim superseded by a later
 claim reports `displaced`, and two checks of unchanged state agree. _Check:_ T780.
+
+**REQ-658 — Comparable recall benchmark.**
+The recall-probe harness SHALL compute `recall@5` and `recall@10` over a
+committed, synthetic multi-session fixture of memories, questions, and
+expected evidence strings, by rendering the top k records at an unbounded
+token budget and reporting the fraction of questions whose expected string
+appears. The benchmark SHALL run offline with no model call, SHALL be
+deterministic across runs, and SHALL score zero for a deliberately broken
+retriever. The benchmark SHALL be reported alongside `recall@budget` and SHALL NOT replace
+the REQ-593 or REQ-648 floors. *Acceptance criterion:* the benchmark reports both
+k values, a broken retriever scores zero, and two runs agree. _Check:_ T781.
 
 #### End of requirements

@@ -632,6 +632,26 @@ async function main() {
     }
   });
 
+  await test("T781/REQ-658: recall@5 and recall@10 over the synthetic benchmark", async () => {
+    const probes = fixture.probes.filter((p) => p.badge === "both" || p.badge === "game_master");
+    const at = async (k: number): Promise<{ recall: number; text: string }> => {
+      const r = await renderAt("subj-recall", 100000, "game_master", undefined, k);
+      await kill(r.proc);
+      const hits = probes.filter((p) => p.expected_contains.every((s) => r.text.includes(s))).length;
+      return { recall: hits / probes.length, text: r.text };
+    };
+    const five = await at(5);
+    const ten = await at(10);
+    const tenAgain = await at(10);
+    console.log(`    recall@5: ${(five.recall * 100).toFixed(0)}%  recall@10: ${(ten.recall * 100).toFixed(0)}%`);
+    if (ten.text !== tenAgain.text) throw new Error("two benchmark renders of unchanged state differ");
+    if (ten.recall < five.recall) throw new Error("recall@10 is lower than recall@5");
+    if (ten.recall <= 0) throw new Error("the benchmark retrieved nothing");
+    const broken = "no memories at all";
+    const brokenHits = probes.filter((p) => p.expected_contains.every((s) => broken.includes(s))).length;
+    if (brokenHits !== 0) throw new Error("a deliberately broken retriever did not score zero");
+  });
+
 
   // ── Eviction: pointers survive as [evicted] markers ─────────────────
   proc = await boot({ TTRPG_SESSION_ID: "s4", TTRPG_EVENT_LOG_MAX_ENTRIES: "1" });

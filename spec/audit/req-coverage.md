@@ -612,4 +612,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-654 | Reinforcement ledger | 5.35 Subjective Memory | C | T778 | — |
 | REQ-655 | Derived validity windows | 5.35 Subjective Memory | C | T779 | — |
 | REQ-656 | Window-aware displaced verdict | 5.35 Subjective Memory | C | T780 | — |
+| REQ-658 | Comparable recall benchmark | 5.35 Subjective Memory | E | T781 | — |
 
