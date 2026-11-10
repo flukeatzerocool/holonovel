@@ -23,12 +23,12 @@ Status: in progress · Plan: `plan.md` · Gate: plan-review (self, conditions re
 
 ## Commit 2 — synthesis (F-P7b-3, -7)
 
-- [ ] per-item `collected_at` in rows and resources
-- [ ] `[supplementary] [LOW|MEDIUM]` rendering + LOW ordering
-- [ ] Novel-derived MEDIUM/LOW items on `run`
-- [ ] adventure synthesis derived view + inert-community prompt
-- [ ] Appendix F T63 row corrected
-- [ ] Tests T63, T95, T97, T102, T288, T325
+- [x] per-item `collected_at` in rows and resources
+- [x] `[supplementary] [LOW|MEDIUM]` rendering + LOW ordering
+- [x] Novel-derived MEDIUM/LOW items on `run`
+- [x] adventure synthesis derived view + inert-community prompt
+- [x] Appendix F T63 row corrected
+- [x] Tests T63, T95, T97, T102, T288, T325 (test:backfill 88 passed)
 
 ## Commit 3 — scene catalog and suggestions (F-P7b-4, -6)
 

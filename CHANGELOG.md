@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-09 — §5.2/§5.8 remediation 2: synthesis provenance and confidence
+
+- Every synthesis list row and `synthesis://` resource now carries
+  `collected_at`, so a rerun refreshes all items together, and confidence is
+  rendered (`[supplementary] [MEDIUM]` / `[LOW]`) with LOW items ordered after
+  HIGH/MEDIUM. Exercised by `test:backfill` T95, T97, T325. (REQ-080g2;
+  F-P7b-7)
+- `manage_synthesis (action: run)` now derives Novel content: a
+  MEDIUM-confidence supplementary voice example per entity or NPC with an
+  explicit voice/description, and one LOW-confidence theme item when the story
+  journal is non-empty. Deterministic and additive only — the tool catalog and
+  entity stats are unchanged. Exercised by T63, T325. (REQ-266a-b)
+- Adventure load reports active synthesis items and the inert community count
+  (`Community synthesis items: N inert — activate with manage_synthesis
+  (action: activate)`), keeping supplementary items inert. Exercised by T288.
+  (REQ-080g2)
+- Appendix F T63 is corrected to REQ-080g2's tier split (synthesis-sourced
+  `[supplementary]` versus ruleset-native `[ruleset]`/`[vendor]`). T102 adds
+  the stale-flag refresh assertion.
+
 ## 2026-11-09 — §5.2/§5.8 remediation 1: journal attribution, lore surface, sheet
 
 - Story journal entries now record entity attribution: the active entity (else

@@ -11,6 +11,26 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 §5.2/§5.8 behaviour remediation — synthesis
+
+- **F-P7b-3 — synthesis provenance, confidence, and adventure surfacing
+  (resolved 2026-11-09):** every synthesis row and `synthesis://` resource now
+  carries per-item `collected_at` from the manifest timestamp
+  (`holonovel/src/index.ts:13752-13765`, `:13144-13154`); `run` merges
+  Novel-derived items — a MEDIUM `[supplementary]` voice example per
+  entity/NPC with an explicit voice or description and a LOW theme item from
+  the story journal (`mergeNovelDerivedSynthesis`, `:12962-12990`); LOW items
+  render after HIGH/MEDIUM (`:14186-14190`); adventure load reports active and
+  inert synthesis counts (`adventureSynthesisLines`, `:12946-12960`). The
+  Appendix F T63 row is corrected to REQ-080g2's tier split. Exercised by
+  `test:backfill` T63, T95, T97, T102, T288. (REQ-080g2, REQ-103a-d,
+  REQ-130a-c)
+- **F-P7b-7 — confidence tiers and removal (resolved 2026-11-09):** T324
+  (reversion, idempotence, Player refusal) and T325 (MEDIUM from explicit
+  fields, LOW from inference, `collected_at` refresh) both pass in
+  `test:backfill`; the confidence values come from
+  `mergeNovelDerivedSynthesis`. (REQ-265a-c, REQ-266a-b)
+
 ### 2026-11-09 §5.2/§5.8 behaviour remediation — journal, lore, secrets
 
 - **F-P7b-1 — story journal now records entity attribution (resolved
@@ -1270,17 +1290,6 @@ against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
-- **F-P7b-3 — synthesis run/rebuild rows diverge, revert/rebuild pass
-  (2026-11-09):** T94 and T144 pass and are committed (`test:backfill`,
-  "T94/REQ-103" and "T144/REQ-130"). T97 fails — the manifest carries one
-  `collected_at` (`core/wisdom.ts:77`) and no item does; T95 fails — no
-  `MEDIUM` or `LOW` confidence item exists in the default manifest
-  (`core/wisdom.ts`, zero occurrences); T288 fails — `run` installs the static
-  `DEFAULT_WISDOM` manifest (`index.ts:13568`), so adventure load cannot
-  auto-activate ruleset-native items; T63 fails — Tier 1 items carry
-  `tag: "vendor"`, not `[supplementary]`. T102 is exercised under T195.
-  REQ-080g2, REQ-103a, REQ-103b, REQ-103c, REQ-103d, REQ-130a, REQ-130b,
-  REQ-130c. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
 - **F-P7b-4 — scene catalog is a closed enum; the transition hook passes
   (2026-11-09):** T136 passes and is committed (`test:backfill`, "T136/REQ-125").
   T135/T71 fail on the catalog clauses: `scene_type` is
@@ -1299,12 +1308,6 @@ absent, so each finding carries the failing predicate rather than a test.
   REQ-084b4 "xyzzy returns an empty list" case fails. REQ-084a1, REQ-084a2,
   REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3, REQ-084b4. Scheduled under
   §5.2/§5.8 assertion and behaviour remediation.
-- **F-P7b-7 — synthesis removal passes; confidence rows do not (2026-11-09):**
-  T324 passes and is committed (`test:backfill`, "T324/REQ-265"). T325 fails:
-  the default manifest carries only `HIGH` items, so the `MEDIUM`
-  explicit-field and `LOW` inference tags the row names cannot be produced and
-  `collected_at` is not per item. REQ-265a, REQ-265b, REQ-265c, REQ-266a,
-  REQ-266b. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
 - **F-P7b-9 — table classification needs a dynamic enum and a 5e fixture
   (2026-11-09):** `resolve_mechanic`'s `table` parameter is a static
   `z.string()` (`index.ts:7940`); REQ-214c requires the generation-table

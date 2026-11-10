@@ -5,7 +5,7 @@
 // T-ID(s) it exercises so the coverage register can promote the REQ to C.
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -1130,6 +1130,137 @@ async function main() {
       const text = (forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(text, "[FORBIDDEN]");
       await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await kill(proc);
+  }
+
+  // ── §5.2/§5.8 remediation 2: synthesis provenance and confidence ──
+  // (F-P7b-3, F-P7b-7)
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "p7b-synthesis" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const c = await call(proc, "manage_character", { action: "create", name: "Mira" });
+    const id = (c.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "character_01";
+    await call(proc, "manage_character", { action: "update", entity_id: id, voice: "clipped military cadence" });
+    await call(proc, "manage_story", { action: "record", type: "moment", entry: "The bridge collapsed at dusk" });
+
+    await test("T63/REQ-080g2: synthesis is additive, tagged by tier, and badge-filtered", async () => {
+      const toolsBefore = JSON.stringify(await listTools(proc));
+      const before = await call(proc, "manage_character", { action: "sheet", entity_id: id });
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const toolsAfter = JSON.stringify(await listTools(proc));
+      assert(toolsBefore === toolsAfter, "synthesis changed the tool catalog");
+      const after = await call(proc, "manage_character", { action: "sheet", entity_id: id });
+      assert(before === after, "synthesis changed the character sheet");
+
+      const voice = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "voice_examples" }));
+      const rows = voice.items ?? voice;
+      const derived = rows.find((r: any) => String(r.key).startsWith("novel-voice-"));
+      assert(derived && derived.tag === "supplementary", `derived voice row missing or untagged: ${JSON.stringify(derived)}`);
+      const vendor = rows.find((r: any) => r.tag === "vendor");
+      assert(vendor, "ruleset/vendor rows lost their tag");
+
+      const status = await readResource(proc, "synthesis://status");
+      for (const module of ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"]) {
+        assertContains(status, module);
+      }
+
+      const first = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const second = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      assert(JSON.stringify((first.items ?? first).map((r: any) => r.key)) === JSON.stringify((second.items ?? second).map((r: any) => r.key)), "rerun was not idempotent");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const playerBrief = await getPrompt(proc, "badge_briefing", {});
+      await call(proc, "set_badge", { badge: "game_master" });
+      assertNotContains(playerBrief, "NPC voice design framework");
+    });
+
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T95/REQ-080g2: LOW confidence is tagged and ordered after HIGH/MEDIUM", async () => {
+      const guidance = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "supplementary_guidance" }));
+      const rows = guidance.items ?? guidance;
+      const low = rows.find((r: any) => r.key === "novel-theme");
+      assert(low && low.confidence === "LOW", `theme item missing or not LOW: ${JSON.stringify(low)}`);
+      await call(proc, "manage_synthesis", { action: "activate", module: "supplementary_guidance", key: "novel-theme" });
+      const resource = JSON.parse(await readResource(proc, "synthesis://supplementary_guidance"));
+      const arr = Array.isArray(resource) ? resource : [];
+      const last = arr[arr.length - 1];
+      assert(last?.confidence === "LOW", `LOW item not ordered last: ${JSON.stringify(arr.map((i: any) => i.confidence))}`);
+      const brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "[supplementary]");
+    });
+
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T97/REQ-080g2: every synthesis item carries collected_at", async () => {
+      const all = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      const rows = all.items ?? all;
+      assert(Array.isArray(rows) && rows.length > 0, "no synthesis rows");
+      const now = Date.now();
+      for (const row of rows) {
+        assert(typeof row.collected_at === "string" && row.collected_at.length > 0, `row missing collected_at: ${JSON.stringify(row).slice(0, 120)}`);
+        const t = Date.parse(row.collected_at);
+        assert(!Number.isNaN(t) && Math.abs(now - t) < 120000, `collected_at outside ±1 min: ${row.collected_at}`);
+      }
+    });
+
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T325/REQ-266: MEDIUM from explicit fields, LOW from inference, refreshed on rerun", async () => {
+      const voice = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "voice_examples" }));
+      const medium = (voice.items ?? voice).find((r: any) => String(r.key).startsWith("novel-voice-"));
+      assert(medium && medium.confidence === "MEDIUM", `explicit voice not MEDIUM: ${JSON.stringify(medium)}`);
+      const guidance = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "supplementary_guidance" }));
+      const low = (guidance.items ?? guidance).find((r: any) => r.key === "novel-theme");
+      assert(low && low.confidence === "LOW", "inferred theme not LOW");
+      const before = low.collected_at;
+      await new Promise((r) => setTimeout(r, 20));
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const guidance2 = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "supplementary_guidance" }));
+      const low2 = (guidance2.items ?? guidance2).find((r: any) => r.key === "novel-theme");
+      assert(Date.parse(low2.collected_at) >= Date.parse(before), "rerun did not refresh collected_at");
+    });
+
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T288/REQ-080g2: adventure load reports synthesis state and keeps community items inert", async () => {
+      await call(proc, "manage_codex", { action: "set", kind: "adventure", name: "Merrick Quest", content: { title: "Merrick Quest", sections: {} } });
+      mkdirSync(join(DATA_DIR, "adventures"), { recursive: true });
+      writeFileSync(join(DATA_DIR, "adventures", "merrick.md"), "# Merrick Quest\n\nOld Merrick keeps the ferry.\n");
+      const loaded = await call(proc, "manage_adventure", { action: "load", slug: "merrick" }).catch((e: any) => String(e.message ?? e));
+      assertContains(loaded, "Community synthesis items:");
+      assertContains(loaded, "inert");
+      const voice = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "voice_examples" }));
+      const arr = voice.items ?? voice;
+      const derived = arr.find((i: any) => String(i.key).startsWith("novel-voice-"));
+      assert(derived && derived.activated === false, "community voice item is not inert");
+      const brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "Voice examples:");
+    });
+
+    await kill(proc);
+  }
+
+  // ── T102: synthesis staleness (env-configured window) ─────────────
+  {
+    const proc = await boot({ TTRPG_SYNTHESIS_STALE_DAYS: "0" });
+    await call(proc, "manage_novel", { action: "create", name: "p7b-stale" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    await test("T102/REQ-080g2: stale synthesis items are flagged and refreshed by a rerun", async () => {
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const first = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      const rows = first.items ?? first;
+      assert(rows.some((r: any) => r.stale === true), "no stale flag with a zero-day window");
+      const key = rows[0].key;
+      const stamped = rows[0].collected_at;
+      await new Promise((r) => setTimeout(r, 30));
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const second = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      const next = (second.items ?? second).find((r: any) => r.key === key);
+      assert(next && Date.parse(next.collected_at) >= Date.parse(stamped), "rerun did not refresh timestamps");
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(typeof health.synthesis_last_run === "string", "spec_health synthesis_last_run missing");
     });
 
     await kill(proc);

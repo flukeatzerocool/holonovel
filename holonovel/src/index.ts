@@ -10378,7 +10378,11 @@ server.registerTool("manage_adventure", {
         audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
         const synthVoice = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
         const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
-        const aug = synthVoice > 0 || synthLore > 0 ? `\n\nSynthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.` : "";
+        const communityInert = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => ["supplementary", "player"].includes(String(v?.tag ?? ""))).length + (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => ["supplementary", "player"].includes(String(l?.tag ?? ""))).length;
+        const augParts: string[] = [];
+        if (synthVoice > 0 || synthLore > 0) augParts.push(`Synthesis: ${synthVoice} item(s) active for this adventure (${synthLore} lore template(s) for its locations). Review at \`synthesis://status\`.`);
+        if (communityInert > 0) augParts.push(`Community synthesis items: ${communityInert} inert — activate with manage_synthesis (action: activate).`);
+        const aug = augParts.length > 0 ? `\n\n${augParts.join(" ")}` : "";
         return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${hazardNote(linked, materialized)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
       }
       novel.generated_adventure = null;
@@ -10388,7 +10392,7 @@ server.registerTool("manage_adventure", {
       const materializedNoWorld = materializeAnnotations(novel, linkedNoWorld.directives, args.slug);
       state.saveNovel(novel);
       audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, creator: provenance?.creator ?? null, npcs: materializedNoWorld.counts.npcs, lore: materializedNoWorld.counts.lore });
-      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${adventureSynthesisLines()}${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
     }
     case "list": {
       const files = adventureFiles();
@@ -12952,6 +12956,51 @@ server.registerResource("constraints-active", "constraints://active", { title: "
 const SYNTHESIS_MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
 
 // REQ-231b — modules default to enabled; only an explicit disable turns one off.
+// REQ-266 — Novel-derived synthesis items: MEDIUM-confidence voice examples for
+// entities/NPCs with an explicit personality voice or description, and one
+// LOW-confidence theme item when the story journal is non-empty. Deterministic
+// (sorted ids), additive only, and never touches mechanics (REQ-080).
+// REQ-080g2/T288 — synthesis status appended to an adventure load response.
+function adventureSynthesisLines(): string {
+  const manifest: any = state.wisdomManifest;
+  if (!manifest) return "";
+  const tier1 = (list: any[]): number => (list ?? []).filter((i: any) => ["vendor", "ruleset"].includes(String(i?.tag ?? ""))).length;
+  const inert = (list: any[]): number => (list ?? []).filter((i: any) => ["supplementary", "player"].includes(String(i?.tag ?? ""))).length;
+  const active = tier1(manifest.voice_examples) + tier1(manifest.lore_templates);
+  const inertCount = inert(manifest.voice_examples) + inert(manifest.lore_templates);
+  const parts: string[] = [];
+  if (active > 0) parts.push(`Synthesis: ${active} item(s) active for this adventure. Review at \`synthesis://status\`.`);
+  if (inertCount > 0) parts.push(`Community synthesis items: ${inertCount} inert — activate with manage_synthesis (action: activate).`);
+  return parts.length > 0 ? `\n\n${parts.join(" ")}` : "";
+}
+
+function mergeNovelDerivedSynthesis(manifest: any, novel: NovelState): void {
+  const voice: any[] = [];
+  const addVoice = (id: string, name: string, personality: any): void => {
+    const text = [personality?.voice, personality?.description].filter(Boolean).join(" — ");
+    if (!text) return;
+    voice.push({ key: `novel-voice-${id}`, content: `${name}: ${text}`, source_url: `novel://${id}`, confidence: "MEDIUM", tag: "supplementary", badge_scope: "game_master" });
+  };
+  for (const id of [...novel.entities.keys()].sort()) {
+    const entity = novel.entities.get(id)!;
+    addVoice(id, entity.name, (entity as any).personality);
+  }
+  for (const id of [...novel.npcs.keys()].sort()) {
+    const npc = novel.npcs.get(id)!;
+    addVoice(id, npc.name, (npc as any).personality);
+  }
+  const guidance: any[] = [];
+  if (novel.story_journal.length > 0) {
+    guidance.push({ key: "novel-theme", content: `Recurring theme from the story journal: ${novel.story_journal[novel.story_journal.length - 1].entry}`, source_url: "novel://story_journal", confidence: "LOW", tag: "supplementary", badge_scope: "game_master" });
+  }
+  const dedupe = (existing: any[], extra: any[]): any[] => {
+    const keys = new Set(existing.map((i: any) => String(i?.key)));
+    return [...extra.filter((i) => !keys.has(String(i.key))), ...existing];
+  };
+  manifest.voice_examples = dedupe(manifest.voice_examples ?? [], voice);
+  manifest.supplementary_guidance = dedupe(manifest.supplementary_guidance ?? [], guidance);
+}
+
 function isModuleEnabled(module: string): boolean {
   return state.activeNovel?.synthesis_module_enabled?.[module] !== false;
 }
@@ -13147,7 +13196,12 @@ for (const module of SYNTHESIS_MODULES.filter((m) => m !== "narrative_voices")) 
     `synthesis://${module}`,
     { title: `Synthesis ${module}` },
     async () => {
-      const items = effectiveWisdomItems(module).filter(badgeCanSeeWisdom);
+      const manifest: any = state.wisdomManifest;
+      const rank = (i: any): number => (i?.confidence === "LOW" ? 2 : i?.confidence === "MEDIUM" ? 1 : 0);
+      const items = effectiveWisdomItems(module)
+        .filter(badgeCanSeeWisdom)
+        .map((i: any) => ({ ...i, confidence: i?.confidence ?? "HIGH", collected_at: manifest?.collected_at ?? i?.collected_at ?? null }))
+        .sort((a: any, b: any) => rank(a) - rank(b));
       return { contents: [{ uri: `synthesis://${module}`, text: JSON.stringify(items, null, 2), mimeType: "application/json" }] };
     },
   );
@@ -13687,6 +13741,7 @@ server.registerTool("manage_synthesis", {
       }
       state.enriched = true;
       state.wisdomManifest = withWisdomKeys(DEFAULT_WISDOM);
+      mergeNovelDerivedSynthesis(state.wisdomManifest, novel);
       state.saveNovel(novel);
       const counts = synthesisModuleCounts();
       return ok(`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`);
@@ -13714,6 +13769,8 @@ server.registerTool("manage_synthesis", {
         tag: item?.tag ?? "vendor",
         badge_scope: item?.badge_scope,
         content,
+        confidence: item?.confidence ?? "HIGH",
+        collected_at: manifest?.collected_at ?? item?.collected_at ?? null,
         activated: isWisdomItemActive(module, item),
         module_enabled: isModuleEnabled(module),
         stale: isStale(item),
@@ -13734,7 +13791,7 @@ server.registerTool("manage_synthesis", {
       ];
       const filtered = args.module ? all.filter((i: any) => i.module === args.module) : all;
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
-      const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
+      const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, confidence: i.confidence ?? "HIGH", collected_at: i.collected_at ?? null, activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
       return raw(JSON.stringify(summary, null, 2));
     }
     case "verify": {
@@ -14185,7 +14242,8 @@ You are in the story. Confine tool use and responses to the current Novel. To st
     const renderItems = (label: string, items: any[], pick: (i: any) => string): void => {
       if (items.length === 0) return;
       synthLines.push(`${label}:`);
-      items.slice(0, 5).forEach((i: any) => {
+      const rank = (i: any): number => (i?.confidence === "LOW" ? 2 : i?.confidence === "MEDIUM" ? 1 : 0);
+      [...items].sort((a, b) => rank(a) - rank(b)).slice(0, 5).forEach((i: any) => {
         const conf = i.confidence ? ` [${i.confidence}]` : "";
         const src = i.source_url ? ` (${i.source_url})` : "";
         synthLines.push(`- ${wisdomTag(i)}${conf} ${pick(i)}${src}`);
