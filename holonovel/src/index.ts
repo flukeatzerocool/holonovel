@@ -12119,6 +12119,9 @@ const HOLODECK_BEHAVIORAL: HolodeckConfigEntry[] = [
   { variable: "memory_recent_events", tunable: false },
   { variable: "memory_arc_sessions", tunable: false },
   { variable: "memory_campaign_max_facts", tunable: false },
+  { variable: "subjective_memory_decay_halflife", tunable: false },
+  { variable: "subjective_memory_reinforcement_bonus", tunable: false },
+  { variable: "subjective_memory_reinforcement_max", tunable: false },
 ];
 
 // REQ-388a–d — behavioral-configuration coverage. Every catalog entry has a
