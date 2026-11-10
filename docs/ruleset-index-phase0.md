@@ -29,8 +29,9 @@ empty index. The expected anchors are present in the package index.
 
 ## Decision
 
-The Phase 0 gate requires five ranking misses. The run produced four misses and
-one top-3 hit. The threshold is not met, so **REQ-657 is not built**: no
+The Phase 0 gate requires five ranking misses. A top-3 hit is a misrank, not a
+miss, for this gate. The run produced four misses and one top-3 hit. The
+threshold is not met, so **REQ-657 is not built**: no
 `ruleset` item type, no `semantic` option on `manage_ruleset search`, no new
 index path.
 

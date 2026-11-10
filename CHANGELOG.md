@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-10 — Tooling and process follow-ups from the AAR
+
+- Added `npm run refresh-predicates`: reports and repairs holosuite anchor line
+  numbers by symbol, without changing the strict resolver contract.
+- Added `npm run req:headroom`: lists REQs within a threshold of the
+  800-character body cap, reusing `extractReqBodies`.
+- Documented the regeneration order and the derived-chain red-test rule in
+  AGENTS.md; clarified that a top-3 hit is a misrank, not a miss, for the
+  ruleset-index Phase 0 gate.
+
 ## 2026-11-10 — COF one-way import
 
 - Added `manage_npc (action: import_cof)`: reads a local COF 1.x container,

@@ -432,6 +432,10 @@ the coverage backlog itself is cleared (bucket-A reflects intended coverage;
 
 - **Completion bar.** Every plan states its own done-bar — what must pass and
   what must close for *this* plan to be done. Bars are session-achievable.
+- **Derived-chain red test.** A plan that adds or changes a derived chain or a
+  validity window states a red test that exercises supersession with different
+  objects before implementation. A chain keyed on the object makes supersession
+  unreachable; the test is the cheapest way to catch that.
   "Execute all <unbounded backlog>" is not a bar; plan-review rejects it. The
   AAR judges against the plan's declared bar, never an idealized zero-backlog
   state.
@@ -500,9 +504,13 @@ remaining items before committing:
 - [ ] `holonovel/AGENTS.md` tool-surface list and counts match `tools/list`
 - [ ] `npm run test:package-smoke` passes before a publish (packed artifact,
       spec hash, starter seeding, per-OS data directory; REQ-614)
-- [ ] Add the CHANGELOG entry, then run `npm run build-order` (or
-      `npm run version-bump`) — the CalVer, AGENTS.md, DECISIONS.md, index.ts,
-      lockfile, and server.json advance together (REQ-107a)
+- [ ] After the last spec or description edit, run the regeneration sequence in
+      order: `check-tool-definitions-sync` (regenerate when it reports drift) →
+      `surface-budget --write` when the footprint moved → refresh the DECISIONS
+      action/token counts → `npm --prefix holonovel run build:starter-novel`
+      when freshness fails → `npm run build-order` (or `npm run version-bump`) —
+      the CalVer, AGENTS.md, DECISIONS.md, index.ts, lockfile, and server.json
+      advance together (REQ-107a)
 - [ ] README `@spec:` markers and the coverage register are current — both are
       gated by `check:fast`/`check` (`check-markers`; the coverage-register
       freshness check inside `validate`); regenerate with
