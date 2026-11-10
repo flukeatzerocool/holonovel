@@ -127,6 +127,52 @@ async function main() {
       assertNotContains(await call(proc, "manage_causality", { action: "causal_list" }), "npc_1");
     });
 
+    await test("T10/REQ-041a: a refused capability call pushes no snapshot and clears no redo", async () => {
+      // Each cycle: one capability mutation, one refused call, then undo must
+      // reverse the mutation (proving no snapshot was pushed) and redo must
+      // still be available (proving the redo stack was not cleared).
+      const aspectCycle = async (aspect: string, refuse: () => Promise<string>, code: string) => {
+        await call(proc, "resolve_mechanic", { action: "fate_aspect", op: "create", name: aspect, target: "scene" });
+        assertContains(await refuse(), code);
+        await call(proc, "manage_history", { action: "undo" });
+        assertNotContains(await call(proc, "resolve_mechanic", { action: "fate_aspect", op: "list" }), aspect);
+        assertContains(await call(proc, "manage_history", { action: "redo" }), "[OK]");
+        assertContains(await call(proc, "resolve_mechanic", { action: "fate_aspect", op: "list" }), aspect);
+      };
+
+      // REQ-436 — spending above the Fate balance.
+      await aspectCycle("Refusal Aspect A",
+        () => call(proc, "resolve_mechanic", { action: "fate_point", op: "spend", entity_id: "pc_a", amount: 99 }),
+        "[RULE_VIOLATION]");
+
+      // REQ-435 — invoking an aspect with zero Fate points.
+      await call(proc, "resolve_mechanic", { action: "fate_point", op: "spend", entity_id: "pc_zero", amount: 3 });
+      await aspectCycle("Refusal Aspect B",
+        () => call(proc, "resolve_mechanic", { action: "fate_aspect", op: "invoke", name: "Refusal Aspect B", entity_id: "pc_zero" }),
+        "[RULE_VIOLATION]");
+
+      // REQ-442 — resisting above the stress track.
+      await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_f", amount: 7, name: "Wound" });
+      await aspectCycle("Refusal Aspect C",
+        () => call(proc, "resolve_mechanic", { action: "forged_stress", op: "resist", entity_id: "pc_f", name: "Wound", cost: 2 }),
+        "[RULE_VIOLATION]");
+
+      // REQ-440 — marking a progress track that does not exist.
+      await aspectCycle("Refusal Aspect D",
+        () => call(proc, "resolve_mechanic", { action: "ironsworn_progress", op: "mark", name: "No Such Track", ticks: 1 }),
+        "[NOT_FOUND]");
+
+      // Unknown ops are refusals too, and must not leave a state entry behind.
+      await aspectCycle("Refusal Aspect E",
+        () => call(proc, "resolve_mechanic", { action: "fate_stress", op: "bogus", entity_id: "ghost_stress" }),
+        "[INVALID_INPUT]");
+      assertNotContains(await call(proc, "resolve_mechanic", { action: "fate_stress", op: "list" }), "ghost_stress");
+      await aspectCycle("Refusal Aspect F",
+        () => call(proc, "resolve_mechanic", { action: "forged_stress", op: "bogus", entity_id: "ghost_forged" }),
+        "[INVALID_INPUT]");
+      assertNotContains(await call(proc, "resolve_mechanic", { action: "forged_stress", op: "list" }), "ghost_forged");
+    });
+
     await test("T476/REQ-407: persistence tools listed for GM regardless of scene type", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "combat scene", scene_type: "combat" });
       const b = await briefing(proc);

@@ -590,6 +590,7 @@ export function normalizeIronswornState(raw: unknown): IronswornState {
 export interface ForgedCharacterState {
   stress: number;
   trauma: string[];
+  consequences: string[];
 }
 export interface ForgedState {
   characters: Record<string, ForgedCharacterState>;
@@ -598,9 +599,17 @@ export const FORGED_STRESS_MAX = 8;
 
 export function normalizeForgedState(raw: unknown): ForgedState {
   const r = (raw ?? {}) as Record<string, any>;
-  return {
-    characters: (r.characters && typeof r.characters === "object") ? r.characters : {},
-  };
+  const source = (r.characters && typeof r.characters === "object") ? r.characters : {};
+  const characters: Record<string, ForgedCharacterState> = {};
+  for (const [id, value] of Object.entries(source as Record<string, any>)) {
+    const c = (value ?? {}) as Record<string, any>;
+    characters[id] = {
+      stress: typeof c.stress === "number" ? c.stress : 0,
+      trauma: Array.isArray(c.trauma) ? c.trauma.filter((t: unknown) => typeof t === "string") : [],
+      consequences: Array.isArray(c.consequences) ? c.consequences.filter((t: unknown) => typeof t === "string") : [],
+    };
+  }
+  return { characters };
 }
 
 // Pre-workflow snapshot (REQ-042b): captured when a tool raises [NEED_INPUT],

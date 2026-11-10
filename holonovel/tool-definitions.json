@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 113779,
+  "tools_list_bytes": 113828,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 113779,
-        "tokens": 28445
+        "bytes": 113828,
+        "tokens": 28457
       },
       "standard": {
         "tools": 37,
-        "bytes": 99386,
-        "tokens": 24847
+        "bytes": 99435,
+        "tokens": 24859
       },
       "small": {
         "tools": 6,
@@ -32,8 +32,8 @@
           },
           "resolve": {
             "tools": 6,
-            "bytes": 4606,
-            "tokens": 1152
+            "bytes": 4626,
+            "tokens": 1157
           },
           "narrate": {
             "tools": 6,
@@ -2134,8 +2134,8 @@
     {
       "name": "resolve_mechanic",
       "title": "Resolve Mechanics",
-      "description": "Resolve uncertain actions across the host's base mechanics: Fate Fudge dice, aspects, Fate points, and stress; Ironsworn momentum, moves, and progress; Forged action rolls, stress, trauma, and downtime; and generic ruleset table rolls. Rolls and state changes persist to the Novel and are audited; a roll with no following write is flagged as an uncommitted roll. Revert the most recent mutation with manage_history (action: undo). fate_roll uses dF, ironsworn_move compares an action die against two challenge dice, and forged_action_roll takes the highest of a d6 pool. Use when: resolving a Fate, Ironsworn, or Forged mechanic, or rolling on a ruleset generation table. Do NOT use when: resolving a ruleset skill check — use the bound ruleset's roll tools; managing vows — use manage_vow (action: set).",
-      "description_bytes": 809,
+      "description": "Resolve uncertain actions across the host's base mechanics: Fate Fudge dice, aspects, Fate points, and stress; Ironsworn momentum, moves, and progress; Forged action rolls, stress, trauma, named consequences, and downtime; and generic ruleset table rolls. Rolls and state changes persist to the Novel and are audited; a roll with no following write is flagged as an uncommitted roll. Revert the most recent mutation with manage_history (action: undo). fate_roll uses dF, ironsworn_move compares an action die against two challenge dice, and forged_action_roll takes the highest of a d6 pool. Use when: resolving a Fate, Ironsworn, or Forged mechanic, or rolling on a ruleset generation table. Do NOT use when: resolving a ruleset skill check — use the bound ruleset's roll tools; managing vows — use manage_vow (action: set).",
+      "description_bytes": 829,
       "action_enum": [
         "roll",
         "fate_roll",
@@ -2164,7 +2164,7 @@
         "effect": "Effect (forged_action_roll); defaults to standard.",
         "entity_id": "Entity or NPC id (fate_aspect, fate_point, fate_stress, ironsworn_momentum, ironsworn_move, forged_stress, forged_downtime).",
         "modifier": "Skill rating added to the roll (fate_roll).",
-        "name": "Aspect name, progress-track name, move name, action name, or consequence label.",
+        "name": "Aspect name, progress-track name, move name, action name, or named consequence (fate_stress, forged_stress).",
         "op": "Sub-operation for aspect, fate_point, stress, momentum, progress, or downtime.",
         "position": "Position (forged_action_roll); defaults to risky.",
         "rank": "Progress-track rank (ironsworn_progress).",
@@ -2204,8 +2204,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4413,
-        "descriptionBytes": 809
+        "definitionBytes": 4462,
+        "descriptionBytes": 829
       },
       "category": "",
       "gate": ""

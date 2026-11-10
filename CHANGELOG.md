@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-10 — §5.21–§5.23 capability remediation
+
+- Refused capability calls no longer touch history: the Fate, Ironsworn, and
+  Forged branches validate their op, arguments, and state lookups before
+  `novelSnapshot()`, and the stress/character entry creation sits below the
+  snapshot, so a refusal leaves the undo stack and the per-badge redo stack
+  untouched (REQ-041a, REQ-041b, REQ-116, REQ-435, REQ-436, REQ-440, REQ-442).
+- Forged characters carry named consequences: a named mark records the
+  consequence once, a filling mark records trauma only, and `resist` removes
+  the recorded consequence before spending its stress cost — refusing a
+  missing name with `[INVALID_INPUT]`, an unrecorded name with `[NOT_FOUND]`,
+  and an over-budget cost with `[RULE_VIOLATION]`; the state persists through a
+  deep normalizer that defaults a legacy character to an empty list (REQ-442).
+- Spec: REQ-442 names the consequence contract and the refusal codes, §7.7.0
+  classifies the new field under the non-coupling base-capability surface, and
+  the T528 catalogue row covers recording, dedupe, resistance, and refusal
+  (REQ-423 data-format fingerprint advanced).
+- Verification: `test:forged` 7/7, `test:fate` 7/7, `test:ironsworn` 4/4,
+  `test:backfill` 100/100, `test:persistence-guardrails` 17/17; `assemble` +
+  `check:fast` PASS; `build-order` complete (data-format fingerprint advanced,
+  `package_format` unchanged); F-P6b-17 and F-P6b-18 `Resolved` in the review
+  register.
+
 ## 2026-11-10 — Unscoped-surface review program
 
 - The review coverage the 2026-11-09 full-review sweep left out is now a

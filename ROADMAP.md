@@ -12,16 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.21–§5.23 capability remediation (P1)
-
-- Forged consequences and refusal atomicity: model the named Forged
-  consequence so a resist reduces it, and move the Novel snapshot below every
-  validation guard so a refused capability action writes no undo state
-  (REQ-041a, REQ-041b, REQ-435, REQ-436, REQ-440, REQ-442).
-
-**Trigger:** the next capability-remediation session; closes when F-P6b-17 and
-F-P6b-18 are `Resolved`.
-
 ## §5.16–§5.18 citation repair (P1)
 
 - §5.16/§5.17: write or re-point the missing assertions for the listing,

@@ -339,11 +339,11 @@ populated properties' own archetypes.
 
 **Host base capabilities.** Host-level base-capability state — Fate aspects,
 Fate points, and stress/consequences (REQ-434–437); Ironsworn momentum, moves,
-and progress tracks (REQ-438–440); Forged action rolls, stress, trauma, and
-downtime (REQ-441–443) — persists with the Novel (REQ-092) but is not a Novel
-property group and has no coupling rows in §7.7.1. Base-capability state is
-self-contained: it mutates only through its own tool actions and does not
-couple to any property group. Base-capability state is Novel-tier state on the
+and progress tracks (REQ-438–440); Forged action rolls, stress, trauma, named
+consequences, and downtime (REQ-441–443) — persists with the Novel (REQ-092)
+but is not a Novel property group and has no coupling rows in §7.7.1.
+Base-capability state is self-contained: it mutates only through its own tool
+actions and does not couple to any property group. Base-capability state is Novel-tier state on the
 same footing as property groups: copy, snapshot, archive, and interchange
 operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
 include property-group state. A future base capability that defines

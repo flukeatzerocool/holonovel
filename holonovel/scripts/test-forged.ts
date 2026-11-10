@@ -94,25 +94,44 @@ async function main() {
     proc.kill("SIGKILL");
   }
 
-  // ── T528 (REQ-442) — stress/trauma + resistance ───────────────────
+  // ── T528 (REQ-442) — stress/trauma, consequences, and resistance ──
   {
     const proc = await boot();
     await newNovel(proc, "fitd-stress");
-    await test("T528/REQ-442: mark stress, resist for stress, and fill the track to trauma", async () => {
-      const mark = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_1", amount: 2 });
+    await test("T528/REQ-442: a named mark records the consequence; resist removes it", async () => {
+      const mark = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_1", amount: 2, name: "Harm" });
       assertContains(mark, "stress now 2/8");
+      assertContains(mark, "recorded consequence 'Harm'");
+      const again = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_1", amount: 1, name: "Harm" });
+      assertContains(again, "stress now 3/8");
+      const before = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "list" });
+      const occurrences = before.split("Harm").length - 1;
+      assert(occurrences === 1, `consequence recorded twice: ${before}`);
       const resist = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "resist", entity_id: "pc_1", name: "Harm", cost: 2 });
       assertContains(resist, "resisted 'Harm' for 2 stress");
-      assertContains(resist, "now 4/8");
-      const fill = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_1", amount: 4 });
+      assertContains(resist, "now 5/8");
+      const after = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "list" });
+      assert(!after.includes("Harm"), `consequence survived resist: ${after}`);
+    });
+    await test("T528/REQ-442: an unrecorded or missing resist name is refused", async () => {
+      const unknown = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "resist", entity_id: "pc_1", name: "Shadow", cost: 2 });
+      assertContains(unknown, "[NOT_FOUND]");
+      const missing = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "resist", entity_id: "pc_1", cost: 2 });
+      assertContains(missing, "[INVALID_INPUT]");
+    });
+    await test("T528/REQ-442: a filling mark records trauma, resets stress, and appends no consequence", async () => {
+      const fill = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_3", amount: 8, name: "Overreach" });
       assertContains(fill, "gained trauma");
       assertContains(fill, "stress reset to 0");
       const list = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "list" });
       assertContains(list, "trauma");
+      assertContains(list, "Overreach");
+      const row = JSON.parse(list).find((r: any) => r.entity_id === "pc_3");
+      assert(Array.isArray(row.consequences) && row.consequences.length === 0, `filling mark recorded a consequence: ${JSON.stringify(row)}`);
     });
     await test("T528/REQ-442: resist is refused when it would exceed the track", async () => {
-      await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_2", amount: 7 });
-      const refused = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "resist", entity_id: "pc_2", cost: 2 });
+      await call(proc, "resolve_mechanic", { action: "forged_stress", op: "mark", entity_id: "pc_2", amount: 7, name: "Wound" });
+      const refused = await call(proc, "resolve_mechanic", { action: "forged_stress", op: "resist", entity_id: "pc_2", name: "Wound", cost: 2 });
       assertContains(refused, "RULE_VIOLATION");
     });
     proc.kill("SIGKILL");

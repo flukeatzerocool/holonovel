@@ -7905,12 +7905,12 @@ server.registerTool("resolve_fate", {
       const op = args.op ?? "list";
       if (op === "list") return raw(JSON.stringify(novel.fate.aspects, null, 2));
       requireGM();
-      novelSnapshot();
       const name = String(args.name ?? "").trim();
       const target = String(args.target ?? "scene");
       if (op === "create") {
         if (!name) return err("INVALID_INPUT", "Aspect name is required to create an aspect.");
         if (novel.fate.aspects.some((a) => a.name === name && a.target === target)) return err("STATE_CONFLICT", `Aspect '${name}' already exists on '${target}'.`);
+        novelSnapshot();
         novel.fate.aspects.push({ name, target });
         state.recordMutation(novel, "create_aspect", "fate");
         audit("create_aspect", { name, target });
@@ -7919,6 +7919,7 @@ server.registerTool("resolve_fate", {
       if (op === "remove") {
         const idx = novel.fate.aspects.findIndex((a) => a.name === name && a.target === target);
         if (idx === -1) return err("NOT_FOUND", `Aspect '${name}' on '${target}' not found.`);
+        novelSnapshot();
         novel.fate.aspects.splice(idx, 1);
         state.recordMutation(novel, "remove_aspect", "fate");
         audit("remove_aspect", { name, target });
@@ -7930,6 +7931,7 @@ server.registerTool("resolve_fate", {
         if (!novel.fate.aspects.some((a) => a.name === name)) return err("NOT_FOUND", `Aspect '${name}' not found.`);
         const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
         if (points < 1) return err("RULE_VIOLATION", `'${entity_id}' has no Fate points to invoke '${name}'.`);
+        novelSnapshot();
         novel.fate.fate_points[entity_id] = points - 1;
         state.recordMutation(novel, "invoke_aspect", "fate");
         audit("invoke_aspect", { name, entity_id });
@@ -7937,6 +7939,7 @@ server.registerTool("resolve_fate", {
       }
       if (op === "compel") {
         const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
+        novelSnapshot();
         novel.fate.fate_points[entity_id] = points + 1;
         state.recordMutation(novel, "compel_aspect", "fate");
         audit("compel_aspect", { name, entity_id });
@@ -7953,13 +7956,13 @@ server.registerTool("resolve_fate", {
         return raw(JSON.stringify(rows, null, 2));
       }
       requireGM();
-      novelSnapshot();
       const entity_id = String(args.entity_id ?? "");
       if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
       const amount = Math.max(1, Number(args.amount ?? 1));
       if (op === "spend") {
         const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
         if (points < amount) return err("RULE_VIOLATION", `'${entity_id}' has ${points} Fate point(s), cannot spend ${amount}.`);
+        novelSnapshot();
         novel.fate.fate_points[entity_id] = points - amount;
         state.recordMutation(novel, "spend_fate_point", "fate");
         audit("spend_fate_point", { entity_id, amount });
@@ -7967,12 +7970,14 @@ server.registerTool("resolve_fate", {
       }
       if (op === "grant") {
         const points = novel.fate.fate_points[entity_id] ?? FATE_REFRESH;
+        novelSnapshot();
         novel.fate.fate_points[entity_id] = points + amount;
         state.recordMutation(novel, "grant_fate_point", "fate");
         audit("grant_fate_point", { entity_id, amount });
         return ok(`'${entity_id}' gained ${amount} Fate point(s) (now ${points + amount}).`);
       }
       if (op === "refresh") {
+        novelSnapshot();
         novel.fate.fate_points[entity_id] = FATE_REFRESH;
         state.recordMutation(novel, "refresh_fate_point", "fate");
         audit("refresh_fate_point", { entity_id });
@@ -7989,9 +7994,10 @@ server.registerTool("resolve_fate", {
         return raw(JSON.stringify(rows, null, 2));
       }
       requireGM();
-      novelSnapshot();
       const entity_id = String(args.entity_id ?? "");
       if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      if (op !== "mark" && op !== "clear") return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, list.`);
+      novelSnapshot();
       const entry = novel.fate.stress[entity_id] ?? (novel.fate.stress[entity_id] = { physical: 0, mental: 0, consequences: [] });
       if (op === "mark") {
         if (args.track === "physical") entry.physical += Number(args.shifts ?? 1);
@@ -8054,9 +8060,12 @@ server.registerTool("resolve_ironsworn", {
         return raw(JSON.stringify(rows, null, 2));
       }
       requireGM();
-      novelSnapshot();
       const entity_id = String(args.entity_id ?? "");
       if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
+      if (op !== "set" && op !== "gain" && op !== "lose" && op !== "reset") {
+        return err("INVALID_INPUT", `Unknown momentum op '${op}'. Valid ops: set, gain, lose, reset, list.`);
+      }
+      novelSnapshot();
       const current = novel.ironsworn.momentum[entity_id] ?? IRONSWORN_MOMENTUM_DEFAULT;
       const amount = Number(args.amount ?? 1);
       const clamp = (n: number) => Math.max(IRONSWORN_MOMENTUM_MIN, Math.min(IRONSWORN_MOMENTUM_MAX, n));
@@ -8117,19 +8126,25 @@ server.registerTool("resolve_ironsworn", {
       const op = args.op ?? "list";
       if (op === "list") return raw(JSON.stringify(novel.ironsworn.progress_tracks, null, 2));
       requireGM();
-      novelSnapshot();
       const name = String(args.name ?? "").trim();
+      if (op !== "create" && op !== "mark" && op !== "test") {
+        return err("INVALID_INPUT", `Unknown progress op '${op}'. Valid ops: create, mark, test, list.`);
+      }
+      const rank = args.rank ?? "dangerous";
       if (op === "create") {
         if (!name) return err("INVALID_INPUT", "Progress-track name is required to create.");
-        const rank = args.rank ?? "dangerous";
         if (novel.ironsworn.progress_tracks.some((t) => t.name === name)) return err("STATE_CONFLICT", `Progress track '${name}' already exists.`);
+      } else if (!novel.ironsworn.progress_tracks.some((t) => t.name === name)) {
+        return err("NOT_FOUND", `Progress track '${name}' not found.`);
+      }
+      novelSnapshot();
+      if (op === "create") {
         novel.ironsworn.progress_tracks.push({ name, rank, ticks: 0 });
         state.recordMutation(novel, "create_progress", "ironsworn");
         audit("create_progress", { name, rank });
         return ok(`Progress track '${name}' created (${rank}, ${IRONSWORN_TRACK_BOXES} boxes).`);
       }
-      const track = novel.ironsworn.progress_tracks.find((t) => t.name === name);
-      if (!track) return err("NOT_FOUND", `Progress track '${name}' not found.`);
+      const track = novel.ironsworn.progress_tracks.find((t) => t.name === name)!;
       if (op === "mark") {
         track.ticks = Math.min(IRONSWORN_TRACK_BOXES, track.ticks + Number(args.ticks ?? 1));
         state.recordMutation(novel, "mark_progress", "ironsworn");
@@ -8193,31 +8208,47 @@ server.registerTool("resolve_forged", {
       return ok(`${args.name ?? "Action"} — ${position} position, ${effect} effect\nDice: [${rolls.join(", ")}] → highest ${highest}\n${band}${seedWarningSuffix(args.seed)}`);
     }
     case "stress": {
-      // REQ-442 — stress/trauma + resistance.
+      // REQ-442 — stress/trauma, named consequences, and resistance.
       const novel = requireNovel();
       const op = args.op ?? "list";
-      if (op === "list") {
-        const rows = Object.entries(novel.forged.characters).map(([id, c]) => ({ entity_id: id, stress: c.stress, trauma: c.trauma }));
-        return raw(JSON.stringify(rows, null, 2));
-      }
+      const rows = () => Object.entries(novel.forged.characters).map(([id, c]) => ({ entity_id: id, stress: c.stress, trauma: c.trauma, consequences: c.consequences ?? [] }));
+      if (op === "list") return raw(JSON.stringify(rows(), null, 2));
       requireGM();
-      novelSnapshot();
       const entity_id = String(args.entity_id ?? "");
+      const name = String(args.name ?? "").trim();
       if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
-      const char = novel.forged.characters[entity_id] ?? (novel.forged.characters[entity_id] = { stress: 0, trauma: [] });
+      if (op !== "mark" && op !== "clear" && op !== "resist") {
+        return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, resist, list.`);
+      }
+      const current = novel.forged.characters[entity_id];
+      if (op === "resist") {
+        if (!name) return err("INVALID_INPUT", "name is required to resist: it names the recorded consequence. Next: op 'list'.");
+        if (!current || !(current.consequences ?? []).includes(name)) {
+          const recorded = current?.consequences ?? [];
+          return err("NOT_FOUND", `'${name}' is not a recorded consequence for '${entity_id}'. Recorded: ${recorded.length > 0 ? recorded.join(", ") : "none"}. Next: op 'list'.`);
+        }
+        const cost = Number(args.cost ?? 2);
+        if (current.stress + cost > FORGED_STRESS_MAX) {
+          return err("RULE_VIOLATION", `'${entity_id}' has ${current.stress} stress; resisting would exceed ${FORGED_STRESS_MAX}.`);
+        }
+      }
+      novelSnapshot();
+      const char = novel.forged.characters[entity_id] ?? (novel.forged.characters[entity_id] = { stress: 0, trauma: [], consequences: [] });
+      if (!char.consequences) char.consequences = [];
       if (op === "mark") {
         const amount = Number(args.amount ?? 1);
         char.stress += amount;
         if (char.stress >= FORGED_STRESS_MAX) {
-          char.trauma.push(args.name ?? "trauma");
+          char.trauma.push(name || "trauma");
           char.stress = 0;
           state.recordMutation(novel, "mark_stress_forged", "forged");
-          audit("mark_stress_forged", { entity_id, amount, trauma: args.name ?? "trauma" });
+          audit("mark_stress_forged", { entity_id, amount, trauma: name || "trauma" });
           return ok(`'${entity_id}' filled their stress track and gained trauma [${char.trauma.join(", ")}]; stress reset to 0.`);
         }
+        if (name && !char.consequences.includes(name)) char.consequences.push(name);
         state.recordMutation(novel, "mark_stress_forged", "forged");
-        audit("mark_stress_forged", { entity_id, amount });
-        return ok(`'${entity_id}' stress now ${char.stress}/${FORGED_STRESS_MAX}.`);
+        audit("mark_stress_forged", { entity_id, amount, consequence: name || null });
+        return ok(`'${entity_id}' stress now ${char.stress}/${FORGED_STRESS_MAX}.${name ? ` recorded consequence '${name}'.` : ""}`);
       }
       if (op === "clear") {
         char.stress = Math.max(0, char.stress - Number(args.amount ?? 1));
@@ -8227,11 +8258,11 @@ server.registerTool("resolve_forged", {
       }
       if (op === "resist") {
         const cost = Number(args.cost ?? 2);
-        if (char.stress + cost > FORGED_STRESS_MAX) return err("RULE_VIOLATION", `'${entity_id}' has ${char.stress} stress; resisting would exceed ${FORGED_STRESS_MAX}.`);
+        char.consequences = char.consequences.filter((c) => c !== name);
         char.stress += cost;
         state.recordMutation(novel, "resist_forged", "forged");
-        audit("resist_forged", { entity_id, cost, consequence: args.name ?? null });
-        return ok(`'${entity_id}' resisted '${args.name ?? "the consequence"}' for ${cost} stress (now ${char.stress}/${FORGED_STRESS_MAX}).`);
+        audit("resist_forged", { entity_id, cost, consequence: name });
+        return ok(`'${entity_id}' resisted '${name}' for ${cost} stress (now ${char.stress}/${FORGED_STRESS_MAX}).`);
       }
       return err("INVALID_INPUT", `Unknown stress op '${op}'. Valid ops: mark, clear, resist, list.`);
     }
@@ -8239,15 +8270,17 @@ server.registerTool("resolve_forged", {
       // REQ-443 — downtime recovery.
       const novel = requireNovel();
       const op = args.op ?? "list";
-      if (op === "list") {
-        const rows = Object.entries(novel.forged.characters).map(([id, c]) => ({ entity_id: id, stress: c.stress, trauma: c.trauma }));
-        return raw(JSON.stringify(rows, null, 2));
-      }
+      const rows = () => Object.entries(novel.forged.characters).map(([id, c]) => ({ entity_id: id, stress: c.stress, trauma: c.trauma, consequences: c.consequences ?? [] }));
+      if (op === "list") return raw(JSON.stringify(rows(), null, 2));
       requireGM();
-      novelSnapshot();
       const entity_id = String(args.entity_id ?? "");
       if (!entity_id) return err("INVALID_INPUT", "entity_id is required.");
-      const char = novel.forged.characters[entity_id] ?? (novel.forged.characters[entity_id] = { stress: 0, trauma: [] });
+      if (op !== "recover" && op !== "indulge_vice") {
+        return err("INVALID_INPUT", `Unknown downtime op '${op}'. Valid ops: recover, indulge_vice, list.`);
+      }
+      novelSnapshot();
+      const char = novel.forged.characters[entity_id] ?? (novel.forged.characters[entity_id] = { stress: 0, trauma: [], consequences: [] });
+      if (!char.consequences) char.consequences = [];
       if (op === "recover") {
         char.stress = Math.max(0, char.stress - Number(args.amount ?? 2));
         state.recordMutation(novel, "recover_forged", "forged");
@@ -8283,7 +8316,7 @@ const RESOLVE_MECHANIC_SCHEMA = {
   difficulty: z.number().optional().describe("Opposition to beat (fate_roll); defaults to 0."),
   seed: z.string().optional().describe("Deterministic seed (fate_roll, ironsworn_move, ironsworn_progress, forged_action_roll, roll)."),
   op: z.string().optional().describe("Sub-operation for aspect, fate_point, stress, momentum, progress, or downtime."),
-  name: z.string().optional().describe("Aspect name, progress-track name, move name, action name, or consequence label."),
+  name: z.string().optional().describe("Aspect name, progress-track name, move name, action name, or named consequence (fate_stress, forged_stress)."),
   target: z.string().optional().describe("Aspect target: 'scene' or an entity/NPC id (fate_aspect); defaults to 'scene'."),
   entity_id: z.string().optional().describe("Entity or NPC id (fate_aspect, fate_point, fate_stress, ironsworn_momentum, ironsworn_move, forged_stress, forged_downtime)."),
   amount: z.number().optional().describe("Fate points (fate_point), stress (fate_stress, forged_stress, forged_downtime), or momentum (ironsworn_momentum); defaults to 1."),
@@ -8302,7 +8335,7 @@ const RESOLVE_MECHANIC_SCHEMA = {
 };
 server.registerTool("resolve_mechanic", {
   title: "Resolve Mechanics",
-  description: "Resolve uncertain actions across the host's base mechanics: Fate Fudge dice, aspects, Fate points, and stress; Ironsworn momentum, moves, and progress; Forged action rolls, stress, trauma, and downtime; and generic ruleset table rolls. Rolls and state changes persist to the Novel and are audited; a roll with no following write is flagged as an uncommitted roll. Revert the most recent mutation with manage_history (action: undo). fate_roll uses dF, ironsworn_move compares an action die against two challenge dice, and forged_action_roll takes the highest of a d6 pool. Use when: resolving a Fate, Ironsworn, or Forged mechanic, or rolling on a ruleset generation table. Do NOT use when: resolving a ruleset skill check — use the bound ruleset's roll tools; managing vows — use manage_vow (action: set).",
+  description: "Resolve uncertain actions across the host's base mechanics: Fate Fudge dice, aspects, Fate points, and stress; Ironsworn momentum, moves, and progress; Forged action rolls, stress, trauma, named consequences, and downtime; and generic ruleset table rolls. Rolls and state changes persist to the Novel and are audited; a roll with no following write is flagged as an uncommitted roll. Revert the most recent mutation with manage_history (action: undo). fate_roll uses dF, ironsworn_move compares an action die against two challenge dice, and forged_action_roll takes the highest of a d6 pool. Use when: resolving a Fate, Ironsworn, or Forged mechanic, or rolling on a ruleset generation table. Do NOT use when: resolving a ruleset skill check — use the bound ruleset's roll tools; managing vows — use manage_vow (action: set).",
   inputSchema: RESOLVE_MECHANIC_SCHEMA,
 }, async (args: any) => {
   const action = String(args.action ?? "");

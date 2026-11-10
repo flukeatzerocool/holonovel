@@ -361,6 +361,17 @@ async function main() {
       assertContains(text2, "[OK]");
     });
 
+    await test("T121/REQ-116: redo survives a refused capability call", async () => {
+      await call(proc, "manage_world", { action: "create_room",  name: "redo-room-2", description: "Second redo room." });
+      await call(proc, "manage_history", {});
+      const refused = await call(proc, "resolve_mechanic", { action: "fate_point", op: "spend", entity_id: "pc_x", amount: 99 });
+      assertContains(refused, "[RULE_VIOLATION]");
+      await call(proc, "manage_history", { action: "redo" });
+      const restored = await callRaw(proc, "manage_world", { action: "remove_room",  name: "redo-room-2" });
+      const text = (restored.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      assertContains(text, "[OK]");
+    });
+
     await test("T239/T261/T196: parser command dispatch — create rooms and issue commands", async () => {
       await call(proc, "manage_novel", { action: "create",  name: "bf2-parser" });
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });

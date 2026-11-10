@@ -11,6 +11,29 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-10 §5.21–§5.23 capability remediation
+
+- **F-P6b-17 — Forged resist does not reduce a named consequence (resolved
+  2026-11-10):** `ForgedCharacterState` now carries `consequences: string[]`
+  (`holonovel/src/core/state.ts:590-594`) and the deep normalizer defaults a
+  legacy character to `[]` (`:599-612`); a named `mark` records the
+  consequence once, a filling mark records trauma only, and `resist` removes
+  the recorded consequence before spending the cost
+  (`holonovel/src/index.ts:8210-8262`), refusing a missing name
+  (`[INVALID_INPUT]`) or an unrecorded one (`[NOT_FOUND]`). Exercised by T528
+  (`holonovel/scripts/test-forged.ts:101-140`). REQ-442.
+- **F-P6b-18 — refusal paths push undo state and clear redo (resolved
+  2026-11-10):** every capability branch validates its op, arguments, and
+  state lookups before `novelSnapshot()`, and the entry creation
+  (`fate.stress[...] ??=`, `forged.characters[...] ??=`) sits below the
+  snapshot (`holonovel/src/index.ts:7913, 7965, 8000, 8068, 8140, 8235,
+  8281`), so only a real mutation reaches the `redo_stacks` clear at
+  `holonovel/src/core/state.ts:1932`. Exercised by T10
+  (`holonovel/scripts/test-persistence-guardrails.ts:130-174`: five refusal
+  entries across REQ-435/436/440/442 plus unknown-op entry absence) and T121
+  (`holonovel/scripts/test-backfill.ts:364-374`). REQ-041a, REQ-041b,
+  REQ-116, REQ-435, REQ-436, REQ-440, REQ-442.
+
 ### 2026-11-10 §5.16/§5.17 ruleset surface remediation
 
 - **F-P6b-9 — listing annotation, per-ruleset health, and prefix map
@@ -1470,15 +1493,6 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 
-- **F-P6b-17 — Forged resist does not reduce a named consequence
-  (2026-11-09):** `index.ts:7828-7834` adds stress only and the Forged state
-  has no consequence slot. REQ-442. Scheduled under §5.21–§5.23 capability
-  remediation.
-- **F-P6b-18 — refusal paths push undo state and clear redo (2026-11-09):**
-  `novelSnapshot()` precedes validation in the capability branches
-  (`index.ts:7508, 7556, 7592, 7657, 7720, 7804, 7847`). REQ-041a, REQ-041b,
-  REQ-435, REQ-436, REQ-440, REQ-442. Scheduled under §5.21–§5.23 capability
-  remediation.
 - **F-P6b-21 — §5.16–§5.18 citation gaps (2026-11-09):** absent or
   non-exercising assertions — T440, T442–T447, T451, T457, T458, T463–T464,
   T467, T492; weak T454, T455, T456, T459, T460, T462,

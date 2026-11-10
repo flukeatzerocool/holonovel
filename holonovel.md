@@ -4636,7 +4636,7 @@ Appendix S.
 
 **REQ-441 — Action roll with position and effect.** `resolve_mechanic (action: forged_action_roll)` SHALL resolve the Forged in the Dark action roll — a pool of `dice` d6s, taking the highest; the pool size, the zero-dice case, the position and effect values, and the result band mapping are defined in Appendix O. The result SHALL report the dice, the highest, a `position`, an `effect`, and a band. The draw SHALL honor the per-call seed (REQ-050). *Acceptance criterion:* a seeded roll with three dice reports the position, effect, highest die, and a band; the same seed reproduces the same result. _Check:_ T527.
 
-**REQ-442 — Stress, trauma, and resistance.** `resolve_mechanic (action: forged_stress)` SHALL mark, clear, resist, and list stress — a per-character track whose maximum is defined in Appendix O. Marking adds `amount` stress; when the track fills, the character SHALL gain a trauma and the stress resets. Resisting SHALL spend `cost` stress, defaulting to the cost in Appendix O, to reduce a named consequence, and SHALL be refused when the cost would exceed the track. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress and trauma persist with the Novel. *Acceptance criterion:* marking stress reports the track; a resist spends the cost; filling the track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
+**REQ-442 — Stress, trauma, and resistance.** `resolve_mechanic (action: forged_stress)` SHALL mark, clear, resist, and list stress — a track capped by Appendix O. Marking adds `amount` stress and records `name` once as a consequence unless the track fills; a full track records trauma and resets stress. Resisting SHALL remove the recorded consequence and spend `cost` stress (Appendix O default), refusing an unrecorded name or over-budget cost. Mark, clear, and resist are Game Master operations; listing SHALL be readable by any badge. Stress, trauma, and consequences persist with the Novel. *Acceptance criterion:* a named mark reports the track and consequence; a resist removes it and spends the cost; an unrecorded name is refused; a full track records a trauma and resets stress; an over-budget resist is refused. _Check:_ T528.
 
 **REQ-443 — Downtime.** `resolve_mechanic (action: forged_downtime)` SHALL recover and indulge a character's vice, and list character stress and trauma. Recovering SHALL reduce stress by `amount` boxes, defaulting to the amount in Appendix O; indulging a vice SHALL clear stress. Recover and indulge are Game Master operations; listing SHALL be readable by any badge. Downtime state persists with the Novel. *Acceptance criterion:* recovering after marking stress reduces the track; indulging a vice clears it. _Check:_ T529.
 
@@ -7670,11 +7670,11 @@ populated properties' own archetypes.
 
 **Host base capabilities.** Host-level base-capability state — Fate aspects,
 Fate points, and stress/consequences (REQ-434–437); Ironsworn momentum, moves,
-and progress tracks (REQ-438–440); Forged action rolls, stress, trauma, and
-downtime (REQ-441–443) — persists with the Novel (REQ-092) but is not a Novel
-property group and has no coupling rows in §7.7.1. Base-capability state is
-self-contained: it mutates only through its own tool actions and does not
-couple to any property group. Base-capability state is Novel-tier state on the
+and progress tracks (REQ-438–440); Forged action rolls, stress, trauma, named
+consequences, and downtime (REQ-441–443) — persists with the Novel (REQ-092)
+but is not a Novel property group and has no coupling rows in §7.7.1.
+Base-capability state is self-contained: it mutates only through its own tool
+actions and does not couple to any property group. Base-capability state is Novel-tier state on the
 same footing as property groups: copy, snapshot, archive, and interchange
 operations (REQ-240, REQ-241, REQ-334, REQ-096) SHALL include it wherever they
 include property-group state. A future base capability that defines
@@ -11267,7 +11267,7 @@ diet.
 | T525 | Automated | Ironsworn move framework: call `resolve_mechanic (action: ironsworn_move, name="Face Danger", adds=2, seed="42")` — assert an action die, two challenge dice, and a Strong hit, Weak hit, or Miss band; assert the same seed reproduces identical results. | REQ-439 |
 | T526 | Automated | Ironsworn progress tracks: create a dangerous track, mark two boxes, and test — assert the boxes, challenge dice, and a hit band; list — assert the track appears. | REQ-440 |
 | T527 | Automated | Forged action roll: call `resolve_mechanic (action: forged_action_roll, dice=3, position="risky", effect="standard", seed="42")` — assert position, effect, the highest die, and a band; assert the same seed reproduces identical results. | REQ-441 |
-| T528 | Automated | Forged stress and resistance: mark two stress — assert a two-box track; resist for two — assert four; fill the track — assert a trauma is recorded and stress resets; resist past the track — assert `[RULE_VIOLATION]`. | REQ-442 |
+| T528 | Automated | Forged stress, consequences, and resistance: mark two stress with `name: "Harm"` — assert a two-box track and the recorded consequence; mark the same name again — assert the consequence is not duplicated; resist `Harm` for two — assert the cost is spent and `Harm` is no longer recorded; resist an unrecorded name — assert `[NOT_FOUND]`; resist with no name — assert `[INVALID_INPUT]`; fill the track — assert a trauma is recorded, stress resets, and no consequence is appended; resist past the track — assert `[RULE_VIOLATION]`. | REQ-442 |
 | T529 | Automated | Forged downtime: mark three stress, recover two — assert one remains; indulge a vice — assert stress clears to 0. | REQ-443 |
 | T530 | Automated | Import-channel inertness: call `manage_archive (action: import, <C.3 payload>, "merge")` — assert the scene description is stored and echoed verbatim; assert no new tool appears in `tools/list`; assert no mechanical bonus is applied; assert a finding is logged. | REQ-444 |
 | T531 | Automated | Error-value disclosure control: call `manage_lore (action: get, key="gm-only-key")` under the Player badge — assert an error that does not echo the key's existence; repeat under the Game Master badge — assert the key-specific corrective action. | REQ-445 |
