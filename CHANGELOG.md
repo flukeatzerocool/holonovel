@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-09 — §5.2/§5.8 remediation 1: journal attribution, lore surface, sheet
+
+- Story journal entries now record entity attribution: the active entity (else
+  the present party) is written to `entity_ids`, `story_journal` is
+  append-only across undo (REQ-246b1), and `manage_context (action: recap)`
+  carries the most recent ten entries as `story_entries`. Exercised by
+  `test:output-contracts` T282. (REQ-246a, REQ-246b1, REQ-246b2; F-P7b-1)
+- `badge_briefing` gains a `### Lore` section for triggered entries with
+  keyword, sticky (REQ-155a), and world-target activation, priority ordering,
+  `[world]` tags, non-GM presence gating, and a `TTRPG_MAX_LORE_TOKENS` budget
+  reported as `spec_health.lore_budget`. `lore://groups` is registered, and
+  `manage_lore (action: suggest)` returns structured rows (key, preview,
+  triggers, confidence, source_url, badge_scope). The Appendix F T83 row is
+  corrected to the configuration-based budget. Exercised by `test:narrative`
+  T67, T79, T81, T82, T83. (REQ-083c; F-P7b-2)
+- Character sheets render a `### Known Information` section (and
+  `known_information` in JSON) listing secrets and discovered lore the entity
+  knows. Exercised by `test:narrative` T274. (REQ-234a-d; F-P7b-5)
+- The roadmap keeps the synthesis, scene-catalog, suggestion, and
+  table-classification items; the review register records the three findings
+  `Resolved` with their predicates.
+
 ## 2026-11-09 — §5.2/§5.8 assertion repair: citation split and probe results
 
 - REQ-082's ordering citations are split by contract: REQ-082a and REQ-082c

@@ -1994,6 +1994,51 @@ async function main() {
     await kill(p);
   });
 
+  // ── T282/REQ-246: story journal lifecycle (F-P7b-1) ───────────────
+  await test("T282/REQ-246a + REQ-246b1 + REQ-246b2: story journal lifecycle", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "story-journal-req246" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create", name: "Eira" });
+    await call(p, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(p, "manage_staging", { action: "presence", entity_ids: ["character_01"] });
+    await call(p, "manage_scene", { action: "set", description: "river-crossing", location: "river-crossing" });
+    await call(p, "manage_story", { action: "record", type: "moment", entry: "The ferryman told a story" });
+
+    const bundle = JSON.parse(await call(p, "manage_archive", { action: "export", format: "json", scope: "full" }));
+    const journal = bundle.novel.story_journal;
+    assertContains(JSON.stringify(journal), "\"moment\"", "T282 entry type");
+    assertContains(JSON.stringify(journal), "ferryman", "T282 entry text");
+    assertContains(JSON.stringify(journal), "character_01", "T282 entity ids");
+    if (!/\"timestamp\":\s*\"\d{4}-\d{2}-\d{2}T/.test(JSON.stringify(journal))) throw new Error("T282 timestamp is not ISO 8601");
+
+    await call(p, "manage_history", { action: "undo" });
+    const afterUndo = JSON.parse(await call(p, "manage_archive", { action: "export", format: "json", scope: "full" }));
+    assertContains(JSON.stringify(afterUndo.novel.story_journal), "ferryman", "T282 undo does not reverse the journal");
+
+    await call(p, "set_badge", { badge: "player" });
+    const denied = await send(p, { method: "tools/call", params: { name: "manage_story", arguments: { action: "record", type: "moment", entry: "x" } } });
+    const deniedText = (denied.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n") || String(denied.error?.message ?? JSON.stringify(denied));
+    assertContains(deniedText, "[FORBIDDEN]", "T282 Player record refused");
+    await call(p, "set_badge", { badge: "game_master" });
+
+    const badType = await send(p, { method: "tools/call", params: { name: "manage_story", arguments: { action: "record", type: "not_a_type", entry: "x" } } });
+    const badTypeText = (badType.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n") || String(badType.error?.message ?? JSON.stringify(badType));
+    assertContains(badTypeText, "expected one of", "T282 invalid type enumerates the valid types");
+    assertContains(badTypeText, "consequence", "T282 invalid type list names a valid value");
+
+    const recap = await call(p, "manage_context", { action: "recap" });
+    assertContains(recap, "ferryman", "T282 recap carries the journal entry");
+
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "ferryman", "T282 briefing story surface");
+
+    const ended = await call(p, "manage_novel", { action: "end" });
+    assertContains(ended, "[NEED_INPUT]", "T282 end requests confirmation");
+    assertContains(await call(p, "respond_decision", { decision: "-end_novel-confirm", option: "yes" }), "[OK]", "T282 end clears the Novel");
+    await kill(p);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

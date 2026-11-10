@@ -90,6 +90,10 @@ async function briefing(proc: ChildProcess): Promise<string> {
   return messages.map((m: any) => (m?.content?.text ?? "")).join("\n");
 }
 
+async function callRaw(proc: ChildProcess, name: string, args: Record<string, unknown> = {}): Promise<any> {
+  return send(proc, { method: "tools/call", params: { name, arguments: args } });
+}
+
 function kill(proc: ChildProcess): Promise<void> {  return new Promise((resolve) => {
     proc.on("exit", () => resolve());
     proc.kill();
@@ -951,6 +955,147 @@ async function main() {
       assertContains(undone, "Undo");
       const rows = await call(proc, "manage_vow", { action: "list" });
       assertContains(rows, "\"state\": \"active\"");
+    });
+
+    await kill(proc);
+  }
+
+  // ── §5.2/§5.8 behaviour remediation (F-P7b-1, -2, -5) ────────────
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "p7b-lore-remediation" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const created = await call(proc, "manage_character", { action: "create", name: "Eira" });
+    void created;
+    await call(proc, "manage_staging", { action: "presence", entity_ids: ["character_01"] });
+
+    await test("T67/REQ-083: lore triggers, visibility, presence gating, removal", async () => {
+      await call(proc, "manage_lore", { action: "set", key: "vault-lore", content: "The vault lies beneath the mill.", triggers: ["vault"], visibility: "shared" });
+      await call(proc, "manage_scene", { action: "set", description: "You enter the vault.", location: "vault" });
+      assertContains(await briefing(proc), "vault lies beneath");
+      await call(proc, "manage_scene", { action: "set", description: "The meadow is quiet.", location: "meadow" });
+      assertNotContains(await briefing(proc), "vault lies beneath");
+
+      await call(proc, "manage_lore", { action: "set", key: "gm-only-lore", content: "The steward is a traitor.", triggers: ["vault"], visibility: "gm_only" });
+      await call(proc, "manage_scene", { action: "set", description: "Back in the vault.", location: "vault" });
+      await call(proc, "set_badge", { badge: "player" });
+      assertNotContains(await briefing(proc), "steward is a traitor");
+      await call(proc, "set_badge", { badge: "game_master" });
+
+      await call(proc, "manage_lore", { action: "reveal", key: "gm-only-lore", entity_id: "character_01" });
+      assertContains(await briefing(proc), "steward is a traitor");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const forbidden = await callRaw(proc, "manage_lore", { action: "set", key: "player-lore", content: "x", triggers: ["x"] });
+      assertContains((forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n"), "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+
+      await call(proc, "manage_lore", { action: "remove", key: "vault-lore" });
+      assertNotContains(await briefing(proc), "vault lies beneath");
+    });
+
+    await test("T79/REQ-083/REQ-155: lore priority, sticky decay, disable/enable", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_lore", { action: "set", key: "high-lore", content: "High-priority lore.", triggers: ["vault"], priority: 100, visibility: "shared" });
+      await call(proc, "manage_lore", { action: "set", key: "low-lore", content: "Low-priority lore.", triggers: ["vault"], priority: 10, visibility: "shared" });
+      await call(proc, "manage_scene", { action: "set", description: "Back inside the vault.", location: "vault" });
+      const brief = await briefing(proc);
+      const hi = brief.indexOf("High-priority lore");
+      const lo = brief.indexOf("Low-priority lore");
+      assert(hi >= 0 && lo >= 0 && hi < lo, `priority order wrong (hi=${hi}, lo=${lo})`);
+
+      await call(proc, "manage_lore", { action: "set", key: "sticky-lore", content: "Sticky lore.", triggers: ["vault"], sticky: 2, visibility: "shared" });
+      await call(proc, "manage_scene", { action: "set", description: "A vault corridor.", location: "vault" });
+      assertContains(await briefing(proc), "Sticky lore");
+      await call(proc, "manage_scene", { action: "set", description: "The meadow at dusk.", location: "meadow" });
+      assertContains(await briefing(proc), "Sticky lore");
+      await call(proc, "manage_scene", { action: "set", description: "The market square.", location: "market" });
+      assertNotContains(await briefing(proc), "Sticky lore");
+
+      await call(proc, "manage_lore", { action: "set", key: "toggle-lore", content: "Toggle lore.", triggers: ["market"], visibility: "shared" });
+      assertContains(await briefing(proc), "Toggle lore");
+      await call(proc, "manage_lore", { action: "toggle", key: "toggle-lore", enabled: false });
+      assertNotContains(await briefing(proc), "Toggle lore");
+      assertContains(await readResource(proc, "lore://toggle-lore"), "Toggle lore");
+      await call(proc, "manage_lore", { action: "toggle", key: "toggle-lore", enabled: true });
+      assertContains(await briefing(proc), "Toggle lore");
+      await call(proc, "set_badge", { badge: "player" });
+      const forbidden = await callRaw(proc, "manage_lore", { action: "toggle", key: "toggle-lore", enabled: false });
+      assertContains((forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n"), "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T81/REQ-083: lore grouping and the lore://groups resource", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_lore", { action: "set", key: "g1", content: "Group one.", triggers: ["g1"] });
+      await call(proc, "manage_lore", { action: "set", key: "g2", content: "Group two.", triggers: ["g2"] });
+      await call(proc, "manage_lore", { action: "group", key: "g1", group: "vault-group" });
+      await call(proc, "manage_lore", { action: "group", key: "g2", group: "vault-group" });
+      let groups = JSON.parse(await readResource(proc, "lore://groups"));
+      assert(Array.isArray(groups["vault-group"]) && groups["vault-group"].includes("g1") && groups["vault-group"].includes("g2"), `groups missing members: ${JSON.stringify(groups)}`);
+      await call(proc, "manage_lore", { action: "group", key: "g2", group: "other-group" });
+      groups = JSON.parse(await readResource(proc, "lore://groups"));
+      assert(!(groups["vault-group"] ?? []).includes("g2"), "regroup left the entry in the old group");
+      assert((groups["other-group"] ?? []).includes("g2"), "regroup did not move the entry");
+      await call(proc, "manage_lore", { action: "group", key: "g2", group: null });
+      groups = JSON.parse(await readResource(proc, "lore://groups"));
+      assert(!(groups["other-group"] ?? []).includes("g2"), "ungroup left the entry grouped");
+      await call(proc, "set_badge", { badge: "player" });
+      const forbidden = await callRaw(proc, "manage_lore", { action: "group", key: "g1", group: "player-group" });
+      assertContains((forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n"), "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T82/REQ-083b: lore suggestion rows and badge scoping", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const raw = await call(proc, "manage_lore", { action: "suggest" });
+      const rows = JSON.parse(raw);
+      assert(Array.isArray(rows) && rows.length > 0 && rows.length <= 5, `suggest did not return 1-5 rows: ${raw.slice(0, 200)}`);
+      const row = rows[0];
+      for (const field of ["key", "content", "triggers", "confidence", "source_url", "badge_scope"]) {
+        assert(field in row, `suggest row missing ${field}: ${JSON.stringify(row)}`);
+      }
+      await call(proc, "manage_synthesis", { action: "revert" });
+      const none = await call(proc, "manage_lore", { action: "suggest" });
+      assertContains(none, "No lore templates available");
+    });
+
+    await test("T274/REQ-234: secrets, reveal, and the sheet known-information section", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_lore", { action: "set_secret", key: "murder_confession", content: "The butler killed Lord Ashworth" });
+      await call(proc, "manage_lore", { action: "reveal", key: "murder_confession", entity_id: "character_01" });
+      const sheet = await call(proc, "manage_character", { action: "sheet", entity_id: "character_01" });
+      assertContains(sheet, "Known Information");
+      assertContains(sheet, "butler killed Lord Ashworth");
+      const known = await call(proc, "manage_belief", { action: "knowledge_query", entity_id: "character_01" });
+      assertContains(known, "murder_confession");
+      await call(proc, "manage_character", { action: "create", name: "Guard" });
+      const other = await call(proc, "manage_belief", { action: "knowledge_query", entity_id: "character_02" });
+      assertNotContains(other, "murder_confession");
+    });
+
+    await kill(proc);
+  }
+
+  // ── T83: lore token budget (separate boot for the env budget) ─────
+  {
+    const proc = await boot({ TTRPG_MAX_LORE_TOKENS: "40" });
+    await call(proc, "manage_novel", { action: "create", name: "p7b-lore-budget" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    await test("T83/REQ-083: the lore section respects TTRPG_MAX_LORE_TOKENS", async () => {
+      for (const n of [1, 2, 3]) {
+        await call(proc, "manage_lore", { action: "set", key: `budget-lore-${n}`, content: `${"Long lore content ".repeat(6)}entry ${n}.`, triggers: ["budget"], visibility: "shared", priority: 100 - n });
+      }
+      await call(proc, "manage_scene", { action: "set", description: "A budget scene.", location: "budget" });
+      const brief = await briefing(proc);
+      const shown = (brief.match(/budget-lore-/g) ?? []).length;
+      assert(shown >= 1 && shown < 3, `budget did not trim entries (shown=${shown})`);
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(health.lore_budget && health.lore_budget.max_tokens === 40, `lore_budget missing: ${JSON.stringify(health.lore_budget)}`);
+      assert(health.lore_budget.used_tokens <= 40, `used_tokens over budget: ${JSON.stringify(health.lore_budget)}`);
+      assert(health.lore_budget.omitted_entries >= 1, `omitted_entries not reported: ${JSON.stringify(health.lore_budget)}`);
     });
 
     await kill(proc);

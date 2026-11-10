@@ -11,6 +11,32 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 §5.2/§5.8 behaviour remediation — journal, lore, secrets
+
+- **F-P7b-1 — story journal now records entity attribution (resolved
+  2026-11-09):** `manage_story (action: record)` wrote `entity_ids: []`
+  unconditionally. It now records the active entity (else the present party) at
+  `holonovel/src/index.ts:8106`, and `story_journal` joins
+  `APPEND_ONLY_STATE_FIELDS` so undo cannot reverse entries
+  (`holonovel/src/core/state.ts:3031-3038`). Recap carries the last ten entries
+  (`index.ts:9874`). Exercised by `test:output-contracts` T282.
+  (REQ-246a, REQ-246b1, REQ-246b2)
+- **F-P7b-2 — lore briefing surface, groups, budget, and suggestion rows
+  (resolved 2026-11-09):** `composeLoreSection` renders triggered entries for
+  every badge with keyword, sticky (REQ-155a), and world-target activation,
+  priority ordering, `[world]` tags, presence gating for non-GM badges
+  (REQ-083f), and a `TTRPG_MAX_LORE_TOKENS` budget reported as
+  `spec_health.lore_budget` (`index.ts:911-930`, render at `:14510`).
+  `lore://groups` is registered (`index.ts:13090-13096`), and
+  `manage_lore (action: suggest)` returns up to five rows carrying key, preview,
+  triggers, confidence, source_url, and badge_scope (`index.ts:7074-7110`).
+  Exercised by `test:narrative` T67, T79, T81, T82, T83. (REQ-083c)
+- **F-P7b-5 — the character sheet renders known information (resolved
+  2026-11-09):** `fmtEntitySheet` appends a `### Known Information` section and
+  `entitySheetJson` carries `known_information`; both read
+  `knownInformationFor` (`index.ts:3178-3212`, `:3344-3359`). Exercised by
+  `test:narrative` T274. (REQ-234a, REQ-234b, REQ-234c, REQ-234d)
+
 ### 2026-11-09 §5.2/§5.8 assertion repair (F-P7b-8)
 
 - **F-P7b-8 — prompt-ordering citations leaned on a builder-side test
@@ -1244,24 +1270,6 @@ against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
-- **F-P7b-1 — story journal attribution is never populated (2026-11-09):**
-  `novel.story_journal.push({… entity_ids: [] …})` is the sole assignment
-  (`holonovel/src/index.ts:8006`), so REQ-246b1's "entries SHALL record entity
-  IDs" and T282's `entity_ids: ["eira"]` cannot pass. The remaining T282
-  clauses (record/undo/export/Player/end) are unasserted while this fails.
-  REQ-246a, REQ-246b1, REQ-246b2. Scheduled under §5.2/§5.8 assertion and
-  behaviour remediation.
-- **F-P7b-2 — dynamic lore has no GM briefing surface, groups, or budget
-  (2026-11-09):** a plain `manage_lore (action: set)` defaults to `gm_only`
-  (`holonovel/src/index.ts:6933`) and the briefing composes lore only in the
-  `shared` + presence branch of `composeKnowledgeState` (`:887-912`), so a GM
-  entry triggered by scene text never renders and T67/T79 fail; no
-  `lore://groups` resource is registered (`:11726-11728`), and
-  `TTRPG_MAX_LORE_TOKENS` is stored in `maxLoreTokens` (`core/state.ts:1000,
-  1052`) and never read, so T81/T83 fail. `manage_lore (action: suggest)`
-  returns content previews only (`index.ts:6999-7004`), missing the key,
-  triggers, confidence, and source_url REQ-083b requires, so T82 fails.
-  REQ-083c. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
 - **F-P7b-3 — synthesis run/rebuild rows diverge, revert/rebuild pass
   (2026-11-09):** T94 and T144 pass and are committed (`test:backfill`,
   "T94/REQ-103" and "T144/REQ-130"). T97 fails — the manifest carries one
@@ -1283,11 +1291,6 @@ absent, so each finding carries the failing predicate rather than a test.
   `else if` (`index.ts:2296-2307`), so `["social","exploration"]` prioritizes
   only the social family. REQ-087a, REQ-087b, REQ-087c, REQ-125a, REQ-125b.
   Scheduled under §5.2/§5.8 assertion and behaviour remediation.
-- **F-P7b-5 — secrets work, the sheet surface does not (2026-11-09):**
-  `set_secret`/`reveal`/`knowledge` are implemented (`index.ts:7047-7134`) but
-  `fmtEntitySheet` (`index.ts:3128-3150`) renders no "Known Information"
-  section, so T274's sheet clause fails. REQ-234a, REQ-234b, REQ-234c,
-  REQ-234d. Scheduled under §5.2/§5.8 assertion and behaviour remediation.
 - **F-P7b-6 — suggestions lack the proactive slot model and the empty-list
   case (2026-11-09):** `availableActionsSection` has no spell/slot logic
   (`index.ts:2286-2316`), so T359's "Cast Fireball only with a 3rd-level slot"

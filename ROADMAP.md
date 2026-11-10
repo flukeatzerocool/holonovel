@@ -14,13 +14,6 @@
 
 ## §5.2/§5.8 assertion and behaviour remediation (P1)
 
-- Story journal, lore, and secrets — probe findings from the assertion-repair
-  session: story entries write `entity_ids: []` (`holonovel/src/index.ts:8006`,
-  REQ-246b1); no GM lore section renders triggered entries and no
-  `lore://groups` resource exists (REQ-083a, REQ-083b); `TTRPG_MAX_LORE_TOKENS`
-  is read but never consumed (`core/state.ts:1052`); the character sheet has no
-  "Known Information" section (REQ-234). REQ-246a, REQ-246b1, REQ-246b2,
-  REQ-083c, REQ-234a, REQ-234b, REQ-234c, REQ-234d.
 - Synthesis and suggestions — per-item `collected_at` is absent (one manifest
   timestamp only), no LOW/MEDIUM-confidence inference items exist, adventure
   load does not auto-activate voice examples, and `run_command (action: suggest)`
@@ -36,8 +29,9 @@
   generation-table enum and no in-tree D&D 5e package (REQ-214c). REQ-087a,
   REQ-087b, REQ-087c, REQ-125a, REQ-125b, REQ-214a, REQ-214b, REQ-214c.
 
-**Trigger:** the next §5.2/§5.8 remediation session; closes when F-P7b-1–F-P7b-7
-and F-P7b-9 are `Resolved` (F-P7b-8 resolved 2026-11-09 by citation re-point).
+**Trigger:** the next §5.2/§5.8 remediation session; closes when F-P7b-3,
+F-P7b-4, F-P7b-6, F-P7b-7, and F-P7b-9 are `Resolved` (F-P7b-1, F-P7b-2,
+F-P7b-5, and F-P7b-8 resolved 2026-11-09).
 
 ## §5.7 determinism and citation repair (P1)
 

@@ -3034,6 +3034,8 @@ export const APPEND_ONLY_STATE_FIELDS = [
   "event_log",
   "perception_ledger",
   "subjective_memory",
+  // REQ-246b1 — undo does not reverse story journal entries.
+  "story_journal",
 ] as const;
 
 export const BOOKKEEPING_STATE_FIELDS = [

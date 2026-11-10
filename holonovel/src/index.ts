@@ -871,10 +871,61 @@ function loreVisible(entry: LoreEntry, badge: Badge): boolean {
 
 // REQ-083f — gm_only/player_discovered entries fire only when a knowing entity
 // attends the scene; shared entries fire on keyword match regardless.
-function lorePresenceSatisfied(novel: NovelState, entry: LoreEntry): boolean {
+function lorePresenceSatisfied(novel: NovelState, entry: LoreEntry, badge: Badge): boolean {
+  if (badge === "game_master" || badge === "none") return true;
   if (entry.visibility === "shared") return true;
   const present = new Set(novel.characters_present_ids ?? []);
   return (entry.known_by ?? []).some((id) => present.has(id));
+}
+
+// REQ-083a/REQ-155a/REQ-328a — activation for the briefing lore section:
+// keyword match, a live sticky counter, or a world target reachable from the
+// active entity's room. World-target activation is placement-based rather than
+// a per-interaction log; the substitution is recorded in holonovel/DECISIONS.md
+// under accepted tradeoffs with governing REQ-328a.
+function loreActiveForSection(novel: NovelState, entry: LoreEntry): boolean {
+  if (!entry.enabled) return false;
+  const scene = (novel.scene_description ?? "").toLowerCase();
+  if ((entry.triggers ?? []).some((t: string) => scene.includes(String(t).toLowerCase()))) return true;
+  if ((entry as any).sticky_remaining > 0) return true;
+  if ((entry as any).world_target) {
+    const target = String((entry as any).world_target).toLowerCase();
+    const activeId = novel.active_entity_id;
+    const actor: any = activeId ? (novel.entities.get(activeId) ?? novel.npcs.get(activeId)) : null;
+    const room = String(actor?.current_room ?? novel.scene_location ?? "").toLowerCase();
+    if (target && room && (room === target || room.includes(target) || target.includes(room))) return true;
+    for (const thing of novel.world.things.values()) {
+      const names = [String((thing as any).name ?? ""), String((thing as any).id ?? "")].map((s) => s.toLowerCase());
+      if (names.includes(target) && String((thing as any).location ?? "").toLowerCase() === room) return true;
+    }
+  }
+  return false;
+}
+
+// REQ-083a/REQ-328b — rendered budget accounting, read by spec_health.
+let recordedLoreBudget: { max_tokens: number | null; used_tokens: number; omitted_entries: number } | null = null;
+
+// REQ-083a/REQ-083f/REQ-155a/REQ-328b — triggered lore section. Entries render
+// in priority order (key breaks ties), world-targeted rows carry `[world]
+// <target>`, and TTRPG_MAX_LORE_TOKENS caps the rendered set.
+function composeLoreSection(novel: NovelState, badge: Badge): string {
+  const active = [...novel.lore.values()]
+    .filter((e) => loreVisible(e, badge) && loreActiveForSection(novel, e) && lorePresenceSatisfied(novel, e, badge))
+    .sort((a, b) => ((b as any).priority ?? 0) - ((a as any).priority ?? 0) || a.key.localeCompare(b.key));
+  const budget = state.maxLoreTokens;
+  const lines: string[] = [];
+  let usedChars = 0;
+  let omitted = 0;
+  for (const entry of active) {
+    const world = (entry as any).world_target ? ` [world] ${(entry as any).world_target}` : "";
+    const line = `- [${entry.key}]${world} ${entry.content}`;
+    if (budget !== null && Math.ceil((usedChars + line.length) / 4) > budget) { omitted++; continue; }
+    usedChars += line.length;
+    lines.push(line);
+  }
+  recordedLoreBudget = { max_tokens: budget, used_tokens: Math.ceil(usedChars / 4), omitted_entries: omitted };
+  if (lines.length === 0) return "";
+  return `\n\n### Lore\n${lines.join("\n")}`;
 }
 
 // REQ-286 — knowledge_state section: revealed secrets, participant relationships,
@@ -3137,6 +3188,10 @@ function fmtEntitySheet(entity: any): string {
   if (entity.stats) {
     sheet += `\n### Mechanical Stats\n${fmtStats(entity.stats)}\n`;
   }
+  const known = knownInformationFor(entity.id ?? entity.name ?? "");
+  if (known.length > 0) {
+    sheet += `\n### Known Information\n${known.map((row) => `- [${row.kind}] ${row.key} — ${row.content}`).join("\n")}\n`;
+  }
   if (p.description || p.voice || p.background || p.goals) {
     sheet += `\n### Personality\n`;
     if (p.description) sheet += `**Description:** ${p.description}\n`;
@@ -3280,7 +3335,25 @@ function entitySheetJson(entity: any): object {
     inventory: entity.inventory ?? [],
     current_room: entity.current_room ?? null,
     conditions: entity.conditions ?? [],
+    known_information: knownInformationFor(entity.id ?? entity.name ?? ""),
   };
+}
+
+// REQ-234a/REQ-234b — secrets and discovered lore this entity knows. Shared by
+// the Markdown sheet (fmtEntitySheet) and the JSON sheet (entitySheetJson).
+function knownInformationFor(entityId: string): Array<{ kind: string; key: string; content: string }> {
+  const novel = state.activeNovel;
+  if (!novel || !entityId) return [];
+  const rows: Array<{ kind: string; key: string; content: string }> = [];
+  for (const secret of novel.secrets) {
+    if (secret.known_by?.includes(entityId)) rows.push({ kind: "secret", key: secret.key, content: secret.content });
+  }
+  for (const entry of novel.lore.values()) {
+    if (entry.visibility === "player_discovered" && entry.known_by?.includes(entityId)) {
+      rows.push({ kind: "lore", key: entry.key, content: entry.content });
+    }
+  }
+  return rows;
 }
 
 // REQ-425c — a Markdown render of a codex entry, shared by the codex://
@@ -6247,7 +6320,7 @@ server.registerTool("manage_scene", {
         if (!entry.enabled) continue;
         const matched = entry.triggers.some((t) => sceneLower.includes(t.toLowerCase()));
         if (matched) entry.sticky_remaining = entry.sticky;
-        else if (entry.sticky_remaining > 0) { entry.sticky_remaining--; if (entry.sticky_remaining <= 0) entry.enabled = false; }
+        else if (entry.sticky_remaining > 0) entry.sticky_remaining--;
       }
       if (adventure_scene !== undefined) {
         if (adventure_scene === "" || adventure_scene === null) novel.adventure_scene_waypoint = null;
@@ -6994,13 +7067,40 @@ server.registerTool("manage_lore", {
       return ok(`Lore entry '${args.key}' group ${args.group ? `set to '${args.group}'` : "removed"}.`);
     }
     case "suggest": {
-      requireGM();
       requireNovel();
+      const novel = requireNovel();
       // REQ-231/REQ-260 — only active, enabled lore templates are suggested.
-      const templates = effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom);
-      if (templates.length === 0) return ok("No lore templates available (Ruleset Wisdom not loaded or module inactive).");
-      const sample = templates.slice(0, 3).map((t: any) => `- ${t.content?.substring(0, 120)}${(t.content?.length ?? 0) > 120 ? "..." : ""}`);
-      return raw(sample.join("\n"));
+      // REQ-083b — the GM sees every badge_scope; the Player excludes entries
+      // scoped to the game_master badge. Rows carry the provenance fields the
+      // REQ names (key, preview, triggers, confidence, source_url, scope).
+      const isGM = getBadge() === "game_master" || getBadge() === "none";
+      const templates = effectiveWisdomItems("lore_templates")
+        .filter(badgeCanSeeWisdom)
+        .filter((t: any) => isGM || (t.badge_scope ?? "shared") !== "game_master");
+      const rows: Array<Record<string, unknown>> = templates.map((t: any) => ({
+        key: t.key ?? null,
+        content: String(t.content ?? "").slice(0, 120),
+        triggers: t.triggers ?? [],
+        confidence: t.confidence ?? "HIGH",
+        source_url: t.source_url ?? "",
+        badge_scope: t.badge_scope ?? "shared",
+      }));
+      // REQ-328a — world-targeted entries reachable from the current scene.
+      const activeId = novel.active_entity_id;
+      const actor: any = activeId ? (novel.entities.get(activeId) ?? novel.npcs.get(activeId)) : null;
+      const room = String(actor?.current_room ?? novel.scene_location ?? "").toLowerCase();
+      if (room) {
+        for (const entry of novel.lore.values()) {
+          if (!entry.world_target) continue;
+          if (!loreVisible(entry, getBadge())) continue;
+          const target = String(entry.world_target).toLowerCase();
+          const reachable = room === target || room.includes(target) || target.includes(room);
+          if (!reachable) continue;
+          rows.push({ key: entry.key, content: entry.content.slice(0, 120), triggers: entry.triggers, confidence: "HIGH", source_url: `novel://lore/${entry.key}`, badge_scope: entry.badge_scope });
+        }
+      }
+      if (rows.length === 0) return ok("No lore templates available (Ruleset Wisdom not loaded or module inactive).");
+      return raw(JSON.stringify(rows.slice(0, 5), null, 2));
     }
     case "list": {
       const novel = requireNovel();
@@ -8003,7 +8103,7 @@ server.registerTool("manage_story", {
       novel.story_journal.push({
         index, type, entry,
         scene_anchor: novel.scene_description?.substring(0, 80) ?? "",
-        entity_ids: [],
+        entity_ids: activeId ? [activeId] : [...(novel.characters_present_ids ?? [])],
         timestamp: new Date().toISOString(),
         room_id: roomId,
       });
@@ -9768,6 +9868,11 @@ Options: yes, cancel`);
       let recap = `narrative_orientation: ${narrative_orientation}`;
       recap += `\nnarration_contract: ${NARRATION_CONTRACT_SHORT}`;
       recap += `\nconnections: ${novel.connection_counter ?? 0}`;
+      // REQ-246a — story journal entries surface in recap (most recent 10).
+      const journalBadge = getBadge();
+      if ((journalBadge === "game_master" || journalBadge === "none") && novel.story_journal.length > 0) {
+        recap += `\nstory_entries: ${JSON.stringify(novel.story_journal.slice(-10).map((s) => ({ index: s.index, type: s.type, entry: s.entry, scene_anchor: s.scene_anchor, timestamp: s.timestamp })))}`;
+      }
       const significantRollTool = (t: string) =>
         t === "fate_roll" || t === "ironsworn_move" || t === "ironsworn_progress_test" || t === "forged_action_roll" ||
         (t.includes("roll") && !t.includes("table"));
@@ -11726,6 +11831,7 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "lore://active", title: "Active Lore" },
   { template: "lore://{key}", title: "Lore Entry" },
   { template: "lore://templates", title: "Lore Templates" },
+  { template: "lore://groups", title: "Lore Groups" },
   { template: "audit://novel", title: "Audit Log" },
   { template: "audit://novel/archive", title: "Audit Archive" },
   { template: "guidance://player", title: "Player Guidance" },
@@ -12129,6 +12235,8 @@ function buildSpecHealth(): Record<string, unknown> {
     healthy,
     health_warnings,
     synthesis_gap_count,
+    // REQ-083a — rendered lore budget accounting for the briefing lore section.
+    lore_budget: recordedLoreBudget ?? { max_tokens: state.maxLoreTokens, used_tokens: 0, omitted_entries: 0 },
     story_journal_entries: novel ? novel.story_journal.length : 0,
     story_journal_chars: storyChars,
     snapshot_depth: snapshotDepthUsed,
@@ -12977,6 +13085,19 @@ function wisdomTag(item: any): string {
   if (t === "player") return "[player]";
   return "[supplementary]";
 }
+
+// Lore groups (REQ-083a, REQ-083b) — grouped entries keyed by group name.
+server.registerResource("lore-groups", "lore://groups", { title: "Lore Groups" }, async () => {
+  const novel = state.activeNovel;
+  const groups: Record<string, string[]> = {};
+  if (novel) {
+    for (const entry of [...novel.lore.values()].filter((e) => e.group && loreVisible(e, getBadge()))) {
+      const group = String(entry.group);
+      (groups[group] ??= []).push(entry.key);
+    }
+  }
+  return { contents: [{ uri: "lore://groups", text: JSON.stringify(groups), mimeType: "application/json" }] };
+});
 
 // Lore templates (REQ-159, REQ-231, REQ-265)
 server.registerResource("lore-templates", "lore://templates", { title: "Lore Templates" }, async () => {
@@ -14281,25 +14402,8 @@ Commit every narratable change to state in the same turn you narrate it — scen
 You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel. Narrate from an omniscient perspective — you see all entity percepts, presence markers, and knowledge, but never GM-only surfaces (secrets, faction clocks, countdown positions, GM context).`;
     }
 
-    // Triggered lore. REQ-083d/083f — the GM sees every entry; Observer
-    // honors the non-GM read gate and the presence gate.
-    const sceneText = novel.scene_description.toLowerCase();
-    const triggered: string[] = [];
-    const loreIsGM = badge === "game_master";
-    for (const [, entry] of novel.lore) {
-      if (!entry.enabled) continue;
-      if (!loreIsGM && !loreVisible(entry, badge)) continue;
-      if (!loreIsGM && !lorePresenceSatisfied(novel, entry)) continue;
-      for (const trigger of entry.triggers) {
-        if (sceneText.includes(trigger.toLowerCase())) {
-          triggered.push(`[${entry.key}] ${entry.content}`);
-          break;
-        }
-      }
-    }
-    if (triggered.length > 0) {
-      briefing += `\n\n### Triggered Lore\n${triggered.join("\n")}`;
-    }
+    // Triggered lore is rendered by composeLoreSection for every badge
+    // (REQ-083a/f, REQ-155a, REQ-328b).
 
     // REQ-337 — story beats arc (GM surface: shared + GM beats).
     if (novel.story_beats.length > 0) {
@@ -14403,6 +14507,7 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
   }
 
   // REQ-286 — knowledge state (decision-critical, all badges with an entity).
+  briefing += composeLoreSection(novel, badge);
   briefing += composeKnowledgeState(novel, entity, badge);
 
   // REQ-109 — intro pointer: always surface the intro prompt as an entry point.
