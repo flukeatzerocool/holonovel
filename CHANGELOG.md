@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-10 — §5.18 deploy, state, and publication remediation
+
+- State location is one resolver again: `locateStateDir` reports the source and
+  the nearest git work-tree root, the server writes `[state-in-tree]` to stderr
+  and `spec_health.state_location` without blocking startup, and the four repo
+  entry scripts plus the emitter kit stop hardcoding an in-tree directory
+  (REQ-397, REQ-613).
+- The publish deploy classifies each resolved state candidate as tracked,
+  untracked, or ignored and refuses only when checkout/clean would actually
+  touch it, names the server on a fast-forward failure, and no longer reports a
+  stubbed verification as a completed deploy (REQ-396, REQ-418).
+- Delta classification has no working-copy fallback: the report carries
+  `baseline_missing` and `stored_hash_source`, the publish consumer refuses on
+  the field, and the CLI exits 1 without a published baseline (REQ-394).
+- `server.json` is validated against a vendored copy of the registry schema
+  (24-key vocabulary, asserted for coverage) in `check-server-manifest`,
+  `version-check`, and preflight; a multi-stage `Dockerfile` builds the host and
+  starts it from compiled output, gated by full-tier `check-container-image` and
+  a CI `container` job (REQ-428).
+- New `test:data-dir`, `check-server-manifest`, and `check-container-image`
+  gates; T466 (warning, six-surface survival, entry-point resolution), T465 and
+  T491 (ignored vs untracked state, divergent clone, stub honesty), T462
+  (fail-closed baseline), and T510 (schema validation) assertions added.
+- Closed F-P6b-8, F-P6b-13, F-P6b-14, and F-P6b-19; removed the §5.18
+  roadmap section and narrowed F-P6b-21 to the remaining citation gaps.
+
 ## 2026-11-10 — §5.17/§5.18 package build and update remediation
 
 - The covered non-commercial reference package ships a committed deterministic

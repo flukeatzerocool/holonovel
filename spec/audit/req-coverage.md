@@ -363,7 +363,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T84e | — |
 | REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T463, T650, T689 | — |
 | REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | — | — |
-| REQ-397 | Untracked state location | 5.18 Workflow Entry Points | E | — | — |
+| REQ-397 | Untracked state location | 5.18 Workflow Entry Points | C | T466 | — |
 | REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | — | — |
 | REQ-399 | Character-creation package data (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T468 | — |
 | REQ-400 | State-Persistence Directive | 5.19 State Persistence Guardrails | C | T469 | — |

@@ -1057,6 +1057,31 @@ dated entries below record changes to this list.
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## Distribution and state location standing facts, 2026-11-10
+
+- **Registry schema.** `holonovel/schemas/mcp-server.schema.json` is a
+  byte-for-byte copy of the MCP registry's `2025-12-11` server manifest schema
+  (sha256 recorded in `holonovel/schemas/PROVENANCE.md`).
+  `scripts/lib/server-manifest.ts` implements its full 24-key vocabulary and
+  `check-server-manifest` fails on any key it does not implement, so a schema
+  refresh forces the validator to grow with it. REQ-428.
+- **Container image.** `holonovel/Dockerfile` builds a multi-stage image whose
+  runtime copy is exactly the packable surface (`bin/`, `dist/`, `content/`,
+  `holonovel.md`, the two surface records, `NOTICE.md`, production
+  dependencies); `check-container-image` (full-tier) and the CI `container` job
+  prove it starts the host. The image is built, not published, by the
+  publication pipeline. REQ-428.
+- **In-tree state.** An existing `<install>/.holonovel-state` remains honored
+  and is never migrated (REQ-613). When any resolved state location sits inside
+  a git work tree, the server reports `[state-in-tree]` on stderr and in
+  `spec_health.state_location` without blocking startup (REQ-397). The deploy
+  guard refuses a checkout/clean only for tracked or untracked non-ignored
+  state, so a gitignored legacy directory — the deployed instance's case — is
+  preserved and does not block publication (REQ-396).
+- **Delta baseline.** Delta classification reads the published spec hash only;
+  a working-copy `**Spec hash:**` edit has no effect, and a missing published
+  baseline is reported as `baseline_missing` and blocks publication (REQ-394).
+
 ## Staging guards and atomic session commits, 2026-11-07
 
 - **Shared staging guards.** The publish path and `npm run session:close` apply

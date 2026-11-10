@@ -1896,7 +1896,10 @@ const INTENDED_GAP_REQS = new Set([
   // remediation): per-ruleset health, audited switching, suggest scoping,
   // import/export validation, and the codex ruleset axis are cited in
   // holonovel/src, so they are NOT whitelisted (see REQ-454).
-  "REQ-395", "REQ-396", "REQ-397", "REQ-398", "REQ-418", "REQ-419",
+  "REQ-395", "REQ-396", "REQ-398", "REQ-418", "REQ-419",
+  // REQ-397 moved to server-runtime on 2026-11-10: `spec_health.state_location`
+  // and the startup `[state-in-tree]` warning cite it in holonovel/src
+  // (F-P6b-8 remediation), so it is NOT whitelisted (see REQ-454).
   // §5.18 update/migration entry points are build-tooling contracts
   // (scripts/update-rulesets.ts, scripts/migrate-user-data.ts, and the
   // build-ruleset registry), not runtime server behavior. REQ-420 and REQ-423

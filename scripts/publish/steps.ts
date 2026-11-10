@@ -10,7 +10,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeGateRun } from "../lib/gate-run-manifest.js";
-import { collectStagedGuards } from "../lib/publish-guards.js";
+import { collectStagedGuards, classifyStatePaths, deployStateCandidates } from "../lib/publish-guards.js";
 import { runPreflight } from "./preflight.js";
 
 export type Stage = "repo" | "tag" | "release" | "docs" | "deploy";
@@ -121,7 +121,12 @@ function classifyDelta(ctx: Ctx, server: string): string {
     }
     const start = result.stdout.indexOf("{");
     const end = result.stdout.lastIndexOf("}");
-    const parsed = JSON.parse(result.stdout.slice(start, end + 1)) as { classification?: string };
+    const parsed = JSON.parse(result.stdout.slice(start, end + 1)) as { classification?: string; baseline_missing?: boolean };
+    // REQ-394 — `--report-only` keeps exit 0, so the explicit flag is the
+    // enforcement point: a missing published baseline blocks publication.
+    if (parsed.baseline_missing === true) {
+      throw new Error(`spec-delta: no published baseline for ${server} (REQ-394)`);
+    }
     const classification = parsed.classification;
     if (!classification || !["none", "patch", "editorial", "minor", "major"].includes(classification)) {
       throw new Error(`invalid delta classification: ${classification}`);
@@ -582,13 +587,41 @@ export const STEPS: Step[] = [
         return "skip";
       }
       const publishedHead = tryGit(ctx, ["rev-parse", "origin/main"]) ?? git(ctx, ["rev-parse", "HEAD"]);
+
+      // REQ-396/REQ-397 — refuse before any file is removed when the pending
+      // checkout/clean would touch state. Ignored state is preserved by
+      // `git clean -fd` (no `-x`) and is reported, not refused.
+      const stateFindings = classifyStatePaths(
+        ctx.deployDir,
+        deployStateCandidates(ctx.deployDir, ctx.servers),
+        (args) => tryGit(ctx, args, ctx.deployDir),
+      );
+      const blockedState = stateFindings.filter((finding) => finding.reason !== "ignored");
+      for (const finding of stateFindings) {
+        if (finding.reason === "ignored") ctx.log(`  state at ${finding.path} is gitignored — preserved by checkout/clean`);
+      }
+      must(
+        blockedState.length === 0,
+        blockedState
+          .map(
+            (finding) =>
+              `deploy-refused: ${finding.reason} state at ${finding.path} would be touched by checkout/clean; ` +
+              `relocate it with TTRPG_DATA_DIR or TTRPG_RULESET_DIRS (REQ-396, REQ-397)`,
+          )
+          .join("; "),
+      );
+
       if ((tryGit(ctx, ["status", "--porcelain"], ctx.deployDir) ?? "") !== "") {
         ctx.log("  deploy tree has uncommitted changes — discarding before pull");
         sh(ctx, "git", ["checkout", "--", "."], ctx.deployDir);
         sh(ctx, "git", ["clean", "-fd"], ctx.deployDir);
       }
       const previous = tryGit(ctx, ["rev-parse", "HEAD"], ctx.deployDir) ?? "";
-      must(sh(ctx, "git", ["pull", "--ff-only", "origin", "main"], ctx.deployDir) === 0, "deploy pull could not fast-forward");
+      if (sh(ctx, "git", ["pull", "--ff-only", "origin", "main"], ctx.deployDir) !== 0) {
+        throw new Error(
+          `deploy-failed: ${ctx.servers.join(", ")}: pull could not fast-forward (REQ-418)`,
+        );
+      }
       const current = tryGit(ctx, ["rev-parse", "HEAD"], ctx.deployDir) ?? "";
       must(current === publishedHead, "deployed HEAD does not match published origin/main (REQ-418)");
       if (previous !== current) {
@@ -618,9 +651,10 @@ export const STEPS: Step[] = [
       if (ctx.flags.noPush) return "skip";
       if (!existsSync(join(ctx.deployDir, ".git"))) return "skip";
       if (ctx.stub) {
-        ctx.log("  [stub] deployed-tree verification skipped");
-        ctx.state.didDeploy = true;
-        return "pass";
+        ctx.log("  [stub] deploy verification not run");
+        // REQ-418 — a stubbed verification is not a completed deploy; leave
+        // `didDeploy` false so the run summary cannot claim one.
+        return "skip";
       }
       for (const server of ctx.servers) {
         const specHash = ensureSpecHash(ctx);

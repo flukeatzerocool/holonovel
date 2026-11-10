@@ -1401,6 +1401,51 @@ pass and completion-oracle green. Fix evidence: regression tests in
   emission (`scripts/lib/ruleset-registry.ts:139`). Exercised by T650
   (`holonovel/scripts/test-fingerprints.ts:298`). REQ-395a, REQ-421, REQ-557.
 
+## Resolved — 2026-11-10 §5.18 deploy, state, and publication remediation
+
+- **F-P6b-8 — no `[state-in-tree]` warning; scripts create in-tree state
+  (resolved 2026-11-10):** `locateStateDir`
+  (`holonovel/src/core/data-dir.ts:88-101`) reports the resolved source and the
+  nearest git work-tree root, `spec_health.state_location`
+  (`holonovel/src/index.ts:12537-12544`) carries the `[state-in-tree]` warning
+  and the same line is written to stderr at startup (`:100-103`) without
+  blocking. The four entry scripts resolve through it
+  (`scripts/build-ruleset.ts:26`, `scripts/update-rulesets.ts:23`,
+  `scripts/migrate-user-data.ts:24`, `scripts/update.ts:53`) and
+  `scripts/lib/ruleset-build-kit.mjs:35` mirrors the precedence for a direct
+  emitter run. Exercised by T466 in `test:data-dir` (in-tree warning, six-surface
+  survival across `git clean -fdx` + `git reset --hard`, and the entry-point
+  resolution). REQ-397.
+- **F-P6b-13 — deploy clean and verification guards (resolved 2026-11-10):**
+  the deploy step classifies each resolved state candidate as tracked,
+  untracked, or ignored and refuses before any removal only when
+  checkout/clean would touch it (`scripts/publish/steps.ts:594-619`; classifier
+  `scripts/lib/publish-guards.ts`); the fast-forward failure names the server
+  (`:622`); a stubbed verification returns `skip` and leaves `didDeploy` false
+  (`:654-660`). Exercised by T465/T491 in `test:pipeline` (ignored state passes,
+  untracked state is refused with the file intact, a divergent clone fails with
+  the server named, and a stub run reports `deploy=false`). REQ-396, REQ-418.
+- **F-P6b-14 — delta classification reads a working-tree hash (resolved
+  2026-11-10):** the working-copy fallback is gone; the report carries
+  `baseline_missing` and `stored_hash_source`
+  (`scripts/spec-delta.ts:60-81,147-151`), classification stays `major` without
+  a baseline, the CLI exits 1 outside `--report-only` (`:219-222`), and
+  `classifyDelta` refuses on the field, not the exit code
+  (`scripts/publish/steps.ts:116-122`). Exercised by T462 in
+  `test:update-workflow` (no baseline fails closed despite a matching
+  working-copy hash; a published baseline classifies normally). REQ-394.
+- **F-P6b-19 — no container image and no manifest schema validation (resolved
+  2026-11-10):** `holonovel/Dockerfile` builds the host and starts it
+  (`ENTRYPOINT ["node","bin/holonovel.js"]`), gated by
+  `check-container-image` and a CI `container` job; `holonovel/server.json` is
+  validated against the vendored registry schema by
+  `scripts/lib/server-manifest.ts:97` in `check-server-manifest`,
+  `scripts/version-check.ts:112-126`, and the publish preflight
+  (`scripts/publish/preflight.ts`). Exercised by T510 in
+  `test:tool-definitions` (valid manifest, missing `name`, non-string
+  `version`, out-of-enum transport, and the gate refusing a scratch manifest).
+  REQ-428.
+
 ## Scheduled-roadmap
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
@@ -1425,20 +1470,6 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 
-- **F-P6b-8 — no `[state-in-tree]` warning; scripts create in-tree state
-  (2026-11-09):** `holonovel/src/core/data-dir.ts:60-61` returns a legacy
-  in-tree directory silently and the four root entry scripts hardcode
-  `holonovel/.holonovel-state`. REQ-397. Scheduled under §5.18 deploy, state,
-  and publication remediation.
-- **F-P6b-13 — deploy clean and verification guards (2026-11-09):**
-  `scripts/publish/steps.ts:585-588` cleans the deploy tree with no state-dir
-  assertion, the fast-forward failure names no server, and
-  `:620-623` marks a stubbed deploy complete. REQ-396, REQ-418. Scheduled
-  under §5.18 deploy, state, and publication remediation.
-- **F-P6b-14 — delta classification reads a working-tree hash
-  (2026-11-09):** `scripts/spec-delta.ts:138-140` falls back to the
-  `DECISIONS.md` working copy when no published hash resolves. REQ-394.
-  Scheduled under §5.18 deploy, state, and publication remediation.
 - **F-P6b-17 — Forged resist does not reduce a named consequence
   (2026-11-09):** `index.ts:7828-7834` adds stress only and the Forged state
   has no consequence slot. REQ-442. Scheduled under §5.21–§5.23 capability
@@ -1448,18 +1479,15 @@ absent, so each finding carries the failing predicate rather than a test.
   (`index.ts:7508, 7556, 7592, 7657, 7720, 7804, 7847`). REQ-041a, REQ-041b,
   REQ-435, REQ-436, REQ-440, REQ-442. Scheduled under §5.21–§5.23 capability
   remediation.
-- **F-P6b-19 — no container image and no manifest schema validation
-  (2026-11-09):** REQ-428's image half is absent and `server.json` is checked
-  for version equality only (`scripts/version-check.ts:92-103`). REQ-428.
-  Scheduled under §5.18 deploy, state, and publication remediation.
 - **F-P6b-21 — §5.16–§5.18 citation gaps (2026-11-09):** absent or
-  non-exercising assertions — T440, T442–T447, T451, T457, T458, T463–T467,
-  T491, T492; weak T454, T455, T456, T459, T460, T462,
-  T499, T510; and T431 is cited for codex though it is the Pattern Buffer
-  traceability test. T650, T656, and T657 are exercised as of 2026-11-10.
+  non-exercising assertions — T440, T442–T447, T451, T457, T458, T463–T464,
+  T467, T492; weak T454, T455, T456, T459, T460, T462,
+  T499; and T431 is cited for codex though it is the Pattern Buffer
+  traceability test. T465, T466, T491, and T510 are exercised as of
+  2026-11-10 (§5.18 remediation); T650, T656, and T657 as of 2026-11-10.
   REQ-379c, REQ-381c, REQ-383b, REQ-384c, REQ-385b, REQ-386b, REQ-387b,
   REQ-389b, REQ-389c, REQ-391b, REQ-391c, REQ-393, REQ-395a, REQ-395b,
-  REQ-396, REQ-397, REQ-398, REQ-418, REQ-419, REQ-428, REQ-439.
+  REQ-398, REQ-419, REQ-439.
   Scheduled under §5.16–§5.18 citation repair.
 
 ### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)

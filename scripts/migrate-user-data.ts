@@ -16,9 +16,12 @@ import { readdirSync, existsSync, readFileSync, writeFileSync, renameSync, copyF
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
+import { locateStateDir } from "../holonovel/src/core/data-dir.js";
 
 const root = join(import.meta.dirname, "..");
-const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
+// REQ-397 — resolve the same state location the server uses; a legacy in-tree
+// directory is still honored, but the tooling never creates one.
+const dataDir = locateStateDir(join(root, "holonovel")).dir;
 const current = readAndCompute().dataFormat;
 const apply = process.argv.includes("--apply");
 

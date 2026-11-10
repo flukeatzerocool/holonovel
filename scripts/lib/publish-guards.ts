@@ -9,6 +9,9 @@
 // No exit codes: library module.
 
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import { locateStateDir } from "../../holonovel/src/core/data-dir.js";
 
 /** Paths that must never be committed even under whole-tree staging. */
 export const DENY_PATTERNS: RegExp[] = [
@@ -47,6 +50,65 @@ export const SECRET_PATTERNS: Array<{ kind: string; re: RegExp }> = [
 /** Staged paths that match the deny-list. */
 export function deniedPaths(paths: string[]): string[] {
   return paths.filter((path) => DENY_PATTERNS.some((pattern) => pattern.test(path)));
+}
+
+// ── REQ-396/REQ-397 — deploy state preservation ────────────────────────────
+
+export type StatePathReason = "tracked" | "untracked" | "ignored";
+
+export interface StatePathFinding {
+  path: string;
+  reason: StatePathReason;
+}
+
+/** Candidate state locations for a deploy clone: each server's resolved data
+ * directory plus the explicit env overrides. Pure path arithmetic; existence
+ * is decided by the caller. */
+export function deployStateCandidates(
+  deployDir: string,
+  servers: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const candidates: string[] = [];
+  for (const server of servers) candidates.push(locateStateDir(join(deployDir, server)).dir);
+  for (const key of ["TTRPG_DATA_DIR", "TTRPG_RULESET_DIRS"] as const) {
+    const value = env[key]?.trim();
+    if (value) candidates.push(resolve(value));
+  }
+  return candidates;
+}
+
+/**
+ * Classify each existing candidate by what a `git checkout -- .` or
+ * `git clean -fd` would do to it: tracked paths are reverted, untracked
+ * non-ignored paths are deleted, ignored paths are left alone.
+ *
+ * `git` takes an argument list and returns stdout, or null when the command
+ * fails (a path outside the repository, for example).
+ */
+export function classifyStatePaths(
+  root: string,
+  candidates: string[],
+  git: (args: string[]) => string | null,
+  exists: (candidate: string) => boolean = existsSync,
+): StatePathFinding[] {
+  const resolvedRoot = resolve(root);
+  const findings: StatePathFinding[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const resolved = resolve(candidate);
+    const rel = relative(resolvedRoot, resolved);
+    if (!rel || rel.startsWith("..") || resolve(resolvedRoot, rel) !== resolved) continue;
+    if (seen.has(resolved) || !exists(resolved)) continue;
+    seen.add(resolved);
+    if (git(["ls-files", "--error-unmatch", "--", rel]) !== null) {
+      findings.push({ path: resolved, reason: "tracked" });
+      continue;
+    }
+    const status = git(["status", "--porcelain", "--ignored=no", "--", rel]) ?? "";
+    findings.push({ path: resolved, reason: status.trim() ? "untracked" : "ignored" });
+  }
+  return findings;
 }
 
 /** Porcelain lines that are not a fully staged entry (`M  path`, `A  path`). */

@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, reconcileUserData } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -91,6 +91,17 @@ const __dirname = path.dirname(__filename);
 // REQ-052 — path containment: all filesystem access resolves under the data
 // dir or the server's own install dir, never an arbitrary caller-supplied path.
 const DATA_DIR = resolveDataDir(path.join(__dirname, ".."));
+
+// REQ-397 — state placed inside a git work tree survives an ordinary run, but a
+// `git clean -fdx` or `git reset --hard` can delete it. The warning is
+// informational and never blocks startup; `spec_health.state_location` carries
+// the same fact for the GM.
+const STATE_LOCATION = locateStateDir(path.join(__dirname, ".."));
+const STATE_IN_TREE_WARNING = STATE_LOCATION.inGitWorkTree
+  ? `[state-in-tree] state directory ${STATE_LOCATION.dir} is inside git work tree ${STATE_LOCATION.workTreeRoot}; git clean or reset can delete it (REQ-397)`
+  : null;
+if (STATE_IN_TREE_WARNING) process.stderr.write(`[holonovel] ${STATE_IN_TREE_WARNING}\n`);
+
 function computeSpecHash(): string {
   try {
     const specPath = path.join(__dirname, "..", "holonovel.md");
@@ -12521,6 +12532,17 @@ function buildSpecHealth(): Record<string, unknown> {
           .map((s) => ({ slug: s.slug, source: s.source, reason: "[supplementary-gap] source missing" }))
       : undefined,
     // REQ-423 — [data-stale] artifacts, advisory (never block loading);
+    // REQ-397 — where persistent state lives and whether a git operation on the
+    // surrounding work tree can delete it. GM-only, like the rest of health.
+    state_location: isGM
+      ? {
+          path: STATE_LOCATION.dir,
+          source: STATE_LOCATION.source,
+          in_git_work_tree: STATE_LOCATION.inGitWorkTree,
+          work_tree_root: STATE_LOCATION.workTreeRoot,
+          warning: STATE_IN_TREE_WARNING,
+        }
+      : undefined,
     // REQ-652 — structured detail names stored/current and the remedy;
     // REQ-001a — [WARNING] enumeration of corrupted Novels (corruptData).
     data_health: isGM

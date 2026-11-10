@@ -49,6 +49,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
+import { validateManifest, unsupportedKeywords } from "../../scripts/lib/server-manifest.js";
 import { applyHardGates, shadowCandidates, computeContextSignals, scoreTool } from "../src/core/tdqs.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -518,6 +519,53 @@ async function main() {
       timeout: 30000,
     });
     assert(r.status === 0, `version-check exit ${r.status}: ${(r.stderr ?? "").slice(0, 500)}`);
+  });
+
+  // T510/REQ-428 — schema validation, not only version equality. The committed
+  // manifest must satisfy the vendored registry schema, and each mutation must
+  // be refused with a named error.
+  const schema = JSON.parse(readFileSync(join(ROOT, "holonovel", "schemas", "mcp-server.schema.json"), "utf-8"));
+  const mutate = (fn: (doc: typeof serverJson) => void): typeof serverJson => {
+    const copy = JSON.parse(JSON.stringify(serverJson));
+    fn(copy);
+    return copy;
+  };
+  const cases: Array<[string, typeof serverJson, RegExp]> = [
+    ["missing required name", mutate((doc) => { delete doc.name; }), /missing required 'name'/],
+    ["non-string version", mutate((doc) => { doc.version = 7; }), /expected string/],
+    ["transport outside the enum", mutate((doc) => { doc.packages[0].transport.type = "carrier-pigeon"; }), /not one of|does not match/],
+  ];
+
+  await test("T510/REQ-428: server.json validates against the vendored registry schema", () => {
+    const result = validateManifest(serverJson, schema);
+    assert(result.ok, `server.json invalid: ${result.errors.slice(0, 3).join("; ")}`);
+    const unsupported = unsupportedKeywords(schema);
+    assert(unsupported.length === 0, `schema uses unimplemented keys: ${unsupported.join(", ")}`);
+  });
+
+  for (const [label, doc, expected] of cases) {
+    await test(`T510/REQ-428: schema validation refuses ${label}`, () => {
+      const result = validateManifest(doc, schema);
+      assert(!result.ok, "mutation unexpectedly validated");
+      assert(result.errors.some((error) => expected.test(error)), `no named error: ${result.errors.join("; ")}`);
+    });
+  }
+
+  await test("T510/REQ-428: the schema gate refuses an invalid manifest", () => {
+    const scratch = mkdtempSync(join(tmpdir(), "manifest-gate-"));
+    try {
+      mkdirSync(join(scratch, "holonovel", "schemas"), { recursive: true });
+      writeFileSync(join(scratch, "holonovel", "schemas", "mcp-server.schema.json"), JSON.stringify(schema));
+      writeFileSync(join(scratch, "holonovel", "server.json"), JSON.stringify(cases[0][1]));
+      const r = spawnSync("npx", ["tsx", join(ROOT, "scripts", "check-server-manifest.ts"), "--root", scratch], {
+        encoding: "utf-8",
+        timeout: 30000,
+      });
+      assert(r.status === 1, `expected exit 1, got ${r.status}`);
+      assert(/missing required 'name'/.test(r.stderr ?? ""), `gate did not name the defect: ${r.stderr}`);
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
   });
 
   harnessComplete();

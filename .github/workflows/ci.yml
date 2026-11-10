@@ -45,3 +45,12 @@ jobs:
         run: npm run test:holosuite-evidence && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential
       - name: Packed-artifact smoke (REQ-614)
         run: npm run test:package-smoke
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Build the container image (REQ-428)
+        run: docker build -t holonovel:ci holonovel
+      - name: Start the host from the image
+        run: docker run --rm holonovel:ci help

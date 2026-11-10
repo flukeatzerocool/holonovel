@@ -3133,5 +3133,5 @@ export function applyNovelState(
   }
 }
 
-export { resolveDataDir } from "./data-dir.js";
-export type { DataDirOptions } from "./data-dir.js";
+export { resolveDataDir, locateStateDir } from "./data-dir.js";
+export type { DataDirOptions, StateDirLocation, StateDirSource } from "./data-dir.js";

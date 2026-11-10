@@ -9,6 +9,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { validateManifest, unsupportedKeywords } from "./lib/server-manifest.js";
 
 const root = join(import.meta.dirname, "..");
 
@@ -103,6 +104,23 @@ ok = check(
   holoServerPackages?.[0]?.version ?? null,
   npmCanonical(rootVersion)
 ) && ok;
+
+// REQ-428 — the manifest must also satisfy the vendored registry schema, not
+// only carry matching version strings. Fail closed on an unreadable schema.
+const manifestSchema = readJson(join(root, "holonovel", "schemas", "mcp-server.schema.json"));
+const unsupported = unsupportedKeywords(manifestSchema);
+if (unsupported.length > 0) {
+  console.error(`  FAIL  holonovel/server.json schema: validator does not implement ${unsupported.join(", ")}`);
+  ok = false;
+}
+const manifestValidation = validateManifest(holoServerJson, manifestSchema);
+if (manifestValidation.ok) {
+  console.log("  OK  holonovel/server.json: valid against the registry schema");
+} else {
+  console.error("  FAIL  holonovel/server.json: registry schema validation failed");
+  for (const error of manifestValidation.errors.slice(0, 5)) console.error(`        ${error}`);
+  ok = false;
+}
 
 // ── REQ-107a: version currency vs CHANGELOG ──
 

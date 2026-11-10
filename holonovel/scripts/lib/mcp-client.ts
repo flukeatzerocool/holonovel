@@ -26,6 +26,8 @@ export interface McpClient {
   listResources(): Promise<unknown[]>;
   listPrompts(): Promise<unknown[]>;
   getPrompt(name: string, args?: Record<string, string>): Promise<string>;
+  /** stderr accumulated so far (startup warnings land here). */
+  stderrTail(): string;
   close(): Promise<void>;
 }
 
@@ -156,5 +158,10 @@ export async function bootServer(opts: { serverDir: string; dataDir?: string; se
     }
   }
 
-  return { dataDir, call, listTools, listResources, listPrompts, getPrompt, close };
+  /** REQ-397 — the server's stderr tail (startup warnings included). */
+  function stderrTailText(): string {
+    return stderrTail;
+  }
+
+  return { dataDir, call, listTools, listResources, listPrompts, getPrompt, stderrTail: stderrTailText, close };
 }

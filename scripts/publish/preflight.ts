@@ -6,10 +6,11 @@
  * the process exit code).
  */
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sameRemote } from "../lib/remote-url.js";
 import { identityMissing } from "../lib/publish-guards.js";
+import { validateManifest, unsupportedKeywords } from "../lib/server-manifest.js";
 
 export interface PreflightOptions {
   root: string;
@@ -108,6 +109,25 @@ export function runPreflight(options: PreflightOptions): PreflightResult {
 
   if (!existsSync(join(root, ".holonovel-state", "wiki", ".git"))) {
     warnings.push("wiki clone not found at .holonovel-state/wiki — wiki steps will be skipped");
+  }
+
+  // REQ-428 — a publish must not proceed on a manifest that fails its registry
+  // schema. Fail closed on a missing or unreadable manifest/schema.
+  const manifestPath = join(root, "holonovel", "server.json");
+  const schemaPath = join(root, "holonovel", "schemas", "mcp-server.schema.json");
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
+    const unsupported = unsupportedKeywords(schema);
+    if (unsupported.length > 0) {
+      problems.push(`registry schema uses unimplemented keys: ${unsupported.join(", ")}`);
+    }
+    const validation = validateManifest(manifest, schema);
+    if (!validation.ok) {
+      problems.push(`holonovel/server.json fails registry schema validation: ${validation.errors[0]}`);
+    }
+  } catch (error) {
+    problems.push(`cannot validate holonovel/server.json against its schema: ${(error as Error).message}`);
   }
 
   return { problems, warnings };

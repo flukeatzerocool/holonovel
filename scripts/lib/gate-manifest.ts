@@ -78,6 +78,24 @@ const RAW_GATES: Gate[] = [
     full: npm("test:world-provider"),
   },
   {
+    name: "test:data-dir",
+    description: "Portable data directory and in-work-tree state warning (REQ-397/REQ-613)",
+    fast: npm("test:data-dir"),
+    full: npm("test:data-dir"),
+  },
+  {
+    name: "check-server-manifest",
+    description: "Registry manifest schema validation (REQ-428)",
+    fast: npm("check-server-manifest"),
+    full: npm("check-server-manifest"),
+  },
+  {
+    name: "check-container-image",
+    description: "Container image builds and starts the host (REQ-428)",
+    fast: null,
+    full: npm("check-container-image"),
+  },
+  {
     name: "check-world-provider",
     description: "Generated world-provider document freshness",
     fast: npm("check-world-provider"),

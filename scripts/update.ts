@@ -24,6 +24,7 @@ import {
   type RegistryEntry,
 } from "./lib/ruleset-registry.js";
 import { validateToolSchema } from "../holonovel/src/rulesets.js";
+import { locateStateDir } from "../holonovel/src/core/data-dir.js";
 
 const USAGE = `Usage: npx tsx scripts/update.ts [--apply] [--json] [--packages-only] [--data-only] [--record] [--help]
 
@@ -47,7 +48,9 @@ const dataOnly = parseFlag(argv, "--data-only");
 const record = parseFlag(argv, "--record");
 
 const root = join(import.meta.dirname, "..");
-const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
+// REQ-397 — the resolved state location, shared with the server; never a
+// hardcoded in-tree directory.
+const dataDir = locateStateDir(join(root, "holonovel")).dir;
 const installDir = process.env.TTRPG_RULESET_DIRS ?? join(dataDir, "rulesets");
 
 interface TierOutcome {

@@ -1,0 +1,7 @@
+node_modules
+dist
+.holonovel-state
+.git
+testdata
+narrative_world_model
+*.log

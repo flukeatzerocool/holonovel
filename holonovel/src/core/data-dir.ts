@@ -1,4 +1,5 @@
-// Portable data-directory resolution (REQ-613).
+// Portable data-directory resolution (REQ-613) with the in-work-tree signal
+// for REQ-397.
 // Order: TTRPG_DATA_DIR → an existing legacy `<install>/.holonovel-state` →
 // the per-OS user-data location. The default never resolves inside the install
 // tree; an existing legacy directory is honored, never migrated or deleted.
@@ -13,6 +14,20 @@ export interface DataDirOptions {
   homedir?: string;
   exists?: (candidate: string) => boolean;
   mkdir?: (candidate: string) => void;
+  /** REQ-397 — does this candidate exist as a git marker (directory or file)? */
+  isGitMarker?: (candidate: string) => boolean;
+}
+
+export type StateDirSource = "env" | "legacy" | "user-data";
+
+// REQ-397 — the resolved state location plus whether an ordinary git operation
+// on the surrounding work tree can delete or revert it. `locateStateDir` never
+// writes; `resolveDataDir` keeps its mkdir behavior for existing callers.
+export interface StateDirLocation {
+  dir: string;
+  source: StateDirSource;
+  inGitWorkTree: boolean;
+  workTreeRoot: string | null;
 }
 
 const LEGACY_DIR = ".holonovel-state";
@@ -23,6 +38,28 @@ function defaultExists(candidate: string): boolean {
   } catch {
     // Missing or inaccessible path: treat it as absent.
     return false;
+  }
+}
+
+// A linked worktree or submodule marks its git root with a `.git` *file*, so
+// the probe must accept a non-directory.
+function defaultIsGitMarker(candidate: string): boolean {
+  try {
+    fs.lstatSync(candidate);
+    return true;
+  } catch {
+    // Absent marker: this ancestor is not a work-tree root.
+    return false;
+  }
+}
+
+function findWorkTreeRoot(start: string, isGitMarker: (candidate: string) => boolean): string | null {
+  let current = path.resolve(start);
+  for (;;) {
+    if (isGitMarker(path.join(current, ".git"))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
   }
 }
 
@@ -43,27 +80,37 @@ function userDataDir(options: Required<Pick<DataDirOptions, "env" | "platform" |
   return path.join(xdg || path.join(homedir, ".local", "share"), "holonovel");
 }
 
-export function resolveDataDir(packageRoot: string, options: DataDirOptions = {}): string {
+function describe(dir: string, source: StateDirSource, isGitMarker: (candidate: string) => boolean): StateDirLocation {
+  const workTreeRoot = findWorkTreeRoot(dir, isGitMarker);
+  return { dir, source, inGitWorkTree: workTreeRoot !== null, workTreeRoot };
+}
+
+export function locateStateDir(packageRoot: string, options: DataDirOptions = {}): StateDirLocation {
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
   const homedir = options.homedir ?? os.homedir();
   const exists = options.exists ?? defaultExists;
-  const mkdir = options.mkdir ?? defaultMkdir;
+  const isGitMarker = options.isGitMarker ?? defaultIsGitMarker;
 
   const explicit = env.TTRPG_DATA_DIR?.trim();
-  if (explicit) {
-    const resolved = path.resolve(explicit);
-    if (!exists(resolved)) mkdir(resolved);
-    return resolved;
-  }
+  if (explicit) return describe(path.resolve(explicit), "env", isGitMarker);
 
   const legacy = path.join(path.resolve(packageRoot), LEGACY_DIR);
-  if (exists(legacy)) return legacy;
+  if (exists(legacy)) return describe(legacy, "legacy", isGitMarker);
 
-  const target = userDataDir({ env, platform, homedir });
-  if (!exists(target)) mkdir(target);
-  return target;
+  return describe(userDataDir({ env, platform, homedir }), "user-data", isGitMarker);
 }
+
+export function resolveDataDir(packageRoot: string, options: DataDirOptions = {}): string {
+  const exists = options.exists ?? defaultExists;
+  const mkdir = options.mkdir ?? defaultMkdir;
+  const location = locateStateDir(packageRoot, options);
+  // The legacy directory is honored where it sits; only the explicit and
+  // per-OS locations are created on demand (REQ-613).
+  if (location.source !== "legacy" && !exists(location.dir)) mkdir(location.dir);
+  return location.dir;
+}
+
 
 // REQ-621 — the exchange inbox is the only artifact-install source. An
 // explicit TTRPG_ARTIFACT_INBOX wins; otherwise it sits under the data

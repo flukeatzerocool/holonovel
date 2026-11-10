@@ -55,15 +55,15 @@ function sha256(filePath: string): string {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
-function grepInFile(filePath: string, pattern: RegExp): string | null {
-  const match = readFileSync(filePath, "utf-8").match(pattern);
-  return match ? (match[1] ?? null) : null;
-}
-
 interface DeltaReport {
   in_sync: boolean;
   current_hash: string;
   stored_hash: string | null;
+  /** Which ref supplied `stored_hash`; null when no published hash resolves. */
+  stored_hash_source: string | null;
+  /** REQ-394 — true when no published spec hash resolves; the consumer must
+   * refuse to treat the classification as authoritative. */
+  baseline_missing: boolean;
   classification: "none" | "patch" | "editorial" | "minor" | "major";
   spec_modified: boolean;
   requirements_changed: { added: string[]; removed: string[]; modified: string[] };
@@ -76,6 +76,8 @@ const report: DeltaReport = {
   in_sync: true,
   current_hash: sha256(SPEC_PATH),
   stored_hash: null,
+  stored_hash_source: null,
+  baseline_missing: false,
   classification: "none",
   spec_modified: false,
   requirements_changed: { added: [], removed: [], modified: [] },
@@ -116,12 +118,12 @@ function lastPublishedSpec(baseRef: string | null): string | null {
   return null;
 }
 
-function lastPublishedStoredHash(baseRef: string | null): string | null {
+function lastPublishedStoredHash(baseRef: string | null): { hash: string; ref: string } | null {
   const refs = baseRef ? [baseRef] : ["origin/main", "HEAD"];
   for (const ref of refs) {
     const out = gitOut(["show", `${ref}:holonovel/DECISIONS.md`], 1024 * 1024);
     const m = out?.match(/\*\*Spec hash:\*\*\s*([a-f0-9]+)/m);
-    if (m) return m[1];
+    if (m) return { hash: m[1], ref };
   }
   return null;
 }
@@ -136,8 +138,18 @@ function hasEditorialDisposition(decisions: string, modified: string[]): boolean
 }
 
 const decisions = readFileSync(DECISIONS_PATH, "utf-8");
-const workingStored = grepInFile(DECISIONS_PATH, /\*\*Spec hash:\*\*\s*([a-f0-9]+)/m);
-report.stored_hash = lastPublishedStoredHash(baseRef) ?? workingStored;
+// REQ-394 — classify only against the last-published spec hash. There is no
+// working-copy fallback: a hand-edited `**Spec hash:**` line must not become
+// the classification basis.
+const published = lastPublishedStoredHash(baseRef);
+report.stored_hash = published?.hash ?? null;
+report.stored_hash_source = published?.ref ?? null;
+report.baseline_missing = published === null;
+if (report.baseline_missing) {
+  // No baseline means the delta cannot be classified. Stay conservative so a
+  // caller that ignores `baseline_missing` cannot read this as a patch.
+  report.classification = "major";
+}
 
 const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
 report.version_changed.to = rootPkg.version;
@@ -182,13 +194,17 @@ if (!report.in_sync) {
     report.sections_changed = currentSections.filter(s => !storedSections.includes(s));
   }
 
-  report.classification = classifyDelta({
-    added: report.requirements_changed.added,
-    removed: report.requirements_changed.removed,
-    modified: report.requirements_changed.modified,
-    sectionsChanged: report.sections_changed,
-    editorial: hasEditorialDisposition(decisions, report.requirements_changed.modified),
-  });
+  if (report.baseline_missing) {
+    // Keep the conservative `major` set above; there is no baseline to diff.
+  } else {
+    report.classification = classifyDelta({
+      added: report.requirements_changed.added,
+      removed: report.requirements_changed.removed,
+      modified: report.requirements_changed.modified,
+      sectionsChanged: report.sections_changed,
+      editorial: hasEditorialDisposition(decisions, report.requirements_changed.modified),
+    });
+  }
 }
 
 const reportOnly = process.argv.includes("--report-only");
@@ -198,6 +214,11 @@ console.log(JSON.stringify(report, null, 2));
 if (reportOnly) {
   console.error(`\nSpec delta: ${report.classification.toUpperCase()}${report.in_sync ? " (already in sync)" : ""}`);
   process.exit(0);
+}
+
+if (report.baseline_missing) {
+  console.error("\nbaseline-missing: no published spec hash resolves (REQ-394)");
+  process.exit(1);
 }
 
 if (!report.in_sync) {

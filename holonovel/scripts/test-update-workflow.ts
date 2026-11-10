@@ -15,7 +15,7 @@
 // HOLONOVEL_STATE_DIR (REQ-314) so its runs never read or write the live
 // `.holonovel-state/pipeline-fingerprints.json`; no tracked file is mutated.
 
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdtempSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -312,6 +312,61 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
       });
     } finally {
       rmSync(decisionsDir, { recursive: true, force: true });
+    }
+
+    // ── REQ-394 / T462 — delta classification has no working-copy fallback ─
+    const specRoot = (hash: string | null): string => {
+      const dir = mkdtempSync(join(tmpdir(), "spec-delta-root-"));
+      writeFileSync(join(dir, "package.json"), JSON.stringify({ name: "fixture", version: "0.0.0" }));
+      writeFileSync(join(dir, "holonovel.md"), "# Fixture\n\n**REQ-999 — Fixture.** Body.\n\n*Check:* fixture.\n");
+      mkdirSync(join(dir, "holonovel"), { recursive: true });
+      writeFileSync(
+        join(dir, "holonovel", "DECISIONS.md"),
+        hash ? `# Decisions\n\n**Spec hash:** ${hash}\n` : "# Decisions\n",
+      );
+      return dir;
+    };
+
+    const noBaselineRoot = specRoot(null);
+    try {
+      // A hand-edited working copy that matches the assembled spec must not
+      // become the classification basis.
+      const current = sha256(join(noBaselineRoot, "holonovel.md"));
+      writeFileSync(join(noBaselineRoot, "holonovel", "DECISIONS.md"), `# Decisions\n\n**Spec hash:** ${current}\n`);
+      test("T462/REQ-394: no published baseline fails closed despite a working-copy hash", () => {
+        const r = runScript("spec-delta.ts", ["--root", noBaselineRoot, "--server", "holonovel"]);
+        if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        if (!r.stderr.includes("baseline-missing")) throw new Error(`missing baseline notice: ${r.stderr}`);
+        const parsed = JSON.parse(r.stdout.slice(r.stdout.indexOf("{"), r.stdout.lastIndexOf("}") + 1));
+        if (parsed.baseline_missing !== true) throw new Error("report did not set baseline_missing");
+        if (parsed.stored_hash !== null) throw new Error("report used a working-copy hash");
+        if (parsed.classification !== "major") throw new Error(`conservative class expected, got ${parsed.classification}`);
+      });
+    } finally {
+      rmSync(noBaselineRoot, { recursive: true, force: true });
+    }
+
+    const publishedRoot = specRoot(null);
+    try {
+      execFileSync("git", ["init", "-q", "-b", "main"], { cwd: publishedRoot });
+      execFileSync("git", ["config", "user.email", "fixture@example.invalid"], { cwd: publishedRoot });
+      execFileSync("git", ["config", "user.name", "Fixture"], { cwd: publishedRoot });
+      const baseHash = sha256(join(publishedRoot, "holonovel.md"));
+      writeFileSync(join(publishedRoot, "holonovel", "DECISIONS.md"), `# Decisions\n\n**Spec hash:** ${baseHash}\n`);
+      execFileSync("git", ["add", "-A"], { cwd: publishedRoot });
+      execFileSync("git", ["commit", "-qm", "fixture"], { cwd: publishedRoot });
+      writeFileSync(join(publishedRoot, "holonovel.md"), "# Fixture\n\n**REQ-999 — Fixture.** Changed body.\n\n*Check:* fixture.\n");
+      test("T462/REQ-394: a resolvable published baseline classifies normally", () => {
+        const r = runScript("spec-delta.ts", ["--root", publishedRoot, "--server", "holonovel"]);
+        const parsed = JSON.parse(r.stdout.slice(r.stdout.indexOf("{"), r.stdout.lastIndexOf("}") + 1));
+        if (parsed.baseline_missing !== false) throw new Error("baseline_missing should be false");
+        if (parsed.stored_hash !== baseHash) throw new Error("stored hash did not come from the published ref");
+        if (!["patch", "editorial", "minor", "major"].includes(parsed.classification)) {
+          throw new Error(`unexpected classification ${parsed.classification}`);
+        }
+      });
+    } finally {
+      rmSync(publishedRoot, { recursive: true, force: true });
     }
 
     // ── REQ-394a / T84e — publication update evidence ──────────────────

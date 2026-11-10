@@ -15,9 +15,11 @@
 import { join } from "node:path";
 import { readAndCompute } from "./lib/contract-fingerprint.js";
 import { loadRegistry, installedManifests, baseEmissionState } from "./lib/ruleset-registry.js";
+import { locateStateDir } from "../holonovel/src/core/data-dir.js";
 
 const root = join(import.meta.dirname, "..");
-const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
+// REQ-397 — one resolver, so the reporter reads the same state the server uses.
+const dataDir = locateStateDir(join(root, "holonovel")).dir;
 const installDir = process.env.TTRPG_RULESET_DIRS ?? join(dataDir, "rulesets");
 
 const current = readAndCompute().packageFormat;

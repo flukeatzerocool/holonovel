@@ -27,6 +27,27 @@ export function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf-8"));
 }
 
+// REQ-397/REQ-613 — the install directory a direct emitter run falls back to.
+// Mirrors the server resolver's precedence; see the call site comment.
+export function defaultDataDir(repoRoot) {
+  const explicit = process.env.TTRPG_DATA_DIR?.trim();
+  if (explicit) return path.resolve(explicit);
+  const legacy = path.join(repoRoot, "holonovel", ".holonovel-state");
+  try {
+    if (fs.statSync(legacy).isDirectory()) return legacy;
+  } catch {
+    // No legacy directory: fall through to the per-OS location.
+  }
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? ".";
+  if (process.platform === "win32") {
+    const base = process.env.LOCALAPPDATA?.trim() || process.env.APPDATA?.trim() || path.join(home, "AppData", "Local");
+    return path.join(base, "holonovel");
+  }
+  if (process.platform === "darwin") return path.join(home, "Library", "Application Support", "holonovel");
+  const xdg = process.env.XDG_DATA_HOME?.trim();
+  return path.join(xdg || path.join(home, ".local", "share"), "holonovel");
+}
+
 // REQ-078a/§6.3 — derive the prompt inputs the host composes prompts from.
 // `authored` carries ruleset-native facts the extraction model does not
 // represent structurally (tagline, native personality construct names,
@@ -209,7 +230,12 @@ export function emitFromBaseline({ slug, name, repoRoot, scriptDir, argv, defaul
     console.log(`usage: node scripts/ruleset-builds/${slug}/build-package.mjs [--baseline <dir>] [--out <dir>] [--dry-run] [--no-backup] [--json]`);
     return 0;
   }
-  const installDir = process.env.TTRPG_RULESET_DIRS ?? path.join(repoRoot, "holonovel", ".holonovel-state", "rulesets");
+  // REQ-397 — do not invent an in-tree state directory. Same precedence as the
+  // server resolver (REQ-613): TTRPG_DATA_DIR, an existing legacy directory,
+  // then the per-OS user-data location. This module is plain ESM, so it cannot
+  // import the TypeScript resolver; keep the two in step (test:data-dir pins the
+  // TypeScript side, and this default is only used by a direct emitter run).
+  const installDir = process.env.TTRPG_RULESET_DIRS ?? path.join(defaultDataDir(repoRoot), "rulesets");
   const outDir = path.resolve(opts.out ?? path.join(installDir, slug));
 
   const readParts = (dir) => ({

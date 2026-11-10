@@ -61,7 +61,7 @@ interface RunResult {
   output: string;
 }
 
-function runPipeline(work: string, args: string[], deploy: string): RunResult {
+function runPipeline(work: string, args: string[], deploy: string, extraEnv: NodeJS.ProcessEnv = {}): RunResult {
   const result = spawnSync(TSX, [DRIVER, ...args], {
     cwd: work,
     encoding: "utf-8",
@@ -70,6 +70,7 @@ function runPipeline(work: string, args: string[], deploy: string): RunResult {
       HOLONOVEL_PIPELINE_ROOT: work,
       HOLONOVEL_PIPELINE_STUB: "1",
       HOLONOVEL_DEPLOY_DIR: deploy,
+      ...extraEnv,
     },
   });
   return { status: result.status ?? 1, output: `${result.stdout ?? ""}${result.stderr ?? ""}` };
@@ -90,6 +91,14 @@ function buildFixture(base: string): { remote: string; work: string; deploy: str
   );
   mkdirSync(join(work, "scripts", "lib"), { recursive: true });
   writeFileSync(join(work, "scripts", "lib", "servers.json"), `${JSON.stringify(readServers())}\n`);
+  // REQ-428 — preflight validates the registry manifest, so the fixture carries
+  // the committed manifest and schema.
+  mkdirSync(join(work, "holonovel", "schemas"), { recursive: true });
+  writeFileSync(join(work, "holonovel", "server.json"), readFileSync(join(ROOT, "holonovel", "server.json")));
+  writeFileSync(
+    join(work, "holonovel", "schemas", "mcp-server.schema.json"),
+    readFileSync(join(ROOT, "holonovel", "schemas", "mcp-server.schema.json")),
+  );
   writeFileSync(join(work, "README.md"), "# fixture\n");
   writeFileSync(join(work, ".gitignore"), ".holonovel-state/\n");
   git(work, ["config", "user.name", "Harness"]);
@@ -133,7 +142,34 @@ function main(): void {
     check("full run exits 0", full.status === 0, full.output.split("\n").slice(-3).join(" | "));
     check("push reached the bare remote", (tryGit(base, ["--git-dir", join(base, "remote.git"), "rev-parse", "main"]) ?? "") === git(work, ["rev-parse", "HEAD"]));
     check("deploy clone landed on the published head", git(deploy, ["rev-parse", "HEAD"]) === git(work, ["rev-parse", "HEAD"]));
-    check("run summary reports deploy", full.output.includes("deploy=true"));
+    // T491/REQ-418 — this run is stubbed, so verification did not run and the
+    // summary must not claim a completed deploy (F-P6b-13).
+    check("a stubbed verification does not report a completed deploy", full.output.includes("deploy=false"), full.output.split("\n").slice(-2).join(" | "));
+
+    // Case 2b — T465/REQ-396: ignored state is preserved, untracked state is refused.
+    const ignoredState = join(deploy, "holonovel", ".holonovel-state");
+    mkdirSync(ignoredState, { recursive: true });
+    writeFileSync(join(ignoredState, "novel.json"), "{}\n");
+    const ignoredRun = runPipeline(work, ["--yes", "--only", "deploy"], deploy, { TTRPG_DATA_DIR: ignoredState });
+    check(
+      "T465/REQ-396: ignored in-tree state does not block the deploy",
+      ignoredRun.status === 0 && ignoredRun.output.includes("gitignored — preserved"),
+      ignoredRun.output.split("\n").slice(-3).join(" | "),
+    );
+
+    const untrackedState = join(deploy, "holonovel", "state");
+    mkdirSync(untrackedState, { recursive: true });
+    writeFileSync(join(untrackedState, "novel.json"), "{}\n");
+    const refusedRun = runPipeline(work, ["--yes", "--only", "deploy"], deploy, { TTRPG_DATA_DIR: untrackedState });
+    check(
+      "T465/REQ-396: untracked in-tree state is refused before any removal",
+      refusedRun.status === 1 &&
+        refusedRun.output.includes("deploy-refused") &&
+        refusedRun.output.includes(untrackedState),
+      refusedRun.output.split("\n").slice(-3).join(" | "),
+    );
+    check("T465/REQ-396: the refused state file is still present", existsSync(join(untrackedState, "novel.json")));
+    rmSync(join(deploy, "holonovel"), { recursive: true, force: true });
 
     // Case 3 — preflight rejects staged work before any write.
     writeFileSync(join(work, "staged.md"), "staged\n");
@@ -234,9 +270,18 @@ function main(): void {
 
     const deployOnly = runPipeline(work, ["--yes", "--stage", "deploy"], deploy);
     check(
-      "--stage deploy lands the deploy clone without a commit",
-      deployOnly.status === 0 && deployOnly.output.includes("deploy=true"),
+      "--stage deploy lands the published head without a commit",
+      deployOnly.status === 0 &&
+        git(deploy, ["rev-parse", "HEAD"]) === git(work, ["rev-parse", "origin/main"]) &&
+        deployOnly.output.includes("deploy=false"),
       deployOnly.output.split("\n").slice(-3).join(" | "),
+    );
+
+    const stubVerify = runPipeline(work, ["--yes", "--only", "verify_deploy"], deploy);
+    check(
+      "T491/REQ-418: a stub verification reports deploy=false",
+      stubVerify.status === 0 && stubVerify.output.includes("deploy=false"),
+      stubVerify.output.split("\n").slice(-3).join(" | "),
     );
 
     const cleanCommit = runPipeline(work, ["--only", "commit"], deploy);
@@ -244,6 +289,26 @@ function main(): void {
       "--only commit on a clean index is a no-op",
       cleanCommit.status === 0 && cleanCommit.output.includes("nothing new to commit"),
       cleanCommit.output.split("\n").slice(-3).join(" | "),
+    );
+
+    // Case 7 — T491/REQ-418: a genuinely divergent deploy clone fails the
+    // fast-forward and the notice names the server.
+    writeFileSync(join(work, "DIVERGE.md"), "remote\n");
+    git(work, ["add", "DIVERGE.md"]);
+    git(work, ["commit", "-q", "-m", "2026-11-07 — Harness fixture divergence"]);
+    git(work, ["push", "-q", "origin", "main"]);
+    git(deploy, ["config", "user.name", "Harness"]);
+    git(deploy, ["config", "user.email", "harness@example.invalid"]);
+    writeFileSync(join(deploy, "LOCAL.md"), "local\n");
+    git(deploy, ["add", "LOCAL.md"]);
+    git(deploy, ["commit", "-q", "-m", "local deploy commit"]);
+    const diverged = runPipeline(work, ["--yes", "--only", "deploy"], deploy);
+    check(
+      "T491/REQ-418: a non-fast-forward pull names the server and fails",
+      diverged.status === 1 &&
+        diverged.output.includes("deploy-failed") &&
+        diverged.output.includes("holonovel"),
+      diverged.output.split("\n").slice(-3).join(" | "),
     );
   } finally {
     if (keep) {

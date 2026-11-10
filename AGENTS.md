@@ -321,6 +321,9 @@ This runs (the table is generated from the gate manifest):
 | `test:commit-plan` | yes | yes | Self-tests for the session commit planner and subject hook |
 | `test:ruleset-gates` | yes | yes | Self-tests for the ruleset package gates |
 | `test:world-provider` | yes | yes | Gate the world://kinds provider payload |
+| `test:data-dir` | yes | yes | Portable data directory and in-work-tree state warning (REQ-397/REQ-613) |
+| `check-server-manifest` | yes | yes | Registry manifest schema validation (REQ-428) |
+| `check-container-image` | no | yes | Container image builds and starts the host (REQ-428) |
 | `check-world-provider` | yes | yes | Generated world-provider document freshness |
 | `validate-readme` | yes | yes | README structure, voice, links, and comparison table |
 | `check-script-discipline` | yes | yes | Script shebang, role header, exit codes, path and shell rules |

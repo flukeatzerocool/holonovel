@@ -12,20 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.18 deploy, state, and publication remediation (P1)
-
-- State location: emit the `[state-in-tree]` warning in `spec_health` and on
-  stderr, and route the host entry scripts through the resolved data directory
-  (REQ-397).
-- Deploy guards, delta classification, and distribution: refuse a deploy clean
-  that would touch state, name the server on a fast-forward failure, stop the
-  stub path reporting a completed deploy, fail closed when no published spec
-  hash resolves, and add the container image plus `server.json` schema
-  validation (REQ-394, REQ-396, REQ-418, REQ-428).
-
-**Trigger:** the next §5.18 remediation session; closes when F-P6b-8,
-F-P6b-13, F-P6b-14, and F-P6b-19 are `Resolved`.
-
 ## §5.21–§5.23 capability remediation (P1)
 
 - Forged consequences and refusal atomicity: model the named Forged
@@ -43,10 +29,10 @@ F-P6b-18 are `Resolved`.
   Ironsworn-burn contracts (REQ-379c, REQ-381c, REQ-383b, REQ-384c, REQ-385b,
   REQ-386b, REQ-387b, REQ-389b, REQ-389c, REQ-391b, REQ-391c, REQ-393,
   REQ-439).
-- §5.18: write or re-point the missing assertions for the entry points, deploy
-  preservation, publication integrity, distribution, supplement provenance,
-  and package emission (REQ-395a, REQ-395b, REQ-396, REQ-397, REQ-398,
-  REQ-418, REQ-419, REQ-428, REQ-557, REQ-563, REQ-564).
+- §5.18: write or re-point the missing assertions for the entry points,
+  publication integrity, supplement provenance, and package emission
+  (REQ-395a, REQ-395b, REQ-398, REQ-419, REQ-557, REQ-563, REQ-564). T465,
+  T466, T491, and T510 are exercised as of 2026-11-10 (§5.18 remediation).
 
 **Trigger:** the next citation-remediation session; closes when F-P6b-21 is
 `Resolved` and every §5.16–§5.18 `_Check:_` citation resolves to an exercised

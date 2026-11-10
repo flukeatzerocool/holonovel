@@ -21,9 +21,12 @@ import {
   mergeParts, readParts, readSupplementParts, writeParts, hashParts, hashSourceDir, snapshotBase,
 } from "./lib/ruleset-supplement.js";
 import { APPENDIX_U_LICENSES } from "../holonovel/src/rulesets.js";
+import { locateStateDir } from "../holonovel/src/core/data-dir.js";
 
 const root = join(import.meta.dirname, "..");
-const dataDir = process.env.TTRPG_DATA_DIR ?? join(root, "holonovel", ".holonovel-state");
+// REQ-397 — one resolver for repo tooling and the shipped server, so the
+// build path never invents its own in-tree state directory.
+const dataDir = locateStateDir(join(root, "holonovel")).dir;
 const installDir = process.env.TTRPG_RULESET_DIRS ?? join(dataDir, "rulesets");
 const decisionsFile = join(dataDir, "build-intake.md");
 const provenanceFile = join(dataDir, "build-provenance.md");
