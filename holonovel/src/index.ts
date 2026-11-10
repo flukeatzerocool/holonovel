@@ -10447,7 +10447,7 @@ server.registerTool("manage_adventure", {
         const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
         const communityInert = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => ["supplementary", "player"].includes(String(v?.tag ?? ""))).length + (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => ["supplementary", "player"].includes(String(l?.tag ?? ""))).length;
         const augParts: string[] = [];
-        if (synthVoice > 0 || synthLore > 0) augParts.push(`Synthesis: ${synthVoice} item(s) active for this adventure (${synthLore} lore template(s) for its locations). Review at \`synthesis://status\`.`);
+        if (synthVoice > 0 || synthLore > 0) augParts.push(`Synthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.`);
         if (communityInert > 0) augParts.push(`Community synthesis items: ${communityInert} inert — activate with manage_synthesis (action: activate).`);
         const aug = augParts.length > 0 ? `\n\n${augParts.join(" ")}` : "";
         return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${hazardNote(linked, materialized)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
