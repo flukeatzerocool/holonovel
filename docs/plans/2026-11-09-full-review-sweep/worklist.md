@@ -326,7 +326,7 @@ restart the enumeration from scratch.
 | P6a | world model, parser, conversion, coupling, ruleset-free mode | §5.10, §5.11, §5.13, §5.15 (107 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P6b | ruleset packages, host entry points, Fate/Ironsworn/Forged | §5.16–§5.18, §5.21–§5.23 (73 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P7a | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts`, knowledge handlers | §5.7, §5.14, §5.28–§5.30 (91 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P7b | extraction and synthesis handlers; `core/wisdom.ts` | §5.2, §5.8 (189 REQs) | `code-review` + citation resolution | scheduled |
+| P7b | extraction and synthesis handlers; `core/wisdom.ts` | §5.2, §5.8 (189 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 | `code-review` + `spec-review` | scheduled (pending Q1) |
 | M1 | `check:conformance`, `fmea`, `graph-deps` | all | machine evidence | **closed 2026-11-09** |
 
@@ -2153,3 +2153,310 @@ row in `spec/audit/req-coverage.md` (D84).
 | C — knowledge corpus (§5.28) | 9 | holds | `test-corpus.ts` T586–T593, T628 |
 | D — semantic index and graph (§5.29–§5.30) | 11 | holds | `test-index.ts`, `test-graph.ts` |
 
+
+## Chunk P7b — extraction and synthesis (§5.2, §5.8)
+
+### Decisions (2026-11-09, chunk P7b)
+
+- **D91 — Chunk scope (user-approved).** P7b = §5.2 (58 REQs / 37 family rows)
+  + §5.8 (131 / 39) = 189 REQs / 76 family rows, executed whole. §5.2's 37 rows
+  are all bucket E; §5.8 carries 32 C / 7 E. Re-derived at Phase 0 step 8 and
+  unchanged.
+- **D92 — Fix policy.** D2/D13/D62 unchanged: P0 in-session, P1 roadmap, P2 only
+  on a demonstrated failure, P3 record-and-close. No P0 was raised; no P2 was
+  fixed in-session (each is a citation repair, not a demonstrated failure).
+- **D93 — Increment record.** `docs/plans/2026-11-09-full-review-p7b/` holds
+  plan/tasks/AAR; this worklist is the tracker and carries the P7b tables.
+- **D94 — Bucket resolution.** By base family row from
+  `spec/audit/req-coverage.md`: §5.2 37 E; §5.8 32 C / 7 E (`REQ-114`,
+  `REQ-130`, `REQ-158`, `REQ-228`, `REQ-243`, `REQ-244`, `REQ-245`). Total
+  32 C / 44 E.
+- **D95 — Boundaries.** §5.7/§5.28–§5.30 closed in P7a; P8 owns §5.12,
+  §5.25–§5.27, §5.32–§5.35; §5.2 is reviewed for its builder predicates, not
+  converter implementation; `holonovel/src/core/memory.ts` is a shared file
+  surface with P8 but REQ ownership is disjoint.
+- **D96 — Row precedence.** `finding` > `deferred` > `builder-side` > `holds`;
+  cluster verdicts worst-of their own rows; no resolved findings this chunk.
+- **D97 — Citation resolution.** D10/D25/D49/D67/D77 method: an `Automated`
+  token must appear in a `test("...")` title under `holonovel/scripts` (the
+  derivation `scripts/compare-spec-code.ts:150-166` uses); `Manual` and gate
+  citations need no harness; `T0nn` shadowing is not evidence.
+- **D98 — Fingerprint consequence.** Neither section is in `DATA_SECTIONS` or
+  `PACKAGE_SECTIONS` (`scripts/lib/contract-fingerprint.ts:27,37-43`); no REQ
+  body changed, so `build-order` ran for fingerprint/marker freshness only and
+  the version bump was a no-op at CalVer 2026.11.09.
+- **D99 — Baseline.** `check:fast` 37/37 PASS, `check` PASS, `test:all` 56/56
+  PASS. No C0 commit was needed.
+- **D100 — Publication.** 18 commits were unpushed at session start; no push
+  (D4).
+
+### P7b behaviour table
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| Conversion-evidence verification | `scripts/validate.ts:971`; `holonovel/scripts/check-conversion-evidence.ts` | `check:conversion-evidence` (reached by `test:all`) | holds |
+| §5.2 evidence-surface coverage map | `scripts/validate.ts:971-1009` | `validate` gate | holds |
+| Vendor and source integrity | `scripts/check-vendor-manifest.ts` | `check:vendor` | holds |
+| Story journal capture and surfacing | `holonovel/src/index.ts:7989`, `:14387` | T408 (`test-limits.ts:403`), T474 (`:398`) | finding:F-P7b-1 (P1) |
+| Journal-to-lore promotion | `holonovel/src/index.ts:922` | T380 (`test-output-contracts.ts`) | holds |
+| Campaign memory | `holonovel/src/core/memory.ts:116`; `core/state.ts:753` | T355 (`test-output-contracts.ts`) | holds |
+| Synthesis boundaries and citation verification | `holonovel/src/index.ts:13540` (`verify`) | T695 (`test-supplementary.ts`) | holds |
+| Synthesis model and confidence | `holonovel/src/core/wisdom.ts:61-81` | T303, T323 (`test-backfill.ts`, `test-output-contracts.ts`) | holds |
+| Synthesis activation, reversion, rebuild, cache, manifest | `holonovel/src/index.ts:13540` (run/revert); `core/wisdom.ts` manifest | T319, T320, T125 | finding:F-P7b-3 (P1) |
+| Prompt section ordering and section tokens | `holonovel/src/core/prompt-composition.ts:90-343` | T66, T300, T225 | finding:F-P7b-8 (P2) |
+| Dynamic lore and sticky-counter decay | `holonovel/src/index.ts:6908`, `:773`; `:299` | T342, T299 | finding:F-P7b-2 (P1) |
+| Lore-world coupling | `holonovel/src/core/state.ts:295` | T372 (`test-output-contracts.ts`) | holds |
+| Action suggestions and pattern activation | `holonovel/src/index.ts` `run_command (action: suggest)`; briefing actions | T119, T120, T637 | finding:F-P7b-6 (P1) |
+| Macros and audit compression | `holonovel/src/core/macros.ts:1`; `index.ts:2645` | T69, T70 | holds |
+| Scene tagging and the scene-transition hook | `holonovel/src/index.ts:6167` | (none: T71/T135/T136 unimplemented) | finding:F-P7b-4 (P1) |
+| Ruling ledger | `holonovel/src/index.ts:13540` (`record_ruling`) | T696 (`test-supplementary.ts`) | holds |
+
+### P7b cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A — extraction and confidence (§5.2) | 58 | finding:F-P7b-9 (P2) | behaviour table; findings below |
+| B — story journal and campaign memory (§5.8) | 15 | finding:F-P7b-1 (P1) | `index.ts:14387`; T282 absent from `holonovel/scripts` |
+| C — synthesis engine (§5.8) | 65 | finding:F-P7b-3 (P1) | `index.ts:13540`; F-P7b-3, F-P7b-7 |
+| D — prompt composition and section tokens (§5.8) | 12 | finding:F-P7b-8 (P2) | `prompt-composition.ts:90-343`; T205 is builder-side |
+| E — lore, macros, suggestions, scenes (§5.8) | 39 | finding:F-P7b-2 (P1) | F-P7b-2, F-P7b-4, F-P7b-5, F-P7b-6 |
+
+### P7b findings
+
+- **F-P7b-1 — Story-journal citations name an unimplemented test (P1,
+  Scheduled-roadmap).** `spec/02-requirements.md:2525,2534` cite T282; no
+  `test("...")` title under `holonovel/scripts` carries T282, yet the
+  behaviour exists (`index.ts:7989` record, `:14387` briefing section) and is
+  partially exercised by T408/T474 (display cap and auto-record only, not the
+  record/undo/export/player-refusal/recap contract). REQ-246a, REQ-246b1,
+  REQ-246b2.
+- **F-P7b-2 — Dynamic-lore lifecycle cites five unimplemented tests (P1,
+  Scheduled-roadmap).** `spec/02-requirements.md:2635` cites T67/T79/T81/T82/
+  T83; none appears in a harness title, while `manage_lore` implements
+  triggers, grouping, suggestion, and budget (`index.ts:6908`). REQ-083c.
+- **F-P7b-3 — Synthesis run, reversion, and rebuild cite unimplemented tests
+  (P1, Scheduled-roadmap).** REQ-080g2 cites T102/T288/T63/T95/T97; REQ-103a–d
+  cite T94; REQ-130a–c cite T144. Only T125 is exercised; the engine is
+  implemented at `index.ts:13540` and `core/wisdom.ts:61`. REQ-080g2,
+  REQ-103a, REQ-103b, REQ-103c, REQ-103d, REQ-130a, REQ-130b, REQ-130c.
+- **F-P7b-4 — Scene tagging and the transition hook cite unimplemented tests
+  (P1, Scheduled-roadmap).** REQ-087a–c cite T135/T71; REQ-125a–b cite T136;
+  none is carried by a harness, while the transition tick is implemented at
+  `index.ts:6167`. REQ-087a, REQ-087b, REQ-087c, REQ-125a, REQ-125b.
+- **F-P7b-5 — Secrets and knowledge cite an unimplemented test (P1,
+  Scheduled-roadmap).** REQ-234a–d cite T274; no harness carries it, while
+  `set_secret`/`reveal`/`secret_list`/`knowledge` are implemented
+  (`index.ts:6874`, `:6908`). REQ-234a, REQ-234b, REQ-234c, REQ-234d.
+- **F-P7b-6 — Proactive suggestion surfacing cites an unimplemented test (P1,
+  Scheduled-roadmap).** REQ-084a1–a3 and REQ-084b1–b3 cite T359; REQ-084b4
+  cites it alongside T120/T96 (exercised) and T68 (absent); no harness carries
+  T359. REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3,
+  REQ-084b4.
+- **F-P7b-7 — Synthesis removal and confidence rows cite unimplemented
+  assertions (P2, Scheduled-roadmap).** REQ-265a–c also cite T324 and
+  REQ-266a–b also cite T325; the families are exercised (T326/T327) but the
+  removal/confidence assertions are not. REQ-265a, REQ-265b, REQ-265c,
+  REQ-266a, REQ-266b.
+- **F-P7b-8 — Prompt section ordering leans on a builder-side test (P2,
+  Scheduled-roadmap).** REQ-082a–c cite T205, which asserts a DECISIONS.md
+  section-token table (builder handoff), plus T66 (exercised); the server
+  ordering contract has no assertion of its own. REQ-082a, REQ-082b, REQ-082c.
+- **F-P7b-9 — A §5.2 row cites server-side behaviour (P2, Scheduled-roadmap).**
+  REQ-214a–c cite T255 (`resolve_mechanic (action: roll)` must refuse a
+  lookup-table name — server-side), while the family is exempted builder-side;
+  no harness carries T255 and `grep` finds no lookup-table refusal assertion.
+  REQ-214a, REQ-214b, REQ-214c.
+
+### P7b per-REQ verdict table (189 rows)
+
+| REQ | Bucket | Verdict |
+|---|---|---|
+| REQ-010 | E | builder-side |
+| REQ-011a | E | builder-side |
+| REQ-011b | E | builder-side |
+| REQ-011c | E | builder-side |
+| REQ-147a | E | builder-side |
+| REQ-147b | E | builder-side |
+| REQ-153 | E | builder-side |
+| REQ-154a | E | builder-side |
+| REQ-154b | E | builder-side |
+| REQ-270 | E | builder-side |
+| REQ-271 | E | builder-side |
+| REQ-099 | E | builder-side |
+| REQ-207a | E | builder-side |
+| REQ-207b | E | builder-side |
+| REQ-207c | E | builder-side |
+| REQ-012 | E | builder-side |
+| REQ-315a | E | builder-side |
+| REQ-315b | E | builder-side |
+| REQ-111a | E | builder-side |
+| REQ-111b | E | builder-side |
+| REQ-212a | E | builder-side |
+| REQ-212b | E | builder-side |
+| REQ-013 | E | builder-side |
+| REQ-014 | E | builder-side |
+| REQ-015 | E | builder-side |
+| REQ-214a | E | finding:F-P7b-9 (P2) |
+| REQ-214b | E | finding:F-P7b-9 (P2) |
+| REQ-214c | E | finding:F-P7b-9 (P2) |
+| REQ-016 | E | builder-side |
+| REQ-017 | E | builder-side |
+| REQ-018 | E | builder-side |
+| REQ-146a | E | builder-side |
+| REQ-146b | E | builder-side |
+| REQ-146c | E | builder-side |
+| REQ-146d | E | builder-side |
+| REQ-209 | E | builder-side |
+| REQ-210a | E | builder-side |
+| REQ-210b | E | builder-side |
+| REQ-215a | E | builder-side |
+| REQ-215b | E | builder-side |
+| REQ-215c | E | builder-side |
+| REQ-272 | E | builder-side |
+| REQ-102a | E | builder-side |
+| REQ-102b | E | builder-side |
+| REQ-102c | E | builder-side |
+| REQ-582 | E | builder-side |
+| REQ-562 | E | builder-side |
+| REQ-585 | E | builder-side |
+| REQ-559 | E | builder-side |
+| REQ-225a | E | builder-side |
+| REQ-225b | E | builder-side |
+| REQ-354 | E | builder-side |
+| REQ-324 | E | builder-side |
+| REQ-452 | E | builder-side |
+| REQ-453 | E | builder-side |
+| REQ-454 | E | builder-side |
+| REQ-551 | E | builder-side |
+| REQ-551a | E | builder-side |
+| REQ-246b1 | C | finding:F-P7b-1 (P1) |
+| REQ-246b2 | C | finding:F-P7b-1 (P1) |
+| REQ-246a | C | finding:F-P7b-1 (P1) |
+| REQ-331a | C | holds |
+| REQ-331b | C | holds |
+| REQ-333a | C | holds |
+| REQ-333b | C | holds |
+| REQ-333c | C | holds |
+| REQ-310a | C | holds |
+| REQ-310b | C | holds |
+| REQ-310c | C | holds |
+| REQ-310d | C | holds |
+| REQ-310e | C | holds |
+| REQ-310f | C | holds |
+| REQ-310g | C | holds |
+| REQ-080a | C | holds |
+| REQ-080b | C | holds |
+| REQ-080c | C | holds |
+| REQ-080d | C | holds |
+| REQ-080e | C | holds |
+| REQ-080f | C | holds |
+| REQ-080g1 | C | holds |
+| REQ-080g2 | C | finding:F-P7b-3 (P1) |
+| REQ-080h | C | holds |
+| REQ-081a | C | holds |
+| REQ-081b | C | holds |
+| REQ-081c | C | holds |
+| REQ-081d | C | holds |
+| REQ-082a | C | finding:F-P7b-8 (P2) |
+| REQ-082b | C | finding:F-P7b-8 (P2) |
+| REQ-082c | C | finding:F-P7b-8 (P2) |
+| REQ-185a | C | holds |
+| REQ-185b | C | holds |
+| REQ-185c | C | holds |
+| REQ-186a | C | holds |
+| REQ-186b | C | holds |
+| REQ-083a | C | holds |
+| REQ-083b | C | holds |
+| REQ-083c | C | finding:F-P7b-2 (P1) |
+| REQ-083d | C | holds |
+| REQ-083e | C | holds |
+| REQ-083f | C | holds |
+| REQ-155a | C | holds |
+| REQ-155b | C | holds |
+| REQ-328a | C | holds |
+| REQ-328b | C | holds |
+| REQ-158a | E | builder-side |
+| REQ-158b | E | builder-side |
+| REQ-084b1 | C | finding:F-P7b-6 (P1) |
+| REQ-084b2 | C | finding:F-P7b-6 (P1) |
+| REQ-084b3 | C | finding:F-P7b-6 (P1) |
+| REQ-084b4 | C | finding:F-P7b-6 (P1) |
+| REQ-084a1 | C | finding:F-P7b-6 (P1) |
+| REQ-084a2 | C | finding:F-P7b-6 (P1) |
+| REQ-084a3 | C | finding:F-P7b-6 (P1) |
+| REQ-115a | C | holds |
+| REQ-115b | C | holds |
+| REQ-114a | E | builder-side |
+| REQ-114b | E | builder-side |
+| REQ-114c | E | builder-side |
+| REQ-103a | C | finding:F-P7b-3 (P1) |
+| REQ-103b | C | finding:F-P7b-3 (P1) |
+| REQ-103c | C | finding:F-P7b-3 (P1) |
+| REQ-103d | C | finding:F-P7b-3 (P1) |
+| REQ-260a | C | holds |
+| REQ-260b | C | holds |
+| REQ-260c | C | holds |
+| REQ-260d | C | holds |
+| REQ-260e | C | holds |
+| REQ-261a | C | holds |
+| REQ-261b | C | holds |
+| REQ-261c | C | holds |
+| REQ-261d | C | holds |
+| REQ-261e | C | holds |
+| REQ-262a | C | holds |
+| REQ-262b | C | holds |
+| REQ-262c | C | holds |
+| REQ-263a | C | holds |
+| REQ-263b | C | holds |
+| REQ-264a | C | holds |
+| REQ-264b | C | holds |
+| REQ-264c | C | holds |
+| REQ-265a | C | finding:F-P7b-7 (P2) |
+| REQ-265b | C | finding:F-P7b-7 (P2) |
+| REQ-265c | C | finding:F-P7b-7 (P2) |
+| REQ-266a | C | finding:F-P7b-7 (P2) |
+| REQ-266b | C | finding:F-P7b-7 (P2) |
+| REQ-130a | E | finding:F-P7b-3 (P1) |
+| REQ-130b | E | finding:F-P7b-3 (P1) |
+| REQ-130c | E | finding:F-P7b-3 (P1) |
+| REQ-226a | C | holds |
+| REQ-226b | C | holds |
+| REQ-226c | C | holds |
+| REQ-227a | C | holds |
+| REQ-227b | C | holds |
+| REQ-228a | E | builder-side |
+| REQ-228b | E | builder-side |
+| REQ-228c | E | builder-side |
+| REQ-230a | C | holds |
+| REQ-230b | C | holds |
+| REQ-231a | C | holds |
+| REQ-231b | C | holds |
+| REQ-243a | E | builder-side |
+| REQ-243b | E | builder-side |
+| REQ-243c | E | builder-side |
+| REQ-243d | E | builder-side |
+| REQ-244a | E | builder-side |
+| REQ-244b | E | builder-side |
+| REQ-244c | E | builder-side |
+| REQ-244d | E | builder-side |
+| REQ-244e | E | builder-side |
+| REQ-245a | E | builder-side |
+| REQ-245b | E | builder-side |
+| REQ-245c | E | builder-side |
+| REQ-245d | E | builder-side |
+| REQ-245e | E | builder-side |
+| REQ-085a | C | holds |
+| REQ-085b | C | holds |
+| REQ-086a | C | holds |
+| REQ-086b | C | holds |
+| REQ-086c | C | holds |
+| REQ-087a | C | finding:F-P7b-4 (P1) |
+| REQ-087b | C | finding:F-P7b-4 (P1) |
+| REQ-087c | C | finding:F-P7b-4 (P1) |
+| REQ-125a | C | finding:F-P7b-4 (P1) |
+| REQ-125b | C | finding:F-P7b-4 (P1) |
+| REQ-234a | C | finding:F-P7b-5 (P1) |
+| REQ-234b | C | finding:F-P7b-5 (P1) |
+| REQ-234c | C | finding:F-P7b-5 (P1) |
+| REQ-234d | C | finding:F-P7b-5 (P1) |
+| REQ-589 | C | holds |

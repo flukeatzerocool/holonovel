@@ -1200,6 +1200,57 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
+
+- **F-P7b-1 — story-journal citations name an unimplemented test (2026-11-09):**
+  `spec/02-requirements.md:2525,2534` cite T282, which no `test("...")` title
+  under `holonovel/scripts` carries, while the surface is implemented
+  (`holonovel/src/index.ts:7989`, `:14387`) and only partially exercised by
+  T408/T474. REQ-246a, REQ-246b1, REQ-246b2. Scheduled under §5.2/§5.8
+  assertion repair.
+- **F-P7b-2 — dynamic-lore lifecycle cites five unimplemented tests
+  (2026-11-09):** `spec/02-requirements.md:2635` cites T67/T79/T81/T82/T83;
+  none appears in a harness title, while `manage_lore` implements triggers,
+  grouping, suggestion, and budget (`holonovel/src/index.ts:6908`). REQ-083c.
+  Scheduled under §5.2/§5.8 assertion repair.
+- **F-P7b-3 — synthesis run, reversion, and rebuild cite unimplemented tests
+  (2026-11-09):** REQ-080g2 cites T102/T288/T63/T95/T97, REQ-103a–d cite T94,
+  and REQ-130a–c cite T144; only T125 is exercised, while the engine is
+  implemented at `holonovel/src/index.ts:13540` and
+  `holonovel/src/core/wisdom.ts:61`. REQ-080g2, REQ-103a, REQ-103b, REQ-103c,
+  REQ-103d, REQ-130a, REQ-130b, REQ-130c. Scheduled under §5.2/§5.8 assertion
+  repair.
+- **F-P7b-4 — scene tagging and the transition hook cite unimplemented tests
+  (2026-11-09):** REQ-087a–c cite T135/T71 and REQ-125a–b cite T136; none is
+  carried by a harness, while the transition tick exists at
+  `holonovel/src/index.ts:6167`. REQ-087a, REQ-087b, REQ-087c, REQ-125a,
+  REQ-125b. Scheduled under §5.2/§5.8 assertion repair.
+- **F-P7b-5 — secrets and knowledge cite an unimplemented test (2026-11-09):**
+  REQ-234a–d cite T274; no harness carries it, while
+  `set_secret`/`reveal`/`secret_list`/`knowledge` are implemented
+  (`holonovel/src/index.ts:6874`, `:6908`). REQ-234a, REQ-234b, REQ-234c,
+  REQ-234d. Scheduled under §5.2/§5.8 assertion repair.
+- **F-P7b-6 — proactive suggestion surfacing cites an unimplemented test
+  (2026-11-09):** REQ-084a1–a3 and REQ-084b1–b3 cite T359; REQ-084b4 cites it
+  beside T120/T96 (exercised) and T68 (absent). No harness carries T359.
+  REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3,
+  REQ-084b4. Scheduled under §5.2/§5.8 assertion repair.
+- **F-P7b-7 — synthesis removal and confidence rows cite unimplemented
+  assertions (2026-11-09):** REQ-265a–c also cite T324 and REQ-266a–b also
+  cite T325; the families are exercised (T326/T327) but these assertions are
+  not. REQ-265a, REQ-265b, REQ-265c, REQ-266a, REQ-266b. Scheduled under
+  §5.2/§5.8 assertion repair.
+- **F-P7b-8 — prompt section ordering leans on a builder-side test
+  (2026-11-09):** REQ-082a–c cite T205, which asserts a DECISIONS.md
+  section-token table, beside T66 (exercised); the server ordering contract has
+  no assertion of its own. REQ-082a, REQ-082b, REQ-082c. Scheduled under
+  §5.2/§5.8 assertion repair.
+- **F-P7b-9 — a §5.2 row cites server-side behaviour (2026-11-09):**
+  REQ-214a–c cite T255 (`resolve_mechanic (action: roll)` refusing a
+  lookup-table name), which no harness carries, while the family is exempted
+  builder-side. REQ-214a, REQ-214b, REQ-214c. Scheduled under §5.2/§5.8
+  assertion repair.
+
 ### 2026-11-09 full-review sweep — chunk P7a (determinism and knowledge artifacts)
 
 - **F-P7a-1 — seed-conflict warning is not emitted (2026-11-09):**

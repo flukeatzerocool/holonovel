@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P7b (extraction and synthesis)
+
+- Chunk P7b closes the review program's §5.2 and §5.8 surface: 189 REQs across
+  76 family rows (§5.2 58/37, all bucket E; §5.8 131/39, 32 C / 7 E). The sweep
+  worklist carries a 189-REQ verdict table, a 16-row behaviour table, and five
+  cluster verdicts; chunk P8 and the closing M1 re-run remain.
+- Nine citation findings are scheduled under a new §5.2/§5.8 assertion repair
+  section. Six are P1 — the story journal (REQ-246a, REQ-246b1, REQ-246b2),
+  dynamic lore (REQ-083c), synthesis run/reversion/rebuild (REQ-080g2,
+  REQ-103a, REQ-103b, REQ-103c, REQ-103d, REQ-130a, REQ-130b, REQ-130c), scene
+  tagging and transition (REQ-087a, REQ-087b, REQ-087c, REQ-125a, REQ-125b),
+  secrets (REQ-234a, REQ-234b, REQ-234c, REQ-234d), and proactive suggestions
+  (REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3,
+  REQ-084b4) cite `Automated` tests that no harness carries although the
+  behaviour is implemented. Three are P2 — synthesis removal/confidence
+  (REQ-265a, REQ-265b, REQ-265c, REQ-266a, REQ-266b), prompt ordering resting
+  on a builder-side test (REQ-082a, REQ-082b, REQ-082c), and a §5.2 row citing
+  server-side behaviour (REQ-214a, REQ-214b, REQ-214c).
+- No P0 was raised and no REQ body changed; the review is verdicts, findings,
+  register rows, and the roadmap handoff.
+
 ## 2026-11-09 — Full-review sweep: chunk P7a (determinism and knowledge artifacts)
 
 - Chunk P7 is split at the family boundary (D81): P7a covers §5.7 (64 REQs),

@@ -14,16 +14,33 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunk P7b (extraction and synthesis: §5.2, §5.8) follows the P7a split
-  recorded 2026-11-09.
 - Chunk P8 (narrative cognition: §5.12, §5.25–§5.27, §5.32–§5.35).
 - The closing M1 machine-evidence re-run over the post-P8 tree, covering
   `check:conformance`, `fmea`, and `graph-deps`. Scope is §5.1–§5.35 except
-  §5.9 and §5.19, which the 2026-11-09 seam pass closed; §5.6 and chunks P1–P7a
+  §5.9 and §5.19, which the 2026-11-09 seam pass closed; §5.6, chunks P1–P7b
   closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P7b;
-closes when chunk P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work; closes when chunk P8
+and the closing M1 pass report.
+
+## §5.2/§5.8 assertion repair (P1)
+
+- Story journal and dynamic lore: write the T282 assertion and the
+  T67/T79/T81/T82/T83 lifecycle assertions, or re-point the rows to the
+  harnesses that exercise them (REQ-246a, REQ-246b1, REQ-246b2, REQ-083c).
+- Synthesis: write or re-point the run/revert/rebuild, removal, and
+  confidence assertions that T102/T288/T63/T95/T97/T94/T144/T324/T325 name
+  (REQ-080g2, REQ-103a, REQ-103b, REQ-103c, REQ-103d, REQ-130a, REQ-130b,
+  REQ-130c, REQ-265a, REQ-265b, REQ-265c, REQ-266a, REQ-266b).
+- Prompt, scenes, secrets, suggestions, and §5.2: write or re-point the
+  ordering, scene-tag/transition, secret, proactive-suggestion, and
+  lookup-refusal assertions (REQ-082a, REQ-082b, REQ-082c, REQ-087a,
+  REQ-087b, REQ-087c, REQ-125a, REQ-125b, REQ-234a, REQ-234b, REQ-234c,
+  REQ-234d, REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2,
+  REQ-084b3, REQ-084b4, REQ-214a, REQ-214b, REQ-214c).
+
+**Trigger:** the next citation-remediation session; closes when F-P7b-1–F-P7b-9
+are `Resolved` in the review register.
 
 ## §5.7 determinism and citation repair (P1)
 
