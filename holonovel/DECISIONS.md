@@ -990,6 +990,24 @@ dated entries below record changes to this list.
   client hooks because the driver owns that gate; the final commit runs the
   hooks normally. A failed series soft-resets to the pre-series HEAD.
 
+## Briefing section placement — server guidance (REQ-365), 2026-11-09
+
+- **D1 — tagged server notes render as their own `### Server guidance`
+  section.** It sits directly after `### Synthesis` in the supplementary band
+  (REQ-109e), renders `- [<tag>] <content>` in note-key order for determinism,
+  and is omitted entirely when no note carries a `narrative_tag`, so REQ-265b's
+  ban on an empty synthesis section is untouched. Rejected: reusing the
+  "Supplementary guidance" group inside `### Synthesis` — `renderItems` omits
+  that label when its item list is empty (`holonovel/src/index.ts:14064-14066`),
+  which is exactly the ruleset-free case that needs it. (REQ-365a)
+- **D2 — the section is GM/Editor only and carries no section token.** The gate
+  mirrors the `server-notes://` resource's own admission
+  (`holonovel/src/index.ts:12756`), keeping GM notebook text off the Player and
+  observer badges (REQ-365c, REQ-366d). No REQ-109 group is added, so there is
+  no REQ-185 token and no REQ-082 token-mapping row. Rejected:
+  `badge !== "player"` — it would expose the notes to the observer badge, which
+  no REQ authorizes. (REQ-365a)
+
 ## Update job — deployed user-data reconciliation (REQ-556), 2026-10-03
 
 Ran the §6.7 user-data reconciliation against the deployed instance at

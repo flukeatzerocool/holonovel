@@ -252,11 +252,40 @@ async function main() {
       await call(proc, "manage_note", { action: "remove",  key: "gm-reminder" });
     });
 
-    await test("T334/T416/T285: server notes set and listed", async () => {
-      await call(proc, "manage_note", { action: "set_server",  key: "campaign", content: "The capital is besieged.", narrative_tag: "lore_seed" });
+    await test("T334/T416/T285: server notes set, listed, and surfaced in the briefing", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_note", { action: "set_server",  key: "old-gods", content: "The old gods were banished to the outer dark", narrative_tag: "lore_seed" });
+      await call(proc, "manage_note", { action: "set_server",  key: "dm-reminder", content: "Remind players about the curse", narrative_tag: "session_reminder" });
+      await call(proc, "manage_note", { action: "set_server",  key: "house-rule", content: "Criticals explode", narrative_tag: "house_rules" });
+      await call(proc, "manage_note", { action: "set_server",  key: "bible", content: "The curse is inherited", narrative_tag: "campaign_bible" });
+      await call(proc, "manage_note", { action: "set_server",  key: "blank", content: "", narrative_tag: "lore_seed" });
+      await call(proc, "manage_note", { action: "set_server",  key: "untagged", content: "Unfiled GM scribble" });
+
       const list = await call(proc, "manage_note", { action: "list_server" });
-      assertContains(list, "campaign");
-      await call(proc, "manage_note", { action: "remove_server",  key: "campaign" });
+      assertContains(list, "old-gods");
+
+      // REQ-365a/b — tagged server notes reach the GM briefing; untagged stay resource-only.
+      const gmBrief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(gmBrief, "[lore-seed] The old gods were banished");
+      assertContains(gmBrief, "[session-reminder] Remind players about the curse");
+      assertContains(gmBrief, "[house-rules]");
+      assertContains(gmBrief, "[campaign-bible]");
+      assertNotContains(gmBrief, "Unfiled GM scribble");
+      assertNotContains(gmBrief, "- []");
+      // The empty-body note must render no line at all, not a blank bullet.
+      assertNotContains(gmBrief, "- [lore-seed] \n");
+      assertNotContains(gmBrief, "undefined");
+
+      // REQ-365c — the Player badge sees no server notes, tagged or untagged.
+      await call(proc, "set_badge", { badge: "player" });
+      const playerBrief = await getPrompt(proc, "badge_briefing", {});
+      assertNotContains(playerBrief, "[lore-seed]");
+      assertNotContains(playerBrief, "Unfiled GM scribble");
+      await call(proc, "set_badge", { badge: "game_master" });
+
+      for (const key of ["old-gods", "dm-reminder", "house-rule", "bible", "blank", "untagged"]) {
+        await call(proc, "manage_note", { action: "remove_server",  key });
+      }
     });
 
     await test("T337/T481/T291: ask_oracle returns a d100 ladder result", async () => {

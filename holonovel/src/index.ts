@@ -14094,6 +14094,20 @@ You are in the story. Confine tool use and responses to the current Novel. To st
     }
   }
 
+  // REQ-365a — tagged server notes (GM/Editor only) surface as supplementary
+  // guidance next to synthesis; untagged notes stay resource-only
+  // (REQ-365a/REQ-365b/REQ-365c). Sorted by key for deterministic bytes; a
+  // note with an empty body is skipped so no blank bullet renders.
+  if (badge === "game_master" || badge === "none") {
+    const noteLines = [...state.serverNotes.entries()]
+      .filter(([, note]) => !!note.narrative_tag && !!note.content)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([, note]) => `- [${String(note.narrative_tag).replace(/_/g, "-")}] ${note.content}`);
+    if (noteLines.length > 0) {
+      briefing += `\n\n### Server guidance\n${noteLines.join("\n")}`;
+    }
+  }
+
   // REQ-109 — boundaries (GM only): persisted persistent player boundaries,
   // never trimmed. Each is an absolute do-not-narrate directive.
   if (badge === "game_master") {

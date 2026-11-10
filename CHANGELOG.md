@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-09 — Server-note narrative coupling (REQ-365a/b/c remediation)
+
+- `badge_briefing` now emits a `### Server guidance` section for server notes
+  carrying a `narrative_tag`, rendered `- [lore-seed] <content>` in note-key
+  order (underscores in the tag become hyphens). Untagged notes stay
+  resource-only, and the gate mirrors the `server-notes://` resource, so the
+  Player and observer badges never see them. Placement sits after `### Synthesis`
+  and leaves REQ-265b untouched: the section is omitted when no note is tagged.
+  (REQ-365a, REQ-365b, REQ-365c; F-P8-1 resolved)
+- T416 in `test-backfill` widens from set/list to the briefing surface: four tag
+  values, the empty-body guard, untagged omission on the GM badge, and Player
+  absence. Verified load-bearing — the assertion fails against the pre-change
+  builder.
+- The Server-note narrative coupling roadmap entry retires; the review register
+  records F-P8-1 `Resolved` with its predicate and exercising harness.
+
 ## 2026-11-09 — Full-review sweep: chunk P8 (narrative cognition and the closing M1)
 
 - Chunk P8 closes the review program: 166 REQs across 113 family rows (§5.12

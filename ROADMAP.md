@@ -12,16 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Server-note narrative coupling (P1)
-
-- Surface server notes carrying a `narrative_tag` in `badge_briefing`
-  supplementary guidance with their tag (`[lore-seed]`, `[session-reminder]`,
-  and the rest), leave untagged notes resource-only, and keep server notes off
-  every Player surface (REQ-365a, REQ-365b, REQ-365c).
-
-**Trigger:** the next §5.12 remediation session; closes when F-P8-1 is
-`Resolved` in the review register.
-
 ## §5.2/§5.8 assertion repair (P1)
 
 - Story journal and dynamic lore: write the T282 assertion and the

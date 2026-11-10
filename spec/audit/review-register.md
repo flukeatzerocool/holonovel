@@ -11,6 +11,20 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 server-note narrative coupling (P1 remediation)
+
+- **F-P8-1 — server-note narrative coupling is stored but never surfaced
+  (resolved 2026-11-09):** `manage_note (action: set_server)` stored a
+  `narrative_tag` and `server-notes://` served it, but the briefing builder
+  never read `state.serverNotes`, so REQ-365a's briefing surface did not exist.
+  The builder now emits a `### Server guidance` section for entries carrying a
+  tag and a non-empty body, rendered `- [<tag>] <content>` in key order, gated
+  by `badge === "game_master" || badge === "none"` (predicate
+  `holonovel/src/index.ts:14101`, render `:14107`); untagged notes remain
+  resource-only and the Player and observer badges see none. REQ-365c is
+  asserted on the Player briefing. (REQ-365a, REQ-365b, REQ-365c; exercised by
+  `test:backfill` T416, widened from set/list to the briefing surface)
+
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 
 - **F-P6b-1 — ruleset scope was enforced in listing only (resolved 2026-11-09):**
@@ -1202,14 +1216,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
-- **F-P8-1 — server-note narrative coupling is stored but never surfaced
-  (2026-11-09):** `manage_note (action: set_server)` accepts and stores a
-  `narrative_tag` (`holonovel/src/index.ts:8095`, `:8145`) and the
-  `server-notes://` resource serves it (`:12754`, `:12760`), but the briefing's
-  Supplementary guidance section renders synthesis items only (`:14073`) and no
-  `serverNotes` read occurs in the briefing builder (`:13800-14550`). The cited
-  T416 exercises set/list only (`holonovel/scripts/test-backfill.ts:255`).
-  REQ-365a, REQ-365b, REQ-365c. Scheduled under Server-note narrative coupling.
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
   `T408` titles three different assertions (`test-narrative.ts:767`,
   `test-backfill.ts:722`, `test-limits.ts:403`) and `T409`–`T412` are each
