@@ -2343,16 +2343,20 @@ function availableActionsSection(novel: NovelState): string[] {
   const isGM = badge === "game_master" || badge === "none";
   const sceneTypes = novel.scene_type ?? [];
   const actions: string[] = [];
+  // REQ-087b — every active scene type contributes its family independently, so
+  // a combined tag (["social", "exploration"]) orders both before unmatched actions.
   if (novel.combat?.active || sceneTypes.includes("combat")) {
     if (isGM) actions.push("manage_combat (action: advance — resolve the round)");
     actions.push("resolve an attack or skill check for the active entity");
-  } else if (sceneTypes.includes("social")) {
+  }
+  if (sceneTypes.includes("social")) {
     actions.push("resolve a persuasion, deception, or intimidation check with a present NPC");
     if (isGM) {
       actions.push("manage_staging (action: next_speaker — pick the next NPC speaker)");
       actions.push("manage_relationship (action: set — record a social outcome)");
     }
-  } else if (isGM || !novel.ruleset) {
+  }
+  if (sceneTypes.includes("exploration") || (sceneTypes.length === 0 && !novel.combat?.active && (isGM || !novel.ruleset))) {
     actions.push("run_command (action: execute, \"look\")");
     actions.push("run_command (action: execute, \"go <direction>\")");
     actions.push("run_command (action: execute, \"examine <thing>\")");
@@ -2361,11 +2365,23 @@ function availableActionsSection(novel: NovelState): string[] {
       actions.push("run_command (action: visibility — who can see this?)");
       actions.push("run_command (action: audibility — who can hear this?)");
     }
-  } else {
+  }
+  if (actions.length === 0 && !isGM && novel.ruleset) {
     actions.push("run_command (action: suggest, \"<what you want to do>\")");
   }
   const inv = entity?.inventory ?? [];
   if (inv.length > 0) actions.push(`manage_character (action: sheet — use held item: ${inv.slice(0, 3).join(", ")})`);
+  // REQ-084a2/a3 — capability gating: a spell is listed only while its slot
+  // level has a positive remainder in entity.stats.spell_slots. Bare-name
+  // spells and level 0 are cantrips and always legal.
+  const slots: any = (entity as any)?.stats?.spell_slots ?? {};
+  for (const spell of ((entity as any)?.spells ?? [])) {
+    const name = typeof spell === "string" ? spell : String(spell?.name ?? "");
+    const level = typeof spell === "string" ? 0 : Number(spell?.level ?? 0);
+    if (!name) continue;
+    if (level > 0 && !(Number(slots[String(level)] ?? 0) > 0)) continue;
+    actions.push(level > 0 ? `Cast ${name} (level ${level} slot)` : `Cast ${name}`);
+  }
   if (isGM) {
     const activeCd = [...novel.countdowns.values()].filter((c) => c.ticks > 0);
     if (activeCd.length > 0) actions.push(`manage_countdown (action: advance — ${activeCd[0].name}, ${activeCd[0].ticks} ticks)`);
@@ -3982,6 +3998,7 @@ server.registerTool("manage_character", {
     signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]).optional().describe("Feedback category (signal)."),
     value: z.string().optional().describe("Feedback text (signal)."),
     stats: z.record(z.string(), z.any()).optional().describe("Mechanical stat keys to shallow-merge into the entity's stats (update)."),
+    spells: z.array(z.union([z.string(), z.object({ name: z.string(), level: z.number().optional() })])).optional().describe("Known spells (update); entries may be bare names or {name, level} objects."),
     inventory: z.array(z.string()).optional().describe("Replace the entity's inventory (update)."),
   },
 }, async (args: any) => {
@@ -4204,6 +4221,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       novelSnapshot();
       if (args.stats && typeof args.stats === "object") target.stats = { ...(target.stats ?? {}), ...args.stats };
       if (args.inventory !== undefined) target.inventory = args.inventory;
+      if (args.spells !== undefined) target.spells = args.spells;
       if (args.description !== undefined || args.voice !== undefined || args.background !== undefined || args.goals !== undefined) {
         if (!target.personality) target.personality = {};
         if (args.description !== undefined) { target.personality.description = args.description; if (novel.npcs.has(args.entity_id)) target.description = args.description; }
@@ -4637,7 +4655,8 @@ server.registerTool("run_command", {
       : `declare intent "${cmd}" — the narrator resolves it through the parser`;
     const intentLower = (args.intent ?? "").toLowerCase();
     const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
-    if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")) {
+    if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")
+      || intentLower.includes("explore") || intentLower.includes("search") || intentLower.includes("investigate")) {
       domains.spatial.push(spatialCmd("look"), spatialCmd("examine <thing>"));
     }
     if (intentLower.includes("go") || intentLower.includes("move") || intentLower.includes("travel") || intentLower.includes("sneak")) {
@@ -4682,6 +4701,9 @@ server.registerTool("run_command", {
       }
     }
     if (domains.mechanical.length === 0 && domains.spatial.length === 0 && domains.social.length === 0) {
+      // REQ-084b4 — a non-empty intent that matches nothing returns an empty
+      // list; only an empty intent falls back to the contextual defaults.
+      if (intentLower.trim()) return ok(`No matching actions for "${args.intent}".`);
       domains.spatial.push(spatialCmd("look"), spatialCmd("go <direction>"), spatialCmd("examine <thing>"));
     }
     const blocks: string[] = [];
@@ -6249,13 +6271,22 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
 // consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
 const MANAGE_SCENE_STAGING_PARAMS = new Set(["entity_ids", "strategy", "select", "mute", "unmute", "force", "after_user", "level", "confirmation", "safety", "creativity"]);
+// REQ-087a — the resolved scene-type catalog: the default four plus any types
+// the bound ruleset model declares. Unknown values are refused with the list.
+function resolvedSceneTypes(novel: NovelState): string[] {
+  const base = ["social", "exploration", "neutral", "combat"];
+  const model: any = novel.ruleset ? rulesets.hydrate(novel.ruleset)?.model : null;
+  const extra = Array.isArray(model?.scene_types) ? model.scene_types.map((t: any) => String(t)) : [];
+  return [...new Set([...base, ...extra])];
+}
+
 const MANAGE_SCENE_SCHEMA = {
     action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
     description: z.string().optional().describe("Scene description (set)."),
     location: z.string().optional().describe("Scene location (set)."),
     time_of_day: z.string().optional().describe("Time of day (set)."),
     atmosphere: z.string().optional().describe("Atmosphere (set)."),
-    scene_type: z.union([z.enum(["combat", "social", "exploration", "neutral"]), z.array(z.enum(["combat", "social", "exploration", "neutral"]))]).optional().describe("Scene-type tag or array (set)."),
+    scene_type: z.union([z.string(), z.array(z.string())]).optional().describe("Scene-type tag or array (set). Valid values are the default catalog (social, exploration, neutral, combat) plus any ruleset-extracted scene types."),
     beat: z.enum(BEAT_VALUES).optional().describe(`Story-beat tag (set): ${BEAT_VALUES.join(", ")}.`),
     skip_transition_hook: z.boolean().optional().describe("Skip the scene-transition hook (set)."),
     adventure_scene: z.string().nullable().optional().describe("Adventure-scene waypoint anchor; empty or null clears (set)."),
@@ -6314,7 +6345,15 @@ server.registerTool("manage_scene", {
       if (location !== undefined) novel.scene_location = location;
       if (time_of_day !== undefined) novel.scene_time_of_day = time_of_day;
       if (atmosphere !== undefined) novel.scene_atmosphere = atmosphere;
-      if (scene_type !== undefined) novel.scene_type = Array.isArray(scene_type) ? scene_type : [scene_type];
+      if (scene_type !== undefined) {
+        const requested = Array.isArray(scene_type) ? scene_type : [scene_type];
+        const catalog = resolvedSceneTypes(novel);
+        const unknown = requested.filter((t: string) => !catalog.includes(t));
+        if (unknown.length > 0) {
+          return err("NOT_FOUND", `Unknown scene type '${unknown.join(", ")}'. Valid values: ${catalog.join(", ")}.`);
+        }
+        novel.scene_type = [...new Set(requested)] as any;
+      }
       const sceneLower = effectiveDescription.toLowerCase();
       for (const [, entry] of novel.lore) {
         if (!entry.enabled) continue;

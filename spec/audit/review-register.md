@@ -11,6 +11,25 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 §5.2/§5.8 behaviour remediation — scenes and suggestions
+
+- **F-P7b-4 — the scene catalog is open and every type contributes actions
+  (resolved 2026-11-09):** `manage_scene.scene_type` accepts a string or array
+  of strings and validates against `resolvedSceneTypes` — the default four plus
+  `model.scene_types` — refusing unknown values with `[NOT_FOUND]` and the
+  catalog (`holonovel/src/index.ts:6276-6283`, `:6348-6357`); the Available
+  Actions composer evaluates each active family independently instead of
+  `else if` (`:2344-2381`). Exercised by `test:backfill` T135, T71.
+  (REQ-087a, REQ-087b, REQ-087c, REQ-125a, REQ-125b)
+- **F-P7b-6 — suggestions and capability gating (resolved 2026-11-09):** a
+  non-empty intent that matches no domain returns `[OK] No matching actions
+  for "<intent>".` instead of the spatial fallback (`index.ts:4703-4710`), and
+  Available Actions lists `Cast <spell>` only while
+  `entity.stats.spell_slots[level] > 0` (`:2376-2383`) with `spells` settable
+  through `manage_character (action: update)` (`:4001`, `:4224`). Exercised by
+  `test:backfill` T359, T68. (REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1,
+  REQ-084b2, REQ-084b3, REQ-084b4)
+
 ### 2026-11-09 §5.2/§5.8 behaviour remediation — synthesis
 
 - **F-P7b-3 — synthesis provenance, confidence, and adventure surfacing
@@ -1290,24 +1309,6 @@ against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
-- **F-P7b-4 — scene catalog is a closed enum; the transition hook passes
-  (2026-11-09):** T136 passes and is committed (`test:backfill`, "T136/REQ-125").
-  T135/T71 fail on the catalog clauses: `scene_type` is
-  `z.union([z.enum([combat, social, exploration, neutral]), …])`
-  (`index.ts:6185`), so an extracted type such as `investigation` (REQ-087a) is
-  rejected by the SDK and an unknown type returns a protocol error rather than
-  `[NOT_FOUND]` with the valid enumeration; `availableActionsSection` uses
-  `else if` (`index.ts:2296-2307`), so `["social","exploration"]` prioritizes
-  only the social family. REQ-087a, REQ-087b, REQ-087c, REQ-125a, REQ-125b.
-  Scheduled under §5.2/§5.8 assertion and behaviour remediation.
-- **F-P7b-6 — suggestions lack the proactive slot model and the empty-list
-  case (2026-11-09):** `availableActionsSection` has no spell/slot logic
-  (`index.ts:2286-2316`), so T359's "Cast Fireball only with a 3rd-level slot"
-  is unassertable; `run_command (action: suggest)` falls back to spatial
-  suggestions when no domain matches (`index.ts:4609-4611`), so the
-  REQ-084b4 "xyzzy returns an empty list" case fails. REQ-084a1, REQ-084a2,
-  REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3, REQ-084b4. Scheduled under
-  §5.2/§5.8 assertion and behaviour remediation.
 - **F-P7b-9 — table classification needs a dynamic enum and a 5e fixture
   (2026-11-09):** `resolve_mechanic`'s `table` parameter is a static
   `z.string()` (`index.ts:7940`); REQ-214c requires the generation-table

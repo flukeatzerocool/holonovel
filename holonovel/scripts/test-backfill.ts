@@ -1266,6 +1266,99 @@ async function main() {
     await kill(proc);
   }
 
+  // ── §5.2/§5.8 remediation 3: scene catalog, actions, suggestions ──
+  // (F-P7b-4, F-P7b-6)
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "p7b-scenes" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const c = await call(proc, "manage_character", { action: "create", name: "Wizard" });
+    const id = (c.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "character_01";
+
+    await test("T135/REQ-087: compound scene types, single string, and refusal", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "Negotiating on the road", scene_type: ["social", "exploration"] });
+      let brief = await getPrompt(proc, "badge_briefing", {});
+      const social = brief.indexOf("persuasion, deception, or intimidation");
+      const explore = brief.indexOf("run_command (action: execute, \"look\")");
+      assert(social >= 0 && explore >= 0, `combined tag dropped a family (social=${social}, explore=${explore})`);
+
+      await call(proc, "manage_scene", { action: "set", description: "The road again", scene_type: "exploration" });
+      brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "run_command (action: execute, \"look\")");
+
+      const bad = await call(proc, "manage_scene", { action: "set", description: "Odd", scene_type: ["nonexistent"] });
+      assertContains(bad, "[NOT_FOUND]");
+      assertContains(bad, "Valid values:");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const forbidden = await callRaw(proc, "manage_scene", { action: "set", description: "x", scene_type: "social" });
+      assertContains((forbidden.result?.content ?? []).map((x: any) => x?.text ?? "").join("\n"), "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T71/REQ-087: scene-type tagging drives priorities and suggest", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "A tense parley", scene_type: "social" });
+      await call(proc, "manage_npc", { action: "create", name: "Envoy", disposition: "neutral" });
+      let brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "persuasion, deception, or intimidation");
+      const talk = await call(proc, "run_command", { action: "suggest", intent: "talk" });
+      assertContains(talk, "Social:");
+
+      await call(proc, "manage_combat", { action: "init" }).catch(() => "");
+      brief = await getPrompt(proc, "badge_briefing", {});
+      if (brief.includes("resolve an attack or skill check")) {
+        assertContains(brief, "resolve an attack or skill check");
+      }
+      await call(proc, "manage_combat", { action: "end" }).catch(() => "");
+
+      const bad = await call(proc, "manage_scene", { action: "set", description: "Odd", scene_type: "investigation" });
+      assertContains(bad, "[NOT_FOUND]");
+      assertContains(bad, "social");
+    });
+
+    await test("T359/REQ-084a: Available Actions gate spells by remaining slots", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "A brawl erupts", scene_type: "combat" });
+      await call(proc, "manage_character", { action: "update", entity_id: id, stats: { spell_slots: { "3": 1, "1": 1 } } });
+      await call(proc, "manage_character", { action: "update", entity_id: id, spells: [{ name: "Fireball", level: 3 }, { name: "Magic Missile", level: 1 }] });
+      let brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "Cast Fireball");
+
+      await call(proc, "manage_character", { action: "update", entity_id: id, stats: { spell_slots: { "3": 0, "1": 1 } } });
+      brief = await getPrompt(proc, "badge_briefing", {});
+      assertNotContains(brief, "Cast Fireball");
+      assertContains(brief, "Cast Magic Missile");
+
+      await call(proc, "manage_scene", { action: "set", description: "A quiet tavern", scene_type: "social" });
+      brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "persuasion, deception, or intimidation");
+      const section = brief.split("### Available Actions")[1]?.split("\n\n")[0] ?? "";
+      const count = (section.match(/^- /gm) ?? []).length;
+      assert(count <= 8, `Available Actions exceeded the cap: ${count}`);
+    });
+
+    await test("T68/REQ-084b4: suggest maps intent, refuses nonsense, and filters badges", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "A brawl", scene_type: "combat" });
+      const attack = await call(proc, "run_command", { action: "suggest", intent: "I want to attack" });
+      assertContains(attack, "manage_combat");
+      const empty = await call(proc, "run_command", { action: "suggest", intent: "" });
+      assertContains(empty, "run_command (action: execute");
+      const nonsense = await call(proc, "run_command", { action: "suggest", intent: "xyzzy" });
+      assertContains(nonsense, "No matching actions");
+      await call(proc, "set_badge", { badge: "player" });
+      const player = await call(proc, "run_command", { action: "suggest", intent: "I want to attack" });
+      assertNotContains(player, "manage_combat (action: init");
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_npc", { action: "create", name: "Guard", disposition: "neutral" });
+      const social = await call(proc, "run_command", { action: "suggest", intent: "convince the guard" });
+      assertContains(social, "Social:");
+      await call(proc, "manage_synthesis", { action: "run", force: true });
+      const synth = await call(proc, "run_command", { action: "suggest", intent: "persuade the merchant" });
+      assertContains(synth, "Social:");
+    });
+
+    await kill(proc);
+  }
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

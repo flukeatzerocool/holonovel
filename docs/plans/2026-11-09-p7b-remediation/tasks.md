@@ -32,11 +32,11 @@ Status: in progress · Plan: `plan.md` · Gate: plan-review (self, conditions re
 
 ## Commit 3 — scene catalog and suggestions (F-P7b-4, -6)
 
-- [ ] open `scene_type` catalog with `[NOT_FOUND]` enumeration
-- [ ] independent action families
-- [ ] spell-slot-gated Cast actions
-- [ ] suggest empty result for unmatched intent
-- [ ] Tests T135, T71, T359, T68; tool definitions regenerated
+- [x] open `scene_type` catalog with `[NOT_FOUND]` enumeration
+- [x] independent action families
+- [x] spell-slot-gated Cast actions
+- [x] suggest empty result for unmatched intent
+- [x] Tests T135, T71, T359, T68 (test:backfill 92 passed); tool definitions + surface baseline regenerated
 
 ## Commit 4 — table classification (F-P7b-9)
 

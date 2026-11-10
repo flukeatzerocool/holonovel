@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 112264,
+  "tools_list_bytes": 112537,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 112264,
-        "tokens": 28066
+        "bytes": 112537,
+        "tokens": 28135
       },
       "standard": {
         "tools": 37,
-        "bytes": 97871,
-        "tokens": 24468
+        "bytes": 98144,
+        "tokens": 24536
       },
       "small": {
         "tools": 6,
@@ -509,7 +509,7 @@
         "roster_remove",
         "roster_list"
       ],
-      "param_count": 26,
+      "param_count": 27,
       "required": [
         "action"
       ],
@@ -534,6 +534,7 @@
         "signal": "Feedback category (signal).",
         "skills": "Trained skills (create).",
         "species": "Species (create).",
+        "spells": "Known spells (update); entries may be bare names or {name, level} objects.",
         "stage_to_roster": "Also stage into the roster (create).",
         "stat_method": "Stat-generation method (create).",
         "stats": "Mechanical stat keys to shallow-merge into the entity's stats (update).",
@@ -553,9 +554,9 @@
       },
       "meta": null,
       "context_signals": {
-        "paramCount": 27,
+        "paramCount": 28,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 27,
+        "paramsWithDescriptions": 28,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -566,7 +567,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5432,
+        "definitionBytes": 5691,
         "descriptionBytes": 979
       },
       "category": "",
@@ -1649,7 +1650,7 @@
         "location": "Scene location (set).",
         "prompt": "Choice prompt (choices).",
         "question": "Question to resolve (oracle).",
-        "scene_type": "Scene-type tag or array (set).",
+        "scene_type": "Scene-type tag or array (set). Valid values are the default catalog (social, exploration, neutral, combat) plus any ruleset-extracted scene types.",
         "seed": "Deterministic seed (oracle).",
         "skip_transition_hook": "Skip the scene-transition hook (set).",
         "time_of_day": "Time of day (set)."
@@ -1679,7 +1680,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4132,
+        "definitionBytes": 4146,
         "descriptionBytes": 920
       },
       "category": "",

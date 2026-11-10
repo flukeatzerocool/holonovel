@@ -14,10 +14,6 @@
 
 ## §5.2/§5.8 assertion and behaviour remediation (P1)
 
-- Action surfacing — the proactive `## Available Actions` list has no spell-slot
-  gating (REQ-084a2/a3) and `run_command (action: suggest)` returns fallback
-  spatial actions for an unmatched intent instead of an empty list (REQ-084b4).
-  REQ-084a1, REQ-084a2, REQ-084a3, REQ-084b1, REQ-084b2, REQ-084b3, REQ-084b4.
 - Scene catalog and table classification — `scene_type` is a closed enum
   (`holonovel/src/index.ts:6185`), so the extractable catalog (REQ-087a) and the
   `[NOT_FOUND]` enumeration (REQ-087c, REQ-125) are unassertable, and
@@ -25,9 +21,8 @@
   generation-table enum and no in-tree D&D 5e package (REQ-214c). REQ-087a,
   REQ-087b, REQ-087c, REQ-125a, REQ-125b, REQ-214a, REQ-214b, REQ-214c.
 
-**Trigger:** the next §5.2/§5.8 remediation session; closes when F-P7b-4,
-F-P7b-6, and F-P7b-9 are `Resolved` (F-P7b-1, F-P7b-2, F-P7b-3, F-P7b-5,
-F-P7b-7, and F-P7b-8 resolved 2026-11-09).
+**Trigger:** the next §5.2/§5.8 remediation session; closes when F-P7b-9 is
+`Resolved` (F-P7b-1–F-P7b-8 resolved 2026-11-09).
 
 ## §5.7 determinism and citation repair (P1)
 

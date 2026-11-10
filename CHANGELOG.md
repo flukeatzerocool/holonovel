@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-11-09 — §5.2/§5.8 remediation 3: scene catalog, actions, suggestions
+
+- `manage_scene (action: set)` accepts an open scene-type catalog: a string or
+  an array validated against the default four plus any `model.scene_types`
+  from the bound ruleset, refusing unknown values with `[NOT_FOUND]` and the
+  valid list. Available Actions now evaluates every active scene family
+  independently, so `["social", "exploration"]` contributes both. Exercised by
+  `test:backfill` T135, T71. (REQ-087a-c, REQ-125a-b; F-P7b-4)
+- Available Actions gates `Cast <spell>` by remaining
+  `entity.stats.spell_slots`, and `manage_character (action: update)` accepts
+  `spells`. `run_command (action: suggest)` now returns an empty result for a
+  non-empty intent that matches nothing while keeping the contextual fallback
+  for an empty intent. Exercised by T359, T68. (REQ-084a1-a3, REQ-084b1-b4;
+  F-P7b-6)
+- Tool definitions and the surface-budget baseline are regenerated for the
+  widened parameter and new `spells` field.
+
 ## 2026-11-09 — §5.2/§5.8 remediation 2: synthesis provenance and confidence
 
 - Every synthesis list row and `synthesis://` resource now carries
