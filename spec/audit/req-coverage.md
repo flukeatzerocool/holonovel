@@ -608,4 +608,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-650 | Shipped update command | 5.18 Workflow Entry Points | C | T773, T776 | — |
 | REQ-651 | Startup reconciliation of stale artifacts | 5.18 Workflow Entry Points | C | T774 | — |
 | REQ-652 | Stale-artifact health and notice | 5.18 Workflow Entry Points | C | T775 | — |
+| REQ-653 | Event-indexed decay | 5.35 Subjective Memory | C | T777 | — |
+| REQ-654 | Reinforcement ledger | 5.35 Subjective Memory | C | T778 | — |
+| REQ-655 | Derived validity windows | 5.35 Subjective Memory | C | T779 | — |
+| REQ-656 | Window-aware displaced verdict | 5.35 Subjective Memory | C | T780 | — |
 

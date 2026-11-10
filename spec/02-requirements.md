@@ -40,7 +40,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–648 |
+| 5.35   | Subjective Memory                                       | 623–656 |
 
 ### 5.1 Output and Error Contracts
 
@@ -4553,7 +4553,8 @@ _Check:_ T756.
 **REQ-644 — Deterministic recall score.**
 WHEN the server composes the `## Subjective Memory` section, THE server SHALL
 rank records by a deterministic score derived from recorded state under the
-algorithm in §7.9e. The score SHALL combine a record's salience, its recency
+algorithm in §7.9e. The score SHALL also apply REQ-653 and REQ-654. The score
+SHALL combine a record's salience, its recency
 measured against the event-log head, and its origin, and SHALL NOT consult the
 clock, network, or model output. Records of equal score SHALL order by
 descending event ordinal, then ascending record identifier. The disclosure level
@@ -4609,5 +4610,50 @@ Appendix O.12. The harness SHALL prove its miss detector fires on a synthetic
 probe whose expectation is deliberately withheld. *Acceptance criterion:* the
 committed fixture runs, and a required probe whose expected gist is withheld by
 the budget fails the run. _Check:_ T770.
+
+**REQ-653 — Event-indexed decay.**
+Effective salience SHALL scale by event distance from the record's decay anchor,
+where the anchor is its latest reinforcement or, absent one, its contributing
+event ordinal. The scale SHALL be `2^(-distance / TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE)`,
+rounded to the nearest integer before it is added to the score. Distance SHALL be
+measured in event-log ordinals against the event-log head, and a record citing no
+event SHALL contribute its full salience. The computation SHALL NOT consult the
+clock, network, or model output. *Acceptance criterion:* an old unreinforced
+record ranks below an equally salient recent one, and a reinforcement resets its
+decay anchor. _Check:_ T777.
+
+**REQ-654 — Reinforcement ledger.**
+`manage_belief (action: subjective_recall)` SHALL append one reinforcement entry
+for a memory record, carrying the record identifier and the current event-log
+ordinal. Mutation SHALL require the Game Master badge. The
+ledger SHALL be append-only, bounded by
+`TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_LEDGER_MAX` (§7.6), and SHALL be part of
+the subjective-memory surface for persistence, export, clone, archive, and
+checkpoint exclusion (REQ-627, REQ-240a, REQ-334b, REQ-241a). The score SHALL add
+`min(count, TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX) × TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS`
+and anchor decay on the latest entry (REQ-653). *Acceptance criterion:* a
+twice-reinforced record outranks an equally salient unreinforced one, and the
+entry survives a restart. _Check:_ T778.
+
+**REQ-655 — Derived validity windows.**
+For each entity and claim key, the server SHALL derive a validity window from the
+ordered records: `valid_from` is the record's event ordinal and `valid_until` is
+the next record's ordinal for the same key, or null when no later record exists.
+The claim key SHALL be the subject and predicate; a later record with a different
+object closes the window, while a differing polarity SHALL be a contradiction, not
+a supersession. Windows SHALL be derived on read,
+SHALL NOT be stored, and SHALL be exposed by `subjective_list` and
+`subjective_verify`. A record citing no event SHALL carry a null window.
+*Acceptance criterion:* two records with the same key and different objects keep
+open windows, and a later same-key record closes the earlier window. _Check:_
+T779.
+
+**REQ-656 — Window-aware displaced verdict.**
+REQ-630's divergence check SHALL report `displaced` when a record's derived window
+(REQ-655) has closed and the successor claim differs in object or polarity, and
+SHALL prefer that verdict over the object-mismatch verdict. A closed window with
+an agreeing successor SHALL remain `confirmed`. The check SHALL NOT rewrite the
+memory or the event log. *Acceptance criterion:* a claim superseded by a later
+claim reports `displaced`, and two checks of unchanged state agree. _Check:_ T780.
 
 #### End of requirements

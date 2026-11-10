@@ -20,7 +20,7 @@ import { DATA_FORMAT } from "../generated/contract-fingerprints.js";
 import { stateHash, STATE_HASH_PROJECTION_VERSION } from "./state-hash.js";
 import { WorldModel, WorldRoom, WorldThing, Direction, createEmptyWorldModel, oppositeDirection } from "../world/model.js";
 import { normalizePerceptionRecord } from "./perception.js";
-import { normalizeSubjectiveRecord } from "./subjective.js";
+import { normalizeSubjectiveRecord, normalizeReinforcementEntry } from "./subjective.js";
 import { normalizeIdentityMap } from "./identity.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
 import { auditNotation } from "./lonelog.js";
@@ -853,6 +853,8 @@ export interface NovelState {
   perception_ledger: import("./perception.js").PerceptionRecord[];
   // REQ-623 — append-only per-entity record of what a character remembers.
   subjective_memory: import("./subjective.js").SubjectiveMemoryRecord[];
+  // REQ-654 — append-only reinforcement ledger; part of the memory surface.
+  subjective_reinforcement: import("./subjective.js").ReinforcementEntry[];
   // REQ-473 — Novel-tier identity for Novel entities and NPCs. Roster
   // characters keep identity on the roster baseline.
   identities: Record<string, import("./identity.js").IdentityState>;
@@ -1250,6 +1252,7 @@ export class StateManager {
       agent_tasks: [],
       perception_ledger: [],
       subjective_memory: [],
+      subjective_reinforcement: [],
       identities: {},
       corpus_documents: [],
       corpus_access: [],
@@ -1661,6 +1664,7 @@ export class StateManager {
       agent_tasks: data.agent_tasks ?? [],
       perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
       subjective_memory: (data.subjective_memory ?? []).map((raw: any, index: number) => normalizeSubjectiveRecord(raw, index)),
+      subjective_reinforcement: (data.subjective_reinforcement ?? []).map((raw: any, index: number) => normalizeReinforcementEntry(raw, index)),
       identities: normalizeIdentityMap(data.identities),
       corpus_documents: data.corpus_documents ?? [],
       corpus_access: data.corpus_access ?? [],
@@ -2847,6 +2851,7 @@ function novelToJSON(novel: NovelState): any {
     agent_tasks: novel.agent_tasks,
     perception_ledger: novel.perception_ledger,
     subjective_memory: novel.subjective_memory,
+    subjective_reinforcement: novel.subjective_reinforcement,
     // REQ-473 — the Novel-tier identity map is omitted while empty so an
     // existing Novel's canonical state hash and old checkpoints are unchanged.
     ...(Object.keys(novel.identities ?? {}).length > 0 ? { identities: novel.identities } : {}),
@@ -2872,6 +2877,7 @@ function novelToSnapshotJSON(novel: NovelState): any {
   delete base.event_log;
   delete base.perception_ledger;
   delete base.subjective_memory;
+  delete base.subjective_reinforcement;
   return base;
 }
 
@@ -3018,6 +3024,7 @@ voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
     agent_tasks: data.agent_tasks ?? [],
     perception_ledger: (data.perception_ledger ?? []).map(normalizePerceptionRecord),
     subjective_memory: (data.subjective_memory ?? []).map((raw: any, index: number) => normalizeSubjectiveRecord(raw, index)),
+    subjective_reinforcement: (data.subjective_reinforcement ?? []).map((raw: any, index: number) => normalizeReinforcementEntry(raw, index)),
     identities: normalizeIdentityMap(data.identities),
     corpus_documents: data.corpus_documents ?? [],
     corpus_access: data.corpus_access ?? [],
@@ -3054,6 +3061,7 @@ export const APPEND_ONLY_STATE_FIELDS = [
   "event_log",
   "perception_ledger",
   "subjective_memory",
+  "subjective_reinforcement",
   // REQ-246b1 — undo does not reverse story journal entries.
   "story_journal",
 ] as const;

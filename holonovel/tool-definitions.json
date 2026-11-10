@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 112537,
+  "tools_list_bytes": 112579,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 112537,
-        "tokens": 28135
+        "bytes": 112579,
+        "tokens": 28145
       },
       "standard": {
         "tools": 37,
-        "bytes": 98144,
-        "tokens": 24536
+        "bytes": 98186,
+        "tokens": 24547
       },
       "small": {
         "tools": 6,
@@ -339,8 +339,8 @@
     {
       "name": "manage_belief",
       "title": "Belief Management (evidence, stances, memory, queries)",
-      "description": "Manage per-entity evidence, belief stances, and memory — not objective truth, shared lore, or derived indexes. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets with provenance. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
-      "description_bytes": 991,
+      "description": "Manage per-entity evidence, belief stances, and memory — not objective truth, shared lore, or derived indexes. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, subjective_recall, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+      "description_bytes": 994,
       "action_enum": [
         "list",
         "get",
@@ -357,7 +357,8 @@
         "subjective_record",
         "subjective_list",
         "subjective_verify",
-        "subjective_disclose"
+        "subjective_disclose",
+        "subjective_recall"
       ],
       "param_count": 34,
       "required": [
@@ -424,8 +425,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6611,
-        "descriptionBytes": 991
+        "definitionBytes": 6653,
+        "descriptionBytes": 994
       },
       "category": "",
       "gate": ""

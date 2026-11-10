@@ -39,6 +39,35 @@ export interface SubjectiveMemoryRecord {
   at: string;
 }
 
+// REQ-654 — one append-only reinforcement entry; the ledger lives inside the
+// subjective-memory surface so clone, archive, export, and checkpoint exclusion
+// inherit the REQ-627 semantics.
+export interface ReinforcementEntry {
+  id: string;
+  record_id: string;
+  event_ordinal: number;
+  at: string;
+}
+
+export function normalizeReinforcementEntry(raw: any, index = 0): ReinforcementEntry {
+  const rawId = typeof raw?.id === "string" && raw.id.length > 0 ? raw.id : `sr-legacy-${index + 1}`;
+  return {
+    id: rawId,
+    record_id: String(raw?.record_id ?? ""),
+    event_ordinal: typeof raw?.event_ordinal === "number" ? raw.event_ordinal : 0,
+    at: String(raw?.at ?? ""),
+  };
+}
+
+export function nextReinforcementId(entries: ReinforcementEntry[]): string {
+  let max = 0;
+  for (const e of entries) {
+    const m = e.id.match(/^sr-(\d+)$/);
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `sr-${max + 1}`;
+}
+
 export const MEMORY_ORIGINS: MemoryOrigin[] = ["witnessed", "told", "inferred", "authored"];
 
 export const MEMORY_DISCLOSURES: MemoryDisclosure[] = ["open", "guarded", "secret"];
@@ -97,17 +126,33 @@ export function nextSubjectiveId(records: SubjectiveMemoryRecord[]): string {
 export interface MemoryScoreInputs {
   latestOrdinal: number;   // event-log head; 0 when the log is empty
   logLength: number;       // retained entries; the recency horizon
+  reinforcements?: ReinforcementEntry[]; // REQ-654 ledger, already Novel-scoped
+  decayHalfLife?: number;  // REQ-653, event ordinals
+  reinforcementBonus?: number; // REQ-654
+  reinforcementMax?: number;   // REQ-654
 }
 
 export function scoreMemory(r: SubjectiveMemoryRecord, inputs: MemoryScoreInputs): number {
-  const salience = Math.round(Math.min(1, Math.max(0, r.salience)) * 1000);
+  const entries = (inputs.reinforcements ?? []).filter((e) => e.record_id === r.id);
+  const anchor = entries.length > 0
+    ? Math.max(...entries.map((e) => e.event_ordinal))
+    : r.event_ordinal;
+  // REQ-653 — decayed salience. A record citing no event contributes no decayed
+  // salience; the scale is rounded so §7.9e keeps integer terms.
+  let salience = Math.round(Math.min(1, Math.max(0, r.salience)) * 1000);
+  if (anchor !== null && inputs.latestOrdinal > 0) {
+    const distance = Math.max(0, inputs.latestOrdinal - anchor);
+    const halfLife = Math.max(1, inputs.decayHalfLife ?? 200);
+    salience = Math.round(salience * Math.pow(2, -distance / halfLife));
+  }
   let recency = 0;
   if (r.event_ordinal !== null && inputs.latestOrdinal > 0) {
     const distance = inputs.latestOrdinal - r.event_ordinal;
     recency = Math.max(0, Math.round(200 * (1 - distance / Math.max(1, inputs.logLength))));
   }
   const origin = r.origin === "witnessed" ? 60 : r.origin === "told" ? 40 : r.origin === "inferred" ? 20 : 0;
-  return salience + recency + origin;
+  const reinforcement = Math.min(entries.length, inputs.reinforcementMax ?? 6) * (inputs.reinforcementBonus ?? 25);
+  return salience + recency + origin + reinforcement;
 }
 
 // REQ-644 — deterministic order for the section. Score first, then the chunk-1
@@ -277,4 +322,43 @@ export function disclosureScanTargets(
     push("guarded memory claim", claim);
   }
   return targets;
+}
+
+// REQ-655 — derived validity windows. The chain key is the subject, predicate,
+// and object; polarity is not part of the key because a polarity flip is a
+// contradiction, not a supersession. Windows are computed on read and never
+// stored on the record.
+export interface ValidityWindow {
+  valid_from: number | null;
+  valid_until: number | null;
+}
+
+export function claimChainKey(r: SubjectiveMemoryRecord): string {
+  return [r.entity_id, r.claim.subject, r.claim.predicate]
+    .map((part) => part.trim().toLowerCase())
+    .join("\u0000");
+}
+
+export function deriveValidityWindows(records: SubjectiveMemoryRecord[]): Map<string, ValidityWindow> {
+  const windows = new Map<string, ValidityWindow>();
+  const chains = new Map<string, SubjectiveMemoryRecord[]>();
+  for (const r of records) {
+    const key = claimChainKey(r);
+    chains.set(key, [...(chains.get(key) ?? []), r]);
+  }
+  for (const chain of chains.values()) {
+    const ordered = [...chain].sort(
+      (a, b) =>
+        (a.event_ordinal ?? Number.MAX_SAFE_INTEGER) - (b.event_ordinal ?? Number.MAX_SAFE_INTEGER) ||
+        a.id.localeCompare(b.id, undefined, { numeric: true }),
+    );
+    ordered.forEach((r, i) => {
+      const next = ordered[i + 1];
+      windows.set(r.id, {
+        valid_from: r.event_ordinal,
+        valid_until: next ? next.event_ordinal : null,
+      });
+    });
+  }
+  return windows;
 }

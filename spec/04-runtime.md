@@ -218,6 +218,10 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` | No | Token budget for the `## Subjective Memory` briefing section (default 800; 0 = unlimited; REQ-645). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX` | No | Maximum subjective-memory records retained per entity before score-ordered eviction (default 500; REQ-647). Storage. |
 | `TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX` | No | Maximum characters in one entity's consolidation summary, oldest folded lines dropped first (default 2000; REQ-647). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE` | No | Half-life in event-log ordinals for effective-salience decay (default 200; minimum 1; REQ-653). Behavioral (mechanical) — couples per P61. |
+| `TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS` | No | Score added per reinforcement entry, capped by the maximum (default 25; REQ-654). Behavioral (mechanical) — couples per P61. |
+| `TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX` | No | Maximum reinforcement entries counted in the score (default 6; REQ-654). Behavioral (mechanical) — couples per P61. |
+| `TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_LEDGER_MAX` | No | Maximum reinforcement entries retained per Novel before oldest-first eviction (default 5000; 0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
@@ -490,6 +494,7 @@ fuzzy, or semantic matching.
 | P58 | Session → Guidance | GM narrative directives containing action-quantity keywords adjust the proactive action budget — "more options" raises TTRPG_MAX_AVAILABLE_ACTIONS, "fewer options" lowers it | Mechanical | The GM controls how many choices the story offers |
 | P59 | Session → Session | GM narrative directives containing safety-gate keywords set narration-validation and state-drift enforcement — "validate my narration" enables TTRPG_NARRATION_VALIDATION, "warn on state drift" sets TTRPG_STATE_GATE to warn | Mechanical | The GM tunes the server's safety gates in plain English |
 | P60 | Session → Surface | GM narrative directives containing catalog keywords select TTRPG_SURFACE_PROFILE — "show all tools" selects full, "use a small catalog" selects small | Navigational | The GM controls how much of the tool catalog the narrator sees |
+| P61 | Narrative-memory → Narrative-memory | An explicit GM recall (`subjective_recall`) raises that record's score through the reinforcement bonus and resets its decay anchor | Mechanical | The GM decides what the character dwells on |
 
 #### 7.7.1 Cross-property coupling
 
@@ -621,6 +626,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Knowledge Corpus → Lore | P54 | A consumed corpus document promotes to knowledge-carrying records carrying its acquisition-ledger provenance | Reference material becomes known facts | GM-only | Navigational | REQ-500, REQ-501 |
 | Agent Tasks → NPC | P29 | An active agent task triggers immediate goal pursuit and disposition updates on its owning NPC; governed by TTRPG_AGENT_AUTONOMY | Ticking tasks drive character action | GM-only | Mechanical | REQ-529 |
 | Perception Ledger → Lore | P16 | Perceived events promote to knowledge-carrying records | What was perceived becomes what is known | GM-only | Navigational | REQ-540, REQ-541 |
+| Event Log → Subjective Memory | P61 | An explicit GM recall (`subjective_recall`) raises a record's score through TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS and TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX, and resets its decay anchor under TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE | Dwelling on a memory keeps it vivid | GM-only | Mechanical | REQ-653, REQ-654 |
 
 **Admission decisions.** A causal proposal carries one admission decision (REQ-485):
 `admitted`, `admitted-with-latent-transition`, `rejected-impossible`, `conflict`,
@@ -727,7 +733,12 @@ member (REQ-446), and an adventure module's signature covers its declared
 `content_hash` string (REQ-617).
 
 **7.9e Subjective recall scoring and assembly.** A memory record scores
-`salience × 1000 + recency + origin`, each term an integer. `recency` is
+`decayed_salience + recency + origin + reinforcement`, each term an integer.
+`decayed_salience` is the record's salience scaled by
+`2^(-distance / TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE)` and rounded, where
+`distance` is measured from the decay anchor (REQ-653). `reinforcement` is
+`min(count, TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX) × TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS`
+(REQ-654). `recency` is
 `max(0, round(200 × (1 − distance / max(1, logLength))))`, where `distance` is
 the event-log head ordinal minus the record's ordinal and `logLength` is the
 number of retained event-log entries; a record citing no event contributes 0.

@@ -1137,6 +1137,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-650 | Shipped update command | 2026-11-08 |
 | REQ-651 | Startup reconciliation of stale artifacts | 2026-11-08 |
 | REQ-652 | Stale-artifact health and notice | 2026-11-08 |
+| REQ-653 | Event-indexed decay | 2026-11-10 |
+| REQ-654 | Reinforcement ledger | 2026-11-10 |
+| REQ-655 | Derived validity windows | 2026-11-10 |
+| REQ-656 | Window-aware displaced verdict | 2026-11-10 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -2115,6 +2119,10 @@ diet.
 | T774 | Automated | Startup reconciliation: seed persisted artifacts under a prior data-format fingerprint and boot — assert each is current after startup with one backup and no stale flag; boot with `TTRPG_AUTO_MIGRATE=off` and an unwritable directory — assert startup succeeds and the flag remains. | REQ-651 |
 | T775 | Automated | Stale-artifact health and notice: with a prior-fingerprint artifact, assert `data_health` names the stored and current fingerprints and a remedy; a successful save clears the flag; startup writes one stderr line naming the count. | REQ-652 |
 | T776 | Automated | Packed launcher maintenance surface: pack and install the artifact, then run `bin/holonovel.js update --dry-run --json` — assert exit 0, a machine-readable report, and no change to the state directory. | REQ-650, REQ-614 |
+| T777 | Automated | Event-indexed decay: an old unreinforced record ranks below an equally salient recent record; a reinforcement resets the decay anchor; the rendered order is identical across two runs at one state. | REQ-653 |
+| T778 | Automated | Reinforcement ledger: a Game Master `subjective_recall` appends one entry and a twice-reinforced record outranks an equally salient unreinforced one; the entry survives restart; a Player or Observer call is refused; the ledger is excluded from a checkpoint and carried by clone and export. | REQ-654 |
+| T779 | Automated | Derived validity windows: two records with the same subject and predicate but different objects keep open windows; a later same-key record closes the earlier window; no window is stored on the record. | REQ-655 |
+| T780 | Automated | Window-aware displaced verdict: a claim superseded by a later disagreeing claim reports `displaced`; an agreeing successor stays `confirmed`; two checks of unchanged state agree and the event-log cursor is unchanged. | REQ-656 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

@@ -528,7 +528,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.32   | Perception Ledger                                       | 540–545, 594–595 |
 | 5.33   | Briefing Consistency                                    | 515–521 |
 | 5.34   | Compression Ladder and Recall                           | 590–593 |
-| 5.35   | Subjective Memory                                       | 623–648 |
+| 5.35   | Subjective Memory                                       | 623–656 |
 
 ### 5.1 Output and Error Contracts
 
@@ -5041,7 +5041,8 @@ _Check:_ T756.
 **REQ-644 — Deterministic recall score.**
 WHEN the server composes the `## Subjective Memory` section, THE server SHALL
 rank records by a deterministic score derived from recorded state under the
-algorithm in §7.9e. The score SHALL combine a record's salience, its recency
+algorithm in §7.9e. The score SHALL also apply REQ-653 and REQ-654. The score
+SHALL combine a record's salience, its recency
 measured against the event-log head, and its origin, and SHALL NOT consult the
 clock, network, or model output. Records of equal score SHALL order by
 descending event ordinal, then ascending record identifier. The disclosure level
@@ -5097,6 +5098,51 @@ Appendix O.12. The harness SHALL prove its miss detector fires on a synthetic
 probe whose expectation is deliberately withheld. *Acceptance criterion:* the
 committed fixture runs, and a required probe whose expected gist is withheld by
 the budget fails the run. _Check:_ T770.
+
+**REQ-653 — Event-indexed decay.**
+Effective salience SHALL scale by event distance from the record's decay anchor,
+where the anchor is its latest reinforcement or, absent one, its contributing
+event ordinal. The scale SHALL be `2^(-distance / TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE)`,
+rounded to the nearest integer before it is added to the score. Distance SHALL be
+measured in event-log ordinals against the event-log head, and a record citing no
+event SHALL contribute its full salience. The computation SHALL NOT consult the
+clock, network, or model output. *Acceptance criterion:* an old unreinforced
+record ranks below an equally salient recent one, and a reinforcement resets its
+decay anchor. _Check:_ T777.
+
+**REQ-654 — Reinforcement ledger.**
+`manage_belief (action: subjective_recall)` SHALL append one reinforcement entry
+for a memory record, carrying the record identifier and the current event-log
+ordinal. Mutation SHALL require the Game Master badge. The
+ledger SHALL be append-only, bounded by
+`TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_LEDGER_MAX` (§7.6), and SHALL be part of
+the subjective-memory surface for persistence, export, clone, archive, and
+checkpoint exclusion (REQ-627, REQ-240a, REQ-334b, REQ-241a). The score SHALL add
+`min(count, TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX) × TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS`
+and anchor decay on the latest entry (REQ-653). *Acceptance criterion:* a
+twice-reinforced record outranks an equally salient unreinforced one, and the
+entry survives a restart. _Check:_ T778.
+
+**REQ-655 — Derived validity windows.**
+For each entity and claim key, the server SHALL derive a validity window from the
+ordered records: `valid_from` is the record's event ordinal and `valid_until` is
+the next record's ordinal for the same key, or null when no later record exists.
+The claim key SHALL be the subject and predicate; a later record with a different
+object closes the window, while a differing polarity SHALL be a contradiction, not
+a supersession. Windows SHALL be derived on read,
+SHALL NOT be stored, and SHALL be exposed by `subjective_list` and
+`subjective_verify`. A record citing no event SHALL carry a null window.
+*Acceptance criterion:* two records with the same key and different objects keep
+open windows, and a later same-key record closes the earlier window. _Check:_
+T779.
+
+**REQ-656 — Window-aware displaced verdict.**
+REQ-630's divergence check SHALL report `displaced` when a record's derived window
+(REQ-655) has closed and the successor claim differs in object or polarity, and
+SHALL prefer that verdict over the object-mismatch verdict. A closed window with
+an agreeing successor SHALL remain `confirmed`. The check SHALL NOT rewrite the
+memory or the event log. *Acceptance criterion:* a claim superseded by a later
+claim reports `displaced`, and two checks of unchanged state agree. _Check:_ T780.
 
 #### End of requirements
 
@@ -7479,6 +7525,10 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS` | No | Token budget for the `## Subjective Memory` briefing section (default 800; 0 = unlimited; REQ-645). Presentation — non-behavioral; it bounds output volume, not story state. |
 | `TTRPG_SUBJECTIVE_MEMORY_PER_ENTITY_MAX` | No | Maximum subjective-memory records retained per entity before score-ordered eviction (default 500; REQ-647). Storage. |
 | `TTRPG_SUBJECTIVE_MEMORY_CONSOLIDATION_MAX` | No | Maximum characters in one entity's consolidation summary, oldest folded lines dropped first (default 2000; REQ-647). Storage. |
+| `TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE` | No | Half-life in event-log ordinals for effective-salience decay (default 200; minimum 1; REQ-653). Behavioral (mechanical) — couples per P61. |
+| `TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS` | No | Score added per reinforcement entry, capped by the maximum (default 25; REQ-654). Behavioral (mechanical) — couples per P61. |
+| `TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX` | No | Maximum reinforcement entries counted in the score (default 6; REQ-654). Behavioral (mechanical) — couples per P61. |
+| `TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_LEDGER_MAX` | No | Maximum reinforcement entries retained per Novel before oldest-first eviction (default 5000; 0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_DOCUMENTS` | No | Maximum corpus documents retained per Novel before oldest-first eviction (0 = unlimited). Storage. |
 | `TTRPG_CORPUS_MAX_ACQUISITIONS` | No | Maximum acquisition-ledger entries retained per entity before oldest-first eviction (0 = unlimited). Storage. |
 
@@ -7751,6 +7801,7 @@ fuzzy, or semantic matching.
 | P58 | Session → Guidance | GM narrative directives containing action-quantity keywords adjust the proactive action budget — "more options" raises TTRPG_MAX_AVAILABLE_ACTIONS, "fewer options" lowers it | Mechanical | The GM controls how many choices the story offers |
 | P59 | Session → Session | GM narrative directives containing safety-gate keywords set narration-validation and state-drift enforcement — "validate my narration" enables TTRPG_NARRATION_VALIDATION, "warn on state drift" sets TTRPG_STATE_GATE to warn | Mechanical | The GM tunes the server's safety gates in plain English |
 | P60 | Session → Surface | GM narrative directives containing catalog keywords select TTRPG_SURFACE_PROFILE — "show all tools" selects full, "use a small catalog" selects small | Navigational | The GM controls how much of the tool catalog the narrator sees |
+| P61 | Narrative-memory → Narrative-memory | An explicit GM recall (`subjective_recall`) raises that record's score through the reinforcement bonus and resets its decay anchor | Mechanical | The GM decides what the character dwells on |
 
 #### 7.7.1 Cross-property coupling
 
@@ -7882,6 +7933,7 @@ from the bound ruleset's own text during Discovery (REQ-377).
 | Knowledge Corpus → Lore | P54 | A consumed corpus document promotes to knowledge-carrying records carrying its acquisition-ledger provenance | Reference material becomes known facts | GM-only | Navigational | REQ-500, REQ-501 |
 | Agent Tasks → NPC | P29 | An active agent task triggers immediate goal pursuit and disposition updates on its owning NPC; governed by TTRPG_AGENT_AUTONOMY | Ticking tasks drive character action | GM-only | Mechanical | REQ-529 |
 | Perception Ledger → Lore | P16 | Perceived events promote to knowledge-carrying records | What was perceived becomes what is known | GM-only | Navigational | REQ-540, REQ-541 |
+| Event Log → Subjective Memory | P61 | An explicit GM recall (`subjective_recall`) raises a record's score through TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS and TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX, and resets its decay anchor under TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE | Dwelling on a memory keeps it vivid | GM-only | Mechanical | REQ-653, REQ-654 |
 
 **Admission decisions.** A causal proposal carries one admission decision (REQ-485):
 `admitted`, `admitted-with-latent-transition`, `rejected-impossible`, `conflict`,
@@ -7988,7 +8040,12 @@ member (REQ-446), and an adventure module's signature covers its declared
 `content_hash` string (REQ-617).
 
 **7.9e Subjective recall scoring and assembly.** A memory record scores
-`salience × 1000 + recency + origin`, each term an integer. `recency` is
+`decayed_salience + recency + origin + reinforcement`, each term an integer.
+`decayed_salience` is the record's salience scaled by
+`2^(-distance / TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE)` and rounded, where
+`distance` is measured from the decay anchor (REQ-653). `reinforcement` is
+`min(count, TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX) × TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS`
+(REQ-654). `recency` is
 `max(0, round(200 × (1 − distance / max(1, logLength))))`, where `distance` is
 the event-log head ordinal minus the record's ordinal and `logLength` is the
 number of retained event-log entries; a record citing no event contributes 0.
@@ -10378,6 +10435,10 @@ date-stamps matching CHANGELOG entries.
 | REQ-650 | Shipped update command | 2026-11-08 |
 | REQ-651 | Startup reconciliation of stale artifacts | 2026-11-08 |
 | REQ-652 | Stale-artifact health and notice | 2026-11-08 |
+| REQ-653 | Event-indexed decay | 2026-11-10 |
+| REQ-654 | Reinforcement ledger | 2026-11-10 |
+| REQ-655 | Derived validity windows | 2026-11-10 |
+| REQ-656 | Window-aware displaced verdict | 2026-11-10 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -11356,6 +11417,10 @@ diet.
 | T774 | Automated | Startup reconciliation: seed persisted artifacts under a prior data-format fingerprint and boot — assert each is current after startup with one backup and no stale flag; boot with `TTRPG_AUTO_MIGRATE=off` and an unwritable directory — assert startup succeeds and the flag remains. | REQ-651 |
 | T775 | Automated | Stale-artifact health and notice: with a prior-fingerprint artifact, assert `data_health` names the stored and current fingerprints and a remedy; a successful save clears the flag; startup writes one stderr line naming the count. | REQ-652 |
 | T776 | Automated | Packed launcher maintenance surface: pack and install the artifact, then run `bin/holonovel.js update --dry-run --json` — assert exit 0, a machine-readable report, and no change to the state directory. | REQ-650, REQ-614 |
+| T777 | Automated | Event-indexed decay: an old unreinforced record ranks below an equally salient recent record; a reinforcement resets the decay anchor; the rendered order is identical across two runs at one state. | REQ-653 |
+| T778 | Automated | Reinforcement ledger: a Game Master `subjective_recall` appends one entry and a twice-reinforced record outranks an equally salient unreinforced one; the entry survives restart; a Player or Observer call is refused; the ledger is excluded from a checkpoint and carried by clone and export. | REQ-654 |
+| T779 | Automated | Derived validity windows: two records with the same subject and predicate but different objects keep open windows; a later same-key record closes the earlier window; no window is stored on the record. | REQ-655 |
+| T780 | Automated | Window-aware displaced verdict: a claim superseded by a later disagreeing claim reports `displaced`; an agreeing successor stays `confirmed`; two checks of unchanged state agree and the event-log cursor is unchanged. | REQ-656 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

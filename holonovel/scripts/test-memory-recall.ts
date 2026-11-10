@@ -645,6 +645,106 @@ async function main() {
   });
   await kill(proc);
 
+  // ── Memory lifecycle: decay, reinforcement, windows, displaced ─────
+  async function lifecycleBoot(name: string, env: Record<string, string> = {}) {
+    const p = await boot({
+      TTRPG_SUBJECTIVE_MEMORY_BRIEFING_TOKENS: "800",
+      TTRPG_SUBJECTIVE_MEMORY_BRIEFING_MAX: "10",
+      ...env,
+    });
+    await call(p, "manage_novel", { action: "create", name });
+    await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "manage_character", { action: "create", name: "Anna" });
+    const anna = created.match(/Entity id ([a-z0-9_]+)/i)?.[1];
+    if (!anna) throw new Error(`character create did not return an id: ${created.slice(0, 160)}`);
+    await call(p, "manage_staging", { action: "presence", entity_ids: [anna] });
+    await call(p, "manage_npc", { action: "create", name: "Kael", disposition: "loyal" });
+    for (let i = 1; i <= 5; i++) await call(p, "manage_diagnostics", { action: "event", text: `lifecycle event ${i}` });
+    return { p, anna };
+  }
+
+  async function recordLifecycle(p: any, anna: string, gist: string, ordinal: number, salience: number, object: string) {
+    const r = await call(p, "manage_belief", {
+      action: "subjective_record",
+      subjective_entity: anna,
+      subjective_gist: gist,
+      subjective_subject: "Kael",
+      subjective_predicate: "disposition",
+      subjective_object: object,
+      subjective_salience: salience,
+      subjective_event_ordinal: ordinal,
+      subjective_origin: "witnessed",
+    });
+    assertContains(r, "[OK]");
+  }
+
+  async function lifecycleSection(p: any): Promise<string> {
+    return section(await promptText(p, "badge_briefing"), "## Subjective Memory");
+  }
+
+  await test("T777/REQ-653: event-indexed decay ranks a recent lower-salience record first", async () => {
+    const { p, anna } = await lifecycleBoot("lifecycle-decay", { TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE: "1" });
+    await recordLifecycle(p, anna, "old certain", 1, 1.0, "loyal");
+    await recordLifecycle(p, anna, "recent doubt", 5, 0.6, "hostile");
+    const text = await lifecycleSection(p);
+    const oldPos = text.indexOf("old certain");
+    const newPos = text.indexOf("recent doubt");
+    if (!(oldPos >= 0 && newPos >= 0 && newPos < oldPos)) {
+      throw new Error("decay did not put the recent lower-salience record first: " + text);
+    }
+    if ((await lifecycleSection(p)) !== text) throw new Error("two renders of unchanged state differ");
+    await kill(p);
+  });
+
+  await test("T778/REQ-654: reinforcement raises a record and survives a restart", async () => {
+    const { p, anna } = await lifecycleBoot("lifecycle-reinforce", { TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE: "1" });
+    await recordLifecycle(p, anna, "old certain", 1, 1.0, "loyal");
+    await recordLifecycle(p, anna, "recent doubt", 5, 0.6, "hostile");
+    const before = await lifecycleSection(p);
+    if (!(before.indexOf("recent doubt") < before.indexOf("old certain"))) {
+      throw new Error("the unreinforced baseline did not rank the recent record first: " + before);
+    }
+    const list = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: anna })) as Array<{ id: string; gist: string }>;
+    const oldId = list.find((r) => r.gist === "old certain")?.id;
+    if (!oldId) throw new Error("the old record is not addressable");
+    for (let i = 0; i < 2; i++) {
+      const r = await call(p, "manage_belief", { action: "subjective_recall", subjective_record_id: oldId });
+      assertContains(r, "[OK]");
+    }
+    const after = await lifecycleSection(p);
+    if (!(after.indexOf("old certain") < after.indexOf("recent doubt"))) {
+      throw new Error("reinforcement did not raise the record: " + after);
+    }
+    await kill(p);
+
+    const restarted = await boot({ TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE: "1" });
+    await call(restarted, "manage_novel", { action: "resume", slug: "lifecycle-reinforce" });
+    await call(restarted, "set_badge", { badge: "game_master" });
+    const persisted = await lifecycleSection(restarted);
+    if (!(persisted.indexOf("old certain") < persisted.indexOf("recent doubt"))) {
+      throw new Error("reinforcement did not survive a restart: " + persisted);
+    }
+    await kill(restarted);
+  });
+
+  await test("T779/REQ-655 and T780/REQ-656: windows close and a superseded claim reports displaced", async () => {
+    const { p, anna } = await lifecycleBoot("lifecycle-windows");
+    await recordLifecycle(p, anna, "first stance", 1, 0.8, "loyal");
+    await recordLifecycle(p, anna, "second stance", 3, 0.8, "hostile");
+    const view = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: anna });
+    const rows = JSON.parse(view) as Array<{ gist: string; verdict: string; validity: { valid_from: number | null; valid_until: number | null } }>;
+    const first = rows.find((r) => r.gist === "first stance");
+    const second = rows.find((r) => r.gist === "second stance");
+    if (!first || !second) throw new Error("verify did not return both records: " + view);
+    if (first.validity.valid_until !== 3) throw new Error(`the first window did not close at 3: ${JSON.stringify(first.validity)}`);
+    if (second.validity.valid_until !== null) throw new Error(`the last window did not stay open: ${JSON.stringify(second.validity)}`);
+    if (first.verdict !== "displaced") throw new Error(`the superseded claim reported ${first.verdict}, not displaced`);
+    const again = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: anna });
+    if (again !== view) throw new Error("two checks of unchanged state differ");
+    await kill(p);
+  });
+
+
   rmSync(DATA_DIR, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

@@ -44,7 +44,7 @@ import { dedupeRelationships, isRelationshipInvolving, relationshipEdgesFor, rel
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
-import { nextSubjectiveId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, assembleMemorySection, selectForEviction, foldIntoSummary, eventState, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure } from "./core/subjective.js";
+import { nextSubjectiveId, nextReinforcementId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, assembleMemorySection, selectForEviction, foldIntoSummary, eventState, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, deriveValidityWindows, claimChainKey, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure, type ReinforcementEntry, type ValidityWindow } from "./core/subjective.js";
 // REQ-629–REQ-633 — divergence: what the Novel recorded, checked against a memory.
 import { projectTruthFacts, checkRecord, buildAliases, type DivergenceResult } from "./core/divergence.js";
 import {
@@ -2418,9 +2418,46 @@ function composeCampaignMemorySection(novel: NovelState, badge: string): string 
 // The Game Master sees every present entity's records, non-`open` ones tagged
 // with their disclosure level; the Player sees only the active entity's visible
 // records, with `guarded` rendered as gist. The Observer badge never sees it.
-function memoryScoreInputs(novel: NovelState): { latestOrdinal: number; logLength: number } {
+function memoryScoreInputs(novel: NovelState): {
+  latestOrdinal: number;
+  logLength: number;
+  reinforcements: ReinforcementEntry[];
+  decayHalfLife: number;
+  reinforcementBonus: number;
+  reinforcementMax: number;
+} {
   const log = novel.event_log ?? [];
-  return { latestOrdinal: log.length > 0 ? log[log.length - 1].ordinal : 0, logLength: log.length };
+  return {
+    latestOrdinal: log.length > 0 ? log[log.length - 1].ordinal : 0,
+    logLength: log.length,
+    reinforcements: novel.subjective_reinforcement ?? [],
+    decayHalfLife: configInt("TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE", 200),
+    reinforcementBonus: configInt("TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_BONUS", 25),
+    reinforcementMax: configInt("TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_MAX", 6),
+  };
+}
+
+// REQ-656 — a closed window whose successor disagrees overrides the base
+// verdict with displaced; an agreeing successor leaves the verdict untouched.
+function windowAwareVerdict(
+  novel: NovelState,
+  record: SubjectiveMemoryRecord,
+  result: DivergenceResult,
+  windows: Map<string, ValidityWindow>,
+): DivergenceResult {
+  const window = windows.get(record.id);
+  if (!window || window.valid_until === null) return result;
+  const successor = (novel.subjective_memory ?? []).find(
+    (r) => r.id !== record.id && r.event_ordinal === window.valid_until && claimChainKey(r) === claimChainKey(record),
+  );
+  if (!successor) return result;
+  if (
+    successor.claim.object !== record.claim.object &&
+    (result.verdict === "confirmed" || result.verdict === "conflated")
+  ) {
+    return { ...result, verdict: "displaced", reason: "the derived validity window closed with a later disagreeing claim" };
+  }
+  return result;
 }
 
 function composeSubjectiveMemorySection(novel: NovelState, badge: string): string {
@@ -2478,6 +2515,7 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
   // view; selection, order, and the render bounds are untouched.
   const facts = projectTruthFacts(novel);
   const alias = buildAliases(novel);
+  const windows = deriveValidityWindows(novel.subjective_memory ?? []);
   const assembled = assembleMemorySection(
     pool,
     (r) => {
@@ -2485,7 +2523,7 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
       // narrator knows it may not be quoted.
       const tag = r.disclosure === "open" ? r.origin : `${r.origin}, ${r.disclosure}`;
       const text = `- [${tag}] ${r.entity_id}: ${r.gist}${r.felt_then ? ` (felt ${r.felt_then})` : ""}`;
-      const result = checkRecord(r, facts, novel, alias);
+      const result = windowAwareVerdict(novel, r, checkRecord(r, facts, novel, alias), windows);
       const divergence = result.verdict !== "confirmed" && result.verdict !== "unverifiable"
         ? ` [divergence: ${result.verdict.split("_").join(" ")}]`
         : "";
@@ -8400,9 +8438,9 @@ function beliefReadGate(novel: NovelState, entityId: string | undefined) {
 
 server.registerTool("manage_belief", {
   title: "Belief Management (evidence, stances, memory, queries)",
-  description: "Manage per-entity evidence, belief stances, and memory — not objective truth, shared lore, or derived indexes. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets with provenance. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
+  description: "Manage per-entity evidence, belief stances, and memory — not objective truth, shared lore, or derived indexes. list, get, evidence, conflicts, perception_list, subjective_list, subjective_verify, and knowledge_query read; admit, retract, reconcile, perception_record, subjective_record, subjective_recall, and subjective_disclose write. admit records a weighted proposition; reconcile recomputes stances; retract needs the admit evidence_id; ledgers are append-only; each memory carries an open/guarded/secret disclosure level gating Player reads; subjective_verify returns each memory with its divergence verdict; correct mistakes with a new record. Mutations persist to the Novel. knowledge_query returns perceptions, beliefs, and secrets. Use when: inspecting what an entity learned or remembers. Do NOT use when: recording objective truth — use manage_causality; recording shared lore — use manage_lore; ranking derived text or traversing the knowledge graph — use manage_knowledge.",
   inputSchema: {
-    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list", "subjective_verify", "subjective_disclose"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record, subjective_list, subjective_verify, or subjective_disclose. Knowledge: knowledge_query."),
+    action: z.enum(["list", "get", "evidence", "admit", "retract", "conflicts", "reconcile", "knowledge_query", "perception_record", "perception_list", "perception_for_entity", "perception_for_event", "subjective_record", "subjective_list", "subjective_verify", "subjective_disclose", "subjective_recall"]).describe("Belief: list, get, evidence, admit, retract, conflicts, or reconcile. Perception ledger: perception_record, perception_list, perception_for_entity, or perception_for_event. Subjective memory: subjective_record, subjective_list, subjective_verify, subjective_disclose, or subjective_recall. Knowledge: knowledge_query."),
     detail: z.boolean().optional().describe("Return full belief records instead of summary entries (list)."),
     entity_id: z.string().optional().describe("Entity whose beliefs are queried or mutated."),
     subject: z.string().optional().describe("Proposition subject (admit)."),
@@ -9523,6 +9561,33 @@ const handleSubjectiveActions = async (args: any) => {
       audit("subjective_record", { entity_id: record.entity_id, ordinal: record.event_ordinal, origin: record.origin, disclosure: record.disclosure });
       return ok(`Memory ${record.id} recorded for '${record.entity_id}'.`);
     }
+    case "recall": {
+      // REQ-654 — an explicit GM recall appends one reinforcement entry; the
+      // ledger is append-only and the render path never writes it.
+      requireGM();
+      const novel = requireNovel();
+      const recordId = args.record_id;
+      if (typeof recordId !== "string" || recordId.length === 0) {
+        return err("INVALID_INPUT", "record_id is required for subjective_recall.");
+      }
+      const record = novel.subjective_memory.find((r) => r.id === recordId);
+      if (!record) return err("NOT_FOUND", `No subjective memory with id '${recordId}'.`);
+      const latest = novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : 0;
+      const entry: ReinforcementEntry = {
+        id: nextReinforcementId(novel.subjective_reinforcement ?? []),
+        record_id: recordId,
+        event_ordinal: latest,
+        at: new Date().toISOString(),
+      };
+      novel.subjective_reinforcement = [...(novel.subjective_reinforcement ?? []), entry];
+      const ledgerCap = configInt("TTRPG_SUBJECTIVE_MEMORY_REINFORCEMENT_LEDGER_MAX", 5000);
+      if (ledgerCap > 0 && novel.subjective_reinforcement.length > ledgerCap) {
+        novel.subjective_reinforcement = novel.subjective_reinforcement.slice(novel.subjective_reinforcement.length - ledgerCap);
+      }
+      state.saveNovel(novel);
+      audit("subjective_recall", { record_id: recordId, ordinal: entry.event_ordinal });
+      return ok(`Memory ${recordId} reinforced at ordinal ${entry.event_ordinal}.`);
+    }
     case "list": {
       // REQ-625 — the Game Master reads every record; the Player reads the
       // active entity's non-secret records; the Observer is refused.
@@ -9590,8 +9655,9 @@ const handleSubjectiveActions = async (args: any) => {
       if (records.length === 0) return ok("No subjective memories recorded.");
       const facts = projectTruthFacts(novel);
       const alias = buildAliases(novel);
+      const windows = deriveValidityWindows(novel.subjective_memory ?? []);
       const results = records.map((record: SubjectiveMemoryRecord) => {
-        const result: DivergenceResult = checkRecord(record, facts, novel, alias);
+        const result: DivergenceResult = windowAwareVerdict(novel, record, checkRecord(record, facts, novel, alias), windows);
         return {
           record_id: record.id,
           entity_id: record.entity_id,
@@ -9599,6 +9665,7 @@ const handleSubjectiveActions = async (args: any) => {
           gist: record.gist,
           claim: record.claim,
           disclosure: record.disclosure,
+          validity: windows.get(record.id) ?? { valid_from: record.event_ordinal, valid_until: null },
           verdict: result.verdict,
           reason: result.reason,
           truth: result.truth,

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-10 — Memory lifecycle: decay, reinforcement, and validity windows
+
+- Added REQ-653 (event-indexed decay), REQ-654 (append-only reinforcement
+  ledger), REQ-655 (derived validity windows), and REQ-656 (window-aware
+  `displaced` verdict). REQ-644 now points the score at the new terms.
+- Added `manage_belief (action: subjective_recall)`: a GM-only, append-only
+  reinforcement entry. The ledger is part of the subjective-memory surface, so
+  clone, archive, export, and checkpoint exclusion inherit REQ-627 semantics.
+- Added §7.6 tuning keys (`TTRPG_SUBJECTIVE_MEMORY_DECAY_HALFLIFE`,
+  `_REINFORCEMENT_BONUS`, `_REINFORCEMENT_MAX`, `_REINFORCEMENT_LEDGER_MAX`),
+  §7.7.1a coupling row P61, and the §7.9e score formula.
+- Extended `test:memory-recall` with T777–T780; divergence and retention probes
+  still pass (18/18). (REQ-644, REQ-653–REQ-656)
+
 ## 2026-11-10 — Restore the REQ-229c adventure-synthesis linkage wording
 
 - `manage_adventure (action: load)` again reports an active match as
