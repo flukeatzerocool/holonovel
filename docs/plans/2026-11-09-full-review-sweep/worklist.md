@@ -207,6 +207,38 @@ restart the enumeration from scratch.
 - **D60 — Plan gate and publication.** Plan stamped `fresh`, standard depth,
   cold pass 5/5 (report `/tmp/opencode/p5-cold/report.md`); 12 commits unpushed
   at session start; one C0 baseline commit (`527e5da`) then one C1; no push.
+- **D61 — Chunk P6 split.** Whole P6 is 180 REQs / 86 family rows over two code
+  families; chunk P6a (this session) = §5.10, §5.11, §5.13, §5.15 (107 REQs /
+  36 family rows); chunk P6b = §5.16–§5.18, §5.21–§5.23 (73 REQs / 50 family
+  rows).
+- **D62 — Fix policy.** Unchanged from D2/D13: P0 fixed in-session (bounded),
+  P1 scheduled on `ROADMAP.md`, P2 fixed only on a demonstrated failure, P3
+  record-and-close.
+- **D63 — Increment record.** `docs/plans/2026-11-09-full-review-p6a/` holds
+  plan/tasks/AAR; this worklist is the cross-session tracker and carries the
+  P6a tables.
+- **D64 — Bucket resolution.** By base family row in `req-coverage.md`:
+  §5.10 26 rows all C; §5.11 2 rows all C; §5.13 6 rows all E; §5.15 2 rows all
+  E. Re-verified 2026-11-09.
+- **D65 — Boundaries.** P6a owns the world data model, parser, conversion,
+  coupling, vis/audibility/movement, ruleset-free build, and the
+  `manage_world`/`run_command`/`world://` paths. Surface projection and ruleset
+  packages → P6b; semantic/corpus/graph → P7; cognition → P8; world storage
+  mechanics → P4 (`Closed-P3` unless a §5.10 predicate breaks).
+- **D66 — Row precedence.** `finding` > `deferred` > `builder-side` > `holds`;
+  cluster verdicts are worst-of their own REQ rows.
+- **D67 — Citation resolution.** Own `_Check:_` IDs; family inheritance when
+  absent; an `Automated` token must appear literally in a harness whose body
+  exercises the behaviour; `Manual`/`Gate`/scenario need none; `T0nn` titles are
+  shadowing, not evidence.
+- **D68 — Fingerprint consequence.** `DATA_SECTIONS` excludes §5.10/§5.11/
+  §5.13/§5.15; a REQ-body edit needs `assemble` + `--write-register` but no
+  fingerprint regeneration; `build-order` still runs for version sync.
+- **D69 — Row granularity.** One row per REQ (107), bucket inherited per family
+  row; family rows may be recorded first and expanded as the review proceeds.
+- **D70 — Plan gate and publication.** Plan stamped `fresh`, standard depth,
+  cold pass 5/5 with two diff re-reviews (report `/tmp/opencode/p6a-cold/`);
+  14 commits unpushed at session start; baseline green (no C0); one C1; no push.
 
 ## Status
 
@@ -221,7 +253,8 @@ restart the enumeration from scratch.
 | P3b-4 | state surfaces and fingerprinting | §5.6 fingerprints, facts, checkpoints, codex (67 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P4 | `core/state.ts`, `core/data-dir.ts`, save/load/archive/undo | §5.19 code-side | `code-review` | **closed 2026-11-09** |
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | **closed 2026-11-09** |
-| P6 | `core/surface-{projection,aliases}.ts`, `world/*`, `rulesets.ts`, `library.ts` | §5.10, §5.11, §5.13, §5.15, §5.16–§5.18, §5.21–§5.23 | `code-review` | scheduled |
+| P6a | world model, parser, conversion, coupling, ruleset-free mode | §5.10, §5.11, §5.13, §5.15 (107 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
+| P6b | ruleset packages, host entry points, Fate/Ironsworn/Forged | §5.16–§5.18, §5.21–§5.23 (73 REQs) | `code-review` + citation resolution | scheduled |
 | P7 | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts` | §5.2, §5.7, §5.8, §5.14, §5.28–§5.30 | `code-review` | scheduled |
 | P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 | `code-review` + `spec-review` | scheduled (pending Q1) |
 | M1 | `check:conformance`, `fmea`, `graph-deps` | all | machine evidence | **closed 2026-11-09** |
@@ -1509,3 +1542,196 @@ C0 `527e5da` restored the baseline (two Holosuite anchors: `13824→13829`,
 `test:holosuite-adversarial` 26/26 · root and server `typecheck` exit 0 ·
 `check` PASS · `test:all` PASS · `check-roadmap` PASS ·
 `check-registers --strict` PASS · `check-loop-artifacts` PASS.
+
+## Chunk P6a — world model and the adapter seam
+
+**Code targets:** `holonovel/src/world/model.ts` (1068 lines), `world/parser.ts`
+(931), `world/index.ts` (24), the `manage_world` / `run_command` handlers and
+world resources in `holonovel/src/index.ts`, and the generated
+`world://kinds` provider document.
+**Spec:** §5.10 (82 REQs), §5.11 (6), §5.13 (13), §5.15 (6) — 107 REQs /
+36 family rows.
+**Decisions:** D61–D70 (chunk split, boundaries, buckets, citations,
+fingerprints, row granularity, publication).
+**Exit evidence (recorded 2026-11-09):** `check:fast` 37/37 PASS, `check` PASS,
+`test:all` 55/55 PASS (new `test:world-remediation` included),
+`check-roadmap` PASS, `check-registers:strict` PASS, `check-loop-artifacts`
+PASS. Six P0 findings fixed in-session with a new harness; the remaining
+findings are scheduled or closed as recorded below. Source files changed:
+`world/model.ts`, `world/parser.ts`, `index.ts`,
+`scripts/test-world-remediation.ts`, `scripts/lib/holosuite-adversarial.ts`
+(evidence-anchor repoint), `package.json`, `scripts/run-test-suite.ts`.
+
+### P6a per-REQ verdict table
+
+One row per REQ: `holds` (contract present and exercised), `finding:<ID>`
+(see the register), or `builder-side` (bucket E — no server runtime satisfies
+it; §5.13/§5.15 are derivation/verification contracts). Bucket is inherited
+from the base family row in `spec/audit/req-coverage.md` (D64).
+
+| REQ | Bucket | Verdict | Evidence |
+|---|---|---|---|
+| REQ-195a | C | holds | § P6a findings / behaviour table |
+| REQ-195b | C | holds | § P6a findings / behaviour table |
+| REQ-196a | C | finding:F-P6a-6 (Resolved) | § P6a findings / behaviour table |
+| REQ-196b | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-196c | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-196d | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-196e | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-196f | C | finding:F-P6a-15 (P3, Closed-P3) | § P6a findings / behaviour table |
+| REQ-283a | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-283b | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-283c | C | holds | § P6a findings / behaviour table |
+| REQ-284a | C | finding:F-P6a-8 (P1) | § P6a findings / behaviour table |
+| REQ-284b | C | finding:F-P6a-8 (P1) | § P6a findings / behaviour table |
+| REQ-284c | C | finding:F-P6a-8 (P1) | § P6a findings / behaviour table |
+| REQ-284d | C | finding:F-P6a-8 (P1) | § P6a findings / behaviour table |
+| REQ-284e | C | finding:F-P6a-8 (P1) | § P6a findings / behaviour table |
+| REQ-284f | C | holds | § P6a findings / behaviour table |
+| REQ-316a | C | holds | § P6a findings / behaviour table |
+| REQ-316b | C | holds | § P6a findings / behaviour table |
+| REQ-317a | C | finding:F-P6a-10 (P1) | § P6a findings / behaviour table |
+| REQ-317b | C | finding:F-P6a-10 (P1) | § P6a findings / behaviour table |
+| REQ-317c | C | finding:F-P6a-10 (P1) | § P6a findings / behaviour table |
+| REQ-317d | C | finding:F-P6a-10 (P1) | § P6a findings / behaviour table |
+| REQ-318a | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-318b | C | holds | § P6a findings / behaviour table |
+| REQ-319a | C | holds | § P6a findings / behaviour table |
+| REQ-319b | C | holds | § P6a findings / behaviour table |
+| REQ-319c | C | finding:F-P6a-16 (P3, Closed-P3) | § P6a findings / behaviour table |
+| REQ-319d | C | finding:F-P6a-16 (P3, Closed-P3) | § P6a findings / behaviour table |
+| REQ-320a | C | finding:F-P6a-11 (P1) | § P6a findings / behaviour table |
+| REQ-320b | C | finding:F-P6a-11 (P1) + F-P6a-17 (P3) | § P6a findings / behaviour table |
+| REQ-320c | C | finding:F-P6a-11 (P1) + F-P6a-17 (P3) | § P6a findings / behaviour table |
+| REQ-197a | C | finding:F-P6a-7 (P1) | § P6a findings / behaviour table |
+| REQ-197b | C | finding:F-P6a-2 (Resolved) | § P6a findings / behaviour table |
+| REQ-197c | C | finding:F-P6a-9 (P1) | § P6a findings / behaviour table |
+| REQ-197d | C | finding:F-P6a-9 (P1) | § P6a findings / behaviour table |
+| REQ-198 | C | finding:F-P6a-1 (Resolved) + F-P6a-14 (P1) | § P6a findings / behaviour table |
+| REQ-199 | C | finding:F-P6a-3 (Resolved) + F-P6a-14 (P1) | § P6a findings / behaviour table |
+| REQ-200 | C | finding:F-P6a-1/F-P6a-3 (Resolved) + F-P6a-14 (P1) | § P6a findings / behaviour table |
+| REQ-201 | C | holds | § P6a findings / behaviour table |
+| REQ-431a | C | holds | § P6a findings / behaviour table |
+| REQ-431b | C | holds | § P6a findings / behaviour table |
+| REQ-431c | C | holds | § P6a findings / behaviour table |
+| REQ-431d | C | finding:F-P6a-18 (P2) | § P6a findings / behaviour table |
+| REQ-202a | C | finding:F-P6a-12 (P1) | § P6a findings / behaviour table |
+| REQ-202b | C | finding:F-P6a-12 (P1) | § P6a findings / behaviour table |
+| REQ-222a | C | holds | § P6a findings / behaviour table |
+| REQ-222b | C | finding:F-P6a-12 (P1) | § P6a findings / behaviour table |
+| REQ-222c | C | holds | § P6a findings / behaviour table |
+| REQ-309a | C | holds | § P6a findings / behaviour table |
+| REQ-309b | C | finding:F-P6a-6 (Resolved) + F-P6a-12 (P1) | § P6a findings / behaviour table |
+| REQ-309c | C | holds | § P6a findings / behaviour table |
+| REQ-309d | C | holds | § P6a findings / behaviour table |
+| REQ-309e | C | holds | § P6a findings / behaviour table |
+| REQ-309f | C | holds | § P6a findings / behaviour table |
+| REQ-309g | C | finding:F-P6a-13 (P1) | § P6a findings / behaviour table |
+| REQ-309h | C | holds | § P6a findings / behaviour table |
+| REQ-325a | C | finding:F-P6a-12 (P1) | § P6a findings / behaviour table |
+| REQ-325b | C | holds | § P6a findings / behaviour table |
+| REQ-325c | C | holds | § P6a findings / behaviour table |
+| REQ-326a | C | finding:F-P6a-5 (Resolved) | § P6a findings / behaviour table |
+| REQ-326b | C | finding:F-P6a-5 (Resolved) | § P6a findings / behaviour table |
+| REQ-326c | C | holds | § P6a findings / behaviour table |
+| REQ-326d | C | holds | § P6a findings / behaviour table |
+| REQ-327a | C | finding:F-P6a-4 (Resolved) | § P6a findings / behaviour table |
+| REQ-327b | C | holds | § P6a findings / behaviour table |
+| REQ-327c | C | holds | § P6a findings / behaviour table |
+| REQ-367a | C | holds | § P6a findings / behaviour table |
+| REQ-367b1 | C | holds | § P6a findings / behaviour table |
+| REQ-367b2 | C | holds | § P6a findings / behaviour table |
+| REQ-367c | C | holds | § P6a findings / behaviour table |
+| REQ-368a | C | holds | § P6a findings / behaviour table |
+| REQ-368b | C | holds | § P6a findings / behaviour table |
+| REQ-368c | C | holds | § P6a findings / behaviour table |
+| REQ-368d | C | holds | § P6a findings / behaviour table |
+| REQ-368e | C | holds | § P6a findings / behaviour table |
+| REQ-596 | C | holds | § P6a findings / behaviour table |
+| REQ-597 | C | holds | § P6a findings / behaviour table |
+| REQ-622 | C | holds | § P6a findings / behaviour table |
+| REQ-622a | C | holds | § P6a findings / behaviour table |
+| REQ-622b | C | holds | § P6a findings / behaviour table |
+| REQ-622c | C | finding:F-P6a-18 (P2) | § P6a findings / behaviour table |
+| REQ-218a | C | holds | § P6a findings / behaviour table |
+| REQ-218b | C | holds | § P6a findings / behaviour table |
+| REQ-218c | C | holds | § P6a findings / behaviour table |
+| REQ-219a1 | C | holds | § P6a findings / behaviour table |
+| REQ-219a2 | C | holds | § P6a findings / behaviour table |
+| REQ-219b | C | holds | § P6a findings / behaviour table |
+| REQ-369a | E | builder-side | § P6a findings / behaviour table |
+| REQ-369b | E | builder-side | § P6a findings / behaviour table |
+| REQ-370a | E | builder-side | § P6a findings / behaviour table |
+| REQ-370b | E | builder-side | § P6a findings / behaviour table |
+| REQ-371a | E | builder-side | § P6a findings / behaviour table |
+| REQ-371b | E | builder-side | § P6a findings / behaviour table |
+| REQ-374a | E | builder-side | § P6a findings / behaviour table |
+| REQ-374b | E | builder-side | § P6a findings / behaviour table |
+| REQ-375a | E | builder-side | § P6a findings / behaviour table |
+| REQ-375b | E | builder-side | § P6a findings / behaviour table |
+| REQ-376a1 | E | builder-side | § P6a findings / behaviour table |
+| REQ-376a2 | E | builder-side | § P6a findings / behaviour table |
+| REQ-376a3 | E | builder-side | § P6a findings / behaviour table |
+| REQ-377a | E | builder-side | § P6a findings / behaviour table |
+| REQ-377b | E | builder-side | § P6a findings / behaviour table |
+| REQ-377c | E | builder-side | § P6a findings / behaviour table |
+| REQ-377d | E | builder-side | § P6a findings / behaviour table |
+| REQ-378a | E | builder-side | § P6a findings / behaviour table |
+| REQ-378b | E | builder-side | § P6a findings / behaviour table |
+
+### P6a behaviour table
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| Kind catalog and property contracts | `world/model.ts:5-133` | `test:world-provider`, `check-world-provider` | holds |
+| `world://map` adjacency payload | `world/model.ts:976-986`; `index.ts:12542` | `test:world-provider` | holds |
+| `world://kinds` payload (tiers, parser catalog, availability) | `world/model.ts:988-1017`; `index.ts:12548` | `test:world-provider` | finding:F-P6a-12 (P1) |
+| `manage_world` action set and lifecycle | `index.ts:5114-5600` | `test:world-remediation` | finding:F-P6a-1/F-P6a-14 (P0 fixed / P1) |
+| `run_command execute` dispatch and envelopes | `index.ts:4468-4700`; `world/parser.ts:30-120` | `test:world-remediation`, `test:hazard` | finding:F-P6a-7 (P1) |
+| Visibility and audibility queries | `world/parser.ts:803-880`; `index.ts:4481-4506` | `test:output-contracts` | holds |
+| Verb tiers and help rendering | `world/model.ts:1032-1068`; `index.ts:4588-4921` | `test:output-contracts` | finding:F-P6a-7 (P1) |
+| Room description modes | `world/parser.ts:247-285`; `index.ts:4588-4590` | `test:world-remediation` | finding:F-P6a-2 (Resolved) |
+| Movement and door blocking | `world/parser.ts:320-370`; `index.ts:4660-4700` | `test:backfill`, `test:hazard` | holds |
+| Source conversion and annotation linking | `world/model.ts:537-968` | `test:world-remediation` | finding:F-P6a-3 (Resolved) |
+| Containment perception and reachability | `world/parser.ts:261-300`, `:379-410` | `test:world-remediation` | finding:F-P6a-7 (P1) |
+| Scene and NPC room coupling | `index.ts:6238-6260`, `:6490-6520`, `:12304-12316` | `test:world-remediation` (scene/NPC not asserted) | finding:F-P6a-4/F-P6a-5 (Resolved) |
+| Procedural generation | `index.ts:5334-5600` | `test:adventure` | finding:F-P6a-18 (P2) |
+| Ruleset-free creation surface | `index.ts:3846`, `:5690` | `test:character-creation` | holds |
+| Hazard annotations and survival resources | `world/model.ts:156-184`; `index.ts:4242-4384` | `test:hazard` | finding:F-P6a-18 (P2) |
+| Vehicle traversal and moments | `index.ts:4660-4695` | `test:output-contracts` | finding:F-P6a-10 (P1) |
+
+### P6a cluster verdicts
+
+Cluster verdicts are worst-of their own REQ rows (`finding` > `deferred` >
+`builder-side` > `holds`); a resolved finding counts as `holds` for the
+aggregate.
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A model, kinds, resources | REQ-195–202, 283/284, 316–320, 431, 596/597, 622 | finding:F-P6a-7 (P1) | two P0s resolved (F-P6a-1, -3); the parser/output gap remains |
+| B parser, verbs, movement | REQ-222, 325–327 | finding:F-P6a-7 (P1) | 325a resource gap (F-P6a-12); 326/327 resolved |
+| C conversion, containment, coupling | REQ-367/368, §5.13, §5.15 | builder-side | 367/368 hold; §5.13/§5.15 are derivation contracts (bucket E) |
+| D handler surface and ruleset-free mode | REQ-309, §5.11 | finding:F-P6a-13 (P1) | 309b badge leak resolved; 309g suggest mapping open |
+
+### P6a findings
+
+| ID | Severity | REQs | Predicate | Disposition |
+|---|---|---|---|---|
+| F-P6a-1 | P0 | REQ-198, REQ-200 | `index.ts:5254` wrote `thing.fixed` (no such field) instead of `portable` | Resolved |
+| F-P6a-2 | P0 | REQ-197b | `index.ts:4588-4590` set `roomDescriptionMode`; no render path read it | Resolved |
+| F-P6a-3 | P0 | REQ-199, REQ-200, REQ-431d | `world/model.ts:683` marked `It is in <container>.` as `room` | Resolved |
+| F-P6a-4 | P0 | REQ-327a | `index.ts:6509` updated `location` without re-registering `room_id` | Resolved |
+| F-P6a-5 | P0 | REQ-326a, REQ-326b | `index.ts:12304` omitted `room_id`; `:6241` matched by prefix only | Resolved |
+| F-P6a-6 | P0 | REQ-196a, REQ-309b | `index.ts:4591` answered help/verbs before the badge gate | Resolved |
+| F-P6a-7 | P1 | REQ-196b–e, 197a, 283a/b, 318a | `world/parser.ts:111-117` returns `[NOT_FOUND]` without the UNIMPLEMENTED/nearest-verb contract; help lacks category/description and aliases; ambiguous prompt unnumbered; exits appended to the room body | Scheduled-roadmap |
+| F-P6a-8 | P1 | REQ-284a–e | `world/parser.ts:469` emits `[WARNING]` + `Corrective action: Hint:`; readable-in-container and adjacent-room hints unimplemented | Scheduled-roadmap |
+| F-P6a-9 | P1 | REQ-197c, REQ-197d | `index.ts:3873` signal enum lacks `detail`; no Player-Detail line | Scheduled-roadmap |
+| F-P6a-10 | P1 | REQ-317a–d | `index.ts:4677-4695` moves only the active entity, ignores door state, and omits the interior description in the entry moment | Scheduled-roadmap |
+| F-P6a-11 | P1 | REQ-320a–c | `world/model.ts:243-270` has no `narrative` category; `index.ts:4990-5003` matches NPCs outside the room | Scheduled-roadmap |
+| F-P6a-12 | P1 | REQ-202a/b, 222b, 325a, 309b | `index.ts:12542-12550` serves unfiltered resources; `room://`/`thing://` payloads incomplete; `world://kinds` has no `parser_commands`; Player override filter compares mechanic names to entity names | Scheduled-roadmap |
+| F-P6a-13 | P1 | REQ-309g | `index.ts:4526-4528` returns prose for Player spatial suggest, never `run_command (action: resolve)` | Scheduled-roadmap |
+| F-P6a-14 | P1 | REQ-198, REQ-199 | `index.ts:5289` creates an exit without binding a door; `:5177-5182` `update_room` is unaudited; `remove_room` orphans nested contents | Scheduled-roadmap |
+| F-P6a-15 | P3 | REQ-196f | `index.ts:4627` names the retired `convert_source` tool | Closed-P3 |
+| F-P6a-16 | P3 | REQ-319c, REQ-319d | `climb` hardcodes the `up` exit; `all` is not handled as a pronoun | Closed-P3 |
+| F-P6a-17 | P3 | REQ-320b, REQ-320c | `give`/`show` fall back outside the room; `throw` deposits in the current room; no-NPC `give` records `[OK]` | Closed-P3 |
+| F-P6a-18 | P3 | REQ-431d, REQ-622c | generated door-role objects carry no exit/doorRefs; `annotations.bundle_of` has no producer | Closed-P3 |

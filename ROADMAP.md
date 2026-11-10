@@ -14,13 +14,36 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunks P6–P7 (adapters and rulesets; determinism and knowledge).
+- Chunk P6b (ruleset packages and host entry points; Fate, Ironsworn, and
+  Forged base capabilities) and chunk P7 (determinism and knowledge).
 - Chunk P8 (narrative cognition) and the closing M1 machine-evidence re-run.
   Scope is §5.1–§5.35 except §5.9 and §5.19, which the 2026-11-09 seam pass
-  closed; §5.6 is complete and chunks P4–P5 closed 2026-11-09.
+  closed; §5.6 is complete and chunks P4, P5, and P6a closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P6;
-closes when chunks P6–P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P6b;
+closes when chunks P6b–P8 and the closing M1 pass report.
+
+## §5.10 world-model contract remediation (P1)
+
+- Parser response and help contracts: the `[UNIMPLEMENTED]` envelope with the
+  three nearest verbs, closed-container rule violation, numbered ambiguous
+  prompt, help category/description and aliases, the narrative verb category,
+  and status-line exits (REQ-196b, REQ-196c, REQ-196d, REQ-196e, REQ-197a,
+  REQ-283a, REQ-283b, REQ-318a, REQ-320a, REQ-320b, REQ-320c).
+- Hints, detail signal, and vehicle traversal: the REQ-284a–e hint shape and
+  reachability, the `detail` signal and Player-Detail line, and vehicle
+  interior/passenger/door handling (REQ-284a, REQ-284b, REQ-284c, REQ-284d,
+  REQ-284e, REQ-197c, REQ-197d, REQ-317a, REQ-317b, REQ-317c, REQ-317d).
+- Resources, suggest mapping, and CRUD lifecycle: badge-filtered `world://map`,
+  `world://kinds`, `room://`, and `thing://` payloads with `parser_commands`,
+  the Player `constraints://active` filter, Player spatial suggest mapping to
+  `run_command (action: resolve)`, and exit/door binding plus room audit and
+  removal cleanup (REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b, REQ-309g,
+  REQ-198, REQ-199).
+
+**Trigger:** the next session that takes §5.10 remediation work; closes when
+F-P6a-7–F-P6a-14 are `Resolved` in the review register.
+
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
 

@@ -1860,6 +1860,9 @@ let enumerationVerbosity: "summary" | "detail" = "summary";
 let outputVerbosity: "normal" | "terse" = "normal";
 // REQ-197 — room description mode, session-scoped (brief/verbose/normal).
 let roomDescriptionMode: "brief" | "verbose" | "normal" = "normal";
+// REQ-197b — rooms already described in `normal` mode; reset on Novel change.
+let visitedRooms = new Set<string>();
+let visitedRoomNovel = "";
 // REQ-319 — session-local parser state: last command (for `again`/`g`) and the
 // last referenced thing (for `it`/`them` pronoun resolution).
 let lastCommand: string = "";
@@ -4589,6 +4592,12 @@ server.registerTool("run_command", {
   if (cmdTrim === "verbose") { roomDescriptionMode = "verbose"; state.saveNovel(novel); return ok("Description mode: verbose (full descriptions every time)."); }
   if (cmdTrim === "normal") { roomDescriptionMode = "normal"; state.saveNovel(novel); return ok("Description mode: normal (full on first entry)."); }
   if (cmdTrim === "help" || cmdTrim === "verbs" || cmdTrim === "help verbs") {
+    // REQ-196a/REQ-309b — the parser is GM-only on a ruleset-bound Novel; the
+    // Player badge never sees the verb catalog. Ruleset-free Novels keep the
+    // parser as the primary Player surface (REQ-309h).
+    if (novel.ruleset && getBadge() === "player") {
+      return err("FORBIDDEN", "On a ruleset-bound Novel the parser is Game Master only. The Player may issue read-only perception commands (look, examine, search, inventory).");
+    }
     // REQ-283 — command("help") groups verbs by tier; command("verbs") is equivalent.
     return ok(renderVerbCatalog(novel.world));
   }
@@ -4690,7 +4699,10 @@ server.registerTool("run_command", {
   }
 
   const inventory = entity?.inventory ?? [];
-  const ctx = { world: novel.world, currentRoom, inventory, badge: getBadge() };
+  // REQ-197 — the description mode and the seen-room set are session-scoped:
+  // the set resets when the active Novel changes.
+  if (visitedRoomNovel !== novel.slug) { visitedRooms = new Set(); visitedRoomNovel = novel.slug; }
+  const ctx = { world: novel.world, currentRoom, inventory, badge: getBadge(), descriptionMode: roomDescriptionMode, seenRooms: visitedRooms };
   const result = dispatchCommand(command, ctx);
 
   // Apply side effects
@@ -5251,8 +5263,12 @@ server.registerTool("manage_world", {
       worldSnapshot();
       const thing = novel.world.things.get(args.name.toLowerCase());
       if (!thing) return err("NOT_FOUND", `Thing '${args.name}' not found.`);
-      const boolFields = ["fixed", "openable", "lockable", "locked", "lit", "switchable", "switched_on", "transparent", "readable", "wearable", "edible", "drinkable", "enterable", "climbable"];
+      const boolFields = ["openable", "lockable", "locked", "lit", "switchable", "switched_on", "transparent", "readable", "wearable", "edible", "drinkable", "enterable", "climbable"];
       for (const f of boolFields) if (args[f] !== undefined) (thing as any)[f] = args[f];
+      // REQ-198/REQ-200 — the tool exposes `fixed`; the state model stores its
+      // inverse (`portable`). Writing `thing.fixed` would leave `portable`
+      // untouched and the thing still takeable.
+      if (args.fixed !== undefined) thing.portable = !args.fixed;
       if (args.description !== undefined) thing.description = args.description;
       if (args.noise !== undefined) thing.noise = args.noise;
       if (args.scent !== undefined) thing.scent = args.scent;
@@ -6238,8 +6254,15 @@ server.registerTool("manage_scene", {
       const sceneRoomName = location || effectiveDescription;
       if (sceneRoomName) {
         const bareRoomName = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
-        const matchRoom = [...novel.world.rooms.entries()].find(([, r]) =>
-          sceneRoomName.toLowerCase().startsWith(r.name.toLowerCase()) || bareRoomName(sceneRoomName) === bareRoomName(r.name));
+        const wanted = sceneRoomName.toLowerCase();
+        // REQ-326a — case-insensitive substring match; when several rooms match,
+        // the closest by name length wins (a stand-in for word edit distance).
+        const candidates = [...novel.world.rooms.entries()].filter(([, r]) =>
+          r.name.toLowerCase().includes(wanted)
+          || wanted.includes(r.name.toLowerCase())
+          || bareRoomName(sceneRoomName) === bareRoomName(r.name));
+        const matchRoom = candidates.sort((a, b) =>
+          Math.abs(a[1].name.length - sceneRoomName.length) - Math.abs(b[1].name.length - sceneRoomName.length))[0];
         if (matchRoom) {
           // REQ-307/REQ-074 — place the whole present party, not only the
           // active entity, so a scene-location set co-locates the party (the
@@ -6506,7 +6529,14 @@ server.registerTool("manage_npc", {
       if (name !== undefined) npc.name = name;
       if (description !== undefined) npc.description = description;
       if (disposition !== undefined) npc.disposition = disposition;
-      if (location !== undefined) npc.location = location;
+      if (location !== undefined) {
+        npc.location = location;
+        // REQ-327a — re-register on update: clear the old room link and bind
+        // the new one when the location matches a world-model room.
+        delete npc.room_id;
+        const roomMatch = [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === location.toLowerCase());
+        if (roomMatch) npc.room_id = roomMatch.name.toLowerCase();
+      }
       if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
       if (args.persona !== undefined) npc.persona = args.persona; // REQ-077a
       if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
@@ -12301,7 +12331,15 @@ server.registerResource("roster", "roster://current", { title: "Character Roster
 server.registerResource("scene-current", "scene://current", { title: "Current Scene" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "scene://current", text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: "scene://current", text: JSON.stringify({ description: novel.scene_description, location: novel.scene_location, time_of_day: novel.scene_time_of_day, atmosphere: novel.scene_atmosphere, type: novel.scene_type }), mimeType: "application/json" }] };
+  // REQ-326b — carry the resolved room identity when the scene location names
+  // a world-model room, so consumers need not re-resolve it.
+  const bare = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
+  const sceneRoom = novel.scene_location
+    ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === novel.scene_location!.toLowerCase() || bare(r.name) === bare(novel.scene_location!))
+      ?? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase().includes(novel.scene_location!.toLowerCase()))
+      ?? null
+    : null;
+  return { contents: [{ uri: "scene://current", text: JSON.stringify({ description: novel.scene_description, location: novel.scene_location, room_id: sceneRoom?.name.toLowerCase() ?? null, room_name: sceneRoom?.name ?? null, time_of_day: novel.scene_time_of_day, atmosphere: novel.scene_atmosphere, type: novel.scene_type }), mimeType: "application/json" }] };
 });
 
 server.registerResource("scene-history", "scene://history", { title: "Scene History" }, async () => {

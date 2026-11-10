@@ -681,7 +681,21 @@ export function convertSource(source: string, existingWorld: WorldModel): { worl
       const thing = world.things.get(currentThing.toLowerCase());
       if (thing) {
         thing.location = placeMatch[2].trim();
-        thing.locationType = placeMatch[1].toLowerCase() === "on" ? "supporter" : "room";
+        // REQ-199/REQ-200 — an `in` placement binds the containing object, not
+        // the room: resolve the named parent so container contents are
+        // reachable (and gated by its open state) afterwards.
+        const parentNorm = (s: string) => s.toLowerCase().trim().replace(/^(?:the|an?)\s+/, "");
+        const parent = world.things.get(thing.location.toLowerCase())
+          ?? [...world.things.values()].find((candidate) => parentNorm(candidate.name) === parentNorm(thing.location!));
+        if (placeMatch[1].toLowerCase() === "on") {
+          thing.locationType = "supporter";
+        } else if (parent && (parent.kind === "container" || parent.openable)) {
+          thing.locationType = "container";
+        } else if (parent && parent.kind === "vehicle") {
+          thing.locationType = "vehicle";
+        } else {
+          thing.locationType = "room";
+        }
       }
       continue;
     }

@@ -87,6 +87,7 @@
     "test:g7": "tsx scripts/test-g7.ts",
     "test:tool-definitions": "tsx scripts/test-tool-definitions.ts",
     "test:world-provider": "tsx scripts/test-world-provider.ts",
+    "test:world-remediation": "tsx scripts/test-world-remediation.ts",
     "build:world-provider": "tsx scripts/generate-world-provider.ts",
     "check:world-provider": "tsx scripts/generate-world-provider.ts --check",
     "test:competitive-gaps": "tsx scripts/test-competitive-gaps.ts",

@@ -11,6 +11,38 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
+
+- **F-P6a-1 — `update_thing fixed` wrote a non-existent field (resolved 2026-11-09):**
+  `index.ts:5254` assigned `thing.fixed`; `WorldThing` stores `portable`
+  (`world/model.ts:193`), so a GM marking a thing fixed left it takeable.
+  Fixed at `index.ts:5258` (`thing.portable = !args.fixed`), asserted by
+  `test:world-remediation` (REQ-198, REQ-200).
+- **F-P6a-2 — room description modes were inert (resolved 2026-11-09):**
+  `roomDescriptionMode` (`index.ts:1862`) was set by `brief`/`verbose`/`normal`
+  but read nowhere; `handleLook` always emitted the full body. Fixed in
+  `world/parser.ts:247-285` (mode + session seen-set), wired at `index.ts:4699`,
+  asserted by `test:world-remediation` (REQ-197b).
+- **F-P6a-3 — container placement bound the room, not the container (resolved
+  2026-11-09):** `world/model.ts:683` set `locationType = "room"` for
+  `It is in <container>.`, so converted contents were unreachable even when the
+  container was open. Fixed at `world/model.ts:683-699` (resolve the parent by
+  bare name), asserted by `test:world-remediation` (REQ-199, REQ-200).
+- **F-P6a-4 — NPC location update did not re-register the NPC (resolved
+  2026-11-09):** `index.ts:6509` set `npc.location` without updating `room_id`,
+  which briefing and graph reads use. Fixed at `index.ts:6509-6517`
+  (REQ-327a; no new assertion — the create path is covered by the starter
+  harness).
+- **F-P6a-5 — scene identity was not carried on the resource (resolved
+  2026-11-09):** `scene://current` (`index.ts:12304`) omitted the resolved room,
+  and `manage_scene` matched locations by prefix only. Fixed at
+  `index.ts:12304-12316` (`room_id`/`room_name`) and `:6241-6250` (substring
+  match, closest-length tie-break) (REQ-326a, REQ-326b).
+- **F-P6a-6 — the parser catalog leaked to the Player badge (resolved
+  2026-11-09):** the `help`/`verbs` branch (`index.ts:4591`) returned the catalog
+  before the ruleset-bound badge gate at `:4610`. Fixed with an explicit guard
+  in the branch (`index.ts:4591-4598`) (REQ-196a, REQ-309b).
+
 ### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
 
 - **F-P5-1 — a branch slice shared its `alternatives` array with the source (resolved 2026-11-09):**
@@ -1129,6 +1161,66 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
+
+- **F-P6a-7 — parser response and help contracts (2026-11-09):** the unknown-verb
+  path (`holonovel/src/world/parser.ts:111-117`) returns `[ERROR] [NOT_FOUND]`
+  instead of the `[UNIMPLEMENTED]` envelope with three nearest valid verbs; a
+  take from a closed container reports `NOT_FOUND` rather than a rule violation
+  (`:398`); the ambiguous-object prompt is unnumbered (`:384`); `help` lacks the
+  required category/description body and the `commands`/`what can I do?` aliases
+  (`index.ts:4591`); `jump` is advertised without a dispatch case and `touch`
+  is missing from the catalog (`world/model.ts:1033`); exits are appended to the
+  room-description body (`world/parser.ts:306`) instead of status-line context.
+  REQ-196b, REQ-196c, REQ-196d, REQ-196e, REQ-197a, REQ-283a, REQ-283b,
+  REQ-318a. Scheduled under `ROADMAP.md` § §5.10 world-model contract
+  remediation (P1).
+- **F-P6a-8 — implicit action hints (2026-11-09):** locked/open failures return
+  `[WARNING]` plus a separate `Corrective action: Hint:` line
+  (`holonovel/src/world/parser.ts:469`; `index.ts:4907`) rather than
+  `[RULE_VIOLATION] … Hint: You need the <object> (<location>) first.`, and the
+  readable-inside-a-closed-container and adjacent-room vehicle/climbable hints
+  are absent (`:656-657`, `:675-679`). REQ-284a, REQ-284b, REQ-284c, REQ-284d,
+  REQ-284e. Scheduled under `ROADMAP.md` § §5.10 world-model contract
+  remediation (P1).
+- **F-P6a-9 — detail signal and Player-Detail line (2026-11-09):**
+  `manage_character (action: signal)` has no `detail` value
+  (`holonovel/src/index.ts:3873`) and `badge_briefing` renders no Player-Detail
+  line (`:13933-13936`). REQ-197c, REQ-197d. Scheduled under `ROADMAP.md` §
+  §5.10 world-model contract remediation (P1).
+- **F-P6a-10 — vehicle traversal (2026-11-09):** aboard a vehicle, movement
+  ignores the door state and moves only the active entity
+  (`holonovel/src/index.ts:4677-4688`); the `[vehicle-entry]` moment omits the
+  interior description (`:4929`); the interior is not modelled as a room.
+  REQ-317a, REQ-317b, REQ-317c, REQ-317d. Scheduled under `ROADMAP.md` § §5.10
+  world-model contract remediation (P1).
+- **F-P6a-11 — narrative-intent verbs (2026-11-09):** no `narrative` parser
+  category or catalog entries (`holonovel/src/world/model.ts:243-270`), help
+  lists the verbs flat (`index.ts:4916-4921`), NPC resolution falls back to any
+  room (`:4990`, `:5003`), and `throw` deposits in the current room (`:4974`).
+  REQ-320a, REQ-320b, REQ-320c. Scheduled under `ROADMAP.md` § §5.10 world-model
+  contract remediation (P1).
+- **F-P6a-12 — world resources and badge filtering (2026-11-09):**
+  `world://map` and `world://kinds` are served without a badge read
+  (`holonovel/src/index.ts:12542-12550`); `room://` omits visible things and
+  hazard annotations and `thing://` omits most properties and the containment
+  chain (`:12513-12537`); `world://kinds` exposes no `parser_commands` with
+  source (`world/model.ts:1005-1008`); the Player `constraints://active` filter
+  compares a mechanic name to an entity name (`index.ts:12760-12762`).
+  REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b. Scheduled under
+  `ROADMAP.md` § §5.10 world-model contract remediation (P1).
+- **F-P6a-13 — Player spatial suggest never maps to resolve (2026-11-09):**
+  `holonovel/src/index.ts:4526-4528` returns narrator-directed prose for the
+  Player badge on a ruleset-bound Novel instead of naming
+  `run_command (action: resolve)`. REQ-309g. Scheduled under `ROADMAP.md` §
+  §5.10 world-model contract remediation (P1).
+- **F-P6a-14 — CRUD lifecycle gaps (2026-11-09):** `create_exit`
+  (`holonovel/src/index.ts:5289`) writes no `doorRefs`, so a door created
+  through CRUD never blocks passage; `update_room` (`:5177-5182`) is not
+  audit-logged; `remove_room` leaves nested container contents and stale
+  door references. REQ-198, REQ-199. Scheduled under `ROADMAP.md` § §5.10
+  world-model contract remediation (P1).
+
 ### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
 
 - **F-P5-5 — REQ-612 `list` has no GM-order source (2026-11-09):**
@@ -1607,6 +1699,29 @@ against Appendix F and the harness corpus, not on a gate message.
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
+
+- **F-P6a-15 — stale tool name in the empty-world message (2026-11-09):**
+  `holonovel/src/index.ts:4627` directs the GM to `` `convert_source` ``, a
+  retired tool; the live surface is `manage_world (action: convert)`. REQ-196f.
+  A message-only defect; the corrective action still leads to the right surface.
+- **F-P6a-16 — climb link and `all` pronoun (2026-11-09):** `climb` always
+  routes to the `up` exit and `convert` never registers the climbable as that
+  exit's door (`holonovel/src/index.ts:4833-4834`,
+  `holonovel/src/world/model.ts:880-931`); `all` is not handled as a pronoun
+  (`index.ts:4600-4604`). REQ-319c, REQ-319d. The `climbable` property and the
+  `it`/`them` pronouns work; the uncovered remainder is a narrow convenience.
+- **F-P6a-17 — narrative-verb NPC scope (2026-11-09):** `give`/`show` fall back
+  to an NPC outside the room and `throw` deposits the item in the current room
+  (`holonovel/src/index.ts:4974`, `:4990`, `:5003`); a no-NPC `give` records
+  `[OK]` instead of `[WARNING]` (`:4995`). REQ-320b, REQ-320c. Folded into
+  F-P6a-11's scheduled remediation; no separate action.
+- **F-P6a-18 — generation and bundle bookkeeping (2026-11-09):** generated
+  door-role objects carry no exit/`doorRefs` (`holonovel/src/index.ts:5433`) and
+  `annotations.bundle_of` has no producer (`index.ts:4384`). REQ-431d,
+  REQ-622c. Both are bookkeeping gaps in paths that otherwise validate; the
+  review records them without scheduling a distinct fix.
 
 ### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
 

@@ -8,6 +8,10 @@ export interface ParserContext {
   currentRoom: string | null;
   inventory: string[]; // thing lowercased names
   badge: string | null;
+  /** REQ-197 — session-scoped room description mode (default `normal`). */
+  descriptionMode?: "brief" | "verbose" | "normal";
+  /** REQ-197b — rooms already described this session, for `normal` first-entry only. */
+  seenRooms?: Set<string>;
 }
 
 export interface ParserResult {
@@ -252,6 +256,21 @@ function handleLook(ctx: ParserContext): ParserResult {
   const room = getRoom(ctx.currentRoom, ctx);
   if (!room) {
     return { prefix: "ERROR", code: "NOT_FOUND", text: `Room '${ctx.currentRoom}' not found.` };
+  }
+
+  // REQ-197b — `brief` returns name + exits; `normal` returns the full body on
+  // first entry and name + exits afterwards; `verbose` always returns the full
+  // body. The seen-set is session-scoped and owned by the caller.
+  const mode = ctx.descriptionMode ?? "normal";
+  const roomKey = room.name.toLowerCase();
+  const alreadySeen = ctx.seenRooms?.has(roomKey) ?? false;
+  ctx.seenRooms?.add(roomKey);
+  if (mode === "brief" || (mode === "normal" && alreadySeen)) {
+    const directions = [...room.exits.keys()];
+    return {
+      prefix: "OK",
+      text: `${room.name}\n\n${directions.length > 0 ? `Exits: ${directions.join(", ")}.` : "There are no obvious exits."}`,
+    };
   }
 
   let text = `${room.name}\n${room.description || "There is nothing special about this place."}`;

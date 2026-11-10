@@ -40,6 +40,7 @@ const TESTS = [
   "test:narrative",
   "test:memory-recall",
   "test:adventure",
+  "test:world-remediation",
   "test:artifact-registry",
   "test:hazard",
   "test:g7",

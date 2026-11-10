@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P6a (world model and the adapter seam)
+
+- Chunk P6 split in two because the whole surface is 180 REQs across 86 family
+  rows. P6a reviews the world-model layer — `world/model.ts`, `world/parser.ts`,
+  the `manage_world`/`run_command` handlers, the world resources, and the
+  generated `world://kinds` document — against §5.10 (82 REQs), §5.11 (6),
+  §5.13 (13), and §5.15 (6). The sweep worklist carries a 107-REQ verdict
+  table, a 16-row behaviour table, and four cluster verdicts.
+- Six P0s are fixed with a new `test:world-remediation` harness.
+  `update_thing fixed` wrote a non-existent `thing.fixed` field instead of
+  `portable`, leaving a "fixed" thing takeable (REQ-198/200; F-P6a-1). The
+  `brief`/`verbose`/`normal` room modes were stored but never read (REQ-197b;
+  F-P6a-2). `It is in <container>.` bound the room, so converted container
+  contents were unreachable (REQ-199/200; F-P6a-3). `manage_npc (action: update)`
+  changed `location` without re-registering `room_id` (REQ-327a; F-P6a-4).
+  `scene://current` omitted the resolved room and scene matching was
+  prefix-only (REQ-326a/b; F-P6a-5). The parser `help`/`verbs` catalog answered
+  before the ruleset-bound badge gate, exposing verb names to the Player badge
+  (REQ-196a/309b; F-P6a-6).
+- Eight P1 findings are scheduled under the new *§5.10 world-model contract
+  remediation* roadmap section: parser response envelopes and help, implicit
+  hints, the `detail` signal, vehicle traversal, narrative-intent verbs, world
+  resource payloads and badge filtering, Player spatial suggest, and the CRUD
+  exit/door/audit lifecycle (F-P6a-7 … F-P6a-14).
+- Four P3 notes are recorded and closed (F-P6a-15 … F-P6a-18). Holosuite
+  evidence anchors shifted by the fixes are repointed; chunk P6b (ruleset
+  packages) is the next sweep item.
+
 ## 2026-11-09 — Full-review sweep: chunk P5 (engine loop, event stream, agent tasks)
 
 - Chunk P5 reviews the engine loop and event path — `core/event-log.ts`,
