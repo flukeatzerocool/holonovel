@@ -15,7 +15,7 @@ import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { extractH2Headings, changedReqBodies } from "./lib/parse-spec.js";
-import { classifyDelta } from "./lib/spec-delta-classify.js";
+import { classifyDelta, hasEditorialDisposition } from "./lib/spec-delta-classify.js";
 import { SERVERS } from "./lib/servers.js";
 
 // --root points the classifier at a fixture repository (hermetic self-test);
@@ -126,15 +126,6 @@ function lastPublishedStoredHash(baseRef: string | null): { hash: string; ref: s
     if (m) return { hash: m[1], ref };
   }
   return null;
-}
-
-function hasEditorialDisposition(decisions: string, modified: string[]): boolean {
-  const editorial = decisions.match(/\| Delta class\s*\|\s*editorial\s*\|/i);
-  if (!editorial) return false;
-  // The Editorial disposition must name the repaired REQ set.
-  const repaired = decisions.match(/Repaired REQ set[^\n]*/i)?.[0] ?? "";
-  const named: string[] = [...repaired.matchAll(/REQ-([0-9]+[a-z0-9]*)/gi)].map(mm => mm[1]);
-  return modified.every(id => named.some(n => n === id || n === id.replace(/[a-z0-9]+$/, "")));
 }
 
 const decisions = readFileSync(DECISIONS_PATH, "utf-8");

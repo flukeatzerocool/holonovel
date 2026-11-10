@@ -43,7 +43,20 @@ export function classifyDelta(shape: DeltaShape): DeltaClassification {
   const toolSurfaceChanged = families.some((id) => TOOL_SURFACE_REQS.includes(id));
   const hasMajorTrigger = hasNewSections || stateModelChanged || toolSurfaceChanged;
 
-  if (hasModified && !hasNew && !hasRemoved && !hasNewSections && shape.editorial) return "editorial";
+  if (hasModified && !hasNew && !hasRemoved && !hasNewSections && !hasMajorTrigger && shape.editorial) return "editorial";
   if (!hasNew && !hasRemoved && !hasModified && !hasNewSections) return "patch";
   return hasMajorTrigger ? "major" : "minor";
+}
+
+// REQ-419 — an Editorial disposition is valid only when it names the repaired
+// REQ set. Kept beside `classifyDelta` because the two are the whole
+// classification contract, and because `spec-delta.ts` and its self-test both
+// consume this rule.
+export function hasEditorialDisposition(decisions: string, modified: string[]): boolean {
+  const editorial = decisions.match(/\| Delta class\s*\|\s*editorial\s*\|/i);
+  if (!editorial) return false;
+  // The Editorial disposition must name the repaired REQ set.
+  const repaired = decisions.match(/Repaired REQ set[^\n]*/i)?.[0] ?? "";
+  const named: string[] = [...repaired.matchAll(/REQ-([0-9]+[a-z0-9]*)/gi)].map((mm) => mm[1]);
+  return modified.every((id) => named.some((n) => n === id || n === id.replace(/[a-z0-9]+$/, "")));
 }

@@ -12,21 +12,17 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.16–§5.18 citation repair (P1)
+## §5.16–§5.17 capability citation gaps (P1)
 
-- §5.16/§5.17: write or re-point the missing assertions for the listing,
-  health, import/export, codex, suggest, pagination, package-integrity, and
-  Ironsworn-burn contracts (REQ-379c, REQ-381c, REQ-383b, REQ-384c, REQ-385b,
-  REQ-386b, REQ-387b, REQ-389b, REQ-389c, REQ-391b, REQ-391c, REQ-393,
-  REQ-439).
-- §5.18: write or re-point the missing assertions for the entry points,
-  publication integrity, supplement provenance, and package emission
-  (REQ-395a, REQ-395b, REQ-398, REQ-419, REQ-557, REQ-563, REQ-564). T465,
-  T466, T491, and T510 are exercised as of 2026-11-10 (§5.18 remediation).
+- Description budget: T459's "every tool description fits the build-time budget
+  recorded in DECISIONS.md" clause has no harness; the output-contracts case
+  asserts only `spec_health.tools_list_bytes` (REQ-392; F-P6b-27).
+- Ruleset tool set: REQ-391b's "a single ruleset's tool set on demand, distinct
+  from the default listing" has no surface — `tools/list` is the only listing
+  and it is the scoped default (REQ-391b; F-P6b-28).
 
-**Trigger:** the next citation-remediation session; closes when F-P6b-21 is
-`Resolved` and every §5.16–§5.18 `_Check:_` citation resolves to an exercised
-harness.
+**Trigger:** the next capability-remediation session; closes when F-P6b-27 and
+F-P6b-28 are `Resolved` in the review register.
 
 ## §5.10 world-model contract remediation (P1)
 

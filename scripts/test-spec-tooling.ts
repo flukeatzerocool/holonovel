@@ -18,7 +18,7 @@ import { readSpec, extractReqBodies, extractReqHeaders, changedReqBodies } from 
 import { parseRecordedBudgets } from "./lib/surface-record.js";
 import { hasUnfilledVerification, hasFingerprintDelta, isLegacyDeltaExempt, isPlaceholderVerification, renderFingerprintDelta } from "./lib/spec-update.js";
 import { hashFile } from "./lib/hash.js";
-import { classifyDelta, reqFamily } from "./lib/spec-delta-classify.js";
+import { classifyDelta, hasEditorialDisposition, reqFamily } from "./lib/spec-delta-classify.js";
 import { sameRemote } from "./lib/remote-url.js";
 
 const root = join(import.meta.dirname, "..");
@@ -96,6 +96,30 @@ function main(): void {
   check(classifyDelta(shape(["999"])) === "minor", "an unrelated REQ edit classifies minor");
   check(classifyDelta(shape(["999"], true)) === "editorial", "an editorial disposition classifies editorial");
   check(classifyDelta(shape([])) === "patch", "an empty delta classifies patch");
+
+  // T492/REQ-419 + REQ-394 — a body-only delta is never patch; only a
+  // disposition that names the repaired REQ set makes it editorial, and a
+  // disposition cannot lower a state-model or tool-surface body change out of
+  // the major class. A minority/small delta still trips REQ-394's pending gate
+  // when the fingerprints did not advance (T462, T84e); that half is not
+  // re-asserted here.
+  const editorialDecisions = "| Delta class | editorial |\n| Repaired REQ set | REQ-999 |\n";
+  const shortDecisions = "| Delta class | editorial |\n| Repaired REQ set | REQ-777 |\n";
+  check(hasEditorialDisposition(editorialDecisions, ["999"]), "a disposition naming the REQ set is accepted");
+  check(!hasEditorialDisposition(shortDecisions, ["999"]), "a disposition naming a different REQ set is rejected");
+  check(!hasEditorialDisposition("| Delta class | minor |\n| Repaired REQ set | REQ-999 |\n", ["999"]), "a minor-class row is not an Editorial disposition");
+  check(
+    classifyDelta(shape(["999"], hasEditorialDisposition(editorialDecisions, ["999"]))) === "editorial",
+    "T492/REQ-419: a body-only delta with a naming disposition classifies editorial",
+  );
+  check(
+    classifyDelta(shape(["999"], hasEditorialDisposition(shortDecisions, ["999"]))) === "minor",
+    "T492/REQ-419: a disposition that omits the repaired REQ set cannot classify editorial",
+  );
+  check(
+    classifyDelta(shape(["025"], hasEditorialDisposition("| Delta class | editorial |\n| Repaired REQ set | REQ-025 |\n", ["025"]))) === "major",
+    "T492/REQ-419: a disposition cannot lower a tool-surface body change below major",
+  );
 
   // F1 (2026-10-31) — remote identity ignores spelling. The first pair is the
   // exact mismatch that aborted a real deploy (REQ-418).
@@ -333,6 +357,24 @@ function main(): void {
   check(/git", \["reset", "-q", "--", "\.holonovel-state\/wiki"\]/.test(steps), "pipeline resets the wiki mirror pages out of the index");
   check(!/"\$DEPLOY_REMOTE"\s*!=\s*"\$WORKSPACE_REMOTE"/.test(pipeline), "pipeline compares remotes by identity, not raw text (REQ-418)");
   check(/remote-url\.(ts|js)/.test(preflight), "pipeline uses the shared remote-identity helper");
+
+  // T464/REQ-395b — every §6.1 workflow named by the requirement has an
+  // Appendix V runbook carrying an entry point, a happy-path passage, and
+  // recovery steps, and §0 reaches Appendix V. V.3 states its happy path as
+  // prose rather than a numbered list, so the check matches the label, not a
+  // list shape.
+  const runbooks = readFileSync(join(root, "spec", "appendices-runbooks.md"), "utf-8");
+  const readingGuide = readFileSync(join(root, "spec", "01-foundations.md"), "utf-8");
+  const sections = runbooks.split(/^### /m).slice(1);
+  for (const workflow of ["Convert", "Build", "Synthesize", "Update"]) {
+    const section = sections.find((s) => s.split("\n")[0].includes(workflow));
+    check(Boolean(section), `T464/REQ-395b: Appendix V carries a ${workflow} runbook`);
+    if (!section) continue;
+    for (const label of ["**Entry point.**", "**Happy path.**", "**Recovery.**"]) {
+      check(section.includes(label), `T464/REQ-395b: the ${workflow} runbook carries ${label}`);
+    }
+  }
+  check(/Appendix V \(Workflow Runbooks\)/.test(readingGuide), "T464/REQ-395b: the reading guide reaches Appendix V");
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

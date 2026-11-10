@@ -357,14 +357,14 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-388 | Holodeck config discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T450 | — |
 | REQ-389 | Ruleset package format (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T452, T453 | — |
 | REQ-390 | Lazy ruleset hydration (Part a) (2 sub-parts) | 5.17 Ruleset Packages | C | T454, T455 | — |
-| REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456, T458 | — |
+| REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456, T457, T458 | — |
 | REQ-392 | Tool-description budget | 5.17 Ruleset Packages | C | T479, T459 | — |
-| REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460 | — |
+| REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460, T498 | — |
 | REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T84e | — |
 | REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T463, T650, T689 | — |
 | REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | — | — |
 | REQ-397 | Untracked state location | 5.18 Workflow Entry Points | C | T466 | — |
-| REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | — | — |
+| REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | T462 | — |
 | REQ-399 | Character-creation package data (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T468 | — |
 | REQ-400 | State-Persistence Directive | 5.19 State Persistence Guardrails | C | T469 | — |
 | REQ-401 | State ledger briefing token | 5.19 State Persistence Guardrails | C | T470 | — |

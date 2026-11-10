@@ -3,7 +3,8 @@
 // Exercises T498–T504 and T773–T775: package-format fingerprint (REQ-420), source registry
 // (REQ-421), update entry point (REQ-422), data-format fingerprint (REQ-423),
 // migration entry point (REQ-424), legacy-artifact transition (REQ-420/423),
-// and migration-failure preservation (REQ-424). Each test name carries the
+// update preservation (T460/REQ-393), and migration-failure preservation
+// (REQ-424). Each test name carries the
 // T-ID(s) it exercises so the coverage register can promote the REQ to C.
 //
 // The server-side fingerprint tests boot a real server against a temp data dir;
@@ -208,6 +209,64 @@ async function main() {
     });
 
     await kill(proc);
+  }
+
+  // ── T460 (REQ-393) — an update preserves data across the fingerprint gate ──
+  {
+    // Package state and user data are seeded together so one boot observes
+    // both sides of REQ-393: the stale package is held inactive, the current
+    // one stays loaded with its installed data, and the user files survive
+    // byte-for-byte.
+    seedInstallDir(join(DATA_DIR, "rulesets"));
+    seedStateFixtures(DATA_DIR);
+    const hashFile = (path: string): string => createHash("sha256").update(readFileSync(path)).digest("hex");
+    const userFiles = ["roster.json", "codex.json", "server-notes.json"].map((f) => join(DATA_DIR, f));
+    // The Novel is compared without its data_format stamp: activation re-stamps
+    // it (REQ-652), so the stamp is the one field an update may touch.
+    const novelPath = join(DATA_DIR, "novels", "prior-novel.json");
+    const novelBody = (): string => {
+      const parsed = JSON.parse(readFileSync(novelPath, "utf-8"));
+      delete parsed.data_format;
+      return JSON.stringify(parsed);
+    };
+    const packageFiles = ["manifest.json", "index.json", "model.json", "tools.json", "resources.json", "prompts.json"]
+      .map((f) => join(DATA_DIR, "rulesets", "current", f));
+
+    const before = {
+      user: userFiles.map(hashFile),
+      novel: novelBody(),
+      pkg: packageFiles.map(hashFile),
+    };
+
+    const first = await boot();
+    await call(first, "set_badge", { badge: "game_master" });
+    await call(first, "manage_novel", { action: "create",  name: "update-novel" });
+    await kill(first);
+
+    const second = await boot();
+    await test("T460/REQ-393: a compatible package stays loaded and both data tiers survive a restart", async () => {
+      const health = JSON.parse(await call(second, "manage_diagnostics", { action: "health" }));
+      const alerts: { slug: string; reason: string }[] = health.ruleset_package_alerts ?? [];
+      if (alerts.some((a) => a.slug === "current")) throw new Error("the compatible package was flagged");
+      const inactive = alerts.find((a) => a.slug === "stale");
+      if (!inactive) throw new Error("the incompatible package was not flagged");
+      assertContains(inactive.reason, "[package-incompatible]");
+      // Held inactive: a Novel cannot bind it, while the compatible slug binds.
+      const refused = await call(second, "manage_novel", { action: "create",  name: "held-inactive", ruleset: "stale" });
+      assertContains(refused, "not installed");
+      const bound = await call(second, "manage_novel", { action: "create",  name: "compatible", ruleset: "current" });
+      assertContains(bound, "compatible");
+      // Indexed data intact: the installed package was not re-extracted.
+      for (let i = 0; i < packageFiles.length; i++) {
+        if (hashFile(packageFiles[i]!) !== before.pkg[i]) throw new Error(`package file changed: ${packageFiles[i]}`);
+      }
+      // User data byte-for-byte across the restart.
+      for (let i = 0; i < userFiles.length; i++) {
+        if (hashFile(userFiles[i]!) !== before.user[i]) throw new Error(`user data changed: ${userFiles[i]}`);
+      }
+      if (novelBody() !== before.novel) throw new Error("Novel content changed across the update");
+    });
+    await kill(second);
   }
 
   // ── T501 + T503 (data side) — data-format fingerprint gate ────────

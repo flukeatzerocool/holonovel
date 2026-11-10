@@ -11,6 +11,44 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-10 §5.16–§5.18 citation repair
+
+- **F-P6b-21 — §5.16–§5.18 citation gaps (resolved 2026-11-10):** the eight
+  §5.16/§5.17 contracts the 2026-11-10 remediation sessions shipped are
+  exercised by T440 (`test-ruleset-surface-remediation.ts:173`), T442 (`:225`),
+  T444 (`:252`), T446 (`:292`), T445 (`:332`), T447 (`:352`), T458 (`:196`), and
+  T525 (`test-ironsworn.ts:100`); the §5.18 contracts by T463
+  (`test-fingerprints.ts:275`), T650 (`:298`), T656
+  (`test-ruleset-gates.ts:328`), and T657 (`test-fingerprints.ts:326`). Four
+  citations were re-pointed: REQ-387b now cites T448 — the codex ruleset axis
+  (`test-ruleset-surface-remediation.ts:373`) — instead of T431, which is the
+  Pattern Buffer row; REQ-391b's schema clause is carried by the T457 token on
+  T720 (`test-selection.ts:204`); REQ-398 cites T467, whose two halves are the
+  pipeline deploy checks (`scripts/test-push-pipeline.ts:144,307`), plus T462
+  and T491; REQ-393 cites T498 as well as T460. Two assertions were written:
+  T464 (`scripts/test-spec-tooling.ts:371`: the Appendix V Convert/Build/
+  Synthesize/Update runbooks each carry an entry point, a happy-path passage,
+  and recovery steps, and §0 reaches Appendix V) and T492
+  (`scripts/test-spec-tooling.ts:113-121`: a body-only delta is Minor without a
+  disposition naming the repaired REQ set, Editorial with one, and never
+  Editorial for a state-model or tool-surface body change). T460 moved from a
+  numeric-only check to a real assertion (`test-fingerprints.ts:247`: the
+  compatible package stays loaded with its installed files unchanged, the
+  incompatible one is `[package-incompatible]` and held inactive, and
+  roster/codex/server-notes survive byte-for-byte when the Novel is compared
+  without its re-stamped `data_format`). The T492 case exposed a real ordering
+  hole — `classifyDelta` returned `editorial` before consulting the major
+  triggers (`scripts/lib/spec-delta-classify.ts:46`), letting an Editorial
+  disposition lower a tool-surface contract change — now fail-closed; the
+  interpretation is that the family predicate is the mechanical proxy for
+  "REQ scope actually changed" (REQ-419), so a typo repair inside a
+  state-model or tool-surface REQ classifies major rather than editorial.
+  `hasEditorialDisposition` moved beside `classifyDelta` (`:55`) so the
+  self-test asserts the same rule. REQ-379c, REQ-381c, REQ-383b, REQ-384c,
+  REQ-385b, REQ-386b, REQ-387b, REQ-389b, REQ-389c, REQ-391b, REQ-391c,
+  REQ-393, REQ-394, REQ-395a, REQ-395b, REQ-398, REQ-419, REQ-439, REQ-557,
+  REQ-563, REQ-564.
+
 ### 2026-11-10 §5.21–§5.23 capability remediation
 
 - **F-P6b-17 — Forged resist does not reduce a named consequence (resolved
@@ -1471,6 +1509,22 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-10 §5.16–§5.17 capability citation gaps
+
+- **F-P6b-27 — REQ-392 cites T459 whose description-budget clause no harness
+  asserts (2026-11-10):** T459's row requires "every tool description fits the
+  build-time budget recorded in DECISIONS.md"; no harness computes that, and
+  the output-contracts case asserts only `spec_health.tools_list_bytes`
+  (`holonovel/scripts/test-output-contracts.ts:1810-1812`).
+  `spec/02-requirements.md:3958`, `spec/appendices-reference.md:1914`.
+  Scheduled under §5.16–§5.17 capability citation gaps.
+- **F-P6b-28 — REQ-391b's ruleset tool-set clause has no surface (2026-11-10):**
+  the requirement names "a single ruleset's tool set on demand, distinct from
+  the default listing", but `tools/list` is the only listing and it is the
+  scoped default (`holonovel/src/index.ts:15360-15385`), so the clause is
+  unimplemented rather than mis-cited. `spec/02-requirements.md:3952`.
+  Scheduled under §5.16–§5.17 capability citation gaps.
+
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
@@ -1490,19 +1544,6 @@ T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
 
-
-### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
-
-- **F-P6b-21 — §5.16–§5.18 citation gaps (2026-11-09):** absent or
-  non-exercising assertions — T440, T442–T447, T451, T457, T458, T463–T464,
-  T467, T492; weak T454, T455, T456, T459, T460, T462,
-  T499; and T431 is cited for codex though it is the Pattern Buffer
-  traceability test. T465, T466, T491, and T510 are exercised as of
-  2026-11-10 (§5.18 remediation); T650, T656, and T657 as of 2026-11-10.
-  REQ-379c, REQ-381c, REQ-383b, REQ-384c, REQ-385b, REQ-386b, REQ-387b,
-  REQ-389b, REQ-389c, REQ-391b, REQ-391c, REQ-393, REQ-395a, REQ-395b,
-  REQ-398, REQ-419, REQ-439.
-  Scheduled under §5.16–§5.18 citation repair.
 
 ### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
 

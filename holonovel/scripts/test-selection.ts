@@ -9,6 +9,8 @@
  * T688 (REQ-588): the search result budget reports suppressed results, truncates
  * an oversized passage with a resolving ruleset:// pointer, and reports the
  * configured bound.
+ * T720/T457 (REQ-609/REQ-391b): `discover (detail: schema)` returns a matched
+ * tool's full input schema while the summary stays the default.
  *
  * Exit codes: 0 = pass, 1 = one or more assertions failed.
  */
@@ -199,7 +201,7 @@ async function main(): Promise<void> {
       }
     });
 
-    await test("T720/REQ-609: discover discloses schemas on demand and keeps the summary default", async () => {
+    await test("T720/T457/REQ-609/REQ-391b: discover discloses schemas on demand and keeps the summary default", async () => {
       const summary = await text(proc, "manage_context", { action: "discover", query: "npc" });
       assert(!summary.trim().startsWith("{"), "default discover returned a schema payload");
       const body = await text(proc, "manage_context", { action: "discover", query: "npc", detail: "schema" });

@@ -141,7 +141,7 @@ function main(): void {
     const full = runPipeline(work, ["--yes", "--allow-untracked"], deploy);
     check("full run exits 0", full.status === 0, full.output.split("\n").slice(-3).join(" | "));
     check("push reached the bare remote", (tryGit(base, ["--git-dir", join(base, "remote.git"), "rev-parse", "main"]) ?? "") === git(work, ["rev-parse", "HEAD"]));
-    check("deploy clone landed on the published head", git(deploy, ["rev-parse", "HEAD"]) === git(work, ["rev-parse", "HEAD"]));
+    check("T467/REQ-398: deploy clone landed on the published head", git(deploy, ["rev-parse", "HEAD"]) === git(work, ["rev-parse", "HEAD"]));
     // T491/REQ-418 — this run is stubbed, so verification did not run and the
     // summary must not claim a completed deploy (F-P6b-13).
     check("a stubbed verification does not report a completed deploy", full.output.includes("deploy=false"), full.output.split("\n").slice(-2).join(" | "));
@@ -304,7 +304,7 @@ function main(): void {
     git(deploy, ["commit", "-q", "-m", "local deploy commit"]);
     const diverged = runPipeline(work, ["--yes", "--only", "deploy"], deploy);
     check(
-      "T491/REQ-418: a non-fast-forward pull names the server and fails",
+      "T467/T491/REQ-398/REQ-418: a non-fast-forward pull names the server and fails",
       diverged.status === 1 &&
         diverged.output.includes("deploy-failed") &&
         diverged.output.includes("holonovel"),

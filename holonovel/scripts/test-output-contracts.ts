@@ -1788,7 +1788,7 @@ async function main() {
     await kill(p);
   });
 
-  await test("T460/REQ-393 + T459/REQ-392 + T456/REQ-391: update preservation, tool budget, scoped listing", async () => {
+  await test("T459/REQ-392 + T456/REQ-391: tool budget and scoped listing", async () => {
     seedRuleset();
     const p = await boot();
     // REQ-391a — with no Novel active the default listing is infrastructure
@@ -1807,7 +1807,7 @@ async function main() {
     if (!boundNames.some((n: string) => n.startsWith("wave1test_"))) throw new Error("default listing omitted the active ruleset's tools");
     if (!boundNames.includes("manage_novel")) throw new Error("bound default listing omitted infrastructure tools");
     const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
-    if (typeof h.rulesets_hydrated !== "number") throw new Error("REQ-393 update preservation");
+    if (typeof h.rulesets_hydrated !== "number") throw new Error("rulesets_hydrated missing");
     if (typeof h.tools_list_bytes !== "number") throw new Error("REQ-392 tools_list_bytes");
     const list = await call(p, "manage_ruleset", { action: "list" });
     assertContains(list, "wave1test", "REQ-391 scoped listing");

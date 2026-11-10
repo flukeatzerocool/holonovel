@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-10 — §5.16–§5.18 citation repair
+
+- Citation repair across §5.16–§5.18: REQ-387b cites T448 (the codex ruleset
+  axis) instead of T431 (the Pattern Buffer row); REQ-391b's schema clause is
+  carried by the T457 token on T720; REQ-398 cites T467, T462, and T491;
+  REQ-393 cites T498 as well as T460 (REQ-387b, REQ-391b, REQ-393, REQ-398).
+- New assertions: T464 checks the Appendix V Convert/Build/Synthesize/Update
+  runbooks and the §0 pointer; T492 checks the editorial-classification rule;
+  T460 moved from a numeric-only check to a real update-preservation assertion
+  that holds the compatible package loaded and the user data byte-identical
+  across a restart (REQ-395b, REQ-419, REQ-393).
+- Editorial classification is fail-closed: `classifyDelta` consults the
+  state-model and tool-surface major triggers before accepting an Editorial
+  disposition, so a disposition can no longer lower a contract-bearing body
+  change; `hasEditorialDisposition` moved beside it so the self-test asserts
+  the same rule (REQ-419).
+- Closed F-P6b-21 and retired its roadmap section; opened F-P6b-27 (REQ-392's
+  description-budget clause) and F-P6b-28 (REQ-391b's ruleset tool-set clause)
+  as scheduled capability gaps (REQ-392, REQ-391b).
+- Verification: `test:spec-tooling` 78/78, `test:fingerprints` 16/16,
+  `test:selection` 10/10, `test:output-contracts` 358/358, `test:pipeline`
+  27/27, `test:ruleset-surface-remediation` 16/16, `test:update-workflow`
+  20/20, `test:ironsworn` 4/4, `check-registers`, `check-roadmap`,
+  `check:fast`.
+
 ## 2026-11-10 — §5.21–§5.23 capability remediation
 
 - Refused capability calls no longer touch history: the Fate, Ironsworn, and
