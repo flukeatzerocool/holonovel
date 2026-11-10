@@ -277,6 +277,39 @@ restart the enumeration from scratch.
   repointed them before the review. 15 commits unpushed at session start; no
   push.
 
+
+### Decisions (2026-11-09, chunk P7a)
+
+- **D81 — Chunk split (user-approved).** Whole P7 is 280 REQs / 131 family rows
+  (measured, EV1). P7a = §5.7, §5.14, §5.28–§5.30 (91 REQs / 55 family rows);
+  P7b = §5.2 + §5.8 (189 / 76). P7a executed this session; P7b stays scheduled.
+- **D82 — Fix policy.** D2/D13/D62 unchanged: P0 in-session, P1 roadmap, P2 only
+  on a demonstrated failure, P3 record-and-close. No P0 was raised.
+- **D83 — Increment record.** `docs/plans/2026-11-09-full-review-p7a/` holds
+  plan/tasks/AAR; this worklist is the tracker and carries the P7a tables.
+- **D84 — Bucket resolution.** By base family row: §5.7 28 C / 5 E (`REQ-100`,
+  `273`, `274`, `416`, `619`); §5.14 `REQ-372` C / `REQ-373` E; §5.28, §5.29,
+  §5.30 all C — 49 C / 6 E, 55 rows.
+- **D85 — Boundaries.** P7a owns determinism primitives, the supplementary
+  import runtime, the corpus, the semantic index, and the graph projection.
+  §5.2/§5.8 → P7b; package emission/install → closed P6b findings; storage
+  mechanics → P4; narrative cognition → P8. §5.7 is reviewed in full here
+  regardless of subject, including the REQ-312 rows.
+- **D86 — Row precedence.** `finding` > `deferred` > `builder-side` > `holds`;
+  cluster verdicts worst-of their own rows; a resolved finding counts as
+  `holds`. No resolved findings this chunk.
+- **D87 — Citation resolution.** D10/D25/D49/D67/D77 method; a token must appear
+  in a harness whose body exercises the behaviour, so T20's map-rendering body
+  is not evidence for REQ-052 (F-P7a-3).
+- **D88 — Fingerprint consequence.** `DATA_SECTIONS` includes §5.28 only among
+  the five; no REQ body changed, so no fingerprint regeneration was required;
+  `build-order` ran for version sync.
+- **D89 — Baseline.** The first `check:fast` failed solely on this increment
+  directory's missing `tasks.md`/`aar.md` (`check-loop-artifacts`); after Phase
+  0 step 2, `check:fast` 37/37 PASS, `check` PASS, `test:all` 56/56 PASS. No C0
+  commit was needed.
+- **D90 — Publication.** 17 commits unpushed at session start; no push (D4).
+
 ## Status
 
 | Chunk | Surface | Spec | Skill | Status |
@@ -292,7 +325,8 @@ restart the enumeration from scratch.
 | P5 | engine loop, `core/event-hub.ts`, `core/event-log.ts`, `core/agent.ts` | §5.20, §5.24, §5.31, engine-contract §2–§6 | `code-review` | **closed 2026-11-09** |
 | P6a | world model, parser, conversion, coupling, ruleset-free mode | §5.10, §5.11, §5.13, §5.15 (107 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
 | P6b | ruleset packages, host entry points, Fate/Ironsworn/Forged | §5.16–§5.18, §5.21–§5.23 (73 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
-| P7 | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts` | §5.2, §5.7, §5.8, §5.14, §5.28–§5.30 | `code-review` | scheduled |
+| P7a | `core/{rng,state-hash,limits,corpus,semantic,graph}.ts`, knowledge handlers | §5.7, §5.14, §5.28–§5.30 (91 REQs) | `code-review` + citation resolution | **closed 2026-11-09** |
+| P7b | extraction and synthesis handlers; `core/wisdom.ts` | §5.2, §5.8 (189 REQs) | `code-review` + citation resolution | scheduled |
 | P8 | `core/{belief,identity,causal,subjective,perception,memory,divergence}.ts` | §5.12, §5.25–§5.27, §5.32–§5.35 | `code-review` + `spec-review` | scheduled (pending Q1) |
 | M1 | `check:conformance`, `fmea`, `graph-deps` | all | machine evidence | **closed 2026-11-09** |
 
@@ -1940,4 +1974,182 @@ Cluster verdicts are worst-of their own REQ rows (`finding` > `deferred` >
 | F-P6b-24 | P3 | REQ-395b, REQ-422, REQ-424, REQ-428 | entry-point polish: `update` prints no runbook pointer, `update-rulesets` prints no usage, `migrate-user-data` duplicates the runtime re-stamp, `prepare-package` omits the compiled update entry | Closed-P3 |
 | F-P6b-25 | P3 | REQ-391a, REQ-392 | surface polish: the no-Novel default listing omits installed-ruleset metadata; `tools_list_bytes` is a canonical-cache approximation | Closed-P3 |
 | F-P6b-26 | P3 | REQ-432a, REQ-389b, REQ-390a | provenance labels the license as `source`; `search`/`roll` hydrate failures escape the error taxonomy | Closed-P3 |
+
+
+## Chunk P7a — determinism and knowledge artifacts
+
+**Code targets:** `holonovel/src/core/rng.ts` (91 lines), `state-hash.ts` (64),
+`limits.ts` (47), `corpus.ts` (81), `semantic.ts` (148), `graph.ts` (125); the
+`manage_scene (action: oracle)`, `manage_combat (action: init)`,
+`manage_character (action: create)`, `manage_knowledge`,
+`manage_corpus`/`manage_lore`, and `manage_ruleset (action:
+import_supplementary)` branches in `holonovel/src/index.ts`.
+**Spec:** §5.7 (64 REQs / 33 family rows), §5.14 (7 / 2), §5.28 (9 / 9),
+§5.29 (6 / 6), §5.30 (5 / 5) — 91 REQs / 55 family rows.
+**Decisions:** D81–D90 (chunk split, fix policy, buckets, boundaries,
+citations, fingerprints, publication).
+**Exit evidence (recorded 2026-11-09):** `check:fast` 37/37 PASS, `check`
+PASS, `test:all` 56/56 PASS (135.2s), `test:corpus` 9/9, `test:index` 6/6,
+`test:graph` 5/5, `test:limits` 27/27, `test:supplementary` 4/4,
+`test:fingerprints` 12/12, `check-roadmap` PASS, `check-registers:strict`
+PASS, `check-loop-artifacts` PASS. Baseline note: the first `check:fast` run
+failed only because this increment directory lacked `tasks.md`/`aar.md`; after
+Phase 0 step 2 the gate passed. No source file was modified.
+
+### P7a per-REQ verdict table
+
+One row per REQ: `holds` (contract present and exercised), `finding:<ID>`
+(see the register), or `builder-side` (bucket E — no server runtime satisfies
+it; §5.7's verifier/performance rows and §5.14's dynamic-registration waiver
+are builder or verifier contracts). Bucket is inherited from the base family
+row in `spec/audit/req-coverage.md` (D84).
+
+| REQ | Bucket | Verdict | Evidence |
+|---|---|---|---|
+| REQ-050a | C | finding:F-P7a-1 (P1) | § P7a findings / behaviour table |
+| REQ-050b | C | holds | § P7a findings / behaviour table |
+| REQ-050c | C | holds | § P7a findings / behaviour table |
+| REQ-273a | E | builder-side | § P7a findings / behaviour table |
+| REQ-273b | E | builder-side | § P7a findings / behaviour table |
+| REQ-274 | E | builder-side | § P7a findings / behaviour table |
+| REQ-213a | C | holds | § P7a findings / behaviour table |
+| REQ-213b | C | holds | § P7a findings / behaviour table |
+| REQ-213c | C | holds | § P7a findings / behaviour table |
+| REQ-291a | C | holds | § P7a findings / behaviour table |
+| REQ-291b | C | holds | § P7a findings / behaviour table |
+| REQ-291c | C | holds | § P7a findings / behaviour table |
+| REQ-291d | C | holds | § P7a findings / behaviour table |
+| REQ-157a | C | holds | § P7a findings / behaviour table |
+| REQ-157b | C | holds | § P7a findings / behaviour table |
+| REQ-051 | C | holds | § P7a findings / behaviour table |
+| REQ-433a | C | holds | § P7a findings / behaviour table |
+| REQ-433b | C | holds | § P7a findings / behaviour table |
+| REQ-052 | C | finding:F-P7a-3 (P1) | § P7a findings / behaviour table |
+| REQ-251a | C | holds | § P7a findings / behaviour table |
+| REQ-251b | C | holds | § P7a findings / behaviour table |
+| REQ-251c | C | holds | § P7a findings / behaviour table |
+| REQ-251d | C | holds | § P7a findings / behaviour table |
+| REQ-100a | E | builder-side | § P7a findings / behaviour table |
+| REQ-100b | E | builder-side | § P7a findings / behaviour table |
+| REQ-100c | E | builder-side | § P7a findings / behaviour table |
+| REQ-100d | E | builder-side | § P7a findings / behaviour table |
+| REQ-586 | C | holds | § P7a findings / behaviour table |
+| REQ-410 | C | holds | § P7a findings / behaviour table |
+| REQ-416 | E | builder-side | § P7a findings / behaviour table |
+| REQ-417 | C | holds | § P7a findings / behaviour table |
+| REQ-253a | C | holds | § P7a findings / behaviour table |
+| REQ-253b | C | holds | § P7a findings / behaviour table |
+| REQ-253c | C | holds | § P7a findings / behaviour table |
+| REQ-409 | C | holds | § P7a findings / behaviour table |
+| REQ-054 | C | holds | § P7a findings / behaviour table |
+| REQ-055 | C | finding:F-P7a-2 (P1) | § P7a findings / behaviour table |
+| REQ-055a | C | finding:F-P7a-2 (P1) | § P7a findings / behaviour table |
+| REQ-055b | C | finding:F-P7a-2 (P1) | § P7a findings / behaviour table |
+| REQ-312d1 | C | holds | § P7a findings / behaviour table |
+| REQ-312d2 | C | holds | § P7a findings / behaviour table |
+| REQ-312a | C | holds | § P7a findings / behaviour table |
+| REQ-312b | C | holds | § P7a findings / behaviour table |
+| REQ-312c | C | holds | § P7a findings / behaviour table |
+| REQ-312e | C | holds | § P7a findings / behaviour table |
+| REQ-444 | C | holds | § P7a findings / behaviour table |
+| REQ-445 | C | holds | § P7a findings / behaviour table |
+| REQ-446 | C | holds | § P7a findings / behaviour table |
+| REQ-447 | C | holds | § P7a findings / behaviour table |
+| REQ-448 | C | holds | § P7a findings / behaviour table |
+| REQ-449 | C | holds | § P7a findings / behaviour table |
+| REQ-615 | C | holds | § P7a findings / behaviour table |
+| REQ-616 | C | holds | § P7a findings / behaviour table |
+| REQ-616a | C | holds | § P7a findings / behaviour table |
+| REQ-616b | C | holds | § P7a findings / behaviour table |
+| REQ-617 | C | holds | § P7a findings / behaviour table |
+| REQ-618 | C | holds | § P7a findings / behaviour table |
+| REQ-619 | E | builder-side | § P7a findings / behaviour table |
+| REQ-620 | C | holds | § P7a findings / behaviour table |
+| REQ-621 | C | holds | § P7a findings / behaviour table |
+| REQ-621b | C | holds | § P7a findings / behaviour table |
+| REQ-621c | C | holds | § P7a findings / behaviour table |
+| REQ-621d | C | holds | § P7a findings / behaviour table |
+| REQ-621a | C | holds | § P7a findings / behaviour table |
+| REQ-372a | C | holds | § P7a findings / behaviour table |
+| REQ-372b | C | holds | § P7a findings / behaviour table |
+| REQ-372c | C | holds | § P7a findings / behaviour table |
+| REQ-372d | C | holds | § P7a findings / behaviour table |
+| REQ-372e | C | holds | § P7a findings / behaviour table |
+| REQ-373a1 | E | builder-side | § P7a findings / behaviour table |
+| REQ-373a2 | E | builder-side | § P7a findings / behaviour table |
+| REQ-496 | C | holds | § P7a findings / behaviour table |
+| REQ-497 | C | holds | § P7a findings / behaviour table |
+| REQ-498 | C | holds | § P7a findings / behaviour table |
+| REQ-499 | C | holds | § P7a findings / behaviour table |
+| REQ-500 | C | holds | § P7a findings / behaviour table |
+| REQ-501 | C | holds | § P7a findings / behaviour table |
+| REQ-502 | C | holds | § P7a findings / behaviour table |
+| REQ-503 | C | holds | § P7a findings / behaviour table |
+| REQ-546 | C | holds | § P7a findings / behaviour table |
+| REQ-504 | C | holds | § P7a findings / behaviour table |
+| REQ-505 | C | holds | § P7a findings / behaviour table |
+| REQ-506 | C | holds | § P7a findings / behaviour table |
+| REQ-507 | C | holds | § P7a findings / behaviour table |
+| REQ-508 | C | holds | § P7a findings / behaviour table |
+| REQ-509 | C | holds | § P7a findings / behaviour table |
+| REQ-510 | C | holds | § P7a findings / behaviour table |
+| REQ-511 | C | holds | § P7a findings / behaviour table |
+| REQ-512 | C | holds | § P7a findings / behaviour table |
+| REQ-513 | C | holds | § P7a findings / behaviour table |
+| REQ-514 | C | holds | § P7a findings / behaviour table |
+
+### P7a behaviour table
+
+| Behaviour | Anchor | Harness | Verdict |
+|---|---|---|---|
+| Session PRNG seed and startup log | `core/rng.ts:41-47` | `test-backfill.ts:489` (T27/T111) | holds |
+| Per-call isolated draw (no session advance) | `core/rng.ts:87-91`; `index.ts:6458` | `test-backfill.ts:489`, `test-output-contracts.ts` (T192) | holds |
+| Seed-conflict `[WARNING]` (session seed + per-call seed) | no site: `index.ts:6458`, `index.ts:2162` consume `args.seed` without a warning | probe: oracle under `TTRPG_SEED=42` returns no warning | finding:F-P7a-1 (P1) |
+| State-hash canonicalization and exclusion list | `core/state-hash.ts:13-27,45-63` | `lib/holosuite-differential.ts:88,96,106` (Tier differential) | holds |
+| Novel property-group caps and refusal shape | `core/limits.ts:22-46` | `test-limits.ts` (T143); `test-all` | holds |
+| Snapshot-depth floor of ten | `core/limits.ts:31,36-38` | `test-limits.ts:194` (T143) | holds |
+| No outbound network | `index.ts` `TOOL_ANNOTATIONS` (`openWorldHint: false`); SECURITY.md | `test-backfill.ts:497` (T41/T051); G4 | holds |
+| Path containment on path parameters | `index.ts` ruleset/artifact path guards; `core/data-dir.ts` | `test-artifact-registry.ts:148` (T739) exercises traversal; REQ-052's own T20 body does not | finding:F-P7a-3 (P1) |
+| Input safety: adversarial text inert | `index.ts` dispatch | `test-output-contracts.ts:1235` (T20/T42/REQ-054) | holds |
+| Durability across restart | `core/state.ts` atomic save; `rng.ts:38-42` | Tier differential; `test-persistence.ts:405` (T122) | holds |
+| Supplementary import / remove / re-resolve | `index.ts:6891-6920` (`import_supplementary`) | `test-supplementary.ts:32,56` (T423/T424) | holds |
+| Corpus register, access predicate, consume | `core/corpus.ts:53-59`; `index.ts:8774-8930` | `test-corpus.ts` (T586–T593) | holds |
+| Corpus retention cap, oldest-first | `index.ts:8800,8903` | `test-corpus.ts:...` (T628); probe: cap 2 evicts `doc-1` | holds |
+| Semantic index build/staleness/ranking | `core/semantic.ts:83-144` | `test-index.ts` (T594–T599) | holds |
+| Semantic relation catalog | `core/semantic.ts:123-130` | `test-index.ts` (T597: equivalent/related) | holds |
+| Graph projection, idempotency, scope visibility | `core/graph.ts:52-125`; `index.ts:9044-9071` | `test-graph.ts` (T600–T604) | holds |
+
+### P7a findings
+
+- **F-P7a-1 — Seed-conflict warning is not emitted (P1, Scheduled-roadmap).**
+  Predicate: `holonovel/src/index.ts:6458` (oracle) and `:2162` (`rollDice`)
+  consume a per-call `seed` with no `[WARNING]` seed-conflict line; no such
+  site exists in `holonovel/src` (`grep -rn 'seed' … | grep -i warn` returns
+  nothing). Demonstrated: `manage_scene (action: oracle, seed: "7")` under
+  `TTRPG_SEED=42` returned `[OK] … [NO]` with no warning. Covers REQ-050a.
+- **F-P7a-2 — Missing Automated citations for the badge-precedence rows
+  (P1, Scheduled-roadmap).** Predicate: `spec/02-requirements.md:2428,2436,2444`
+  cite T31/T108; neither token appears in any harness under
+  `holonovel/scripts`, and Appendix F defines both as Automated
+  (`spec/appendices-reference.md:1450,1569`). The behaviour is exercised under
+  other IDs (`test-limits.ts:386` T9/REQ-055a; S17 lifecycle), so this is a
+  citation repair, not an unimplemented contract. Covers REQ-055, REQ-055a,
+  REQ-055b.
+- **F-P7a-3 — REQ-052's citation does not exercise path containment
+  (P1, Scheduled-roadmap).** Predicate: `spec/02-requirements.md:2337` cites
+  T20; the token-bearing assertions are `test-backfill.ts:503`
+  ("path containment — world resources render map", which creates a room and
+  reads `world://map`) and `test-output-contracts.ts:1235` (adversarial text).
+  Neither submits a traversal path; the only traversal assertion is
+  `test-artifact-registry.ts:148` under T739 (REQ-621d). Re-point REQ-052 to
+  that assertion or add one. Covers REQ-052.
+
+### P7a cluster verdicts
+
+| Cluster | REQs | Verdict | Evidence |
+|---|---|---|---|
+| A — determinism and safety (§5.7) | 64 | finding:F-P7a-1 (P1), F-P7a-2 (P1), F-P7a-3 (P1) | behaviour table; findings above |
+| B — content sources (§5.14) | 7 | holds | `test-supplementary.ts` T423/T424 |
+| C — knowledge corpus (§5.28) | 9 | holds | `test-corpus.ts` T586–T593, T628 |
+| D — semantic index and graph (§5.29–§5.30) | 11 | holds | `test-index.ts`, `test-graph.ts` |
 

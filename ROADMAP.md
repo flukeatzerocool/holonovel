@@ -14,15 +14,28 @@
 
 ## Remaining full-review sweep (P1)
 
-- Chunk P7 (determinism and knowledge: §5.2, §5.7, §5.8, §5.14, §5.28–§5.30)
-  and chunk P8 (narrative cognition: §5.12, §5.25–§5.27, §5.32–§5.35).
+- Chunk P7b (extraction and synthesis: §5.2, §5.8) follows the P7a split
+  recorded 2026-11-09.
+- Chunk P8 (narrative cognition: §5.12, §5.25–§5.27, §5.32–§5.35).
 - The closing M1 machine-evidence re-run over the post-P8 tree, covering
   `check:conformance`, `fmea`, and `graph-deps`. Scope is §5.1–§5.35 except
-  §5.9 and §5.19, which the 2026-11-09 seam pass closed; §5.6 and chunks P4,
-  P5, P6a, and P6b closed 2026-11-09.
+  §5.9 and §5.19, which the 2026-11-09 seam pass closed; §5.6 and chunks P1–P7a
+  closed 2026-11-09.
 
-**Trigger:** the next session allocated to review work, starting with chunk P7;
-closes when chunks P7–P8 and the closing M1 pass report.
+**Trigger:** the next session allocated to review work, starting with chunk P7b;
+closes when chunk P8 and the closing M1 pass report.
+
+## §5.7 determinism and citation repair (P1)
+
+- Emit the REQ-050a seed-conflict `[WARNING]` when a per-call seed is supplied
+  while a session seed is active, in the oracle, dice, combat-init, and
+  character-generation paths (REQ-050a).
+- Re-point the stale citations: REQ-052 to the T739 traversal assertion,
+  REQ-055/REQ-055a/REQ-055b off the unimplemented T31/T108 tokens, then refresh
+  the coverage register (REQ-052, REQ-055, REQ-055a, REQ-055b).
+
+**Trigger:** the next citation-remediation session; closes when F-P7a-1,
+F-P7a-2, and F-P7a-3 are `Resolved`.
 
 ## §5.16/§5.17 ruleset surface remediation (P1)
 

@@ -1200,6 +1200,30 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-09 full-review sweep — chunk P7a (determinism and knowledge artifacts)
+
+- **F-P7a-1 — seed-conflict warning is not emitted (2026-11-09):**
+  `holonovel/src/index.ts:6458` (oracle) and `:2162` (`rollDice`) consume a
+  per-call `seed` with no `[WARNING]` seed-conflict line, and no such site
+  exists in `holonovel/src`; demonstrated by `manage_scene (action: oracle,
+  seed: "7")` under `TTRPG_SEED=42` returning `[OK]` with no warning.
+  REQ-050a. Scheduled under §5.7 determinism and citation repair.
+- **F-P7a-2 — REQ-055/055a/055b cite Automated T31/T108 with no harness
+  (2026-11-09):** `spec/02-requirements.md:2428,2436,2444` cite T31/T108;
+  neither token appears under `holonovel/scripts`, while Appendix F defines
+  both as Automated (`spec/appendices-reference.md:1450,1569`). The behaviour
+  is exercised under other IDs (`test-limits.ts:386` T9/REQ-055a; S17
+  lifecycle), so the fix is a citation repair. REQ-055, REQ-055a, REQ-055b.
+  Scheduled under §5.7 determinism and citation repair.
+- **F-P7a-3 — REQ-052's T20 citation does not exercise path containment
+  (2026-11-09):** `spec/02-requirements.md:2337` cites T20; the
+  token-bearing assertions are `holonovel/scripts/test-backfill.ts:503`
+  (creates a room, reads `world://map`) and
+  `holonovel/scripts/test-output-contracts.ts:1235` (adversarial text), and
+  neither submits a traversal path; the traversal assertion lives at
+  `holonovel/scripts/test-artifact-registry.ts:148` under T739 (artifact path
+  containment). REQ-052. Scheduled under §5.7 determinism and citation repair.
+
 ### 2026-11-09 full-review sweep — chunk P6b (ruleset packages and host entry points)
 
 - **F-P6b-7 — no committed ruleset emitter; `build-ruleset` never emits

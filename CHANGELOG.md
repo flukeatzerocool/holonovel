@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-09 — Full-review sweep: chunk P7a (determinism and knowledge artifacts)
+
+- Chunk P7 is split at the family boundary (D81): P7a covers §5.7 (64 REQs),
+  §5.14 (7), §5.28 (9), §5.29 (6), and §5.30 (5) — 91 REQs across 55 family
+  rows — and chunk P7b (§5.2 + §5.8, 189 REQs / 76 rows) stays scheduled. The
+  sweep worklist carries a 91-REQ verdict table, a 16-row behaviour table, and
+  four cluster verdicts.
+- Three P1 findings are scheduled under a new §5.7 determinism and citation
+  repair section: a per-call seed over an active session seed emits no
+  seed-conflict `[WARNING]` (REQ-050a; F-P7a-1, demonstrated by the oracle),
+  REQ-055/REQ-055a/REQ-055b cite the unimplemented Automated tokens T31/T108
+  (F-P7a-2), and REQ-052's T20 citation names a harness body that renders the
+  world map rather than refusing a traversal (F-P7a-3).
+- No P0 was raised and no source file changed. Baseline: the first `check:fast`
+  failed only on this increment directory's missing `tasks.md`/`aar.md`; after
+  the planning record was created, `check:fast` 37/37, `check`, and
+  `holonovel test:all` 56/56 all passed.
+
 ## 2026-11-09 — Full-review sweep: chunk P6b (ruleset packages and host entry points)
 
 - Chunk P6b closes the sweep's second half: §5.16 (23 REQs), §5.17 (15),
