@@ -1697,6 +1697,18 @@ Every NPC MAY carry an optional `talkativeness` integer from 0 to 100 describing
 
 **REQ-075i — NPC card export (Part i).**
 `manage_npc (action: export_card, npc_id)` SHALL emit a Character Card V3 JSON object from a Novel NPC, mapping `persona` to `personality`, `voice_examples` to `mes_example`, and provenance to `creator_notes` and `source`. Unset fields SHALL be omitted. The export SHALL include no Novel secrets, mind content, or ruleset stats. *Acceptance criterion:* export followed by import round-trips name, description, persona, and voice examples without leaking mind content. _Check:_ T725.
+**REQ-075j — COF NPC import (Part j).**
+`manage_npc (action: import_cof, cof_path, source, license?)` SHALL read a
+COF 1.x container (ZIP; stored or deflate; 8 MB compressed / 16 MB total /
+1 MB per entry / 500 entries / 200:1; traversal refused), map the personality
+card to name, description, and persona, and import structured memories as
+subjective records with predicate `remembers`, the gist as object, mapped
+salience, nature-derived origin, and disclosure defaulting to `secret`. It SHALL record provenance, mark the NPC `[imported]`,
+report unsupported categories, and remain inert narrative context. Media,
+psyche, and files SHALL be reported, not imported. No export path is provided.
+*Acceptance criterion:* the fixture imports with provenance and one memory; an
+oversized or traversal archive is refused. _Check:_ T782.
+
 **REQ-119a — NPC stat block reference (Part a).**
 `manage_npc (action: create)` accepts an optional ruleset reference — the name of a monster, NPC template, or stat block entry from the indexed ruleset. When a reference matches a ruleset entry, the builder populates the NPC's stat fields from that entry's baseline values as defined by the ruleset. Any caller-supplied stat fields override the referenced values.
 

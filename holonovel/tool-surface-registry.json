@@ -5063,6 +5063,23 @@
       "preconditions": [],
       "successors": [],
       "edges": []
+    },
+    "manage_npc.import_cof": {
+      "group": "referee",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
     }
   }
 }

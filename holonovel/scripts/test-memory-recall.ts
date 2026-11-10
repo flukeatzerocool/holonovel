@@ -652,6 +652,20 @@ async function main() {
     if (brokenHits !== 0) throw new Error("a deliberately broken retriever did not score zero");
   });
 
+  await test("T782/REQ-075j: COF import maps the card and one memory", async () => {
+    const { p } = await lifecycleBoot("cof-import");
+    const cof = join(import.meta.dirname!, "fixtures", "cof-sample.cof");
+    const imported = await call(p, "manage_npc", { action: "import_cof", cof_path: cof, source: "fixture", license: "CC BY 4.0" });
+    assertContains(imported, "[OK]");
+    assertContains(imported, "1 memories");
+    const list = await call(p, "manage_npc", { action: "list" });
+    assertContains(list, "Clara");
+    const bad = join(import.meta.dirname!, "fixtures", "memory-recall.json");
+    const refused = await call(p, "manage_npc", { action: "import_cof", cof_path: bad });
+    assertContains(refused, "[ERROR]");
+    await kill(p);
+  });
+
 
   // ── Eviction: pointers survive as [evicted] markers ─────────────────
   proc = await boot({ TTRPG_SESSION_ID: "s4", TTRPG_EVENT_LOG_MAX_ENTRIES: "1" });

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-10 — COF one-way import
+
+- Added `manage_npc (action: import_cof)`: reads a local COF 1.x container,
+  maps the personality card to the NPC, and imports structured memories as
+  subjective records. No export path (REQ-075j, T782).
+- Added the ZIP reader and field map in `core/cof.ts` with compressed,
+  per-entry, total, ratio, entry-count, and path-traversal caps.
+- Committed a small `.cof` fixture for the harness.
+
 ## 2026-11-10 — Comparable recall benchmark
 
 - Added REQ-658: `recall@5` and `recall@10` over the committed synthetic

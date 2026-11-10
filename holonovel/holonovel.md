@@ -2185,6 +2185,18 @@ Every NPC MAY carry an optional `talkativeness` integer from 0 to 100 describing
 
 **REQ-075i — NPC card export (Part i).**
 `manage_npc (action: export_card, npc_id)` SHALL emit a Character Card V3 JSON object from a Novel NPC, mapping `persona` to `personality`, `voice_examples` to `mes_example`, and provenance to `creator_notes` and `source`. Unset fields SHALL be omitted. The export SHALL include no Novel secrets, mind content, or ruleset stats. *Acceptance criterion:* export followed by import round-trips name, description, persona, and voice examples without leaking mind content. _Check:_ T725.
+**REQ-075j — COF NPC import (Part j).**
+`manage_npc (action: import_cof, cof_path, source, license?)` SHALL read a
+COF 1.x container (ZIP; stored or deflate; 8 MB compressed / 16 MB total /
+1 MB per entry / 500 entries / 200:1; traversal refused), map the personality
+card to name, description, and persona, and import structured memories as
+subjective records with predicate `remembers`, the gist as object, mapped
+salience, nature-derived origin, and disclosure defaulting to `secret`. It SHALL record provenance, mark the NPC `[imported]`,
+report unsupported categories, and remain inert narrative context. Media,
+psyche, and files SHALL be reported, not imported. No export path is provided.
+*Acceptance criterion:* the fixture imports with provenance and one memory; an
+oversized or traversal archive is refused. _Check:_ T782.
+
 **REQ-119a — NPC stat block reference (Part a).**
 `manage_npc (action: create)` accepts an optional ruleset reference — the name of a monster, NPC template, or stat block entry from the indexed ruleset. When a reference matches a ruleset entry, the builder populates the NPC's stat fields from that entry's baseline values as defined by the ruleset. Any caller-supplied stat fields override the referenced values.
 
@@ -9755,6 +9767,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-075g | Named-NPC state (Part g) | 2026-10-24 |
 | REQ-075h | NPC card import (Part h) | 2026-10-24 |
 | REQ-075i | NPC card export (Part i) | 2026-10-24 |
+| REQ-075j | COF NPC import (Part j) | 2026-11-10 |
 | REQ-119a | NPC stat block reference (Part a) | 2026-08-11 |
 | REQ-119b | NPC stat block reference (Part b) | 2026-08-11 |
 | REQ-119c | NPC stat block reference (Part c) | 2026-08-11 |
@@ -11435,6 +11448,7 @@ diet.
 | T779 | Automated | Derived validity windows: two records with the same subject and predicate but different objects keep open windows; a later same-key record closes the earlier window; no window is stored on the record. | REQ-655 |
 | T780 | Automated | Window-aware displaced verdict: a claim superseded by a later disagreeing claim reports `displaced`; an agreeing successor stays `confirmed`; two checks of unchanged state agree and the event-log cursor is unchanged. | REQ-656 |
 | T781 | Automated | Comparable recall benchmark: the harness renders the top 5 and top 10 records at an unbounded budget over the committed synthetic fixture and reports `recall@5` and `recall@10`; a deliberately broken retriever scores zero; two runs agree; the result is reported alongside `recall@budget`. | REQ-658 |
+| T782 | Automated | COF NPC import: a committed `.cof` fixture imports as an NPC with provenance and one subjective memory carrying the mapped gist, salience, origin, and disclosure; a non-COF file and an oversized or traversal archive are refused. | REQ-075j |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

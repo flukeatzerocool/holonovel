@@ -2,11 +2,11 @@
 
 **Spec hash:** d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672
 
-**Recorded tool budget:** 37 listed (243 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (244 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,145 tokens; standard 24,547; small 1,143; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,174 tokens; standard 24,576; small 1,143; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 

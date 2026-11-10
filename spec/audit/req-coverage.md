@@ -55,7 +55,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T272, T518, T699 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T136, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513, T722, T724, T725 | — |
+| REQ-075 | Named-NPC state (Part a) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T129, T409, T513, T722, T724, T725, T782 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T63, T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124, T141 | — |

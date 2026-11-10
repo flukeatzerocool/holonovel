@@ -38,6 +38,7 @@ import { reconcileEntity, questionKey, normalizeToken, type EvidenceRecord, type
 import { emptyIdentity, candidatesFromCard, compileKernel, nextCandidateId, applyFacet, revertFacet, normalizeIdentityState, playerIdentityProjection, renderWhoTheyAre, STABILITY_CLASSES, PERSPECTIVES, FACET_KINDS, FACET_AWARENESSES, VALENCE_MIN, VALENCE_MAX, type IdentityState, type IdentityCandidate, type StabilityClass, type IdentityPerspective, type FacetKind, type FacetAwareness } from "./core/identity.js";
 import { evaluate, applySlot, findSlot, nextProposalId, CAUSAL_DOMAINS, type TransitionProposal, type TransitionRecord, type CausalSlot, type CausalDomain, type OriginSource } from "./core/causal.js";
 import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONSUMPTION_MODES, type CorpusDocument, type CorpusAccess, type CorpusConsumption, type ConsumptionMode } from "./core/corpus.js";
+import { parseCof } from "./core/cof.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
 import { dedupeRelationships, isRelationshipInvolving, relationshipEdgesFor, relationshipEndpoints, relationshipLines, relationshipPairKey, relationshipTokenPairKey, resolveRelationshipParty } from "./core/relationships.js";
@@ -6659,7 +6660,7 @@ server.registerTool("manage_npc", {
   title: "NPC Management",
   description: "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
-    action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card"]).describe("create, update, remove, list, get, import_card, or export_card."),
+    action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card", "import_cof"]).describe("create, update, remove, list, get, import_card, export_card, or import_cof."),
     detail: z.boolean().optional().describe("Return full NPC records instead of summary entries (list)."),
     name: z.string().optional().describe("NPC name (create)."),
     npc_id: z.string().optional().describe("NPC identifier (update/remove/get/export_card)."),
@@ -6674,6 +6675,7 @@ server.registerTool("manage_npc", {
     source: z.string().optional().describe("Import provenance URL or description (import_card)."),
     license: z.string().optional().describe("Import license attestation (import_card)."),
     confirm_lore: z.boolean().optional().describe("Import the card's character_book as lore entries (import_card)."),
+    cof_path: z.string().optional().describe("Local path to a .cof container (import_cof)."),
     mind: z.object({
       private_journal: z.array(z.string()).optional().describe("Private journal entries (GM only)."),
       directive: z.string().optional().describe("Narrator-facing directive describing how to play this NPC (GM only)."),
@@ -6789,6 +6791,63 @@ server.registerTool("manage_npc", {
       return raw(JSON.stringify(identity ? { ...record, identity } : record, null, 2));
     }
     // REQ-075h — Character Card V3 import.
+    case "import_cof": {
+      // REQ-075j — one-way COF import: personality to NPC fields, structured
+      // memories to subjective records, media/psyche/files reported not imported.
+      requireGM();
+      const novel = requireNovel();
+      const cofPath = args.cof_path;
+      if (typeof cofPath !== "string" || cofPath.length === 0) {
+        return err("INVALID_INPUT", "import_cof requires cof_path.");
+      }
+      let bytes: Buffer;
+      try { bytes = fs.readFileSync(cofPath); }
+      catch { return err("NOT_FOUND", `Cannot read COF container '${cofPath}'.`); }
+      let parsed;
+      try { parsed = parseCof(bytes); }
+      catch (e) { return err("INVALID_INPUT", `COF import failed: ${e instanceof Error ? e.message : String(e)}`); }
+      novelSnapshot();
+      const id = `npc_${Date.now().toString(36)}`;
+      const npc: any = {
+        id,
+        name: parsed.name,
+        description: parsed.description || undefined,
+        persona: parsed.persona || undefined,
+        conditions: [],
+        condition_rounds: {},
+        imported: true,
+        provenance: {
+          source: args.source ?? `cof:${cofPath}`,
+          license: args.license ?? null,
+          imported_at: new Date().toISOString(),
+        },
+      };
+      novel.npcs.set(id, npc);
+      const at = new Date().toISOString();
+      for (const memory of parsed.memories) {
+        novel.subjective_memory.push({
+          id: nextSubjectiveId(novel.subjective_memory),
+          entity_id: id,
+          event_ordinal: null,
+          gist: memory.gist,
+          claim: {
+            subject: parsed.name,
+            predicate: "remembers",
+            object: memory.gist.slice(0, 80),
+            polarity: "positive",
+          },
+          felt_then: memory.felt_then,
+          salience: memory.salience,
+          origin: memory.origin,
+          disclosure: memory.disclosure,
+          at,
+        });
+      }
+      state.saveNovel(novel);
+      audit("import_cof", { npc_id: id, memories: parsed.memories.length, unsupported: parsed.unsupported });
+      const note = parsed.unsupported.length > 0 ? ` Unsupported: ${parsed.unsupported.join(", ")}.` : "";
+      return ok(`Imported COF '${parsed.name}' as NPC ${id} with ${parsed.memories.length} memories.${note}`);
+    }
     case "import_card": {
       requireGM();
       const novel = requireNovel();

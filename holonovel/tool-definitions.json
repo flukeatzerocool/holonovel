@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 112579,
+  "tools_list_bytes": 112694,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 112579,
-        "tokens": 28145
+        "bytes": 112694,
+        "tokens": 28174
       },
       "standard": {
         "tools": 37,
-        "bytes": 98186,
-        "tokens": 24547
+        "bytes": 98301,
+        "tokens": 24576
       },
       "small": {
         "tools": 6,
@@ -47,8 +47,8 @@
           },
           "referee": {
             "tools": 6,
-            "bytes": 3783,
-            "tokens": 946
+            "bytes": 3825,
+            "tokens": 957
           },
           "author": {
             "tools": 6,
@@ -1452,14 +1452,16 @@
         "list",
         "get",
         "import_card",
-        "export_card"
+        "export_card",
+        "import_cof"
       ],
-      "param_count": 15,
+      "param_count": 16,
       "required": [
         "action"
       ],
       "params": {
         "card": "Character Card V3 JSON object or string (import_card).",
+        "cof_path": "Local path to a .cof container (import_cof).",
         "confirm_lore": "Import the card's character_book as lore entries (import_card).",
         "description": "Optional description.",
         "detail": "Return full NPC records instead of summary entries (list).",
@@ -1487,9 +1489,9 @@
       },
       "meta": null,
       "context_signals": {
-        "paramCount": 16,
+        "paramCount": 17,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 16,
+        "paramsWithDescriptions": 17,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -1500,7 +1502,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3576,
+        "definitionBytes": 3691,
         "descriptionBytes": 663
       },
       "category": "",
