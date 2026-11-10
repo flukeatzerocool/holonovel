@@ -732,13 +732,16 @@ async function main() {
     await recordLifecycle(p, anna, "first stance", 1, 0.8, "loyal");
     await recordLifecycle(p, anna, "second stance", 3, 0.8, "hostile");
     const view = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: anna });
-    const rows = JSON.parse(view) as Array<{ gist: string; verdict: string; validity: { valid_from: number | null; valid_until: number | null } }>;
+    const rows = JSON.parse(view) as Array<{ gist: string; verdict: string; validity: { valid_from: number | null; valid_until: number | null }; score: { total: number }; reinforcement_count: number }>;
     const first = rows.find((r) => r.gist === "first stance");
     const second = rows.find((r) => r.gist === "second stance");
     if (!first || !second) throw new Error("verify did not return both records: " + view);
     if (first.validity.valid_until !== 3) throw new Error(`the first window did not close at 3: ${JSON.stringify(first.validity)}`);
     if (second.validity.valid_until !== null) throw new Error(`the last window did not stay open: ${JSON.stringify(second.validity)}`);
     if (first.verdict !== "displaced") throw new Error(`the superseded claim reported ${first.verdict}, not displaced`);
+    if (typeof first.score.total !== "number" || typeof first.reinforcement_count !== "number") {
+      throw new Error("the audit view did not carry score components and a reinforcement count");
+    }
     const again = await call(p, "manage_belief", { action: "subjective_verify", subjective_entity: anna });
     if (again !== view) throw new Error("two checks of unchanged state differ");
     await kill(p);

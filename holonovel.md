@@ -4987,7 +4987,8 @@ T749.
 **REQ-631 — Game Master truth view.**
 `manage_belief (action: subjective_verify)` SHALL return each matching
 subjective-memory record beside its divergence verdict, the recorded fact the
-verdict rests on, and that fact's recorded source, filtered by the entity or
+verdict rests on, that fact's recorded source, the record's score components,
+its reinforcement count, and its derived validity window (REQ-655), filtered by the entity or
 event-ordinal parameters already carried by `subjective_list` and defaulting to
 every record. The action SHALL be Game Master only, SHALL NOT mutate state or
 advance the event log, and SHALL return identical output for unchanged state.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-10 — GM memory audit fields
+
+- `manage_belief (action: subjective_verify)` now returns each record's score
+  components (decayed salience, recency, origin, reinforcement), reinforcement
+  count, and derived validity window beside its divergence verdict (REQ-631).
+- Extended T779 to assert the audit fields. (REQ-631, REQ-655)
+
 ## 2026-11-10 — Memory lifecycle: decay, reinforcement, and validity windows
 
 - Added REQ-653 (event-indexed decay), REQ-654 (append-only reinforcement

@@ -44,7 +44,7 @@ import { dedupeRelationships, isRelationshipInvolving, relationshipEdgesFor, rel
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
-import { nextSubjectiveId, nextReinforcementId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, assembleMemorySection, selectForEviction, foldIntoSummary, eventState, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, deriveValidityWindows, claimChainKey, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure, type ReinforcementEntry, type ValidityWindow } from "./core/subjective.js";
+import { nextSubjectiveId, nextReinforcementId, MEMORY_ORIGINS, MEMORY_DISCLOSURES, selectForBriefing, assembleMemorySection, selectForEviction, foldIntoSummary, eventState, playerProjection, disclosureScanTargets, normalizeSubjectiveRecord, deriveValidityWindows, claimChainKey, scoreMemoryParts, type SubjectiveMemoryRecord, type MemoryOrigin, type MemoryDisclosure, type ReinforcementEntry, type ValidityWindow } from "./core/subjective.js";
 // REQ-629–REQ-633 — divergence: what the Novel recorded, checked against a memory.
 import { projectTruthFacts, checkRecord, buildAliases, type DivergenceResult } from "./core/divergence.js";
 import {
@@ -9656,8 +9656,11 @@ const handleSubjectiveActions = async (args: any) => {
       const facts = projectTruthFacts(novel);
       const alias = buildAliases(novel);
       const windows = deriveValidityWindows(novel.subjective_memory ?? []);
+      const scoreInputs = memoryScoreInputs(novel);
       const results = records.map((record: SubjectiveMemoryRecord) => {
         const result: DivergenceResult = windowAwareVerdict(novel, record, checkRecord(record, facts, novel, alias), windows);
+        const parts = scoreMemoryParts(record, scoreInputs);
+        const reinforcementCount = (novel.subjective_reinforcement ?? []).filter((e) => e.record_id === record.id).length;
         return {
           record_id: record.id,
           entity_id: record.entity_id,
@@ -9666,6 +9669,8 @@ const handleSubjectiveActions = async (args: any) => {
           claim: record.claim,
           disclosure: record.disclosure,
           validity: windows.get(record.id) ?? { valid_from: record.event_ordinal, valid_until: null },
+          score: { ...parts, total: parts.salience + parts.recency + parts.origin + parts.reinforcement },
+          reinforcement_count: reinforcementCount,
           verdict: result.verdict,
           reason: result.reason,
           truth: result.truth,

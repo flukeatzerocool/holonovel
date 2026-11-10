@@ -132,7 +132,14 @@ export interface MemoryScoreInputs {
   reinforcementMax?: number;   // REQ-654
 }
 
-export function scoreMemory(r: SubjectiveMemoryRecord, inputs: MemoryScoreInputs): number {
+export interface MemoryScoreParts {
+  salience: number;
+  recency: number;
+  origin: number;
+  reinforcement: number;
+}
+
+export function scoreMemoryParts(r: SubjectiveMemoryRecord, inputs: MemoryScoreInputs): MemoryScoreParts {
   const entries = (inputs.reinforcements ?? []).filter((e) => e.record_id === r.id);
   const anchor = entries.length > 0
     ? Math.max(...entries.map((e) => e.event_ordinal))
@@ -152,7 +159,12 @@ export function scoreMemory(r: SubjectiveMemoryRecord, inputs: MemoryScoreInputs
   }
   const origin = r.origin === "witnessed" ? 60 : r.origin === "told" ? 40 : r.origin === "inferred" ? 20 : 0;
   const reinforcement = Math.min(entries.length, inputs.reinforcementMax ?? 6) * (inputs.reinforcementBonus ?? 25);
-  return salience + recency + origin + reinforcement;
+  return { salience, recency, origin, reinforcement };
+}
+
+export function scoreMemory(r: SubjectiveMemoryRecord, inputs: MemoryScoreInputs): number {
+  const parts = scoreMemoryParts(r, inputs);
+  return parts.salience + parts.recency + parts.origin + parts.reinforcement;
 }
 
 // REQ-644 — deterministic order for the section. Score first, then the chunk-1
