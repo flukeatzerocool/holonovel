@@ -59,7 +59,7 @@ import {
   createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection, PARSER_CATALOG, READONLY_VERBS, type ParserCategory, type AnnotationDirective,
 } from "./world/model.js";
-import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom } from "./world/parser.js";
+import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom, bareName } from "./world/parser.js";
 import {
   RulesetManager, rollDice, computeContentHash, APPENDIX_U_LICENSES,
   RulesetToolSchema, RulesetPrompt, rulesetAnnotations,
@@ -151,7 +151,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.10",
+  version: "2026.11.11",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -938,6 +938,17 @@ function composeLoreSection(novel: NovelState, badge: Badge): string {
   recordedLoreBudget = { max_tokens: budget, used_tokens: Math.ceil(usedChars / 4), omitted_entries: omitted };
   if (lines.length === 0) return "";
   return `\n\n### Lore\n${lines.join("\n")}`;
+}
+
+// REQ-197c — the set of lore entries active for the current badge; `rich`
+// detail reports newly active keys by diffing this set around a command.
+function activeLoreKeys(novel: NovelState): Set<string> {
+  const badge = getBadge();
+  const keys = new Set<string>();
+  for (const entry of novel.lore.values()) {
+    if (loreVisible(entry, badge) && loreActiveForSection(novel, entry) && lorePresenceSatisfied(novel, entry, badge)) keys.add(entry.key);
+  }
+  return keys;
 }
 
 // REQ-286 — knowledge_state section: revealed secrets, participant relationships,
@@ -1936,10 +1947,16 @@ function installSurfaceGuards(): void {
 // default; a per-call `detail: true` requests full entries for a single call.
 let enumerationVerbosity: "summary" | "detail" = "summary";
 
-// REQ-253 — tool-output verbosity control: `normal` (full entries, full roll
-// transparency) is the default; `terse` returns minimum mechanical content.
-// Selectable via the `detail=terse` player signal or a per-call `terse: true`.
-let outputVerbosity: "normal" | "terse" = "normal";
+// REQ-197c/d — session detail level. `normal` is the default; `terse` and
+// `rich` are evaluation-time overrides over the player's chosen room mode
+// (`roomDescriptionMode`, set only by brief/verbose/normal), so leaving an
+// override always falls back to what the player actually chose.
+let detailLevel: "terse" | "normal" | "rich" = "normal";
+function effectiveRoomDescriptionMode(): "brief" | "verbose" | "normal" {
+  if (detailLevel === "terse") return "brief";
+  if (detailLevel === "rich") return "verbose";
+  return roomDescriptionMode;
+}
 // REQ-197 — room description mode, session-scoped (brief/verbose/normal).
 let roomDescriptionMode: "brief" | "verbose" | "normal" = "normal";
 // REQ-197b — rooms already described in `normal` mode; reset on Novel change.
@@ -1953,7 +1970,7 @@ let lastReferencedThing: string | null = null;
 // the resolved target with the chosen match and re-dispatches the command.
 let pendingAmbiguity: { command: string; target: string; matches: Array<{ name: string; location: string }> } | null = null;
 function terseMode(terse?: boolean): boolean {
-  return terse === true || outputVerbosity === "terse";
+  return terse === true || detailLevel === "terse";
 }
 function terseOutput(tool: string, args: any, normal: string, terse: string): any {
   return terseMode(args?.terse) ? raw(terse) : ok(normal);
@@ -4134,7 +4151,7 @@ server.registerTool("manage_character", {
     format: z.string().optional().describe("Output format (sheet)."),
     pov: z.enum(["character", "omniscient"]).optional().describe("Point-of-view mode (set_active)."),
     examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })).optional().describe("Voice examples (voice)."),
-    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "voice_feedback"]).optional().describe("Feedback category (signal)."),
+    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "detail", "voice_feedback"]).optional().describe("Feedback category (signal); detail carries terse|normal|rich."),
     value: z.string().optional().describe("Feedback text (signal)."),
     stats: z.record(z.string(), z.any()).optional().describe("Mechanical stat keys to shallow-merge into the entity's stats (update)."),
     spells: z.array(z.union([z.string(), z.object({ name: z.string(), level: z.number().optional() })])).optional().describe("Known spells (update); entries may be bare names or {name, level} objects."),
@@ -4337,6 +4354,20 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
     case "signal": {
       requirePlayer();
       const novel = requireNovel();
+      // REQ-197c — the detail signal selects the session detail level; it is
+      // an override, so the chosen room mode is not mutated.
+      if (args.signal === "detail") {
+        const level = String(args.value ?? "").toLowerCase();
+        if (!["terse", "normal", "rich"].includes(level)) {
+          return err("INVALID_INPUT", "detail must be 'terse', 'normal', or 'rich'.");
+        }
+        novelSnapshot();
+        detailLevel = level as "terse" | "normal" | "rich";
+        novel.player_signals[args.signal] = level;
+        state.saveNovel(novel);
+        audit("player_signal", { signal: args.signal, value: level });
+        return ok(`Signal recorded: detail → ${level}`);
+      }
       if (args.signal === "voice_feedback") {
         const entity = state.getActiveEntity();
         if (!entity) return err("INVALID_INPUT", "No active entity to correct. Corrective action: set an active entity first.");
@@ -4990,15 +5021,30 @@ server.registerTool("run_command", {
     }
     if (dir) {
       const room = parkedRoom ? novel.world.rooms.get(String(parkedRoom).toLowerCase()) : undefined;
+      // REQ-317b — the move resolves against the parked room, doors included.
+      const doorName = room?.doorRefs.get(dir as Direction);
+      if (doorName) {
+        const door = novel.world.things.get(String(doorName).toLowerCase());
+        if (door && !door.open) {
+          lastCommand = command;
+          return raw(`[WARNING] The ${bareName(door.name)} is ${door.locked ? "closed and locked" : "closed"}.`);
+        }
+      }
       const target = room?.exits.get(dir as Direction);
       if (!target) { lastCommand = command; return raw(`[WARNING] You can't go ${dir} from here.`); }
       vehicle.location = target;
       vehicle.locationType = "room";
+      // REQ-317b — every passenger rides with the vehicle.
+      const riders = new Set<string>([...(vehicle.vehiclePassengers ?? []), entity.id]);
+      for (const riderId of riders) {
+        const rider: any = novel.entities.get(riderId) ?? novel.npcs.get(riderId);
+        if (rider && "current_room" in rider) rider.current_room = target;
+      }
       entity.current_room = target;
       advanceWorldTriggeredCountdowns(novel, `room_enter:${String(target).toLowerCase()}`);
       const hazardWarnings = enterRoomHazards(novel, String(target));
       state.saveNovel(novel);
-      audit("command", { command, vehicle_moved_to: target });
+      audit("command", { command, vehicle_moved_to: target, passengers: [...riders] });
       lastCommand = command;
       return raw(`[OK] The ${vehicle.name} moves ${dir}.${hazardWarnings.length ? `\n${hazardWarnings.join("\n")}` : ""}`);
     }
@@ -5010,11 +5056,13 @@ server.registerTool("run_command", {
   if (visitedRoomNovel !== novel.slug) { visitedRooms = new Set(); visitedRoomNovel = novel.slug; }
   const ctx = {
     world: novel.world, currentRoom, inventory, badge: getBadge(),
-    descriptionMode: roomDescriptionMode, seenRooms: visitedRooms,
+    actorId: entity?.id,
+    descriptionMode: effectiveRoomDescriptionMode(), seenRooms: visitedRooms,
     // REQ-309b — the Player badge never sees GM-only verb names, including in
     // nearest-verb hints.
     allowedVerbs: playerReadOnly ? READONLY_VERBS : undefined,
   };
+  const loreBefore = detailLevel === "rich" ? activeLoreKeys(novel) : null;
   const result = dispatchCommand(command, ctx);
   // REQ-196e — a disambiguation prompt is informational: neither movement
   // nor the take/drop/open side effects run until the caller picks a match.
@@ -5177,8 +5225,11 @@ server.registerTool("run_command", {
         if (thing.kind === "vehicle") {
           (entity as any).in_vehicle = thing.name;
           thing.vehiclePassengers = thing.vehiclePassengers ?? [];
-          thing.vehiclePassengers.push(entity.id ?? entity.name);
-          recordVehicleMoment(novel, "enter", thing.name, currentRoom ?? "");
+          const alreadyAboard = thing.vehiclePassengers.includes(entity.id ?? entity.name);
+          if (!alreadyAboard) {
+            thing.vehiclePassengers.push(entity.id ?? entity.name);
+            recordVehicleMoment(novel, "enter", thing.name, currentRoom ?? "", thing.vehicleInterior || thing.description || "");
+          }
         }
         state.saveNovel(novel);
         audit("command", { command, entered: thing.name });
@@ -5244,6 +5295,12 @@ server.registerTool("run_command", {
   if (result.status) {
     text += `\n\n${result.status}`;
   }
+  // REQ-197c — rich detail reports lore that became newly active during the
+  // command (per-call diff; no persistent buffer).
+  if (loreBefore) {
+    const notices = [...activeLoreKeys(novel)].filter((k) => !loreBefore.has(k)).map((k) => `[lore] ${k}`);
+    if (notices.length > 0) text += `\n${notices.join("\n")}`;
+  }
   return raw(text);
 });
 
@@ -5281,12 +5338,15 @@ function renderVerbCatalog(world: WorldModel): string {
   return out.join("\n");
 }
 
-// REQ-317d — record a vehicle traversal as a story journal moment entry.
-function recordVehicleMoment(novel: any, kind: "enter" | "exit", vehicle: string, room: string): void {
+// REQ-317d — record a vehicle traversal as a story journal moment entry; the
+// entry carries the interior description so the recap and briefing can show it.
+function recordVehicleMoment(novel: any, kind: "enter" | "exit", vehicle: string, room: string, interior = ""): void {
   const entry: any = {
     index: novel.story_journal.length,
     type: "moment",
-    entry: kind === "enter" ? `[vehicle-entry] entered ${vehicle}` : `[vehicle-exit] ${vehicle} returned to ${room}`,
+    entry: kind === "enter"
+      ? `[vehicle-entry] entered ${vehicle}${interior ? ` — ${interior}` : ""}`
+      : `[vehicle-exit] ${vehicle} returned to ${room}`,
     scene_anchor: (novel.scene_description ?? "").substring(0, 80),
     entity_ids: [],
     timestamp: new Date().toISOString(),
@@ -5422,6 +5482,9 @@ function findMatchingThing(name: string, world: WorldModel, roomName: string | n
 // World (REQ-201, REQ-328, REQ-329, REQ-368) — consolidated room/thing/exit/convert surface with
 // the previously-missing update_room/update_thing lifecycle (completeness).
 const MANAGE_WORLD_CAUSAL_PARAMS = new Set(["causal_scope", "causal_domain", "causal_entity", "causal_key", "causal_value", "causal_from", "causal_expected_version", "causal_origin_source", "causal_source_ordinal", "causal_proposal_id"]);
+// REQ-317c — the default vehicle passenger capacity; `convert` and
+// `create_thing` share it so the two creation paths cannot disagree.
+const DEFAULT_VEHICLE_CAPACITY = 4;
 const MANAGE_WORLD_SCHEMA = {
     action: z.enum(["list", "get", "create_room", "update_room", "remove_room", "create_thing", "update_thing", "remove_thing", "create_exit", "remove_exit", "convert", "generate", "causal_propose", "causal_admit", "causal_reject", "causal_list", "causal_state", "causal_ingress"]).describe("World: list, get, create_room, update_room, remove_room, create_thing, update_thing, remove_thing, create_exit, remove_exit, convert, or generate. Causal: causal_propose, causal_admit, causal_reject, causal_list, causal_state, or causal_ingress."),
     name: z.string().optional().describe("Room/thing name (create/update/remove)."),
@@ -5445,6 +5508,7 @@ const MANAGE_WORLD_SCHEMA = {
     edible: z.boolean().optional().describe("When true the thing can be eaten (create_thing/update_thing)."),
     drinkable: z.boolean().optional().describe("When true the thing can be drunk (create_thing/update_thing)."),
     enterable: z.boolean().optional().describe("When true the thing can be entered (create_thing/update_thing)."),
+    capacity: z.number().int().positive().optional().describe("Maximum passengers for a vehicle (create_thing/update_thing; defaults to 4 for vehicles)."),
     climbable: z.boolean().optional().describe("When true the thing can be climbed (create_thing/update_thing)."),
     noise: z.string().optional().describe("Auditory cue text reported by listen (create_thing/update_thing)."),
     scent: z.string().optional().describe("Olfactory cue text reported by smell (create_thing/update_thing)."),
@@ -5602,6 +5666,8 @@ server.registerTool("manage_world", {
         drinkable: args.drinkable === true,
         enterable: args.enterable === true,
         climbable: args.climbable === true,
+        capacity: k === "vehicle" ? (args.capacity ?? DEFAULT_VEHICLE_CAPACITY) : args.capacity,
+        vehicleInterior: k === "vehicle" ? (args.description ?? undefined) : undefined,
         noise: args.noise ?? null, scent: args.scent ?? null,
         vehiclePassengers: [], worn_by: null, annotations: {},
         key: args.key ? String(args.key).toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "") : undefined,
@@ -5627,6 +5693,7 @@ server.registerTool("manage_world", {
       if (args.noise !== undefined) thing.noise = args.noise;
       if (args.scent !== undefined) thing.scent = args.scent;
       if (args.location !== undefined) thing.location = args.location;
+      if (args.capacity !== undefined) thing.capacity = args.capacity;
       if (args.key !== undefined) thing.key = args.key ? String(args.key).toLowerCase().replace(/^the\s+/, "").replace(/^an?\s+/, "") : undefined;
       state.saveNovel(novel);
       audit("update_thing", { name: args.name });
@@ -10149,7 +10216,7 @@ const handleContextTool = async (args: any): Promise<any> => {
       return reassignToolCategory(args.tool_name, args.category);
     }
     case "verbosity": {
-      outputVerbosity = args.mode;
+      detailLevel = args.mode === "terse" ? "terse" : "normal";
       return ok(`Output verbosity set to '${args.mode}'.`);
     }
     case "briefing_order": {
@@ -10283,10 +10350,17 @@ Options: yes, cancel`);
       if (significantRolls.length > 0) {
         recap += `\nsignificant_rolls: ${rollDetails.map((r) => [r.tool, r.entity, r.dice, r.outcome].filter(Boolean).join(" ")).join("; ")}`;
       }
-      // REQ-072e — configurable scene-transition window.
-      const sceneTransitions = novel.scene_history.slice(-maxTransitions).map((h) => ({
-        timestamp: h.timestamp, description: h.description, location: h.location ?? null,
-      }));
+      // REQ-072e — configurable scene-transition window; REQ-317d — vehicle
+      // traversals appear as scene transitions for every badge.
+      const sceneTransitions = [
+        ...novel.scene_history.slice(-maxTransitions).map((h) => ({
+          timestamp: h.timestamp, description: h.description, location: h.location ?? null,
+        })),
+        ...novel.story_journal
+          .filter((s) => typeof s.entry === "string" && (s.entry.startsWith("[vehicle-entry]") || s.entry.startsWith("[vehicle-exit]")))
+          .slice(-maxTransitions)
+          .map((s) => ({ timestamp: s.timestamp, description: s.entry, location: s.scene_anchor ?? null, kind: "vehicle" })),
+      ];
       recap += `\nscene_transitions: ${JSON.stringify(sceneTransitions)}`;
       const initIdx = novel.audit_log.findIndex((e) => e.tool === "init_combat");
       const endCount = novel.audit_log.filter((e) => e.tool === "end_combat").length;
@@ -12842,8 +12916,9 @@ function buildSpecHealth(): Record<string, unknown> {
     ...(performanceRecord ? { performance_record: performanceRecord } : {}),
     cache_coverage: { hits: cacheHits, misses: cacheMisses },
     enumeration_verbosity: enumerationVerbosity,
-    // REQ-253 — active tool-output verbosity mode.
-    verbosity_mode: outputVerbosity,
+    // REQ-253 — active tool-output verbosity mode; REQ-197c — detail level.
+    verbosity_mode: detailLevel === "terse" ? "terse" : "normal",
+    detail_level: detailLevel,
     // REQ-447 — audit-log growth cap utilization.
     audit_at_capacity: novel ? state.auditLogAtCapacity(novel) : false,
     audit_log_entries: novel ? novel.audit_log.length : 0,
@@ -12859,8 +12934,9 @@ function buildSpecHealth(): Record<string, unknown> {
         extended: tiers.extended.length,
       };
     })(),
-    // REQ-197 — room description mode (session-scoped).
-    description_mode: roomDescriptionMode,
+    // REQ-197 — effective room description mode (session-scoped; the detail
+    // level overrides the player's chosen mode).
+    description_mode: effectiveRoomDescriptionMode(),
     // REQ-185 section token vocabulary + REQ-186 discoverability: valid tokens with
     // their REQ-109 groups and whether the group currently has runtime content.
     section_tokens: [
@@ -14685,7 +14761,8 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
 ${orientation}
-${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}`;
+${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}
+**Player-Detail:** ${detailLevel}`;
 
   // REQ-250 — adventure scene waypoint: surface the adventure scene as a
   // distinct labeled block alongside the current scene state, with adjacent
@@ -14711,6 +14788,22 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel
     briefing += `\n**Active entity:** ${entity.name}`;
     if (entity.current_room) briefing += ` — ${entity.current_room}`;
     if (entity.inventory.length > 0) briefing += ` — holding: ${entity.inventory.join(", ")}`;
+  }
+
+  // REQ-317d — vehicle traversal surfaces in the briefing's narrative context:
+  // the aboard vehicle, then the recent entry/exit moments.
+  const aboardName = (entity as any)?.in_vehicle ? String((entity as any).in_vehicle) : null;
+  const vehicleMoments = novel.story_journal
+    .filter((s) => typeof s.entry === "string" && (s.entry.startsWith("[vehicle-entry]") || s.entry.startsWith("[vehicle-exit]")))
+    .slice(-5);
+  if (aboardName || vehicleMoments.length > 0) {
+    const lines: string[] = [];
+    if (aboardName) {
+      const aboard = novel.world.things.get(aboardName.toLowerCase());
+      if (aboard) lines.push(`- Aboard: ${aboard.name} (parked in ${aboard.location ?? "unknown"}) — ${aboard.vehicleInterior || aboard.description || "no interior description"}`);
+    }
+    for (const m of vehicleMoments) lines.push(`- ${m.entry}`);
+    if (lines.length > 0) briefing += `\n\n### Vehicle\n${lines.join("\n")}`;
   }
 
   // REQ-084a1/a2 — proactive Available Actions section (token: available_actions).

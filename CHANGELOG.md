@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-11 — §5.10 hints, detail, and vehicle remediation
+
+- Parser hints follow the REQ-284b line contract: a locked `open` is
+  `[ERROR] [RULE_VIOLATION]` with `Hint: You need the <object> (<location>)
+  first.` on its own line, omitted when no key is reachable; `unlock`/`lock`
+  keep the bound-key `[WARNING]` and the free-unlock `[OK]`. Key reachability is
+  REQ-284a's rule (room, inventory, or an open container), and two new hints
+  cover a readable thing inside a closed container and a vehicle or climbable
+  one open exit away. The REQ-284b example is corrected from `unlock` to `open`
+  so it no longer contradicts REQ-284f (REQ-284a–f; F-P6a-8).
+- `manage_character (action: signal)` accepts `detail` with `terse`, `normal`,
+  and `rich`. The level is an evaluation-time override over the player's chosen
+  room mode — terse forces name-and-exits, rich forces full descriptions and
+  appends `[lore]` notices for newly active lore — `spec_health` reports
+  `detail_level`, and `badge_briefing` renders a `Player-Detail:` line
+  (REQ-197c, REQ-197d; F-P6a-9).
+- Vehicles created through CRUD carry the shared default capacity of 4 and the
+  parser's full-vehicle check now applies to them; re-entering a vehicle the
+  caller already occupies is idempotent. Aboard movement resolves the parked
+  room's doors and carries every passenger, the `[vehicle-entry]` moment
+  records the interior description, and vehicle traversals surface as
+  `kind: "vehicle"` recap transitions and a `### Vehicle` briefing block. The
+  interior stays virtual, so `world://map` never lists it (REQ-317a–d;
+  F-P6a-10).
+
 ## 2026-11-10 — §5.10 parser and help contracts
 
 - One `PARSER_CATALOG` now drives the help text, `world://kinds`, the generated

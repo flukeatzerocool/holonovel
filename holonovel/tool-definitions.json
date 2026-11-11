@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 113885,
+  "tools_list_bytes": 114112,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 113885,
-        "tokens": 28472
+        "bytes": 114112,
+        "tokens": 28528
       },
       "standard": {
         "tools": 37,
-        "bytes": 99492,
-        "tokens": 24873
+        "bytes": 99719,
+        "tokens": 24930
       },
       "small": {
         "tools": 6,
@@ -546,7 +546,7 @@
         "pov": "Point-of-view mode (set_active).",
         "roster_id": "Roster identifier (import/roster_remove).",
         "seed": "Deterministic seed (create).",
-        "signal": "Feedback category (signal).",
+        "signal": "Feedback category (signal); detail carries terse|normal|rich.",
         "skills": "Trained skills (create).",
         "species": "Species (create).",
         "spells": "Known spells (update); entries may be bare names or {name, level} objects.",
@@ -584,7 +584,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5691,
+        "definitionBytes": 5734,
         "descriptionBytes": 979
       },
       "category": "",
@@ -2014,11 +2014,12 @@
         "convert",
         "generate"
       ],
-      "param_count": 33,
+      "param_count": 34,
       "required": [
         "action"
       ],
       "params": {
+        "capacity": "Maximum passengers for a vehicle (create_thing/update_thing; defaults to 4 for vehicles).",
         "climbable": "When true the thing can be climbed (create_thing/update_thing).",
         "description": "Optional description (create/update).",
         "direction": "Direction (create_exit/remove_exit).",
@@ -2067,9 +2068,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 34,
+        "paramCount": 35,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 34,
+        "paramsWithDescriptions": 35,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -2080,7 +2081,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5764,
+        "definitionBytes": 5948,
         "descriptionBytes": 846
       },
       "category": "",

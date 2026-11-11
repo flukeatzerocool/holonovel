@@ -8,6 +8,8 @@ export interface ParserContext {
   currentRoom: string | null;
   inventory: string[]; // thing lowercased names
   badge: string | null;
+  /** REQ-317c — the acting entity id, used to keep vehicle entry idempotent. */
+  actorId?: string;
   /** REQ-197 — session-scoped room description mode (default `normal`). */
   descriptionMode?: "brief" | "verbose" | "normal";
   /** REQ-197b — rooms already described this session, for `normal` first-entry only. */
@@ -256,7 +258,7 @@ function getReachableThing(name: string, ctx: ParserContext): WorldThing | undef
   return candidates.find((t) => norm(t.name).includes(want) || want.includes(norm(t.name)));
 }
 
-function bareName(name: string): string {
+export function bareName(name: string): string {
   return name.replace(/^(?:the|an?)\s+/i, "");
 }
 
@@ -520,10 +522,10 @@ function handleOpen(target: string, ctx: ParserContext): ParserResult {
   if (!thing.openable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} cannot be opened.` };
   if (thing.open) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already open.` };
   if (thing.locked) {
-    // REQ-284 — implicit action hints: when a reachable key exists in the room
-    // or inventory, name it and its location; no hint when none is reachable.
+    // REQ-284b — a locked open is a rule violation; the hint names a reachable
+    // key on its own line and is omitted when no key is reachable.
     const hint = findUnlockHint(ctx, thing);
-    return { prefix: "WARNING", text: `The ${bareName(thing.name)} is locked.`, correctiveAction: hint ?? `Try: unlock ${bareName(thing.name)} with <key>.` };
+    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is locked.${hint ? `\n${hint}` : ""}` };
   }
   return { prefix: "OK", text: `You open the ${bareName(thing.name)}.` };
 }
@@ -542,17 +544,62 @@ function carryingKey(ctx: ParserContext, name: string): boolean {
   });
 }
 
+// REQ-284b — the one hint format: `Hint: You need the <object> (<location>) first.`
+function hintLine(object: string, location: string): string {
+  return `Hint: You need the ${object} (${location}) first.`;
+}
+
+// REQ-284a — reachable means the current room, the inventory, or an OPEN
+// container in either.
+function isHintReachable(thing: WorldThing, ctx: ParserContext): boolean {
+  const room = (ctx.currentRoom ?? "").toLowerCase();
+  if (carryingKey(ctx, thing.name)) return true;
+  const loc = String(thing.location ?? "").toLowerCase();
+  if (!loc) return false;
+  if (loc === room) return true;
+  const parent = ctx.world.things.get(loc);
+  return !!(parent && String(parent.location ?? "").toLowerCase() === room && parent.open);
+}
+
+function roomDisplayName(ctx: ParserContext): string {
+  const room = ctx.currentRoom ? ctx.world.rooms.get(ctx.currentRoom.toLowerCase()) : undefined;
+  return room?.name ?? ctx.currentRoom ?? "";
+}
+
 function findUnlockHint(ctx: ParserContext, thing: WorldThing): string | null {
-  const roomName = ctx.currentRoom?.toLowerCase?.() ?? "";
   const bound = thing.key;
   const candidates = [...ctx.world.things.values()].filter((t) => {
     const n = normThingName(t.name);
     return bound ? n === normThingName(bound) : (n.includes("key") || n.includes("lockpick"));
   });
   for (const t of candidates) {
-    if (carryingKey(ctx, t.name)) return `Hint: You need the ${bareName(t.name)} (inventory) first.`;
-    if (t.location && String(t.location).toLowerCase() === roomName) return `Hint: You need the ${bareName(t.name)} (${roomName}) first.`;
-    if (t.locationType === "container" && t.location === roomName) return `Hint: You need the ${bareName(t.name)} (${roomName}) first.`;
+    if (!isHintReachable(t, ctx)) continue;
+    return hintLine(bareName(t.name), describeThingLocation(t, ctx) || roomDisplayName(ctx));
+  }
+  return null;
+}
+
+// REQ-284c — a vehicle or climbable one open exit away produces a
+// direction-bearing hint. Containers and switched-off devices never do.
+function adjacentHint(target: string, ctx: ParserContext, want: "vehicle" | "climbable"): string | null {
+  const lower = normThingName(target);
+  const room = ctx.currentRoom ? ctx.world.rooms.get(ctx.currentRoom.toLowerCase()) : undefined;
+  if (!room) return null;
+  for (const [dir, targetRoom] of room.exits) {
+    const doorName = room.doorRefs.get(dir as Direction);
+    if (doorName) {
+      const door = ctx.world.things.get(String(doorName).toLowerCase());
+      if (door && !door.open) continue;
+    }
+    for (const thing of ctx.world.things.values()) {
+      if (String(thing.location ?? "").toLowerCase() !== String(targetRoom).toLowerCase()) continue;
+      const n = normThingName(thing.name);
+      if (!(n === lower || n.includes(lower) || lower.includes(n))) continue;
+      const matches = want === "vehicle" ? thing.kind === "vehicle" : thing.climbable;
+      if (!matches) continue;
+      const dest = ctx.world.rooms.get(String(targetRoom).toLowerCase());
+      return `Hint: The ${bareName(thing.name)} is in the ${dest?.name ?? targetRoom} (${dir}) — go ${dir} first.`;
+    }
   }
   return null;
 }
@@ -581,7 +628,7 @@ function handleUnlock(target: string, ctx: ParserContext): ParserResult {
   const requiredKey = thing.key ?? (namedKey ? normThingName(namedKey) : undefined);
   if (requiredKey && !carryingKey(ctx, requiredKey)) {
     const hint = findUnlockHint(ctx, thing);
-    return { prefix: "WARNING", text: `The ${bareName(thing.name)} is locked.`, correctiveAction: hint ?? `You need the ${requiredKey} to unlock it.` };
+    return { prefix: "WARNING", text: `The ${bareName(thing.name)} is locked.${hint ? `\n${hint}` : `\nYou need the ${requiredKey} to unlock it.`}` };
   }
 
   return { prefix: "OK", text: `You unlock the ${bareName(thing.name)}.` };
@@ -602,7 +649,7 @@ function handleLock(target: string, ctx: ParserContext): ParserResult {
   }
   if (thing.key && !carryingKey(ctx, thing.key)) {
     const hint = findUnlockHint(ctx, thing);
-    return { prefix: "WARNING", text: `The ${bareName(thing.name)} cannot be locked without its key.`, correctiveAction: hint ?? `You need the ${thing.key}.` };
+    return { prefix: "WARNING", text: `The ${bareName(thing.name)} cannot be locked without its key.${hint ? `\n${hint}` : `\nYou need the ${thing.key}.`}` };
   }
 
   return { prefix: "OK", text: `You lock the ${bareName(thing.name)}.` };
@@ -710,8 +757,23 @@ function handleRemove(target: string, ctx: ParserContext): ParserResult {
 
 function handleRead(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Read what?" };
-  const thing = resolveReachable(target, ctx) ?? ctx.world.things.get(target.toLowerCase());
+  const reachable = resolveReachable(target, ctx);
+  const thing = reachable ?? ctx.world.things.get(normThingName(target));
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!reachable) {
+    // REQ-284c/e — a readable thing inside a closed container names the
+    // container and the fix instead of leaking the text.
+    const parent = thing.location ? ctx.world.things.get(String(thing.location).toLowerCase()) : undefined;
+    const inRoom = String(parent?.location ?? "").toLowerCase() === (ctx.currentRoom ?? "").toLowerCase();
+    if (parent && inRoom && parent.openable && !parent.open) {
+      return {
+        prefix: "ERROR",
+        code: "RULE_VIOLATION",
+        text: `The ${bareName(thing.name)} is inside the ${bareName(parent.name)}.\nHint: The ${bareName(thing.name)} is inside the ${bareName(parent.name)} — open it first.`,
+      };
+    }
+    return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  }
   if (!thing.readable && !thing.read_text) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not readable.` };
   if (thing.read_text) return { prefix: "OK", text: `The ${bareName(thing.name)} reads: "${thing.read_text}"` };
   return { prefix: "OK", text: thing.description || `You read the ${bareName(thing.name)}.` };
@@ -730,7 +792,10 @@ function handleConsume(verb: "eat" | "drink", target: string, ctx: ParserContext
 function handleClimb(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Climb what?" };
   const thing = resolveReachable(target, ctx);
-  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing) {
+    const hint = adjacentHint(target, ctx, "climbable");
+    return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.${hint ? `\n${hint}` : ""}` };
+  }
   if (!thing.climbable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not climbable.` };
   return { prefix: "OK", text: `You climb the ${bareName(thing.name)}.` };
 }
@@ -748,9 +813,13 @@ function handleJump(target: string, ctx: ParserContext): ParserResult {
 function handleEnter(target: string, ctx: ParserContext): ParserResult {
   if (!target) return { prefix: "ERROR", code: "INVALID_INPUT", text: "Enter what?" };
   const thing = resolveReachable(target, ctx);
-  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing) {
+    const hint = adjacentHint(target, ctx, "vehicle");
+    return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.${hint ? `\n${hint}` : ""}` };
+  }
   if (!thing.enterable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not enterable.` };
-  if (thing.kind === "vehicle" && thing.capacity !== undefined && thing.vehiclePassengers.length >= thing.capacity) {
+  const alreadyAboard = !!ctx.actorId && (thing.vehiclePassengers ?? []).includes(ctx.actorId);
+  if (thing.kind === "vehicle" && !alreadyAboard && thing.capacity !== undefined && thing.vehiclePassengers.length >= thing.capacity) {
     return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is full.` };
   }
   return { prefix: "OK", text: `You enter the ${bareName(thing.name)}.` };

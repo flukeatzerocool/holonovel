@@ -11,6 +11,44 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.10 hints, detail, and vehicles
+
+- **F-P6a-8 — implicit action hints (resolved 2026-11-11):** a locked `open`
+  now returns `[ERROR] [RULE_VIOLATION]` with
+  `Hint: You need the <object> (<location>) first.` on its own line, omitted
+  when no key is reachable (`holonovel/src/world/parser.ts:518-531`); the hint
+  uses the room's display name and REQ-284a reachability (room, inventory, or an
+  **open** container) through `hintLine`/`isHintReachable`
+  (`parser.ts:548-583`); `unlock`/`lock` keep the bound-key `[WARNING]` and the
+  REQ-284f free-unlock `[OK]` with the hint on its own line
+  (`parser.ts:616-650`); a readable thing inside a closed container returns the
+  jar hint (`parser.ts:758-782`); and `enter`/`climb` on a vehicle or climbable
+  one open exit away returns the direction-bearing hint while keeping their
+  existing `[NOT_FOUND]` result (`parser.ts:584-611`, `:792-823`). REQ-284a,
+  REQ-284b, REQ-284c, REQ-284d, REQ-284e.
+- **F-P6a-9 — detail signal and Player-Detail line (resolved 2026-11-11):**
+  `detailLevel` is a session `terse|normal|rich` override over the independently
+  stored chosen room mode (`holonovel/src/index.ts:1954-1961`); the signal
+  handler validates the three values and sets the level without mutating the
+  chosen mode (`index.ts:4358-4372`); `spec_health` reports `detail_level` and
+  the effective `description_mode` (`index.ts:12919-12920`, `:12961`);
+  `run_command` appends `[lore] <key>` notices under `rich` by diffing the
+  active-lore set around the call (`index.ts:5065`, `:5299-5303`); and
+  `badge_briefing` renders the `Player-Detail:` line (`index.ts:14764`).
+  REQ-197c, REQ-197d.
+- **F-P6a-10 — vehicle traversal (resolved 2026-11-11):** `create_thing` gives a
+  vehicle the shared default capacity of 4 or the supplied value
+  (`index.ts:5486`, `:5668`), and the parser's full-vehicle check applies to it
+  while re-entry by an occupant is idempotent (`parser.ts:813-823`, with
+  `actorId` from `index.ts:5063`); aboard movement resolves the parked room's
+  `doorRefs` and moves every passenger (`index.ts:5025-5050`); the
+  `[vehicle-entry]` moment carries the interior description
+  (`index.ts:5342-5354`, call at `:5231`); vehicle traversals appear as
+  `kind: "vehicle"` recap transitions (`index.ts:10355-10362`) and a
+  `### Vehicle` briefing block (`index.ts:14795-14805`); the interior stays
+  virtual, so `world://map` never lists it. REQ-317a, REQ-317b, REQ-317c,
+  REQ-317d.
+
 ### 2026-11-10 §5.10 parser and help contracts
 
 - **F-P6a-7 — parser response and help contracts (resolved 2026-11-10):** the
@@ -1586,25 +1624,6 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
 
-- **F-P6a-8 — implicit action hints (2026-11-09):** locked/open failures return
-  `[WARNING]` plus a separate `Corrective action: Hint:` line
-  (`holonovel/src/world/parser.ts:469`; `index.ts:4907`) rather than
-  `[RULE_VIOLATION] … Hint: You need the <object> (<location>) first.`, and the
-  readable-inside-a-closed-container and adjacent-room vehicle/climbable hints
-  are absent (`:656-657`, `:675-679`). REQ-284a, REQ-284b, REQ-284c, REQ-284d,
-  REQ-284e. Scheduled under `ROADMAP.md` § §5.10 world-model contract
-  remediation (P1).
-- **F-P6a-9 — detail signal and Player-Detail line (2026-11-09):**
-  `manage_character (action: signal)` has no `detail` value
-  (`holonovel/src/index.ts:3873`) and `badge_briefing` renders no Player-Detail
-  line (`:13933-13936`). REQ-197c, REQ-197d. Scheduled under `ROADMAP.md` §
-  §5.10 world-model contract remediation (P1).
-- **F-P6a-10 — vehicle traversal (2026-11-09):** aboard a vehicle, movement
-  ignores the door state and moves only the active entity
-  (`holonovel/src/index.ts:4677-4688`); the `[vehicle-entry]` moment omits the
-  interior description (`:4929`); the interior is not modelled as a room.
-  REQ-317a, REQ-317b, REQ-317c, REQ-317d. Scheduled under `ROADMAP.md` § §5.10
-  world-model contract remediation (P1).
 - **F-P6a-12 — world resources and badge filtering (2026-11-09):**
   `world://map` and `world://kinds` are served without a badge read
   (`holonovel/src/index.ts:12542-12550`); `room://` omits visible things and

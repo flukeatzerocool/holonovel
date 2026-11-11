@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,472 tokens; standard 24,873; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,528 tokens; standard 24,930; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -1216,7 +1216,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.10 |
+| Spec version | 2026.11.11 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

@@ -742,17 +742,87 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T362/T317: vehicle lifecycle — enterable, interior look, exit", async () => {
+    await test("T362/T317: vehicle lifecycle — capacity, passengers, moments, briefing", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "t362-shore", description: "Shore." });
       await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "kind-room", room_b: "t362-shore" });
       await call(proc, "manage_world", { action: "create_thing",  name: "t362-raft", kind: "vehicle", enterable: true, description: "A rickety raft.", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t362-skiff", kind: "vehicle", capacity: 1, enterable: true, description: "A narrow skiff.", location: "kind-room" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "t362-cart", kind: "vehicle", enterable: true, description: "A sturdy cart.", location: "kind-room" });
       await call(proc, "manage_world", { action: "create_thing",  name: "t362-rock", kind: "thing", location: "kind-room" });
+      await call(proc, "manage_character", { action: "create",  name: "Rafter", description: "second passenger" });
+
+      // REQ-317c — a CRUD-created vehicle carries a capacity and the existing
+      // parser check enforces it.
+      const cart = await call(proc, "manage_world", { action: "get",  id: "t362-cart" });
+      assertContains(cart, "\"capacity\": 4");
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
       await call(proc, "set_badge", { badge: "player" });
-      assertContains(await call(proc, "run_command", { command: "enter t362-raft" }), "[OK]");
-      assertContains(await call(proc, "run_command", { command: "look" }), "t362-raft");
+      assertContains(await call(proc, "run_command", { command: "enter t362-skiff" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "enter t362-skiff" }), "[OK]", "REQ-317c re-entering while aboard is idempotent");
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_04" });
+      assertContains(await call(proc, "run_command", { command: "enter t362-skiff" }), "RULE_VIOLATION", "REQ-317c full vehicle rejects a passenger");
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
       assertContains(await call(proc, "run_command", { command: "exit" }), "[OK]");
-      assertContains(await call(proc, "run_command", { command: "enter t362-rock" }), "RULE_VIOLATION");
+
+      // REQ-317b — aboard navigation moves the vehicle and every passenger.
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+      assertContains(await call(proc, "run_command", { command: "enter t362-cart" }), "[OK]");
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_04" });
+      assertContains(await call(proc, "run_command", { command: "enter t362-cart" }), "[OK]");
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+      assertContains(await call(proc, "run_command", { command: "look" }), "t362-cart (interior)");
+      assertContains(await call(proc, "run_command", { command: "look" }), "Exits: out.");
+      assertContains(await call(proc, "run_command", { command: "go north" }), "[OK]");
       await call(proc, "set_badge", { badge: "game_master" });
+      const movedCart = await call(proc, "manage_world", { action: "get",  id: "t362-cart" });
+      assertContains(movedCart, "\"location\": \"t362-shore\"", "REQ-317b vehicle persists at its last location");
+      const secondSheet = await call(proc, "manage_character", { action: "sheet",  entity_id: "character_04", format: "ascii" });
+      assertContains(secondSheet, "t362-shore", "REQ-317b a passenger moves with the vehicle");
+      const map = await readResource(proc, "world://map");
+      assertNotContains(map, "interior", "REQ-317c interiors are not world-graph nodes");
+
+      // REQ-317d — the entry moment carries the interior description, and the
+      // traversal surfaces in recap and briefing.
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "run_command", { command: "exit" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "go south" }), "[OK]");
+      await call(proc, "set_badge", { badge: "game_master" });
+      const recap = await call(proc, "manage_context", { action: "recap" });
+      assertContains(recap, "[vehicle-entry] entered t362-cart — A sturdy cart.", "REQ-317d entry moment carries the interior");
+      assertContains(recap, "[vehicle-exit] t362-cart returned to t362-shore", "REQ-317d exit moment");
+      assertContains(recap, "\"kind\":\"vehicle\"", "REQ-317d vehicle transition in recap");
+      assertContains(recap, "t362-cart", "REQ-317d recap names the vehicle");
+      await call(proc, "set_badge", { badge: "player" });
+      const briefing = await getPrompt(proc, "badge_briefing");
+      assertContains(briefing, "### Vehicle", "REQ-317d briefing vehicle block");
+      assertContains(briefing, "t362-cart", "REQ-317d briefing names the vehicle");
+      await call(proc, "set_badge", { badge: "game_master" });
+      assertContains(await call(proc, "run_command", { command: "enter t362-rock" }), "RULE_VIOLATION");
+    });
+
+    await test("T362b/T317: aboard movement honors the parked room's doors", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "t362door" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "t362door" });
+      await call(proc, "manage_world", { action: "convert",  source: "# World\n\n## Room: quay\nA stone quay.\n\n## Room: bay\nA grey bay.\n\nSkiff is a vehicle. \"A narrow skiff.\"\nIt is in quay.\n\nA plank door is north of quay and south of bay.\nIt is closed." });
+      await call(proc, "manage_character", { action: "create",  name: "Quayhand" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "run_command", { command: "enter skiff" }), "[OK]");
+      const blocked = await call(proc, "run_command", { command: "go north" });
+      assertContains(blocked, "[WARNING]", "REQ-317b a closed door blocks aboard movement");
+      assertContains(blocked, "plank door");
+      await call(proc, "set_badge", { badge: "game_master" });
+      const parked = await call(proc, "manage_world", { action: "get",  id: "skiff" });
+      assertContains(parked, "\"location\": \"quay\"", "REQ-317b a blocked move leaves the vehicle parked");
+      assertContains(await call(proc, "run_command", { command: "unlock plank door" }), "[OK]");
+      assertContains(await call(proc, "run_command", { command: "open plank door" }), "[OK]");
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "run_command", { command: "go north" }), "[OK]");
+      await call(proc, "set_badge", { badge: "game_master" });
+      const sailed = await call(proc, "manage_world", { action: "get",  id: "skiff" });
+      assertContains(sailed, "\"location\": \"bay\"", "REQ-317b an open door lets the vehicle through");
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf4" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
     });
 
     await test("T363/T318: extended property contracts — wearable/edible/readable flags", async () => {

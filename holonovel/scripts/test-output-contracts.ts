@@ -1468,6 +1468,57 @@ async function main() {
     if (!look.includes("A tiled vestibule.")) throw new Error(`REQ-197 verbatim description missing: ${look}`);
     if (!lines[lines.length - 1].startsWith("Exits:")) throw new Error(`REQ-197 exits must be the final status line: ${look}`);
 
+    // REQ-197c/d — the detail signal is the session detail control: three
+    // values, room-mode override, Player-Detail line, and a rich-mode lore
+    // notice. The signal is Player-badge only.
+    await call(p, "set_badge", { badge: "player" });
+    const terse = await call(p, "manage_character", { action: "signal",  signal: "detail", value: "terse" });
+    assertContains(terse, "[OK]", "REQ-197c detail terse accepted");
+    const hTerse = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if (hTerse.detail_level !== "terse") throw new Error(`REQ-197c detail_level must be terse: ${JSON.stringify(hTerse.detail_level)}`);
+    const terseLook = await call(p, "run_command", { command: "look" });
+    if (terseLook.includes("A tiled vestibule.")) throw new Error(`REQ-197d terse must override the room mode: ${terseLook}`);
+    const briefing = await proto(p, "prompts/get", { name: "badge_briefing", arguments: {} });
+    assertContains(briefing, "Player-Detail", "REQ-197d Player-Detail line");
+    assertContains(briefing, "terse", "REQ-197d Player-Detail value");
+    const badDetail = await call(p, "manage_character", { action: "signal",  signal: "detail", value: "loud" });
+    assertContains(badDetail, "[INVALID_INPUT]", "REQ-197c invalid detail value refused");
+    assertContains(badDetail, "terse", "REQ-197c invalid detail names the values");
+
+    // A `brief` command while terse records the chosen mode but output stays terse.
+    await call(p, "run_command", { command: "brief" });
+    if ((await call(p, "run_command", { command: "look" })).includes("A tiled vestibule.")) {
+      throw new Error("REQ-197d a brief command must not defeat an active terse level");
+    }
+    // rich forces full descriptions even though the chosen mode is brief.
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "rich" });
+    const richLook = await call(p, "run_command", { command: "look" });
+    assertContains(richLook, "A tiled vestibule.", "REQ-197c rich forces the full description");
+    // rich -> normal restores the chosen brief mode without a prior terse.
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "normal" });
+    if ((await call(p, "run_command", { command: "look" })).includes("A tiled vestibule.")) {
+      throw new Error("REQ-197c rich->normal must restore the chosen brief mode");
+    }
+    // rich -> terse -> normal restores brief, not the forced verbose.
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "rich" });
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "terse" });
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "normal" });
+    if ((await call(p, "run_command", { command: "look" })).includes("A tiled vestibule.")) {
+      throw new Error("REQ-197c rich->terse->normal must restore brief, not the forced verbose");
+    }
+    // normal after terse restores a previously chosen verbose mode.
+    await call(p, "run_command", { command: "verbose" });
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "terse" });
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "normal" });
+    assertContains(await call(p, "run_command", { command: "look" }), "A tiled vestibule.", "REQ-197c normal after terse restores the chosen verbose mode");
+
+    // rich-mode lore notice: a shared world-targeted entry becomes active on entry.
+    await call(p, "manage_character", { action: "signal",  signal: "detail", value: "rich" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_lore", { action: "set",  key: "corridor-lore", content: "The corridor hums.", visibility: "shared", world_target: "corridor" });
+    const richMove = await call(p, "run_command", { command: "go north" });
+    assertContains(richMove, "[lore] corridor-lore", "REQ-197c rich lore notice");
+
     passed++;
     await kill(p);
   });
@@ -1538,13 +1589,42 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w10e" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_character", { action: "create",  name: "W" });
+    await call(p, "manage_character", { action: "set_active",  entity_id: "character_01" });
     await call(p, "manage_world", { action: "create_room",  name: "Hall", description: "h" });
+    await call(p, "manage_world", { action: "create_room",  name: "Shore", description: "s" });
+    await call(p, "manage_world", { action: "create_exit",  direction: "north", room_a: "Hall", room_b: "Shore" });
     await call(p, "manage_world", { action: "create_thing",  name: "chest", description: "a chest", openable: true, lockable: true, locked: true, fixed: true, location: "Hall" });
     const noKey = await call(p, "run_command", { command: "open chest" });
-    assertContains(noKey, "locked", "REQ-284 locked message");
+    assertContains(noKey, "[ERROR] [RULE_VIOLATION]", "REQ-284b locked open is a rule violation");
+    if (noKey.includes("Hint:")) throw new Error(`REQ-284b no key exists, no hint expected: ${noKey}`);
     await call(p, "manage_world", { action: "create_thing",  name: "iron key", description: "k", location: "Hall" });
     const hint = await call(p, "run_command", { command: "open chest" });
-    assertContains(hint, "Hint: You need the iron key", "REQ-284 reachable key hint");
+    assertContains(hint, "Hint: You need the iron key (Hall) first.", "REQ-284a/b hint names the reachable key and its room");
+
+    // REQ-284c/e — a readable thing inside a closed container names the
+    // container; a vehicle one open exit away names the direction and room.
+    await call(p, "manage_world", { action: "create_thing",  name: "glass jar", description: "j", openable: true, fixed: true, transparent: true, location: "Hall" });
+    await call(p, "manage_world", { action: "create_thing",  name: "inscription", description: "i", readable: true, read_text: "Beware.", fixed: true, location: "glass jar", location_type: "container" });
+    const jarRead = await call(p, "run_command", { command: "read inscription" });
+    assertContains(jarRead, "[ERROR] [RULE_VIOLATION]", "REQ-284c unreadable-in-closed-container is a rule violation");
+    assertContains(jarRead, "Hint: The inscription is inside the glass jar — open it first.", "REQ-284c/e closed-container hint");
+    await call(p, "manage_world", { action: "create_thing",  name: "raft", kind: "vehicle", enterable: true, description: "A raft.", location: "Shore" });
+    const raftEnter = await call(p, "run_command", { command: "enter raft" });
+    assertContains(raftEnter, "[NOT_FOUND]", "REQ-284c adjacent-room enter still reports NOT_FOUND");
+    assertContains(raftEnter, "Hint: The raft is in the Shore (north) — go north first.", "REQ-284c adjacent-room vehicle hint");
+
+    // No hint for a container in an adjacent room, a switched-off device, or a
+    // name that matches nothing anywhere.
+    await call(p, "manage_world", { action: "create_thing",  name: "crate", kind: "container", openable: true, fixed: true, location: "Shore" });
+    const crateEnter = await call(p, "run_command", { command: "enter crate" });
+    assertContains(crateEnter, "[NOT_FOUND]", "REQ-284c adjacent container is not enterable here");
+    if (crateEnter.includes("Hint:")) throw new Error(`REQ-284c adjacent container must not hint: ${crateEnter}`);
+    await call(p, "manage_world", { action: "create_thing",  name: "lantern", kind: "device", lit: true, switchable: true, switched_on: false, fixed: true, location: "Hall" });
+    const lanternEnter = await call(p, "run_command", { command: "enter lantern" });
+    if (lanternEnter.includes("Hint:")) throw new Error(`REQ-284c switched-off device must not hint: ${lanternEnter}`);
+    const nowhere = await call(p, "run_command", { command: "enter nonexistent" });
+    assertContains(nowhere, "[NOT_FOUND]", "REQ-284c unknown target keeps NOT_FOUND");
+    if (nowhere.includes("Hint:")) throw new Error(`REQ-284c unknown target must not hint: ${nowhere}`);
     passed++;
     await kill(p);
   });

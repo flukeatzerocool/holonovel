@@ -14,10 +14,6 @@
 
 ## §5.10 world-model contract remediation (P1)
 
-- Hints, detail signal, and vehicle traversal: the REQ-284a–e hint shape and
-  reachability, the `detail` signal and Player-Detail line, and vehicle
-  interior/passenger/door handling (REQ-284a, REQ-284b, REQ-284c, REQ-284d,
-  REQ-284e, REQ-197c, REQ-197d, REQ-317a, REQ-317b, REQ-317c, REQ-317d).
 - Resources, suggest mapping, and CRUD lifecycle: badge-filtered `world://map`,
   `world://kinds`, `room://`, and `thing://` payloads with `parser_commands`,
   the Player `constraints://active` filter, Player spatial suggest mapping to
@@ -25,9 +21,8 @@
   removal cleanup (REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b, REQ-309g,
   REQ-198, REQ-199).
 
-**Trigger:** the next session that takes the hints/detail/vehicle bullet;
-closes when F-P6a-8, F-P6a-9, F-P6a-10, F-P6a-12, F-P6a-13, and F-P6a-14 are
-`Resolved` in the review register.
+**Trigger:** the next session that takes the resources/CRUD bullet; closes when
+F-P6a-12, F-P6a-13, and F-P6a-14 are `Resolved` in the review register.
 
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
