@@ -11,6 +11,26 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.10 observer parser access
+
+- **F-5.10-2 — REQ-309h observer clause implemented (resolved 2026-11-11):**
+  The parser gate now carries one read-only predicate: the `observer` badge is
+  read-only on every Novel and resolves `look`, `examine`/`search`, and
+  `inventory` while navigation and mutation return `[FORBIDDEN]`, and a
+  ruleset-bound Player keeps its verb-scoped window
+  (`holonovel/src/index.ts:4971-4984`). The ruleset-free `requireNotObserver()`
+  refusal is gone. REQ-196a now admits the observer badge on a ruleset-free
+  Novel (`spec/02-requirements.md:3243`) and REQ-309b names the observer's
+  read-only commands as a second exception to the GM-only verb rule (`:3415`).
+  Appendix F's T353 row states the ruleset-free observer case and T643 states
+  the ruleset-bound one (`spec/appendices-reference.md:1779`, `:2061`),
+  exercised by `holonovel/scripts/test-backfill.ts` and
+  `holonovel/scripts/test-competitive-gaps.ts`. The description-mode verbs no
+  longer write the Novel file (`holonovel/src/index.ts:4937-4940`), so an
+  observer `brief` mutates nothing. REQ-366b's parser clause is covered;
+  its resolve and resource clauses are scheduled as F-5.12-1. REQ-309h,
+  REQ-196a, REQ-309b, REQ-366b, REQ-305.
+
 ### 2026-11-11 §5.10 parser badge clause
 
 - **F-P6a-19 — REQ-196a Player-badge clause reconciled (resolved 2026-11-11):**
@@ -1679,17 +1699,17 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-### 2026-11-11 parser refusal reconciliation
+### 2026-11-11 §5.12 observer read surface
 
-- **F-5.10-2 — REQ-309h observer clause unimplemented (2026-11-11):** REQ-309h
-  requires a ruleset-free Novel to accept the `observer` badge
-  (`spec/02-requirements.md:3433`), but the ruleset-free parser branch calls
-  `requireNotObserver()` (`holonovel/src/index.ts:4974-4975`), which throws for
-  `observer` (`holonovel/src/core/state.ts:1124-1126`). The Phase 1 probe
-  recorded `[FORBIDDEN] Observer mode is read-only.` for both `look` and `xyzzy`
-  under `observer` on a ruleset-free Novel
-  (`docs/plans/2026-11-11-5-10-req-196a-player-badge-clause/aar.md`). Scheduled
-  under ROADMAP § §5.10 observer badge parser access; covers `REQ-309h`.
+- **F-5.12-1 — REQ-366b resolve and resource reads still observer-refused
+  (2026-11-11):** REQ-366b grants the observer read-only access to
+  `run_command (action: resolve)`, `run_command (action: visibility |
+  audibility)`, and the world-model resources (`spec/02-requirements.md:3760`),
+  but the resolver and the spatial queries call `requireNotObserver()`
+  (`holonovel/src/index.ts:4787`, `:4814-4819`), so an observer call returns
+  `[FORBIDDEN] Observer mode is read-only.` The parser clause of REQ-366b is
+  implemented in the same increment that schedules this row. Scheduled under
+  ROADMAP § §5.12 observer resolve and resource reads; covers `REQ-366b`.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

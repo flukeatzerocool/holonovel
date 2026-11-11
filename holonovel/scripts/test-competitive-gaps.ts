@@ -485,12 +485,15 @@ async function main() {
     seedPackage("percept", { character_creation: { steps: [] } });
     const proc = await boot();
     await newNovel(proc, "percept-test");
-    await call(proc, "manage_ruleset", { action: "bind", slug: "percept" });
+    // Create the world and the character before the bind: a ruleset package
+    // with an empty creation flow refuses quick-create, and a bound Novel whose
+    // world is empty makes every `look` a STATE_CONFLICT (a vacuous assertion).
     await call(proc, "manage_world", { action: "create_room", name: "Bay", description: "A bay." });
     await call(proc, "manage_character", { action: "create", name: "Scout" });
+    await call(proc, "manage_ruleset", { action: "bind", slug: "percept" });
     await call(proc, "manage_character", { action: "set_active", entity_id: "character_01" });
 
-    await test("T643/REQ-309h: Player may issue read-only perception but not navigate on a ruleset-bound Novel", async () => {
+    await test("T643/REQ-309h: Player and Observer may issue read-only perception but not navigate on a ruleset-bound Novel", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const look = await call(proc, "run_command", { action: "execute", command: "look" });
       assertNotContains(look, "FORBIDDEN");
@@ -503,6 +506,15 @@ async function main() {
       const unknown = await call(proc, "run_command", { action: "execute", command: "xyzzy" });
       assertContains(unknown, "FORBIDDEN");
       assertNotContains(unknown, "Valid commands include:");
+      // REQ-366b — the observer keeps the same read-only perception surface.
+      await call(proc, "set_badge", { badge: "observer" });
+      const obsLook = await call(proc, "run_command", { action: "execute", command: "look" });
+      assertContains(obsLook, "Bay");
+      assertNotContains(obsLook, "FORBIDDEN");
+      const obsInv = await call(proc, "run_command", { action: "execute", command: "i" });
+      assertNotContains(obsInv, "FORBIDDEN");
+      const obsGo = await call(proc, "run_command", { action: "execute", command: "go north" });
+      assertContains(obsGo, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

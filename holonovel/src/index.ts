@@ -4772,7 +4772,7 @@ function resolveSpatialThing(world: WorldModel, ref: string): SpatialActor | und
 
 server.registerTool("run_command", {
   title: "Parser Command",
-  description: "AI-narrator tool — resolves spatial intent internally. Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
+  description: "AI-narrator tool — resolves spatial intent internally. Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player and Observer badges keep read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
   inputSchema: {
     action: z.enum(["execute", "resolve", "suggest", "visibility", "audibility"]).optional().describe("execute (parser), resolve (non-mutating intent), suggest (intent → tool calls), visibility (can one actor see another or a thing), or audibility (can one actor hear another). Defaults to execute."),
     command: z.string().optional().describe("The natural-language command (execute)."),
@@ -4934,9 +4934,11 @@ server.registerTool("run_command", {
   } else if (pendingAmbiguity) {
     pendingAmbiguity = null;
   }
-  if (cmdTrim === "brief") { roomDescriptionMode = "brief"; state.saveNovel(novel); return ok("Description mode: brief (room name + exits only)."); }
-  if (cmdTrim === "verbose") { roomDescriptionMode = "verbose"; state.saveNovel(novel); return ok("Description mode: verbose (full descriptions every time)."); }
-  if (cmdTrim === "normal") { roomDescriptionMode = "normal"; state.saveNovel(novel); return ok("Description mode: normal (full on first entry)."); }
+  // REQ-197 — description mode is session presentation (REQ-197c): it changes
+  // no Novel state, so these verbs persist nothing.
+  if (cmdTrim === "brief") { roomDescriptionMode = "brief"; return ok("Description mode: brief (room name + exits only)."); }
+  if (cmdTrim === "verbose") { roomDescriptionMode = "verbose"; return ok("Description mode: verbose (full descriptions every time)."); }
+  if (cmdTrim === "normal") { roomDescriptionMode = "normal"; return ok("Description mode: normal (full on first entry)."); }
   if (cmdTrim === "help" || cmdTrim === "commands" || cmdTrim === "what can i do?" || cmdTrim === "verbs") {
     // REQ-196a/REQ-309b — the parser is GM-only on a ruleset-bound Novel; the
     // Player badge never sees the verb catalog. Ruleset-free Novels keep the
@@ -4960,22 +4962,26 @@ server.registerTool("run_command", {
   }
   // Ruleset-bound Novels gate the parser to the Game Master (REQ-309); the
   // Player badge may issue read-only perception commands (REQ-309h) and routes
-  // mutating spatial intent through the narrator. Ruleset-free Novels keep the
-  // parser as the primary Player surface (REQ-218, REQ-309e).
+  // mutating spatial intent through the narrator. The observer badge is
+  // read-only on every Novel (REQ-305) and keeps the same perception surface on
+  // both Novel types (REQ-366b). Ruleset-free Novels keep the parser as the
+  // primary Player surface (REQ-218, REQ-309e).
   const executeBadge = getBadge();
   const playerReadOnly = novel.ruleset && executeBadge === "player";
-  if (playerReadOnly) {
+  const observerReadOnly = executeBadge === "observer";
+  const readOnlyBadge = playerReadOnly || observerReadOnly;
+  if (readOnlyBadge) {
     const verb = command.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
     if (!PLAYER_READONLY_VERBS.has(verb)) {
-      return err("FORBIDDEN", "On a ruleset-bound Novel the parser is Game Master only for navigation and mutation. The Player may issue read-only perception commands (look, examine, search, inventory).");
+      return err("FORBIDDEN", observerReadOnly
+        ? "Observer mode is read-only: the parser accepts the read-only perception commands (look, examine, search, inventory) and refuses navigation and mutation."
+        : "On a ruleset-bound Novel the parser is Game Master only for navigation and mutation. The Player may issue read-only perception commands (look, examine, search, inventory).");
     }
   } else if (novel.ruleset) {
     requireGM();
-  } else {
-    requireNotObserver();
   }
-  // A player read-only perception leaves no undo entry or audit mutation.
-  if (!playerReadOnly) worldSnapshot();
+  // A read-only perception leaves no undo entry or audit mutation.
+  if (!readOnlyBadge) worldSnapshot();
   const entity = state.getActiveEntity();
 
   if (!state.worldHasRooms(novel)) {
@@ -5069,7 +5075,7 @@ server.registerTool("run_command", {
     descriptionMode: effectiveRoomDescriptionMode(), seenRooms: visitedRooms,
     // REQ-309b — the Player badge never sees GM-only verb names, including in
     // nearest-verb hints.
-    allowedVerbs: playerReadOnly ? READONLY_VERBS : undefined,
+    allowedVerbs: readOnlyBadge ? READONLY_VERBS : undefined,
   };
   const loreBefore = detailLevel === "rich" ? activeLoreKeys(novel) : null;
   const result = dispatchCommand(command, ctx);

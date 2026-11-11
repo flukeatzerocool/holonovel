@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 114327,
+  "tools_list_bytes": 114340,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 114327,
-        "tokens": 28582
+        "bytes": 114340,
+        "tokens": 28585
       },
       "standard": {
         "tools": 37,
-        "bytes": 99934,
-        "tokens": 24984
+        "bytes": 99947,
+        "tokens": 24987
       },
       "small": {
         "tools": 6,
@@ -2263,8 +2263,8 @@
     {
       "name": "run_command",
       "title": "Parser Command",
-      "description": "AI-narrator tool — resolves spatial intent internally. Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
-      "description_bytes": 899,
+      "description": "AI-narrator tool — resolves spatial intent internally. Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player and Observer badges keep read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
+      "description_bytes": 912,
       "action_enum": [
         "execute",
         "resolve",
@@ -2308,8 +2308,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2372,
-        "descriptionBytes": 899
+        "definitionBytes": 2385,
+        "descriptionBytes": 912
       },
       "category": "",
       "gate": ""

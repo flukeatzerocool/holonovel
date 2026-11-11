@@ -12,16 +12,17 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.10 observer badge parser access (P1)
+## §5.12 observer resolve and resource reads (P1)
 
-- Implement REQ-309h's `observer` clause: on a ruleset-free Novel the parser
-  SHALL accept the `observer` badge read-only, replacing the current
-  `requireNotObserver()` refusal (REQ-309h; F-5.10-2).
-- Assert the observer read-only path in the parser harness and widen the
-  Appendix F row it cites.
+- Accept the `observer` badge on the read-only `run_command` surfaces REQ-366b
+  names: `action: resolve`, `action: visibility`/`audibility`, and the
+  `room://`/`thing://`/`world://map` reads still refused by
+  `requireNotObserver()` (REQ-366b, REQ-596, REQ-597; F-5.12-1).
+- Assert each path in the harness and widen the Appendix F row it cites.
 
-**Trigger:** the next §5.10 badge-gate session; closes when a ruleset-free
-`observer` call resolves `look` and `inventory` and F-5.10-2 is `Resolved`.
+**Trigger:** the next §5.12 narrative-surface session; closes when an observer
+`run_command (action: resolve)` and each world-model resource read resolve and
+F-5.12-1 is `Resolved`.
 
 ## §5.10 parser tool-name drift (P2)
 

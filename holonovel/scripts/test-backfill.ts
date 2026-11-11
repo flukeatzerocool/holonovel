@@ -1271,6 +1271,23 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
+    // REQ-309h/REQ-366b — the observer badge is read-only on every Novel: the
+    // perception verbs resolve and navigation/mutation are refused.
+    await test("T353/REQ-309h: observer badge resolves read-only perception on a ruleset-free Novel", async () => {
+      await call(proc, "manage_world", { action: "create_thing",  name: "rf-lamp", kind: "thing", location: "rf-room" });
+      await call(proc, "set_badge", { badge: "observer" });
+      const look = await call(proc, "run_command", { command: "look" });
+      assertContains(look, "rf-room");
+      const inv = await call(proc, "run_command", { command: "inventory" });
+      assertNotContains(inv, "[FORBIDDEN]");
+      const nav = await call(proc, "run_command", { command: "go north" });
+      assertContains(nav, "[FORBIDDEN]");
+      const take = await call(proc, "run_command", { command: "take rf-lamp" });
+      assertContains(take, "[FORBIDDEN]");
+      assertNotContains(take, "You take");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
     await kill(proc);
   }
 

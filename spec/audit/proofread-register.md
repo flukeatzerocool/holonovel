@@ -331,3 +331,16 @@ which landed without re-running the proofreading pass.
 
 **Disposition: all 271 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 11 — observer parser access delta (2026-11-11)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 282 warnings**.
+REQ-196a admits the `observer` badge on a ruleset-free Novel and REQ-309b names
+the observer's read-only commands as a second exception; neither edited body
+produces a warning (checked by REQ filter), and no Appendix row this increment
+touches is scored by the proofreading pass. The +11 delta over Batch 10 is
+accumulated from the increments published between Batch 10 and this one, none of
+which re-ran the proofreading pass; it is not attributable to this increment.
+
+**Disposition: all 282 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

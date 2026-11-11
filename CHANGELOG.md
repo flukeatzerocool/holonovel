@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-11 — §5.10 observer badge parser access
+
+- The parser gate now carries one read-only predicate: the `observer` badge is
+  read-only on every Novel and resolves `look`, `examine`/`search`, and
+  `inventory` while navigation and mutation return `[FORBIDDEN]`, and a
+  ruleset-bound Player keeps its verb-scoped read-only window. The ruleset-free
+  `requireNotObserver()` refusal is removed (REQ-309h, REQ-305, REQ-366b).
+- REQ-196a admits the observer badge on a ruleset-free Novel, and REQ-309b names
+  the observer's read-only commands as a second exception to the GM-only verb
+  rule (REQ-196a, REQ-309b). Appendix F's T353 and T643 rows state the
+  ruleset-free and ruleset-bound observer cases, exercised by `test-backfill`
+  and `test-competitive-gaps`.
+- `brief`/`verbose`/`normal` no longer write the Novel file: the description
+  mode is session presentation (REQ-197c), so an observer command mutates
+  nothing. The `run_command` description names both read-only badges, and the
+  recorded surface baseline advances to 28,585 full / 24,987 standard tokens.
+- F-5.10-2 is `Resolved`; REQ-366b's resolve and resource-read clauses remain
+  observer-refused and are scheduled as F-5.12-1 under ROADMAP §5.12.
+
 ## 2026-11-11 — §5.10 REQ-196a Player-badge clause reconciliation
 
 - REQ-196a states qualified badge gating instead of an absolute Game Master
