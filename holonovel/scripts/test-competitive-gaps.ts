@@ -500,6 +500,9 @@ async function main() {
       assertContains(status, "FORBIDDEN");
       const go = await call(proc, "run_command", { action: "execute", command: "go north" });
       assertContains(go, "FORBIDDEN");
+      const unknown = await call(proc, "run_command", { action: "execute", command: "xyzzy" });
+      assertContains(unknown, "FORBIDDEN");
+      assertNotContains(unknown, "Valid commands include:");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

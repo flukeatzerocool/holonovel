@@ -12,15 +12,29 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.10 REQ-196a Player-badge clause (P1)
+## §5.10 observer badge parser access (P1)
 
-- Reconcile REQ-196a's closing sentence — Player badge `command` calls return
-  `[ERROR] [FORBIDDEN]` — with the Appendix W.3 Player-badge parser transcript
-  and the read-only Player vocabulary Appendix F's T239 row requires
-  (REQ-196a).
+- Implement REQ-309h's `observer` clause: on a ruleset-free Novel the parser
+  SHALL accept the `observer` badge read-only, replacing the current
+  `requireNotObserver()` refusal (REQ-309h; F-5.10-2).
+- Assert the observer read-only path in the parser harness and widen the
+  Appendix F row it cites.
 
-**Trigger:** the next §5.10 parser-contract session; closes when the clause
-matches the Player read-only behaviour or the transcript is re-badged.
+**Trigger:** the next §5.10 badge-gate session; closes when a ruleset-free
+`observer` call resolves `look` and `inventory` and F-5.10-2 is `Resolved`.
+
+## §5.10 parser tool-name drift (P2)
+
+- §5.10, Appendix F's T239 and T261 rows, and Appendix W name the parser tool
+  `command` (19 occurrences in `spec/02-requirements.md`, 16 of them in §5.10)
+  while the registered tool is `run_command` (`holonovel/AGENTS.md:72`; the
+  rename is recorded in `holonovel/DECISIONS.md:1507`).
+- Re-point those references to `run_command (action: execute)` and re-run
+  `validate`, `check-tool-surface`, and the coverage register.
+
+**Trigger:** the next §5.10 parser-contract session that touches these blocks;
+closes when no `command`-as-tool reference remains in §5.10, Appendix F, or
+Appendix W.
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
 

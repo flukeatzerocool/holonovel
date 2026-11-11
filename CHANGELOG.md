@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-11 — §5.10 REQ-196a Player-badge clause reconciliation
+
+- REQ-196a states qualified badge gating instead of an absolute Game Master
+  rule: on a ruleset-bound Novel navigation and mutation are Game Master only
+  and a Player call for either returns `[ERROR] [FORBIDDEN]`, while the
+  read-only commands of REQ-309h (`look`, `examine`/`search`, `inventory`)
+  succeed; a ruleset-free Novel accepts the `player` and `game_master` badges
+  (REQ-196a). The Check cites T239 and T643.
+- REQ-196c carries the same qualification: the nearest-verb `[UNIMPLEMENTED]`
+  refusal holds for every caller the badge gate admits, and a ruleset-bound
+  Player call is refused before parsing (REQ-196c, REQ-309b).
+- Appendix F's T239 row drops the unreachable ruleset-bound Player
+  nearest-verb clause, and T643 states the reachable refusal, asserted by a new
+  `xyzzy` → `[FORBIDDEN]` case in `test-competitive-gaps` (T643). Appendix W.3's
+  heading names its ruleset-free mode and W.4 says `[UNIMPLEMENTED]`, closing
+  the `[NOT_FOUND]` leftover from the previous increment (REQ-196, REQ-309).
+- F-P6a-19 is `Resolved`. Two adjacent gaps are scheduled: REQ-309h's
+  `observer` clause is unimplemented (`requireNotObserver` refuses the badge on
+  a ruleset-free Novel — F-5.10-2, P1), and §5.10 still calls the parser tool
+  `command` while the registered tool is `run_command` (P2).
+
 ## 2026-11-11 — §5.10 parser unknown-verb refusal reconciliation
 
 - Appendix W.3's golden transcript now matches the shipped parser and

@@ -828,7 +828,7 @@ Linked annotation counts — encounters: 0, NPCs: 0, traps: 0, lore: 0.
 → scene { "action": "set", "description": "The entrance chamber. Torches flicker." }
 [OK] Scene set: The entrance chamber. Torches flicker.
 
-# World-model parser commands under Player badge
+# World-model parser commands under Player badge (ruleset-free Novel)
 → set_badge { "badge": "player" }
 [OK] Active badge: player
 
@@ -961,7 +961,7 @@ world-model summary), REQ-073 (countdown lifecycle — set, advance, expire, aud
 REQ-092 (Novel persistence — created, written to disk per REQ-088, ended with file
 removal), REQ-196 (parser commands — look, go north, go south, take, open, assert
 locked door blocks passage, assert fixed things cannot be taken, assert unrecognized
-commands return `[NOT_FOUND]`), REQ-198 (world-model CRUD — implicit reverse exits,
+commands return `[UNIMPLEMENTED]`), REQ-198 (world-model CRUD — implicit reverse exits,
 door state transitions), REQ-199 (property state — door open/closed/locked), REQ-201
 (hybrid source conversion via manage_world (action: convert) populates rooms, things, and exits).
 

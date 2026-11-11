@@ -11,6 +11,26 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.10 parser badge clause
+
+- **F-P6a-19 — REQ-196a Player-badge clause reconciled (resolved 2026-11-11):**
+  REQ-196a now states qualified badge gating — ruleset-bound navigation and
+  mutation are Game Master only and a Player call for either returns
+  `[ERROR] [FORBIDDEN]`, while the read-only commands of REQ-309h succeed, and
+  a ruleset-free Novel accepts the `player` and `game_master` badges
+  (`spec/02-requirements.md:3243`), matching the shipped gate
+  (`holonovel/src/index.ts:4966-4971`) and the Appendix W.3 transcript
+  (`spec/appendices-fixtures.md:831`). REQ-196c's unconditional
+  unrecognized-command sentence is qualified the same way (`:3249`).
+  Appendix F's T239 row no longer claims an unreachable ruleset-bound Player
+  nearest-verb list (`spec/appendices-reference.md:1697`); T643 states the
+  reachable refusal (`:2061`), exercised by the new `xyzzy` → `[FORBIDDEN]`
+  assertion in `holonovel/scripts/test-competitive-gaps.ts:493-505`. Appendix
+  W.4 says `[UNIMPLEMENTED]` (`spec/appendices-fixtures.md:964`). Exercised by
+  T239 (`test-backfill.ts:392-441`) and T643. REQ-196a, REQ-196c. ROADMAP
+  section deleted; the observer clause REQ-309h also states is scheduled as
+  F-5.10-2.
+
 ### 2026-11-11 §5.10 override hint envelope
 
 - **F-5.10-1 — override hint envelope and the REQ-325c Check (resolved
@@ -1661,15 +1681,15 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ### 2026-11-11 parser refusal reconciliation
 
-- **F-P6a-19 — REQ-196a Player-badge clause contradicted (2026-11-11):**
-  REQ-196a's closing sentence says Player badge `command` calls return
-  `[ERROR] [FORBIDDEN]` (`spec/02-requirements.md:3243`), while the Appendix
-  W.3 Player-badge transcript (`spec/appendices-fixtures.md:831-862`) and
-  pattern-buffer I1 (`holonovel/scripts/run_pattern_buffer.ts:227`) show
-  `look`, `go`, and `take` resolving under Player, and Appendix F's T239 row
-  requires a Player badge on a ruleset-bound Novel to see read-only verbs in
-  the nearest-verb list. Scheduled under ROADMAP § §5.10 REQ-196a Player-badge
-  clause; covers `REQ-196a`.
+- **F-5.10-2 — REQ-309h observer clause unimplemented (2026-11-11):** REQ-309h
+  requires a ruleset-free Novel to accept the `observer` badge
+  (`spec/02-requirements.md:3433`), but the ruleset-free parser branch calls
+  `requireNotObserver()` (`holonovel/src/index.ts:4974-4975`), which throws for
+  `observer` (`holonovel/src/core/state.ts:1124-1126`). The Phase 1 probe
+  recorded `[FORBIDDEN] Observer mode is read-only.` for both `look` and `xyzzy`
+  under `observer` on a ruleset-free Novel
+  (`docs/plans/2026-11-11-5-10-req-196a-player-badge-clause/aar.md`). Scheduled
+  under ROADMAP § §5.10 observer badge parser access; covers `REQ-309h`.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

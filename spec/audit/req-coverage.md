@@ -171,7 +171,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-193 | Pending workflow staleness detection (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T494 | — |
 | REQ-194 | Anchor derivation (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T236 | — |
 | REQ-195 | World-model state tier (Part a) (2 sub-parts) | 5.10 World-Model Layer | C | T238, T414, T415 | — |
-| REQ-196 | Parser command dispatch (Part a) (6 sub-parts) | 5.10 World-Model Layer | C | T239, T261, T313 | — |
+| REQ-196 | Parser command dispatch (Part a) (6 sub-parts) | 5.10 World-Model Layer | C | T239, T261, T313, T643 | — |
 | REQ-197 | Room description generation (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T240 | — |
 | REQ-198 | World-model CRUD | 5.10 World-Model Layer | C | T241, T261 | — |
 | REQ-199 | Property state tracking | 5.10 World-Model Layer | C | T242, T261 | — |
