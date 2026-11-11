@@ -11,6 +11,42 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-10 §5.10 parser and help contracts
+
+- **F-P6a-7 — parser response and help contracts (resolved 2026-11-10):** the
+  unknown-verb path now returns `[UNIMPLEMENTED]` naming the verb and the three
+  nearest valid commands, filtered to the caller's vocabulary
+  (`holonovel/src/world/parser.ts:125-136`); taking from a closed container
+  resolves through the widened candidate set and returns `[RULE_VIOLATION]`
+  (`:435`, `:458-462`); ambiguity returns `[OK] Which thing?` with a numbered,
+  location-bearing list and a numeric reply re-dispatches the command
+  (`:350-368`; `holonovel/src/index.ts:4885-4897`); `help`, `commands`,
+  `what can I do?`, and `verbs` return one canonical text grouped by tier and
+  category with one-line descriptions (`index.ts:4900-4906`, `:5253-5282`); the
+  catalog is a single table carrying category, tier, args, effect, and source,
+  with `jump` dispatched and `touch` registered as inspection
+  (`world/model.ts:271-321`; `parser.ts:738-747`); exits render as the closing
+  status line (`parser.ts:343`); the `run_command` description states the
+  AI-narrator role (`index.ts:4742`); `read_text` carries a property-contract
+  row (`world/model.ts:102-106`). Covered REQs: REQ-196b, REQ-196c, REQ-196d,
+  REQ-196e, REQ-197a, REQ-283a, REQ-283b, REQ-318a. Assertions: T239
+  (`holonovel/scripts/test-backfill.ts:392`), T240 and T333
+  (`test-output-contracts.ts:1438`), T245 (`test-world-provider.ts:49-80`).
+- **F-P6a-11 — narrative-intent verbs (resolved 2026-11-10):** the catalog
+  registers `ask`/`tell`/`give`/`show`/`throw` under a `narrative` category at
+  standard tier, and help renders that block with the Game-Master-outcome note
+  (`world/model.ts:316-320`; `index.ts:5253-5282`); `give` and `show` resolve
+  the NPC only in the current room and a miss records a `[WARNING]` intent
+  without transferring (`index.ts:5342-5379`); `throw` moves the thing to the
+  matched target's room (`:5328-5341`). Covered REQs: REQ-320a, REQ-320b,
+  REQ-320c. Assertion: T365 (`test-backfill.ts:811`).
+- **F-P6a-17 — narrative-verb NPC scope (resolved 2026-11-10):** the
+  `resolveNpcInRoom(..., null)` any-room fallback is removed from `give` and
+  `show` (`index.ts:5355`, `:5369`), and `throw` uses the matched target's
+  room (`:5334`); a no-NPC `give` now records `[WARNING]`, not `[OK]`
+  (`:5356`). Covered REQs: REQ-320b, REQ-320c. Assertion: T365
+  (`test-backfill.ts:851`).
+
 ### 2026-11-10 §5.16–§5.18 citation repair
 
 - **F-P6b-21 — §5.16–§5.18 citation gaps (resolved 2026-11-10):** the eight
@@ -1550,18 +1586,6 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
 
-- **F-P6a-7 — parser response and help contracts (2026-11-09):** the unknown-verb
-  path (`holonovel/src/world/parser.ts:111-117`) returns `[ERROR] [NOT_FOUND]`
-  instead of the `[UNIMPLEMENTED]` envelope with three nearest valid verbs; a
-  take from a closed container reports `NOT_FOUND` rather than a rule violation
-  (`:398`); the ambiguous-object prompt is unnumbered (`:384`); `help` lacks the
-  required category/description body and the `commands`/`what can I do?` aliases
-  (`index.ts:4591`); `jump` is advertised without a dispatch case and `touch`
-  is missing from the catalog (`world/model.ts:1033`); exits are appended to the
-  room-description body (`world/parser.ts:306`) instead of status-line context.
-  REQ-196b, REQ-196c, REQ-196d, REQ-196e, REQ-197a, REQ-283a, REQ-283b,
-  REQ-318a. Scheduled under `ROADMAP.md` § §5.10 world-model contract
-  remediation (P1).
 - **F-P6a-8 — implicit action hints (2026-11-09):** locked/open failures return
   `[WARNING]` plus a separate `Corrective action: Hint:` line
   (`holonovel/src/world/parser.ts:469`; `index.ts:4907`) rather than
@@ -1581,12 +1605,6 @@ absent, so each finding carries the failing predicate rather than a test.
   interior description (`:4929`); the interior is not modelled as a room.
   REQ-317a, REQ-317b, REQ-317c, REQ-317d. Scheduled under `ROADMAP.md` § §5.10
   world-model contract remediation (P1).
-- **F-P6a-11 — narrative-intent verbs (2026-11-09):** no `narrative` parser
-  category or catalog entries (`holonovel/src/world/model.ts:243-270`), help
-  lists the verbs flat (`index.ts:4916-4921`), NPC resolution falls back to any
-  room (`:4990`, `:5003`), and `throw` deposits in the current room (`:4974`).
-  REQ-320a, REQ-320b, REQ-320c. Scheduled under `ROADMAP.md` § §5.10 world-model
-  contract remediation (P1).
 - **F-P6a-12 — world resources and badge filtering (2026-11-09):**
   `world://map` and `world://kinds` are served without a badge read
   (`holonovel/src/index.ts:12542-12550`); `room://` omits visible things and
@@ -2136,11 +2154,6 @@ against Appendix F and the harness corpus, not on a gate message.
   `holonovel/src/world/model.ts:880-931`); `all` is not handled as a pronoun
   (`index.ts:4600-4604`). REQ-319c, REQ-319d. The `climbable` property and the
   `it`/`them` pronouns work; the uncovered remainder is a narrow convenience.
-- **F-P6a-17 — narrative-verb NPC scope (2026-11-09):** `give`/`show` fall back
-  to an NPC outside the room and `throw` deposits the item in the current room
-  (`holonovel/src/index.ts:4974`, `:4990`, `:5003`); a no-NPC `give` records
-  `[OK]` instead of `[WARNING]` (`:4995`). REQ-320b, REQ-320c. Folded into
-  F-P6a-11's scheduled remediation; no separate action.
 - **F-P6a-18 — generation and bundle bookkeeping (2026-11-09):** generated
   door-role objects carry no exit/`doorRefs` (`holonovel/src/index.ts:5433`) and
   `annotations.bundle_of` has no producer (`index.ts:4384`). REQ-431d,

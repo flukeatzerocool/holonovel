@@ -389,6 +389,58 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
+    await test("T239/REQ-196: refusal envelope, help categories, and numbered disambiguation", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "bf2-parser-contracts" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser-contracts" });
+      await call(proc, "manage_world", { action: "create_room",  name: "hall", description: "A plain hall." });
+      await call(proc, "manage_world", { action: "create_thing",  name: "stone altar", kind: "thing", description: "An altar.", location: "hall" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "wooden altar", kind: "thing", description: "A wooden altar.", location: "hall" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "jar", kind: "container", description: "A glass jar.", openable: true, fixed: true, location: "hall" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "inscription", kind: "thing", description: "An inscription.", location: "jar" });
+      await call(proc, "manage_character", { action: "create",  name: "ContractsChar", description: "traveller" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+
+      const unknown = await call(proc, "run_command", { command: "xyzzy" });
+      assertContains(unknown, "[UNIMPLEMENTED]");
+      assertContains(unknown, "Unknown verb 'xyzzy'");
+      assertContains(unknown, "Valid commands include:");
+      assertContains(unknown, "Corrective action:");
+
+      const closed = await call(proc, "run_command", { command: "take inscription" });
+      assertContains(closed, "[RULE_VIOLATION]");
+      assertContains(closed, "jar");
+      await call(proc, "run_command", { command: "open jar" });
+      const taken = await call(proc, "run_command", { command: "take inscription" });
+      assertContains(taken, "[OK]");
+
+      const ambiguous = await call(proc, "run_command", { command: "take altar" });
+      assertContains(ambiguous, "[OK] Which thing?");
+      assertContains(ambiguous, "1.");
+      assertContains(ambiguous, "2.");
+      assertContains(ambiguous, "hall");
+      const chosen = await call(proc, "run_command", { command: "1" });
+      assertContains(chosen, "[OK]");
+
+      const help = await call(proc, "run_command", { command: "help" });
+      assertContains(help, "navigation");
+      assertContains(help, "Pick up a portable thing");
+      assertContains(help, "narrative");
+      assertContains(help, "determined by the Game Master");
+      const commands = await call(proc, "run_command", { command: "commands" });
+      const whatCan = await call(proc, "run_command", { command: "what can I do?" });
+      assert(commands === help, "REQ-196d: `commands` must equal `help`");
+      assert(whatCan === help, "REQ-196d: `what can I do?` must equal `help`");
+
+      const jumped = await call(proc, "run_command", { command: "jump" });
+      assertContains(jumped, "[OK]");
+      const touched = await call(proc, "run_command", { command: "touch wooden altar" });
+      assertContains(touched, "[OK]");
+      const jumpFixed = await call(proc, "run_command", { command: "jump wooden altar" });
+      assertContains(jumpFixed, "[RULE_VIOLATION]");
+
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
+    });
+
     await test("T241/T261/T198: world-model CRUD — room/thing lifecycle", async () => {
       await call(proc, "manage_world", { action: "create_thing",  name: "candle", kind: "thing", description: "A candle.", location: "study" });
       const listed = await call(proc, "manage_world", { action: "list", kind: "thing" });
@@ -794,6 +846,42 @@ async function main() {
       assertContains(await call(proc, "run_command", { command: "give t365-sword to t365-guard" }), "[OK]");
       assertContains(await call(proc, "run_command", { command: "ask nobody about crypt" }), "[WARNING]");
       await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T365/REQ-320: narrative verbs scope to the current room", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "bf2-narrative-scope" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-narrative-scope" });
+      await call(proc, "manage_world", { action: "create_room",  name: "yard", description: "A yard." });
+      await call(proc, "manage_world", { action: "create_room",  name: "cellar", description: "A cellar." });
+      await call(proc, "manage_npc", { action: "create",  name: "gatemaster", location: "yard" });
+      await call(proc, "manage_npc", { action: "create",  name: "cellarkeeper", location: "cellar" });
+      await call(proc, "manage_character", { action: "create",  name: "ScopeChar", description: "traveller" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+
+      await call(proc, "manage_world", { action: "create_thing",  name: "pebble", kind: "thing", location: "yard" });
+      await call(proc, "run_command", { command: "take pebble" });
+      const thrown = await call(proc, "run_command", { command: "throw pebble at gatemaster" });
+      assertContains(thrown, "[OK]");
+      const afterThrow = await call(proc, "manage_world", { action: "get", id: "pebble" });
+      assertContains(afterThrow, "yard");
+
+      await call(proc, "manage_world", { action: "create_thing",  name: "stone", kind: "thing", location: "yard" });
+      await call(proc, "run_command", { command: "take stone" });
+      const across = await call(proc, "run_command", { command: "throw stone at cellarkeeper" });
+      assertContains(across, "[WARNING]");
+      const landed = await call(proc, "manage_world", { action: "get", id: "stone" });
+      assertContains(landed, "yard");
+
+      await call(proc, "manage_world", { action: "create_thing",  name: "sword", kind: "thing", location: "yard" });
+      await call(proc, "run_command", { command: "take sword" });
+      const given = await call(proc, "run_command", { command: "give sword to cellarkeeper" });
+      assertContains(given, "[WARNING]");
+      const sheet = await call(proc, "manage_character", { action: "sheet",  entity_id: "character_01" });
+      assertContains(sheet, "sword");
+
+      // Restore the Novel the surrounding block was using (bf4) so the following
+      // workflow-staleness test sees its own pending-workflow surface.
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf4" });
     });
 
     await test("T273/T235: structured player choices — present_choices emits options", async () => {

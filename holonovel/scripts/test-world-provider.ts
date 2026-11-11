@@ -21,6 +21,8 @@ import {
   WORLD_MODEL_PROPERTIES,
   WORLD_MODEL_DECLARABLE_KINDS,
   BASE_PARSER_COMMANDS,
+  READONLY_VERBS,
+  nearestVerbs,
   worldKinds,
 } from "../src/world/model.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -67,6 +69,24 @@ test("T245/T202: declarable kinds are a subset of the hierarchy and exclude regi
 test("T245/T202: every base parser command declares its documented effect", () => {
   for (const cmd of BASE_PARSER_COMMANDS) {
     assert(typeof cmd.effect === "string" && cmd.effect.trim().length > 0, `command '${cmd.verb}' has no effect prose`);
+  }
+});
+
+test("T245/REQ-318a + REQ-222b: world://kinds carries read_text and sourced parser commands", () => {
+  assert(kinds.includes("**read_text**"), "world://kinds is missing the read_text property contract");
+  assert(kinds.includes("[narrative]"), "world://kinds is missing the narrative parser category");
+  for (const cmd of BASE_PARSER_COMMANDS) {
+    assert(typeof (cmd as any).source === "string" && (cmd as any).source.trim().length > 0, `command '${cmd.verb}' has no extraction source`);
+  }
+});
+
+test("T245/REQ-196c + REQ-309b: nearest verbs respect the caller's vocabulary", () => {
+  const nearest = nearestVerbs("xyzzy", undefined, 3);
+  assert(nearest.length === 3, `expected 3 nearest verbs, got ${nearest.length}`);
+  const playerNearest = nearestVerbs("xyzzy", READONLY_VERBS, 3);
+  assert(playerNearest.length === 3, `expected 3 player-eligible verbs, got ${playerNearest.length}`);
+  for (const verb of playerNearest) {
+    assert(READONLY_VERBS.has(verb), `player-badge nearest verb '${verb}' is outside the read-only set`);
   }
 });
 

@@ -101,6 +101,11 @@ export const WORLD_MODEL_PROPERTIES: readonly WorldPropertyContract[] = [
     settersNamed: ["is readable"], settersCurrent: ["It is readable"],
   },
   {
+    name: "read_text", values: "text", group: "Extended Properties (all things)", doc: "all-things",
+    contract: "Text `read` reveals; null when no text is modeled (REQ-318a).",
+    settersNamed: ["reads '...'"], settersCurrent: [],
+  },
+  {
     name: "edible", values: "true / false", group: "Extended Properties (all things)", doc: "all-things",
     contract: "IF true THEN the thing can be eaten and is consumed on use.",
     settersNamed: ["is edible"], settersCurrent: ["It is edible"],
@@ -240,34 +245,83 @@ export function createEmptyWorldModel(): WorldModel {
   return { rooms: new Map(), things: new Map() };
 }
 
-export const BASE_PARSER_COMMANDS = [
-  { verb: "look", category: "navigation", args: [], effect: "Describe the current room: name, description, visible things, exits." },
-  { verb: "go", category: "navigation", args: ["direction"], effect: "Move through an exit in the given direction." },
-  { verb: "north", category: "navigation", args: [], effect: "Short-form alias for `go north`." },
-  { verb: "south", category: "navigation", args: [], effect: "Short-form alias for `go south`." },
-  { verb: "east", category: "navigation", args: [], effect: "Short-form alias for `go east`." },
-  { verb: "west", category: "navigation", args: [], effect: "Short-form alias for `go west`." },
-  { verb: "northeast", category: "navigation", args: [], effect: "Short-form alias for `go northeast`." },
-  { verb: "northwest", category: "navigation", args: [], effect: "Short-form alias for `go northwest`." },
-  { verb: "southeast", category: "navigation", args: [], effect: "Short-form alias for `go southeast`." },
-  { verb: "southwest", category: "navigation", args: [], effect: "Short-form alias for `go southwest`." },
-  { verb: "up", category: "navigation", args: [], effect: "Short-form alias for `go up`." },
-  { verb: "down", category: "navigation", args: [], effect: "Short-form alias for `go down`." },
-  { verb: "in", category: "navigation", args: [], effect: "Short-form alias for `go in`." },
-  { verb: "out", category: "navigation", args: [], effect: "Short-form alias for `go out`." },
-  { verb: "take", category: "object_interaction", args: ["thing"], effect: "Pick up a portable thing in the current room." },
-  { verb: "drop", category: "object_interaction", args: ["thing"], effect: "Drop a held thing in the current room." },
-  { verb: "inventory", category: "inventory", args: [], effect: "List held things." },
-  { verb: "i", category: "inventory", args: [], effect: "Short-form alias for `inventory`." },
-  { verb: "open", category: "object_interaction", args: ["thing"], effect: "Open an openable thing." },
-  { verb: "close", category: "object_interaction", args: ["thing"], effect: "Close an openable thing." },
-  { verb: "unlock", category: "object_interaction", args: ["thing", "key"], effect: "Unlock a lockable thing with the named key." },
-  { verb: "lock", category: "object_interaction", args: ["thing", "key"], effect: "Lock a lockable thing with the named key." },
-  { verb: "put", category: "object_interaction", args: ["thing", "target"], effect: "Place a thing inside or on a container or supporter." },
-  { verb: "search", category: "inspection", args: ["thing"], effect: "Examine a thing's contents (containers, supporters)." },
-  { verb: "examine", category: "inspection", args: ["thing"], effect: "Show a thing's description." },
-  { verb: "wait", category: "wait", args: [], effect: "Pass time; advance narrative countdowns." },
+// ── Parser command catalog (REQ-196, REQ-283, REQ-319, REQ-320) ─────
+// Single source of truth for help output, `world://kinds`, the generated
+// provider document, and the tier counts. `source` is the extraction anchor
+// REQ-222b requires; base vocabulary verbs cite the spec clause that defines
+// them.
+
+export type ParserCategory =
+  | "navigation" | "inspection" | "object_interaction" | "inventory" | "narrative" | "wait";
+export type ParserTier = "core" | "standard" | "alias";
+
+export interface ParserCommand {
+  verb: string;
+  category: ParserCategory;
+  tier: ParserTier;
+  args: string[];
+  effect: string;
+  source: string;
+}
+
+const BASE_SOURCE = "REQ-196 base vocabulary";
+const STANDARD_SOURCE = "REQ-319 standard vocabulary";
+const NARRATIVE_SOURCE = "REQ-320 narrative vocabulary";
+
+export const PARSER_CATALOG: readonly ParserCommand[] = [
+  { verb: "look", category: "navigation", tier: "core", args: [], effect: "Describe the current room: name, description, visible things, exits.", source: BASE_SOURCE },
+  { verb: "go", category: "navigation", tier: "core", args: ["direction"], effect: "Move through an exit in the given direction.", source: BASE_SOURCE },
+  { verb: "examine", category: "inspection", tier: "core", args: ["thing"], effect: "Show a thing's description.", source: BASE_SOURCE },
+  { verb: "take", category: "object_interaction", tier: "core", args: ["thing"], effect: "Pick up a portable thing in the current room.", source: BASE_SOURCE },
+  { verb: "drop", category: "object_interaction", tier: "core", args: ["thing"], effect: "Drop a held thing in the current room.", source: BASE_SOURCE },
+  { verb: "inventory", category: "inventory", tier: "core", args: [], effect: "List held things.", source: BASE_SOURCE },
+  { verb: "wait", category: "wait", tier: "core", args: [], effect: "Pass time; advance narrative countdowns.", source: BASE_SOURCE },
+  ...ROOM_DIRECTIONS.map((dir) => ({
+    verb: dir, category: "navigation" as ParserCategory, tier: "alias" as ParserTier,
+    args: [], effect: `Short-form alias for \`go ${dir}\`.`, source: BASE_SOURCE,
+  })),
+  { verb: "open", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Open an openable thing.", source: BASE_SOURCE },
+  { verb: "close", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Close an openable thing.", source: BASE_SOURCE },
+  { verb: "unlock", category: "object_interaction", tier: "standard", args: ["thing", "key"], effect: "Unlock a lockable thing with the named key.", source: BASE_SOURCE },
+  { verb: "lock", category: "object_interaction", tier: "standard", args: ["thing", "key"], effect: "Lock a lockable thing with the named key.", source: BASE_SOURCE },
+  { verb: "put", category: "object_interaction", tier: "standard", args: ["thing", "target"], effect: "Place a thing inside or on a container or supporter.", source: BASE_SOURCE },
+  { verb: "search", category: "inspection", tier: "standard", args: ["thing"], effect: "Examine a thing's contents (containers, supporters).", source: BASE_SOURCE },
+  { verb: "walk", category: "navigation", tier: "alias", args: ["direction"], effect: "Alias for `go`.", source: BASE_SOURCE },
+  { verb: "move", category: "navigation", tier: "alias", args: ["direction"], effect: "Alias for `go`.", source: BASE_SOURCE },
+  { verb: "get", category: "object_interaction", tier: "alias", args: ["thing"], effect: "Alias for `take`.", source: BASE_SOURCE },
+  { verb: "pick", category: "object_interaction", tier: "alias", args: ["thing"], effect: "Alias for `take`.", source: BASE_SOURCE },
+  { verb: "i", category: "inventory", tier: "alias", args: [], effect: "Alias for `inventory`.", source: BASE_SOURCE },
+  { verb: "x", category: "inspection", tier: "alias", args: ["thing"], effect: "Alias for `examine`.", source: BASE_SOURCE },
+  { verb: "push", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Push a movable thing.", source: STANDARD_SOURCE },
+  { verb: "pull", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Pull a movable thing.", source: STANDARD_SOURCE },
+  { verb: "insert", category: "object_interaction", tier: "standard", args: ["thing", "target"], effect: "Insert a thing into a container (synonym for `put in`).", source: STANDARD_SOURCE },
+  { verb: "light", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Light a light source.", source: STANDARD_SOURCE },
+  { verb: "extinguish", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Extinguish a light source.", source: STANDARD_SOURCE },
+  { verb: "switch on", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Switch a switchable device on.", source: STANDARD_SOURCE },
+  { verb: "switch off", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Switch a switchable device off.", source: STANDARD_SOURCE },
+  { verb: "wear", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Wear a wearable thing from inventory.", source: STANDARD_SOURCE },
+  { verb: "remove", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Take off a worn thing.", source: STANDARD_SOURCE },
+  { verb: "eat", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Eat an edible thing, removing it from inventory.", source: STANDARD_SOURCE },
+  { verb: "drink", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Drink a drinkable thing.", source: STANDARD_SOURCE },
+  { verb: "climb", category: "navigation", tier: "standard", args: ["thing"], effect: "Climb a climbable thing with an associated exit.", source: STANDARD_SOURCE },
+  { verb: "enter", category: "navigation", tier: "standard", args: ["thing"], effect: "Enter an enterable container or vehicle.", source: STANDARD_SOURCE },
+  { verb: "exit", category: "navigation", tier: "standard", args: [], effect: "Leave a vehicle or container; returns to the parent room.", source: STANDARD_SOURCE },
+  { verb: "jump", category: "navigation", tier: "standard", args: ["thing"], effect: "Jump on the spot, or onto a climbable thing.", source: STANDARD_SOURCE },
+  { verb: "sit", category: "object_interaction", tier: "standard", args: ["thing"], effect: "Sit on a supporter.", source: STANDARD_SOURCE },
+  { verb: "stand", category: "object_interaction", tier: "standard", args: [], effect: "Stop sitting.", source: STANDARD_SOURCE },
+  { verb: "read", category: "inspection", tier: "standard", args: ["thing"], effect: "Read a readable thing; returns its `read_text` or description.", source: STANDARD_SOURCE },
+  { verb: "listen", category: "inspection", tier: "standard", args: [], effect: "Report modeled noise cues from the room and one open exit.", source: STANDARD_SOURCE },
+  { verb: "smell", category: "inspection", tier: "standard", args: [], effect: "Report modeled scent cues from the room and inventory.", source: STANDARD_SOURCE },
+  { verb: "touch", category: "inspection", tier: "standard", args: ["thing"], effect: "Touch a reachable thing and report its tactile description.", source: STANDARD_SOURCE },
+  { verb: "ask", category: "narrative", tier: "standard", args: ["npc", "topic"], effect: "Ask an NPC about a topic; records the intent for the Game Master.", source: NARRATIVE_SOURCE },
+  { verb: "tell", category: "narrative", tier: "standard", args: ["npc", "topic"], effect: "Tell an NPC about a topic; records the intent for the Game Master.", source: NARRATIVE_SOURCE },
+  { verb: "give", category: "narrative", tier: "standard", args: ["thing", "npc"], effect: "Give a held thing to an NPC in the current room.", source: NARRATIVE_SOURCE },
+  { verb: "show", category: "narrative", tier: "standard", args: ["thing", "npc"], effect: "Show a held thing to an NPC without transferring it.", source: NARRATIVE_SOURCE },
+  { verb: "throw", category: "narrative", tier: "standard", args: ["thing", "npc"], effect: "Throw a held thing at a target; it lands in the target's room.", source: NARRATIVE_SOURCE },
 ];
+
+/** REQ-222b — the registered vocabulary, verb and category with its source. */
+export const BASE_PARSER_COMMANDS = PARSER_CATALOG;
 
 export function resolveThingName(input: string, thingsInRoom: WorldThing[], inventory: string[]): WorldThing[] {
   // Normalize both sides (lowercase, strip a leading article) so `take the
@@ -1017,8 +1071,15 @@ export function worldKinds(): string {
   }
 
   lines.push("\n## Parser Commands");
-  for (const cmd of BASE_PARSER_COMMANDS) {
-    lines.push(`- \`${cmd.verb}\` [${cmd.category}]`);
+  const categories: ParserCategory[] = ["navigation", "inspection", "object_interaction", "inventory", "narrative", "wait"];
+  for (const category of categories) {
+    const entries = PARSER_CATALOG.filter((cmd) => cmd.category === category);
+    if (entries.length === 0) continue;
+    lines.push(`\n### ${category}`);
+    for (const cmd of entries) {
+      const args = cmd.args.length ? ` ${cmd.args.map((a) => `<${a}>`).join(" ")}` : "";
+      lines.push(`- \`${cmd.verb}${args}\` (${cmd.tier}) [${cmd.category}] — ${cmd.effect} (source: ${cmd.source})`);
+    }
   }
 
   lines.push("\n## Verb Coverage Tiers");
@@ -1043,8 +1104,13 @@ export interface VerbCatalog {
   extended: TieredVerb[];
 }
 
-const CORE_VERBS = ["look", "go", "examine", "take", "drop", "inventory", "wait"];
-const STANDARD_VERBS = ["open", "close", "lock", "unlock", "push", "pull", "search", "read", "listen", "smell", "sit", "stand", "wear", "remove", "eat", "drink", "light", "extinguish", "climb", "jump", "enter", "exit", "put", "insert", "switch on", "switch off", "ask", "tell", "give", "show", "throw"];
+const CORE_VERBS = PARSER_CATALOG.filter((c) => c.tier === "core").map((c) => c.verb);
+const STANDARD_VERBS = PARSER_CATALOG.filter((c) => c.tier === "standard").map((c) => c.verb);
+
+// REQ-309h — the read-only perception commands a Player badge may issue on a
+// ruleset-bound Novel. REQ-309b — the Player badge never sees parser verb names
+// the Game Master owns, so nearest-verb hints filter through the same set.
+export const READONLY_VERBS: ReadonlySet<string> = new Set(["look", "examine", "search", "inventory"]);
 
 // Maps a standard verb to the world-model property whose presence makes it
 // available; verbs without an entry are always available.
@@ -1079,4 +1145,31 @@ export function verbCatalog(world: { things: Map<string, any> } | undefined): Ve
   });
   const extended: TieredVerb[] = [];
   return { core, standard, extended };
+}
+
+// REQ-196c — the `count` nearest catalog verbs by edit distance. `allowed`
+// restricts the result to the caller's vocabulary (REQ-309b); ties break
+// alphabetically so the same tree always renders the same list.
+export function nearestVerbs(verb: string, allowed: ReadonlySet<string> | undefined, count = 3): string[] {
+  const want = verb.toLowerCase();
+  const candidates = [...CORE_VERBS, ...STANDARD_VERBS].filter((v) => !allowed || allowed.has(v));
+  return candidates
+    .map((v) => ({ v, distance: editDistance(want, v) }))
+    .sort((a, b) => a.distance - b.distance || a.v.localeCompare(b.v))
+    .slice(0, count)
+    .map((entry) => entry.v);
+}
+
+function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const above = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return prev[b.length];
 }

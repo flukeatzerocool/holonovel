@@ -1442,10 +1442,32 @@ async function main() {
     const b = await call(p, "run_command", { command: "brief" });
     assertContains(b, "[OK]", "REQ-197 brief mode");
     const v = await call(p, "run_command", { command: "verbs" });
-    assertContains(v, "Verb coverage", "REQ-283 verb tiers");
+    assertContains(v, "core (7)", "REQ-283 verb tiers");
     const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof h.parser_verb_coverage?.core !== "number") throw new Error("REQ-283 parser_verb_coverage");
     if (h.description_mode !== "brief") throw new Error("REQ-197 description_mode");
+
+    // REQ-196d/REQ-283b/T333 — one canonical help text, alias-identical, with
+    // categories, descriptions, and tier grouping.
+    const helpText = await call(p, "run_command", { command: "help" });
+    assertContains(helpText, "navigation", "REQ-196d help category");
+    assertContains(helpText, "Pick up a portable thing", "REQ-196d help description");
+    assertContains(helpText, "core (7)", "REQ-283b tier grouping");
+    if (v !== helpText) throw new Error("T333: `verbs` must be byte-identical to `help`");
+
+    // REQ-197a/T240 — exits render as the final status line, not in the body.
+    await call(p, "manage_world", { action: "create_room",  name: "vestibule", description: "A tiled vestibule." });
+    await call(p, "manage_world", { action: "create_room",  name: "corridor", description: "A narrow corridor." });
+    await call(p, "manage_world", { action: "create_exit",  direction: "north", room_a: "vestibule", room_b: "corridor" });
+    await call(p, "manage_character", { action: "create",  name: "Looker", description: "observer" });
+    await call(p, "manage_character", { action: "set_active",  entity_id: "character_01" });
+    await call(p, "run_command", { command: "normal" });
+    const look = await call(p, "run_command", { command: "look" });
+    const lines = look.split("\n").filter((l: string) => l.trim().length > 0);
+    if (!lines[0].includes("vestibule")) throw new Error(`REQ-197 first line must be the room name: ${look}`);
+    if (!look.includes("A tiled vestibule.")) throw new Error(`REQ-197 verbatim description missing: ${look}`);
+    if (!lines[lines.length - 1].startsWith("Exits:")) throw new Error(`REQ-197 exits must be the final status line: ${look}`);
+
     passed++;
     await kill(p);
   });

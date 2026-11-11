@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-11-10 — §5.10 parser and help contracts
+
+- One `PARSER_CATALOG` now drives the help text, `world://kinds`, the generated
+  world-model provider document, and the tier counts; every entry carries its
+  category, tier, args, one-line description, and extraction source. `jump` is
+  dispatched (on the spot, or onto a climbable target), `touch` is registered as
+  an inspection command, and `ask`/`tell`/`give`/`show`/`throw` form the
+  `narrative` category (REQ-196d, REQ-283a, REQ-283b, REQ-318a, REQ-319b,
+  REQ-320a, REQ-222b; F-P6a-7, F-P6a-11).
+- An unknown parser verb returns `[UNIMPLEMENTED]` naming the verb and the three
+  nearest valid commands by edit distance, filtered to the caller's vocabulary
+  so a Player badge on a ruleset-bound Novel never sees a Game-Master verb
+  (REQ-196c, REQ-309b). Taking a thing inside a closed container returns
+  `[RULE_VIOLATION]` naming the container instead of `[NOT_FOUND]` (REQ-196c).
+- An ambiguous object reference returns `[OK] Which thing?` with a numbered list
+  carrying each match's location, and a bare numeric reply re-dispatches the
+  command with the chosen match (REQ-196e). `look` renders exits as a closing
+  status line rather than inside the verbatim description body (REQ-197a).
+- `help`, `commands`, `what can I do?`, and `verbs` return one canonical text
+  grouped by tier and category with per-verb descriptions and per-tier counts
+  (REQ-196d, REQ-283b).
+- Narrative verbs resolve NPCs in the current room only: `give`/`show` no longer
+  fall back to an NPC anywhere in the world, a miss records a `[WARNING]` intent
+  without transferring, and `throw` deposits the thing in the matched target's
+  room (REQ-320a, REQ-320b, REQ-320c; F-P6a-17).
+- REQ-002a1, REQ-002a2, and REQ-002b1 plus the Appendix O.2 `[UNIMPLEMENTED]` row
+  admit the parser-vocabulary refusal alongside the waived-subsystem case, so the
+  `[UNIMPLEMENTED]` envelope no longer contradicts its own corrective-action
+  contract. Bodies re-measured at 613 / 424 / 551 characters.
+- Appendix F T239, T240, T245, T333, and T365 widened to the asserted
+  contracts. F-P6a-7, F-P6a-11, and F-P6a-17 moved to `Resolved`; the retired
+  roadmap bullet leaves only the hints/detail/vehicle and resources/CRUD bullets
+  in the §5.10 section.
+- Verification: `test:backfill` 102/102, `test:output-contracts` 361/361,
+  `test:world-provider` 6/6, `test:adventure` and `test:narrative` pass; the
+  pre-fix red run recorded 2 failing output-contract assertions and 2 failing
+  backfill assertions; `npm run validate --sdd-strict` 0 errors;
+  `npm run assemble`; `npm run check:fast` 40/40 `check:fast: PASS`;
+  `npm run build-order` (full `check` 0 errors, fingerprint propagated);
+  `check:conformance`, `check-tool-definitions-sync`, `tool-definitions-lint`,
+  `check-tdqs-scoreboard`, `surface-budget`, `check-roadmap`, `check-registers`,
+  `check-loop-artifacts`, root and server `typecheck`.
+
 ## 2026-11-10 — §5.16–§5.17 capability citation gaps
 
 - `tools/list` accepts a `ruleset` slug filter that returns a single package's

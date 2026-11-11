@@ -14,11 +14,6 @@
 
 ## §5.10 world-model contract remediation (P1)
 
-- Parser response and help contracts: the `[UNIMPLEMENTED]` envelope with the
-  three nearest verbs, closed-container rule violation, numbered ambiguous
-  prompt, help category/description and aliases, the narrative verb category,
-  and status-line exits (REQ-196b, REQ-196c, REQ-196d, REQ-196e, REQ-197a,
-  REQ-283a, REQ-283b, REQ-318a, REQ-320a, REQ-320b, REQ-320c).
 - Hints, detail signal, and vehicle traversal: the REQ-284a–e hint shape and
   reachability, the `detail` signal and Player-Detail line, and vehicle
   interior/passenger/door handling (REQ-284a, REQ-284b, REQ-284c, REQ-284d,
@@ -30,8 +25,9 @@
   removal cleanup (REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b, REQ-309g,
   REQ-198, REQ-199).
 
-**Trigger:** the next session that takes §5.10 remediation work; closes when
-F-P6a-7–F-P6a-14 are `Resolved` in the review register.
+**Trigger:** the next session that takes the hints/detail/vehicle bullet;
+closes when F-P6a-8, F-P6a-9, F-P6a-10, F-P6a-12, F-P6a-13, and F-P6a-14 are
+`Resolved` in the review register.
 
 
 ## §5.20/§5.24 assertion and staging remediation (P1)

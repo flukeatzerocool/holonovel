@@ -1,7 +1,7 @@
 // Parser command dispatch — REQ-196
 // Resolves natural-language commands against world-model current state.
 
-import { WorldModel, WorldRoom, WorldThing, Direction, ROOM_DIRECTIONS, resolveThingName, resolveThingInInventory } from "./model.js";
+import { WorldModel, WorldRoom, WorldThing, Direction, ROOM_DIRECTIONS, resolveThingName, resolveThingInInventory, nearestVerbs } from "./model.js";
 
 export interface ParserContext {
   world: WorldModel;
@@ -12,6 +12,8 @@ export interface ParserContext {
   descriptionMode?: "brief" | "verbose" | "normal";
   /** REQ-197b — rooms already described this session, for `normal` first-entry only. */
   seenRooms?: Set<string>;
+  /** REQ-309b — verbs the caller may issue; filters nearest-verb hints. */
+  allowedVerbs?: ReadonlySet<string>;
 }
 
 export interface ParserResult {
@@ -19,6 +21,10 @@ export interface ParserResult {
   code?: string;
   text: string;
   correctiveAction?: string;
+  /** REQ-196e — numbered disambiguation prompt (rendered by the caller). */
+  disambiguation?: { type: string; target: string; matches: Array<{ name: string; location: string }> };
+  /** REQ-197a — status-line context, rendered after the room-description body. */
+  status?: string;
 }
 
 const DIRECTION_ALIASES: Record<string, string> = {
@@ -100,6 +106,7 @@ export function dispatchCommand(raw: string, ctx: ParserContext): ParserResult {
     case "eat":     return handleConsume("eat", args.join(" "), ctx);
     case "drink":   return handleConsume("drink", args.join(" "), ctx);
     case "climb":   return handleClimb(args.join(" "), ctx);
+    case "jump":    return handleJump(args.join(" "), ctx);
     case "enter":   return handleEnter(args.join(" "), ctx);
     case "exit":    return handleExit(ctx);
     case "sit":     return handleSit(args.join(" "), ctx);
@@ -112,13 +119,22 @@ export function dispatchCommand(raw: string, ctx: ParserContext): ParserResult {
     case "smell":   return handleSmell(ctx);
     case "touch":   return handleTouch(args.join(" "), ctx);
     case "insert":  return handleInsert(args.join(" "), ctx);
-    default:
+    default: {
+      // REQ-196c — an unrecognized command is a not-implemented refusal that
+      // names the three nearest valid verbs it may use (REQ-309b filters the
+      // list to the caller's vocabulary).
+      const nearest = nearestVerbs(verb, ctx.allowedVerbs, 3);
       return {
         prefix: "ERROR",
-        code: "NOT_FOUND",
-        text: `"${verb}" is not a recognized command.`,
-        correctiveAction: `Try: look, go <direction>, take <thing>, drop <thing>, open <door>, close <door>, inventory, examine <thing>, or wait.`,
+        code: "UNIMPLEMENTED",
+        text: nearest.length > 0
+          ? `Unknown verb '${verb}'. Valid commands include: ${nearest.join(", ")}.`
+          : `Unknown verb '${verb}'.`,
+        correctiveAction: nearest.length > 0
+          ? `Use one of: ${nearest.join(", ")}.`
+          : "Use `help` to list the available commands.",
       };
+    }
   }
 }
 
@@ -269,7 +285,8 @@ function handleLook(ctx: ParserContext): ParserResult {
     const directions = [...room.exits.keys()];
     return {
       prefix: "OK",
-      text: `${room.name}\n\n${directions.length > 0 ? `Exits: ${directions.join(", ")}.` : "There are no obvious exits."}`,
+      text: room.name,
+      status: directions.length > 0 ? `Exits: ${directions.join(", ")}.` : "There are no obvious exits.",
     };
   }
 
@@ -322,10 +339,31 @@ function handleLook(ctx: ParserContext): ParserResult {
     }
   }
   if (exitList.length > 0) {
-    text += `\n\nExits: ${exitList.join(", ")}.`;
+    // REQ-197a — exits render as status-line context, never inside the body.
+    return { prefix: "OK", text, status: `Exits: ${exitList.join(", ")}.` };
   }
 
   return { prefix: "OK", text };
+}
+
+// REQ-196e — numbered disambiguation prompt carrying each match's location.
+function disambiguationResult(matches: WorldThing[], ctx: ParserContext, type: string, target: string): ParserResult {
+  return {
+    prefix: "OK",
+    text: `Which ${type}?`,
+    disambiguation: {
+      type,
+      target,
+      matches: matches.map((t) => ({ name: t.name, location: describeThingLocation(t, ctx) })),
+    },
+  };
+}
+
+function describeThingLocation(thing: WorldThing, ctx: ParserContext): string {
+  if (ctx.inventory.includes(thing.name.toLowerCase())) return "inventory";
+  if (!thing.location) return "elsewhere";
+  const parent = ctx.world.things.get(thing.location.toLowerCase());
+  return parent?.name ?? thing.location;
 }
 
 function handleGo(dir: string, ctx: ParserContext): ParserResult {
@@ -382,7 +420,9 @@ function handleTake(target: string, ctx: ParserContext): ParserResult {
   }
 
   // REQ-200: things are reachable from the room directly, from an open
-  // container in the room, or from a supporter in the room.
+  // container in the room, or from a supporter in the room. REQ-196c: contents
+  // of a closed openable container in the room stay in the candidate set so the
+  // refusal is a rule violation, not a not-found.
   const roomThings = getRoomThings(ctx.currentRoom, ctx);
   const reachable: WorldThing[] = [...roomThings];
   for (const [, thing] of ctx.world.things) {
@@ -392,15 +432,14 @@ function handleTake(target: string, ctx: ParserContext): ParserResult {
     if (!parent) continue;
     if (parent.location?.toLowerCase() !== ctx.currentRoom.toLowerCase()) continue;
     if (thing.locationType === "supporter") reachable.push(thing);
-    else if (thing.locationType === "container" && parent.openable && parent.open) reachable.push(thing);
+    else if (thing.locationType === "container" && parent.openable) reachable.push(thing);
   }
   const matches = resolveThingName(target, reachable, ctx.inventory);
   if (matches.length === 0) {
     return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   }
   if (matches.length > 1) {
-    const names = matches.map(t => `'${bareName(t.name)}' (${t.description || t.kind})`);
-    return { prefix: "ERROR", code: "AMBIGUOUS", text: `Which do you mean: ${names.join(", ")}?` };
+    return disambiguationResult(matches, ctx, "thing", target);
   }
 
   const thing = matches[0];
@@ -440,8 +479,7 @@ function handleDrop(target: string, ctx: ParserContext): ParserResult {
     return { prefix: "ERROR", code: "NOT_FOUND", text: `You're not carrying '${target}'.` };
   }
   if (matches.length > 1) {
-    const names = matches.map(t => `'${bareName(t.name)}'`);
-    return { prefix: "ERROR", code: "AMBIGUOUS", text: `Which do you mean: ${names.join(", ")}?` };
+    return disambiguationResult(matches, ctx, "thing", target);
   }
 
   return { prefix: "OK", text: `You drop the ${matches[0].name}.` };
@@ -695,6 +733,16 @@ function handleClimb(target: string, ctx: ParserContext): ParserResult {
   if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
   if (!thing.climbable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not climbable.` };
   return { prefix: "OK", text: `You climb the ${bareName(thing.name)}.` };
+}
+
+function handleJump(target: string, ctx: ParserContext): ParserResult {
+  if (!target.trim()) return { prefix: "OK", text: "You jump on the spot." };
+  const thing = resolveReachable(target, ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  if (!thing.climbable) {
+    return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not climbable.`, correctiveAction: "Only climbable things can be jumped onto." };
+  }
+  return { prefix: "OK", text: `You jump onto the ${bareName(thing.name)}.` };
 }
 
 function handleEnter(target: string, ctx: ParserContext): ParserResult {

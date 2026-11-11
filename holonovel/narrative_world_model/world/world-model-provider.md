@@ -88,6 +88,7 @@ remain the behavioral source.
 |---|---|---|---|
 | wearable | true / false | all things | IF true THEN the thing can be worn on the body. |
 | readable | true / false | all things | IF true THEN the thing carries discoverable `read_text`. |
+| read_text | text | all things | Text `read` reveals; null when no text is modeled (REQ-318a). |
 | edible | true / false | all things | IF true THEN the thing can be eaten and is consumed on use. |
 | drinkable | true / false | all things | IF true THEN the thing can be drunk and is consumed on use. |
 | climbable | true / false | all things | IF true THEN the thing can be climbed. |
@@ -104,6 +105,11 @@ dispatch tool (REQ-196).
 |---|---|---|
 | `look` | — | Describe the current room: name, description, visible things, exits. |
 | `go` | direction | Move through an exit in the given direction. |
+| `examine` | thing | Show a thing's description. |
+| `take` | thing | Pick up a portable thing in the current room. |
+| `drop` | thing | Drop a held thing in the current room. |
+| `inventory` | — | List held things. |
+| `wait` | — | Pass time; advance narrative countdowns. |
 | `north` | — | Short-form alias for `go north`. |
 | `south` | — | Short-form alias for `go south`. |
 | `east` | — | Short-form alias for `go east`. |
@@ -116,18 +122,44 @@ dispatch tool (REQ-196).
 | `down` | — | Short-form alias for `go down`. |
 | `in` | — | Short-form alias for `go in`. |
 | `out` | — | Short-form alias for `go out`. |
-| `take` | thing | Pick up a portable thing in the current room. |
-| `drop` | thing | Drop a held thing in the current room. |
-| `inventory` | — | List held things. |
-| `i` | — | Short-form alias for `inventory`. |
 | `open` | thing | Open an openable thing. |
 | `close` | thing | Close an openable thing. |
 | `unlock` | thing, key | Unlock a lockable thing with the named key. |
 | `lock` | thing, key | Lock a lockable thing with the named key. |
 | `put` | thing, target | Place a thing inside or on a container or supporter. |
 | `search` | thing | Examine a thing's contents (containers, supporters). |
-| `examine` | thing | Show a thing's description. |
-| `wait` | — | Pass time; advance narrative countdowns. |
+| `walk` | direction | Alias for `go`. |
+| `move` | direction | Alias for `go`. |
+| `get` | thing | Alias for `take`. |
+| `pick` | thing | Alias for `take`. |
+| `i` | — | Alias for `inventory`. |
+| `x` | thing | Alias for `examine`. |
+| `push` | thing | Push a movable thing. |
+| `pull` | thing | Pull a movable thing. |
+| `insert` | thing, target | Insert a thing into a container (synonym for `put in`). |
+| `light` | thing | Light a light source. |
+| `extinguish` | thing | Extinguish a light source. |
+| `switch on` | thing | Switch a switchable device on. |
+| `switch off` | thing | Switch a switchable device off. |
+| `wear` | thing | Wear a wearable thing from inventory. |
+| `remove` | thing | Take off a worn thing. |
+| `eat` | thing | Eat an edible thing, removing it from inventory. |
+| `drink` | thing | Drink a drinkable thing. |
+| `climb` | thing | Climb a climbable thing with an associated exit. |
+| `enter` | thing | Enter an enterable container or vehicle. |
+| `exit` | — | Leave a vehicle or container; returns to the parent room. |
+| `jump` | thing | Jump on the spot, or onto a climbable thing. |
+| `sit` | thing | Sit on a supporter. |
+| `stand` | — | Stop sitting. |
+| `read` | thing | Read a readable thing; returns its `read_text` or description. |
+| `listen` | — | Report modeled noise cues from the room and one open exit. |
+| `smell` | — | Report modeled scent cues from the room and inventory. |
+| `touch` | thing | Touch a reachable thing and report its tactile description. |
+| `ask` | npc, topic | Ask an NPC about a topic; records the intent for the Game Master. |
+| `tell` | npc, topic | Tell an NPC about a topic; records the intent for the Game Master. |
+| `give` | thing, npc | Give a held thing to an NPC in the current room. |
+| `show` | thing, npc | Show a held thing to an NPC without transferring it. |
+| `throw` | thing, npc | Throw a held thing at a target; it lands in the target's room. |
 
 The builder MAY extend this catalog with ruleset-discovered commands (REQ-222).
 The table above is the baseline: every Holonovel server registers at minimum
@@ -136,7 +168,7 @@ these commands.
 ### Verb Coverage Tiers
 
 - core (7): look, go, examine, take, drop, inventory, wait
-- standard (31): open, close, lock, unlock, push, pull, search, read, listen, smell, sit, stand, wear, remove, eat, drink, light, extinguish, climb, jump, enter, exit, put, insert, switch on, switch off, ask, tell, give, show, throw
+- standard (32): open, close, unlock, lock, put, search, push, pull, insert, light, extinguish, switch on, switch off, wear, remove, eat, drink, climb, enter, exit, jump, sit, stand, read, listen, smell, touch, ask, tell, give, show, throw
 - extended (0): none
 
 A standard-tier verb becomes available when a thing in scope carries the
@@ -198,6 +230,7 @@ unrecognized form produces a not-implemented warning and does not change state.
 - **enterable** — `<thing> is enterable.` · `It is enterable.`
 - **wearable** — `<thing> is wearable.` · `It is wearable.`
 - **readable** — `<thing> is readable.` · `It is readable.`
+- **read_text** — `<thing> reads '...'.`
 - **edible** — `<thing> is edible.` · `It is edible.`
 - **drinkable** — `<thing> is drinkable.` · `It is drinkable.`
 - **climbable** — `<thing> is climbable.` · `It is climbable.`

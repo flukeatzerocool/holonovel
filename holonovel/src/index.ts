@@ -57,7 +57,7 @@ import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   WORLD_MODEL_KINDS,
   createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, verbCatalog,
-  BASE_PARSER_COMMANDS, oppositeDirection, type AnnotationDirective,
+  BASE_PARSER_COMMANDS, oppositeDirection, PARSER_CATALOG, READONLY_VERBS, type ParserCategory, type AnnotationDirective,
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom } from "./world/parser.js";
 import {
@@ -1949,6 +1949,9 @@ let visitedRoomNovel = "";
 // last referenced thing (for `it`/`them` pronoun resolution).
 let lastCommand: string = "";
 let lastReferencedThing: string | null = null;
+// REQ-196e — session-local disambiguation record. A bare numeric reply replaces
+// the resolved target with the chosen match and re-dispatches the command.
+let pendingAmbiguity: { command: string; target: string; matches: Array<{ name: string; location: string }> } | null = null;
 function terseMode(terse?: boolean): boolean {
   return terse === true || outputVerbosity === "terse";
 }
@@ -4736,7 +4739,7 @@ function resolveSpatialThing(world: WorldModel, ref: string): SpatialActor | und
 
 server.registerTool("run_command", {
   title: "Parser Command",
-  description: "Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
+  description: "AI-narrator tool — resolves spatial intent internally. Run the spatial parser: execute a parsed command, resolve a movement outcome, or map an intent to tool calls. execute accepts free-form text, mutates world and entity state, persists, and is audited; a mistaken move is reversed by issuing the inverse command because no undo snapshot is taken. resolve computes the same movement without mutating, and suggest returns recommended calls without executing them; source and target apply only to perception queries. On a ruleset-bound Novel the parser is GM-only for navigation and mutation, while the Player badge keeps read-only perception commands. Use when: a player or narrator takes a physical action, needs a movement outcome without mutating, or wants intent mapped to tools. Do NOT use when: the GM creates or edits the model — use manage_world; durable world facts — use manage_lore.",
   inputSchema: {
     action: z.enum(["execute", "resolve", "suggest", "visibility", "audibility"]).optional().describe("execute (parser), resolve (non-mutating intent), suggest (intent → tool calls), visibility (can one actor see another or a thing), or audibility (can one actor hear another). Defaults to execute."),
     command: z.string().optional().describe("The natural-language command (execute)."),
@@ -4879,10 +4882,22 @@ server.registerTool("run_command", {
   const novel = requireNovel();
   // REQ-197 — description mode commands are always recognized verbs.
   const cmdTrim = command.trim().toLowerCase();
+  // REQ-196e — a bare numeric reply resolves the pending disambiguation prompt;
+  // any other command clears it.
+  if (pendingAmbiguity && /^\d+$/.test(cmdTrim)) {
+    const chosen = pendingAmbiguity.matches[Number(cmdTrim) - 1];
+    if (!chosen) {
+      return raw(`[ERROR] [INVALID_INPUT] Choose 1-${pendingAmbiguity.matches.length}.`);
+    }
+    command = pendingAmbiguity.command.replace(pendingAmbiguity.target, chosen.name);
+    pendingAmbiguity = null;
+  } else if (pendingAmbiguity) {
+    pendingAmbiguity = null;
+  }
   if (cmdTrim === "brief") { roomDescriptionMode = "brief"; state.saveNovel(novel); return ok("Description mode: brief (room name + exits only)."); }
   if (cmdTrim === "verbose") { roomDescriptionMode = "verbose"; state.saveNovel(novel); return ok("Description mode: verbose (full descriptions every time)."); }
   if (cmdTrim === "normal") { roomDescriptionMode = "normal"; state.saveNovel(novel); return ok("Description mode: normal (full on first entry)."); }
-  if (cmdTrim === "help" || cmdTrim === "verbs" || cmdTrim === "help verbs") {
+  if (cmdTrim === "help" || cmdTrim === "commands" || cmdTrim === "what can i do?" || cmdTrim === "verbs") {
     // REQ-196a/REQ-309b — the parser is GM-only on a ruleset-bound Novel; the
     // Player badge never sees the verb catalog. Ruleset-free Novels keep the
     // parser as the primary Player surface (REQ-309h).
@@ -4993,12 +5008,21 @@ server.registerTool("run_command", {
   // REQ-197 — the description mode and the seen-room set are session-scoped:
   // the set resets when the active Novel changes.
   if (visitedRoomNovel !== novel.slug) { visitedRooms = new Set(); visitedRoomNovel = novel.slug; }
-  const ctx = { world: novel.world, currentRoom, inventory, badge: getBadge(), descriptionMode: roomDescriptionMode, seenRooms: visitedRooms };
+  const ctx = {
+    world: novel.world, currentRoom, inventory, badge: getBadge(),
+    descriptionMode: roomDescriptionMode, seenRooms: visitedRooms,
+    // REQ-309b — the Player badge never sees GM-only verb names, including in
+    // nearest-verb hints.
+    allowedVerbs: playerReadOnly ? READONLY_VERBS : undefined,
+  };
   const result = dispatchCommand(command, ctx);
+  // REQ-196e — a disambiguation prompt is informational: neither movement
+  // nor the take/drop/open side effects run until the caller picks a match.
+  const okAction = result.prefix === "OK" && !result.disambiguation;
 
   // Apply side effects
   const hazardWarnings: string[] = [];
-  if (result.prefix === "OK") {
+  if (okAction) {
     const goResult = resolveGoMovement(command, ctx);
     if (goResult.newRoom && entity && goResult.result.prefix === "OK") {
       // REQ-307/REQ-074 — move the whole present party, not only the active
@@ -5039,7 +5063,7 @@ server.registerTool("run_command", {
   // Handle take/drop side effects
   const tokens = command.trim().split(/\s+/);
   const verb = tokens[0].toLowerCase();
-  if (result.prefix === "OK" && entity) {
+  if (okAction && entity) {
     if (verb === "take" || verb === "get") {
       const targetThing = findMatchingThing(tokens.slice(1).join(" "), novel.world, currentRoom);
       if (targetThing && targetThing.portable && !entity.inventory.includes(targetThing.name.toLowerCase())) {
@@ -5090,7 +5114,7 @@ server.registerTool("run_command", {
     const name = words.join(" ").toLowerCase();
     return novel.world.things.get(name) ?? findMatchingThing(words.join(" "), novel.world, currentRoom);
   };
-  if (entity && result.prefix === "OK") {
+  if (entity && okAction) {
     if (verb === "examine" || verb === "x" || verb === "search") {
       const t = novel.world.things.get(tokens.slice(1).join(" ").toLowerCase()) ?? findMatchingThing(tokens.slice(1).join(" "), novel.world, currentRoom);
       if (t) lastReferencedThing = t.name;
@@ -5206,22 +5230,55 @@ server.registerTool("run_command", {
   const prefix = result.prefix === "OK" ? "[OK]" : result.prefix === "WARNING" ? "[WARNING]" : "[ERROR]";
   const code = result.code ? ` [${result.code}]` : "";
   let text = `${prefix}${code} ${result.text}`;
+  if (result.disambiguation) {
+    pendingAmbiguity = { command, target: result.disambiguation.target, matches: result.disambiguation.matches };
+    text += `\n${result.disambiguation.matches.map((m, i) => `${i + 1}. ${m.name} (${m.location})`).join("\n")}`;
+  }
   if (result.correctiveAction) {
     text += `\nCorrective action: ${result.correctiveAction}`;
   }
   if (hazardWarnings.length > 0) {
     text += `\n${hazardWarnings.join("\n")}`;
   }
+  // REQ-197a — the status line (exits) closes the response, after the body.
+  if (result.status) {
+    text += `\n\n${result.status}`;
+  }
   return raw(text);
 });
 
-// REQ-283 — render the verb catalog grouped by tier with availability annotation.
+// REQ-196d / REQ-283b — one canonical help text: tier sections, category
+// blocks within each tier, one-line descriptions, and per-tier counts. `help`,
+// `commands`, `what can I do?`, and `verbs` all return this exact text.
 function renderVerbCatalog(world: WorldModel): string {
   const tiers = verbCatalog(world);
-  const core = tiers.core.map(v => v.verb).join(", ");
-  const standard = tiers.standard.map(v => v.available ? v.verb : `${v.verb} (unavailable)`).join(", ");
-  const extended = tiers.extended.map(v => v.verb).join(", ") || "none registered";
-  return `Verb coverage:\ncore (${tiers.core.length}): ${core}\nstandard (${tiers.standard.length}): ${standard}\nextended (${tiers.extended.length}): ${extended}`;
+  const availability = new Map<string, boolean>();
+  for (const v of [...tiers.core, ...tiers.standard]) availability.set(v.verb, v.available);
+  const categoryOrder: ParserCategory[] = [
+    "navigation", "inspection", "object_interaction", "inventory", "narrative", "wait",
+  ];
+  const out: string[] = ["World commands (grouped by tier, then category):"];
+  for (const tier of ["core", "standard"] as const) {
+    const verbs = PARSER_CATALOG.filter((cmd) => cmd.tier === tier);
+    out.push(`\n${tier} (${verbs.length}):`);
+    for (const category of categoryOrder) {
+      const entries = verbs.filter((cmd) => cmd.category === category);
+      if (entries.length === 0) continue;
+      out.push(`  ${category}`);
+      for (const cmd of entries) {
+        const args = cmd.args.length ? ` ${cmd.args.map((a) => `<${a}>`).join(" ")}` : "";
+        const unavailable = availability.get(cmd.verb) === false ? " (unavailable)" : "";
+        out.push(`    ${cmd.verb}${args} — ${cmd.effect}${unavailable}`);
+      }
+      if (category === "narrative") {
+        out.push("    Note: outcomes are determined by the Game Master.");
+      }
+    }
+  }
+  const aliases = PARSER_CATALOG.filter((cmd) => cmd.tier === "alias").map((cmd) => cmd.verb);
+  out.push(`\nAliases: ${aliases.join(", ")}`);
+  out.push(`\nTiers: core ${tiers.core.length} · standard ${tiers.standard.length} · extended ${tiers.extended.length}`);
+  return out.join("\n");
 }
 
 // REQ-317d — record a vehicle traversal as a story journal moment entry.
@@ -5272,12 +5329,15 @@ function handleNarrativeVerb(full: string, novel: any, entity: any, currentRoom:
     const lower = thingName.toLowerCase();
     const idx = (entity?.inventory ?? []).indexOf(lower);
     if (idx < 0) return raw(`[ERROR] [NOT_FOUND] You're not carrying '${thingName}'.`);
+    // REQ-320b/c — resolve the target in the current room; a matched NPC's
+    // room is the thing's destination, a miss still throws into the room.
+    const npc = resolveNpcInRoom(novel, atMatch[1].trim(), currentRoom);
     entity.inventory.splice(idx, 1);
     const thing = novel.world.things.get(lower);
-    if (thing) { thing.location = currentRoom; thing.locationType = "room"; }
+    if (thing) { thing.location = npc?.location ?? currentRoom; thing.locationType = "room"; }
     state.saveNovel(novel);
     audit("command", { command: full, threw: thingName });
-    return raw(recordIntent(`You throw the ${thingName} at ${atMatch[1].trim()}.`));
+    return raw(recordIntent(`You throw the ${thingName} at ${atMatch[1].trim()}.`, !npc));
   }
 
   if (verb === "give") {
@@ -5290,12 +5350,15 @@ function handleNarrativeVerb(full: string, novel: any, entity: any, currentRoom:
     if (thing && !thing.portable) return raw(`[ERROR] [RULE_VIOLATION] The ${thing.name} is fixed and cannot be given.`);
     const idx = (entity?.inventory ?? []).indexOf(lower);
     if (idx < 0) return raw(`[ERROR] [NOT_FOUND] You're not carrying '${thingName}'.`);
-    const npc = resolveNpcInRoom(novel, npcName, currentRoom) ?? resolveNpcInRoom(novel, npcName, null);
+    // REQ-320b — the target must be in the current room; a miss keeps the item
+    // and records a [WARNING] intent (REQ-320c).
+    const npc = resolveNpcInRoom(novel, npcName, currentRoom);
+    if (!npc) return raw(recordIntent(`You offer the ${thingName} to ${npcName}.`, true));
     entity.inventory.splice(idx, 1);
     if (thing) { thing.location = null; thing.locationType = null; }
     state.saveNovel(novel);
-    audit("command", { command: full, gave: thingName, npc: npcName });
-    return raw(recordIntent(`You give the ${thingName} to ${npc ? npc.name : npcName}.`));
+    audit("command", { command: full, gave: thingName, npc: npc.name });
+    return raw(recordIntent(`You give the ${thingName} to ${npc.name}.`));
   }
 
   if (verb === "show") {
@@ -5303,9 +5366,9 @@ function handleNarrativeVerb(full: string, novel: any, entity: any, currentRoom:
     const thingName = toMatch ? full.replace(/^show\s+/i, "").replace(/\s+to .+$/i, "").trim() : tokens[1] ?? "";
     const npcName = toMatch ? toMatch[1].trim() : tokens.slice(2).join(" ");
     if (!thingName || !npcName) return raw(`[ERROR] [INVALID_INPUT] Show what to whom?`);
-    const npc = resolveNpcInRoom(novel, npcName, currentRoom) ?? resolveNpcInRoom(novel, npcName, null);
+    const npc = resolveNpcInRoom(novel, npcName, currentRoom);
     audit("command", { command: full, showed: thingName, npc: npcName });
-    return raw(recordIntent(`You show the ${thingName} to ${npc ? npc.name : npcName}.`));
+    return raw(recordIntent(`You show the ${thingName} to ${npc ? npc.name : npcName}.`, !npc));
   }
 
   if (verb === "ask" || verb === "tell") {
