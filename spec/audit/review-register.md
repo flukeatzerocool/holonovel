@@ -11,6 +11,24 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.10 override hint envelope
+
+- **F-5.10-1 — override hint envelope and the REQ-325c Check (resolved
+  2026-11-11):** `run_command (action: resolve)` returns `status: "blocked"`
+  with the constraint and reason for a closed or locked door, and carries
+  `override_hints` only when the catalog offers a bypass; the hint names the
+  mechanic and its remaining slots (`Knock (1 slot remaining) can open it.`),
+  sourced at call time by `doorOverrideHints` (`holonovel/src/index.ts:6133-6150`),
+  which keys on the entry's `type` constraint class instead of comparing the
+  mechanic name to the door (`:6176-6195`). The catalog visibility rule is one
+  shared predicate used by the resource and the hint scan
+  (`visibleConstraintOverrides`, `:6125-6132`; resource at `:13721-13728`).
+  REQ-325c now cites `T370, T372` (`spec/02-requirements.md:3440`), the
+  Appendix F T370 row asserts the blocked envelope and the GM breadth
+  (`spec/appendices-reference.md:1825`), and REQ-326d cites T373 (`:3451`).
+  Exercised by T370 (`holonovel/scripts/test-output-contracts.ts:1575`) and T372
+  (`:1649`). REQ-323, REQ-325. ROADMAP section deleted.
+
 ### 2026-11-11 §5.10 resources, suggest, and CRUD
 
 - **F-P6a-12 — world resources and badge filtering (resolved 2026-11-11):**
@@ -1641,16 +1659,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
-### 2026-11-11 §5.10 override hint envelope
-
-- **F-5.10-1 — override hint envelope and the REQ-325c Check (2026-11-11):**
-  REQ-325b/c require a blocked world-model error to carry an override hint,
-  while `run_command (action: resolve)` returns `resolved` with
-  `override_hints` instead of a blocked result
-  (`holonovel/src/index.ts:6154-6179`), and REQ-325c cites T369 (vow-countdown)
-  rather than T372. Scheduled under `ROADMAP.md` § §5.10 constraint override
-  hint envelope and REQ-325c Check (P1).
-
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
@@ -2149,6 +2157,29 @@ against Appendix F and the harness corpus, not on a gate message.
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-11 §5.10 override hint envelope — residuals
+
+- **REQ-325c's Player-badge hint clause is unreachable (2026-11-11):**
+  `run_command (action: resolve)` refuses the Player badge
+  (`holonovel/src/index.ts:4826-4828`) and then refuses the observer
+  (`:4829`), so only the GM/Editor branch of the hint scan is reachable; the
+  Player-facing badge-filtered catalog surface is `constraints://active`,
+  exercised by T372 (`holonovel/scripts/test-output-contracts.ts:1649`). The
+  clause is vestigial, not wrong — no demonstrated wrong output. REQ-325c.
+- **Harness label corrections (2026-11-11):** `T373`/`T374` moved to the
+  scene-coupling test (`test-output-contracts.ts:1526`), and the countdown and
+  knowledge tests now carry `T376` (`:780`) and `T377` (`:728`); the backfill
+  resolve smoke check is REQ-only (`test-backfill.ts:713`). REQ-324's `T371`
+  builder-side row loses its never-faithful server-harness carrier and stays
+  bucket E (intended gap, exempt; `spec/audit/req-coverage.md:293`). The broad
+  zero-padded-token sweep stays scheduled under `ROADMAP.md` Harness test-ID
+  label hygiene.
+- **REQ-323a's Appendix O pointer is dangling (2026-11-11):** the body says
+  "Return values are defined in Appendix O"
+  (`spec/02-requirements.md:1003`), but Appendix O has no resolve-return
+  subsection (`spec/appendices-reference.md:3033-3190`). The shape is evidenced
+  by the T370 row instead. REQ-323a.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

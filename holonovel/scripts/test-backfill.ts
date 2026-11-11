@@ -710,7 +710,7 @@ async function main() {
       assertContains(sheet, "Brienne");
     });
 
-    await test("T370/T323: resolve_intent returns structured intent resolution", async () => {
+    await test("REQ-323: resolve intent returns structured intent resolution (supplemental)", async () => {
       const intent = JSON.parse(await call(proc, "run_command", { action: "resolve",  intent: "I open the door" }));
       if (intent.status !== "resolved") throw new Error(`resolve_intent status: ${intent.status}`);
     });

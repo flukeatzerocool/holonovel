@@ -290,8 +290,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-321 | Codex (Part a) (17 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T366, T382, T383, T397, T402, S17 | — |
 | REQ-322 | Vow-countdown coupling (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T369 | — |
 | REQ-323 | command resolve action (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T370 | — |
-| REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | T371 | — |
-| REQ-325 | Constraint override catalog (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T372 | — |
+| REQ-324 | Constraint override extraction | 5.2 Extraction and Confidence | E | — | — |
+| REQ-325 | Constraint override catalog (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T370, T372 | — |
 | REQ-326 | Scene-world coupling (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T373 | — |
 | REQ-327 | NPC-world coupling (Part a) (3 sub-parts) | 5.10 World-Model Layer | C | T374 | — |
 | REQ-328 | Lore-world coupling (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T375 | — |

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-11 — §5.10 override hint envelope remediation
+
+- `run_command (action: resolve)` keeps a closed or locked door blocked instead
+  of reporting arrival: the result carries the constraint class and reason, and
+  adds `override_hints` only when the constraint-override catalog offers a
+  bypass. Hints are sourced at call time from the entry's `type` constraint
+  class (never the mechanic name matched against the door) and read
+  `Knock (1 slot remaining) can open it.` (REQ-325b).
+- The catalog visibility rule is one shared predicate used by
+  `constraints://active` and the resolve hint scan, so the GM sees every known
+  override on an error while the Player resource stays active-entity filtered
+  (REQ-325a, REQ-325c; F-5.10-1).
+- Citation repair: REQ-325c's Check now cites T370 and T372 instead of the
+  vow-countdown T369, REQ-326d cites T373 instead of T370, and the Appendix F
+  T370 row asserts the blocked envelope, the pinned hint text, and the GM
+  breadth. The scene-coupling, countdown, and knowledge harness titles carry
+  their catalogue IDs (T373/T374, T376, T377) so a cited token resolves to the
+  assertion it names (REQ-323, REQ-325, REQ-326).
+- F-5.10-1 moves to `Resolved`; the unreachable Player hint clause, the
+  corrected harness labels, and REQ-323a's dangling Appendix O pointer are
+  recorded under `Closed-P3` (REQ-323a, REQ-324, REQ-325c).
+
 ## 2026-11-11 — §5.10 resources, suggest, and CRUD remediation
 
 - World-model resources are badge-filtered. `room://` lists visible things

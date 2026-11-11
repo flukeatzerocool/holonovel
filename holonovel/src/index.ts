@@ -6118,6 +6118,36 @@ server.registerTool("manage_world", {
 // Three phases: constraint check → override check → scene composition.
 // Callable by the AI narrator, Game Master, and Observer badges; Player [FORBIDDEN].
 
+// REQ-325a/c — the constraint-override catalog as one visibility rule, shared
+// by the `constraints://active` resource and the resolve hint scan: the Player
+// badge sees only the active entity's attributed entries plus `match_all`;
+// every other badge sees all. (REQ-325c's GM clause requires the wider view.)
+function visibleConstraintOverrides(novel: NovelState) {
+  const overrides = novel.constraint_overrides ?? [];
+  if (getBadge() !== "player") return overrides;
+  const entityId = state.getActiveEntity()?.id;
+  return overrides.filter((o: any) =>
+    o.match_all === true || (Array.isArray(o.entities) && !!entityId && o.entities.includes(entityId)));
+}
+
+// REQ-325b/c — hints name the mechanic that can bypass the blocked constraint.
+// A catalog entry's `type` is the constraint class ("door" covers both the
+// locked and closed-door blocks); `name` is the mechanic to cite, never a key
+// into the door. Breadth follows REQ-325c (GM errors enumerate all known
+// overrides). Hints are sourced at call time and are never hardcoded.
+function doorOverrideHints(novel: NovelState): string[] {
+  const hints: string[] = [];
+  for (const o of visibleConstraintOverrides(novel)) {
+    if (o.type !== "door") continue;
+    const mechanic = String(o.name ?? o.source ?? "An override");
+    const slots = typeof o.slots_remaining === "number"
+      ? ` (${o.slots_remaining} slot${o.slots_remaining === 1 ? "" : "s"} remaining)`
+      : "";
+    hints.push(`${mechanic}${slots} can open it.`);
+  }
+  return hints;
+}
+
 function resolveIntentWorld(intent: string, novel: NovelState): Record<string, unknown> {
   const world = novel.world;
   if (world.rooms.size === 0) {
@@ -6144,23 +6174,21 @@ function resolveIntentWorld(intent: string, novel: NovelState): Record<string, u
       return { status: "blocked", constraint: "direction", reason: `Direction '${dir ?? ""}' is not valid.`, available: [...room.exits.keys()] };
     }
     const direction = dir as Direction;
-    // Constraint check: door blocking
+    // Constraint check: a door blocks passage. An available override does not
+    // open it — §5.10 requires an explicit mechanic — so the result stays
+    // blocked and carries the hint that names the mechanic (REQ-325b/c).
     const doorName = room.doorRefs.get(direction);
-    const overrideHints: string[] = [];
     if (doorName) {
       const door = world.things.get(doorName.toLowerCase());
       if (door && !door.open) {
         const constraint = door.locked ? "locked" : "closed_door";
-        // Override check: scan active-entity constraint overrides (REQ-325)
-        const overrides = novel.constraint_overrides ?? [];
-        for (const o of overrides) {
-          if (o.type === "door" && (o.name?.toLowerCase() === door.name.toLowerCase() || o.match_all)) {
-            overrideHints.push(`${o.name} (${o.slots_remaining ?? "∞"} remaining) can open ${door.name}.`);
-          }
-        }
-        if (overrideHints.length === 0) {
-          return { status: "blocked", constraint, reason: `The ${door.name} is ${constraint === "locked" ? "locked" : "closed"}.` };
-        }
+        const hints = doorOverrideHints(novel);
+        return {
+          status: "blocked",
+          constraint,
+          reason: `The ${door.name} is ${constraint === "locked" ? "locked" : "closed"}.`,
+          ...(hints.length > 0 ? { override_hints: hints } : {}),
+        };
       }
     }
     const target = room.exits.get(direction);
@@ -6172,7 +6200,6 @@ function resolveIntentWorld(intent: string, novel: NovelState): Record<string, u
     return {
       status: "resolved",
       room_context: composeRoomContext(targetRoom, novel, world),
-      override_hints: overrideHints,
     };
   }
 
@@ -13695,15 +13722,8 @@ server.registerResource("roster-single", new ResourceTemplate("roster://{id}", {
 server.registerResource("constraints-active", "constraints://active", { title: "Constraint Overrides" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "constraints://active", text: "[]", mimeType: "application/json" }] };
-  const badge = getBadge();
-  let overrides = novel.constraint_overrides ?? [];
-  if (badge === "player") {
-    // REQ-325a — Player sees the active entity's attributed overrides plus
-    // any match_all entry; an entry the server cannot attribute is GM-only.
-    const entityId = state.getActiveEntity()?.id;
-    overrides = overrides.filter((o: any) =>
-      o.match_all === true || (Array.isArray(o.entities) && !!entityId && o.entities.includes(entityId)));
-  }
+  // REQ-325a — badge filtering lives in one predicate (REQ-325c).
+  const overrides = visibleConstraintOverrides(novel);
   return { contents: [{ uri: "constraints://active", text: JSON.stringify(overrides, null, 2), mimeType: "application/json" }] };
 });
 

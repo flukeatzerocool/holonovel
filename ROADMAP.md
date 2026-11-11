@@ -12,15 +12,16 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.10 constraint override hint envelope and REQ-325c Check (P1)
+## Pattern-buffer I1 verb-refusal expectation (P1)
 
-- Emit the REQ-325b/c blocked-error hint from `run_command (action: resolve)`
-  when an override applies instead of returning `resolved` with
-  `override_hints`, and repoint REQ-325c's `_Check:_` from T369 to T372
-  (F-5.10-1).
+- Reconcile `holonovel/scripts/run_pattern_buffer.ts:243` — which asserts
+  `command(xyzzy)` contains "not a recognized command" — with REQ-196c's
+  `[UNIMPLEMENTED] Unknown verb '<verb>'` pattern and Appendix W's
+  `[ERROR] [NOT_FOUND] "xyzzy" is not a recognized command.`; decide which
+  surface owns the refusal text and align the other (REQ-196c).
 
-**Trigger:** the next §5.10 remediation session; closes when F-5.10-1 is
-`Resolved` in the review register.
+**Trigger:** the next server-harness maintenance session; closes when
+`npm --prefix holonovel run test:pattern-buffer` passes.
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
 

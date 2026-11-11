@@ -725,7 +725,7 @@ async function main() {
     await kill(p);
   });
 
-  await test("T352/REQ-308 + T374/T377/REQ-330: knowledge gating by presence and exploration", async () => {
+  await test("T352/REQ-308 + T377/REQ-330: knowledge gating by presence and exploration", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4d" });
     await call(p, "set_badge", { badge: "game_master" });
@@ -777,7 +777,7 @@ async function main() {
   });
 
   // ── REQ-329 countdown-world trigger ──
-  await test("T373/T376/REQ-329: countdown on_room_enter trigger advances", async () => {
+  await test("T376/REQ-329: countdown on_room_enter trigger advances", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4g" });
     await call(p, "set_badge", { badge: "game_master" });
@@ -1523,7 +1523,7 @@ async function main() {
     await kill(p);
   });
 
-  await test("T370/REQ-326 + T371/REQ-327: scene-world and NPC-world coupling", async () => {
+  await test("T373/REQ-326 + T374/REQ-327: scene-world and NPC-world coupling", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w10b" });
     await call(p, "set_badge", { badge: "game_master" });
@@ -1572,6 +1572,80 @@ async function main() {
     await kill(p);
   });
 
+  await test("T370/REQ-323 + REQ-325: resolve blocks a closed door and emits override hints", async () => {
+    const p = await boot();
+    const created = await call(p, "manage_novel", { action: "create",  name: "w10r" });
+    assertContains(created, "[OK]", "REQ-323 resolve novel created");
+    await call(p, "set_badge", { badge: "game_master" });
+    const chr = await call(p, "manage_character", { action: "create",  name: "Rogue" });
+    const pcId = (chr.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "character_01";
+    await call(p, "manage_character", { action: "set_active",  entity_id: pcId });
+    await call(p, "manage_world", { action: "create_room",  name: "Entrance", description: "A cold threshold." });
+    await call(p, "manage_world", { action: "create_room",  name: "Hall", description: "A long hall." });
+    await call(p, "manage_world", { action: "create_room",  name: "Chapel", description: "A dark chapel." });
+    await call(p, "manage_world", { action: "create_exit",  direction: "north", room_a: "Entrance", room_b: "Hall" });
+    await call(p, "manage_world", { action: "create_thing",  name: "iron door", kind: "door", location: "Hall", locked: true, fixed: true });
+    await call(p, "manage_world", { action: "create_exit",  direction: "north", room_a: "Hall", room_b: "Chapel", door: "iron door" });
+
+    // Entrance -> Hall is open: resolved with the destination context.
+    const open = JSON.parse(await call(p, "run_command", { action: "resolve",  intent: "go north" }));
+    if (open.status !== "resolved" || !String(JSON.stringify(open.room_context ?? {})).includes("Hall")) {
+      throw new Error(`REQ-323 open exit should resolve to Hall: ${JSON.stringify(open).slice(0, 300)}`);
+    }
+    // Move the active entity into Hall; the north exit is a locked door.
+    await call(p, "run_command", { command: "go north" });
+
+    const noOverride = JSON.parse(await call(p, "run_command", { action: "resolve",  intent: "go north" }));
+    if (noOverride.status !== "blocked" || noOverride.constraint !== "locked") {
+      throw new Error(`REQ-325b locked door should block with constraint locked: ${JSON.stringify(noOverride)}`);
+    }
+    if ("override_hints" in noOverride) throw new Error(`REQ-325c no override: hints must be absent: ${JSON.stringify(noOverride)}`);
+
+    // Inject a catalog entry for the active entity and a foreign entity's entry.
+    const exportText = await call(p, "manage_archive", { action: "export",  format: "json", scope: "full" });
+    const bundle = JSON.parse(exportText);
+    bundle.novel.constraint_overrides = [
+      { type: "door", name: "Knock", source: "spell", prerequisites: ["1 slot"], slots_remaining: 1, entities: [pcId] },
+      { type: "door", name: "Passwall", source: "spell", prerequisites: ["level 9"], slots_remaining: 2, entities: ["character_99"] },
+    ];
+    delete bundle.integrity;
+    const imported = await call(p, "manage_archive", { action: "import",  mode: "replace", data: JSON.stringify(bundle) });
+    assertContains(imported, "imported (replace mode)", "REQ-325 override import");
+    await call(p, "set_badge", { badge: "game_master" });
+
+    const hinted = JSON.parse(await call(p, "run_command", { action: "resolve",  intent: "go north" }));
+    if (hinted.status !== "blocked" || hinted.constraint !== "locked") {
+      throw new Error(`REQ-325b an override must not resolve past the door: ${JSON.stringify(hinted)}`);
+    }
+    const hints = (hinted.override_hints ?? []) as string[];
+    if (!hints.includes("Knock (1 slot remaining) can open it.")) {
+      throw new Error(`REQ-325b hint text wrong: ${JSON.stringify(hints)}`);
+    }
+    if (!hints.some((h) => h.includes("Passwall"))) {
+      throw new Error(`REQ-325c GM errors enumerate all known overrides: ${JSON.stringify(hints)}`);
+    }
+
+    const noExit = JSON.parse(await call(p, "run_command", { action: "resolve",  intent: "go east" }));
+    if (noExit.status !== "blocked" || noExit.constraint !== "exit") {
+      throw new Error(`REQ-323b missing exit should block with constraint exit: ${JSON.stringify(noExit)}`);
+    }
+
+    const toolsRaw = await send(p, { method: "tools/list", params: {} });
+    const toolsText = JSON.stringify(toolsRaw.result?.tools ?? []);
+    assertContains(toolsText, "run_command", "REQ-323 resolve tool registered");
+
+    await call(p, "set_badge", { badge: "player" });
+    const forbidden = await call(p, "run_command", { action: "resolve",  intent: "go north" });
+    assertContains(forbidden, "[FORBIDDEN]", "REQ-323a Player resolve forbidden");
+
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_novel", { action: "create",  name: "w10r-empty" });
+    const noWorld = JSON.parse(await call(p, "run_command", { action: "resolve",  intent: "go north" }));
+    if (noWorld.status !== "no_world_model") throw new Error(`REQ-323a unpopulated world: ${JSON.stringify(noWorld)}`);
+    passed++;
+    await kill(p);
+  });
+
   await test("T372/REQ-325: constraint override catalog", async () => {
     const p = await boot();
     const created = await call(p, "manage_novel", { action: "create",  name: "w10d" });
@@ -1585,8 +1659,8 @@ async function main() {
     const bundle = JSON.parse(exportText);
     bundle.novel.constraint_overrides = [
       { type: "door", name: "Knock", source: "spell", prerequisites: ["1 slot"], slots_remaining: 1, entities: [pcId] },
-      { type: "door", name: "Passwall", source: "spell", entities: ["character_99"] },
-      { type: "door", name: "Darkvision", source: "spell", match_all: true },
+      { type: "door", name: "Passwall", source: "spell", prerequisites: ["level 9"], entities: ["character_99"] },
+      { type: "door", name: "Darkvision", source: "spell", prerequisites: ["level 1"], match_all: true },
     ];
     delete bundle.integrity;
     const imported = await call(p, "manage_archive", { action: "import",  mode: "replace", data: JSON.stringify(bundle) });
@@ -1596,8 +1670,19 @@ async function main() {
     assertContains(gm, "Knock", "REQ-325 GM sees attributed override");
     assertContains(gm, "Passwall", "REQ-325 GM sees other-entity override");
     assertContains(gm, "Darkvision", "REQ-325 GM sees match_all override");
+    const gmList = JSON.parse(gm);
+    if (!Array.isArray(gmList) || gmList.length !== 3) throw new Error(`REQ-325 GM list size: ${gm}`);
+    for (const entry of gmList) {
+      if (!entry.type || !entry.source || !Array.isArray(entry.prerequisites)) {
+        throw new Error(`REQ-325 entry must carry type, source, prerequisites: ${JSON.stringify(entry)}`);
+      }
+    }
 
     await call(p, "set_badge", { badge: "player" });
+    const playerHealth = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if (playerHealth.constraint_override_counts !== undefined) {
+      throw new Error(`REQ-325a Player health must omit constraint_override_counts: ${JSON.stringify(playerHealth.constraint_override_counts)}`);
+    }
     const player = await proto(p, "resources/read", { uri: "constraints://active" });
     assertContains(player, "Knock", "REQ-325 Player sees own override");
     assertContains(player, "Darkvision", "REQ-325 Player sees match_all override");
