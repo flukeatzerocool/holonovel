@@ -11,6 +11,45 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.10 resources, suggest, and CRUD
+
+- **F-P6a-12 — world resources and badge filtering (resolved 2026-11-11):**
+  every world-model resource reads the live badge (`getBadge() === "game_master"
+  || getBadge() === "none"`) and splits the payload: `room://` lists direct
+  occupants, a supporter's surface, and the contents of open containers, then
+  adds ids, exit targets, and the four-key `**Annotations:**` line for the GM
+  (`holonovel/src/index.ts:13385-13441`); `thing://` adds the full property list,
+  `doorConnects`, and the `containmentChain` walk
+  (`holonovel/src/world/model.ts:1074-1096`) for the GM and only the room-level
+  location for the Player (`index.ts:13443-13476`); `worldMap` and `worldKinds`
+  take the badge (`world/model.ts:1044-1072`, `:1098-1139`), with the GM map
+  appending `## Annotations` and a bound-Player `worldKinds` stopping before
+  `## Parser Commands` (`index.ts:13477-13491`); the `constraints://active`
+  Player filter keeps an override only when `match_all` is set or its `entities`
+  list names the active entity (`index.ts:13695-13709`), and
+  `constraint_override_counts` reports `{ total, by_type, by_source }`
+  (`index.ts:12884-12895`). REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b.
+  ROADMAP section deleted.
+- **F-P6a-13 — Player spatial suggest never maps to resolve (resolved
+  2026-11-11):** `spatialCmd` returns
+  `run_command (action: resolve, intent: "<intent>")` for the Player badge on a
+  ruleset-bound Novel (ruleset-free keeps the parser form, REQ-309b's scoped
+  ban), the spatial list is deduped, and the GM receives the resolve mapping
+  beside the parser form (`holonovel/src/index.ts:4831-4834`, `:4908-4914`).
+  REQ-309b, REQ-309g. ROADMAP section deleted.
+- **F-P6a-14 — CRUD lifecycle gaps (resolved 2026-11-11):** `create_exit`
+  validates before snapshotting, writes canonical room names, accepts an
+  optional `door` that binds `doorRefs` on both rooms and `doorConnects` on the
+  door, and clears any prior binding (`holonovel/src/index.ts:5755-5797`);
+  `remove_exit` removes the reverse edge when it points back and clears both
+  `doorRefs` entries plus `doorConnects` (`:5798-5828`); `remove_room` removes a
+  transitive contents fixpoint, both-direction exits, and bound doors, and
+  audits `{ things, exits, doors }` (`:5626-5682`); `update_room` validates
+  before snapshotting and audits its changed fields (`:5614-5625`); the parser
+  resolves the door portion of `unlock/lock <door> with <key>`
+  (`holonovel/src/world/parser.ts:616-660`). REQ-198, REQ-199. ROADMAP section
+  deleted.
+
 ### 2026-11-11 §5.10 hints, detail, and vehicles
 
 - **F-P6a-8 — implicit action hints (resolved 2026-11-11):** a locked `open`
@@ -1602,6 +1641,16 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-11 §5.10 override hint envelope
+
+- **F-5.10-1 — override hint envelope and the REQ-325c Check (2026-11-11):**
+  REQ-325b/c require a blocked world-model error to carry an override hint,
+  while `run_command (action: resolve)` returns `resolved` with
+  `override_hints` instead of a blocked result
+  (`holonovel/src/index.ts:6154-6179`), and REQ-325c cites T369 (vow-countdown)
+  rather than T372. Scheduled under `ROADMAP.md` § §5.10 constraint override
+  hint envelope and REQ-325c Check (P1).
+
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
@@ -1621,29 +1670,6 @@ T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
 
-
-### 2026-11-09 full-review sweep — chunk P6a (world model and the adapter seam)
-
-- **F-P6a-12 — world resources and badge filtering (2026-11-09):**
-  `world://map` and `world://kinds` are served without a badge read
-  (`holonovel/src/index.ts:12542-12550`); `room://` omits visible things and
-  hazard annotations and `thing://` omits most properties and the containment
-  chain (`:12513-12537`); `world://kinds` exposes no `parser_commands` with
-  source (`world/model.ts:1005-1008`); the Player `constraints://active` filter
-  compares a mechanic name to an entity name (`index.ts:12760-12762`).
-  REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b. Scheduled under
-  `ROADMAP.md` § §5.10 world-model contract remediation (P1).
-- **F-P6a-13 — Player spatial suggest never maps to resolve (2026-11-09):**
-  `holonovel/src/index.ts:4526-4528` returns narrator-directed prose for the
-  Player badge on a ruleset-bound Novel instead of naming
-  `run_command (action: resolve)`. REQ-309g. Scheduled under `ROADMAP.md` §
-  §5.10 world-model contract remediation (P1).
-- **F-P6a-14 — CRUD lifecycle gaps (2026-11-09):** `create_exit`
-  (`holonovel/src/index.ts:5289`) writes no `doorRefs`, so a door created
-  through CRUD never blocks passage; `update_room` (`:5177-5182`) is not
-  audit-logged; `remove_room` leaves nested container contents and stale
-  door references. REQ-198, REQ-199. Scheduled under `ROADMAP.md` § §5.10
-  world-model contract remediation (P1).
 
 ### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
 

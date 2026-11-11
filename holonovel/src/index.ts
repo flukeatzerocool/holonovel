@@ -56,7 +56,7 @@ import { DEFAULT_WISDOM, verifyCitation, withWisdomKeys } from "./core/wisdom.js
 import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   WORLD_MODEL_KINDS,
-  createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, verbCatalog,
+  createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, containmentChain, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection, PARSER_CATALOG, READONLY_VERBS, type ParserCategory, type AnnotationDirective,
 } from "./world/model.js";
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom, bareName } from "./world/parser.js";
@@ -2927,6 +2927,7 @@ function materializeAnnotations(
         condition_rounds: {},
       };
       novel.npcs.set(id, npc);
+      if (roomEntry) roomEntry[1].annotations.npc = name;
       counts.npcs += 1;
       continue;
     }
@@ -2964,6 +2965,7 @@ function materializeAnnotations(
       ...(worldTarget ? { world_target: worldTarget } : {}),
     };
     novel.lore.set(key, entry);
+    if (roomEntry) roomEntry[1].annotations.lore = key;
     counts.lore += 1;
   }
 
@@ -4828,7 +4830,7 @@ server.registerTool("run_command", {
     const isGM = badge === "game_master" || badge === "none";
     const spatialCmd = (cmd: string) => (!rulesetBound || isGM)
       ? `run_command (action: execute, "${cmd}")`
-      : `declare intent "${cmd}" — the narrator resolves it through the parser`;
+      : `run_command (action: resolve, intent: "${args.intent ?? cmd}")`;
     const intentLower = (args.intent ?? "").toLowerCase();
     const domains: { mechanical: string[]; spatial: string[]; social: string[] } = { mechanical: [], spatial: [], social: [] };
     if (intentLower.includes("look") || intentLower.includes("see") || intentLower.includes("where") || intentLower.includes("examine")
@@ -4902,6 +4904,13 @@ server.registerTool("run_command", {
       // list; only an empty intent falls back to the contextual defaults.
       if (intentLower.trim()) return ok(`No matching actions for "${args.intent}".`);
       domains.spatial.push(spatialCmd("look"), spatialCmd("go <direction>"), spatialCmd("examine <thing>"));
+    }
+    // REQ-309g — one resolve entry per intent; several keyword branches can
+    // match the same words, so the spatial list is deduped. REQ-309c — the GM
+    // also receives the resolve mapping beside the parser form.
+    domains.spatial = [...new Set(domains.spatial)];
+    if (isGM && domains.spatial.length > 0) {
+      domains.spatial.push(`run_command (action: resolve, intent: "${args.intent ?? ""}")`);
     }
     const blocks: string[] = [];
     if (domains.mechanical.length) blocks.push(`Mechanical:\n${domains.mechanical.map((s) => `  - ${s}`).join("\n")}`);
@@ -5518,6 +5527,7 @@ const MANAGE_WORLD_SCHEMA = {
     room_b: z.string().optional().describe("Destination room (create_exit)."),
     from: z.string().optional().describe("Source room alias for room_a (create_exit)."),
     to: z.string().optional().describe("Destination room alias for room_b (create_exit)."),
+    door: z.string().optional().describe("Door thing name bound to the created exit (create_exit); the door must already exist with kind 'door'."),
     source: z.string().optional().describe("Hybrid world-model source text (convert)."),
     seed: z.string().optional().describe("Deterministic seed (generate)."),
     options: z.object({
@@ -5543,7 +5553,7 @@ const MANAGE_WORLD_SCHEMA = {
 
 server.registerTool("manage_world", {
   title: "World Model Management",
-  description: "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. list enumerates rooms, things, and exits; get returns one record by id; both are read-only and require the Game Master or Editor badge. Use when: creating, updating, removing, bulk-converting, generating, or inspecting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); recording what an entity believes — use manage_belief.",
+  description: "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions and optionally binds an existing door thing so the door blocks passage; create_thing honors location_type only when location is set, and kind forces property defaults. list enumerates rooms, things, and exits; get returns one record by id; both are read-only and require the Game Master or Editor badge. Use when: creating, updating, removing, bulk-converting, generating, or inspecting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); recording what an entity believes — use manage_belief.",
   inputSchema: pickParams(MANAGE_WORLD_SCHEMA, Object.keys(MANAGE_WORLD_SCHEMA).filter((key) => !MANAGE_WORLD_CAUSAL_PARAMS.has(key))),
 }, async (args: any) => {
   if (typeof args.action === "string" && args.action.startsWith("causal_")) return handleCausalActions(mergeScopedArgs(args, "causal"));
@@ -5604,11 +5614,13 @@ server.registerTool("manage_world", {
     case "update_room": {
       requireGM();
       const novel = requireNovel();
-      worldSnapshot();
       const room = novel.world.rooms.get(args.name.toLowerCase());
       if (!room) return err("NOT_FOUND", `Room '${args.name}' not found.`);
-      if (args.description !== undefined) room.description = args.description;
+      worldSnapshot();
+      const fields: string[] = [];
+      if (args.description !== undefined) { room.description = args.description; fields.push("description"); }
       state.saveNovel(novel);
+      audit("update_room", { name: args.name, fields });
       return ok(`Room '${args.name}' updated.`);
     }
     case "remove_room": {
@@ -5617,17 +5629,47 @@ server.registerTool("manage_world", {
       const lower = args.name.toLowerCase();
       if (!novel.world.rooms.has(lower)) return err("NOT_FOUND", `Room '${args.name}' not found.`);
       worldSnapshot();
-      for (const [tKey, thing] of novel.world.things) {
-        if (thing.location?.toLowerCase() === lower && thing.locationType === "room") novel.world.things.delete(tKey);
-      }
-      for (const [, room] of novel.world.rooms) {
-        for (const [dir, target] of room.exits) {
-          if (target.toLowerCase() === lower) room.exits.delete(dir);
+      // REQ-198 — remove all contained things, transitively: a thing is
+      // removed when its location names the room or any removed thing.
+      const removedThings = new Set<string>();
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const [tKey, thing] of novel.world.things) {
+          if (removedThings.has(tKey)) continue;
+          const loc = thing.location?.toLowerCase();
+          if (!loc) continue;
+          if (loc === lower || removedThings.has(loc)) {
+            removedThings.add(tKey);
+            grew = true;
+          }
         }
       }
+      // Connected exits in both directions, plus their bound doors.
+      const removedDoors = new Set<string>();
+      let exits = 0;
+      for (const [rKey, room] of novel.world.rooms) {
+        for (const [dir, target] of [...room.exits.entries()]) {
+          if (rKey !== lower && target.toLowerCase() !== lower) continue;
+          const doorName = room.doorRefs.get(dir);
+          if (doorName) removedDoors.add(doorName.toLowerCase());
+          room.exits.delete(dir);
+          room.doorRefs.delete(dir);
+          exits++;
+        }
+      }
+      for (const doorName of removedDoors) {
+        if (novel.world.things.has(doorName)) removedThings.add(doorName);
+      }
+      for (const [, room] of novel.world.rooms) {
+        for (const [dir, doorName] of [...room.doorRefs.entries()]) {
+          if (removedDoors.has(doorName.toLowerCase())) room.doorRefs.delete(dir);
+        }
+      }
+      for (const id of removedThings) novel.world.things.delete(id);
       novel.world.rooms.delete(lower);
       state.saveNovel(novel);
-      audit("remove_room", { name: args.name });
+      audit("remove_room", { name: args.name, things: removedThings.size, exits, doors: removedDoors.size });
       return ok(`Room '${args.name}' and its contents removed.`);
     }
     case "create_thing": {
@@ -5713,7 +5755,6 @@ server.registerTool("manage_world", {
     case "create_exit": {
       requireGM();
       const novel = requireNovel();
-      worldSnapshot();
       const dir = String(args.direction ?? "").toLowerCase();
       if (!dir || !ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid or missing direction '${args.direction ?? ""}'. Valid: ${ROOM_DIRECTIONS.join(", ")}.`);
       const roomAName = args.room_a ?? args.room ?? args.from;
@@ -5723,22 +5764,66 @@ server.registerTool("manage_world", {
       const roomB = novel.world.rooms.get(String(roomBName).toLowerCase());
       if (!roomA) return err("NOT_FOUND", `Room '${roomAName}' not found.`);
       if (!roomB) return err("NOT_FOUND", `Room '${roomBName}' not found.`);
-      roomA.exits.set(dir as Direction, String(roomBName));
-      roomB.exits.set(oppositeDirection(dir as Direction), String(roomAName));
+      const opposite = oppositeDirection(dir as Direction);
+      let door: WorldThing | undefined;
+      if (args.door !== undefined) {
+        door = novel.world.things.get(String(args.door).toLowerCase());
+        if (!door || door.kind !== "door") return err("INVALID_INPUT", `Door '${args.door}' must name an existing door thing.`);
+        if (door.doorConnects && (door.doorConnects.roomA.toLowerCase() !== roomA.name.toLowerCase() || door.doorConnects.roomB.toLowerCase() !== roomB.name.toLowerCase())) {
+          return err("STATE_CONFLICT", `Door '${door.name}' is already bound to another exit.`);
+        }
+      }
+      worldSnapshot();
+      // Clear any prior binding on this direction so a re-created exit cannot
+      // leave a stale blocking door (REQ-199).
+      for (const [room, direction] of [[roomA, dir], [roomB, opposite]] as Array<[WorldRoom, string]>) {
+        const priorName = room.doorRefs.get(direction);
+        if (priorName) {
+          const prior = novel.world.things.get(priorName.toLowerCase());
+          if (prior?.doorConnects) delete prior.doorConnects;
+          room.doorRefs.delete(direction);
+        }
+      }
+      roomA.exits.set(dir as Direction, roomB.name);
+      roomB.exits.set(opposite, roomA.name);
+      if (door) {
+        roomA.doorRefs.set(dir as Direction, door.name);
+        roomB.doorRefs.set(opposite, door.name);
+        door.doorConnects = { roomA: roomA.name, roomB: roomB.name };
+      }
       state.saveNovel(novel);
-      audit("create_exit", { direction: dir, room_a: roomAName, room_b: roomBName });
+      audit("create_exit", { direction: dir, room_a: roomAName, room_b: roomBName, ...(door ? { door: door.name } : {}) });
       return ok(`Exit created: ${dir} from ${roomAName} to ${roomBName}.`);
     }
     case "remove_exit": {
       requireGM();
       const novel = requireNovel();
-      worldSnapshot();
       const dir = args.direction.toLowerCase();
       if (!ROOM_DIRECTIONS.includes(dir as any)) return err("INVALID_INPUT", `Invalid direction.`);
       const room = novel.world.rooms.get(args.room.toLowerCase());
       if (!room) return err("NOT_FOUND", `Room '${args.room}' not found.`);
       if (!room.exits.has(dir as Direction)) return err("NOT_FOUND", `No ${dir} exit from '${args.room}'.`);
+      worldSnapshot();
+      const opposite = oppositeDirection(dir as Direction);
+      const targetName = room.exits.get(dir as Direction)!;
+      const target = novel.world.rooms.get(targetName.toLowerCase());
+      const doorName = room.doorRefs.get(dir as Direction);
       room.exits.delete(dir as Direction);
+      room.doorRefs.delete(dir as Direction);
+      // Remove the reverse edge only when it still points back at this room.
+      if (target && target.exits.get(opposite)?.toLowerCase() === room.name.toLowerCase()) {
+        const reverseDoor = target.doorRefs.get(opposite);
+        target.exits.delete(opposite);
+        target.doorRefs.delete(opposite);
+        const boundName = doorName ?? reverseDoor;
+        if (boundName) {
+          const bound = novel.world.things.get(boundName.toLowerCase());
+          if (bound?.doorConnects) delete bound.doorConnects;
+        }
+      } else if (doorName) {
+        const bound = novel.world.things.get(doorName.toLowerCase());
+        if (bound?.doorConnects) delete bound.doorConnects;
+      }
       state.saveNovel(novel);
       audit("remove_exit", { direction: dir, room: args.room });
       return ok(`Exit ${dir} from '${args.room}' removed.`);
@@ -12795,7 +12880,19 @@ function buildSpecHealth(): Record<string, unknown> {
     adventure_catalog_count: countAdventureModules(),
     // REQ-620 — host-level artifact registry counts per kind.
     artifacts_registered: registryCounts(artifactRegistry()),
-    constraint_override_counts: isGM ? (novel ? Object.keys(novel.constraint_overrides ?? {}).length : 0) : undefined,
+    // REQ-325a — counts by constraint type and mechanic source (GM only).
+    constraint_override_counts: isGM ? (() => {
+      const list = novel?.constraint_overrides ?? [];
+      const by_type: Record<string, number> = {};
+      const by_source: Record<string, number> = {};
+      for (const o of list as any[]) {
+        const t = String(o.type ?? "untyped");
+        const s = String(o.source ?? "unsourced");
+        by_type[t] = (by_type[t] ?? 0) + 1;
+        by_source[s] = (by_source[s] ?? 0) + 1;
+      }
+      return { total: list.length, by_type, by_source };
+    })() : undefined,
     active_novel: novel?.slug ?? null,
     // REQ-294 — genre declaration surfaced in spec_health when set.
     active_genre: novel?.genre && novel.genre.length > 0 ? novel.genre : undefined,
@@ -13281,6 +13378,29 @@ server.registerResource("guidance-badge-switch", "guidance://shared/badge-switch
 }));
 
 // World-model resources (REQ-202)
+
+// REQ-202a/b — rooms list direct occupants, a supporter's surface, and the
+// contents of open containers; a closed container hides its contents
+// (REQ-200 visibility). Returns ids so the GM view can name them.
+function roomVisibleThings(world: WorldModel, room: WorldRoom): Array<{ id: string; thing: WorldThing }> {
+  const surface = new Set<string>();
+  const direct: Array<{ id: string; thing: WorldThing }> = [];
+  for (const [id, thing] of world.things) {
+    if (thing.locationType !== "room" || thing.location?.toLowerCase() !== room.name.toLowerCase()) continue;
+    direct.push({ id, thing });
+    const kind = thing.kind;
+    if (kind === "supporter" || (kind === "container" && (!thing.openable || thing.open))) {
+      surface.add(thing.name.toLowerCase());
+    }
+  }
+  const nested: Array<{ id: string; thing: WorldThing }> = [];
+  for (const [id, thing] of world.things) {
+    if (thing.locationType === "room") continue;
+    if (thing.location && surface.has(thing.location.toLowerCase())) nested.push({ id, thing });
+  }
+  return [...direct, ...nested];
+}
+
 server.registerResource("room-single", new ResourceTemplate("room://{id}", { list: () => {
   const novel = state.activeNovel;
   if (!novel) return { resources: [] };
@@ -13291,10 +13411,28 @@ server.registerResource("room-single", new ResourceTemplate("room://{id}", { lis
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const room = novel.world.rooms.get(id.toLowerCase());
   if (!room) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  const isGM = novel.badge === "game_master";
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none";
   let info = `## ${room.name}\n${room.description || "No description."}`;
+
+  const visible = roomVisibleThings(novel.world, room);
+  if (visible.length > 0) {
+    const rendered = visible.map(({ id: thingId, thing }) =>
+      isGM
+        ? `${thing.name} (${thingId}, ${thing.kind})`
+        : `${bareName(thing.name)}${thing.portable ? "" : " (fixed)"}`);
+    info += `\n\n**You can see:** ${rendered.join(", ")}.`;
+  }
+
   if (isGM) {
     info += `\n\n**Exits:** ${[...room.exits.entries()].map(([d, t]) => `${d} → ${t}`).join(", ") || "none"}`;
+    const a: any = room.annotations ?? {};
+    const parts: string[] = [];
+    if (a.encounter) parts.push(`encounter spill=${a.encounter.spill} resource=${a.encounter.resource}`);
+    if (a.trap) parts.push(`trap snuff=${a.trap.snuff} faces=${a.trap.faces} resource=${a.trap.resource}`);
+    if (a.npc) parts.push(`npc ${a.npc}`);
+    if (a.lore) parts.push(`lore ${a.lore}`);
+    if (parts.length > 0) info += `\n\n**Annotations:** ${parts.join("; ")}`;
   } else {
     const exits = [...room.exits.keys()].join(", ");
     if (exits) info += `\n\n**Exits:** ${exits}`;
@@ -13312,11 +13450,26 @@ server.registerResource("thing-single", new ResourceTemplate("thing://{id}", { l
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const thing = novel.world.things.get(id.toLowerCase());
   if (!thing) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  const isGM = novel.badge === "game_master";
-  let info = `## ${thing.name}\n**Kind:** ${thing.kind}\n${thing.description || "No description."}`;
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none";
+  let info = `## ${thing.name}\n${thing.description || "No description."}`;
   if (isGM) {
-    info += `\n\n**Location:** ${thing.location || "(held/inventory)"}`;
-    info += `\n**Properties:** portable=${thing.portable}, openable=${thing.openable}, open=${thing.open}, lockable=${thing.lockable}, locked=${thing.locked}`;
+    const chain = containmentChain(novel.world, thing);
+    info += `\n\n**Kind:** ${thing.kind}`;
+    info += `\n**Location:** ${thing.location || "(held/inventory)"}${chain.length > 1 ? ` (${chain.join(" → ")})` : ""}`;
+    const props = [
+      `portable=${thing.portable}`,
+      `openable=${thing.openable}`, `open=${thing.open}`,
+      `lockable=${thing.lockable}`, `locked=${thing.locked}`,
+      `transparent=${(thing as any).transparent === true}`,
+      `readable=${thing.readable}`,
+    ];
+    if (typeof thing.capacity === "number") props.push(`capacity=${thing.capacity}`);
+    if (thing.key) props.push(`key=${thing.key}`);
+    info += `\n**Properties:** ${props.join(", ")}`;
+    if (thing.doorConnects) info += `\n**Connects:** ${thing.doorConnects.roomA} ↔ ${thing.doorConnects.roomB}`;
+  } else if (thing.location && thing.locationType === "room") {
+    info += `\n\n**Location:** ${thing.location}`;
   }
   return { contents: [{ uri: uri.href, text: info, mimeType: "text/markdown" }] };
 });
@@ -13324,12 +13477,17 @@ server.registerResource("thing-single", new ResourceTemplate("thing://{id}", { l
 server.registerResource("world-map", "world://map", { title: "World Map" }, async () => {
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: "world://map", text: "No active novel.", mimeType: "text/plain" }] };
-  return { contents: [{ uri: "world://map", text: worldMap(novel.world), mimeType: "text/plain" }] };
+  const badge = getBadge() === "player" ? "player" : "game_master";
+  return { contents: [{ uri: "world://map", text: worldMap(novel.world, badge), mimeType: "text/markdown" }] };
 });
 
-server.registerResource("world-kinds", "world://kinds", { title: "World Kinds" }, async () => ({
-  contents: [{ uri: "world://kinds", text: worldKinds(), mimeType: "text/markdown" }],
-}));
+server.registerResource("world-kinds", "world://kinds", { title: "World Kinds" }, async () => {
+  const novel = state.activeNovel;
+  const badge = getBadge() === "player" ? "player" : "game_master";
+  return {
+    contents: [{ uri: "world://kinds", text: worldKinds(badge, !!novel?.ruleset), mimeType: "text/markdown" }],
+  };
+});
 
 // ── Additional resources (REQ-022a) ───────────────────────────────
 
@@ -13536,12 +13694,15 @@ server.registerResource("roster-single", new ResourceTemplate("roster://{id}", {
 // Constraint overrides (REQ-325)
 server.registerResource("constraints-active", "constraints://active", { title: "Constraint Overrides" }, async () => {
   const novel = state.activeNovel;
-  const badge = getBadge();
   if (!novel) return { contents: [{ uri: "constraints://active", text: "[]", mimeType: "application/json" }] };
+  const badge = getBadge();
   let overrides = novel.constraint_overrides ?? [];
   if (badge === "player") {
-    const entity = state.getActiveEntity();
-    overrides = overrides.filter(o => o.name === entity?.name || o.match_all);
+    // REQ-325a — Player sees the active entity's attributed overrides plus
+    // any match_all entry; an entry the server cannot attribute is GM-only.
+    const entityId = state.getActiveEntity()?.id;
+    overrides = overrides.filter((o: any) =>
+      o.match_all === true || (Array.isArray(o.entities) && !!entityId && o.entities.includes(entityId)));
   }
   return { contents: [{ uri: "constraints://active", text: JSON.stringify(overrides, null, 2), mimeType: "application/json" }] };
 });

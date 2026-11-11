@@ -90,6 +90,18 @@ test("T245/REQ-196c + REQ-309b: nearest verbs respect the caller's vocabulary", 
   }
 });
 
+test("T245/REQ-309b: bound-Player kinds omits the parser catalog", () => {
+  const player = worldKinds("player", true);
+  assert(!player.includes("## Parser Commands"), "bound-Player kinds leaked '## Parser Commands'");
+  assert(!player.includes("## Verb Coverage Tiers"), "bound-Player kinds leaked '## Verb Coverage Tiers'");
+  assert(player.includes("## Property Contracts"), "bound-Player kinds dropped the property contracts");
+  const free = worldKinds("player", false);
+  assert(free.includes("## Parser Commands"), "ruleset-free Player kinds dropped the parser catalog");
+  assert(free.includes("## Verb Coverage Tiers"), "ruleset-free Player kinds dropped the tiers");
+  const gm = worldKinds();
+  assert(gm.includes("## Parser Commands") && gm.includes("## Verb Coverage Tiers"), "GM kinds dropped the parser catalog");
+});
+
 harnessComplete();
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

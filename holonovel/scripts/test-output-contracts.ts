@@ -1574,12 +1574,57 @@ async function main() {
 
   await test("T372/REQ-325: constraint override catalog", async () => {
     const p = await boot();
-    await call(p, "manage_novel", { action: "create",  name: "w10d" });
+    const created = await call(p, "manage_novel", { action: "create",  name: "w10d" });
+    assertContains(created, "[OK]", "REQ-325 novel created");
     await call(p, "set_badge", { badge: "game_master" });
-    const c = await proto(p, "resources/read", { uri: "constraints://active" });
-    assertContains(c, "[", "REQ-325 constraints resource");
+    const chr = await call(p, "manage_character", { action: "create",  name: "Oracle" });
+    const pcId = (chr.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "character_01";
+    await call(p, "manage_character", { action: "set_active",  entity_id: pcId });
+
+    const exportText = await call(p, "manage_archive", { action: "export",  format: "json", scope: "full" });
+    const bundle = JSON.parse(exportText);
+    bundle.novel.constraint_overrides = [
+      { type: "door", name: "Knock", source: "spell", prerequisites: ["1 slot"], slots_remaining: 1, entities: [pcId] },
+      { type: "door", name: "Passwall", source: "spell", entities: ["character_99"] },
+      { type: "door", name: "Darkvision", source: "spell", match_all: true },
+    ];
+    delete bundle.integrity;
+    const imported = await call(p, "manage_archive", { action: "import",  mode: "replace", data: JSON.stringify(bundle) });
+    assertContains(imported, "imported (replace mode)", "REQ-325 import");
+
+    const gm = await proto(p, "resources/read", { uri: "constraints://active" });
+    assertContains(gm, "Knock", "REQ-325 GM sees attributed override");
+    assertContains(gm, "Passwall", "REQ-325 GM sees other-entity override");
+    assertContains(gm, "Darkvision", "REQ-325 GM sees match_all override");
+
+    await call(p, "set_badge", { badge: "player" });
+    const player = await proto(p, "resources/read", { uri: "constraints://active" });
+    assertContains(player, "Knock", "REQ-325 Player sees own override");
+    assertContains(player, "Darkvision", "REQ-325 Player sees match_all override");
+    assertNotContains(player, "Passwall", "REQ-325 Player must not see another entity's override");
+
+    // No active entity: only match_all entries survive.
+    const empty = await call(p, "manage_novel", { action: "create",  name: "w10d-empty" });
+    assertContains(empty, "[OK]", "REQ-325 empty novel created");
+    await call(p, "set_badge", { badge: "game_master" });
+    const emptyExport = JSON.parse(await call(p, "manage_archive", { action: "export",  format: "json", scope: "full" }));
+    emptyExport.novel.constraint_overrides = [
+      { type: "door", name: "Knock", source: "spell", entities: ["character_01"] },
+      { type: "door", name: "Darkvision", source: "spell", match_all: true },
+    ];
+    delete emptyExport.integrity;
+    await call(p, "manage_archive", { action: "import",  mode: "replace", data: JSON.stringify(emptyExport) });
+    await call(p, "set_badge", { badge: "player" });
+    const noEntity = await proto(p, "resources/read", { uri: "constraints://active" });
+    assertContains(noEntity, "Darkvision", "REQ-325 no-entity Player sees match_all");
+    assertNotContains(noEntity, "Knock", "REQ-325 no-entity Player drops unattributable overrides");
+
+    await call(p, "set_badge", { badge: "game_master" });
     const h = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
-    if (!("constraint_override_counts" in h)) throw new Error("REQ-325 constraint_override_counts");
+    const counts = h.constraint_override_counts;
+    if (counts?.total !== 2) throw new Error(`REQ-325 total count wrong: ${JSON.stringify(counts)}`);
+    if (counts?.by_type?.door !== 2) throw new Error(`REQ-325 by_type wrong: ${JSON.stringify(counts)}`);
+    if (counts?.by_source?.spell !== 2) throw new Error(`REQ-325 by_source wrong: ${JSON.stringify(counts)}`);
     passed++;
     await kill(p);
   });

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-11 — §5.10 resources, suggest, and CRUD remediation
+
+- World-model resources are badge-filtered. `room://` lists visible things
+  (direct occupants, a supporter's surface, open-container contents), exits, and
+  the GM four-key `**Annotations:**` line; `thing://` carries the full property
+  list, `doorConnects`, and the containment chain for the GM; `world://map` adds
+  a GM `## Annotations` section and `world://kinds` omits the parser catalog for
+  a ruleset-bound Player (REQ-202a, REQ-202b, REQ-222b, REQ-309b; F-P6a-12).
+- `constraints://active` keeps a Player-visible override only when it is
+  attributed to the active entity (`entities[]`) or marked `match_all`, and
+  `spec_health.constraint_override_counts` reports `{ total, by_type, by_source }`
+  (REQ-325a; F-P6a-12).
+- Player spatial `run_command (action: suggest)` returns
+  `run_command (action: resolve, intent: …)` on a ruleset-bound Novel; the GM
+  receives the resolve mapping beside the parser form, and ruleset-free Player
+  suggestions keep the parser form (REQ-309b, REQ-309g; F-P6a-13).
+- `manage_world (action: create_exit)` accepts an optional `door` that binds
+  `doorRefs` on both rooms and clears stale bindings; `remove_exit` removes the
+  reverse edge and unbinds; `remove_room` removes a transitive contents fixpoint,
+  both-direction exits, and bound doors with counts in the audit entry;
+  `update_room` is audited; and `unlock`/`lock <door> with <key>` resolves the
+  door, not the key (REQ-198, REQ-199; F-P6a-14).
+- The override-hint envelope and REQ-325c's T369 citation are scheduled as
+  `F-5.10-1` on ROADMAP.md.
+
 ## 2026-11-11 — §5.10 hints, detail, and vehicle remediation
 
 - Parser hints follow the REQ-284b line contract: a locked `open` is

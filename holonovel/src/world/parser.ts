@@ -615,13 +615,15 @@ function handleClose(target: string, ctx: ParserContext): ParserResult {
 
 function handleUnlock(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
-  const thing = getReachableThing(target, ctx);
-  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  // "unlock <door> with <key>" — resolve the door name only; the full phrase
+  // would otherwise fuzzy-match the key.
+  const parts = target.split(/\s+with\s+/i);
+  const thing = getReachableThing(parts[0].trim(), ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${parts[0].trim()}' here.` };
   if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not lockable.` };
   if (!thing.locked) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already unlocked.` };
 
-  const args = target.split(" with ");
-  const namedKey = args[1]?.trim();
+  const namedKey = parts[1]?.trim();
   if (namedKey && !carryingKey(ctx, namedKey)) {
     return { prefix: "WARNING", text: `You need ${namedKey} to unlock the ${bareName(thing.name)}. You're not carrying it.` };
   }
@@ -636,14 +638,14 @@ function handleUnlock(target: string, ctx: ParserContext): ParserResult {
 
 function handleLock(target: string, ctx: ParserContext): ParserResult {
   if (!ctx.currentRoom) return { prefix: "ERROR", code: "STATE_CONFLICT", text: "The world model has not been populated." };
-  const thing = getReachableThing(target, ctx);
-  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${target}' here.` };
+  const parts = target.split(/\s+with\s+/i);
+  const thing = getReachableThing(parts[0].trim(), ctx);
+  if (!thing) return { prefix: "ERROR", code: "NOT_FOUND", text: `You see no '${parts[0].trim()}' here.` };
   if (!thing.lockable) return { prefix: "ERROR", code: "RULE_VIOLATION", text: `The ${bareName(thing.name)} is not lockable.` };
   if (thing.locked) return { prefix: "WARNING", text: `The ${bareName(thing.name)} is already locked.` };
   if (thing.open) return { prefix: "WARNING", text: `You must close the ${bareName(thing.name)} before locking it.` };
 
-  const args = target.split(" with ");
-  const namedKey = args[1]?.trim();
+  const namedKey = parts[1]?.trim();
   if (namedKey && !carryingKey(ctx, namedKey)) {
     return { prefix: "WARNING", text: `You need ${namedKey} to lock the ${bareName(thing.name)}. You're not carrying it.` };
   }

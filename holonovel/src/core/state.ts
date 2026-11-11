@@ -750,7 +750,7 @@ export interface NovelState {
   secrets: SecretState[];
   relationships: Relationship[];
   gm_context: GMContext;
-  constraint_overrides: { type: string; name?: string; source?: string; prerequisites?: string[]; slots_remaining?: number; match_all?: boolean }[];
+  constraint_overrides: { type: string; name?: string; source?: string; prerequisites?: string[]; slots_remaining?: number; match_all?: boolean; entities?: string[] }[];
   // REQ-260a — per-module list of explicitly activated item keys (Tier-2 inert
   // items the GM opted in). REQ-260c/265 — explicit deactivations for items that
   // are active by default (Tier-1 vendor/ruleset, player-authored).

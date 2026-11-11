@@ -442,21 +442,116 @@ async function main() {
     });
 
     await test("T241/T261/T198: world-model CRUD — room/thing lifecycle", async () => {
-      await call(proc, "manage_world", { action: "create_thing",  name: "candle", kind: "thing", description: "A candle.", location: "study" });
-      const listed = await call(proc, "manage_world", { action: "list", kind: "thing" });
-      assertContains(listed, "candle");
-      const got = await call(proc, "manage_world", { action: "get", id: "candle" });
-      assertContains(got, "candle");
-      const gone = await callRaw(proc, "manage_world", { action: "remove_thing",  name: "candle" });
-      const text = (gone.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
-      assertContains(text, "[OK]");
+      await call(proc, "manage_novel", { action: "create",  name: "w10crud" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "w10crud" });
+      await call(proc, "manage_world", { action: "create_room",  name: "Vault", description: "A stone chamber." });
+      await call(proc, "manage_world", { action: "create_room",  name: "Gallery", description: "A gallery." });
+      await call(proc, "manage_world", { action: "create_thing",  name: "crown", kind: "thing", location: "Vault", fixed: true });
+      await call(proc, "manage_world", { action: "create_thing",  name: "chest", kind: "container", location: "Vault" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "gem", kind: "thing", location: "chest" });
+      await call(proc, "manage_world", { action: "update_room",  name: "Vault", description: "A vault." });
+      await call(proc, "manage_character", { action: "create",  name: "VaultChar", description: "traveller" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+
+      const exit = await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "Vault", room_b: "Gallery" });
+      assertContains(exit, "[OK] Exit created");
+      const gallery = await readResource(proc, "room://gallery");
+      assertContains(gallery, "south");
+
+      const listed = await call(proc, "manage_world", { action: "list", kind: "room" });
+      assertContains(listed, "Vault");
+      const got = await call(proc, "manage_world", { action: "get", id: "vault" });
+      assertContains(got, "north");
+
+      const fixedTake = await call(proc, "run_command", { command: "take crown" });
+      assertContains(fixedTake, "[RULE_VIOLATION]");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const playerList = await call(proc, "manage_world", { action: "list", kind: "room" });
+      assertContains(playerList, "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+
+      // remove_exit removes the reverse edge.
+      await call(proc, "manage_world", { action: "create_exit",  direction: "west", room_a: "Gallery", room_b: "Vault" });
+      await call(proc, "manage_world", { action: "remove_exit",  direction: "west", room: "Gallery" });
+      const vaultAfterExit = await readResource(proc, "room://vault");
+      assertNotContains(vaultAfterExit, "east");
+
+      // A mixed-case create_exit still yields a removable reverse edge.
+      await call(proc, "manage_world", { action: "create_exit",  direction: "east", room_a: "vault", room_b: "gallery" });
+      await call(proc, "manage_world", { action: "remove_exit",  direction: "east", room: "Vault" });
+      const galleryAfterMixed = await readResource(proc, "room://gallery");
+      assertNotContains(galleryAfterMixed, "west");
+
+      // A door-bound exit records doorRefs, and undo clears the binding.
+      await call(proc, "manage_world", { action: "create_thing",  name: "iron door", kind: "door", location: "Vault" });
+      await call(proc, "manage_world", { action: "create_exit",  direction: "up", room_a: "Vault", room_b: "Gallery", door: "iron door" });
+      const bound = await call(proc, "manage_world", { action: "get", id: "vault" });
+      assertContains(bound, "iron door");
+      await call(proc, "manage_history", {});
+      const unbound = await call(proc, "manage_world", { action: "get", id: "vault" });
+      assertNotContains(unbound, "iron door");
+
+      // The audit surface renders the mutations before the undo calls.
+      const audit = await readResource(proc, "audit://novel");
+      for (const tool of ["create_room", "create_thing", "create_exit", "update_room", "remove_exit"]) {
+        assertContains(audit, tool);
+      }
+
+      // remove_room drops the two-level containment chain and both-direction exits.
+      await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "Vault", room_b: "Gallery" });
+      const removed = await call(proc, "manage_world", { action: "remove_room",  name: "Vault" });
+      assertContains(removed, "[OK] Room 'Vault'");
+      const things = await call(proc, "manage_world", { action: "list", kind: "thing" });
+      assertNotContains(things, "gem");
+      assertNotContains(things, "chest");
+      const galleryAfterRemove = await readResource(proc, "room://gallery");
+      assertNotContains(galleryAfterRemove, "south");
+      const auditAfterRemove = await readResource(proc, "audit://novel");
+      assertContains(auditAfterRemove, "remove_room");
+
+      // Undo restores the room with its contents.
+      await call(proc, "manage_history", {});
+      const restored = await call(proc, "manage_world", { action: "get", id: "vault" });
+      assertContains(restored, "A vault.");
+      const restoredThings = await call(proc, "manage_world", { action: "list", kind: "thing" });
+      assertContains(restoredThings, "gem");
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
-    await test("T242/T261/T199: property state tracking — description mutation", async () => {
-      await call(proc, "manage_world", { action: "create_room",  name: "prop-room", description: "Initial." });
-      const updated = await callRaw(proc, "manage_world", { action: "create_room",  name: "prop-room", description: "Updated." });
-      const text = (updated.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
-      assertContains(text, "[STATE_CONFLICT]");
+    await test("T242/T261/T199: property state tracking — CRUD door blocks passage", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "w10door" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "w10door" });
+      await call(proc, "manage_world", { action: "create_room",  name: "hall", description: "A hall." });
+      await call(proc, "manage_world", { action: "create_room",  name: "gallery", description: "A gallery." });
+      await call(proc, "manage_world", { action: "create_thing",  name: "oak key", kind: "thing", location: "hall" });
+      await call(proc, "manage_world", { action: "create_thing",  name: "oak door", kind: "door", location: "hall", locked: true, key: "oak key" });
+      await call(proc, "manage_world", { action: "create_exit",  direction: "north", room_a: "hall", room_b: "gallery", door: "oak door" });
+      await call(proc, "manage_character", { action: "create",  name: "DoorChar", description: "traveller" });
+      await call(proc, "manage_character", { action: "set_active",  entity_id: "character_01" });
+      await call(proc, "run_command", { command: "take oak key" });
+
+      const blockedNorth = await call(proc, "run_command", { command: "go north" });
+      assertContains(blockedNorth, "oak door");
+      assertContains(blockedNorth, "locked");
+
+      const unlock = await call(proc, "run_command", { command: "unlock oak door with oak key" });
+      assertContains(unlock, "[OK]");
+      const blockedAgain = await call(proc, "run_command", { command: "go north" });
+      assertContains(blockedAgain, "oak door");
+      assertContains(blockedAgain, "closed");
+
+      await call(proc, "run_command", { command: "unlock oak door with oak key" });
+      const opened = await call(proc, "run_command", { command: "open oak door" });
+      assertContains(opened, "[OK]");
+      const passed = await call(proc, "run_command", { command: "go north" });
+      assertContains(passed, "gallery");
+
+      // Both rooms carry the door reference (REQ-199 covers both directions).
+      const galleryRefs = await call(proc, "manage_world", { action: "get", id: "gallery" });
+      assertContains(galleryRefs, "south");
+      assertContains(galleryRefs, "oak door");
+      await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
     await test("T244/T261/T201: convert_source populates world model", async () => {
@@ -498,16 +593,73 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
-    await test("T245/T202: world resources render map and kind contracts", async () => {
-      await call(proc, "manage_novel", { action: "switch",  slug: "bf2-parser" });
-      const map = await readResource(proc, "world://map");
-      assertContains(map, "parlor");
-      const kinds = await readResource(proc, "world://kinds");
-      assertContains(kinds, "## Property Contracts");
-      assertContains(kinds, "device");
-      assertContains(kinds, "vehicle");
-      assertContains(kinds, "openable");
-      assertContains(kinds, "switchable");
+    await test("T245/T202: world resources render map, room, thing, and annotations", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "w10res" });
+      await call(proc, "manage_novel", { action: "switch",  slug: "w10res" });
+      const src = [
+        `Hall is a room. "A wide hall."`,
+        `@encounter(Hall) spill=3 resource="Candle"`,
+        `@trap(Hall) snuff=doom faces=2 resource="Candle"`,
+        `@npc(Hall Warden, Hall) AC 12, HP 10.`,
+        `@lore(Hall) The walls remember every oath.`,
+        `chest is a container. "A chest."`,
+        `It is in Hall.`,
+        `It is open.`,
+        `gem is a thing. "A gem."`,
+        `It is in chest.`,
+        `box is a container. "A box."`,
+        `It is in Hall.`,
+        `rune is a thing. "A rune."`,
+        `It is in box.`,
+        `statue is a thing. "A statue."`,
+        `It is in Hall.`,
+        `It is fixed.`,
+      ].join("\n");
+      const conv = await call(proc, "manage_world", { action: "convert",  source: src });
+      assertContains(conv, "[OK] World model populated");
+
+      const roomGm = await readResource(proc, "room://hall");
+      assertContains(roomGm, "You can see:");
+      assertContains(roomGm, "gem");
+      assertContains(roomGm, "statue");
+      assertNotContains(roomGm, "rune");
+      assertContains(roomGm, "**Annotations:**");
+      assertContains(roomGm, "encounter spill=3 resource=Candle");
+      assertContains(roomGm, "trap snuff=doom faces=2");
+      assertContains(roomGm, "npc Hall Warden");
+      assertContains(roomGm, "lore hall");
+
+      const statueGm = await readResource(proc, "thing://statue");
+      assertContains(statueGm, "**Properties:**");
+      assertContains(statueGm, "portable=false");
+      const gemGm = await readResource(proc, "thing://gem");
+      assertContains(gemGm, "→");
+      assertContains(gemGm, "Hall");
+
+      const mapGm = await readResource(proc, "world://map");
+      assertContains(mapGm, "## Annotations");
+      const kindsGm = await readResource(proc, "world://kinds");
+      assertContains(kindsGm, "## Parser Commands");
+      assertContains(kindsGm, "## Verb Coverage Tiers");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const roomPlayer = await readResource(proc, "room://hall");
+      assertContains(roomPlayer, "(fixed)");
+      assertNotContains(roomPlayer, "**Annotations:**");
+      assertNotContains(roomPlayer, "statue (statue,");
+      const gemPlayer = await readResource(proc, "thing://gem");
+      assertNotContains(gemPlayer, "**Properties:**");
+      assertNotContains(gemPlayer, "→");
+      const mapPlayer = await readResource(proc, "world://map");
+      assertNotContains(mapPlayer, "## Annotations");
+      const kindsPlayer = await readResource(proc, "world://kinds");
+      assertContains(kindsPlayer, "## Property Contracts");
+
+      await call(proc, "set_badge", { badge: "none" });
+      const kindsEditor = await readResource(proc, "world://kinds");
+      assertContains(kindsEditor, "## Parser Commands");
+
+      await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
@@ -521,7 +673,12 @@ async function main() {
       await call(proc, "set_badge", { badge: "player" });
       const actions = await call(proc, "run_command", { action: "suggest",  intent: "explore" });
       assertContains(actions, "Spatial");
+      // Ruleset-free Player keeps the parser as the primary surface (REQ-309b/h).
+      assertContains(actions, 'run_command (action: execute, "look")');
       await call(proc, "set_badge", { badge: "game_master" });
+      const gmActions = await call(proc, "run_command", { action: "suggest",  intent: "explore" });
+      assertContains(gmActions, "run_command (action: execute");
+      assertContains(gmActions, "run_command (action: resolve");
     });
 
     await test("T69/T085: macro system expands {{entity.name}} / {{scene.current}}", async () => {
@@ -1649,6 +1806,21 @@ async function main() {
       const lookup = await call(proc, "resolve_mechanic", { action: "roll", table: "ability_modifiers" });
       assertContains(lookup, "[NOT_FOUND]");
       assertContains(lookup, "Valid tables:");
+    });
+
+    await test("T96/T119/T120/REQ-309g: bound-Player suggest names resolve; kinds hides verbs", async () => {
+      await call(proc, "set_badge", { badge: "player" });
+      const suggest = await call(proc, "run_command", { action: "suggest", intent: "look around" });
+      assertContains(suggest, "run_command (action: resolve");
+      assertNotContains(suggest, "(action: execute");
+      const kindsPlayer = await readResource(proc, "world://kinds");
+      assertContains(kindsPlayer, "## Property Contracts");
+      assertNotContains(kindsPlayer, "## Parser Commands");
+      assertNotContains(kindsPlayer, "## Verb Coverage Tiers");
+      await call(proc, "set_badge", { badge: "game_master" });
+      const kindsGm = await readResource(proc, "world://kinds");
+      assertContains(kindsGm, "## Parser Commands");
+      assertContains(kindsGm, "## Verb Coverage Tiers");
     });
 
     await test("T255b/REQ-214b: a zero-table ruleset returns the no-tables message", async () => {

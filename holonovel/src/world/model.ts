@@ -1041,7 +1041,7 @@ function isDirection(s: string): s is Direction {
 
 // ── World-model resources ─────────────────────────────────────────
 
-export function worldMap(world: WorldModel): string {
+export function worldMap(world: WorldModel, badge: "player" | "game_master" = "game_master"): string {
   const lines: string[] = [];
   for (const [, room] of world.rooms) {
     const exitList: string[] = [];
@@ -1050,10 +1050,52 @@ export function worldMap(world: WorldModel): string {
     }
     lines.push(`${room.name}: ${exitList.join(", ") || "no exits"}`);
   }
+  if (badge === "game_master") {
+    const annotated = [...world.rooms.values()].filter((room) => Object.keys(room.annotations ?? {}).length > 0);
+    if (annotated.length > 0) {
+      lines.push("\n## Annotations");
+      for (const room of annotated) {
+        const parts: string[] = [];
+        const a: any = room.annotations;
+        if (a.encounter) parts.push(`encounter spill=${a.encounter.spill} resource=${a.encounter.resource}`);
+        if (a.trap) parts.push(`trap snuff=${a.trap.snuff} faces=${a.trap.faces} resource=${a.trap.resource}`);
+        if (a.npc) parts.push(`npc ${a.npc}`);
+        if (a.lore) parts.push(`lore ${a.lore}`);
+        lines.push(`${room.name}: ${parts.join("; ")}`);
+      }
+    }
+  }
   return lines.join("\n");
 }
 
-export function worldKinds(): string {
+// REQ-202b — GM-only containment chain: thing → parent thing(s) → room.
+// Cycle-safe: stops on a repeated name or when neither map resolves the
+// location, so a corrupted `location` cannot hang a resource read.
+export function containmentChain(world: WorldModel, thing: WorldThing): string[] {
+  const chain = [thing.name];
+  const seen = new Set([thing.name.toLowerCase()]);
+  let location = thing.location;
+  while (location && chain.length <= world.things.size + world.rooms.size) {
+    const lower = location.toLowerCase();
+    if (seen.has(lower)) break;
+    seen.add(lower);
+    const parent = world.things.get(lower);
+    if (parent) {
+      chain.push(parent.name);
+      location = parent.location;
+      continue;
+    }
+    const room = world.rooms.get(lower);
+    if (room) {
+      chain.push(room.name);
+      break;
+    }
+    break;
+  }
+  return chain;
+}
+
+export function worldKinds(badge: "player" | "game_master" = "game_master", rulesetBound = true): string {
   const lines = ["## Kind Hierarchy"];
   for (const [kind, def] of Object.entries(WORLD_MODEL_KINDS)) {
     const parent = def.parent ? ` (extends ${def.parent})` : "";
@@ -1069,6 +1111,11 @@ export function worldKinds(): string {
     }
     lines.push(`- **${prop.name}** (${prop.values}): ${prop.contract}`);
   }
+
+  // REQ-309b — the Player badge never sees parser verb names on a
+  // ruleset-bound Novel; ruleset-free Novels keep the parser as the primary
+  // Player surface (REQ-218/REQ-309h).
+  if (badge === "player" && rulesetBound) return lines.join("\n");
 
   lines.push("\n## Parser Commands");
   const categories: ParserCategory[] = ["navigation", "inspection", "object_interaction", "inventory", "narrative", "wait"];

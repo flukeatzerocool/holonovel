@@ -12,18 +12,15 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.10 world-model contract remediation (P1)
+## §5.10 constraint override hint envelope and REQ-325c Check (P1)
 
-- Resources, suggest mapping, and CRUD lifecycle: badge-filtered `world://map`,
-  `world://kinds`, `room://`, and `thing://` payloads with `parser_commands`,
-  the Player `constraints://active` filter, Player spatial suggest mapping to
-  `run_command (action: resolve)`, and exit/door binding plus room audit and
-  removal cleanup (REQ-202a, REQ-202b, REQ-222b, REQ-325a, REQ-309b, REQ-309g,
-  REQ-198, REQ-199).
+- Emit the REQ-325b/c blocked-error hint from `run_command (action: resolve)`
+  when an override applies instead of returning `resolved` with
+  `override_hints`, and repoint REQ-325c's `_Check:_` from T369 to T372
+  (F-5.10-1).
 
-**Trigger:** the next session that takes the resources/CRUD bullet; closes when
-F-P6a-12, F-P6a-13, and F-P6a-14 are `Resolved` in the review register.
-
+**Trigger:** the next §5.10 remediation session; closes when F-5.10-1 is
+`Resolved` in the review register.
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
 

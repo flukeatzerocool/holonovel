@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 114112,
+  "tools_list_bytes": 114327,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 114112,
-        "tokens": 28528
+        "bytes": 114327,
+        "tokens": 28582
       },
       "standard": {
         "tools": 37,
-        "bytes": 99719,
-        "tokens": 24930
+        "bytes": 99934,
+        "tokens": 24984
       },
       "small": {
         "tools": 6,
@@ -1998,8 +1998,8 @@
     {
       "name": "manage_world",
       "title": "World Model Management",
-      "description": "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions; create_thing honors location_type only when location is set, and kind forces property defaults. list enumerates rooms, things, and exits; get returns one record by id; both are read-only and require the Game Master or Editor badge. Use when: creating, updating, removing, bulk-converting, generating, or inspecting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); recording what an entity believes — use manage_belief.",
-      "description_bytes": 846,
+      "description": "Manage the world model — rooms, things, exits, and their spatial properties. create and update mutate in place and persist to the Novel; all mutations are audited; remove is permanent and requires re-creation; convert replaces the described subtree; generate creates rooms from installed table pools bounded by TTRPG_WORLD_GEN_MAX_ROOMS. create_exit links both directions and optionally binds an existing door thing so the door blocks passage; create_thing honors location_type only when location is set, and kind forces property defaults. list enumerates rooms, things, and exits; get returns one record by id; both are read-only and require the Game Master or Editor badge. Use when: creating, updating, removing, bulk-converting, generating, or inspecting locations and objects. Do NOT use when: navigating the world — use run_command (action: execute); recording what an entity believes — use manage_belief.",
+      "description_bytes": 917,
       "action_enum": [
         "list",
         "get",
@@ -2014,7 +2014,7 @@
         "convert",
         "generate"
       ],
-      "param_count": 34,
+      "param_count": 35,
       "required": [
         "action"
       ],
@@ -2023,6 +2023,7 @@
         "climbable": "When true the thing can be climbed (create_thing/update_thing).",
         "description": "Optional description (create/update).",
         "direction": "Direction (create_exit/remove_exit).",
+        "door": "Door thing name bound to the created exit (create_exit); the door must already exist with kind 'door'.",
         "drinkable": "When true the thing can be drunk (create_thing/update_thing).",
         "edible": "When true the thing can be eaten (create_thing/update_thing).",
         "enterable": "When true the thing can be entered (create_thing/update_thing).",
@@ -2068,9 +2069,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 35,
+        "paramCount": 36,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 35,
+        "paramsWithDescriptions": 36,
         "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -2081,8 +2082,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5948,
-        "descriptionBytes": 846
+        "definitionBytes": 6163,
+        "descriptionBytes": 917
       },
       "category": "",
       "gate": ""
