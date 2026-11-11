@@ -240,7 +240,10 @@ function buildScenarios(): PBScenario[] {
       { label: "command(inventory)", action: T("run_command", { command: "inventory" }), assert: assertOK },
       { label: "command(wait)", action: T("run_command", { command: "wait" }), assert: (r) => assertContains(r, "Time passes") },
       { label: "command(xyzzy) — unrecognized", action: T("run_command", { command: "xyzzy" }), assert: (r) => {
-        assertContains(r, "not a recognized command");
+        assertContains(r, "[ERROR] [UNIMPLEMENTED]");
+        assertContains(r, "Unknown verb 'xyzzy'");
+        assertContains(r, "Valid commands include:");
+        assertContains(r, "Corrective action:");
       }},
     ],
   };

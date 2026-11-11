@@ -1659,6 +1659,18 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ## Scheduled-roadmap
 
+### 2026-11-11 parser refusal reconciliation
+
+- **F-P6a-19 — REQ-196a Player-badge clause contradicted (2026-11-11):**
+  REQ-196a's closing sentence says Player badge `command` calls return
+  `[ERROR] [FORBIDDEN]` (`spec/02-requirements.md:3243`), while the Appendix
+  W.3 Player-badge transcript (`spec/appendices-fixtures.md:831-862`) and
+  pattern-buffer I1 (`holonovel/scripts/run_pattern_buffer.ts:227`) show
+  `look`, `go`, and `take` resolving under Player, and Appendix F's T239 row
+  requires a Player badge on a ruleset-bound Novel to see read-only verbs in
+  the nearest-verb list. Scheduled under ROADMAP § §5.10 REQ-196a Player-badge
+  clause; covers `REQ-196a`.
+
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**

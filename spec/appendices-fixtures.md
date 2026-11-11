@@ -862,9 +862,9 @@ Exits: north (oaken door).
 Corrective action: fixed objects cannot be taken.
 
 → command { "command": "xyzzy" }
-[ERROR] [NOT_FOUND] "xyzzy" is not a recognized command.
-Corrective action: try look, go <direction>, take <thing>, drop <thing>,
-open <door>, close <door>, inventory, or wait.
+[ERROR] [UNIMPLEMENTED] Unknown verb 'xyzzy'. Valid commands include: ask, climb,
+close.
+Corrective action: Use one of: ask, climb, close.
 
 # Cross-badge boundary
 → set_badge { "badge": "player" }

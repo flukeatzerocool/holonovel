@@ -12,16 +12,15 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Pattern-buffer I1 verb-refusal expectation (P1)
+## §5.10 REQ-196a Player-badge clause (P1)
 
-- Reconcile `holonovel/scripts/run_pattern_buffer.ts:243` — which asserts
-  `command(xyzzy)` contains "not a recognized command" — with REQ-196c's
-  `[UNIMPLEMENTED] Unknown verb '<verb>'` pattern and Appendix W's
-  `[ERROR] [NOT_FOUND] "xyzzy" is not a recognized command.`; decide which
-  surface owns the refusal text and align the other (REQ-196c).
+- Reconcile REQ-196a's closing sentence — Player badge `command` calls return
+  `[ERROR] [FORBIDDEN]` — with the Appendix W.3 Player-badge parser transcript
+  and the read-only Player vocabulary Appendix F's T239 row requires
+  (REQ-196a).
 
-**Trigger:** the next server-harness maintenance session; closes when
-`npm --prefix holonovel run test:pattern-buffer` passes.
+**Trigger:** the next §5.10 parser-contract session; closes when the clause
+matches the Player read-only behaviour or the transcript is re-badged.
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
 

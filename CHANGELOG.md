@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-11 — §5.10 parser unknown-verb refusal reconciliation
+
+- Appendix W.3's golden transcript now matches the shipped parser and
+  REQ-196c/REQ-196d: an unrecognized verb returns
+  `[ERROR] [UNIMPLEMENTED] Unknown verb 'xyzzy'. Valid commands include: ask,
+  climb, close.` with `Corrective action: Use one of: ask, climb, close.`; the
+  stale `[NOT_FOUND]` wording and its canned verb list are removed.
+- The pattern-buffer I1 assertion now requires the `[ERROR] [UNIMPLEMENTED]`
+  envelope, the named verb, the `Valid commands include:` clause, and the
+  corrective-action line, so the harness and the golden transcript state one
+  contract (REQ-196c, REQ-196d).
+- The adjacent contradiction it exposed is scheduled, not fixed: REQ-196a's
+  "Player badge calls return `[ERROR] [FORBIDDEN]`" sentence is contradicted by
+  the Player-badge transcript and Appendix F's read-only Player vocabulary
+  clause; recorded as F-P6a-19 under the new ROADMAP §5.10 item (REQ-196a).
+
 ## 2026-11-11 — §5.10 override hint envelope remediation
 
 - `run_command (action: resolve)` keeps a closed or locked door blocked instead
