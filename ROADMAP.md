@@ -12,46 +12,32 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.6 entity, scene, and NPC-depth remediation (P1)
-
-- Entity, roster, and scene surfaces: the duplicate-import `[STATE_CONFLICT]`
-  guard, `party://current` HP, removal presence/audit, the roster listing fields
-  and `roster://<id>`/`<type>` resources, and valid-ID enumeration on
-  `roster_remove` (REQ-074b, REQ-074c, REQ-176a, REQ-177, REQ-178a, REQ-178b;
-  F-P3B2-1–F-P3B2-2).
-- Scene ledger and presence: the scene-history cap with `[truncated]`,
-  `scene_tick`, the lore contradiction warning, fast-forward round clocks/lore
-  triggers/bridging summary, and `last_location`/`[not present]`/`presence
-  location` (REQ-076b2–REQ-076b7, REQ-252a–REQ-252c, REQ-307a–REQ-307c;
-  F-P3B2-3–F-P3B2-5).
-- NPC depth and memory: maintain `appearance_count`/`first_seen`/`last_seen` with
-  the `[recurring]`/`[campaign]`/`[distant]` markers and recap heatmap, unify the
-  NPC description field across surfaces, and deepen the memory model with party
-  knowledge, emotional state, and campaign-memory coupling (REQ-075c, REQ-075d,
-  REQ-075e, REQ-156, REQ-311b, REQ-311c, REQ-311d, REQ-311f;
-  F-P3B2-6–F-P3B2-8).
-
-**Trigger:** the first session that takes §5.6 entity, scene, or NPC-depth
-remediation work; closes when F-P3B2-1–F-P3B2-8 are `Resolved` in the review
-register.
-
-## §5.6 core state and lifecycle remediation (P1)
+## §5.6 recap, clock, and combat-report remediation (P1)
 
 - Structured recap payload: emit the typed fields REQ-072b/c1/c2/d and
-  per-combat confrontation objects REQ-175a/b, and widen T214/T215/T072
-  (F-P3B1-3).
-- Condition and audit contracts: allow a Player to apply or remove conditions on
-  their own active entity and audit both actions (REQ-217b, REQ-217c), record old
-  and new badge on a switch (REQ-040c), audit snapshot truncation (REQ-041b), and
-  audit vow mutations (REQ-040a) (F-P3B1-4, F-P3B1-5).
-- Clock and vow surfaces: expose `clock_type` and the racing/linked/tug_of_war/
-  retreat models (REQ-073a1/a2), derive the combat turn report from the audit log
-  with `[auto]` (REQ-043b/c), gate vow resolve and remove linked countdowns
-  (REQ-289c, REQ-322b/d) (F-P3B1-6–F-P3B1-8); repair the citations for REQ-040d,
-  REQ-043f, REQ-072f, REQ-073a2, REQ-073c3, and REQ-289e (F-P3B1-9).
+  per-combat confrontation objects REQ-175a/b, widen T214/T215/T072, and write
+  T53/T212 under REQ-072f (F-P3B1-3, F-P3B1-9).
+- Clock interaction models: expose `clock_type` and the racing/linked/tug_of_war/
+  retreat models (REQ-073a1, REQ-073a2), and write T271/T54/T139 under REQ-073c3
+  (F-P3B1-6, F-P3B1-9).
+- Combat turn report: derive it from the audit log with the lowercase `[auto]`
+  marker (REQ-043b/c), and write T25/T33/T110/T161 under REQ-043f
+  (F-P3B1-7, F-P3B1-9).
 
-**Trigger:** the first session that takes §5.6 remediation work; closes when
-F-P3B1-3–F-P3B1-9 are `Resolved` in the review register.
+**Trigger:** the first session that takes §5.6 recap, clock, or combat-report
+work; closes when F-P3B1-3, F-P3B1-6, F-P3B1-7, and F-P3B1-9 are `Resolved` in
+the review register.
+
+## Cross-badge undo stack access (P1)
+
+- Make `manage_history (action: undo|redo)` reach the most recent mutation made
+  under any badge, per REQ-041a, instead of only the current badge's stack; keep
+  the per-badge depth floor and the append-only/checkpoint preservation rules
+  (REQ-041a, REQ-041b).
+
+**Trigger:** the next state-history session; closes when an undo under a second
+badge reverses a mutation initiated under the first and the existing T10
+assertions stay green.
 
 ## §5.4 remediation (P1)
 

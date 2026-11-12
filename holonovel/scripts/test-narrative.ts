@@ -1005,6 +1005,8 @@ async function main() {
 
     await test("T-new: vow resolve is reversible via manage_history", async () => {
       await call(proc, "manage_vow", { action: "set", name: "Test Vow", difficulty: "troublesome" });
+      // REQ-289c — resolve requires the rank track complete.
+      for (let i = 0; i < 10; i++) await call(proc, "manage_vow", { action: "milestone", vow_name: "Test Vow" });
       await call(proc, "manage_vow", { action: "resolve", vow_name: "Test Vow", outcome: "done" });
       const undone = await call(proc, "manage_history", { action: "undo" });
       assertContains(undone, "Undo");

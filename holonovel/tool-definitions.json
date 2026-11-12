@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 115489,
+  "tools_list_bytes": 115824,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 115489,
-        "tokens": 28873
+        "bytes": 115824,
+        "tokens": 28956
       },
       "standard": {
         "tools": 37,
-        "bytes": 101096,
-        "tokens": 25274
+        "bytes": 101431,
+        "tokens": 25358
       },
       "small": {
         "tools": 6,
@@ -715,8 +715,8 @@
     {
       "name": "manage_condition",
       "title": "Condition Management",
-      "description": "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. apply and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
-      "description_bytes": 619,
+      "description": "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. The GM or Editor may act on any entity or NPC; the Player may apply or remove on their own active entity only and is refused on any other. Mutations persist to the Novel, are audited, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
+      "description_bytes": 732,
       "action_enum": [
         "apply",
         "remove",
@@ -758,8 +758,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1686,
-        "descriptionBytes": 619
+        "definitionBytes": 1799,
+        "descriptionBytes": 732
       },
       "category": "",
       "gate": ""
@@ -1820,11 +1820,12 @@
         "list",
         "promote"
       ],
-      "param_count": 8,
+      "param_count": 9,
       "required": [
         "action"
       ],
       "params": {
+        "detail": "Return full entries instead of previews (list).",
         "entry": "Story entry text (record/update).",
         "filter": "Optional type filter (list).",
         "index": "Story entry index (update/remove/promote).",
@@ -1848,9 +1849,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 9,
+        "paramCount": 10,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 9,
+        "paramsWithDescriptions": 10,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1861,7 +1862,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2438,
+        "definitionBytes": 2530,
         "descriptionBytes": 780
       },
       "category": "",
@@ -1943,8 +1944,8 @@
     {
       "name": "manage_vow",
       "title": "Vow Management",
-      "description": "Track narrative vows, quests, and obligations with milestones. set creates a vow and suggests a linked countdown whose ticks follow the difficulty track (troublesome 12, dangerous 8, formidable 4, extreme 2, epic 1; scope defaults to shared); accept the suggestion in the briefing to create it. milestone increments progress and any linked countdown; resolve and forsake close the vow as fulfilled or abandoned and keep the record. set identifies the vow with name; milestone, resolve, and forsake use vow_name. Mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
-      "description_bytes": 835,
+      "description": "Track narrative vows, quests, and obligations with milestones. set creates a vow and suggests a linked mission countdown whose total follows the difficulty track (troublesome 10, dangerous 20, formidable 30, extreme 40, epic 50; scope defaults to shared); accept the suggestion in the briefing to create it empty, and each milestone advances it one tick. resolve requires the rank track complete or the linked clock filled, records consequences as a story-journal entry, and removes the linked clock; forsake abandons the vow and removes the clock. set identifies the vow with name; milestone, resolve, and forsake use vow_name. Mutations require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
+      "description_bytes": 965,
       "action_enum": [
         "set",
         "milestone",
@@ -1994,8 +1995,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2548,
-        "descriptionBytes": 835
+        "definitionBytes": 2678,
+        "descriptionBytes": 965
       },
       "category": "",
       "gate": ""

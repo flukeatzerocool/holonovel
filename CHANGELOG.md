@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-12 — §5.6 audit, condition, and vow lifecycle remediation
+
+- The Player may apply or remove conditions on their own active entity;
+  `conditionAccessRefusal` is the one predicate behind `apply` and `remove`
+  (GM/Editor any target, Player own entity only, Observer read-only), and both
+  mutations audit `apply_condition`/`remove_condition` before saving
+  (REQ-217b, REQ-217c, REQ-040a).
+- `set_badge` audits the old and new badge and persists the entry with the
+  switch; a snapshot evicted by `TTRPG_MAX_SNAPSHOT_DEPTH` now writes a
+  `[snapshot-truncated]` entry naming the badge and the discarded snapshot's
+  timestamp through the shared `appendAuditEntry` writer (REQ-040c, REQ-041b).
+- Vow resolve is gated on the rank track or a filled linked clock, before the
+  snapshot; the accepted suggestion creates the `vow:<name>` mission clock
+  empty and the milestone fills it, and resolve/forsake remove it. Consequences
+  become a `consequence` story entry anchored `vow:<name>` and respect the
+  story-journal ceiling; resolved and forsaken vows surface in the recap, and
+  the briefing's active-vow line carries the description and parties
+  (REQ-289c, REQ-289d, REQ-322a/b/c/d). `DIFFICULTY_TRACKS` now matches
+  REQ-289b (10/20/30/40/50), preserving a stored track on a same-difficulty
+  re-set.
+- All vow mutations audit (`set_vow`, `advance_vow`, `resolve_vow`,
+  `forsake_vow`, plus the countdown fill/removal entries) (REQ-040a).
+- Citations: T8 (badge-switch audit and undo inertness), T335 (vow lifecycle,
+  two vows), the widened T258 (Player condition access and audit), T369
+  (clock fill and removal), and an isolated T10/REQ-041b truncation assertion.
+  Appendix F's T335 row is amended to the gated contract.
+- The stale *§5.6 entity, scene, and NPC-depth remediation* roadmap section is
+  retired — its trigger (F-P3B2-1–8 `Resolved`) had already been met — and the
+  surviving section is narrowed to recap, clock, and combat-report work. The
+  tool definitions, surface baseline, DECISIONS token counts, and coverage
+  register are regenerated.
+
 ## 2026-11-12 — §5.6 personality, signal, and citation remediation
 
 - `badge_briefing` now carries a `### Personality` group: each entity and

@@ -452,6 +452,29 @@ async function main() {
     await kill(p);
   });
 
+  // ── T8 — REQ-040c/040d badge-switch audit and undo inertness ──
+  await test("T8/REQ-040c/REQ-040d: badge switches record both badges and are not history steps", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t8" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_scene", { action: "set", description: "before" });
+    await call(p, "manage_scene", { action: "set", description: "switch-target" });
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    const switches = audit.split("\n").filter((l: string) => l.includes("set_badge"));
+    if (switches.length !== 3) throw new Error(`T8 expected 3 set_badge entries, got ${switches.length}`);
+    assertContains(switches[1], '"from":"game_master"', "T8 old badge recorded");
+    assertContains(switches[1], '"to":"player"', "T8 new badge recorded");
+    const undone = await call(p, "manage_history", { action: "undo" });
+    assertContains(undone, "[OK]", "T8 undo after switches");
+    const history = JSON.stringify(JSON.parse(await proto(p, "resources/read", { uri: "scene://history" })));
+    assertNotContains(history, "switch-target", "T8 undo reversed the mutation, not a switch");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "GAME_MASTER", "T8 badge unchanged by undo");
+    await kill(p);
+  });
+
   await test("T150/REQ-136: editor badge briefing (no novel) lists Novels + intro pointer", async () => {
     const p = await boot();
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
@@ -597,6 +620,7 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w4b" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_character", { action: "create",  name: "Cond" });
+    await call(p, "manage_character", { action: "create",  name: "Other" });
     const a = await call(p, "manage_condition", { action: "apply",  entity_id: "character_01", condition: "prone" });
     assertContains(a, "[OK]", "REQ-217 apply");
     const dup = await call(p, "manage_condition", { action: "apply",  entity_id: "character_01", condition: "prone" });
@@ -607,6 +631,25 @@ async function main() {
     assertContains(rem, "[OK]", "REQ-217 remove");
     const rem2 = await call(p, "manage_condition", { action: "remove",  entity_id: "character_01", condition: "prone" });
     assertContains(rem2, "[WARNING]", "REQ-217 remove absent warning");
+    // REQ-217b — the Player may condition their own active entity only.
+    await call(p, "set_badge", { badge: "player" });
+    const selfApply = await call(p, "manage_condition", { action: "apply",  entity_id: "character_01", condition: "prone" });
+    assertContains(selfApply, "[OK]", "REQ-217b Player self-apply");
+    const selfRemove = await call(p, "manage_condition", { action: "remove",  entity_id: "character_01", condition: "prone" });
+    assertContains(selfRemove, "[OK]", "REQ-217b Player self-remove");
+    const other = await call(p, "manage_condition", { action: "apply",  entity_id: "character_02", condition: "prone" });
+    assertContains(other, "[FORBIDDEN]", "REQ-217b Player other-entity refusal");
+    assertContains(other, "character_02", "REQ-217b refusal names the target");
+    await call(p, "set_badge", { badge: "observer" });
+    const observer = await call(p, "manage_condition", { action: "apply",  entity_id: "character_01", condition: "prone" });
+    assertContains(observer, "[FORBIDDEN]", "REQ-217b Observer refusal");
+    await call(p, "set_badge", { badge: "game_master" });
+    // REQ-217c — both mutations are audited; the no-op warnings are not.
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(audit, "apply_condition", "REQ-217c apply audited");
+    assertContains(audit, "remove_condition", "REQ-217c remove audited");
+    const applies = audit.split("\n").filter((l: string) => l.includes("apply_condition"));
+    if (applies.length !== 2) throw new Error(`REQ-217c expected 2 apply entries (GM + Player self), got ${applies.length}`);
     passed++;
     await kill(p);
   });
@@ -833,10 +876,72 @@ async function main() {
     await call(p, "manage_vow", { action: "set",  name: "Find Crown", description: "Recover the Crown", parties: ["pc_1"], difficulty: "dangerous", scope: "shared" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Vow countdown suggestion", "REQ-322 suggestion in threads");
-    await call(p, "respond_decision", { decision: "accept", option: "accept" });
+    const accepted = await call(p, "respond_decision", { decision: "accept", option: "accept" });
+    assertContains(accepted, "20 ticks", "REQ-322c the clock carries the rank total");
     const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
-    assertContains(brief2, "vow:Find Crown", "REQ-322 linked countdown created");
-    await call(p, "manage_vow", { action: "milestone",  vow_name: "Find Crown" });
+    assertContains(brief2, "vow:Find Crown (0/20)", "REQ-322a the clock starts empty");
+    const advanced = await call(p, "manage_vow", { action: "milestone",  vow_name: "Find Crown" });
+    assertContains(advanced, "Linked countdown at 1/20", "REQ-322c milestone advances both");
+    for (let i = 0; i < 19; i++) await call(p, "manage_vow", { action: "milestone",  vow_name: "Find Crown" });
+    const brief3 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief3, "vow:Find Crown (filled)", "REQ-322d filled clock renders filled");
+    const resolved = await call(p, "manage_vow", { action: "resolve",  vow_name: "Find Crown", outcome: "Found it", consequences: "Kingdom restored" });
+    assertContains(resolved, "resolved", "REQ-322d filled clock makes the vow resolvable");
+    const brief4 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertNotContains(brief4, "vow:Find Crown", "REQ-322b resolve removes the linked countdown");
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(audit, "vow_countdown_removed", "REQ-322b removal audited");
+    passed++;
+    await kill(p);
+  });
+
+  // ── T335 — REQ-289 vow lifecycle ──
+  await test("T335/REQ-289: vow lifecycle gates resolve and surfaces consequences", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "t335" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_scene", { action: "set", description: "The hall" });
+    await call(p, "manage_story", { action: "record", type: "decision", entry: "The party chose the west door." });
+    const set = await call(p, "manage_vow", {
+      action: "set", name: "Find the Crown", description: "Recover the lost Crown of Alara",
+      parties: ["pc_1", "pc_2"], difficulty: "dangerous", scope: "shared",
+    });
+    assertContains(set, "20 milestones", "REQ-289b dangerous is a 20-milestone track");
+    const denySuggestion = await call(p, "respond_decision", { decision: "decline", option: "decline" });
+    void denySuggestion;
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Find the Crown", "REQ-289d active vow in threads");
+    assertContains(brief, "Recover the lost Crown of Alara", "T335 description in threads");
+    assertContains(brief, "pc_1", "T335 parties in threads");
+    const early = await call(p, "manage_vow", { action: "resolve", vow_name: "Find the Crown", outcome: "Too soon" });
+    assertContains(early, "[STATE_CONFLICT]", "REQ-289c resolve gated on the track");
+    assertContains(early, "milestones", "REQ-289c refusal names the track");
+    for (let i = 0; i < 20; i++) await call(p, "manage_vow", { action: "milestone",  vow_name: "Find the Crown" });
+    const resolved = await call(p, "manage_vow", { action: "resolve", vow_name: "Find the Crown", outcome: "The Crown is found", consequences: "The kingdom is restored" });
+    assertContains(resolved, "resolved", "REQ-289c resolve on a complete track");
+    const recap = await call(p, "manage_context", { action: "recap" });
+    assertContains(recap, "fulfilled", "REQ-289d resolved vow in recap");
+    assertContains(recap, "The Crown is found", "REQ-289d outcome in recap");
+    const story = await call(p, "manage_story", { action: "list", detail: true });
+    assertContains(story, "The kingdom is restored", "REQ-289c consequences story entry");
+    assertContains(story, "vow:Find the Crown", "REQ-289c consequence anchored to the vow");
+    const brief2 = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief2, "The party chose the west door.", "T335 the open decision survives the resolve");
+    const second = await call(p, "manage_vow", { action: "set", name: "Other Vow", description: "A minor task", parties: ["pc_1"], difficulty: "troublesome", scope: "game_master" });
+    void second;
+    const declined = await call(p, "respond_decision", { decision: "decline", option: "decline" });
+    void declined;
+    const forsaken = await call(p, "manage_vow", { action: "forsake", vow_name: "Other Vow", reason: "Too dangerous" });
+    assertContains(forsaken, "forsaken", "REQ-289c forsake");
+    const recap2 = await call(p, "manage_context", { action: "recap" });
+    assertContains(recap2, "[vow-forsaken]", "REQ-289d forsaken marker in recap");
+    const list = await call(p, "manage_vow", { action: "list" });
+    assertContains(list, "Find the Crown", "T335 list retains resolved vow");
+    assertContains(list, "Other Vow", "T335 list retains forsaken vow");
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    for (const tool of ["set_vow", "advance_vow", "resolve_vow", "forsake_vow"]) {
+      assertContains(audit, tool, `REQ-040a ${tool} audited`);
+    }
     passed++;
     await kill(p);
   });

@@ -11,6 +11,46 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 §5.6 audit, condition, and vow lifecycle remediation
+
+Resolved in the 2026-11-12 increment. The three findings share one seam: the
+audit log and the lifecycle gates that write to it.
+
+- **F-P3B1-4 — condition tools refused the Player and wrote no audit entry.**
+  `conditionAccessRefusal` is the single predicate behind `apply` and `remove`:
+  the GM/Editor may act on any entity or NPC, the Player only on
+  `novel.active_entity_id`, and Observer is refused (`holonovel/src/index.ts`
+  `conditionAccessRefusal`). Both successful mutations audit before saving —
+  `apply_condition` (with `rounds` when supplied) and `remove_condition`; the
+  duplicate/absent `[WARNING]` paths write nothing. T258 now covers self-apply,
+  self-remove, other-entity `[FORBIDDEN]` naming the target, Observer refusal,
+  and the entry counts.
+- **F-P3B1-5 — audit coverage gaps.** `set_badge` captures the previous badge,
+  audits `{from, to}` before `saveNovel` (`index.ts`, `set_badge` handler), so
+  REQ-040c's old/new pair persists with the switch. `StateManager.appendAuditEntry`
+  is the shared entry writer; `snapshot()` calls it when the depth ceiling
+  evicts the oldest clone, recording `[snapshot-truncated]` with the badge and
+  the discarded snapshot's `last_mutation_at` (`core/state.ts`, `appendAuditEntry`
+  and `snapshot`). The isolated `T10/REQ-041b` assertion pins
+  `TTRPG_MAX_SNAPSHOT_DEPTH=10`, mutates twelve times on a fresh Novel, and
+  observes exactly two entries with the chain still valid. All four vow
+  mutations audit before saving — `set_vow`, `advance_vow`, `resolve_vow`,
+  `forsake_vow`, plus `vow_countdown_filled` and `vow_countdown_removed`.
+- **F-P3B1-8 — vow lifecycle gaps.** `resolve` is gated on
+  `milestones >= rank_track` or a filled `vow:<name>` clock, before
+  `novelSnapshot()` (a refusal pushes no snapshot); the linked clock is created
+  empty by the accepted suggestion (`ticks: 0`, `total` = rank track,
+  `direction: increment`, `clock_type: mission`), fills one tick per milestone,
+  and is retained at fill so REQ-322d's eligibility is real rather than
+  vacuous; resolve/forsake remove it and audit the removal. Consequences become
+  a `consequence` story entry anchored `vow:<name>` (never the live scene, so
+  an open decision is not silently cleared) and respect
+  `TTRPG_MAX_STORY_ENTRIES`. `DIFFICULTY_TRACKS` now matches REQ-289b
+  (10/20/30/40/50), with the update path preserving a stored track on a
+  same-difficulty re-set. Resolved vows render "fulfilled" and forsaken vows
+  `[vow-forsaken]` in the recap. T335 (two vows) and the widened T369 cover the
+  gate, the fill, the consequence, the marker, and the audit entries.
+
 ### 2026-11-12 §5.6 entity, scene, and NPC-depth remediation
 
 Resolved in the 2026-11-12 increment. The scene ledger, presence, and NPC depth
@@ -904,6 +944,20 @@ in source; their resolution is the added assertion.
   the init guard and the navigation block said `end_combat`; REQ-203/REQ-221a
   quote `manage_combat (action: end)`. Predicate: `index.ts:5708` and `:4636`
   (pre-fix). Fix: both messages corrected; T246/T263 assert the quoted action.
+
+### 2026-11-12 execution findings
+
+Scheduled under `ROADMAP.md` § *Cross-badge undo stack access (P1)*.
+
+- **F-P3B1-10 — undo cannot reach another badge's mutation (2026-11-12):**
+  `StateManager.snapshot` pushes under `getBadge()` and `undo`/`redo` select
+  `novel.undo_stacks[stackKey]` by the current badge
+  (`holonovel/src/core/state.ts:2104-2116`), so a mutation made under one badge
+  is absent from another badge's stack and an undo there returns
+  `[STATE_CONFLICT]` — REQ-041a requires that "an undo in the Player badge
+  reverses the most recent mutation regardless of which badge initiated it"
+  (`spec/02-requirements.md:1473`). Found during the §5.6 audit/condition/vow
+  increment while writing T8. REQ-041a.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
@@ -2124,8 +2178,9 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
 
-Scheduled under `ROADMAP.md` § *§5.6 core state and lifecycle remediation (P1)*.
-Each finding cites the predicate that carries it.
+Partially scheduled under `ROADMAP.md` § *§5.6 recap, clock, and combat-report
+remediation (P1)*. F-P3B1-4, F-P3B1-5, and F-P3B1-8 are `Resolved` above;
+the remaining findings cite the predicate that carries them.
 
 - **F-P3B1-3 — recap is not the typed structure REQ-072 requires:** output is a
   line-oriented blob (`holonovel/src/index.ts:9694-9727`); `entities[]`,
@@ -2135,15 +2190,6 @@ Each finding cites the predicate that carries it.
   per-combat `{participants, rounds, outcome}` objects (REQ-175a).
   T214/T215/T261/T072 (`holonovel/scripts/test-backfill.ts:214`) assert only
   `Active Novel`.
-- **F-P3B1-4 — condition tools refuse the Player and write no audit entry:**
-  `apply`/`remove` call `requireGM()` (`index.ts:7115`, `:7135`), so a Player
-  cannot condition their own active entity (REQ-217b), and neither action records
-  an audit entry (REQ-217c/REQ-040a). T258 exercises the GM path only.
-- **F-P3B1-5 — audit coverage gaps:** badge switches record only the new badge
-  (`index.ts:3313`; REQ-040c requires old, new, and timestamp); snapshot
-  truncation discards the oldest snapshot silently (`core/state.ts:1881`;
-  REQ-041b requires `[snapshot-truncated]`); vow mutations write no audit entry
-  (`index.ts:7338-7411`; REQ-040a).
 - **F-P3B1-6 — clock interaction models are unimplemented:** the
   `manage_countdown` schema (`index.ts:6678-6706`) exposes no `clock_type` (nor
   `opposes`, `link_countdown`, `retreat_countdown`), so racing/linked/tug_of_war/
@@ -2153,14 +2199,10 @@ Each finding cites the predicate that carries it.
   only the turn line with `[AUTO]` (`index.ts:5727-5732`); REQ-043b/c require the
   participant's actions, rolls, and state changes summarized from the audit log
   and the lowercase `[auto]` marker.
-- **F-P3B1-8 — vow lifecycle gaps:** `resolve` is not gated on a completed rank
-  track and `consequences` is not recorded as a `consequence` story entry
-  (REQ-289c); `resolve`/`forsake` do not remove the linked `vow:<name>` countdown
-  (REQ-322b/322d). Predicate: `index.ts:7389-7411`.
-- **F-P3B1-9 — Automated citations with no harness:** T8 (REQ-040d),
-  T25/T33/T110/T161 (REQ-043f), T53/T212 (REQ-072f), T271 (REQ-073a2),
-  T54/T139 (REQ-073c3), and T335 (REQ-289e) appear in per-REQ
-  `_Check:_` lines but in no `holonovel/scripts` harness.
+- **F-P3B1-9 — Automated citations with no harness:** T25/T33/T110/T161
+  (REQ-043f), T53/T212 (REQ-072f), T271 (REQ-073a2), and T54/T139 (REQ-073c3)
+  appear in per-REQ `_Check:_` lines but in no `holonovel/scripts` harness. T8
+  and T335 are now written (see the resolved section).
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

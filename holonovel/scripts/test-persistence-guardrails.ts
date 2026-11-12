@@ -167,6 +167,30 @@ async function main() {
       assertNotContains(await call(proc, "manage_causality", { action: "causal_list" }), "npc_1");
     });
 
+    await test("T10/REQ-041b: snapshot truncation is audited on a fresh stack", async () => {
+      const p = await boot({ TTRPG_MAX_SNAPSHOT_DEPTH: "10" });
+      await call(p, "manage_novel", { action: "create", name: "truncation" });
+      await call(p, "set_badge", { badge: "game_master" });
+      const auditText = async () => {
+        const resp = await send(p, { method: "resources/read", params: { uri: "audit://novel" } });
+        return (resp.result?.contents ?? []).map((c: any) => c.text ?? "").join("\n");
+      };
+      const countTruncations = (text: string) => text.split("\n").filter((l: string) => l.includes("[snapshot-truncated]")).length;
+      const before = countTruncations(await auditText());
+      for (let i = 0; i < 6; i++) await call(p, "manage_scene", { action: "set", description: `scene-${i}` });
+      const midTruncations = countTruncations(await auditText());
+      if (midTruncations !== before) throw new Error(`REQ-041b truncated early: ${before} -> ${midTruncations}`);
+      for (let i = 6; i < 12; i++) await call(p, "manage_scene", { action: "set", description: `scene-${i}` });
+      const after = countTruncations(await auditText());
+      if (after - before !== 2) throw new Error(`REQ-041b expected 2 truncation entries after 12 mutations, got ${after - before}`);
+      const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+      if (!health.audit_chain || health.audit_chain.valid !== true) throw new Error("REQ-041b truncation broke the audit chain");
+      const line = (await auditText()).split("\n").find((l: string) => l.includes("[snapshot-truncated]")) ?? "";
+      assertContains(line, "discarded_timestamp");
+      assertContains(line, "game_master");
+      await kill(p);
+    });
+
     await test("T10/REQ-041a: a refused capability call pushes no snapshot and clears no redo", async () => {
       // Each cycle: one capability mutation, one refused call, then undo must
       // reverse the mutation (proving no snapshot was pushed) and redo must

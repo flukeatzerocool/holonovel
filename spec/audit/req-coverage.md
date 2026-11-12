@@ -27,7 +27,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
 | REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T112, T118, T119, T127, T128, T129, T133, T134, T135, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
-| REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T70, T100, T203, T147 | — |
+| REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T8, T70, T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
 | REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T56, T90, T91, T131, T162, T287 | — |
@@ -259,7 +259,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-284 | Implicit action hints (Part a) (6 sub-parts) | 5.10 World-Model Layer | C | T354, T553 | — |
 | REQ-285 | Server notes (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T334, T416 | — |
 | REQ-286 | Knowledge-state section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T399 | — |
-| REQ-289 | Vow tracking (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T407, T412, T413 | — |
+| REQ-289 | Vow tracking (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T335, T407, T412, T413 | — |
 | REQ-291 | Oracle tool (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T481, T337 | — |
 | REQ-292 | Adventure catalog (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T338 | — |
 | REQ-294 | Genre declaration | 5.9 Novel Persistence and Transport | C | T339 | — |

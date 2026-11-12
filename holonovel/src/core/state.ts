@@ -730,7 +730,7 @@ export function initialBadgeFromEnv(): Badge {
 }
 
 export const DIFFICULTY_TRACKS: Record<string, number> = {
-  troublesome: 12, dangerous: 8, formidable: 4, extreme: 2, epic: 1,
+  troublesome: 10, dangerous: 20, formidable: 30, extreme: 40, epic: 50,
 };
 
 // REQ-589 — one recorded ruling: the question, the ruling, its cited evidence,
@@ -2106,7 +2106,19 @@ export class StateManager {
     // REQ-041/REQ-129 — stack depth from TTRPG_MAX_SNAPSHOT_DEPTH (min 10).
     const depth = snapshotDepth();
     if (novel.undo_stacks[stackKey].length > depth) {
-      novel.undo_stacks[stackKey].shift();
+      const discarded = novel.undo_stacks[stackKey].shift();
+      // REQ-041b — record what the ceiling discarded, naming the badge and the
+      // discarded snapshot's timestamp. A full audit log refuses the entry
+      // rather than exceeding TTRPG_AUDIT_MAX_ENTRIES (REQ-447).
+      if (!this.auditLogAtCapacity(novel)) {
+        this.appendAuditEntry(
+          novel,
+          badge,
+          "[snapshot-truncated]",
+          { badge, discarded_timestamp: (discarded as any)?.last_mutation_at ?? null },
+          "[snapshot-truncated]",
+        );
+      }
     }
     novel.redo_stacks[stackKey] = [];
   }
@@ -2203,26 +2215,31 @@ export class StateManager {
       marker.hash = crypto.createHash("sha256").update((novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000") + marker.tool + marker.args).digest("hex").substring(0, 8);
       novel.audit_log.push(marker as AuditEntry);
     }
-    const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
-    const entry: AuditEntry = {
-      timestamp: new Date().toISOString(),
-      badge,
-      tool,
-      args: JSON.stringify(args),
-      output_prefix: output_prefix ?? "",
-      hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
-      // REQ-448 — security-relevant events are tagged; omitted when undefined.
-      security_event: StateManager.SECURITY_EVENT_TOOLS.has(tool) || undefined,
-      // REQ-072g — Lonelog representation alongside the raw audit data.
-      notation: auditNotation(tool, args),
-    };
-    novel.audit_log.push(entry);
+    this.appendAuditEntry(novel, badge, tool, args, output_prefix);
     const cur = novel.metadata.sessions.find((s) => s.session_id === novel.active_session_id);
     if (cur) {
       cur.entry_count++;
       if (tool === "advance_combat") cur.combat_rounds++;
       if (tool === "set_scene_state") cur.scene_transitions++;
     }
+  }
+
+  // REQ-041b — append a bookkeeping entry (the snapshot-truncation marker)
+  // through the same hash chain without touching session counters: the entry
+  // records an eviction, not a mutation, so it must not fabricate a session
+  // boundary or inflate entry_count.
+  private appendAuditEntry(novel: NovelState, badge: Badge, tool: string, args: any, outputPrefix?: string): void {
+    const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
+    novel.audit_log.push({
+      timestamp: new Date().toISOString(),
+      badge,
+      tool,
+      args: JSON.stringify(args),
+      output_prefix: outputPrefix ?? "",
+      hash: crypto.createHash("sha256").update(prevHash + tool + JSON.stringify(args)).digest("hex").substring(0, 8),
+      security_event: StateManager.SECURITY_EVENT_TOOLS.has(tool) || undefined,
+      notation: auditNotation(tool, args),
+    });
   }
 
   auditForbidden(badge: Badge, tool: string, args: any): void {

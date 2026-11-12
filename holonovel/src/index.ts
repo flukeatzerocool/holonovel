@@ -3208,6 +3208,16 @@ function capGuard(group: string, current: number) {
   return err("STATE_CONFLICT", detail);
 }
 
+// REQ-322c — a mission clock reads as a progress fraction and is "filled" at
+// total; a decrement clock keeps its remaining count until then.
+function countdownDisplay(cd: { ticks: number; total?: number; clock_type?: string }): string {
+  if (cd.clock_type === "mission") {
+    if (cd.total && cd.ticks >= cd.total) return "filled";
+    return `${cd.ticks}/${cd.total ?? "?"}`;
+  }
+  return `${cd.ticks} remaining`;
+}
+
 // REQ-079a — `@npc`/`@lore` materialization. The world layer parses the
 // directives because it owns room/thing resolution; this adapter layer owns
 // the Novel writes. A duplicate skips with a note (REQ-079d) and a group at
@@ -3932,10 +3942,12 @@ server.registerTool("set_badge", {
     if (novel.pending_workflow) {
       return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before switching badges.");
     }
+    // REQ-040c — record the old and new badge; REQ-040a — persist the entry
+    // with the switch, so the audit does not depend on a later save.
+    const previous = novel.badge;
     novel.badge = badge;
+    audit("set_badge", { from: previous, to: badge });
     state.saveNovel(novel);
-    // REQ-448 — security-event audit: badge switches are recorded and tagged.
-    audit("set_badge", { badge });
   }
   if (badge === "none") return ok("Active badge: Editor — full access");
   if (badge === "observer") return ok("Active badge: observer — read-only spectator mode");
@@ -4032,9 +4044,12 @@ server.registerTool("respond_decision", {
   if (novel.pending_vow_countdown_suggestion && ["accept", "decline"].includes(opt)) {
     const s = novel.pending_vow_countdown_suggestion;
     if (opt === "accept") {
+      // REQ-322a/c — the linked mission clock starts empty and fills one tick
+      // per milestone; creating it full would satisfy REQ-322d's eligibility
+      // rule before a single milestone.
       novel.countdowns.set(s.countdown_name, {
-        name: s.countdown_name, ticks: s.tick_count, total: s.tick_count,
-        type: "narrative", scope: s.scope, clock_type: "mission",
+        name: s.countdown_name, ticks: 0, total: s.tick_count,
+        type: "narrative", scope: s.scope, clock_type: "mission", direction: "increment",
       });
       audit("vow_countdown_created", { vow_name: s.vow_name, countdown: s.countdown_name, ticks: s.tick_count });
       novel.pending_vow_countdown_suggestion = null;
@@ -8460,6 +8475,20 @@ server.registerTool("manage_lore", {
 
 // --- Conditions (GM) ---
 
+// REQ-217b — condition authorization: the GM/Editor may act on any entity or
+// NPC; the Player may act only on their own active entity; Observer is
+// read-only. One predicate serves apply and remove so they cannot drift.
+function conditionAccessRefusal(entityId: string): ReturnType<typeof err> | null {
+  const badge = getBadge();
+  if (badge === "game_master" || badge === "none") return null;
+  const novel = state.activeNovel;
+  if (badge === "player" && novel && entityId === novel.active_entity_id) return null;
+  if (badge === "player") {
+    return err("FORBIDDEN", `Player may not change conditions on '${entityId}'.`);
+  }
+  return err("FORBIDDEN", `Badge '${badge}' is read-only for conditions.`);
+}
+
 // REQ-217 — condition tools: condition names validate against the ruleset's
 // indexed condition list when bound. A ruleset-free Novel falls back to the
 // ruleset-agnostic base catalogue; a bound ruleset with no condition list
@@ -8480,7 +8509,7 @@ function conditionCatalogue(novel: NovelState): { list: string[]; validate: bool
 // Condition (REQ-217) — consolidated apply/remove/list surface.
 server.registerTool("manage_condition", {
   title: "Condition Management",
-  description: "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. apply and remove require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
+  description: "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. The GM or Editor may act on any entity or NPC; the Player may apply or remove on their own active entity only and is refused on any other. Mutations persist to the Novel, are audited, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
   inputSchema: {
     action: z.enum(["apply", "remove", "list"]).describe("apply, remove, or list."),
     entity_id: z.string().optional().describe("The entity to affect (apply/remove)."),
@@ -8490,8 +8519,9 @@ server.registerTool("manage_condition", {
 }, async (args: any) => {
   switch (args.action) {
     case "apply": {
-      requireGM();
       const novel = requireNovel();
+      const conditionRefusal = conditionAccessRefusal(args.entity_id);
+      if (conditionRefusal) return conditionRefusal;
       novelSnapshot();
       const entity = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
@@ -8506,12 +8536,15 @@ server.registerTool("manage_condition", {
       }
       entity.conditions.push(args.condition);
       if (args.rounds) entity.condition_rounds[args.condition] = args.rounds;
+      // REQ-217c / REQ-040a — the mutation is audited before it is persisted.
+      audit("apply_condition", { entity_id: args.entity_id, condition: args.condition, ...(args.rounds ? { rounds: args.rounds } : {}) }, "[OK]");
       state.saveNovel(novel);
       return ok(`'${args.condition}' applied to '${args.entity_id}'${args.rounds ? ` for ${args.rounds} rounds` : ""}.`);
     }
     case "remove": {
-      requireGM();
       const novel = requireNovel();
+      const conditionRefusal = conditionAccessRefusal(args.entity_id);
+      if (conditionRefusal) return conditionRefusal;
       novelSnapshot();
       const entity = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!entity) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
@@ -8519,6 +8552,7 @@ server.registerTool("manage_condition", {
       if (!entity.conditions.includes(args.condition)) return warn("Condition not present.");
       entity.conditions = entity.conditions.filter((c: string) => c !== args.condition);
       delete entity.condition_rounds[args.condition];
+      audit("remove_condition", { entity_id: args.entity_id, condition: args.condition }, "[OK]");
       state.saveNovel(novel);
       return ok(`'${args.condition}' removed from '${args.entity_id}'.`);
     }
@@ -8699,7 +8733,7 @@ server.registerTool("manage_relationship", {
 // Vow (REQ-322, REQ-358) — consolidated set/milestone/resolve/forsake/list surface.
 server.registerTool("manage_vow", {
   title: "Vow Management",
-  description: "Track narrative vows, quests, and obligations with milestones. set creates a vow and suggests a linked countdown whose ticks follow the difficulty track (troublesome 12, dangerous 8, formidable 4, extreme 2, epic 1; scope defaults to shared); accept the suggestion in the briefing to create it. milestone increments progress and any linked countdown; resolve and forsake close the vow as fulfilled or abandoned and keep the record. set identifies the vow with name; milestone, resolve, and forsake use vow_name. Mutations require the GM or Editor badge, persist to the Novel, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
+  description: "Track narrative vows, quests, and obligations with milestones. set creates a vow and suggests a linked mission countdown whose total follows the difficulty track (troublesome 10, dangerous 20, formidable 30, extreme 40, epic 50; scope defaults to shared); accept the suggestion in the briefing to create it empty, and each milestone advances it one tick. resolve requires the rank track complete or the linked clock filled, records consequences as a story-journal entry, and removes the linked clock; forsake abandons the vow and removes the clock. set identifies the vow with name; milestone, resolve, and forsake use vow_name. Mutations require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); resolve and forsake are terminal in the forward direction. Use when: setting, advancing, resolving, forsaking, or listing vows. Do NOT use when: starting a clock timer — use manage_countdown (action: set).",
   inputSchema: {
     action: z.enum(["set", "milestone", "resolve", "forsake", "list"]).describe("set, milestone, resolve, forsake, or list."),
     name: z.string().optional().describe("Vow name (set)."),
@@ -8721,11 +8755,18 @@ server.registerTool("manage_vow", {
       const existingVow = novel.vows.find(v => v.name === name);
       novelSnapshot();
       if (existingVow) {
+        const difficultyChanged = difficulty !== undefined && difficulty !== existingVow.difficulty;
         if (description !== undefined) existingVow.description = description;
         if (parties !== undefined) existingVow.parties = parties;
-        if (difficulty !== undefined) { existingVow.difficulty = difficulty as any; existingVow.rank_track = DIFFICULTY_TRACKS[difficulty] ?? existingVow.rank_track; }
+        // REQ-289b — a same-difficulty re-set keeps the stored track (and the
+        // milestones made against it); only a real difficulty change re-keys.
+        if (difficultyChanged) {
+          existingVow.difficulty = difficulty as any;
+          existingVow.rank_track = DIFFICULTY_TRACKS[difficulty] ?? existingVow.rank_track;
+        }
         if (scope !== undefined) existingVow.scope = scope;
         state.recordMutation(novel, "set_vow", "vow");
+        audit("set_vow", { name, description, parties, scope, difficulty, updated: true }, "[OK]");
         state.saveNovel(novel);
         return ok(`Vow '${name}' updated.`);
       }
@@ -8742,6 +8783,7 @@ server.registerTool("manage_vow", {
         };
       }
       state.recordMutation(novel, "set_vow", "vow");
+      audit("set_vow", { name, description, parties, difficulty, scope, updated: false }, "[OK]");
       state.saveNovel(novel);
       return ok(`Vow '${name}' set (${difficulty}, ${DIFFICULTY_TRACKS[difficulty]} milestones). A linked countdown suggestion is available in badge_briefing — respond \`accept\` to create it.`);
     }
@@ -8754,13 +8796,16 @@ server.registerTool("manage_vow", {
       vow.milestones++;
       const linked = novel.countdowns.get(`vow:${args.vow_name}`);
       if (linked) {
-        linked.ticks += 1;
-        if (linked.ticks >= linked.total) {
-          novel.countdowns.delete(`vow:${args.vow_name}`);
-          audit("vow_countdown_filled", { vow_name: args.vow_name, countdown: `vow:${args.vow_name}` });
+        // REQ-322c/d — the clock fills with the track and is retained at fill;
+        // resolve/forsake removes it. Clamp so a later milestone cannot push
+        // past the total or inflate the rendering.
+        const wasFull = linked.ticks >= linked.total;
+        linked.ticks = Math.min(linked.ticks + 1, linked.total);
+        if (!wasFull && linked.ticks >= linked.total) {
+          audit("vow_countdown_filled", { vow_name: args.vow_name, countdown: `vow:${args.vow_name}` }, "[OK]");
         }
-        state.saveNovel(novel);
       }
+      audit("advance_vow", { vow_name: args.vow_name, milestones: vow.milestones, rank_track: vow.rank_track }, "[OK]");
       state.saveNovel(novel);
       return ok(`Vow '${args.vow_name}' progress: ${vow.milestones}/${vow.rank_track} milestones.${linked ? ` Linked countdown at ${linked.ticks}/${linked.total}.` : ""}`);
     }
@@ -8769,10 +8814,39 @@ server.registerTool("manage_vow", {
       const novel = requireNovel();
       const vow = novel.vows.find(v => v.name === args.vow_name);
       if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      const linked = novel.countdowns.get(`vow:${args.vow_name}`);
+      const clockFull = !!linked && linked.ticks >= linked.total;
+      // REQ-289c/322d — the gate precedes the snapshot so a refusal is
+      // history-neutral.
+      if (vow.milestones < vow.rank_track && !clockFull) {
+        return err("STATE_CONFLICT", `Vow '${args.vow_name}' is not complete (${vow.milestones}/${vow.rank_track} milestones${linked ? `, countdown ${linked.ticks}/${linked.total}` : ""}).`);
+      }
+      // REQ-129b1 — the consequence entry respects the story-journal ceiling.
+      const consequence = typeof args.consequences === "string" ? args.consequences.trim() : "";
+      if (consequence) {
+        const capRefusal = capGuard("story", novel.story_journal.length);
+        if (capRefusal) return capRefusal;
+      }
       novelSnapshot();
       vow.state = "resolved";
       vow.outcome = args.outcome;
       vow.consequences = args.consequences;
+      if (consequence) {
+        // REQ-289c/REQ-246 — consequences are a story-journal entry. The
+        // synthetic `vow:<name>` anchor cannot alias a live scene, so it never
+        // clears an open decision through the briefing's anchor match.
+        novel.story_journal.push({
+          index: novel.story_journal.length,
+          type: "consequence",
+          entry: consequence,
+          scene_anchor: `vow:${vow.name}`,
+          entity_ids: (vow.parties ?? []).filter((id: string) => novel.entities.has(id)),
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (linked) novel.countdowns.delete(`vow:${args.vow_name}`);
+      audit("resolve_vow", { vow_name: args.vow_name, outcome: args.outcome, consequences: args.consequences }, "[OK]");
+      if (linked) audit("vow_countdown_removed", { vow_name: args.vow_name, countdown: `vow:${args.vow_name}` }, "[OK]");
       state.saveNovel(novel);
       return ok(`Vow '${args.vow_name}' resolved.`);
     }
@@ -8781,9 +8855,13 @@ server.registerTool("manage_vow", {
       const novel = requireNovel();
       const vow = novel.vows.find(v => v.name === args.vow_name);
       if (!vow) return err("NOT_FOUND", `Vow '${args.vow_name}' not found.`);
+      const linked = novel.countdowns.get(`vow:${args.vow_name}`);
       novelSnapshot();
       vow.state = "forsaken";
       vow.reason = args.reason;
+      if (linked) novel.countdowns.delete(`vow:${args.vow_name}`);
+      audit("forsake_vow", { vow_name: args.vow_name, reason: args.reason }, "[OK]");
+      if (linked) audit("vow_countdown_removed", { vow_name: args.vow_name, countdown: `vow:${args.vow_name}` }, "[OK]");
       state.saveNovel(novel);
       return ok(`Vow '${args.vow_name}' forsaken.`);
     }
@@ -9322,6 +9400,7 @@ server.registerTool("manage_story", {
     offset: z.number().min(0).optional().describe("Optional pagination offset (list)."),
     limit: z.number().min(0).optional().describe("Optional page size (list)."),
     key: z.string().optional().describe("Optional lore key (promote)."),
+    detail: z.boolean().optional().describe("Return full entries instead of previews (list)."),
     turn_handle: z.string().optional().describe("Turn handle minted by take_turn (record); consumed on success."),
   },
 }, async (args: any) => {
@@ -11180,6 +11259,8 @@ Options: yes, cancel`);
       }
       for (const v of novel.vows) {
         if (v.state === "active") parts.push(`the vow to ${v.name} is still unkept`);
+        else if (v.state === "resolved") parts.push(`the vow to ${v.name} was fulfilled${v.outcome ? `: ${v.outcome}` : ""}`);
+        else if (v.state === "forsaken") parts.push(`[vow-forsaken] the vow to ${v.name} was abandoned${v.reason ? `: ${v.reason}` : ""}`);
       }
       // REQ-340b — discovered consequences orient the recap as "Meanwhile, ...".
       const discoveredRecap = novel.story_journal.filter((s) => s.type === "consequence" && s.discovered).slice(-3);
@@ -11258,9 +11339,9 @@ Options: yes, cancel`);
           recap += ` — holding: ${entity.inventory.join(", ")}`;
         }
       }
-      const activeCountdowns = [...novel.countdowns.entries()].filter(([, cd]) => cd.ticks > 0);
+      const activeCountdowns = [...novel.countdowns.entries()].filter(([, cd]) => cd.ticks > 0 || cd.clock_type === "mission");
       if (activeCountdowns.length > 0) {
-        recap += `\nCountdowns: ${activeCountdowns.map(([name, cd]) => `${name}(${cd.ticks} remaining)`).join(", ")}`;
+        recap += `\nCountdowns: ${activeCountdowns.map(([name, cd]) => `${name}(${countdownDisplay(cd)})`).join(", ")}`;
       }
       const enabledLore = [...novel.lore.values()].filter(l => l.enabled);
       if (enabledLore.length > 0) {
@@ -16647,10 +16728,14 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
     for (const s of openBonds.slice(-3)) threadLines.push(`Promise: ${s.entry}`);
 
     for (const v of novel.vows) {
-      if (v.state === "active") threadLines.push(`Vow: ${v.name} (${v.difficulty}, ${v.milestones} milestones)`);
+      if (v.state === "active") {
+        const description = v.description ? ` — ${v.description}` : "";
+        const parties = (v.parties ?? []).length > 0 ? ` (parties: ${v.parties.join(", ")})` : "";
+        threadLines.push(`Vow: ${v.name}${description}${parties} (${v.difficulty}, ${v.milestones}/${v.rank_track} milestones)`);
+      }
     }
     for (const [name, cd] of novel.countdowns) {
-      if (cd.ticks > 0) threadLines.push(`Countdown: ${name} (${cd.ticks} remaining)`);
+      if (cd.ticks > 0 || cd.clock_type === "mission") threadLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
     }
     if (badge === "game_master") {
       for (const [, npc] of novel.npcs) {
