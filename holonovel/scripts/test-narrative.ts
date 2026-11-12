@@ -908,6 +908,9 @@ async function main() {
     });
 
     await test("T417: observer briefing renders omniscient surface", async () => {
+      // REQ-366b — the observer resolves spatial intent, runs the read-only
+      // spatial queries, and reads the world-model resources at Game Master depth.
+      await call(proc, "manage_world", { action: "create_thing",  name: "lantern", kind: "thing", location: "Throne Room", fixed: true, lit: true, switched_on: true });
       await call(proc, "set_badge", { badge: "observer" });
       const b = await briefing(proc);
       assertContains(b, "### Observer Mode");
@@ -915,6 +918,28 @@ async function main() {
       // Observer is read-only: set_scene_state must be blocked.
       const blocked = await call(proc, "manage_scene", { action: "set",  description: "attempt" });
       assertContains(blocked, "[FORBIDDEN]");
+      // REQ-366b — resolve is non-mutating, so it succeeds under the observer.
+      const resolved = await call(proc, "run_command", { action: "resolve", intent: "go north" });
+      assertNotContains(resolved, "FORBIDDEN");
+      assertContains(resolved, "\"status\"");
+      // REQ-596/REQ-597 — the spatial queries are read-only state queries.
+      const visible = await call(proc, "run_command", { action: "visibility", source: "character_01" });
+      assertNotContains(visible, "FORBIDDEN");
+      assertContains(visible, "lantern");
+      const canSee = await call(proc, "run_command", { action: "visibility", source: "character_01", target: "lantern" });
+      assertContains(canSee, "can_see");
+      const canHear = await call(proc, "run_command", { action: "audibility", source: "character_01", target: "lantern" });
+      assertContains(canHear, "can_hear");
+      // REQ-366b/REQ-305a — world-model resources render at GM depth. Room keys
+      // are the lowercased name including its space (index.ts:5614), so the URI
+      // percent-encodes it.
+      const room = await readResource(proc, "room://Throne%20Room");
+      assertContains(room, "lantern (lantern, thing)");
+      const thing = await readResource(proc, "thing://lantern");
+      assertContains(thing, "**Properties:**");
+      const map = await readResource(proc, "world://map");
+      assertContains(map, "Throne Room");
+      assertContains(map, "Anteroom");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

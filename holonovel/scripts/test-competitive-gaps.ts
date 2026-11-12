@@ -515,6 +515,15 @@ async function main() {
       assertNotContains(obsInv, "FORBIDDEN");
       const obsGo = await call(proc, "run_command", { action: "execute", command: "go north" });
       assertContains(obsGo, "FORBIDDEN");
+      // REQ-366b — resolve and the read-only spatial query are state queries,
+      // so the observer keeps them; the room is not lit, so assert the field,
+      // not its value.
+      const obsResolve = await call(proc, "run_command", { action: "resolve", intent: "look" });
+      assertNotContains(obsResolve, "FORBIDDEN");
+      assertContains(obsResolve, "\"status\"");
+      const obsVisibility = await call(proc, "run_command", { action: "visibility", source: "character_01", target: "Scout" });
+      assertNotContains(obsVisibility, "FORBIDDEN");
+      assertContains(obsVisibility, "can_see");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

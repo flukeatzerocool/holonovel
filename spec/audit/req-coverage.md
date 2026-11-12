@@ -332,7 +332,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-363 | Secret-world coupling (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T414 | implemented |
 | REQ-364 | Faction-world coupling (Part a) (2 sub-parts) | 5.12 Narrative Architecture | C | T415 | implemented |
 | REQ-365 | Server notes narrative coupling (Part a) (3 sub-parts) | 5.12 Narrative Architecture | C | T416 | implemented |
-| REQ-366 | Observer narrative surface (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T417 | implemented |
+| REQ-366 | Observer narrative surface (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T417, T643 | implemented |
 | REQ-367 | Property propagation across containment (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T418 | — |
 | REQ-368 | Countdown-world effect coupling (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T419 | — |
 | REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |

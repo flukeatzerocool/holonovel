@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-11 — §5.12 observer resolve and resource reads
+
+- The observer badge now resolves `run_command (action: resolve)` and the
+  `visibility`/`audibility` spatial queries: the two `requireNotObserver()`
+  refusals are removed while the Player-badge refusal and point-of-view
+  restriction stay (REQ-366b, REQ-305, REQ-596, REQ-597).
+- `room://` and `thing://` render at Game Master depth for the observer — ids,
+  property values, containment chain, hazard annotations — matching
+  `world://map`, `world://kinds`, and REQ-305a's unfiltered state surface;
+  previously they fell into the Player branch (REQ-366b, REQ-202a).
+- REQ-366b gains its missing `_Check:_ T417` and the resource-depth sentence.
+  Appendix F's T417 row states the resolve, query, and resource assertions and
+  the T643 row states the ruleset-bound observer resolve/visibility case
+  (REQ-366b, REQ-305).
+- F-5.12-1 is `Resolved` with its predicate corrected: the resources were never
+  observer-refused, they rendered at the wrong depth. The `ROADMAP.md` section
+  closes.
+
 ## 2026-11-11 — §5.10 observer badge parser access
 
 - The parser gate now carries one read-only predicate: the `observer` badge is

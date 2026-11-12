@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.12 observer resolve and resource reads (P1)
-
-- Accept the `observer` badge on the read-only `run_command` surfaces REQ-366b
-  names: `action: resolve`, `action: visibility`/`audibility`, and the
-  `room://`/`thing://`/`world://map` reads still refused by
-  `requireNotObserver()` (REQ-366b, REQ-596, REQ-597; F-5.12-1).
-- Assert each path in the harness and widen the Appendix F row it cites.
-
-**Trigger:** the next §5.12 narrative-surface session; closes when an observer
-`run_command (action: resolve)` and each world-model resource read resolve and
-F-5.12-1 is `Resolved`.
-
 ## §5.10 parser tool-name drift (P2)
 
 - §5.10, Appendix F's T239 and T261 rows, and Appendix W name the parser tool

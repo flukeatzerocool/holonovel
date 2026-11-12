@@ -11,6 +11,24 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.12 observer resolve and resource reads
+
+- **F-5.12-1 — REQ-366b resolve, spatial-query, and resource depth (resolved
+  2026-11-11):** the two observer refusals are gone — the `visibility`/
+  `audibility` query (`holonovel/src/index.ts:4786-4789`) and
+  `run_command (action: resolve)` (`:4814-4821`), both formerly gated by
+  `requireNotObserver()`. The Player-badge refusals are unchanged. The
+  register's original "resource reads still observer-refused" premise was
+  wrong: no resource handler called `requireNotObserver()`, and a probe read
+  `room://`, `thing://`, and `world://map` under the observer badge. The actual
+  defect was depth — `room-single` and `thing-single` computed
+  `isGM = game_master || none` (`:13450`, `:13489`) and so rendered the
+  observer at Player depth, while `world://map`/`world://kinds` already used
+  the `player ? player : game_master` split (`:13513`, `:13519`). Both now
+  admit `observer`, matching REQ-305a's unfiltered state surface. REQ-366b
+  gains its missing `_Check:_ T417` and the depth sentence; T417 and T643 are
+  widened and exercised. REQ-366b, REQ-305, REQ-596, REQ-597.
+
 ### 2026-11-11 §5.10 observer parser access
 
 - **F-5.10-2 — REQ-309h observer clause implemented (resolved 2026-11-11):**
@@ -1698,18 +1716,6 @@ pass and completion-oracle green. Fix evidence: regression tests in
   cursor) at `holonovel/scripts/test-selection.ts:268-299`. REQ-391b.
 
 ## Scheduled-roadmap
-
-### 2026-11-11 §5.12 observer read surface
-
-- **F-5.12-1 — REQ-366b resolve and resource reads still observer-refused
-  (2026-11-11):** REQ-366b grants the observer read-only access to
-  `run_command (action: resolve)`, `run_command (action: visibility |
-  audibility)`, and the world-model resources (`spec/02-requirements.md:3760`),
-  but the resolver and the spatial queries call `requireNotObserver()`
-  (`holonovel/src/index.ts:4787`, `:4814-4819`), so an observer call returns
-  `[FORBIDDEN] Observer mode is read-only.` The parser clause of REQ-366b is
-  implemented in the same increment that schedules this row. Scheduled under
-  ROADMAP § §5.12 observer resolve and resource reads; covers `REQ-366b`.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

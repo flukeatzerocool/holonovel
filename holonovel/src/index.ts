@@ -4783,8 +4783,9 @@ server.registerTool("run_command", {
   },
 }, async (args: any) => {
   // REQ-596/REQ-597 — read-only spatial queries; never mutate or snapshot.
+  // REQ-305/REQ-366b — a state query, so the read-only observer badge may call
+  // it from any source; only the Player badge is pinned to its own point of view.
   if (args.action === "visibility" || args.action === "audibility") {
-    requireNotObserver();
     const novel = requireNovel();
     const activeId = novel.active_entity_id ?? state.getActiveEntity()?.id ?? null;
     const sourceRef = args.source ?? activeId;
@@ -4816,7 +4817,8 @@ server.registerTool("run_command", {
     if (badge === "player") {
       return err("FORBIDDEN", "run_command (action: resolve) is not callable by the Player badge. Player spatial intents are resolved by the AI narrator. Corrective action: switch badge or direct intents through the narrator.");
     }
-    requireNotObserver();
+    // REQ-305/REQ-366b — resolve is non-mutating (REQ-323), so the read-only
+    // observer badge resolves spatial intent like the Game Master does.
     const novel = requireNovel();
     const result = resolveIntentWorld(args.intent, novel);
     return raw(JSON.stringify(result, null, 2));
@@ -13445,7 +13447,9 @@ server.registerResource("room-single", new ResourceTemplate("room://{id}", { lis
   const room = novel.world.rooms.get(id.toLowerCase());
   if (!room) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   const badge = getBadge();
-  const isGM = badge === "game_master" || badge === "none";
+  // REQ-305/REQ-366b — the observer reads at the unfiltered Game Master depth,
+  // matching world://map and world://kinds below.
+  const isGM = badge === "game_master" || badge === "none" || badge === "observer";
   let info = `## ${room.name}\n${room.description || "No description."}`;
 
   const visible = roomVisibleThings(novel.world, room);
@@ -13484,7 +13488,8 @@ server.registerResource("thing-single", new ResourceTemplate("thing://{id}", { l
   const thing = novel.world.things.get(id.toLowerCase());
   if (!thing) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   const badge = getBadge();
-  const isGM = badge === "game_master" || badge === "none";
+  // REQ-305/REQ-366b — the observer reads at the unfiltered Game Master depth.
+  const isGM = badge === "game_master" || badge === "none" || badge === "observer";
   let info = `## ${thing.name}\n${thing.description || "No description."}`;
   if (isGM) {
     const chain = containmentChain(novel.world, thing);
