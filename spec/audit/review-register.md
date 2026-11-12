@@ -11,6 +11,66 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 §5.6 entity, scene, and NPC-depth remediation
+
+Resolved in the 2026-11-12 increment. The scene ledger, presence, and NPC depth
+derivations now live in one pure module (`holonovel/src/core/scene-ledger.ts`),
+and the roster/entity lifecycle runs through two helpers (`removeEntity`,
+`rosterListingFields`) so the surfaces cannot drift.
+
+- **F-P3B2-1 — entity/roster lifecycle gaps.** `import` matches the roster
+  source id (`roster_source_id`) with an entity-id fallback and returns
+  REQ-074c's `[STATE_CONFLICT]` hint; `removeEntity` clears the active field,
+  drops the entity from the presence list, and audits (`index.ts:4591-4613`);
+  `roster_remove` enumerates valid IDs and audits under REQ-040a — a no-op with
+  no active Novel, which the assertion covers (`:4951-4963`); `party://current`
+  carries derived `hp`/`max_hp` from the ruleset stats (`entityHp`,
+  `:4635-4645`). T216/T220.
+- **F-P3B2-2 — roster listing and resources.** `roster_list` returns id, name,
+  and the ruleset-derived race/class/level, omitting each when the ruleset
+  defines none (`rosterListingFields`, `:4615-4633`); `roster://class` and
+  `roster://race` are concrete resources ahead of the `roster://{id}` template,
+  with the reserved-token shadowing declared in their descriptions (`:14841`,
+  `:14846`). T219.
+- **F-P3B2-3 — scene-ledger gaps.** `scene://history` returns the newest
+  `TTRPG_SCENE_HISTORY_MAX` entries with a leading `{suppressed, truncated,
+  marker}` element (`:14261-14280`); `scene_tick` rides the Scene group, resets
+  on the transition branch (`:7431`), increments when a combat round wraps
+  (`:6838`), and renders GM-only (`:16475`); the lore/disposition contradiction
+  check is `loreContradictionWarning` (`core/scene-ledger.ts:96-138`), invoked by
+  `manage_scene (action: set)` at `index.ts:7471` as an advisory `[WARNING]`.
+  T137, T331, T057.
+- **F-P3B2-4 — fast-forward gaps.** Round countdowns advance proportionally
+  (`intervalMagnitude`, `:4567-4589`), lore triggers are collected, and a
+  bridging summary is recorded in the `[fast-forward]` audit entry and returned
+  after the `[OK]` line; `skip_countdowns` suppresses advancement and says so.
+  T312.
+- **F-P3B2-5 — presence surface gaps.** `presentEntityIds`/`isPresent` keep the
+  absent-versus-empty distinction (absent means all present per REQ-307a); the
+  briefing renders a Party section with `[not present]` and `last_location`
+  (`:16180-16192`); `manage_staging (action: presence)` accepts `location`,
+  audits, validates IDs, and persists (`:7489-7511`, reached through the staging
+  alias at `:7974`). T351.
+- **F-P3B2-6 — NPC depth metadata.** `appearance_count`, `first_seen`,
+  `last_seen`, `appearance_scenes`, and `appearance_sessions` join `NpcState`;
+  `recordNpcAppearance` is deduped per scene and runs on the mutate-gated
+  briefing render and the scene-set path (`:4528-4547`); `npcDepthMarker`
+  renders `[recurring]` (3+), `[campaign]` (10+), and `[distant]` (5+ sessions
+  unseen, suppressed without session data) (`:4549-4560`); the recap carries the
+  GM-only `npc_heatmap` (`:11147-11153`). T056, T723.
+- **F-P3B2-7 — NPC description diverged.** `npcDescription`/`setNpcDescription`
+  are the only reader and writer of the shared description property; `npc://<id>`,
+  `npc://<id>/personality`, and the sheet output all read the same value, and
+  the most recent write wins (`:4515-4523`). T191.
+- **F-P3B2-8 — NPC memory was combat-only.** `manage_npc (action: update)` with a
+  disposition change ingests an interaction and couples a hostile flip into
+  campaign memory; contacts carry `apparent_capabilities` and `relationship`;
+  the memory section renders per-entity party knowledge (`:5040-5060`).
+  `npc_memory_count` grows and the emotional-state summary/last-3/goals render
+  as before. T056/REQ-311. Deviation: no in-tree social-check resolution surface
+  exists to hook automatic social ingestion (checks route to the bound ruleset's
+  roll tools), recorded as a P3 coverage note in the increment's AAR.
+
 ### 2026-11-12 §5.6 adventure content remediation
 
 Resolved in the 2026-11-12 increment. The structure extractor
@@ -2051,71 +2111,40 @@ Each finding cites the predicate that carries it.
 
 ### 2026-11-09 full-review sweep — chunk P3b-2 (§5.6 entities and NPCs)
 
-Scheduled under `ROADMAP.md` § *§5.6 entities and NPCs remediation (P1)*.
+F-P3B2-1 through F-P3B2-8 are `Resolved` (2026-11-12 §5.6 entity, scene, and
+NPC-depth remediation block above). The remaining findings are scheduled under
+`ROADMAP.md` § *§5.6 personality, signal, and citation remediation (P1)*.
 Each finding cites the predicate that carries it.
 
-- **F-P3B2-1 — entity/roster lifecycle gaps:** `import` has no per-Novel
-  duplicate guard, so REQ-074c's `[STATE_CONFLICT]` never fires
-  (`holonovel/src/index.ts:3996-4001`); `party://current` omits HP
-  (REQ-074b; `:12560-12566`); `remove` clears `active_entity_id` but not presence
-  and writes no audit entry (REQ-176a; `:4120-4126`); `roster_remove` enumerates
-  no valid IDs and writes no audit (REQ-177; `:4122`).
-- **F-P3B2-2 — roster listing and resources:** `roster_list` returns id and
-  name only, omitting race, class, and level (REQ-178a; `:4127-4130`), and only
-  `roster://current` exists — `roster://<id>` and `roster://<type>` are absent
-  (REQ-178b; `:12287`).
-- **F-P3B2-3 — scene-ledger gaps:** `scene_history` is unbounded with no cap,
-  suppressed count, or `[truncated]` marker (REQ-076b2/129c;
-  `:12295-12307`); `scene_tick` is absent (REQ-076b3); no lore/disposition
-  contradiction warning exists (REQ-076b5–b7; `:6189`).
-- **F-P3B2-4 — fast-forward gaps:** `round` countdowns are not advanced
-  proportionally, lore triggers are absent from the audit entry and bridging
-  summary, and no bridging prose is emitted (REQ-252a/b/c; `:6211-6237`).
-- **F-P3B2-5 — presence surface gaps:** no `last_location` field (party uses
-  `current_room`, `:12561`), no `[not present]` marker in the entity listing,
-  and `manage_staging (action: presence)` accepts no `location`
-  (REQ-307a/b/c; `:6299`, `:6661-6674`).
-- **F-P3B2-6 — NPC depth metadata is unimplemented:** no `appearance_count`,
-  `first_seen`, or `last_seen`, no `[recurring]`/`[campaign]`/`[distant]`
-  markers, and no recap NPC heatmap (REQ-075c/d/e; NPC record in
-  `core/state.ts`).
-- **F-P3B2-7 — NPC description diverges across surfaces:** `create`/`update`
-  writes `npc.description` (`:6503`), while `npc://<id>/personality` reads
-  `npc.personality` (`:12398`); REQ-156 requires one field and most-recent-wins.
-- **F-P3B2-8 — NPC memory is combat-only:** `recordNpcInteraction` is called
-  only from the combat path (`:5727`); party knowledge, emotional-state summary,
-  social/mechanical ingestion, and campaign-memory coupling are absent
-  (REQ-311b/c/d/f; `:4143-4186`).
 - **F-P3B2-9 — personality surfaces are missing from the briefing:**
   `badge_briefing` renders no entity personality group, `voice_examples` never
   render ahead of trait descriptions, `persona` is NPC-only, and the 5-example
-  cap is unenforced (REQ-077a/b/d/e, REQ-126a/b, REQ-166a/b/c;
-  `:14126-14155`, `:3105-3115`).
+  cap is unenforced (REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-126a, REQ-126b,
+  REQ-166a, REQ-166b, REQ-166c).
 - **F-P3B2-10 — NPC voice-directive scope and tagging:** Player badge never sees
   shared-scope directives (NPCs have no `scope`), the role field is absent, and
-  no `tag`/`scene_type` filtering is applied (REQ-282a/b/c; `:14138-14155`,
-  `:6452-6464`).
+  no `tag`/`scene_type` filtering is applied (REQ-282a, REQ-282b, REQ-282c).
 - **F-P3B2-11 — personality resources are unstructured and unfiltered:**
   `entity://<id>/personality` and `npc://<id>/personality` return the bare
   personality object, omitting `entity_id`/`npc_id`, `name`, and
-  `voice_examples`, and apply no badge filter (REQ-167a/b; `:12276-12277`,
-  `:12398`).
+  `voice_examples`, and apply no badge filter (REQ-167a, REQ-167b).
 - **F-P3B2-12 — player signals violate the storage and briefing contract:**
-  `player_signals` is `Record<string, string>` (`core/state.ts:711`), an empty
-  value is stored instead of removing the signal (`:4085`), no
-  `connection_counter` or timestamp is recorded, and the briefing shows no
-  "set N connections ago" age (`:14031-14040`); the audit tool and output prefix
-  also differ from REQ-069c.
+  `player_signals` is `Record<string, string>` (`core/state.ts:748`), an empty
+  value is stored instead of removing the signal, no `connection_counter` or
+  timestamp is recorded, and the briefing shows no "set N connections ago" age;
+  the audit tool and output prefix also differ from the REQ (REQ-069a,
+  REQ-069b, REQ-069c, REQ-128a, REQ-128b, REQ-173b).
 - **F-P3B2-13 — boundary collision covers only one entry point:** the advisory
-  runs on `manage_scene (action: set)` (`:6283`) but not on `manage_npc`
-  create/update, `manage_lore` set/update, or `manage_scene (action: directive)`
-  (REQ-255b).
+  runs on `manage_scene (action: set)` but not on `manage_npc` create/update,
+  `manage_lore` set/update, or `manage_scene (action: directive)` (REQ-255b).
 - **F-P3B2-14 — citations and narrow assertions:** T55, T56, T57, T58, T65,
   T112, T132, T140, T142, and T723 appear in per-REQ `_Check:_` lines but in no
   `holonovel/scripts` harness; T131 matches a conflict-lifecycle test, not NPC
-  damage; and T201/T216/T220/T331 assert a substring or an unrelated surface
-  rather than the REQ contract (REQ-069c, REQ-074b, REQ-075e/g, REQ-076b4/b7,
-  REQ-077f, REQ-124b, REQ-126b, REQ-128b, REQ-167b).
+  damage; and T201/T216/T220 assert a substring or an unrelated surface rather
+  than the REQ contract (REQ-075g, REQ-077f, REQ-124b, REQ-126b, REQ-128b,
+  REQ-167b). T056/T057, T191, T216/T217/T219/T220, and T331 now assert their
+  contracts in the narrative, briefing, backfill, and output-contract harnesses;
+  the tokens this finding still owns stay unexercised.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

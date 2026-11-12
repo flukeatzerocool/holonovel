@@ -7475,6 +7475,7 @@ switching. See §6.3 and REQ-399 for the creation data contract; REQ-104, REQ-15
 | `TTRPG_TOOLS_LIST_MAX_BYTES` | No | Byte cap above which `tools/list` returns a page with `nextCursor` (default 262144; REQ-391c). Presentation only — it changes response shape, not game state. |
 | `TTRPG_PACKAGE_TOOL_BUDGET` | No | Estimated-token ceiling for a ruleset package's aggregate declared tools (default 4000). The host flags an over-budget package and `check-ruleset-package` refuses it (REQ-430). |
 | `TTRPG_MAX_LORE_ENTRIES` | No   | Maximum lore entries per Novel (default 500)  |
+| `TTRPG_SCENE_HISTORY_MAX` | No | Maximum scene entries returned by `scene://history` (default 50). The cap applies at read time; excess entries are reported as a suppressed count with a `[truncated]` marker, and the audit log keeps the full record (REQ-076b2). Presentation — non-behavioral; it bounds a read surface, not story state. |
 | `TTRPG_MAX_SNAPSHOT_DEPTH` | No | Maximum undo stack depth (minimum 10 per REQ-041)        |
 | `TTRPG_SYNTHESIS_STALE_DAYS` | No   | Days before inactive synthesis items are flagged stale (default 90) |
 | `TTRPG_ADVENTURE`   | No       | Comma-separated paths to adventure Markdown files    |

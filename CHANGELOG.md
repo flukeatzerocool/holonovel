@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-11-12 — §5.6 entity, scene, and NPC-depth remediation
+
+- Entity and roster lifecycle is one path: `import` refuses a second import of
+  the same roster character with REQ-074c's `[STATE_CONFLICT]` hint (matched by
+  `roster_source_id` with an entity-id fallback), `removeEntity` clears the
+  active field, drops the entity from presence, and audits, `roster_remove`
+  enumerates valid IDs, and `roster_list` returns the ruleset-derived
+  race/class/level (REQ-074b, REQ-074c, REQ-176a, REQ-177, REQ-178a).
+- `roster://class` and `roster://race` are concrete resources ahead of the
+  `roster://{id}` template, with the reserved-token shadowing declared, and
+  `party://current` carries derived `hp`/`max_hp` from the ruleset stats
+  (REQ-074b, REQ-178b).
+- Presence gained one derivation (`presentEntityIds`/`isPresent` in
+  `core/scene-ledger.ts`) that preserves the absent-versus-empty distinction, so
+  a Novel with no presence declaration treats every entity as present; the
+  briefing renders a Party section with `[not present]` and `last_location`, and
+  `manage_staging (action: presence)` accepts a location, validates IDs, and
+  audits (REQ-307a, REQ-307b, REQ-307c).
+- The scene ledger reports what it hid: `scene://history` returns the newest
+  `TTRPG_SCENE_HISTORY_MAX` entries with a leading suppressed-count and
+  `[truncated]` marker; `scene_tick` resets on a scene transition, advances when
+  a combat round wraps, and renders GM-only; a keyword lore/disposition
+  contradiction check reports a `[WARNING]` without blocking the scene change
+  (REQ-076b2, REQ-076b3, REQ-076b5, REQ-076b6, REQ-076b7).
+- Fast-forward now advances `round` countdowns proportionally, collects the lore
+  triggers it activates, and records a bridging summary in the
+  `[fast-forward]` audit entry and the response, with `skip_countdowns` saying
+  what it skipped (REQ-252a, REQ-252b, REQ-252c).
+- NPC depth metadata (`appearance_count`, `first_seen`, `last_seen`,
+  per-scene dedup) drives the `[recurring]`/`[campaign]`/`[distant]` markers and
+  the GM-only recap heatmap; `npcDescription`/`setNpcDescription` make the NPC
+  description one property across `npc://<id>`, `npc://<id>/personality`, and the
+  sheet; disposition outcomes ingest into NPC memory with per-entity party
+  knowledge and campaign-memory coupling (REQ-075c, REQ-075d, REQ-075e,
+  REQ-156, REQ-311c, REQ-311d, REQ-311f).
+- ROADMAP §5.6 is split: this increment closes F-P3B2-1…8, and the untouched
+  personality/signal/citation findings move to their own scheduled P1 section so
+  neither session inherits a bar it cannot close. `spec/04-runtime.md` §7.6
+  declares `TTRPG_SCENE_HISTORY_MAX` (Presentation), and the tool definitions,
+  surface budget, and coverage register are regenerated.
+
 ## 2026-11-12 — §5.6 adventure content remediation
 
 - One structural extractor (`src/core/adventure.ts`) now feeds adventure load,

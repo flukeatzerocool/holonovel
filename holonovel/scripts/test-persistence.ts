@@ -656,6 +656,49 @@ async function main() {
   }
 
   {
+    // REQ-076b3 / REQ-075c — a Novel saved before the scene tick and NPC depth
+    // metadata existed loads with defined defaults instead of undefined.
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-old-save-"));
+    let proc = await boot({ TTRPG_DATA_DIR: dir });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_novel", { action: "create",  name: "old save" });
+    await call(proc, "manage_npc", { action: "create",  name: "Keeper", location: "Hall" });
+    await call(proc, "manage_scene", { action: "set",  location: "Hall", description: "The Hall" });
+    await kill(proc);
+
+    const file = join(dir, "novels", "old-save.json");
+    const data = JSON.parse(readFileSync(file, "utf-8"));
+    delete data.scene_tick;
+    for (const npc of Object.values(data.npcs ?? {}) as any[]) {
+      delete npc.appearance_count;
+      delete npc.first_seen;
+      delete npc.last_seen;
+      delete npc.appearance_scenes;
+      delete npc.appearance_sessions;
+    }
+    writeFileSync(file, JSON.stringify(data, null, 2));
+
+    proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "old-save", TTRPG_BADGE: "game_master" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T057/REQ-076b3: a pre-scene_tick save loads at tick 0 and renders", async () => {
+      const brief = await promptText(proc, "badge_briefing");
+      assertContains(brief, "Scene tick:** 0");
+      assertContains(brief, "Keeper");
+      assertNotContains(brief, "undefined");
+    });
+    await test("T056/REQ-075c: a pre-metadata NPC renders without a depth marker and gains one on appearance", async () => {
+      const before = await promptText(proc, "badge_briefing");
+      assertNotContains(before, "[recurring]");
+      await call(proc, "manage_scene", { action: "set",  location: "Hall", description: "The Hall at dusk" });
+      const after = await promptText(proc, "badge_briefing");
+      assertContains(after, "Keeper");
+      assertNotContains(after, "undefined");
+    });
+    await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  {
     // TTRPG_NOVEL_RETENTION_DAYS — expired .trash entries are purged at startup.
     const dir = mkdtempSync(join(tmpdir(), "holonovel-retention-days-"));
     let proc = await boot({ TTRPG_DATA_DIR: dir });

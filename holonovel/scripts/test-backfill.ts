@@ -947,6 +947,80 @@ async function main() {
       if ((health.entities ?? 0) < 2) throw new Error(`expected ≥2 entities, got ${health.entities}`);
     });
 
+    await test("T331/REQ-076b5-b7: a scene description contradicting location lore warns without blocking", async () => {
+      await call(proc, "manage_lore", { action: "set",  key: "blackwood-campus", content: "The Blackwood Inn is crowded and noisy.", triggers: ["Blackwood"], badge_scope: "shared" });
+      await call(proc, "manage_scene", { action: "set",  location: "Blackwood Inn", description: "The Blackwood Inn is quiet and deserted." });
+      const warnOut = await call(proc, "manage_scene", { action: "set",  location: "Blackwood Inn", description: "The Blackwood Inn is empty and silent." });
+      assertContains(warnOut, "[WARNING]");
+      assertContains(warnOut, "blackwood-campus");
+      assertContains(warnOut, "Scene set");
+      const clear = await call(proc, "manage_scene", { action: "set",  location: "Blackwood Inn", description: "The Blackwood Inn is bustling as always." });
+      assertNotContains(clear, "contradicts lore entry");
+    });
+
+    await test("T312/REQ-252: fast-forward bridges the skipped interval and advances round countdowns", async () => {
+      await call(proc, "manage_countdown", { action: "set",  name: "t312-raiders", ticks: 4, total: 4, type: "narrative" });
+      await call(proc, "manage_countdown", { action: "set",  name: "t312-rounds", ticks: 5, total: 5, type: "round" });
+      await call(proc, "manage_npc", { action: "create",  name: "T312 Guard" });
+      const guardId = (await call(proc, "manage_npc", { action: "list" })).match(/"id": "([^"]+)"/)?.[1];
+      const out = await call(proc, "manage_scene", {
+        action: "set",  location: "Blackwood Inn", description: "The castle gates",
+        fast_forward: { interval: "three days of travel", changes: guardId ? [{ npc_id: guardId, location: "castle gate" }] : [] },
+      });
+      assertContains(out, "[fast-forward]");
+      assertContains(out, "three days of travel");
+      assertContains(out, "t312-raiders");
+      assertContains(out, "t312-rounds");
+      const counts = JSON.parse(await call(proc, "manage_countdown", { action: "list" }));
+      const raiders = counts.find((c: any) => c.name === "t312-raiders");
+      const rounds = counts.find((c: any) => c.name === "t312-rounds");
+      if (!raiders || raiders.ticks !== 1) throw new Error(`narrative countdown did not advance by 3: ${JSON.stringify(raiders)}`);
+      if (!rounds || rounds.ticks !== 2) throw new Error(`round countdown not advanced proportionally: ${JSON.stringify(rounds)}`);
+      const skip = await call(proc, "manage_scene", { action: "set",  description: "The castle gates", fast_forward: { interval: "one week", skip_countdowns: true } });
+      assertContains(skip, "countdowns — unchanged");
+    });
+
+    await test("T056/REQ-075e: recap carries the NPC relationship heatmap", async () => {
+      await call(proc, "manage_npc", { action: "create",  name: "Heatmap Keeper", location: "heat-hall" });
+      await call(proc, "manage_scene", { action: "set",  location: "heat-hall", description: "Heat hall one" });
+      await call(proc, "manage_scene", { action: "set",  location: "heat-hall", description: "Heat hall two" });
+      const recap = await call(proc, "manage_context", { action: "recap" });
+      assertContains(recap, "npc_heatmap");
+      assertContains(recap, "Heatmap Keeper");
+      assertContains(recap, "2 appearances");
+      await call(proc, "set_badge", { badge: "player" });
+      const playerRecap = await call(proc, "manage_context", { action: "recap" });
+      assertNotContains(playerRecap, "npc_heatmap");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await test("T056/REQ-311: NPC memory ingests a disposition outcome and records party knowledge", async () => {
+      const hero = await call(proc, "manage_character", { action: "create",  name: "Mem Hero", species: "Human" });
+      const heroId = hero.match(/character_\d+/)?.[0];
+      if (heroId) await call(proc, "manage_character", { action: "set_active",  entity_id: heroId });
+      await call(proc, "manage_npc", { action: "create",  name: "Mem Keeper", location: "heat-hall" });
+      const listed = JSON.parse(await call(proc, "manage_npc", { action: "list", detail: true }));
+      const keeper = listed.find((n: any) => n.name === "Mem Keeper")?.id;
+      if (!keeper) throw new Error("keeper id not found");
+      const healthRaw = await call(proc, "manage_diagnostics", { action: "health" });
+      if (!healthRaw.trim().startsWith("{")) throw new Error(`health returned: ${healthRaw.slice(0, 120)}`);
+      const before = JSON.parse(healthRaw).npc_memory_count;
+      await call(proc, "manage_npc", { action: "update",  npc_id: keeper, disposition: "hostile" });
+      const healthRaw2 = await call(proc, "manage_diagnostics", { action: "health" });
+      const after = JSON.parse(healthRaw2).npc_memory_count;
+      if (!(after > before)) throw new Error(`npc_memory_count did not grow: ${before} -> ${after}`);
+      const record = JSON.parse(await call(proc, "manage_npc", { action: "get",  npc_id: keeper }));
+      const contact = Object.values(record.memory?.contacts ?? {})[0] as any;
+      if (!contact) throw new Error("no contact recorded: " + JSON.stringify(record.memory));
+      if (!contact.relationship) throw new Error("contact has no relationship status");
+      if (!Array.isArray(contact.apparent_capabilities) || contact.apparent_capabilities.length === 0) {
+        throw new Error("contact has no apparent capabilities: " + JSON.stringify(contact));
+      }
+      const brief = await call(proc, "manage_novel", { action: "get_context" });
+      assertContains(brief, "## NPC Memory");
+      assertContains(brief, "Mem Hero");
+    });
+
     await test("T243/T200: kind mechanical contracts — device kind accepted", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "kind-room", description: "K." });
       const dev = await call(proc, "manage_world", { action: "create_thing",  name: "beacon", kind: "device", description: "signal", location: "kind-room" });

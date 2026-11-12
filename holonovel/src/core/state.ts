@@ -241,6 +241,10 @@ export interface NovelEntity {
   // REQ-332 — codex provenance: records which Codex entry produced this entity
   // and when (id, imported_at, codex_modified_at).
   codex_source?: { id: string; kind: string; imported_at: string; codex_modified_at: string };
+  // REQ-074c — the roster entry this Novel entity was imported from. The
+  // duplicate-import guard matches on this source id, not the Novel entity id,
+  // so a server that re-keys imports still detects its own duplicates.
+  roster_source_id?: string;
 }
 
 export interface NpcState {
@@ -254,6 +258,12 @@ location?: string;
   personality?: { description?: string; voice?: string; background?: string; goals?: string };
   persona?: string; // REQ-077a — values, traits, and mannerisms.
   talkativeness?: number; // REQ-075g — 0-100 social-scene speaking weight.
+  // REQ-075c/d — depth metadata, maintained by the server, never set by the GM.
+  appearance_count?: number;
+  first_seen?: string;
+  last_seen?: string;
+  appearance_scenes?: string[]; // dedup key: one appearance per scene
+  appearance_sessions?: string[]; // sessions this NPC appeared in
   voice_examples?: { context: string; dialogue: string; tag?: string }[];
   // REQ-075f — NPC mind: GM-only journal/directive/auto_play/identity_core/
   // shared_notes, excluded from every Player-badge surface.
@@ -737,6 +747,9 @@ export interface NovelState {
   scene_atmosphere?: string;
   scene_history: { timestamp: string; description: string; location?: string; time_of_day?: string; atmosphere?: string; beat?: string; characters_present_ids?: string[] }[];
   scene_beat: string; // REQ-335 — current beat ("" = unset, renders as mid_scene)
+  // REQ-076b3 — Novel-scoped pacing tick: reset on every scene transition,
+  // incremented when manage_combat (action: advance) wraps a full round.
+  scene_tick: number;
   scene_type: ("combat" | "social" | "exploration" | "neutral")[];
   narrative_directive: string;
   combat: CombatState | null;
@@ -755,7 +768,9 @@ export interface NovelState {
   action_patterns_enabled: boolean;
   session_zero_completed: boolean;
   characters_present: boolean;
-  characters_present_ids: string[];
+  // REQ-307a — null means never declared (every imported entity present); an
+  // empty array means explicitly none present (REQ-307c).
+  characters_present_ids: string[] | null;
   social_cast: { strategy: "manual" | "natural" | "list" | "pooled"; order: string[]; muted: string[]; spoken: string[]; selected: string | null };
   adventure_set: boolean;
   pending_workflow:
@@ -1215,6 +1230,7 @@ export class StateManager {
       scene_atmosphere: undefined,
       scene_history: [],
       scene_beat: "",
+      scene_tick: 0,
       scene_type: ["neutral"],
       narrative_directive: "",
       combat: null,
@@ -1232,7 +1248,7 @@ export class StateManager {
       action_patterns_enabled: false,
       session_zero_completed: false,
       characters_present: false,
-      characters_present_ids: [],
+      characters_present_ids: null,
       social_cast: { strategy: "natural", order: [], muted: [], spoken: [], selected: null },
       adventure_set: false,
       pending_workflow: null,
@@ -1662,6 +1678,7 @@ export class StateManager {
       scene_atmosphere: data.scene_atmosphere,
       scene_history: data.scene_history ?? [],
       scene_beat: data.scene_beat ?? "",
+      scene_tick: typeof data.scene_tick === "number" ? data.scene_tick : 0,
       scene_type: normalizeSceneType(data.scene_type),
       narrative_directive: data.narrative_directive ?? "",
       combat: data.combat ?? null,
@@ -1689,7 +1706,7 @@ export class StateManager {
       action_patterns_enabled: data.action_patterns_enabled ?? false,
       session_zero_completed: data.session_zero_completed ?? false,
       characters_present: data.characters_present ?? false,
-      characters_present_ids: data.characters_present_ids ?? [],
+      characters_present_ids: data.characters_present_ids ?? null,
       social_cast: data.social_cast ?? { strategy: "natural", order: [], muted: [], spoken: [], selected: null },
       adventure_set: data.adventure_set ?? false,
       pending_workflow: data.pending_workflow ?? null,
@@ -2988,6 +3005,7 @@ function novelToJSON(novel: NovelState): any {
     scene_atmosphere: novel.scene_atmosphere,
     scene_history: novel.scene_history,
     scene_beat: novel.scene_beat,
+    scene_tick: novel.scene_tick,
     scene_type: novel.scene_type,
     narrative_directive: novel.narrative_directive,
     combat: novel.combat,
@@ -3173,6 +3191,7 @@ function novelFromJSON(data: any): NovelState {
     scene_atmosphere: data.scene_atmosphere,
     scene_history: data.scene_history ?? [],
     scene_beat: data.scene_beat ?? "",
+    scene_tick: typeof data.scene_tick === "number" ? data.scene_tick : 0,
     scene_type: normalizeSceneType(data.scene_type),
     narrative_directive: data.narrative_directive ?? "",
     combat: data.combat ?? null,
@@ -3200,7 +3219,7 @@ function novelFromJSON(data: any): NovelState {
     action_patterns_enabled: data.action_patterns_enabled ?? false,
     session_zero_completed: data.session_zero_completed ?? false,
     characters_present: data.characters_present ?? false,
-    characters_present_ids: data.characters_present_ids ?? [],
+    characters_present_ids: data.characters_present_ids ?? null,
     social_cast: data.social_cast ?? { strategy: "natural", order: [], muted: [], spoken: [], selected: null },
     adventure_set: data.adventure_set ?? false,
     pending_workflow: data.pending_workflow ?? null,

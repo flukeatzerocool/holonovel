@@ -29,6 +29,7 @@ import {
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
+import { presentEntityIds, isPresent, presentIdsForLedger as presentIdsForLedgerDerivation, sessionsSince, loreContradictionWarning } from "./core/scene-ledger.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
 import { hazardRoll as hazardDraw, parseRoomHazard } from "./core/hazard.js";
@@ -895,8 +896,7 @@ function loreVisible(entry: LoreEntry, badge: Badge): boolean {
 function lorePresenceSatisfied(novel: NovelState, entry: LoreEntry, badge: Badge): boolean {
   if (badge === "game_master" || badge === "none") return true;
   if (entry.visibility === "shared") return true;
-  const present = new Set(novel.characters_present_ids ?? []);
-  return (entry.known_by ?? []).some((id) => present.has(id));
+  return (entry.known_by ?? []).some((id) => isPresent(novel, id));
 }
 
 // REQ-083a/REQ-155a/REQ-328a — activation for the briefing lore section:
@@ -969,7 +969,7 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
     return section;
   }
   const activeId = entity.id;
-  const present = (novel.characters_present_ids ?? []).includes(activeId);
+  const present = isPresent(novel, activeId);
 
   const lines: string[] = [];
   // Revealed secrets (REQ-234/286).
@@ -2674,7 +2674,7 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
     return `\n\n## Subjective Memory\n${assembled.lines.join("\n")}`;
   }
 
-  const present = new Set<string>(novel.characters_present_ids ?? []);
+  const present = new Set<string>(presentEntityIds(novel) ?? novel.entities.keys());
   const sceneLoc = (novel.scene_location ?? "").toLowerCase();
   if (sceneLoc) {
     for (const npc of novel.npcs.values()) {
@@ -4508,6 +4508,140 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
   return stats;
 }
 
+// REQ-156 — one description property with one reader and one writer.
+// `npc.description` and `npc.personality.description` are the same property; the
+// reader prefers the personality copy (written by the newest path) and the
+// writer keeps both synchronized so Novels saved before this build stay coherent.
+function npcDescription(npc: NpcState): string | undefined {
+  const value = npc.personality?.description ?? npc.description;
+  return value === "" ? undefined : value;
+}
+
+function setNpcDescription(npc: NpcState, value: string): void {
+  npc.description = value;
+  npc.personality = { ...(npc.personality ?? {}), description: value };
+}
+
+// REQ-075c/d — NPC depth metadata maintenance. One appearance per NPC per
+// scene: the scene description is the dedup key, so a scene-set that places the
+// NPC and a later briefing render of the same scene count once.
+function recordNpcAppearance(novel: NovelState, npc: NpcState): boolean {
+  const sceneKey = (novel.scene_description ?? "").trim().slice(0, 120) || "(no scene)";
+  const scenes = npc.appearance_scenes ?? (npc.appearance_scenes = []);
+  if (scenes.includes(sceneKey)) return false;
+  scenes.push(sceneKey);
+  if (scenes.length > 50) scenes.shift();
+  const now = new Date().toISOString();
+  npc.appearance_count = (npc.appearance_count ?? 0) + 1;
+  npc.first_seen = npc.first_seen ?? now;
+  npc.last_seen = now;
+  const sessionId = novel.active_session_id ?? `session-${novel.metadata.session_count || 1}`;
+  const sessions = npc.appearance_sessions ?? (npc.appearance_sessions = []);
+  if (!sessions.includes(sessionId)) sessions.push(sessionId);
+  if (sessions.length > 50) sessions.shift();
+  return true;
+}
+
+// REQ-075c/d — the depth signal for one NPC. Under 3 appearances the NPC shows
+// name and description only; 3+ carries [recurring] with the count, 10+
+// [campaign], and 5+ sessions unseen [distant]. With no session data the
+// [distant] marker is suppressed rather than guessed (REQ-173b's rule).
+function npcDepthMarker(novel: NovelState, npc: NpcState): string {
+  const count = npc.appearance_count ?? 0;
+  const sessions = (npc.appearance_sessions ?? []).length;
+  const gap = sessionsSince(novel, npc.last_seen);
+  if (gap !== null && gap >= 5) return " [distant]";
+  if (count >= 10) return ` [campaign] — ${count} appearances across ${sessions} session${sessions === 1 ? "" : "s"}`;
+  if (count >= 3) return ` [recurring] — ${count} appearances across ${sessions} session${sessions === 1 ? "" : "s"}`;
+  return "";
+}
+
+// REQ-252a — the declared interval's magnitude for proportional countdown
+// advancement. Digits win; number words cover the prose form the REQ's own
+// acceptance criterion uses ("three days of travel"). Keyword-based and
+// deterministic, never an NLP pass.
+const INTERVAL_WORDS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, fortnight: 14, twenty: 20,
+};
+function intervalMagnitude(interval: string): number {
+  const digits = interval.match(/\d+/);
+  if (digits) {
+    const n = Number(digits[0]);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+  const lower = interval.toLowerCase();
+  const week = lower.match(/(\w+)\s+weeks?/);
+  if (week) {
+    const n = INTERVAL_WORDS[week[1]] ?? (Number(week[1]) || 1);
+    return n * 7;
+  }
+  for (const [word, value] of Object.entries(INTERVAL_WORDS)) {
+    if (new RegExp(`\\b${word}\\b`).test(lower)) return value;
+  }
+  return 1;
+}
+
+// REQ-176/REQ-307 — entity removal is one path: it snapshots, deletes, clears
+// the active field when it named the removed entity, drops the entity from the
+// presence list, and records the audit entry. Removing the LAST entity clears
+// the presence field to null rather than an empty array, because REQ-307a makes
+// an absent list mean "all present" while `[]` means "none present" — an empty
+// array would leave a later import invisible.
+function removeEntity(novel: NovelState, entityId: string): NovelEntity | null {
+  const entity = novel.entities.get(entityId);
+  if (!entity) return null;
+  novelSnapshot();
+  novel.entities.delete(entityId);
+  if (novel.active_entity_id === entityId) novel.active_entity_id = null;
+  if (novel.entities.size === 0) novel.characters_present_ids = null;
+  else if (Array.isArray(novel.characters_present_ids)) {
+    novel.characters_present_ids = novel.characters_present_ids.filter((id) => id !== entityId);
+  }
+  try {
+    state.recordMutation(novel, "remove_character", "character");
+  } catch {
+    // REQ-449 — a mutation-ceiling refusal leaves the removal unrecorded; the
+    // caller still reports success because the state change already committed.
+  }
+  state.saveNovel(novel);
+  audit("remove_character", { entity_id: entityId, name: entity.name });
+  return entity;
+}
+
+// REQ-074b/REQ-178a — roster listing fields derive from the ruleset-defined
+// stats bag; RosterEntity extends NovelEntity and stores no race/class/level of
+// its own, so each field is omitted when the ruleset defines none.
+function rosterListingFields(entry: { stats?: Record<string, any> }): Record<string, string | number> {
+  const stats = entry.stats ?? {};
+  const out: Record<string, string | number> = {};
+  const race = stats.species ?? stats.race;
+  if (typeof race === "string" && race) out.race = race;
+  const klass = stats.class ?? stats.class_name;
+  if (typeof klass === "string" && klass) out.class = klass;
+  else if (Array.isArray(stats.classes) && stats.classes.length > 0) {
+    const label = stats.classes.map((c: any) => (typeof c === "string" ? c : c?.name)).filter(Boolean).join(" / ");
+    if (label) out.class = label;
+  }
+  const level = stats.level;
+  if (typeof level === "number") out.level = level;
+  return out;
+}
+
+
+// REQ-074b — party HP is a derived read: NovelEntity stores no hp field, so the
+// value comes from the ruleset-derived stats bag and is omitted entirely when
+// the ruleset defines none.
+function entityHp(entity: NovelEntity): { hp?: number; max_hp?: number } {
+  const stats = (entity.stats ?? {}) as Record<string, any>;
+  const hp = [stats.hp, stats.current_hp, stats.hit_points].find((v) => typeof v === "number");
+  const maxHp = [stats.max_hp, stats.hp_max, stats.max_hit_points].find((v) => typeof v === "number");
+  const out: { hp?: number; max_hp?: number } = {};
+  if (typeof hp === "number") out.hp = hp;
+  if (typeof maxHp === "number") out.max_hp = maxHp;
+  return out;
+}
+
 // Character (REQ-069, REQ-104, REQ-120, REQ-124, REQ-126, REQ-127, REQ-129, REQ-151, REQ-152, REQ-165, REQ-166, REQ-176, REQ-177, REQ-178, REQ-181, REQ-219, REQ-399) —
 // consolidated create/stage/import/sheet/set_active/personality/voice/signal/
 // remove/roster_remove/roster_list surface.
@@ -4670,11 +4804,21 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       if (rosterEntity.ruleset && novel.ruleset && rosterEntity.ruleset !== novel.ruleset) {
         return err("STATE_CONFLICT", `Roster character '${rosterEntity.name}' is bound to ruleset '${rosterEntity.ruleset}', but the active Novel uses '${novel.ruleset}'. Corrective action: import it into a '${rosterEntity.ruleset}' Novel, or create the character under '${novel.ruleset}'.`);
       }
+      // REQ-074c — a roster character already imported into this Novel is a
+      // per-Novel STATE_CONFLICT. Matched by roster source id, with an
+      // entity-id fallback so Novels saved before the field existed still
+      // detect their own duplicates.
+      const existingCopy = [...novel.entities.values()].find(
+        (e) => e.roster_source_id === args.roster_id || (e.roster_source_id === undefined && e.id === args.roster_id),
+      );
+      if (existingCopy) {
+        return err("STATE_CONFLICT", `Entity already imported as '${existingCopy.name}' (${existingCopy.id}). Corrective action: edit the existing entity, or remove it first (manage_character, action: remove).`);
+      }
       // REQ-129b2 — entity cardinality.
       const importRefusal = capGuard("entities", novel.entities.size);
       if (importRefusal) return importRefusal;
       novelSnapshot();
-      state.addEntity(novel, { ...rosterEntity, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
+      state.addEntity(novel, { ...rosterEntity, roster_source_id: args.roster_id, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
       state.saveNovel(novel);
       return ok(`Character '${rosterEntity.name}' imported.`);
     }
@@ -4787,7 +4931,7 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       if (args.spells !== undefined) target.spells = args.spells;
       if (args.description !== undefined || args.voice !== undefined || args.background !== undefined || args.goals !== undefined) {
         if (!target.personality) target.personality = {};
-        if (args.description !== undefined) { target.personality.description = args.description; if (novel.npcs.has(args.entity_id)) target.description = args.description; }
+        if (args.description !== undefined) { target.personality.description = args.description; if (novel.npcs.has(args.entity_id)) setNpcDescription(target as NpcState, args.description); }
         if (args.voice !== undefined) target.personality.voice = args.voice;
         if (args.background !== undefined) target.personality.background = args.background;
         if (args.goals !== undefined) target.personality.goals = args.goals;
@@ -4800,22 +4944,26 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
     case "remove": {
       requireGM();
       const novel = requireNovel();
-      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
-      novelSnapshot();
-      novel.entities.delete(args.entity_id);
-      if (novel.active_entity_id === args.entity_id) novel.active_entity_id = null;
-      state.saveNovel(novel);
-      return ok(`Entity '${args.entity_id}' removed.`);
+      const removed = removeEntity(novel, args.entity_id);
+      if (!removed) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
+      return ok(`Entity '${removed.name}' removed.`);
     }
     case "roster_remove": {
       requireGM();
-      if (!state.roster.has(args.roster_id)) return err("NOT_FOUND", `Roster character '${args.roster_id}' not found.`);
+      if (!state.roster.has(args.roster_id)) {
+        const valid = [...state.roster.keys()];
+        return err("NOT_FOUND", `Roster character '${args.roster_id}' not found. Valid roster IDs: ${valid.length > 0 ? valid.join(", ") : "(none)"}.`);
+      }
+      const name = state.roster.get(args.roster_id)?.name ?? args.roster_id;
       state.roster.delete(args.roster_id);
       state.saveRoster();
+      // REQ-040a — roster mutations are audited. With no active Novel the audit
+      // helper is a no-op, which is expected for a Novel-independent roster.
+      audit("roster_remove", { roster_id: args.roster_id, name });
       return ok(`Roster character '${args.roster_id}' removed.`);
     }
     case "roster_list": {
-      const chars = [...state.roster.entries()].map(([id, e]) => ({ id, name: e.name }));
+      const chars = [...state.roster.entries()].map(([id, e]) => ({ id, name: e.name, ...rosterListingFields(e) }));
       if (chars.length === 0) return ok("Roster is empty — no characters staged yet.");
       return raw(JSON.stringify(chars, null, 2));
     }
@@ -4839,6 +4987,16 @@ function recordNpcInteraction(novel: NovelState, npcId: string, entityName: stri
   m.witnessed_events.push({ event: summary, at: now });
   if (m.witnessed_events.length > 100) m.witnessed_events.shift();
   const contact = m.contacts[entityName] ?? { encounters: 0, first_contact: now, last_contact: now, last_disposition: npc.disposition ?? "neutral", prior_dispositions: [] };
+  // REQ-311c — party knowledge: apparent capabilities and relationship status
+  // per player entity, recorded at contact time.
+  const actor = [...novel.entities.values()].find((e) => e.name === entityName);
+  if (actor) {
+    const capabilities = new Set<string>([
+      ...Object.keys(actor.stats ?? {}).filter((k) => !k.startsWith("_")),
+      ...(actor.conditions ?? []),
+    ]);
+    (contact as any).apparent_capabilities = [...capabilities].slice(0, 12);
+  }
   contact.encounters++;
   contact.last_contact = now;
   if (dispositionShift) {
@@ -4851,6 +5009,8 @@ function recordNpcInteraction(novel: NovelState, npcId: string, entityName: stri
       if (m.stress_markers.length > 20) m.stress_markers.shift();
     }
   }
+  // REQ-311c — relationship status after this interaction's shift, if any.
+  (contact as any).relationship = npc.disposition ?? "neutral";
   m.contacts[entityName] = contact;
   m.last_3_interactions.push({ entity: entityName, summary, at: now });
   if (m.last_3_interactions.length > 3) m.last_3_interactions.shift();
@@ -4886,6 +5046,14 @@ function composeNpcMemorySection(novel: NovelState, npc: any): string {
       for (const i of m.last_3_interactions.slice(-3)) lines.push(`- ${i.summary} (with ${i.entity})`);
     } else if (contactCount === 0) {
       lines.push(`No prior contact — ${npc.name} has not met the party.`);
+    }
+    // REQ-311c — party knowledge: what this NPC knows about each player entity
+    // it has met (relationship status and observed capabilities).
+    const known = Object.entries(m.contacts ?? {}).slice(0, 4) as Array<[string, any]>;
+    for (const [entityName, contact] of known) {
+      const caps = contact.apparent_capabilities ?? [];
+      const relationship = contact.relationship ?? contact.last_disposition ?? "neutral";
+      lines.push(`- ${entityName}: ${relationship}, ${contact.encounters} contact(s)${caps.length > 0 ? `; observed: ${caps.slice(0, 6).join(", ")}` : ""}`);
     }
     if ((m.goals ?? []).length > 0) lines.push(`Goals: ${m.goals.join("; ")}`);
   } else {
@@ -5113,7 +5281,7 @@ function advanceWorldTriggeredCountdowns(novel: NovelState, event: string): void
 // the same set.
 function movePartyTo(novel: NovelState, active: NovelEntity | undefined, roomName: string): Map<string, any> {
   const movers = new Map<string, any>();
-  for (const id of novel.characters_present_ids ?? []) {
+  for (const id of presentEntityIds(novel) ?? novel.entities.keys()) {
     const m = novel.entities.get(id) ?? novel.npcs.get(id);
     if (m) movers.set(id, m);
   }
@@ -6664,7 +6832,10 @@ server.registerTool("manage_combat", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
+      const beforeRound = novel.combat?.round ?? 0;
       const combat = state.advanceCombat(novel);
+      // REQ-076b3 — a full combat round wrapped: advance the scene pacing tick.
+      if ((combat.round ?? 0) > beforeRound) novel.scene_tick += 1;
       const currentName = combat.turn_order[combat.current_turn];
       if (novel.npcs.has(currentName)) {
         const active = state.getActiveEntity();
@@ -6888,7 +7059,7 @@ function normalizePlace(value: string): string {
 // REQ-340a — presence snapshot for the scene ledger. Callers supply parser
 // movers explicitly; otherwise the configured party-presence list is recorded.
 function presentIdsForLedger(novel: NovelState, extra: string[] = []): string[] {
-  return [...new Set([...(novel.characters_present_ids ?? []), ...extra])];
+  return presentIdsForLedgerDerivation(novel, extra);
 }
 
 // REQ-340a — entities that appear in no scene-ledger entry at or after the
@@ -6912,7 +7083,7 @@ function absentInWindow(novel: NovelState, startIndex: number, endIndex: number)
 // REQ-340 — when an on_scene_transition countdown fires while the active entity
 // is absent from all scenes since its creation, produce a [discovered] entry.
 function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any; scope?: string; created_scene_index?: number }): void {
-  const presentIds = new Set(novel.characters_present_ids ?? []);
+  const presentIds = new Set(presentEntityIds(novel) ?? novel.entities.keys());
   const activeId = novel.active_entity_id;
   const absent = activeId && !presentIds.has(activeId);
   // REQ-340a — absent from every scene since the countdown's creation, not
@@ -6971,7 +7142,7 @@ function resolvePendingDiscoveries(novel: NovelState): void {
   const activeRoom = activeId ? novel.entities.get(activeId)?.current_room : null;
   const places = new Set([novel.scene_location, activeRoom].filter((p): p is string => !!p).map(normalizePlace));
   if (places.size === 0) return;
-  const present = new Set(novel.characters_present_ids ?? []);
+  const present = new Set(presentEntityIds(novel) ?? novel.entities.keys());
   if (present.size === 0 && activeId) present.add(activeId);
   for (const entry of pending) {
     if (!entry.discovery_scope || !places.has(normalizePlace(entry.discovery_scope))) continue;
@@ -7076,7 +7247,7 @@ function resolvedSceneTypes(novel: NovelState): string[] {
 const MANAGE_SCENE_SCHEMA = {
     action: z.enum(["set", "directive", "presence", "autonomy", "choices", "oracle"]).describe("set, directive, presence, autonomy, choices, or oracle."),
     description: z.string().optional().describe("Scene description (set)."),
-    location: z.string().optional().describe("Scene location (set)."),
+    location: z.string().optional().describe("Scene location (set; presence records it with the declaration)."),
     time_of_day: z.string().optional().describe("Time of day (set)."),
     atmosphere: z.string().optional().describe("Atmosphere (set)."),
     scene_type: z.union([z.string(), z.array(z.string())]).optional().describe("Scene-type tag or array (set). Valid values are the default catalog (social, exploration, neutral, combat) plus any ruleset-extracted scene types."),
@@ -7089,7 +7260,7 @@ const MANAGE_SCENE_SCHEMA = {
       skip_countdowns: z.boolean().optional().describe("Do not advance countdowns during the skip."),
     }).optional().describe("Narrative fast-forward (set)."),
     directive: z.string().optional().describe("Narrative directive (directive)."),
-    entity_ids: z.array(z.string()).optional().describe("Entities present (presence)."),
+    entity_ids: z.array(z.string()).optional().describe("Entities present (presence; omit to declare all present, [] to declare none)."),
     strategy: z.enum(["manual", "natural", "list", "pooled"]).optional().describe("Speaker-selection strategy (cast)."),
     select: z.string().optional().describe("NPC selected as the manual speaker (cast/next_speaker)."),
     mute: z.string().optional().describe("NPC muted from speaker selection (cast)."),
@@ -7144,6 +7315,13 @@ server.registerTool("manage_scene", {
       }
       novel.scene_description = effectiveDescription;
       if (location !== undefined) novel.scene_location = location;
+      // REQ-075c/d — an NPC whose location matches the new scene has appeared
+      // in it; the appearance is deduped by scene description.
+      for (const [, npc] of novel.npcs) {
+        if (npc.location && novel.scene_location && npc.location.toLowerCase() === novel.scene_location.toLowerCase()) {
+          recordNpcAppearance(novel, npc);
+        }
+      }
       if (time_of_day !== undefined) novel.scene_time_of_day = time_of_day;
       if (atmosphere !== undefined) novel.scene_atmosphere = atmosphere;
       if (scene_type !== undefined) {
@@ -7170,19 +7348,29 @@ server.registerTool("manage_scene", {
           novel.adventure_scene_waypoint = adventure_scene;
         }
       }
+      let fastForwardSummary: string | null = null;
       if (fast_forward) {
-        const ff: any = { interval: fast_forward.interval, npc_changes: [], countdown_adjustments: [] };
+        const ff: any = { interval: fast_forward.interval, npc_changes: [], countdown_adjustments: [], lore_triggers: [] };
+        const intervalSpan = intervalMagnitude(fast_forward.interval);
         if (!fast_forward.skip_countdowns) {
           for (const [name, cd] of [...novel.countdowns.entries()]) {
             // REQ-233b2 — a faction clock is transition-driven, not skip-driven;
             // its mirror is never decremented or deleted here.
             if (cd.clock_type === "faction") continue;
-            if (cd.type === "narrative") {
-              const decrement = Math.max(1, Math.round(Number((fast_forward.interval.match(/\d+/) ?? ["1"])[0]) || 1));
-              cd.ticks -= decrement;
-              ff.countdown_adjustments.push({ name, ticks: cd.ticks });
-              if (cd.ticks <= 0) { novel.countdowns.delete(name); ff.countdown_adjustments.push({ name, fired: true }); }
-            }
+            // REQ-252a — narrative countdowns advance by the declared interval
+            // and round countdowns advance proportionally to it.
+            const decrement = cd.type === "round" ? Math.min(intervalSpan, cd.ticks) : intervalSpan;
+            cd.ticks -= decrement;
+            ff.countdown_adjustments.push({ name, type: cd.type, ticks: cd.ticks });
+            if (cd.ticks <= 0) { novel.countdowns.delete(name); ff.countdown_adjustments.push({ name, fired: true }); }
+          }
+        }
+        // REQ-252a — location lore entries whose triggers match the new scene.
+        const sceneLower = effectiveDescription.toLowerCase();
+        for (const [key, entry] of novel.lore) {
+          if (!entry.enabled) continue;
+          if ((entry.triggers ?? []).some((trigger) => trigger.length > 1 && sceneLower.includes(trigger.toLowerCase()))) {
+            ff.lore_triggers.push(key);
           }
         }
         for (const change of fast_forward.changes ?? []) {
@@ -7194,6 +7382,20 @@ server.registerTool("manage_scene", {
             ff.npc_changes.push({ npc_id: change.npc_id, location: change.location, disposition: change.disposition });
           }
         }
+        // REQ-252a/b — the bridging summary says what transpired during the
+        // skipped interval: countdown deltas, NPC moves, and lore triggers.
+        const bridged: string[] = [`During ${fast_forward.interval}:`];
+        if (ff.countdown_adjustments.length > 0) {
+          bridged.push(`countdowns — ${ff.countdown_adjustments.map((c: any) => `${c.name} ${c.fired ? "fired" : `→ ${c.ticks}`}`).join(", ")}`);
+        } else {
+          bridged.push("countdowns — unchanged");
+        }
+        bridged.push(ff.npc_changes.length > 0
+          ? `NPCs — ${ff.npc_changes.map((c: any) => `${c.npc_id}${c.location ? ` moved to ${c.location}` : ""}${c.disposition ? ` (${c.disposition})` : ""}`).join(", ")}`
+          : "NPCs — unchanged");
+        bridged.push(ff.lore_triggers.length > 0 ? `lore — ${ff.lore_triggers.join(", ")}` : "lore — no new triggers");
+        ff.summary = bridged.join("; ");
+        fastForwardSummary = ff.summary;
         audit("fast-forward", { interval: fast_forward.interval, ...ff }, "[fast-forward]");
       }
       if (beat !== undefined) { recordBeatTransition(novel, beat, firstSentence(effectiveDescription)); novel.scene_beat = beat; }
@@ -7213,7 +7415,7 @@ server.registerTool("manage_scene", {
           // REQ-307/REQ-074 — place the whole present party, not only the
           // active entity, so a scene-location set co-locates the party (the
           // parser `go` path moves the same set).
-          for (const id of novel.characters_present_ids ?? []) {
+          for (const id of presentEntityIds(novel) ?? novel.entities.keys()) {
             const m = novel.entities.get(id) ?? novel.npcs.get(id);
             if (m && "current_room" in m) (m as any).current_room = matchRoom[1].name;
           }
@@ -7224,6 +7426,9 @@ server.registerTool("manage_scene", {
       // REQ-233a1 — capture the closing scene's markers before the clear so the
       // reactivity cycle can enqueue their pending changes.
       const transitionMarkers = isTransition ? [...(relationshipMarkers.get(novel.slug) ?? [])] : [];
+      // REQ-076b3 — the pacing tick resets on every scene transition, including
+      // a waypoint-only change.
+      if (isTransition) novel.scene_tick = 0;
       if (isTransition) {
         relationshipMarkers.delete(novel.slug);
         relationshipLorePrompts.delete(novel.slug);
@@ -7261,8 +7466,13 @@ server.registerTool("manage_scene", {
       audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
       emitEvent("scene_transition", { location: location ?? null });
       const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
+      // REQ-076b5/b6/b7 — advisory lore/disposition contradiction check. It
+      // never blocks the scene change; it surfaces the conflict for the GM.
+      const contradiction = loreContradictionWarning(novel, location ?? novel.scene_location, effectiveDescription);
       const sceneSummary = description === undefined && beat !== undefined ? `beat ${beat}` : effectiveDescription || (location ? `location ${location}` : "state updated");
-      return boundaryWarn ? warn(boundaryWarn) : ok(`Scene set: ${sceneSummary}`);
+      const ffSuffix = fastForwardSummary ? `\n\n[fast-forward] ${fastForwardSummary}` : "";
+      if (contradiction) return ok(`Scene set: ${sceneSummary}${ffSuffix}\n\n[WARNING] ${contradiction}`);
+      return boundaryWarn ? warn(`${boundaryWarn}${ffSuffix}`) : ok(`Scene set: ${sceneSummary}${ffSuffix}`);
     }
     case "directive": {
       requireGM();
@@ -7279,9 +7489,28 @@ server.registerTool("manage_scene", {
     case "presence": {
       requireGM();
       const novel = requireNovel();
-      novel.characters_present_ids = args.entity_ids;
+      const ids = args.entity_ids;
+      if (!Array.isArray(ids)) {
+        novel.characters_present_ids = null;
+        state.saveNovel(novel);
+        audit("set_presence", { entity_ids: null });
+        return ok("Party presence declared: all entities present.");
+      }
+      const unknown = ids.filter((id) => !novel.entities.has(id));
+      if (unknown.length > 0) {
+        return err("NOT_FOUND", `Unknown entity ID(s): ${unknown.join(", ")}. Valid entity IDs: ${[...novel.entities.keys()].join(", ") || "(none)"}.`);
+      }
+      novel.characters_present_ids = ids;
+      if (args.location !== undefined) {
+        novel.scene_location = args.location;
+        for (const id of ids) {
+          const entity = novel.entities.get(id);
+          if (entity) entity.current_room = args.location;
+        }
+      }
       state.saveNovel(novel);
-      return ok(`Party presence set: ${args.entity_ids.join(", ") || "(none)"}.`);
+      audit("set_presence", { entity_ids: ids, location: args.location ?? null });
+      return ok(`Party presence set: ${ids.join(", ") || "(none)"}${args.location ? ` at ${args.location}` : ""}.`);
     }
     case "autonomy": {
       requireGM();
@@ -7455,7 +7684,8 @@ server.registerTool("manage_npc", {
       novelSnapshot();
       const { name, description, disposition, location, goals, ruleset_reference } = args;
       const id = `npc_${Date.now().toString(36)}`;
-      const npc: any = { id, name, description, disposition, location, conditions: [], condition_rounds: {} };
+      const npc: any = { id, name, disposition, location, conditions: [], condition_rounds: {} };
+      if (description !== undefined) setNpcDescription(npc, description);
       if (args.persona !== undefined) npc.persona = args.persona; // REQ-077a
       if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
       // REQ-119 — NPC stat block reference.
@@ -7503,7 +7733,14 @@ server.registerTool("manage_npc", {
       const npc = novel.npcs.get(npc_id);
       if (!npc) return err("NOT_FOUND", `NPC '${npc_id}' not found.`);
       if (name !== undefined) npc.name = name;
-      if (description !== undefined) npc.description = description;
+      if (description !== undefined) setNpcDescription(npc, description);
+      if (disposition !== undefined && disposition !== npc.disposition) {
+        // REQ-311d — an explicit disposition change is an interaction outcome:
+        // record it, and couple significant flips into campaign memory.
+        const actor = state.getActiveEntity();
+        recordNpcInteraction(novel, npc.id, actor?.name ?? "the party", `disposition set to ${disposition}`, disposition === "hostile" ? "hostile" : undefined);
+        if (disposition === "hostile") recordCampaignMemory(novel, "npcs", `${npc.name} turned hostile`);
+      }
       if (disposition !== undefined) npc.disposition = disposition;
       if (location !== undefined) {
         npc.location = location;
@@ -7725,7 +7962,7 @@ server.registerTool("manage_staging", {
   title: "Scene Staging Management",
   description: "Manage scene presence, autonomy, and social-cast staging. presence replaces the present set; cast sets the multi-NPC speaker strategy, the mute/unmute pool, and the GM speaker order that next_speaker follows under list; next_speaker runs manual, forced, or pooled selection, where force overrides select; autonomy changes apply to the current scene only. Presence, autonomy, and cast state persist to the Novel and are audited. Use when: setting who is present, adjusting scene autonomy, choosing a speaker strategy, or selecting the next speaker. Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. Revert the most recent mutation with manage_history (action: undo).",
   inputSchema: {
-    ...pickParams(MANAGE_SCENE_SCHEMA, ["action", "entity_ids", "strategy", "select", "mute", "unmute", "force", "order", "after_user", "level", "confirmation", "safety", "creativity"]),
+    ...pickParams(MANAGE_SCENE_SCHEMA, ["action", "entity_ids", "location", "strategy", "select", "mute", "unmute", "force", "order", "after_user", "level", "confirmation", "safety", "creativity"]),
     action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy, cast, or next_speaker."),
   },
 }, async (args: any, extra: any) => {
@@ -10904,6 +11141,17 @@ Options: yes, cancel`);
       let recap = `narrative_orientation: ${narrative_orientation}`;
       recap += `\nnarration_contract: ${NARRATION_CONTRACT_SHORT}`;
       recap += `\nconnections: ${novel.connection_counter ?? 0}`;
+      // REQ-075e — the NPC relationship heatmap: appearances, sessions, and
+      // distinct scenes for every NPC seen more than once. GM-only, because
+      // appearance counts reveal off-screen activity.
+      const heatmapBadge = getBadge();
+      if (heatmapBadge === "game_master" || heatmapBadge === "none") {
+        const heat = [...novel.npcs.values()]
+          .filter((npc) => (npc.appearance_count ?? 0) > 1)
+          .sort((a, b) => (b.appearance_count ?? 0) - (a.appearance_count ?? 0))
+          .map((npc) => `- ${npc.name}: ${npc.appearance_count} appearances across ${(npc.appearance_sessions ?? []).length} session(s), ${(npc.appearance_scenes ?? []).length} scene(s)`);
+        if (heat.length > 0) recap += `\n\nnpc_heatmap:\n${heat.join("\n")}`;
+      }
       // REQ-246a — story journal entries surface in recap (most recent 10).
       const journalBadge = getBadge();
       if ((journalBadge === "game_master" || journalBadge === "none") && novel.story_journal.length > 0) {
@@ -14015,9 +14263,21 @@ server.registerResource("scene-history", "scene://history", { title: "Scene Hist
   if (!novel) return { contents: [{ uri: "scene://history", text: "[]", mimeType: "application/json" }] };
   // REQ-032 — attendance snapshots are GM-only; strip them for other badges.
   const badge = getBadge();
-  const history = badge === "game_master" || badge === "none"
+  const filtered = badge === "game_master" || badge === "none"
     ? novel.scene_history
     : novel.scene_history.map(({ characters_present_ids: _presence, ...entry }) => entry);
+  // REQ-076b2 — a configurable maximum of the most recent entries, with the
+  // suppressed count and a [truncated] marker. The cap applies at read time
+  // only; the audit log remains the unbounded record.
+  const cap = (() => {
+    const raw = Number(process.env.TTRPG_SCENE_HISTORY_MAX ?? 50);
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 50;
+  })();
+  let history: any[] = filtered;
+  if (filtered.length > cap) {
+    const suppressed = filtered.length - cap;
+    history = [{ suppressed, truncated: true, marker: "[truncated]" }, ...filtered.slice(-cap)];
+  }
   return { contents: [{ uri: "scene://history", text: JSON.stringify(history), mimeType: "application/json" }] };
 });
 
@@ -14109,7 +14369,10 @@ server.registerResource("npc-personality", new ResourceTemplate("npc://{id}/pers
   const id = uri.href.split("/")[2] ?? "";
   const npc = novel.npcs.get(id);
   if (!npc) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: JSON.stringify(npc.personality ?? {}), mimeType: "application/json" }] };
+  const personality: Record<string, unknown> = { ...(npc.personality ?? {}) };
+  const description = npcDescription(npc);
+  if (description !== undefined) personality.description = description;
+  return { contents: [{ uri: uri.href, text: JSON.stringify(personality), mimeType: "application/json" }] };
 });
 
 server.registerResource("npc-voice", new ResourceTemplate("npc://{id}/voice_examples", { list: undefined }), { title: "NPC Voice Examples" }, async (uri) => {
@@ -14368,8 +14631,9 @@ server.registerResource("party-current", "party://current", { title: "Current Pa
     name: e.name,
     active: e.id === novel.active_entity_id,
     conditions: e.conditions ?? [],
-    present: novel.characters_present_ids ? novel.characters_present_ids.includes(e.id) : true,
+    present: isPresent(novel, e.id),
     last_location: e.current_room ?? null,
+    ...entityHp(e),
   }));
   return { contents: [{ uri: "party://current", text: JSON.stringify(party, null, 2), mimeType: "application/json" }] };
 });
@@ -14552,6 +14816,37 @@ server.registerResource("roster-single", new ResourceTemplate("roster://{id}", {
   if (!entry) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   return { contents: [{ uri: uri.href, text: JSON.stringify(entry, null, 2), mimeType: "application/json" }] };
 });
+
+// Roster type groupings (REQ-178b). These are concrete resources, not templates,
+// so they resolve ahead of the `roster://{id}` template. `class` and `race` are
+// reserved tokens: a roster entry whose literal ID is one of them stays
+// reachable through `roster://current` and `manage_character (action:
+// roster_list)`. Groups derive from the ruleset-defined stats (REQ-178a).
+function rosterTypeGroups(type: "class" | "race"): string {
+  const groups = new Map<string, Array<{ id: string; name: string }>>();
+  for (const [id, entry] of state.roster) {
+    const fields = rosterListingFields(entry);
+    const value = type === "class" ? fields.class : fields.race;
+    const key = typeof value === "string" ? value : "(undefined)";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push({ id, name: entry.name });
+  }
+  return JSON.stringify({
+    type,
+    reserved_token: true,
+    groups: [...groups.entries()].map(([value, entries]) => ({ value, entries })),
+  }, null, 2);
+}
+
+server.registerResource("roster-class", "roster://class", {
+  title: "Roster Characters by Class",
+  description: "Roster entries grouped by ruleset class. 'class' and 'race' are reserved tokens, so they shadow any roster ID of the same name; use roster://current for the full listing.",
+}, async () => ({ contents: [{ uri: "roster://class", text: rosterTypeGroups("class"), mimeType: "application/json" }] }));
+
+server.registerResource("roster-race", "roster://race", {
+  title: "Roster Characters by Race",
+  description: "Roster entries grouped by ruleset species/race. 'class' and 'race' are reserved tokens, so they shadow any roster ID of the same name; use roster://current for the full listing.",
+}, async () => ({ contents: [{ uri: "roster://race", text: rosterTypeGroups("race"), mimeType: "application/json" }] }));
 
 // Constraint overrides (REQ-325)
 server.registerResource("constraints-active", "constraints://active", { title: "Constraint Overrides" }, async () => {
@@ -15879,6 +16174,47 @@ ${orientation}`;
     }
   }
 
+  // REQ-074b/REQ-307b — party listing: every imported entity with its derived
+  // HP, conditions, and presence marker. A non-present entity shows
+  // `[not present]` with its last known location instead of its current one.
+  if (novel.entities.size > 0) {
+    const ids = presentEntityIds(novel);
+    const lines = [...novel.entities.values()].map((e) => {
+      const present = ids === null || ids.has(e.id);
+      const hp = entityHp(e);
+      const bits: string[] = [e.id === novel.active_entity_id ? `**${e.name}** (active)` : e.name];
+      if (hp.hp !== undefined) bits.push(hp.max_hp !== undefined ? `HP ${hp.hp}/${hp.max_hp}` : `HP ${hp.hp}`);
+      if ((e.conditions ?? []).length > 0) bits.push(e.conditions.join(", "));
+      if (!present) bits.push(`[not present]${e.current_room ? ` (last seen: ${e.current_room})` : ""}`);
+      else if (e.current_room) bits.push(`at ${e.current_room}`);
+      return `- ${bits.join(" — ")}`;
+    });
+    briefing += `\n\n### Party\n${lines.join("\n")}`;
+  }
+
+  // REQ-075c/d — the NPC depth listing: each NPC with its disposition, location
+  // and depth marker. Appearance metadata is maintained here when the briefing
+  // is a mutating render, and by the scene-set path when a scene places an NPC.
+  if ((badge === "game_master" || badge === "observer") && novel.npcs.size > 0) {
+    const sceneLoc = novel.scene_location?.toLowerCase();
+    const lines: string[] = [];
+    for (const [, npc] of novel.npcs) {
+      // REQ-075c — an NPC present in the current scene has appeared; an NPC the
+      // listing merely carries does not refresh last_seen, or [distant] could
+      // never fire for a listed character (REQ-075d).
+      const inScene = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
+      if (opts.mutate && inScene) recordNpcAppearance(novel, npc);
+      const bits: string[] = [npc.name];
+      const facts: string[] = [];
+      if (npc.disposition) facts.push(npc.disposition);
+      if (npc.location) facts.push(`at ${npc.location}`);
+      if (!inScene) facts.push("[not present]");
+      if (facts.length > 0) bits.push(facts.join(", "));
+      lines.push(`- ${bits.join(" — ")}${npcDepthMarker(novel, npc)}`);
+    }
+    briefing += `\n\n### NPCs (depth)\n${lines.join("\n")}`;
+  }
+
   // REQ-310 — campaign memory: decision-critical group after scene state,
   // before entities; prioritized by relevance, capped by config.
   briefing += composeCampaignMemorySection(novel, badge);
@@ -16135,7 +16471,8 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
   } else if (badge === "game_master" || badge === "observer") {
     briefing += `\n\n### GM State
 **World model:** ${novel.world.rooms.size} rooms, ${novel.world.things.size} things
-**NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}${novel.combat?.active ? `\n**Combat active:** Round ${novel.combat.round}` : ""}`;
+**NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}${novel.combat?.active ? `\n**Combat active:** Round ${novel.combat.round}` : ""}
+**Scene tick:** ${novel.scene_tick} (GM only — resets on a scene transition, advances on a full combat round)`;
 
     // REQ-311 — NPC memory: NPCs present in the current scene surface their
     // memory section (emotional state, last interactions, goals) in the entity

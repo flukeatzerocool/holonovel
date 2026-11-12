@@ -529,20 +529,66 @@ async function main() {
   });
 
   // ── Wave 4: §5.6 State/lifecycle + §5.9 ──
-  await test("T216/REQ-176 + T217/REQ-177 + T219/REQ-178: entity/roster removal and listing", async () => {
+  await test("T216/REQ-176 + T217/REQ-177 + T219/REQ-178 + T220/REQ-074c: entity/roster lifecycle", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4a" });
-    await call(p, "manage_character", { action: "create",  name: "R1", stage_to_roster: true });
+    await call(p, "manage_character", { action: "create",  name: "R1", species: "Elf", stage_to_roster: true });
     await call(p, "set_badge", { badge: "game_master" });
     const lst = await call(p, "manage_character", { action: "roster_list" });
-    assertContains(lst, "character_01", "REQ-178 roster listing");
+    assertContains(lst, "character_01", "REQ-178 roster listing id");
+    assertContains(lst, "R1", "REQ-178 roster listing name");
+    assertContains(lst, "\"race\": \"Elf\"", "REQ-178 race derived from stats");
+    assertNotContains(lst, "\"class\"", "REQ-178 class omitted when the ruleset defines none");
+    assertNotContains(lst, "\"level\"", "REQ-178 level omitted when the ruleset defines none");
+    const byRace = await proto(p, "resources/read", { uri: "roster://race" });
+    assertContains(byRace, "Elf", "REQ-178b roster://race groups by race");
+    assertContains(byRace, "character_01", "REQ-178b roster://race lists the entry");
+    const byClass = await proto(p, "resources/read", { uri: "roster://class" });
+    assertContains(byClass, "groups", "REQ-178b roster://class returns the group shape");
     const rm = await call(p, "manage_character", { action: "roster_remove",  roster_id: "character_01" });
     assertContains(rm, "[OK]", "REQ-177 roster removal");
     const rm2 = await call(p, "manage_character", { action: "roster_remove",  roster_id: "character_01" });
     assertContains(rm2, "[NOT_FOUND]", "REQ-177 NOT_FOUND on absent");
+    assertContains(rm2, "character_0", "REQ-177 NOT_FOUND enumerates valid roster IDs");
+
+    // REQ-074c — a second import of the same roster character is a per-Novel
+    // STATE_CONFLICT naming the existing Novel entity.
+    await call(p, "manage_character", { action: "stage",  entity_id: "character_01" });
+    const dup = await call(p, "manage_character", { action: "import",  roster_id: "character_01" });
+    assertContains(dup, "[STATE_CONFLICT]", "REQ-074c duplicate import is a STATE_CONFLICT");
+    assertContains(dup, "Entity already imported as", "REQ-074c hint wording");
+    assertContains(dup, "character_01", "REQ-074c conflict names the existing entity");
+
+    // REQ-176a — removal clears the active field and the presence list, so a
+    // fresh import is present rather than invisible.
     const entRm = await call(p, "manage_character", { action: "remove",  entity_id: "character_01" });
     assertContains(entRm, "[OK]", "REQ-176 entity removal");
+    const reimport = await call(p, "manage_character", { action: "import",  roster_id: "character_01" });
+    assertContains(reimport, "[OK]", "REQ-176 re-import after removal creates a fresh copy");
+    const party = await proto(p, "resources/read", { uri: "party://current" });
+    assertContains(party, "\"present\": true", "REQ-176a presence cleared, not empty");
+    const dup2 = await call(p, "manage_character", { action: "import",  roster_id: "character_01" });
+    assertContains(dup2, "[STATE_CONFLICT]", "REQ-074c duplicate by roster source id");
+    const empty = await call(p, "manage_character", { action: "roster_remove",  roster_id: "character_01" });
+    assertContains(empty, "[OK]", "REQ-177 remove the last roster entry");
+    const emptyLst = await call(p, "manage_character", { action: "roster_list" });
+    assertContains(emptyLst, "Roster is empty", "REQ-178a empty-state marker");
     passed++;
+    await kill(p);
+  });
+
+  await test("T137/REQ-076b2: scene history cap reports suppressed entries and a [truncated] marker", async () => {
+    const p = await boot({ TTRPG_SCENE_HISTORY_MAX: "2" });
+    await call(p, "manage_novel", { action: "create",  name: "w4scenehist" });
+    await call(p, "set_badge", { badge: "game_master" });
+    for (const description of ["one", "two", "three", "four"]) {
+      await call(p, "manage_scene", { action: "set",  description });
+    }
+    const history = JSON.parse(await proto(p, "resources/read", { uri: "scene://history" }));
+    assertContains(JSON.stringify(history[0]), "[truncated]", "REQ-076b2 truncation marker");
+    assertContains(JSON.stringify(history[0]), "suppressed", "REQ-076b2 suppressed count");
+    if (history.length !== 3) { failed++; console.error(`FAIL REQ-076b2 cap: expected marker + 2 entries, got ${history.length}`); }
+    else passed++;
     await kill(p);
   });
 
@@ -1046,6 +1092,15 @@ async function main() {
     await call(p, "manage_character", { action: "personality",  entity_id: id, description: "Suspicious" });
     const res = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
     assertContains(res, "Suspicious", "REQ-156 description most-recent-wins");
+    // REQ-156 — every read surface returns the same value.
+    const record = await proto(p, "resources/read", { uri: `npc://${id}` });
+    assertContains(record, "Suspicious", "REQ-156 npc://<id> reads the same field");
+    assertNotContains(record, "\"Tall\"", "REQ-156 npc://<id> retained the stale value");
+    await call(p, "manage_npc", { action: "update",  npc_id: id, description: "Greying" });
+    const res2 = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
+    assertContains(res2, "Greying", "REQ-156 manage_npc update wins the next write");
+    const sheet = await call(p, "manage_character", { action: "sheet",  entity_id: id });
+    assertContains(sheet, "Greying", "REQ-156 sheet reads the same field");
     passed++;
     await kill(p);
   });

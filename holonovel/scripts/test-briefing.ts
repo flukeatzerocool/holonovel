@@ -306,6 +306,65 @@ async function main() {
     }
   });
 
+  await test("T351/REQ-307: party presence — listing, [not present], explicit declaration", async () => {
+    const p = await boot(); await newNovel(p, "pres1");
+    await call(p, "manage_character", { action: "create", name: "Rogue", species: "Human" });
+    await call(p, "manage_character", { action: "create", name: "Wizard", species: "Elf" });
+    await call(p, "manage_scene", { action: "set", description: "Dark corridor" });
+    // REQ-307a — with no presence declaration every imported entity is present.
+    let brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("### Party"), "party listing missing from the briefing");
+    assert(brief.includes("Rogue") && brief.includes("Wizard"), "party listing omits an entity");
+    assert(!brief.includes("[not present]"), "default presence marked an entity absent");
+
+    // REQ-307c — an explicit declaration marks the rest absent.
+    const declared = await call(p, "manage_staging", { action: "presence", entity_ids: ["character_01"] });
+    assert(declared.includes("[OK]"), "presence declaration refused: " + declared);
+    brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("[not present]"), "non-present entity carries no [not present] marker");
+
+    // REQ-307b — presence accepts a location without touching the description.
+    const located = await call(p, "manage_staging", { action: "presence", entity_ids: ["character_01"], location: "Camp" });
+    assert(located.includes("[OK]") && located.includes("Camp"), "presence location not recorded: " + located);
+    const scene = await promptText(p, "badge_briefing");
+    assert(scene.includes("Camp"), "presence location missing from the briefing");
+    assert(scene.includes("Dark corridor"), "presence changed the scene description");
+
+    // REQ-307b — activating a non-present entity is not an error.
+    const act = await call(p, "manage_character", { action: "set_active", entity_id: "character_02" });
+    assert(act.includes("[OK]"), "set_active to a non-present entity failed: " + act);
+
+    // REQ-307c — [] marks every entity absent.
+    await call(p, "manage_staging", { action: "presence", entity_ids: [] });
+    const none = await promptText(p, "badge_briefing");
+    assert((none.match(/\[not present\]/g) ?? []).length >= 2, "empty presence did not mark all entities absent");
+    await kill(p);
+  });
+
+  await test("T057/REQ-076b3: scene tick resets on a transition and advances on a combat round", async () => {
+    const p = await boot(); await newNovel(p, "tick1");
+    await call(p, "manage_character", { action: "create", name: "Tick A", species: "Human" });
+    await call(p, "manage_character", { action: "create", name: "Tick B", species: "Elf" });
+    await call(p, "manage_scene", { action: "set", description: "Arena" });
+    let brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("Scene tick:** 0"), "scene tick did not start at zero");
+    await call(p, "manage_combat", { action: "init", participants: ["character_01", "character_02"] });
+    await call(p, "manage_combat", { action: "advance" });
+    brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("Scene tick:** 0"), "tick advanced mid-round");
+    await call(p, "manage_combat", { action: "advance" });
+    brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("Scene tick:** 1"), "tick did not advance on the round wrap");
+    await call(p, "manage_scene", { action: "set", description: "Courtyard" });
+    brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("Scene tick:** 0"), "tick did not reset on the scene transition");
+    // REQ-076b3 — GM only: the Player badge renders no tick.
+    await call(p, "set_badge", { badge: "player" });
+    const player = await promptText(p, "badge_briefing");
+    assert(!player.includes("Scene tick"), "scene tick surfaced under the Player badge");
+    await kill(p);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

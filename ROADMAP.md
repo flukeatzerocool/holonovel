@@ -12,36 +12,50 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.6 entities and NPCs remediation (P1)
+## §5.6 entity, scene, and NPC-depth remediation (P1)
 
-- Entity, roster, and scene surfaces: add the duplicate-import `[STATE_CONFLICT]`
+- Entity, roster, and scene surfaces: the duplicate-import `[STATE_CONFLICT]`
   guard, `party://current` HP, removal presence/audit, the roster listing fields
-  and `roster://<id>`/`<type>` resources, valid-ID enumeration on
-  `roster_remove`, the scene-history cap with `[truncated]`, `scene_tick`, the
-  lore contradiction warning, fast-forward round clocks/lore triggers/bridging
-  summary, and `last_location`/`[not present]`/`presence location`
-  (REQ-074b, REQ-074c, REQ-176a, REQ-177, REQ-178a, REQ-178b, REQ-076b2,
-  REQ-076b3, REQ-076b4, REQ-076b5, REQ-076b6, REQ-076b7, REQ-252a, REQ-252b,
-  REQ-252c, REQ-307a, REQ-307b, REQ-307c; F-P3B2-1–F-P3B2-5).
+  and `roster://<id>`/`<type>` resources, and valid-ID enumeration on
+  `roster_remove` (REQ-074b, REQ-074c, REQ-176a, REQ-177, REQ-178a, REQ-178b;
+  F-P3B2-1–F-P3B2-2).
+- Scene ledger and presence: the scene-history cap with `[truncated]`,
+  `scene_tick`, the lore contradiction warning, fast-forward round clocks/lore
+  triggers/bridging summary, and `last_location`/`[not present]`/`presence
+  location` (REQ-076b2–REQ-076b7, REQ-252a–REQ-252c, REQ-307a–REQ-307c;
+  F-P3B2-3–F-P3B2-5).
 - NPC depth and memory: maintain `appearance_count`/`first_seen`/`last_seen` with
   the `[recurring]`/`[campaign]`/`[distant]` markers and recap heatmap, unify the
   NPC description field across surfaces, and deepen the memory model with party
-  knowledge, emotional state, social/mechanical ingestion, and campaign-memory
-  coupling (REQ-075c, REQ-075d, REQ-075e, REQ-075g, REQ-156, REQ-311b, REQ-311c,
-  REQ-311d, REQ-311f; F-P3B2-6–F-P3B2-8).
-- Personality, signal, and citation surfaces: render the briefing personality
-  group and voice examples, gate and tag-filter NPC voice directives, reshape and
-  badge-filter the personality resources, store signals as
-  `{value, connection_counter}` with removal semantics and briefing ages, extend
-  boundary collision to every free-text entry point, and repair the unexercised
-  Automated citations (REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-077f,
-  REQ-126a, REQ-126b, REQ-166a, REQ-166b, REQ-166c, REQ-282a, REQ-282b,
-  REQ-282c, REQ-167a, REQ-167b, REQ-069a, REQ-069b, REQ-069c, REQ-128a,
-  REQ-128b, REQ-173b, REQ-255b, REQ-124b, plus T55/T56/T57/T58/T65/T112/T132/
-  T140/T142/T723/T131; F-P3B2-9–F-P3B2-14).
+  knowledge, emotional state, and campaign-memory coupling (REQ-075c, REQ-075d,
+  REQ-075e, REQ-156, REQ-311b, REQ-311c, REQ-311d, REQ-311f;
+  F-P3B2-6–F-P3B2-8).
 
-**Trigger:** the first session that takes §5.6 entities-and-NPCs remediation
-work; closes when F-P3B2-1–F-P3B2-14 are `Resolved` in the review register.
+**Trigger:** the first session that takes §5.6 entity, scene, or NPC-depth
+remediation work; closes when F-P3B2-1–F-P3B2-8 are `Resolved` in the review
+register.
+
+## §5.6 personality, signal, and citation remediation (P1)
+
+- Personality surfaces: render the briefing personality group and voice examples,
+  gate and tag-filter NPC voice directives, and reshape and badge-filter the
+  personality resources (REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-077f,
+  REQ-126a, REQ-126b, REQ-166a, REQ-166b, REQ-166c, REQ-282a, REQ-282b,
+  REQ-282c, REQ-167a, REQ-167b; F-P3B2-9–F-P3B2-11).
+- Player signals and boundary propagation: store signals as
+  `{value, connection_counter}` with removal semantics and briefing ages, and
+  extend boundary collision to every free-text entry point (REQ-069a, REQ-069b,
+  REQ-069c, REQ-128a, REQ-128b, REQ-173b, REQ-255b; F-P3B2-12–F-P3B2-13).
+- Citation repair: write or re-point the unexercised Automated citations that
+  shadow real behaviour (T55, T56, T57, T58, T65, T112, T132, T140, T142, T723,
+  T131, plus REQ-124b's T131 match and REQ-075g's T723), then refresh the
+  coverage register and regenerate `holonovel/tool-definitions.json` for the
+  reshaped resources (F-P3B2-14).
+
+**Trigger:** the next session that takes personality, signal, or citation
+remediation work, and not before the entity/scene/NPC-depth increment lands
+(REQ-156 and the personality read surfaces share one description accessor);
+closes when F-P3B2-9–F-P3B2-14 are `Resolved`.
 
 ## §5.6 core state and lifecycle remediation (P1)
 

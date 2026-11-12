@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 114652,
+  "tools_list_bytes": 114852,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 114652,
-        "tokens": 28663
+        "bytes": 114852,
+        "tokens": 28713
       },
       "standard": {
         "tools": 37,
-        "bytes": 100259,
-        "tokens": 25065
+        "bytes": 100459,
+        "tokens": 25115
       },
       "small": {
         "tools": 6,
@@ -1701,7 +1701,7 @@
         "directive": "Narrative directive (directive).",
         "fast_forward": "Narrative fast-forward (set).",
         "likelihood": "Likelihood tier (oracle).",
-        "location": "Scene location (set).",
+        "location": "Scene location (set; presence records it with the declaration).",
         "prompt": "Choice prompt (choices).",
         "question": "Question to resolve (oracle).",
         "scene_type": "Scene-type tag or array (set). Valid values are the default catalog (social, exploration, neutral, combat) plus any ruleset-extracted scene types.",
@@ -1736,7 +1736,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4146,
+        "definitionBytes": 4188,
         "descriptionBytes": 920
       },
       "category": "",
@@ -1753,7 +1753,7 @@
         "cast",
         "next_speaker"
       ],
-      "param_count": 12,
+      "param_count": 13,
       "required": [
         "action"
       ],
@@ -1761,9 +1761,10 @@
         "after_user": "Reset the pooled spoken-set for a new user turn (next_speaker).",
         "confirmation": "Confirmation mode (autonomy).",
         "creativity": "Creativity (autonomy).",
-        "entity_ids": "Entities present (presence).",
+        "entity_ids": "Entities present (presence; omit to declare all present, [] to declare none).",
         "force": "NPC forced as the next speaker (cast/next_speaker).",
         "level": "Autonomy level (autonomy).",
+        "location": "Scene location (set; presence records it with the declaration).",
         "mute": "NPC muted from speaker selection (cast).",
         "order": "GM speaker order of NPC ids (cast; the list strategy follows it).",
         "safety": "Safety tier (autonomy).",
@@ -1785,9 +1786,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 13,
+        "paramCount": 14,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 13,
+        "paramsWithDescriptions": 14,
         "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1798,7 +1799,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2878,
+        "definitionBytes": 3036,
         "descriptionBytes": 737
       },
       "category": "",
