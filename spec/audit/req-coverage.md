@@ -26,17 +26,17 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T62, T63, T64, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T118, T119, T127, T128, T129, T133, T134, T135, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T59, T62, T63, T64, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T118, T119, T127, T128, T129, T133, T134, T135, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T70, T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
-| REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T90, T91, T131, T162 | — |
+| REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T90, T91, T131, T162, T287 | — |
 | REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | S17 | — |
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
 | REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T739 | — |
 | REQ-054 | Input safety | 5.7 Determinism, Safety, and Performance | C | T20, T42, T487 | — |
-| REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T31, T98, T261, S17, T108 | — |
+| REQ-055 | Durability (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T9, T31, T61, T98, T261, S17, T108 | — |
 | REQ-056 | Advancement workflow | 5.4 Decision workflows | E | T32 | — |
 | REQ-057 | Canonical lookup tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39 | — |
 | REQ-058 | Tool-result fidelity | 5.3 Tools, Resources, and Lookups | C | T41, T42 | — |
@@ -59,7 +59,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T63, T200, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124, T141 | — |
-| REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207, T146, T285 | — |
+| REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T59, T60, T61, T206, T207, T209, T146, T285, T287, T368 | — |
 | REQ-080 | Synthesis boundaries (Part a) (9 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T63, T82, T94, T95, T97, T102, T125, T194, T144, T288, T695 | — |
 | REQ-081 | Narrative directive (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T64, T134, T450 | — |
 | REQ-082 | Prompt section ordering (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T66, T225 | — |
@@ -148,8 +148,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-168 | Audit resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T100, T203 | — |
 | REQ-169 | Audit chain integrity reporting (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T204 | — |
 | REQ-170 | Adventure discovery surface | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T207 | — |
-| REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
-| REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
+| REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T208, T283 | — |
+| REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T209 | — |
 | REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, S22 | — |
 | REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T213 | — |
 | REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T214 | — |
@@ -222,7 +222,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-244 | Convergence cache key (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | T309 | — |
 | REQ-245 | Pre-computed synthesis manifest (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | — | — |
 | REQ-246 | Story journal (Part b1) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T474, T282, T408 | — |
-| REQ-247 | Adventure structure extraction (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
+| REQ-247 | Adventure structure extraction (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T283, T287 | — |
 | REQ-248 | Adventure overview resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T285 | — |
 | REQ-249 | Adventure navigation resource (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T286 | — |
 | REQ-250 | Adventure scene waypoint (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T284, T286 | — |

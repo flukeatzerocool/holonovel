@@ -28,7 +28,8 @@
     "NOTICE.md",
     "holonovel.md",
     "tool-surface-registry.json",
-    "tool-disambiguation.json"
+    "tool-disambiguation.json",
+    "adventures"
   ],
   "exports": {
     ".": {
@@ -128,7 +129,9 @@
     "test:holosuite-mutation": "tsx scripts/holosuite.ts --tier=mutation",
     "test:playability": "tsx scripts/playability.ts --all --self-test",
     "test:selection": "tsx scripts/test-selection.ts",
-    "test:engine-facade": "tsx scripts/test-engine-facade.ts"
+    "test:engine-facade": "tsx scripts/test-engine-facade.ts",
+    "build:adventure-index": "tsx scripts/generate-adventure-index.ts",
+    "check-adventure-index": "tsx scripts/generate-adventure-index.ts --check"
   },
   "keywords": [
     "mcp",

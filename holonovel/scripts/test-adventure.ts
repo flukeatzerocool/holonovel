@@ -6,7 +6,9 @@
 
 import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
+import { computeContentHash, PACKAGE_FORMAT } from "../src/rulesets.js";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -58,11 +60,14 @@ function attach(proc: ChildProcess): void {
     }
   });
 }
+let stderrBuf = "";
 async function boot(env: Record<string, string> = {}): Promise<ChildProcess> {
+  stderrBuf = "";
   const proc = spawn("npx", ["tsx", SERVER_SCRIPT], {
     env: { ...process.env, TTRPG_DATA_DIR: DATA_DIR, ...env },
     stdio: ["pipe", "pipe", "pipe"],
   });
+  proc.stderr!.on("data", (d: Buffer) => { stderrBuf += d.toString(); });
   attach(proc);
   await send(proc, { method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "adventure-test", version: "1.0.0" } } });
   proc.stdin!.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
@@ -76,6 +81,10 @@ async function call(proc: ChildProcess, name: string, args: Record<string, unkno
   return content.map((c: any) => (c?.text ?? "")).join("\n");
 }
 const readResource = resourceReader(send);
+async function promptText(proc: ChildProcess): Promise<string> {
+  const resp = await send(proc, { method: "prompts/get", params: { name: "badge_briefing" } });
+  return (resp.result?.messages ?? []).map((m: any) => m?.content?.text ?? "").join("\n");
+}
 function kill(proc: ChildProcess): Promise<void> {
   return new Promise((resolve) => { proc.on("exit", () => resolve()); proc.kill(); });
 }
@@ -384,6 +393,164 @@ The Trap Hall is a room. "Stale air."
 
     rmSync(ADV_DIR, { recursive: true, force: true });
     rmSync(PROV_DATA, { recursive: true, force: true });
+  }
+
+  // ── REQ-079/170/171/172/247 — adventure module surfaces ──
+  {
+    const ADV = mkdtempSync(join(tmpdir(), "holonovel-adv-blocks-"));
+    const DATA = mkdtempSync(join(tmpdir(), "holonovel-adv-blocks-data-"));
+    const TOOL = join(import.meta.dirname!, "generate-adventure-index.ts");
+    const write = (slug: string, body: string) => writeFileSync(join(ADV, `${slug}.md`), body);
+    write("serpent-hall", `# Serpent Hall\n\n## Overview — *Keeper only*\nA drowned hall.\n\n## Adventure Hook\nThe hall calls.\n\n## Scenes\n\n### Gate of Scales\nA gate of coiled stone.\n\n### Drowned Altar\nThe altar lies under black water.\n\n## NPCs\n\n**Bone Warden**\nAC 14. A skeletal guardian.\n\n## Keeper's Note — *Keeper only*\nThe warden answers to the drowned altar.\n`);
+    write("moth-hollow", `# Moth Hollow\n\n## Overview — *Keeper only*\nA pale hollow.\n\n## Adventure Hook\nThe moths are waiting.\n\n## Scenes\n\n### Pale Door\nA door furred with wings.\n`);
+    execFileSync("npx", ["tsx", TOOL, "--input", ADV, "--out", join(ADV, "index.json")], { encoding: "utf-8" });
+
+    // T206 — not-found enumerates slugs; a valid slug loads.
+    const p = await boot({ TTRPG_ADVENTURE_DIR: ADV, TTRPG_DATA_DIR: DATA });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_novel", { action: "create", name: "blocks" });
+    await test("T206/REQ-079g: load not-found enumerates available slugs", async () => {
+      const missing = await call(p, "manage_adventure", { action: "load", slug: "no-such-adventure" });
+      assertContains(missing, "[NOT_FOUND]");
+      assertContains(missing, "serpent-hall");
+      assertContains(missing, "moth-hollow");
+      if (missing.includes(ADV)) throw new Error("NOT_FOUND must not enumerate directories");
+      const okLoad = await call(p, "manage_adventure", { action: "load", slug: "serpent-hall" });
+      assertContains(okLoad, "Pre-populated: 1 NPCs");
+      assertContains(okLoad, "2 lore entries");
+    });
+
+    // T287 — pre-population, skeletal combat, duplicate skip, monster suggestion.
+    await test("T287/REQ-079c/d: pre-population, skeletal NPC combat, duplicate skip, suggestion", async () => {
+      const reload = await call(p, "manage_adventure", { action: "load", slug: "serpent-hall" });
+      assertContains(reload, "Skipped duplicate NPC 'Bone Warden'");
+      const npcs = JSON.parse(await call(p, "manage_npc", { action: "list" }));
+      const warden = Object.values(npcs as any).find((n: any) => n.name === "Bone Warden") as any;
+      if (!warden) throw new Error(`pre-populated NPC missing: ${JSON.stringify(npcs)}`);
+      await call(p, "manage_combat", { action: "init", participants: [warden.id] });
+      const advance = await call(p, "manage_combat", { action: "advance" });
+      assertContains(advance, "[AUTO]");
+      await call(p, "manage_combat", { action: "end" });
+    });
+
+    // T59 — anchor resource, Keeper-only refusal, search confidence.
+    await test("T59/REQ-079e: per-anchor resources, Keeper-only, and search confidence", async () => {
+      const anchor = await readResource(p, "adventure://serpent-hall/drowned-altar");
+      assertContains(anchor, "Drowned Altar");
+      assertContains(anchor, "black water");
+      const overviewAnchor = await readResource(p, "adventure://serpent-hall/overview");
+      assertContains(overviewAnchor, "drowned hall");
+      await call(p, "set_badge", { badge: "player" });
+      const forbidden = await readResource(p, "adventure://serpent-hall/keepers-note");
+      assertContains(forbidden, "[FORBIDDEN]");
+      const bodyHit = await call(p, "manage_ruleset", { action: "search", query: "black water" });
+      assertContains(bodyHit, "[MEDIUM]");
+      const headingHit = await call(p, "manage_ruleset", { action: "search", query: "Drowned Altar" });
+      assertContains(headingHit, "[HIGH]");
+      await call(p, "set_badge", { badge: "game_master" });
+    });
+
+    // T60 — isolation: A's NPCs persist, A's prose leaves the briefing.
+    await test("T60/REQ-079: loading B preserves A's entities and drops A's prose", async () => {
+      await call(p, "manage_adventure", { action: "load", slug: "moth-hollow" });
+      const npcs = JSON.parse(await call(p, "manage_npc", { action: "list" }));
+      if (!Object.values(npcs as any).some((n: any) => n.name === "Bone Warden")) throw new Error("T60 NPCs must persist across a load");
+      const brief = await promptText(p);
+      if (brief.includes("The hall calls.")) throw new Error("T60 adventure A's prose leaked into the briefing");
+      assertContains(brief, "The moths are waiting.");
+    });
+
+    // T61 — restart continuity.
+    await test("T61/REQ-079: restart restores the active adventure, NPCs, and scene", async () => {
+      await call(p, "manage_scene", { action: "set", description: "the pale door", adventure_scene: "Pale Door" });
+      await kill(p);
+      const p2 = await boot({ TTRPG_ADVENTURE_DIR: ADV, TTRPG_DATA_DIR: DATA });
+      await call(p2, "manage_novel", { action: "resume", slug: "blocks" });
+      const brief = await promptText(p2);
+      assertContains(brief, "moth-hollow");
+      assertContains(brief, "Adventure Scene (moth-hollow § Pale Door)");
+      const npcs = JSON.parse(await call(p2, "manage_npc", { action: "list" }));
+      if (!Object.values(npcs as any).some((n: any) => n.name === "Bone Warden")) throw new Error("T61 NPCs lost across restart");
+      await kill(p2);
+    });
+
+    // T208/T209 — malformed/partial/skipped and drift, both from a temp index.
+    await test("T208/REQ-171b + T209/REQ-172: malformed flags, partial serving, skipped omission, drift", async () => {
+      const DIR = mkdtempSync(join(tmpdir(), "holonovel-adv-malformed-"));
+      const D2 = mkdtempSync(join(tmpdir(), "holonovel-adv-malformed-data-"));
+      writeFileSync(join(DIR, "partial.md"), `# Partial Module\n\n## Adventure Hook\nA partial hook.\n\n### Open Hall\nAn open hall.\n`);
+      writeFileSync(join(DIR, "skipped.md"), `No title at all.\n`);
+      const index = {
+        modules: {
+          partial: { title: "Partial Module", content_hash: createHash("sha256").update(readFileSync(join(DIR, "partial.md"))).digest("hex"), player_visible: true, source: "build", malformed: [{ flag: "[malformed-adventure]", convention: "## Overview", disposition: "partial" }] },
+          skipped: { title: "skipped", content_hash: createHash("sha256").update(readFileSync(join(DIR, "skipped.md"))).digest("hex"), player_visible: false, source: "build", malformed: [{ flag: "[malformed-adventure]", convention: "H1 title", disposition: "skipped" }] },
+        },
+      };
+      writeFileSync(join(DIR, "index.json"), JSON.stringify(index, null, 2) + "\n");
+      const p3 = await boot({ TTRPG_ADVENTURE_DIR: DIR, TTRPG_DATA_DIR: D2 });
+      await call(p3, "set_badge", { badge: "game_master" });
+      await call(p3, "manage_novel", { action: "create", name: "malformed" });
+      const health = JSON.parse(await call(p3, "manage_diagnostics", { action: "health" }));
+      const partial = health.indexed_adventures?.partial;
+      if (!partial || partial.malformed?.[0]?.flag !== "[malformed-adventure]") throw new Error(`T208 malformed flag missing: ${JSON.stringify(health.indexed_adventures)}`);
+      if (partial.malformed[0].convention !== "## Overview") throw new Error("T208 convention missing");
+      const cat = await call(p3, "manage_adventure", { action: "list" });
+      if (cat.includes("skipped")) throw new Error("T208 a skipped adventure must be absent from the catalog");
+      const skippedLoad = await call(p3, "manage_adventure", { action: "load", slug: "skipped" });
+      assertContains(skippedLoad, "[NOT_FOUND]");
+      await call(p3, "manage_adventure", { action: "load", slug: "partial" });
+      const partialAnchor = await readResource(p3, "adventure://partial/open-hall");
+      assertContains(partialAnchor, "open hall");
+      await kill(p3);
+      // Drift: change the module after the index was written, then restart.
+      writeFileSync(join(DIR, "partial.md"), `# Partial Module\n\n## Adventure Hook\nChanged.\n\n### Open Hall\nAn open hall.\n`);
+      const p4 = await boot({ TTRPG_ADVENTURE_DIR: DIR, TTRPG_DATA_DIR: D2 });
+      const health2 = JSON.parse(await call(p4, "manage_diagnostics", { action: "health" }));
+      const drift = (health2.adventure_drift ?? []).find((d: any) => d.slug === "partial");
+      if (!drift || drift.flag !== "[adventure-drift]" || !drift.detected_at) throw new Error(`T209 drift entry missing: ${JSON.stringify(health2.adventure_drift)}`);
+      if (!stderrBuf.includes("[adventure-drift]")) throw new Error("T209 stderr warning missing");
+      await kill(p4);
+    });
+
+    // T283 — the build tool extracts a non-Appendix-K module and tolerates garbled input.
+    await test("T283/REQ-247c: structural extraction and the empty-index path", async () => {
+      const B = mkdtempSync(join(tmpdir(), "holonovel-adv-build-"));
+      const O = mkdtempSync(join(tmpdir(), "holonovel-adv-build-out-"));
+      writeFileSync(join(B, "raw-prose.md"), `# Raw Prose\n\n## Overview — *Keeper only*\nProse.\n\n## Adventure Hook\nA hook.\n\n### Hall of Bones\nBones line the hall.\n\n**Bone Warden**\nAC 14.\n\n## Factions\n\n**Bone Guild** — controls the hall.\n`);
+      writeFileSync(join(B, "garbled.md"), "\uFFFD\uFFFD\uFFFD\nno structure\n");
+      const json = JSON.parse(execFileSync("npx", ["tsx", TOOL, "--input", B, "--out", join(O, "index.json"), "--json"], { encoding: "utf-8" }));
+      const prose = json.modules["raw-prose"];
+      if (!prose || prose.locations < 1 || prose.npcs < 1 || prose.factions < 1) throw new Error(`T283 extraction incomplete: ${JSON.stringify(prose)}`);
+      if (prose.malformed.length !== 0) throw new Error("T283 a required-heading module must not be flagged malformed");
+      const garbled = json.modules["garbled"];
+      if (!garbled || garbled.locations !== 0) throw new Error(`T283 garbled module must yield an empty structure: ${JSON.stringify(garbled)}`);
+    });
+
+    // T368 — codex load with no active Novel.
+    await test("T368/REQ-079h/i: codex load stores the scaffold and survives restart", async () => {
+      const D3 = mkdtempSync(join(tmpdir(), "holonovel-adv-codex-data-"));
+      const p5 = await boot({ TTRPG_ADVENTURE_DIR: ADV, TTRPG_DATA_DIR: D3 });
+      await call(p5, "set_badge", { badge: "game_master" });
+      await call(p5, "manage_novel", { action: "create", name: "codex" });
+      await call(p5, "manage_novel", { action: "end", dispose: "yes" });
+      const loaded = await call(p5, "manage_adventure", { action: "load", slug: "serpent-hall", target: "codex" });
+      assertContains(loaded, "Codex adventure");
+      assertContains(loaded, "loaded:serpent-hall");
+      const listed = await call(p5, "manage_codex", { action: "list", kind: "adventure" });
+      assertContains(listed, "serpent-hall");
+      const got = await call(p5, "manage_codex", { action: "get", id: "adventure_serpent_hall" });
+      assertContains(got, "loaded:serpent-hall");
+      assertContains(got, "Drowned Altar");
+      await kill(p5);
+      const p6 = await boot({ TTRPG_ADVENTURE_DIR: ADV, TTRPG_DATA_DIR: D3 });
+      await call(p6, "set_badge", { badge: "game_master" });
+      const survived = await call(p6, "manage_codex", { action: "get", id: "adventure_serpent_hall" });
+      assertContains(survived, "loaded:serpent-hall");
+      await kill(p6);
+    });
+
+    rmSync(ADV, { recursive: true, force: true });
+    rmSync(DATA, { recursive: true, force: true });
   }
 
   harnessComplete();

@@ -86,7 +86,8 @@
     "weekly": "npx tsx scripts/weekly.ts",
     "typecheck:scripts": "npx tsc -p holonovel/tsconfig.scripts.json --noEmit",
     "refresh-predicates": "npx tsx scripts/refresh-predicates.ts",
-    "req:headroom": "npx tsx scripts/req-headroom.ts"
+    "req:headroom": "npx tsx scripts/req-headroom.ts",
+    "check-adventure-index": "npm --prefix holonovel run check-adventure-index"
   },
   "keywords": [],
   "author": "",

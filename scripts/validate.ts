@@ -1828,6 +1828,8 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-180": "truncation-budget units — DECISIONS.md build record; cited in an intro/build comment",
   "REQ-127": "ruleset-native personality mapping — RULESET_MODEL.md build record",
   "REQ-247": "adventure structure extraction — §6.3 discovery heuristic",
+  "REQ-171": "adventure content validation — §6.3 builder-side index (generate-adventure-index); the server reads the artifact and surfaces [malformed-adventure] in spec_health",
+  "REQ-172": "adventure content drift detection — build-time hashes are compared at startup; the server surfaces the [adventure-drift] diagnostic without blocking",
   "REQ-225": "Ruleset Wisdom extraction — build-time; cited for build-time provenance in wisdom.ts",
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
   "REQ-214": "table classification — build-time extraction of generation vs lookup tables; cited in the additional-tools header alongside REQ-213",

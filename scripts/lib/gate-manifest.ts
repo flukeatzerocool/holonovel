@@ -102,6 +102,12 @@ const RAW_GATES: Gate[] = [
     full: npm("check-world-provider"),
   },
   {
+    name: "check-adventure-index",
+    description: "Adventure module index and DECISIONS table freshness",
+    fast: npm("check-adventure-index"),
+    full: npm("check-adventure-index"),
+  },
+  {
     name: "validate-readme",
     description: "README structure, voice, links, and comparison table",
     fast: npm("validate-readme"),

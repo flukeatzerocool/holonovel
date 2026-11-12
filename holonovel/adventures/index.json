@@ -1,0 +1,42 @@
+{
+  "modules": {
+    "hollow-of-the-moth": {
+      "title": "Hollow of the Moth",
+      "content_hash": "2cebe056dbe089563799b5531fc9a0c8fff5e0f70a855c516c8e5846c095264e",
+      "player_visible": true,
+      "source": "build",
+      "scenes": [
+        "The Dark Mill",
+        "Lantern Row",
+        "The Moth Shrine"
+      ],
+      "npcs": [
+        "Moth Keeper",
+        "Miller Anseth",
+        "Lantern Council"
+      ],
+      "locations": 3,
+      "factions": 4,
+      "malformed": []
+    },
+    "tomb-of-the-serpent-king": {
+      "title": "Tomb of the Serpent King",
+      "content_hash": "556f5b18372b9bcbe376135c085317c151134847cc5034af5e31823b34886f49",
+      "player_visible": true,
+      "source": "build",
+      "scenes": [
+        "Entrance Chamber",
+        "Hall of Statues",
+        "Inner Sanctum"
+      ],
+      "npcs": [
+        "Serpent King Ghost",
+        "Marsh Guide",
+        "Marshwardens Guild"
+      ],
+      "locations": 3,
+      "factions": 2,
+      "malformed": []
+    }
+  }
+}

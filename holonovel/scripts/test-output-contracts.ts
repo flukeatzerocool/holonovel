@@ -1134,57 +1134,182 @@ async function main() {
   });
 
   // ── Wave 6: §5.6 Adventure resources ──
-  await test("T146/REQ-132 + T285/REQ-248 + T286/REQ-249: generated adventure lifecycle and resources", async () => {
+  await test("T146/REQ-132: generated adventure lifecycle and coexistence", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w6a" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_adventure", { action: "generate",  premise: "A haunted station" });
+    const gen = await call(p, "manage_adventure", { action: "generate",  premise: "A haunted station" });
+    assertContains(gen, "**World:**", "REQ-132c generated ## World section");
+    assertContains(gen, "room(s) materialized", "REQ-132d starting room and exits");
     const ov = await proto(p, "resources/read", { uri: "adventure://generated/overview" });
     assertContains(ov, "Premise", "REQ-248 overview resource");
+    const hook = await proto(p, "resources/read", { uri: "adventure://generated/hook" });
+    assertContains(hook, "draws the characters in", "REQ-132a /generated/hook");
     const nav = await proto(p, "resources/read", { uri: "adventure://generated/navigation" });
     assertContains(nav, "Navigation", "REQ-249 navigation resource");
-    await call(p, "manage_scene", { action: "set",  description: "scene", adventure_scene: "hall" });
-    passed++;
+    // Coexistence: load an indexed module and keep the generated adventure.
+    const load = await call(p, "manage_adventure", { action: "load",  slug: "tomb-of-the-serpent-king" });
+    assertContains(load, "[OK]", "REQ-079a indexed load");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    const indexedAt = brief.indexOf("## Adventure");
+    const generatedAt = brief.indexOf("## Generated Adventure");
+    if (indexedAt < 0 || generatedAt < 0 || indexedAt > generatedAt) {
+      throw new Error(`REQ-132c briefing must list the indexed adventure first, then the generated (got ${indexedAt}/${generatedAt})`);
+    }
+    // Regenerate replaces the prior generated content.
+    const worldBefore = await proto(p, "resources/read", { uri: "adventure://generated/world" });
+    const regen = await call(p, "manage_adventure", { action: "generate",  premise: "A sunken temple" });
+    assertContains(regen, "sunken temple", "REQ-132b regenerate replaces");
+    const worldAfter = await proto(p, "resources/read", { uri: "adventure://generated/world" });
+    if (worldBefore === worldAfter) throw new Error("REQ-132b regeneration must replace the prior generated world");
     await kill(p);
+    // Restart preserves the generated adventure.
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "resume",  slug: "w6a" });
+    const worldRestored = await proto(p2, "resources/read", { uri: "adventure://generated/world" });
+    if (worldRestored !== worldAfter) throw new Error("REQ-132e restart did not preserve the generated adventure");
+    // End discards the generated adventure with the Novel.
+    await call(p2, "manage_novel", { action: "end",  dispose: "yes" });
+    await call(p2, "manage_novel", { action: "create",  name: "w6a2" });
+    const gone = await proto(p2, "resources/read", { uri: "adventure://generated/overview" });
+    assertContains(gone, "[ERROR] [STATE_CONFLICT]", "REQ-132e end discards generated content");
+    passed++;
+    await kill(p2);
   });
 
   await test("T207/REQ-170 + T338/REQ-292: adventure catalog and discovery surface", async () => {
+    // Empty state: an isolated data dir and an empty adventure dir.
+    const emptyAdv = mkdtempSync(join(tmpdir(), "adv-empty-"));
+    const emptyData = mkdtempSync(join(tmpdir(), "adv-empty-data-"));
+    const p0 = await boot({ TTRPG_ADVENTURE_DIR: emptyAdv, TTRPG_DATA_DIR: emptyData });
+    await call(p0, "manage_novel", { action: "create",  name: "w6b0" });
+    const cat0 = await call(p0, "manage_adventure", { action: "list" });
+    assertContains(cat0, "[No adventure modules found.]", "REQ-292 empty-state");
+    await kill(p0);
+
+    // Populated: the shipped catalog.
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w6b" });
-    const cat = await call(p, "manage_adventure", { action: "list" });
-    assertContains(cat, "[No adventure modules found.]", "REQ-292 empty-state");
+    const cat = JSON.parse(await call(p, "manage_adventure", { action: "list" }));
+    if (!Array.isArray(cat) || cat.length < 2) throw new Error(`expected the shipped catalog, got ${JSON.stringify(cat)}`);
+    for (const field of ["slug", "title", "preview", "genre_tags", "room_count", "npc_count", "complexity", "last_modified"]) {
+      if (!(field in cat[0])) throw new Error(`REQ-292a catalog entry missing '${field}': ${JSON.stringify(cat[0])}`);
+    }
+    const filtered = JSON.parse(await call(p, "manage_adventure", { action: "list",  filter: "no-such-genre" }));
+    if (filtered.length !== 0) throw new Error(`REQ-292a genre filter ignored: ${JSON.stringify(filtered)}`);
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (typeof health.adventure_catalog_count !== "number") throw new Error("REQ-292 adventure_catalog_count");
+    // REQ-170 — slugs and build-time content hashes.
+    if (!health.indexed_adventures || !health.indexed_adventures["tomb-of-the-serpent-king"]) {
+      throw new Error(`REQ-170 indexed_adventures missing the shipped module: ${JSON.stringify(health.indexed_adventures)}`);
+    }
+    const tomb = health.indexed_adventures["tomb-of-the-serpent-king"];
+    if (!tomb.content_hash || tomb.content_hash.length < 32) throw new Error(`REQ-170 content hash missing: ${JSON.stringify(tomb)}`);
+    if (!Array.isArray(tomb.malformed) || tomb.malformed.length !== 0) throw new Error(`REQ-171b shipped module must be conforming: ${JSON.stringify(tomb.malformed)}`);
+    const catalog = await proto(p, "resources/read", { uri: "adventures://" });
+    assertContains(catalog, "tomb-of-the-serpent-king", "REQ-170 adventures:// listing");
+    await kill(p);
+    // REQ-292b — a hookless, unflagged module is GM-only.
+    const visDir = mkdtempSync(join(tmpdir(), "adv-vis-"));
+    const visData = mkdtempSync(join(tmpdir(), "adv-vis-data-"));
+    writeFileSync(join(visDir, "gm-only.md"), `# GM Only\n\n## Overview — *Keeper only*\nHidden premise.\n`);
+    writeFileSync(join(visDir, "shared.md"), `# Shared\n\n## Adventure Hook\nA shared hook.\n`);
+    const pv = await boot({ TTRPG_ADVENTURE_DIR: visDir, TTRPG_DATA_DIR: visData });
+    await call(pv, "manage_novel", { action: "create",  name: "w6bv" });
+    await call(pv, "set_badge", { badge: "player" });
+    const playerCat = JSON.parse(await call(pv, "manage_adventure", { action: "list" }));
+    if (playerCat.some((e: any) => e.slug === "gm-only")) throw new Error("REQ-292b Player saw a hookless, unflagged module");
+    if (!playerCat.some((e: any) => e.slug === "shared")) throw new Error("REQ-292b Player lost a shared-hook module");
+    passed++;
+    await kill(pv);
+  });
+
+  await test("T284/REQ-250 + T312/REQ-252: adventure waypoint, transition, and fast-forward", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w6c" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_adventure", { action: "load",  slug: "tomb-of-the-serpent-king" });
+    await call(p, "manage_countdown", { action: "set",  name: "ritual", ticks: 3, type: "narrative" });
+    const set = await call(p, "manage_scene", { action: "set",  description: "foyer", adventure_scene: "Hall of Statues" });
+    assertContains(set, "[OK]", "REQ-250a waypoint set");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Adventure Scene (tomb-of-the-serpent-king § Hall of Statues)", "REQ-250a labelled block");
+    assertContains(brief, "prev: Entrance Chamber", "REQ-250a adjacent scenes");
+    assertContains(brief, "next: Inner Sanctum", "REQ-250a adjacent scenes");
+    assertContains(brief, "**Scene:** foyer", "REQ-250a free-text description stays independent");
+    // REQ-250b — a waypoint-only change fires the transition hook.
+    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud, "scene-transition", "REQ-250b transition hook");
+    assertContains(aud, "Hall of Statues", "REQ-250b audited waypoint");
+    const unknown = await call(p, "manage_scene", { action: "set",  adventure_scene: "No Such Hall" });
+    assertContains(unknown, "[NOT_FOUND]", "REQ-250b unknown anchor");
+    assertContains(unknown, "Entrance Chamber", "REQ-250b nearby names");
+    const cleared = await call(p, "manage_scene", { action: "set",  adventure_scene: "" });
+    assertContains(cleared, "[OK]", "REQ-250b clear waypoint");
+    // Player reads passively but cannot set the field.
+    await call(p, "set_badge", { badge: "player" });
+    const playerBrief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(playerBrief, "## Adventure", "REQ-250c Player pass-through");
+    const forbidden = await call(p, "manage_scene", { action: "set",  adventure_scene: "Entrance Chamber" });
+    assertContains(forbidden, "FORBIDDEN", "REQ-250b waypoint is GM only");
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_scene", { action: "set",  fast_forward: { interval: "three days of travel" } });
+    const aud2 = await proto(p, "resources/read", { uri: "audit://novel" });
+    assertContains(aud2, "fast-forward", "REQ-252 fast-forward audit entry");
     passed++;
     await kill(p);
   });
 
-  await test("T284/REQ-250 + T312/REQ-252: adventure waypoint and fast-forward", async () => {
+  await test("T285/REQ-248 + T286/REQ-249: adventure overview and navigation resources", async () => {
     const p = await boot();
-    await call(p, "manage_novel", { action: "create",  name: "w6c" });
+    await call(p, "manage_novel", { action: "create",  name: "w6r" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_adventure", { action: "generate",  premise: "A tower" });
-    await call(p, "manage_countdown", { action: "set",  name: "ritual", ticks: 3, type: "narrative" });
-    await call(p, "manage_scene", { action: "set",  description: "foyer", fast_forward: { interval: "three days of travel" } });
-    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
-    void brief;
-    const aud = await proto(p, "resources/read", { uri: "audit://novel" });
-    assertContains(aud, "fast-forward", "REQ-252 fast-forward audit entry");
+    await call(p, "manage_adventure", { action: "load",  slug: "tomb-of-the-serpent-king" });
+    const ov = await proto(p, "resources/read", { uri: "adventure://tomb-of-the-serpent-king/overview" });
+    assertContains(ov, "Serpent King Ghost — 3 HP", "REQ-248a NPC role/description");
+    assertContains(ov, "Hall of Statues", "REQ-248a location description");
+    assertContains(ov, "Marshwardens Guild", "REQ-248a faction line");
+    assertContains(ov, "**Scenes:**", "REQ-248a scene count");
+    const nav = await proto(p, "resources/read", { uri: "adventure://tomb-of-the-serpent-king/navigation" });
+    assertContains(nav, "(#entrance-chamber)", "REQ-249a heading anchors");
+    await call(p, "manage_scene", { action: "set",  adventure_scene: "Hall of Statues" });
+    const marked = await proto(p, "resources/read", { uri: "adventure://tomb-of-the-serpent-king/navigation" });
+    assertContains(marked, "[→] [Hall of Statues]", "REQ-249a waypoint marker");
+    await call(p, "set_badge", { badge: "player" });
+    const playerOv = await proto(p, "resources/read", { uri: "adventure://tomb-of-the-serpent-king/overview" });
+    assertContains(playerOv, "**Premise:**", "REQ-248a Player premise");
+    await call(p, "manage_novel", { action: "create",  name: "w6r2" });
+    const noAdv = await proto(p, "resources/read", { uri: "adventure://tomb-of-the-serpent-king/navigation" });
+    assertContains(noAdv, "[ERROR] [STATE_CONFLICT]", "REQ-249a no-adventure branch");
     passed++;
     await kill(p);
   });
 
   // ── REQ-229 adventure synthesis linkage ──
-  await test("T305/REQ-229: load_adventure synthesis augmentation section", async () => {
-    const advDir = join(DATA_DIR, "adventures");
-    mkdirSync(advDir, { recursive: true });
-    writeFileSync(join(advDir, "test-tower.md"), `# Test Tower\n## Premise\nA tall tower.\n## Adventure Hook\nThe tower rises.\n## World\n## Location\nentrance\n## NPCs\n**Guard captain**\n3 HP\n`);
-    const p = await boot({ TTRPG_ADVENTURE_DIR: advDir });
+  await test("T305/REQ-229: adventure synthesis linkage and augmentation", async () => {
+    const advDir = mkdtempSync(join(tmpdir(), "adv-synth-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "adv-synth-data-"));
+    writeFileSync(join(advDir, "test-tower.md"), `# Test Tower\n## Premise\nA tall tower.\n## Adventure Hook\nThe tower rises.\n## World\nThe Watchtower is a room. "A cold tower."\n## Scenes\n### Watchtower\nThe watchtower overlooks the marsh.\n## NPCs\n**Test Warden**\n3 HP. Clipped and careful.\n`);
+    writeFileSync(join(advDir, "quiet-hall.md"), `# Quiet Hall\n## Premise\nAn empty hall.\n## Adventure Hook\nThe hall waits.\n`);
+    const p = await boot({ TTRPG_ADVENTURE_DIR: advDir, TTRPG_DATA_DIR: dataDir });
     await call(p, "manage_novel", { action: "create",  name: "w6d" });
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_synthesis", { action: "player_add",  module: "voice_examples", key: "warden-voice", content: "Test Warden speaks in clipped tones." });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_synthesis", { action: "run" });
     const load = await call(p, "manage_adventure", { action: "load",  slug: "test-tower" });
-    assertContains(load, "Synthesis found", "REQ-229 synthesis linkage augmentation");
+    assertContains(load, "Synthesis found 1 voice examples", "REQ-229a/b voice linkage");
+    // REQ-229b — the linked item carries the adventure slug at read time.
+    await call(p, "set_badge", { badge: "game_master" });
+    const list = await call(p, "manage_synthesis", { action: "list" });
+    assertContains(list, "adventure_slug", "REQ-229b adventure tag in synthesis list");
+    assertContains(list, "test-tower", "REQ-229b adventure slug value");
+    // REQ-229d — no matches omits the section.
+    const quiet = await call(p, "manage_adventure", { action: "load",  slug: "quiet-hall" });
+    if (quiet.includes("Synthesis found")) throw new Error("REQ-229d augmentation must be omitted when nothing matches");
+    // REQ-229b — revert leaves adventure-linked items in place.
+    await call(p, "manage_synthesis", { action: "revert" });
+    const afterRevert = await call(p, "manage_synthesis", { action: "list" });
+    assertContains(afterRevert, "warden-voice", "REQ-229b revert leaves adventure-linked items");
     passed++;
     await kill(p);
   });

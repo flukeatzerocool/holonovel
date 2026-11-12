@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 114522,
+  "tools_list_bytes": 114652,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 114522,
-        "tokens": 28631
+        "bytes": 114652,
+        "tokens": 28663
       },
       "standard": {
         "tools": 37,
-        "bytes": 100129,
-        "tokens": 25033
+        "bytes": 100259,
+        "tokens": 25065
       },
       "small": {
         "tools": 6,
@@ -110,8 +110,8 @@
     {
       "name": "manage_adventure",
       "title": "Adventure Management",
-      "description": "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load and list are read-only, and list accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
-      "description_bytes": 649,
+      "description": "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load activates an indexed module in the Novel, or stores its scaffold in the Codex with target: codex (no Novel required); list is read-only and accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 756,
       "action_enum": [
         "generate",
         "generate_encounter",
@@ -127,7 +127,7 @@
         "filter": "Optional genre filter (list).",
         "premise": "Adventure premise (generate).",
         "slug": "Adventure module slug (load).",
-        "target": "novel, codex, or both (generate)."
+        "target": "novel, codex, or both (generate); novel or codex (load)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -156,8 +156,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1922,
-        "descriptionBytes": 649
+        "definitionBytes": 2052,
+        "descriptionBytes": 756
       },
       "category": "",
       "gate": ""

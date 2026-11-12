@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-11-12 — §5.6 adventure content remediation
+
+- One structural extractor (`src/core/adventure.ts`) now feeds adventure load,
+  the catalog, overview/navigation/anchors, search, and the build index, so the
+  surfaces cannot drift (REQ-247, REQ-248, REQ-249).
+- `manage_adventure (action: load)` accepts `target: "codex"` with no active
+  Novel, stores the Appendix O.10 payload with `source: loaded:<slug>`, and
+  pre-populates skeletal NPCs, location lore, and faction clocks with duplicate
+  skips and a ruleset monster suggestion (REQ-079c, REQ-079d, REQ-079h,
+  REQ-079i).
+- Adventure prose joins `manage_ruleset (action: search)` with HIGH/MEDIUM
+  confidence, active-first sort, a `[generated]` label, and a source anchor; the
+  per-anchor `adventure://{slug}/{anchor}` resource serves indexed and generated
+  prose with Keeper-only refusals (REQ-079e, REQ-132a, REQ-280).
+- The catalog applies the genre filter to every badge and the
+  `player_visible`/shared-hook rule, derives the `[derived]` preview, and both
+  the overview and navigation render roles, descriptions, anchors, and per-marker
+  badge filtering (REQ-248a, REQ-249a, REQ-292a, REQ-292b).
+- A waypoint-only `manage_scene (action: set)` now fires the transition hook and
+  records the waypoint in the audit entry (REQ-250b).
+- Generated adventures emit a `## World` section for a spatial premise, track
+  their rooms, survive an indexed load, and lose only their own rooms on
+  regeneration (REQ-132c, REQ-132d, REQ-132e).
+- Synthesis linkage matches voice, lore, action-pattern, and adventure-advice
+  items, uses REQ-229c's wording, omits the block when nothing matches, and
+  derives the adventure tag in the synthesis list (REQ-229a-d).
+- A build-time index (`adventures/index.json` plus the DECISIONS table) records
+  content hashes and `[malformed-adventure]` findings; startup compares hashes
+  and surfaces `[adventure-drift]` without blocking, and `check-adventure-index`
+  gates freshness (REQ-170, REQ-171, REQ-172, REQ-247c).
+- Two adventure modules ship with the package so the catalog, resource, codex,
+  and drift surfaces are exercised against real content.
+
 ## 2026-11-12 — §5.6 state surfaces remediation
 
 - `manage_novel (action: get_context)` returns the full `badge_briefing` payload

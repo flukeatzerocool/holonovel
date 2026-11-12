@@ -164,27 +164,9 @@ const CHAIN_50 = Array.from({ length: 50 }, (_, i) =>
   Array.from({ length: 49 }, (_, i) =>
   `East of Room ${i + 1} is Room ${i + 2}.`).join("\n");
 
-const ADVENTURE_FIXTURE = `# Tomb of the Serpent King
-_A dungeon adventure for 4–6 delvers._
-
-## Overview
-The tomb lies beneath the Marsh of Whispers.
-
-## Adventure Hook
-The village elder offers 500 gold for the Crown.
-
-## World
-The Entrance Chamber is a room. "A dusty room with faded murals of serpent figures."
-North of the Entrance Chamber is the Hall of Statues.
-The Hall of Statues is a room. "Tall statues line both walls."
-North of the Hall of Statues is the Inner Sanctum.
-The Inner Sanctum is a room. "A chamber lit by an eerie green glow."
-
-## Encounters
-@encounter(Entrance Chamber) Poison dart trap.
-
-## Lore
-@lore(Entrance Chamber) The murals depict the Serpent King.`;
+// The shipped adventure module is the single source of truth for the buffer
+// and the build-time index (REQ-247); reading it keeps the two from diverging.
+const ADVENTURE_FIXTURE = readFileSync(join(import.meta.dirname!, "..", "adventures", "tomb-of-the-serpent-king.md"), "utf-8");
 
 const VEHICLE_FIXTURE = `The Underground Lake is a room. "A vast underground lake, still and black."
 North of the Underground Lake is the Rocky Shore.

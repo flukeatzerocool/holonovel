@@ -43,7 +43,7 @@ src/tool-registry.ts    Tool registry: the single definition site. `ToolRegistry
                         `bindMcp` binds them to the MCP adapter. Dynamic
                         definitions register immediately once bound.
         ↓
-src/index.ts            McpServer adapter: 37 action-discriminator tools, 40 resources and 21 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
+src/index.ts            McpServer adapter: 37 action-discriminator tools, 40 resources and 22 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
                         Registers tools through the registry, then binds MCP.
                         Entry point for STDIO transport, guarded by
                         HOLONOVEL_NO_AUTOSTART. Badge gating via
@@ -203,6 +203,7 @@ required.
 - **Novels:** Named persistent save files at `.holonovel-state/novels/<slug>.json`. Atomic saves. End moves to `.trash/`.
 - **Bundled starter Novel:** on a fresh data directory the server seeds a ruleset-free tutorial Novel, `torre-nosferatu`, from the packaged `content/torre-nosferatu.json` before hydration (REQ-565). Seeded once — tombstone at `.holonovel-state/starter-seeded.json`; opt out with `TTRPG_STARTER_NOVEL=off`. The artifact is emitted from `content/torre-nosferatu.source.json` by `npm run build:starter-novel` and freshness-gated by `check-starter-freshness` (REQ-566).
 - **World Model:** Rooms, things, exits persisted within the Novel's JSON. Indexed at runtime as Maps.
+- **Adventure modules and index:** `adventures/*.md` is the build input; `adventures/index.json` and the `adventure-index` table in `DECISIONS.md` are emitted by `npm run build:adventure-index` and freshness-gated by `check-adventure-index` (REQ-170, REQ-171, REQ-172, REQ-247c). The server reads each directory's index for `spec_health.indexed_adventures` and compares hashes at startup for `[adventure-drift]`.
 - **World-model provider document:** `narrative_world_model/world/world-model-provider.md` is generated from `world-model-provider.template.md` plus the schema constants in `src/world/model.ts` (`WORLD_MODEL_KINDS`, `WORLD_MODEL_PROPERTIES`, `BASE_PARSER_COMMANDS`). Regenerate with `npm run build:world-provider`; `check-world-provider` gates freshness, and `test:world-provider` gates the `world://kinds` payload.
 - **Snapshots:** Per-mutation snapshots per badge stack (`manage_history` action: undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.

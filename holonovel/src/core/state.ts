@@ -793,8 +793,8 @@ export interface NovelState {
   checkpoints: Checkpoint[];
   description: string;
   genre: string;
-  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[]; scene_count?: number; provenance?: { creator?: string; attribution?: string; license?: string; content_hash?: string; signature?: string } } | null;
-  adventure_scene_waypoint: { anchor: string; description: string } | null;
+  adventure_index: { npcs: Array<{ name: string; description?: string }>; locations: Array<{ name: string; description: string }>; factions: Array<{ name: string; goals?: string }>; premise: string; hooks: string[]; scene_count?: number; materialized_rooms?: string[]; provenance?: { creator?: string; attribution?: string; license?: string; content_hash?: string; signature?: string } } | null;
+  adventure_scene_waypoint: string | null;
   // World-model tier
   world: WorldModel;
   // §5.12 Narrative Architecture (REQ-335 through REQ-366)

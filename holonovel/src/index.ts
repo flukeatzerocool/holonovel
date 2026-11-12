@@ -75,6 +75,7 @@ import {
 } from "./core/character-creation.js";
 import { createRng, sessionRoll, rollNotationWithRng, seedConflictWarning, type Rng } from "./core/rng.js";
 import { deriveAnchor } from "./core/anchors.js";
+import { extractAdventureStructure, isSpatialPremise, adventureWorldSection, adventureKey, type AdventureStructure } from "./core/adventure.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
 import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
 import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, ADVENTURE_PROVENANCE_KEYS, type AdventureProvenance } from "./core/adventure-provenance.js";
@@ -2823,6 +2824,12 @@ function adventureFiles(): { slug: string; file: string; dir: string }[] {
       out.push({ slug, file, dir });
     }
   }
+  // REQ-079g — explicit pre-load file paths join the scan, lowest priority.
+  for (const { slug, file } of adventureExplicitFiles()) {
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    out.push({ slug, file, dir: path.dirname(file) });
+  }
   return out;
 }
 
@@ -2834,6 +2841,237 @@ function findAdventureFile(slug: string): string | null {
 // REQ-292 — count adventure modules on disk (empty → 0).
 function countAdventureModules(): number {
   return adventureFiles().length;
+}
+
+// REQ-079g — optional comma-separated adventure Markdown files pre-loaded at
+// startup, in addition to the directory scan.
+function adventureExplicitFiles(): { slug: string; file: string }[] {
+  return (process.env.TTRPG_ADVENTURE ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((file) => ({ slug: path.basename(file).replace(/\.md$/i, ""), file }));
+}
+
+// REQ-170/171b/172 — the build-time index lives beside the modules it describes.
+// Resolution is per directory so an installed index cannot shadow a configured
+// one (and vice versa).
+interface AdventureIndexEntry {
+  title: string;
+  content_hash: string;
+  player_visible: boolean;
+  source: string;
+  malformed: Array<{ flag: string; convention: string; disposition: "skipped" | "partial" }>;
+}
+
+function readAdventureIndex(dir: string): Record<string, AdventureIndexEntry> | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(dir, "index.json"), "utf-8"));
+    return parsed?.modules && typeof parsed.modules === "object" ? parsed.modules as Record<string, AdventureIndexEntry> : null;
+  } catch {
+    // No index in this directory: its modules are treated as installed.
+    return null;
+  }
+}
+
+function adventureIndexEntryFor(slug: string, dir: string): AdventureIndexEntry | null {
+  return readAdventureIndex(dir)?.[slug] ?? null;
+}
+
+let adventureIndexCache: Record<string, AdventureIndexEntry> | null = null;
+let adventureDriftCache: Array<{ flag: string; slug: string; stored_hash: string; current_hash: string; detected_at: string }> = [];
+
+function adventureIndexSnapshot(): Record<string, AdventureIndexEntry> {
+  if (adventureIndexCache) return adventureIndexCache;
+  const out: Record<string, AdventureIndexEntry> = {};
+  const addInstalled = (slug: string, file: string) => {
+    if (out[slug]) return;
+    try {
+      const content = fs.readFileSync(file, "utf-8");
+      const structure = extractAdventureStructure(content, slug);
+      out[slug] = {
+        title: structure.title,
+        content_hash: crypto.createHash("sha256").update(content).digest("hex"),
+        player_visible: structure.player_visible,
+        source: "installed",
+        malformed: structure.malformed.map((m) => ({ flag: "[malformed-adventure]", ...m })),
+      };
+    } catch {
+      // An unreadable module contributes nothing to the discovery surface.
+    }
+  };
+  for (const dir of adventureDirs()) {
+    const index = readAdventureIndex(dir);
+    let files: string[] = [];
+    try { files = fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort(); } catch { continue; }
+    for (const file of files) {
+      const slug = file.replace(/\.md$/i, "");
+      const entry = index?.[slug];
+      if (entry) { if (!out[slug]) out[slug] = entry; } else addInstalled(slug, path.join(dir, file));
+    }
+  }
+  for (const { slug, file } of adventureExplicitFiles()) addInstalled(slug, file);
+  adventureIndexCache = out;
+  return out;
+}
+
+function skippedAdventureSlugs(): Set<string> {
+  const out = new Set<string>();
+  for (const [slug, entry] of Object.entries(adventureIndexSnapshot())) {
+    if ((entry.malformed ?? []).some((m) => m.disposition === "skipped")) out.add(slug);
+  }
+  return out;
+}
+
+// REQ-172 — compare each indexed module's build hash against the file on disk.
+function warmAdventureIndex(): void {
+  adventureIndexCache = null;
+  const drift: typeof adventureDriftCache = [];
+  for (const dir of adventureDirs()) {
+    const index = readAdventureIndex(dir);
+    if (!index) continue;
+    for (const [slug, entry] of Object.entries(index)) {
+      const file = path.join(dir, `${slug}.md`);
+      if (!fs.existsSync(file)) continue;
+      let current = "";
+      try { current = crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex"); } catch { continue; }
+      if (current === entry.content_hash) continue;
+      const record = { flag: "[adventure-drift]", slug, stored_hash: entry.content_hash, current_hash: current, detected_at: new Date().toISOString() };
+      drift.push(record);
+      process.stderr.write(`[holonovel] [adventure-drift] ${slug}: build hash ${entry.content_hash.slice(0, 12)} != current ${current.slice(0, 12)}\n`);
+    }
+  }
+  adventureDriftCache = drift;
+  adventureIndexSnapshot();
+}
+
+function adventureStructureFor(slug: string): { structure: AdventureStructure; content: string; filePath: string } | null {
+  const filePath = findAdventureFile(slug);
+  if (!filePath) return null;
+  const content = fs.readFileSync(filePath, "utf-8");
+  const { body } = parseAdventureProvenance(content);
+  return { structure: extractAdventureStructure(body, slug), content, filePath };
+}
+
+// REQ-079c/d — pre-populate Novel state from the structural extraction. Skips
+// duplicate names with a note; creates skeletal NPCs (name + prose only).
+function prepopulateAdventure(novel: NovelState, structure: AdventureStructure, slug: string): { npcs: number; lore: number; factions: number; notes: string[]; suggestions: string[] } {
+  const notes: string[] = [];
+  const suggestions: string[] = [];
+  let npcs = 0;
+  let lore = 0;
+  let factions = 0;
+  const takenNpc = new Set([...novel.npcs.values()].map((n) => n.name.toLowerCase()));
+  for (const entity of novel.entities.values()) takenNpc.add(entity.name.toLowerCase());
+  const sceneLocation = structure.locations[0]?.name ?? novel.scene_location ?? undefined;
+  for (const npc of structure.npcs) {
+    const key = npc.name.toLowerCase();
+    if (takenNpc.has(key)) { notes.push(`Skipped duplicate NPC '${npc.name}'.`); continue; }
+    if (capGuard("npcs", novel.npcs.size)) { notes.push(`Skipped NPC '${npc.name}' — NPC limit reached.`); continue; }
+    takenNpc.add(key);
+    const id = `npc_${slug.replace(/[^a-z0-9]+/g, "_")}_${npcs + 1}`;
+    novel.npcs.set(id, {
+      id, name: npc.name, description: npc.description ?? npc.role ?? "",
+      disposition: "neutral", location: sceneLocation, conditions: [], condition_rounds: {},
+    } as any);
+    npcs++;
+    const rulesetSlug = novel.ruleset ?? null;
+    if (rulesetSlug && rulesets.isInstalled(rulesetSlug)) {
+      const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const hit = rulesets.search(rulesetSlug, npc.name, 5)
+        .find((h) => normalize(h.id ?? "").includes(normalize(npc.name)) || (h.content ?? "").toLowerCase().includes(npc.name.toLowerCase()));
+      if (hit) suggestions.push(`NPC '${npc.name}' may match ruleset entry '${hit.id || hit.anchor}'. Confirm to populate stats.`);
+    }
+  }
+  for (const loc of structure.locations) {
+    const key = adventureKey(loc.name);
+    if (!key) continue;
+    if (novel.lore.has(key)) { notes.push(`Skipped duplicate lore entry '${key}'.`); continue; }
+    if (capGuard("lore", novel.lore.size)) { notes.push(`Skipped lore '${key}' — lore limit reached.`); continue; }
+    novel.lore.set(key, {
+      key, content: loc.description, triggers: [loc.name], badge_scope: loc.gm_only ? "game_master" : "shared",
+      priority: 0, sticky: 0, sticky_remaining: 0, enabled: true, visibility: loc.gm_only ? "gm_only" : "shared", known_by: [],
+    } as any);
+    lore++;
+  }
+  const takenFaction = new Set(novel.factions.map((f) => f.name.toLowerCase()));
+  for (const faction of structure.factions) {
+    const key = faction.name.toLowerCase();
+    if (takenFaction.has(key)) { notes.push(`Skipped duplicate faction '${faction.name}'.`); continue; }
+    takenFaction.add(key);
+    novel.factions.push({
+      id: `faction_${slug.replace(/[^a-z0-9]+/g, "_")}_${factions + 1}`,
+      name: faction.name,
+      description: faction.description ?? "",
+      goals: faction.goals ? [faction.goals] : [],
+      resources: "",
+      clock: 0,
+      clock_max: 4,
+      status: "active",
+    } as any);
+    factions++;
+  }
+  return { npcs, lore, factions, notes, suggestions };
+}
+
+// REQ-132e — generated world-model objects are Novel-scoped and removed when
+// the generated adventure is replaced.
+function removeRoomsByName(novel: NovelState, names: string[]): void {
+  const norm = new Set(names.map((n) => n.toLowerCase()));
+  if (norm.size === 0) return;
+  for (const [id, room] of [...novel.world.rooms]) {
+    if (norm.has(room.name.toLowerCase())) novel.world.rooms.delete(id);
+  }
+  for (const room of novel.world.rooms.values()) {
+    for (const [dir, dest] of [...room.exits]) {
+      if (norm.has(String(dest).toLowerCase())) room.exits.delete(dir);
+    }
+  }
+  for (const [id, thing] of [...novel.world.things]) {
+    if (norm.has(String((thing as any).location ?? "").toLowerCase())) novel.world.things.delete(id);
+  }
+}
+
+// REQ-229a-d — one synthesis renderer for every load branch. An empty term
+// never matches (the previous implementation counted every item because
+// `includes("")` is always true).
+function adventureSynthesisMatches(structure: AdventureStructure): { voice: number; lore: number; community: number } {
+  const manifest: any = state.wisdomManifest ?? {};
+  const locationTerms = structure.locations.map((l) => l.name.toLowerCase());
+  const loreTerms = structure.sections.flatMap((sec) =>
+    [...sec.body.matchAll(/@lore\(([^)]+)\)/g)].map((m) => m[1].trim().toLowerCase()));
+  const npcTerms = structure.npcs.map((n) => n.name.toLowerCase()).filter((n) => n.length > 2);
+  const premiseTerms = structure.premise.toLowerCase().split(/\W+/).filter((w) => w.length > 4);
+  const patternTerms = structure.sections.filter((sec) => /^encounters?$/i.test(sec.heading))
+    .flatMap((sec) => sec.body.toLowerCase().split(/\W+/)).filter((w) => w.length > 4);
+  const hit = (hay: string, terms: string[]) => terms.some((t) => t.length > 2 && hay.includes(t));
+  const playerVoice = (state.activeNovel?.player_synthesis?.voice_examples ?? []) as any[];
+  const playerLore = (state.activeNovel?.player_synthesis?.lore_templates ?? []) as any[];
+  const voiceItems = [...((manifest.voice_examples ?? []) as any[]), ...playerVoice];
+  const loreItems = [...((manifest.lore_templates ?? []) as any[]), ...playerLore];
+  const actionItems = (manifest.action_patterns ?? []) as any[];
+  const adviceItems = (manifest.adventure_advice?.templates ?? []) as any[];
+  const voiceMatched = voiceItems.filter((v) => hit(`${v.content ?? ""} ${v.context ?? ""} ${v.dialogue ?? ""} ${v.entity_name ?? ""} ${v.name ?? ""}`.toLowerCase(), npcTerms));
+  const loreMatched = loreItems.filter((l) => hit(`${l.content ?? ""} ${l.keyword ?? ""} ${l.key ?? ""} ${l.category ?? ""}`.toLowerCase(), [...locationTerms, ...loreTerms]));
+  const actionMatched = actionItems.filter((a) => hit(`${a.content ?? ""} ${a.category ?? ""}`.toLowerCase(), patternTerms));
+  const adviceMatched = adviceItems.filter((a) => hit(`${a.content ?? ""} ${a.title ?? ""}`.toLowerCase(), [...premiseTerms, ...locationTerms]));
+  // Community items stay inert (REQ-080/229c): every supplementary item is
+  // reported for activation, whether or not this adventure matched it.
+  const community = [...voiceItems, ...loreItems, ...actionItems, ...adviceItems]
+    .filter((m) => String(m?.tag ?? "") === "supplementary").length;
+  return { voice: voiceMatched.length, lore: loreMatched.length, community };
+}
+
+function adventureAugmentation(structure: AdventureStructure): string {
+  const m = adventureSynthesisMatches(structure);
+  const parts: string[] = [];
+  if (m.voice > 0 || m.lore > 0) {
+    parts.push(`Synthesis found ${m.voice} voice examples for adventure NPCs, ${m.lore} lore templates for adventure locations. Review at \`synthesis://status\`.`);
+  }
+  if (m.community > 0) {
+    parts.push(`Synthesis ${m.community} items found. Review at \`synthesis://status\` and activate individually.`);
+  }
+  return parts.length > 0 ? `\n\n${parts.join(" ")}` : "";
 }
 
 function getActiveEntity() {
@@ -6886,7 +7124,14 @@ server.registerTool("manage_scene", {
       const derived = description === undefined && location !== undefined ? deriveSceneDescription(location, novel) : null;
       const effectiveDescription = description !== undefined ? description : (derived ?? novel.scene_description);
       const hadScene = novel.scene_description !== "";
-      const isTransition = hadScene && novel.scene_description !== effectiveDescription;
+      const descriptionChanged = hadScene && novel.scene_description !== effectiveDescription;
+      // REQ-250b — a waypoint change is a scene transition even when the
+      // free-text scene state is unchanged.
+      const waypointChanged = adventure_scene !== undefined
+        && (adventure_scene === "" || adventure_scene === null
+          ? novel.adventure_scene_waypoint !== null
+          : novel.adventure_scene_waypoint !== adventure_scene);
+      const isTransition = descriptionChanged || waypointChanged;
       if (novel.scene_description) {
         const historyEntry: any = {
           timestamp: new Date().toISOString(),
@@ -6987,7 +7232,11 @@ server.registerTool("manage_scene", {
         // REQ-449 — a scene transition closes the current turn: the excessive-
         // agency mutation counter resets for the next turn.
         state.resetAiMutationTurn();
-        audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
+        audit("scene-transition", {
+          ...(descriptionChanged ? { from: novel.scene_history.slice(-1)[0]?.description } : {}),
+          to: effectiveDescription,
+          ...(waypointChanged ? { adventure_scene: novel.adventure_scene_waypoint } : {}),
+        });
         advanceSceneTransitionCountdowns(novel);
         runWorldReactivityCycle(novel, transitionMarkers);
         resolvePendingDiscoveries(novel);
@@ -10980,11 +11229,11 @@ function assessGenerationGuard(input: string): string | null {
 // Adventure (REQ-090, REQ-091, REQ-132, REQ-229, REQ-247, REQ-251, REQ-292, REQ-295) — consolidated generate/generate_encounter/load/list surface.
 server.registerTool("manage_adventure", {
   title: "Adventure Management",
-  description: "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load and list are read-only, and list accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+  description: "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load activates an indexed module in the Novel, or stores its scaffold in the Codex with target: codex (no Novel required); list is read-only and accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["generate", "generate_encounter", "load", "list"]).describe("generate, generate_encounter, load, or list."),
     premise: z.string().optional().describe("Adventure premise (generate)."),
-    target: z.enum(["novel", "codex", "both"]).optional().describe("novel, codex, or both (generate)."),
+    target: z.enum(["novel", "codex", "both"]).optional().describe("novel, codex, or both (generate); novel or codex (load)."),
     context: z.string().optional().describe("Scene context (generate_encounter)."),
     slug: z.string().optional().describe("Adventure module slug (load)."),
     filter: z.string().optional().describe("Optional genre filter (list)."),
@@ -11023,12 +11272,24 @@ server.registerTool("manage_adventure", {
       const encounterSeed = tableExpansions.length > 0 ? (tableExpansions[rng.roll(tableExpansions.length) - 1] as any).content : "the rival faction arrives as the characters reach the final location";
       const starter = starters.length > 0 ? (starters[rng.roll(starters.length) - 1] as any).content : "";
       const template = templates.length > 0 ? (templates[rng.roll(templates.length) - 1] as any).source_url : "synthesis://adventure_advice";
+      // REQ-132c/d — spatial premises get a generated `## World` section: one
+      // room per location, a starting room, and exits between them. A room
+      // name already in the world gets a suffix rather than overwriting it.
+      const existingRooms = new Set<string>(novel ? [...novel.world.rooms.values()].map((r) => r.name.toLowerCase()) : []);
+      const worldLocations = isSpatialPremise(args.premise)
+        ? locations.map((l) => {
+          const name = l.heading.replace(/^Location\s+\d+\s*:\s*/i, "").trim() || l.heading;
+          return { heading: existingRooms.has(name.toLowerCase()) ? `${name} (generated)` : name, flavor: l.flavor };
+        })
+        : [];
+      const worldSection = worldLocations.length > 0 ? adventureWorldSection(worldLocations) : "";
       const scaffold: any = {
         title: args.premise.trim(), slug,
         overview: `Overview (GM-only): ${starter || "A open-ended adventure scaffold keyed to the premise."} Template source: ${template}.`,
         hook: `${locations[0]?.heading ?? "A starting scene"} draws the characters in — ${locations[0]?.flavor ?? ""}`,
         locations, npc_suggestions: npcSuggestions, encounter_seeds: [encounterSeed],
         genre_tags: novel?.genre ? [novel.genre] : [], generated_at: new Date().toISOString(), source: "generated",
+        world_section: worldSection,
       };
       const results: string[] = [];
       if (tgt === "codex" || tgt === "both") {
@@ -11046,17 +11307,32 @@ server.registerTool("manage_adventure", {
       if (tgt === "novel" || tgt === "both") {
         if (!novel) return err("INVALID_INPUT", "No active Novel — use target:'codex' without a Novel, or create a Novel first.");
         novelSnapshot();
+        // REQ-132e — replace the prior generated rooms before materializing.
+        if (novel.generated_adventure?.materialized_rooms) removeRoomsByName(novel, novel.generated_adventure.materialized_rooms);
+        let materializedRooms: string[] = [];
+        if (worldSection) {
+          const before = new Set([...novel.world.rooms.values()].map((r) => r.name));
+          const { world } = convertSource(worldSection, novel.world);
+          novel.world = world;
+          materializedRooms = [...world.rooms.values()].map((r) => r.name).filter((n) => !before.has(n));
+        }
+        scaffold.materialized_rooms = materializedRooms;
         novel.generated_adventure = scaffold;
-        novel.adventure_index = {
-          premise: args.premise.trim(), hooks: [scaffold.hook],
-          npcs: npcSuggestions.map((n) => ({ name: n })), locations: locations.map((l) => ({ name: l.heading, description: l.flavor })), factions: [],
-        };
+        // REQ-132c — an indexed adventure's index is not replaced by generated
+        // content; generated surfaces read the scaffold payload directly.
+        if (!novel.adventure_slug || !novel.adventure_index) {
+          novel.adventure_index = {
+            premise: args.premise.trim(), hooks: [scaffold.hook],
+            npcs: npcSuggestions.map((n) => ({ name: n })), locations: locations.map((l) => ({ name: l.heading, description: l.flavor })), factions: [],
+          };
+        }
         novel.adventure_set = true;
         state.saveNovel(novel);
-        audit("generate_adventure", { premise: args.premise, target: tgt, slug });
+        audit("generate_adventure", { premise: args.premise, target: tgt, slug, rooms: materializedRooms.length });
         results.push(`Novel adventure scaffold stored (adventure://generated/${slug})`);
       }
-      return ok(`Adventure "${args.premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}\n\n${results.join("\n")}`);
+      const worldNote = scaffold.world_section ? `\n\n**World:** ${scaffold.materialized_rooms?.length ?? 0} room(s) materialized from the generated \`## World\` section.` : "";
+      return ok(`Adventure "${args.premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}${worldNote}\n\n${results.join("\n")}`);
     }
     case "generate_encounter": {
       requireGM();
@@ -11109,31 +11385,80 @@ server.registerTool("manage_adventure", {
     }
     case "load": {
       requireGM();
-      const novel = requireNovel();
-      const filePath = findAdventureFile(args.slug);
-      if (!filePath) return err("NOT_FOUND", `Adventure '${args.slug}' not found in ${adventureDirs().join(", ")}.`);
-      const raw = fs.readFileSync(filePath, "utf-8");
+      if (!args.slug) return err("INVALID_INPUT", "manage_adventure (action: load) requires slug.");
+      const slug = String(args.slug);
+      const novel = state.activeNovel;
+      const target = args.target ?? (novel ? "novel" : "codex");
+      if (target !== "novel" && target !== "codex") {
+        return err("INVALID_INPUT", `manage_adventure (action: load) target must be 'novel' or 'codex' (got '${target}').`);
+      }
+      const available = Object.keys(adventureIndexSnapshot())
+        .filter((s) => !skippedAdventureSlugs().has(s))
+        .sort();
+      if (skippedAdventureSlugs().has(slug) || !findAdventureFile(slug)) {
+        return err("NOT_FOUND", `Adventure '${slug}' not found. Available adventures: ${available.length ? available.join(", ") : "(none indexed)"}.`);
+      }
+      const loaded = adventureStructureFor(slug)!;
+      const { structure } = loaded;
       // REQ-616/REQ-617 — provenance is verified before any state mutation.
-      const { provenance, body: content } = parseAdventureProvenance(raw);
+      const { provenance, body: content } = parseAdventureProvenance(loaded.content);
       const checks = verifyAdventureProvenance(provenance ?? {}, content);
       if (checks.failures.length > 0) {
-        return err("STATE_CONFLICT", `Adventure '${args.slug}' provenance verification failed: ${checks.failures.join("; ")}. Corrective action: re-export the module or remove its provenance block.`);
+        return err("STATE_CONFLICT", `Adventure '${slug}' provenance verification failed: ${checks.failures.join("; ")}. Corrective action: re-export the module or remove its provenance block.`);
       }
       const provenanceNotes = provenance ? checks.warnings : ["[WARNING] [provenance-absent] module declares no provenance block"];
-      const headings = content.match(/^#{2,3} .+$/gm) ?? [];
-      const npcRefs: string[] = [];
-      const m = content.match(/\*\*([A-Z][^*]{1,40})\*\*\s*\n/gm);
-      if (m) for (const line of m.slice(0, 10)) npcRefs.push(line.replace(/\*\*/g, "").trim());
-      const locHeadings = headings.filter((h) => !/(roll|check|save|attack|damage)/i.test(h)).slice(0, 20).map((h) => h.replace(/^#{2,3}\s+/, ""));
-      const sceneCount = locHeadings.length;
+      // REQ-079h/i — a codex load is Novel-independent and stores the O.10
+      // payload; it never reads or writes Novel state.
+      if (target === "codex") {
+        const id = `adventure_${slug.replace(/[^a-z0-9]+/g, "_")}`;
+        const existing = state.codex.get(id);
+        const now = new Date().toISOString();
+        state.codex.set(id, {
+          id, kind: "adventure", name: slug,
+          description: structure.premise,
+          content: {
+            title: structure.title, slug, premise: structure.premise,
+            overview: structure.overview, hook: structure.hooks[0] ?? "",
+            source: `loaded:${slug}`,
+            locations: structure.locations.map((l) => ({ heading: l.name, flavor_text: l.description, gm_only: l.gm_only })),
+            npc_suggestions: structure.npcs.map((n) => ({ name: n.name, description: n.description ?? n.role ?? "" })),
+            encounter_seeds: structure.sections.filter((x) => /^encounters?$/i.test(x.heading)).flatMap((x) => x.body.split("\n").map((l) => l.trim()).filter(Boolean)),
+            genre_tags: [],
+            sections: Object.fromEntries(structure.sections.filter((x) => x.depth === 2).map((x) => [x.heading, x.body.trim()])),
+          },
+          tags: [], imported_at: existing?.imported_at ?? now, codex_modified_at: now,
+        } as any);
+        state.saveCodex();
+        audit("load_adventure", { slug, target: "codex", creator: provenance?.creator ?? null });
+        return ok(`Codex adventure '${id}' stored (source: loaded:${slug}). Structural extraction: ${structure.locations.length} locations, ${structure.npcs.length} NPC references, ${structure.factions.length} factions. Novel state untouched.${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+      }
+      if (!novel) return err("INVALID_INPUT", "No active Novel — load with target:'codex', or create a Novel first.");
+      novelSnapshot();
+      // Pre-population runs after annotation materialization so an @npc-created
+      // entity counts as existing state and is not created twice (REQ-079d).
+      const prepopulate = () => {
+        const p = prepopulateAdventure(novel, structure, slug);
+        return {
+          line: `Pre-populated: ${p.npcs} NPCs, ${p.lore} lore entries, ${p.factions} factions.`,
+          notes: [...p.notes, ...p.suggestions].length ? `\n${[...p.notes, ...p.suggestions].join("\n")}` : "",
+        };
+      };
       novel.adventure_index = {
-        premise: (content.match(/## Premise\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").trim() || `Adventure: ${args.slug}`,
-        hooks: content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/) ? [content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)![1].trim()] : [],
-        npcs: npcRefs.map((n) => ({ name: n })),
-        locations: locHeadings.map((l) => ({ name: l, description: "" })),
-        factions: (content.match(/## Factions\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "").split("\n").filter((l) => l.trim().length > 2 && !l.startsWith("#")).map((l) => ({ name: l.trim() })),
-        scene_count: sceneCount,
+        premise: structure.premise || `Adventure: ${slug}`,
+        hooks: structure.hooks.length > 0 ? structure.hooks : (structure.premise ? [structure.premise] : []),
+        npcs: structure.npcs.map((n) => ({ name: n.name, description: n.description ?? n.role ?? "" })),
+        locations: structure.locations.map((l) => ({ name: l.name, description: l.description })),
+        factions: structure.factions.map((f) => ({ name: f.name, goals: f.goals })),
+        scene_count: structure.locations.length,
         ...(provenance ? { provenance } : {}),
+      };
+      novel.adventure_slug = slug;
+      novel.adventure_set = true;
+      const reapplyGenerated = () => {
+        const generatedSection = novel.generated_adventure?.world_section;
+        if (!generatedSection) return;
+        const { world } = convertSource(generatedSection, novel.world);
+        novel.world = world;
       };
       const worldMatch = content.match(/## World\s*\n([\s\S]*?)(?=\n## |$)/);
       // REQ-079a/REQ-622 — annotations anywhere in the module materialize room
@@ -11154,67 +11479,62 @@ server.registerTool("manage_adventure", {
         // REQ-090 — a World section that yields no rooms must not silently
         // erase a playable Novel world. Keep the existing model and warn.
         if (result.rooms === 0 && novel.world.rooms.size > 0) {
-          novel.generated_adventure = null;
-          novel.adventure_slug = args.slug;
-          novel.adventure_set = true;
           const linked = linkAnnotations(content, novel.world);
-          const materialized = materializeAnnotations(novel, linked.directives, args.slug);
+          const materialized = materializeAnnotations(novel, linked.directives, slug);
+          reapplyGenerated();
+          const pre = prepopulate();
           state.saveNovel(novel);
-          audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
-          return ok(`Adventure '${args.slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms).${provenanceSummary(provenance)}${hazardNote(linked, materialized)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
+          audit("load_adventure", { slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
+          return ok(`Adventure '${slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms). ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linked, materialized)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
         }
         novel.world = world;
-        novel.generated_adventure = null;
-        novel.adventure_slug = args.slug;
-        novel.adventure_set = true;
+        // REQ-132b — loading an indexed adventure does not affect the
+        // generated adventure; put its rooms back into the replaced world.
+        reapplyGenerated();
         // The World block was already linked by convertSource; scan the rest.
         const linked = linkAnnotations(content.replace(worldMatch[0], ""), world);
         // REQ-079a — NPCs and lore may be declared in either place; materialize
         // both sets once, after the world is final.
-        const materialized = materializeAnnotations(novel, [...result.directives, ...linked.directives], args.slug);
+        const materialized = materializeAnnotations(novel, [...result.directives, ...linked.directives], slug);
+        const pre = prepopulate();
         state.saveNovel(novel);
-        audit("load_adventure", { slug: args.slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
-        const synthVoice = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => npcRefs.some((n) => n.toLowerCase().includes(String(v?.entity_name ?? v?.name ?? "").toLowerCase()))).length;
-        const synthLore = (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => locHeadings.some((loc) => loc.toLowerCase().includes(String(l?.keyword ?? l?.key ?? "").toLowerCase()))).length;
-        const communityInert = (state.wisdomManifest?.voice_examples ?? []).filter((v: any) => ["supplementary", "player"].includes(String(v?.tag ?? ""))).length + (state.wisdomManifest?.lore_templates ?? []).filter((l: any) => ["supplementary", "player"].includes(String(l?.tag ?? ""))).length;
-        const augParts: string[] = [];
-        if (synthVoice > 0 || synthLore > 0) augParts.push(`Synthesis found ${synthVoice} voice examples for adventure NPCs, ${synthLore} lore templates for adventure locations. Review at \`synthesis://status\`.`);
-        if (communityInert > 0) augParts.push(`Community synthesis items: ${communityInert} inert — activate with manage_synthesis (action: activate).`);
-        const aug = augParts.length > 0 ? `\n\n${augParts.join(" ")}` : "";
-        return ok(`Adventure '${args.slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits.${aug}${hazardNote(linked, materialized)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+        audit("load_adventure", { slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
+        return ok(`Adventure '${slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits. ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linked, materialized)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
       }
-      novel.generated_adventure = null;
-      novel.adventure_slug = args.slug;
-      novel.adventure_set = true;
       const linkedNoWorld = linkAnnotations(content, novel.world);
-      const materializedNoWorld = materializeAnnotations(novel, linkedNoWorld.directives, args.slug);
+      const materializedNoWorld = materializeAnnotations(novel, linkedNoWorld.directives, slug);
+      const pre = prepopulate();
       state.saveNovel(novel);
-      audit("load_adventure", { slug: args.slug, rooms: 0, things: 0, creator: provenance?.creator ?? null, npcs: materializedNoWorld.counts.npcs, lore: materializedNoWorld.counts.lore });
-      return ok(`Adventure '${args.slug}' loaded (no world-model section found — flat prose only).${adventureSynthesisLines()}${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+      audit("load_adventure", { slug, rooms: 0, things: 0, creator: provenance?.creator ?? null, npcs: materializedNoWorld.counts.npcs, lore: materializedNoWorld.counts.lore });
+      return ok(`Adventure '${slug}' loaded (no world-model section found — flat prose only). ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
     }
     case "list": {
-      const files = adventureFiles();
+      const files = adventureFiles().filter((f) => !skippedAdventureSlugs().has(f.slug));
       if (files.length === 0) return ok("[No adventure modules found.]");
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
       const entries = files.map(({ slug, file, dir }) => {
         const filePath = path.join(dir, file);
-        const content = fs.readFileSync(filePath, "utf-8");
-        const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
-        const preview = content.match(/## (?:Premise|Adventure Hook)\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim().split(/\s+/).slice(0, 30).join(" ") ?? "";
-        const genreTags: string[] = [];
-        const gm = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1] ?? "";
-        const genre = gm.match(/genre[:\s]+([a-z_]+)/i)?.[1];
-        if (genre) genreTags.push(genre);
-        const roomCount = (content.match(/^### .+$/gm) ?? []).length;
-        const npcCount = (content.match(/\*\*[A-Z][^*]{1,40}\*\*\s*\n/g) ?? []).length;
+        const rawContent = fs.readFileSync(filePath, "utf-8");
+        const { body, provenance } = parseAdventureProvenance(rawContent);
+        const structure = extractAdventureStructure(body, slug);
+        const genre = structure.overview.match(/genre[:\s]+([a-z_]+)/i)?.[1];
+        const genreTags: string[] = genre ? [genre] : [];
+        const preview = structure.preview ?? (structure.hooks[0]
+          ? `[derived] ${structure.hooks[0].replace(/\s+/g, " ").split(/(?<=[.!?])\s+/).slice(0, 2).join(" ")}`
+          : "");
+        const roomCount = structure.sections.filter((x) => x.depth === 3).length;
+        const npcCount = structure.npcs.length;
         const complexity = roomCount >= 15 ? "epic" : roomCount >= 6 ? "standard" : "short";
         const stat = fs.statSync(filePath);
         // REQ-616 — surface the module's provenance block with its catalog entry.
-        const { provenance } = parseAdventureProvenance(content);
-        return { slug, title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString(), provenance: provenance ?? null };
-      }).filter((e) => !args.filter || e.genre_tags.includes(args.filter) || isGM);
-      const visible = isGM ? entries : entries.filter((e) => e.preview);
+        return { slug, title: structure.title, preview, genre_tags: genreTags, room_count: roomCount, npc_count: npcCount, complexity, last_modified: stat.mtime.toISOString(), provenance: provenance ?? null, player_visible: structure.player_visible };
+      }).filter((e) => !args.filter || e.genre_tags.includes(args.filter));
+      // REQ-292b — the genre filter applies to every badge; the Player badge
+      // sees only modules that declare player_visible or carry a shared hook.
+      const visible = isGM
+        ? entries.map(({ player_visible: _pv, ...rest }) => rest)
+        : entries.filter((e) => e.player_visible).map(({ player_visible: _pv, ...rest }) => rest);
       return raw(JSON.stringify(visible, null, 2));
     }
     default:
@@ -11222,54 +11542,187 @@ server.registerTool("manage_adventure", {
   }
 });
 
+// REQ-079b/e, REQ-132c — adventure prose search. HIGH when a query token
+// appears in a section heading, MEDIUM when only the body matches.
+interface AdventureSearchHit {
+  slug: string;
+  anchor: string;
+  heading: string;
+  snippet: string;
+  confidence: "HIGH" | "MEDIUM";
+  generated: boolean;
+  source_anchor: { file: string | null; heading: string; lines: string };
+}
+
+function searchAdventureProse(query: string, max: number): AdventureSearchHit[] {
+  const novel = state.activeNovel;
+  if (!novel) return [];
+  const tokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+  if (tokens.length === 0) return [];
+  const hits: AdventureSearchHit[] = [];
+  const consider = (structure: AdventureStructure, generated: boolean, file: string | null) => {
+    for (const section of structure.sections) {
+      const heading = section.heading.toLowerCase();
+      const body = section.body.toLowerCase();
+      const token = tokens.find((t) => heading.includes(t) || body.includes(t));
+      if (!token) continue;
+      const at = body.indexOf(token);
+      const start = Math.max(0, at - 60);
+      const snippet = `${start > 0 ? "…" : ""}${section.body.slice(start, start + 180).replace(/\s+/g, " ").trim()}${section.body.length > start + 180 ? "…" : ""}`;
+      hits.push({
+        slug: generated ? "generated" : structure.slug,
+        anchor: section.anchor,
+        heading: section.heading,
+        snippet,
+        confidence: heading.includes(token) ? "HIGH" : "MEDIUM",
+        generated,
+        source_anchor: { file, heading: section.heading, lines: `${section.line}-${section.endLine}` },
+      });
+    }
+  };
+  if (novel.adventure_slug && !skippedAdventureSlugs().has(novel.adventure_slug)) {
+    const structure = adventureStructureBySlug(novel.adventure_slug);
+    if (structure) consider(structure, false, findAdventureFile(novel.adventure_slug));
+  }
+  if (novel.generated_adventure) consider(generatedAdventureStructure(novel), true, null);
+  hits.sort((a, b) => (a.confidence === b.confidence ? 0 : a.confidence === "HIGH" ? -1 : 1));
+  return hits.slice(0, max);
+}
+
+function renderAdventureHit(hit: AdventureSearchHit): string {
+  const tag = hit.generated ? " [generated]" : "";
+  return `[${hit.confidence}] adventure://${hit.slug}/${hit.anchor} — ${hit.heading}: ${hit.snippet}${tag}\n${JSON.stringify({ source_anchor: hit.source_anchor })}`;
+}
+
 // REQ-170 — adventure discovery surface: adventures:// lists indexed adventure
 // slugs with titles and badge-filtered hooks.
 server.registerResource("adventures", "adventures://", { title: "Adventure Catalog" }, async () => {
-  const files = adventureFiles();
+  const files = adventureFiles().filter((f) => !skippedAdventureSlugs().has(f.slug));
   const badge = getBadge();
   const isGM = badge === "game_master" || badge === "none";
   const entries = files.map(({ slug, file, dir }) => {
-    const content = fs.readFileSync(path.join(dir, file), "utf-8");
-    const title = content.match(/^# (.+)$/m)?.[1] ?? slug;
-    const hook = content.match(/## Adventure Hook\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
-    const overview = content.match(/## Overview\s*\n([\s\S]*?)(?=\n## |$)/)?.[1].trim() ?? "";
-    // REQ-616 — provenance is public attribution and appears in the catalog.
-    const { provenance } = parseAdventureProvenance(content);
-    return { slug, title, hook: isGM ? hook || overview : hook, provenance: provenance ?? null };
-  });
+    const rawContent = fs.readFileSync(path.join(dir, file), "utf-8");
+    const { body, provenance } = parseAdventureProvenance(rawContent);
+    const structure = extractAdventureStructure(body, slug);
+    // REQ-292b — Player-visible means a player_visible marker or a shared hook.
+    if (!isGM && !structure.player_visible) return null;
+    return { slug, title: structure.title, hook: structure.hooks[0] ?? "", provenance: provenance ?? null };
+  }).filter((e): e is { slug: string; title: string; hook: string; provenance: AdventureProvenance | null } => e !== null);
   return { contents: [{ uri: "adventures://", text: JSON.stringify(entries, null, 2), mimeType: "application/json" }] };
 });
 
-// REQ-248 — adventure overview resource: adventure://<slug>/overview summarizes
-// premise, key NPCs, major locations, factions, and scene count; badge-filtered.
+// REQ-132a — a generated adventure has no source file; its structure comes from
+// the persisted scaffold so overview, navigation, and anchors share one shape.
+function generatedAdventureStructure(novel: NovelState): AdventureStructure {
+  const g: any = novel.generated_adventure ?? {};
+  const locations = ((g.locations ?? []) as any[]).map((l, i) => {
+    const name = String(l.heading ?? `Location ${i + 1}`).replace(/^Location\s+\d+\s*:\s*/i, "").trim() || `Location ${i + 1}`;
+    return { name, anchor: `location-${i + 1}`, description: String(l.flavor ?? ""), gm_only: false };
+  });
+  const npcs = ((g.npc_suggestions ?? []) as any[]).map((n) => ({ name: String(n), role: "NPC", confidence: "LOW" as const }));
+  const sections = [
+    { heading: "Overview", anchor: "overview", depth: 2, gm_only: true, body: String(g.overview ?? ""), line: 1, endLine: 1 },
+    { heading: "Adventure Hook", anchor: "hook", depth: 2, gm_only: false, body: String(g.hook ?? ""), line: 1, endLine: 1 },
+    ...(g.world_section ? [{ heading: "World", anchor: "world", depth: 2, gm_only: false, body: String(g.world_section), line: 1, endLine: 1 }] : []),
+    ...locations.map((l) => ({ heading: l.name, anchor: l.anchor, depth: 3, gm_only: false, body: l.description, line: 1, endLine: 1 })),
+  ];
+  return {
+    slug: "generated", title: String(g.title ?? "generated"), premise: String(g.overview ?? ""),
+    overview: String(g.overview ?? ""), hooks: g.hook ? [String(g.hook)] : [], preview: null,
+    player_visible: true, toc: sections.map((x) => ({ heading: x.heading, anchor: x.anchor, depth: x.depth, gm_only: x.gm_only })),
+    sections, locations, npcs, factions: [], malformed: [],
+  };
+}
+
+// REQ-248/249 — resolve the requested adventure: `generated`, or an indexed
+// module by slug. Returns null when neither exists.
+function adventureStructureBySlug(slug: string): AdventureStructure | null {
+  const novel = state.activeNovel;
+  if (slug === "generated" && novel?.generated_adventure) return generatedAdventureStructure(novel);
+  const filePath = findAdventureFile(slug);
+  if (!filePath) return null;
+  const rawContent = fs.readFileSync(filePath, "utf-8");
+  const { body } = parseAdventureProvenance(rawContent);
+  return extractAdventureStructure(body, slug);
+}
+
+function adventureIsActive(): boolean {
+  const novel = state.activeNovel;
+  return !!novel && !!(novel.adventure_slug || novel.generated_adventure);
+}
+
+// REQ-248 — adventure overview resource: premise, key NPCs with roles, major
+// locations with descriptions, factions, and scene count; badge-filtered.
 server.registerResource("adventure-overview", new ResourceTemplate("adventure://{slug}/overview", { list: undefined }), { title: "Adventure Overview" }, async (uri) => {
   const novel = state.activeNovel;
-  if (!novel) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active Novel.", mimeType: "text/plain" }] };
+  if (!novel || !adventureIsActive()) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active adventure — load an adventure first.", mimeType: "text/plain" }] };
   const slug = uri.href.split("/")[2] ?? "";
-  const idx = novel.adventure_index;
+  const structure = adventureStructureBySlug(slug);
+  if (!structure) return { contents: [{ uri: uri.href, text: `[WARNING] No structured overview available for '${slug}'.`, mimeType: "text/plain" }] };
   const isGM = getBadge() === "game_master" || getBadge() === "none";
-  if (!idx) return { contents: [{ uri: uri.href, text: `[WARNING] No structured overview available for '${slug}'.`, mimeType: "text/plain" }] };
-  const text = `## ${slug} Overview\n\n**Premise:** ${idx.premise ?? ""}\n**NPCs:** ${(idx.npcs ?? []).map((n: any) => `${n.name}`).join(", ") || "(none)"}\n**Locations:** ${(idx.locations ?? []).map((l: any) => l.name).join(", ") || "(none)"}\n${isGM && (idx.factions ?? []).length > 0 ? `**Factions:** ${idx.factions.map((f: any) => f.name).join(", ")}\n` : ""}**Scenes:** ${idx.scene_count ?? (idx.locations ?? []).length}`;
+  const rows = (list: Array<{ name: string; detail?: string; gm_only?: boolean }>) =>
+    list.filter((r) => isGM || !r.gm_only).map((r) => `- ${r.name}${r.detail ? ` — ${r.detail}` : ""}`).join("\n");
+  const npcRows = rows(structure.npcs.map((n) => ({ name: n.name, detail: n.role ?? n.description, gm_only: n.gm_only })));
+  const locationRows = rows(structure.locations.map((l) => ({ name: l.name, detail: l.description, gm_only: l.gm_only })));
+  const factionRows = rows(structure.factions.map((f) => ({ name: f.name, detail: f.description ?? f.goals, gm_only: f.gm_only })));
+  const text = [
+    `## ${slug} Overview`,
+    "",
+    `**Premise:** ${structure.premise}`,
+    "",
+    "**NPCs:**",
+    npcRows || "- (none)",
+    "",
+    "**Locations:**",
+    locationRows || "- (none)",
+    "",
+    ...(factionRows ? ["**Factions:**", factionRows, ""] : []),
+    `**Scenes:** ${structure.locations.length}`,
+  ].join("\n");
   return { contents: [{ uri: uri.href, text, mimeType: "text/markdown" }] };
 });
 
-// REQ-249 — adventure navigation resource: adventure://<slug>/navigation renders
-// the structural index as navigable Markdown with the current waypoint marked.
+// REQ-249 — adventure navigation resource: the structural index as navigable
+// Markdown with heading anchors and the current waypoint marked.
 server.registerResource("adventure-navigation", new ResourceTemplate("adventure://{slug}/navigation", { list: undefined }), { title: "Adventure Navigation" }, async (uri) => {
   const novel = state.activeNovel;
-  if (!novel) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active Novel — load an adventure first.", mimeType: "text/plain" }] };
+  if (!novel || !adventureIsActive()) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active adventure — load an adventure first.", mimeType: "text/plain" }] };
   const slug = uri.href.split("/")[2] ?? "";
-  const idx = novel.adventure_index;
-  if (!idx) return { contents: [{ uri: uri.href, text: "[WARNING] No navigation index available.", mimeType: "text/plain" }] };
-  const scenes = (idx.locations ?? []).map((l: any) => l.name);
+  const structure = adventureStructureBySlug(slug);
+  if (!structure) return { contents: [{ uri: uri.href, text: "[WARNING] No navigation index available.", mimeType: "text/plain" }] };
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  const scenes = structure.locations.filter((l) => isGM || !l.gm_only);
+  if (scenes.length === 0) return { contents: [{ uri: uri.href, text: "[WARNING] No navigation index available.", mimeType: "text/plain" }] };
   const waypoint = novel.adventure_scene_waypoint ?? "";
-  const lines = scenes.map((s: string, i: number) => {
-    const marker = s === waypoint ? "[→] " : "";
-    const prev = i > 0 ? ` (prev: ${scenes[i - 1]})` : "";
-    const next = i < scenes.length - 1 ? ` (next: ${scenes[i + 1]})` : "";
-    return `- ${marker}${s}${prev}${next}`;
+  const lines = scenes.map((s, i) => {
+    const marker = s.name === waypoint ? "[→] " : "";
+    const prev = i > 0 ? ` (prev: ${scenes[i - 1].name})` : "";
+    const next = i < scenes.length - 1 ? ` (next: ${scenes[i + 1].name})` : "";
+    return `- ${marker}[${s.name}](#${s.anchor})${prev}${next}`;
   });
-  return { contents: [{ uri: uri.href, text: `## ${slug} Navigation\n\n${lines.join("\n") || "(no scenes)"}`, mimeType: "text/markdown" }] };
+  return { contents: [{ uri: uri.href, text: `## ${slug} Navigation\n\n${lines.join("\n")}`, mimeType: "text/markdown" }] };
+});
+
+// REQ-079e — per-anchor adventure prose. Registered after the two specific
+// templates: the SDK matches templates in registration order, so `/overview`
+// and `/navigation` keep their handlers.
+server.registerResource("adventure-anchor", new ResourceTemplate("adventure://{slug}/{anchor}", { list: undefined }), { title: "Adventure Prose" }, async (uri) => {
+  const novel = state.activeNovel;
+  if (!novel || !adventureIsActive()) return { contents: [{ uri: uri.href, text: "[ERROR] [STATE_CONFLICT] No active adventure — load an adventure first.", mimeType: "text/plain" }] };
+  const slug = uri.href.split("/")[2] ?? "";
+  const anchor = uri.href.split("/")[3] ?? "";
+  const structure = adventureStructureBySlug(slug);
+  if (!structure) return { contents: [{ uri: uri.href, text: `[ERROR] [STATE_CONFLICT] No adventure '${slug}' is active.`, mimeType: "text/plain" }] };
+  const section = structure.sections.find((x) => x.anchor === anchor);
+  if (!section) {
+    const anchors = structure.toc.map((x) => x.anchor).join(", ") || "(none)";
+    return { contents: [{ uri: uri.href, text: `[WARNING] No section '${anchor}' in '${slug}'. Available anchors: ${anchors}.`, mimeType: "text/plain" }] };
+  }
+  const isGM = getBadge() === "game_master" || getBadge() === "none";
+  if (section.gm_only && !isGM) {
+    return { contents: [{ uri: uri.href, text: `[ERROR] [FORBIDDEN] Section '${anchor}' in '${slug}' is Game Master only.`, mimeType: "text/plain" }] };
+  }
+  return { contents: [{ uri: uri.href, text: `## ${section.heading}\n\n${section.body.trim()}`, mimeType: "text/markdown" }] };
 });
 
 // --- Session ---
@@ -12178,10 +12631,18 @@ server.registerTool("manage_ruleset", {
       // REQ-558 — an explicit slug makes search Novel-independent; otherwise use
       // the bound Novel's ruleset.
       const slug = (typeof args.slug === "string" && args.slug) ? args.slug : (novel?.ruleset ?? null);
+      // REQ-079e/132c — the active adventure's prose joins every search; the
+      // adventure set sorts first and the [generated] tag never affects order.
+      const adventureHits = searchAdventureProse(String(args.query), args.max_results ?? 10);
+      const adventureRendered = adventureHits.map(renderAdventureHit);
+      const mergeAdventure = (body: string, returned: number, total: number): string => {
+        const adventureBody = adventureRendered.length > 0 ? adventureRendered.join("\n") + "\n" : "";
+        return adventureBody + body + countReport(returned + adventureRendered.length, total + adventureRendered.length);
+      };
       if (slug && rulesets.isInstalled(slug)) {
         const hits = rulesets.search(slug, String(args.query), args.max_results ?? 10);
-        if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${args.query}'.`);
-        const total = rulesets.search(slug, String(args.query), 100000).length;
+        if (hits.length === 0 && adventureRendered.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${args.query}'.`);
+        const total = hits.length === 0 ? 0 : rulesets.search(slug, String(args.query), 100000).length;
         // REQ-588 — bound the context one search returns; report suppressed
         // results and truncate an oversized passage with a resource pointer.
         const budget = searchMaxTokens();
@@ -12199,13 +12660,15 @@ server.registerTool("manage_ruleset", {
           usedChars += text.length;
         }
         const suppressed = Math.max(0, total - rendered.length);
-        searchBudgetStats = { max_tokens: budget, last_returned: rendered.length, last_suppressed: suppressed };
+        searchBudgetStats = { max_tokens: budget, last_returned: rendered.length + adventureRendered.length, last_suppressed: suppressed };
         const body = rendered.join("\n");
-        return raw(truncateOutput("search_rules", body + countReport(rendered.length, total)));
+        return raw(truncateOutput("search_rules", mergeAdventure(body, rendered.length, total)));
       }
       if (rulesets.installedSlugs().length > 0) {
+        if (adventureRendered.length > 0) return raw(truncateOutput("search_rules", mergeAdventure("", 0, 0)));
         return ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`);
       }
+      if (adventureRendered.length > 0) return raw(truncateOutput("search_rules", mergeAdventure("", 0, 0)));
       return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, install a package with manage_artifact (action: install, kind: ruleset); builders working from the repository can emit one with build-ruleset (spec Appendix V).`);
     }
     case "install": {
@@ -13227,7 +13690,18 @@ function buildSpecHealth(): Record<string, unknown> {
       : undefined,
     // REQ-170 — adventure discovery surface: indexed adventure slugs + content
     // hashes (informational; adventure modules ship with the build).
-    indexed_adventures: isGM ? Object.fromEntries((novel?.adventure_index ? [[novel.adventure_slug ?? "generated", "adventure-scaffold"]] : [])) : undefined,
+    // REQ-170 — indexed adventure slugs with their build-time content hashes;
+    // the Player badge sees only the player-visible rows.
+    indexed_adventures: (() => {
+      const out: Record<string, { title: string; content_hash: string; player_visible: boolean; source: string; malformed: AdventureIndexEntry["malformed"] }> = {};
+      for (const [slug, entry] of Object.entries(adventureIndexSnapshot())) {
+        if (!isGM && !entry.player_visible) continue;
+        out[slug] = { title: entry.title, content_hash: entry.content_hash, player_visible: entry.player_visible, source: entry.source, malformed: entry.malformed };
+      }
+      return out;
+    })(),
+    // REQ-172 — drift is a diagnostic, never a startup interlock.
+    adventure_drift: adventureDriftCache,
     // REQ-292b — adventure catalog count.
     adventure_catalog_count: countAdventureModules(),
     // REQ-620 — host-level artifact registry counts per kind.
@@ -14914,10 +15388,26 @@ server.registerTool("manage_synthesis", {
       const manifest = state.wisdomManifest;
       // REQ-372 — supplementary imports surface as Wisdom even before synthesis runs.
       const supplementary = (novel?.supplementary_rulesets ?? []).flatMap((s) => s.wisdom.map((w) => ({ module: w.module, tag: `supplementary:${s.slug}`, content: w.content, badge_scope: "game_master", key: String(w.key) })));
-      if (!manifest && supplementary.length === 0) return ok("No synthesis items (synthesis not run; no supplementary imports).");
+      const hasPlayerItems = Object.keys(novel?.player_synthesis ?? {}).some((m) => ((novel?.player_synthesis ?? {})[m] as any[]).length > 0);
+      if (!manifest && supplementary.length === 0 && !hasPlayerItems) return ok("No synthesis items (synthesis not run; no supplementary imports).");
       // REQ-160 — items past TTRPG_SYNTHESIS_STALE_DAYS carry the [stale] flag.
       const staleCutoff = synthesisStaleCutoff();
       const isStale = (item: any): boolean => isStaleItem(item, manifest, staleCutoff);
+      // REQ-229b — adventure-linked items are tagged at read time: the tag is
+      // derived from the active adventure, so ending the Novel removes it and
+      // revert (which acts on supplementary items) leaves it untouched.
+      const adventureSlug = novel?.adventure_slug ?? null;
+      const adventureTerms: string[] = [];
+      if (novel?.adventure_slug) {
+        const st = adventureStructureBySlug(novel.adventure_slug);
+        if (st) adventureTerms.push(...st.npcs.map((n) => n.name.toLowerCase()), ...st.locations.map((l) => l.name.toLowerCase()));
+      }
+      if (novel?.generated_adventure) {
+        const st = generatedAdventureStructure(novel);
+        adventureTerms.push(...st.npcs.map((n) => n.name.toLowerCase()), ...st.locations.map((l) => l.name.toLowerCase()));
+      }
+      const adventureTagFor = (content: string): string | undefined =>
+        adventureSlug && adventureTerms.some((t) => t.length > 2 && content.toLowerCase().includes(t)) ? adventureSlug : undefined;
       const row = (module: string, item: any, content: string): any => ({
         module,
         key: item?.key,
@@ -14929,9 +15419,14 @@ server.registerTool("manage_synthesis", {
         activated: isWisdomItemActive(module, item),
         module_enabled: isModuleEnabled(module),
         stale: isStale(item),
+        ...(adventureTagFor(content) ? { adventure_slug: adventureTagFor(content) } : {}),
       });
       const adv = manifest?.adventure_advice ?? {};
-      const playerRows = Object.entries(novel?.player_synthesis ?? {}).flatMap(([m, items]) => (items as any[]).map((i) => ({ module: m, key: i.key, tag: "player", badge_scope: i.badge_scope, content: i.content, activated: i.active !== false, module_enabled: isModuleEnabled(m) })));
+      const playerRows = Object.entries(novel?.player_synthesis ?? {}).flatMap(([m, items]) => (items as any[]).map((i) => ({
+        module: m, key: i.key, tag: "player", badge_scope: i.badge_scope, content: i.content,
+        activated: i.active !== false, module_enabled: isModuleEnabled(m),
+        ...(adventureTagFor(String(i.content ?? "")) ? { adventure_slug: adventureTagFor(String(i.content ?? "")) } : {}),
+      })));
       const all = [
         ...(manifest?.voice_examples ?? []).map((i: any) => row("voice_examples", i, i.content)),
         ...(manifest?.lore_templates ?? []).map((i: any) => row("lore_templates", i, i.content)),
@@ -14946,7 +15441,13 @@ server.registerTool("manage_synthesis", {
       ];
       const filtered = args.module ? all.filter((i: any) => i.module === args.module) : all;
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
-      const summary = filtered.map((i: any) => ({ module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope, confidence: i.confidence ?? "HIGH", collected_at: i.collected_at ?? null, activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true, preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}` }));
+      const summary = filtered.map((i: any) => ({
+        module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope,
+        confidence: i.confidence ?? "HIGH", collected_at: i.collected_at ?? null,
+        activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true,
+        ...(i.adventure_slug ? { adventure_slug: i.adventure_slug } : {}),
+        preview: `${typeof i.content === "string" ? (i.content ?? "").slice(0, 80) : ""}`,
+      }));
       return raw(JSON.stringify(summary, null, 2));
     }
     case "verify": {
@@ -15344,6 +15845,38 @@ ${orientation}`;
     const i = scenes.indexOf(wp);
     const nearby = [i > 0 ? `prev: ${scenes[i - 1]}` : "", i < scenes.length - 1 ? `next: ${scenes[i + 1]}` : ""].filter(Boolean).join(", ");
     briefing += `\nAdventure Scene (${novel.adventure_slug ?? "generated"} § ${wp}): ${idx?.locations?.find((l: any) => l.name === wp)?.description ?? ""}${nearby ? ` — nearby: ${nearby}` : ""}`;
+  }
+
+  // REQ-079f/132c — the active adventure's hook, current location, and the
+  // current room's visible contents; indexed first, generated second.
+  if (novel.adventure_set) {
+    const adventureGM = badge === "game_master" || badge === "none";
+    const idx = novel.adventure_index;
+    if (idx && novel.adventure_slug) {
+      const hook = idx.hooks?.[0] ?? "";
+      if (hook || adventureGM) {
+        const location = novel.adventure_scene_waypoint ?? novel.scene_location ?? "";
+        briefing += `\n\n## Adventure\n**Adventure:** ${novel.adventure_slug}`;
+        briefing += hook ? `\n**Hook:** ${hook}` : `\n**Overview:** ${idx.premise}`;
+        briefing += `\n**Current location:** ${location || "(none)"}`;
+        const room = location
+          ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === location.toLowerCase())
+          : undefined;
+        if (room) {
+          const things = [...novel.world.things.values()]
+            .filter((t) => String((t as any).location ?? "").toLowerCase() === room.name.toLowerCase())
+            .map((t) => t.name);
+          briefing += `\n**Room:** ${room.name}${things.length > 0 ? ` — ${things.join(", ")}` : ""}`;
+        }
+      }
+    }
+    const generated: any = novel.generated_adventure;
+    if (generated) {
+      briefing += `\n\n## Generated Adventure\n**Adventure:** generated`;
+      if (generated.hook) briefing += `\n**Hook:** ${generated.hook}`;
+      const generatedLocations = ((generated.locations ?? []) as any[]).map((l) => l.heading).filter(Boolean);
+      if (generatedLocations.length > 0) briefing += `\n**Locations:** ${generatedLocations.join(", ")}`;
+    }
   }
 
   // REQ-310 — campaign memory: decision-critical group after scene state,
@@ -16282,6 +16815,7 @@ async function main() {
   await server.connect(transport);
   transportConnected = true;
   await warmCatalogCache();
+  warmAdventureIndex();
 }
 
 // The executable entry and every harness keep autostart. The library façade

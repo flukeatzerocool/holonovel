@@ -1746,8 +1746,8 @@ async function main() {
       mkdirSync(join(DATA_DIR, "adventures"), { recursive: true });
       writeFileSync(join(DATA_DIR, "adventures", "merrick.md"), "# Merrick Quest\n\nOld Merrick keeps the ferry.\n");
       const loaded = await call(proc, "manage_adventure", { action: "load", slug: "merrick" }).catch((e: any) => String(e.message ?? e));
-      assertContains(loaded, "Community synthesis items:");
-      assertContains(loaded, "inert");
+      assertContains(loaded, "Synthesis");
+      assertContains(loaded, "activate individually");
       const voice = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "voice_examples" }));
       const arr = voice.items ?? voice;
       const derived = arr.find((i: any) => String(i.key).startsWith("novel-voice-"));

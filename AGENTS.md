@@ -325,6 +325,7 @@ This runs (the table is generated from the gate manifest):
 | `check-server-manifest` | yes | yes | Registry manifest schema validation (REQ-428) |
 | `check-container-image` | no | yes | Container image builds and starts the host (REQ-428) |
 | `check-world-provider` | yes | yes | Generated world-provider document freshness |
+| `check-adventure-index` | yes | yes | Adventure module index and DECISIONS table freshness |
 | `validate-readme` | yes | yes | README structure, voice, links, and comparison table |
 | `check-script-discipline` | yes | yes | Script shebang, role header, exit codes, path and shell rules |
 | `check-script-quality` | yes | yes | Reachability, duplicate helpers, repeated parses, parser bypass |

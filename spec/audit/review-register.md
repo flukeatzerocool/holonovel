@@ -11,6 +11,72 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 §5.6 adventure content remediation
+
+Resolved in the 2026-11-12 increment. The structure extractor
+(`holonovel/src/core/adventure.ts`) is the single parser behind every surface;
+the build-time index is emitted by `holonovel/scripts/generate-adventure-index.ts`
+and gated by `npm run check-adventure-index`.
+
+- **F-P3B3-1 — `load` ignored `target`.** `manage_adventure (action: load)`
+  reads `args.target`, defaults to `codex` with no active Novel, and stores the
+  Appendix O.10 payload as `adventure_<slug>` with `source: loaded:<slug>`
+  without touching Novel state (`index.ts:11284-11360`). T368.
+- **F-P3B3-2 — no pre-population or briefing block.** `prepopulateAdventure`
+  creates skeletal NPCs, location lore entries, and faction clocks with
+  duplicate skips and monster suggestions (`index.ts:2900-2960`); the briefing
+  renders `## Adventure` (hook, current location, room contents) and
+  `## Generated Adventure` (`:15720-15760`). T287, T60.
+- **F-P3B3-3 — adventure prose was not searchable.** `searchAdventureProse`
+  (`index.ts:12525-12575`) adds HIGH/MEDIUM confidence hits, active-first sort,
+  the `[generated]` tag as a label only, and a REQ-280 source anchor; the
+  ruleset branch merges them instead of returning `NOT_FOUND` (`:12562-12610`).
+  T59.
+- **F-P3B3-4 — no per-anchor resource.** `adventure://{slug}/{anchor}` is
+  registered after the two specific templates (`index.ts:11750`), serving
+  indexed prose and the generated anchors `overview`/`hook`/`world`/
+  `location-<n>`. T59, T146.
+- **F-P3B3-5 — discovery and drift fields violated the health contract.**
+  `spec_health.indexed_adventures` carries `title`, `content_hash`,
+  `player_visible`, `source`, and `malformed` entries with the
+  `[malformed-adventure]` flag (`index.ts:13527`); `warmAdventureIndex`
+  (`:2962-2985`) compares build hashes at startup and surfaces
+  `[adventure-drift]` with a detection timestamp and stderr warning. T207,
+  T208, T209.
+- **F-P3B3-6 — catalog filter and badge rules diverged.** The genre filter
+  applies to every badge; Player visibility is `player_visible` (front-matter
+  marker) or a shared `## Adventure Hook`; the same rule gates
+  `adventures://`; the preview falls back to `[derived]` hook sentences
+  (`index.ts:11494-11530`, `:11580-11600`). T338, T207.
+- **F-P3B3-7 — overview and navigation omitted contract fields.** Both render
+  from the extractor: NPC roles, location descriptions, faction lines, scene
+  count; navigation carries heading anchors and per-marker badge filtering;
+  `[STATE_CONFLICT]` tests adventure absence (`index.ts:11617-11745`). T285,
+  T286.
+- **F-P3B3-8 — a waypoint change fired no transition.** `isTransition`
+  includes `waypointChanged` (`index.ts:6889-6900`), scene history is pushed
+  only on a description change, and the audit entry names the waypoint
+  (`:7010-7018`). T284.
+- **F-P3B3-9 — generated-adventure lifecycle broke coexistence.** `generate`
+  emits a `## World` section for a spatial premise and tracks
+  `materialized_rooms` (`index.ts:11050-11075`); `load` re-applies the generated
+  rooms after replacing the indexed world instead of nulling the generated
+  adventure (`:11370-11410`), and regeneration removes the prior rooms. T146.
+- **F-P3B3-10 — synthesis linkage was partial.** `adventureSynthesisMatches`
+  (`index.ts:2988-3030`) matches voice, lore, action-pattern, and
+  adventure-advice items against the extracted structure; both load branches
+  share `adventureAugmentation` with REQ-229c's wording and the omission
+  branch; `manage_synthesis (action: list)` derives `adventure_slug`
+  (`:15400-15440`). T305, T288.
+- **F-P3B3-11 — cited assertions were absent or narrow.** T59, T60, T61, T206,
+  T208, T209, T283, T287, T368 are implemented in
+  `holonovel/scripts/test-adventure.ts`; T146, T207, T284, T285, T286, T305,
+  T338 are widened in `test-output-contracts.ts`.
+- **F-P3B3-12 — not-found, environment, and suggestion deviations.** The
+  `[NOT_FOUND]` message enumerates slugs (`index.ts:11293`); `TTRPG_ADVENTURE`
+  contributes file paths (`:2790`, `:2838`); `prepopulateAdventure` emits the
+  `lookup_monster`-style suggestion for a bound ruleset.
+
 ### 2026-11-12 §5.6 state surfaces remediation
 
 Resolved in the 2026-11-12 increment. Findings F-P3B4-3 (neutral-inclusive
@@ -2050,78 +2116,6 @@ Each finding cites the predicate that carries it.
   damage; and T201/T216/T220/T331 assert a substring or an unrelated surface
   rather than the REQ contract (REQ-069c, REQ-074b, REQ-075e/g, REQ-076b4/b7,
   REQ-077f, REQ-124b, REQ-126b, REQ-128b, REQ-167b).
-
-### 2026-11-09 full-review sweep — chunk P3b-3 (§5.6 adventure content)
-
-Scheduled under `ROADMAP.md` § *§5.6 adventure content remediation (P1)*.
-Each finding cites the predicate that carries it.
-
-- **F-P3B3-1 — `load` ignores `target`, so a codex load is impossible:**
-  the handler is `requireGM(); const novel = requireNovel();` and never reads
-  `args.target` (`holonovel/src/index.ts:10133-10138`); REQ-079h/i require
-  `target: "codex"` to load with no active Novel and to store a `source:
-  loaded:<slug>` Codex entry.
-- **F-P3B3-2 — structural pre-population and the adventure briefing block are
-  absent:** `load` builds `novel.adventure_index` from heading/bold regexes but
-  creates no NPC entities, faction entities with clocks, or lore entries from
-  it (`index.ts:10149-10160`); `badge_briefing` renders no adventure hook,
-  current location, or current-room block (REQ-079c/f, REQ-292d;
-  `:13880-13910`).
-- **F-P3B3-3 — adventure content is not searchable:** `manage_ruleset (action:
-  search)` queries only the bound ruleset and never adventure content, so there
-  is no active-first sort, no HIGH/MEDIUM confidence tiering, and no
-  `[generated]` source tag (REQ-079b/e, REQ-132a/c; `index.ts:11161-11201`).
-- **F-P3B3-4 — the per-anchor prose resource is missing:** only
-  `adventure://{slug}/overview` and `/navigation` are registered; no
-  `adventure://<slug>/<anchor>` serves module prose (REQ-079e;
-  `index.ts:10246-10295`).
-- **F-P3B3-5 — discovery and drift fields violate the health contract:**
-  `indexed_adventures` is GM-only, emits one `"adventure-scaffold"` marker, and
-  carries no build-time content hash or full slug set (REQ-170;
-  `index.ts:12033-12035`); `[malformed-adventure]` (REQ-171b) and
-  `[adventure-drift]` (REQ-172) are never emitted and no startup hash comparison
-  exists; T207 never reads the field.
-- **F-P3B3-6 — catalog filter and badge rules diverge:** the genre filter is
-  bypassed for the GM (`index.ts:10235`), and the listing filters on a non-empty
-  preview instead of REQ-292b's `player_visible`/shared-hook rule (`:10236`);
-  T338 asserts only the empty state and the count.
-- **F-P3B3-7 — overview and navigation omit contract fields and badge
-  filtering:** the overview lists NPC and location *names* only, with no roles
-  or one-line descriptions, and hides factions from the Player badge rather than
-  filtering per section marker (REQ-248a; `index.ts:10271`); the navigation has
-  no heading anchors and no GM-section badge filter, and its `[STATE_CONFLICT]`
-  branch tests Novel absence rather than adventure absence (REQ-249a, REQ-250c;
-  `:10277-10295`).
-- **F-P3B3-8 — a waypoint-only change fires no scene transition hook:**
-  `isTransition` derives solely from a `scene_description` change
-  (`index.ts:6180`), and the `adventure_scene` branch (`:6203-6209`) neither
-  sets it nor calls the hook, so REQ-250b's transition on waypoint change never
-  runs.
-- **F-P3B3-9 — generated-adventure lifecycle breaks coexistence and spatial
-  output:** `load` sets `novel.generated_adventure = null`
-  (`index.ts:10195`, `:10205`), so REQ-132b's "load SHALL NOT affect the
-  generated adventure" is violated; `generate` emits no `## World` section, so
-  REQ-132c/d's spatial generation and room/exit minimum never occur
-  (`:10017-10082`).
-- **F-P3B3-10 — synthesis linkage is partial:** the augmentation line is
-  computed only on the World path from wisdom `voice_examples`/`lore_templates`
-  (`index.ts:10198-10203`); there is no `@encounter`/theme matching, no
-  community-tier activation prompt, and no automatic activation or
-  briefing/resource presence for matched items (REQ-229a/b/c).
-- **F-P3B3-11 — cited assertions are absent or narrower than the contract:**
-  REQ-079j2 cites T59/T60/T61/T206/T287/T368, REQ-172 cites T209, and REQ-247c
-  cites T283 — none appears in a `holonovel/scripts` harness title; T284
-  (REQ-250c) asserts a fast-forward audit entry, T305 (REQ-229d) asserts the
-  augmentation line only, T338 (REQ-292a/b) asserts the empty state only, and
-  T146 (REQ-132e) asserts the overview/navigation resources only, so restart,
-  replacement, end-discard, waypoint labelling, and the omission branch are
-  unasserted.
-- **F-P3B3-12 — not-found, environment, and suggestion deviations:**
-  `load`'s `[NOT_FOUND]` enumerates adventure *directories* rather than available
-  slugs (REQ-079g; `index.ts:10136`), the pre-load environment variable is
-  `TTRPG_ADVENTURE_DIR` rather than `TTRPG_ADVENTURE` (`:2493`), and no
-  `lookup_monster` fuzzy-match suggestion is produced for pre-populated NPCs
-  (REQ-079d).
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
