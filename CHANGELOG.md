@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-11 — §5.10 parser tool-name drift
+
+- The retired `command` token is re-pointed to the registered `run_command`
+  across §5.10: 26 REQ bodies and the section's two prominence paragraphs
+  (`run_command (action: execute, "X")` where an invocation is quoted). The
+  2026-09-10 rename claimed these surfaces were re-pointed; they were not
+  (REQ-196a, REQ-196d, REQ-197a–c, REQ-283b, REQ-284b/d/f, REQ-309b–h,
+  REQ-316a, REQ-317a–d, REQ-319d, REQ-320c, REQ-327a, REQ-367b1/b2).
+- `tool-citation-check` gains a bare-token detector (`checkToolTokenDrift` in
+  `scripts/lib/req-checks.ts`, self-tested in `scripts/test-req-checks.ts`): a
+  normative body citing `` `command` `` or `command("…")` fails the gate unless
+  it is an allowlisted deferral. It reported exactly the 26 §5.10 bodies on the
+  pre-fix tree and nothing else.
+- The fixture-notation clause is corrected and scoped: it licensed "the
+  Appendix T test catalog", but Appendix T is the tool-surface map and the
+  catalogue is Appendix F, so nothing in Appendix F was actually covered. It
+  now names Appendix F and the §6 verification steps, and excludes §5 normative
+  text (`spec/01a-constitution.md:141`).
+- Appendix W keeps its transcript notation instead of re-pointing eleven lines:
+  the fixture abbreviates every tool (`→ scene`, `→ combat`, `→ set_badge`), so
+  the preamble declares the notation and T261 asserts the registered tool
+  through it (`spec/appendices-fixtures.md`, `spec/appendices-reference.md:1721`).
+- Three occurrences in fingerprinted sections are deferred rather than
+  re-pointed (REQ-221b and REQ-330a in §5.6, REQ-385a in §5.16): a text-only
+  edit would change a baked contract fingerprint and make the host re-serialize
+  every persisted Novel and hold every installed ruleset package inactive.
+  They are `Scheduled-roadmap` as F-P6a-21 and the detector allowlists exactly
+  those three bodies. REQ-385a was first mis-recorded as §5.11; it is §5.16.
+- F-P6a-20 is `Resolved` and the `ROADMAP.md` section closes.
+
 ## 2026-11-11 — §5.12 observer resolve and resource reads
 
 - The observer badge now resolves `run_command (action: resolve)` and the

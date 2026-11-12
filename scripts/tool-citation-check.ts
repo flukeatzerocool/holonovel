@@ -18,7 +18,8 @@
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { readSpec, extractActionBindings } from "./lib/parse-spec.js";
+import { readSpec, extractActionBindings, extractReqBodies } from "./lib/parse-spec.js";
+import { checkToolTokenDrift } from "./lib/req-checks.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ARTIFACT = join(ROOT, "holonovel", "tool-definitions.json");
@@ -50,7 +51,15 @@ for (const alias of artifact.hidden_aliases ?? []) {
 }
 const violations: { req: string; tool: string; action: string; reason: string }[] = [];
 
-for (const b of extractActionBindings(readSpec())) {
+// Bare-token drift: a normative body citing `command` instead of the registered
+// `run_command`. Bodies in fingerprinted sections are deferred and tracked in
+// spec/audit/review-register.md; they are allowlisted rather than silently
+// skipped so the deferral stays visible.
+const TOKEN_ALLOW = new Set(["REQ-221b", "REQ-330a", "REQ-385a"]);
+const specText = readSpec();
+const tokenIssues = checkToolTokenDrift([...extractReqBodies(specText).values()], TOKEN_ALLOW);
+
+for (const b of extractActionBindings(specText)) {
   if (!HOST_VERB_RE.test(b.tool)) continue; // ruleset-derived tools are package-provided
   const tool = byName.get(b.tool);
   if (!tool) {
@@ -61,13 +70,14 @@ for (const b of extractActionBindings(readSpec())) {
 }
 
 if (process.argv.slice(2).includes("--json")) {
-  process.stdout.write(JSON.stringify({ violations }, null, 2) + "\n");
-  process.exit(violations.length === 0 ? 0 : 1);
+  process.stdout.write(JSON.stringify({ violations, token_drift: tokenIssues }, null, 2) + "\n");
+  process.exit(violations.length === 0 && tokenIssues.length === 0 ? 0 : 1);
 }
 
-if (violations.length > 0) {
+if (violations.length > 0 || tokenIssues.length > 0) {
   for (const v of violations) console.error(`FAIL: ${v.req} cites ${v.tool} (action: ${v.action}) — ${v.reason}`);
-  console.error(`\n${violations.length} unresolved tool citation(s)`);
+  for (const issue of tokenIssues) console.error(`FAIL: ${issue}`);
+  console.error(`\n${violations.length + tokenIssues.length} unresolved tool citation(s)`);
   process.exit(1);
 }
 

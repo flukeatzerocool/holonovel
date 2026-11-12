@@ -5,7 +5,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
@@ -552,6 +552,43 @@ test("unique REQ headers produce no duplicate finding", () => {
   const text = "**REQ-902 — A.**\nBody. _Check:_ T1.\n\n**REQ-903 — B.**\nBody. _Check:_ T2.";
   const dupes = findDuplicateReqIds(text);
   if (dupes.length !== 0) throw new Error(`unexpected duplicates: ${JSON.stringify(dupes)}`);
+});
+
+// REQ-309's rename left bare `command` tokens in normative bodies. The detector
+// must flag the tool token, not the MCP client-config key or plain English.
+test("checkToolTokenDrift flags a bare command tool token", () => {
+  const issues = checkToolTokenDrift(
+    [{ id: "REQ-910", body: "The `command` tool resolves spatial intent." }],
+    new Set(),
+  );
+  if (issues.length !== 1) throw new Error(`expected 1 issue; got ${JSON.stringify(issues)}`);
+  if (!issues[0].includes("REQ-910")) throw new Error(`issue does not name the REQ: ${issues[0]}`);
+});
+
+test("checkToolTokenDrift flags a command invocation", () => {
+  const issues = checkToolTokenDrift(
+    [{ id: "REQ-911", body: "Assert `command(\"look\")` returns the room name." }],
+    new Set(),
+  );
+  if (issues.length !== 1) throw new Error(`expected 1 issue; got ${JSON.stringify(issues)}`);
+});
+
+test("checkToolTokenDrift ignores the MCP client-config command key", () => {
+  const body = "Assert `mcpServers` JSON block present with `command`/`args`/`env` fields.";
+  const issues = checkToolTokenDrift([{ id: "REQ-912", body }], new Set());
+  if (issues.length !== 0) throw new Error(`config key flagged: ${JSON.stringify(issues)}`);
+});
+
+test("checkToolTokenDrift ignores plain English prose", () => {
+  const body = "The parser command catalog SHALL classify every registered command verb.";
+  const issues = checkToolTokenDrift([{ id: "REQ-913", body }], new Set());
+  if (issues.length !== 0) throw new Error(`prose flagged: ${JSON.stringify(issues)}`);
+});
+
+test("checkToolTokenDrift honours the allowlist", () => {
+  const bodies = [{ id: "REQ-914", body: "The `command` tool resolves spatial intent." }];
+  const issues = checkToolTokenDrift(bodies, new Set(["REQ-914"]));
+  if (issues.length !== 0) throw new Error(`allowlisted body flagged: ${JSON.stringify(issues)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

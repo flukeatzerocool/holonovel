@@ -18,7 +18,6 @@ export function checkReqIdGrammar(text: string): string[] {
 }
 
 const REQ_HEADER_RE = /\*\*(REQ-\d{3}[a-z0-9]*)\s+—\s+.+?\.\*\*/g;
-
 export function checkEmptyReqBodies(text: string): string[] {
   const issues: string[] = [];
   const terminatorRe = /\*\*REQ-\d{3}[a-z0-9]*\s+—|^#{1,4}\s+|^---\s*$/gm;
@@ -528,6 +527,30 @@ export function checkLicenseSourceParity(input: {
         (missingReadme.length ? `; missing from footer: ${missingReadme.join(", ")}` : "") +
         (extraReadme.length ? `; only in footer: ${extraReadme.join(", ")}` : ""),
     );
+  }
+  return issues;
+}
+
+// REQ-309's 2026-09-10 rename (`command` → `run_command`, holonovel/DECISIONS.md)
+// left bare `command` tokens in normative bodies. The action-binding gate
+// (tool-citation-check) only sees `tool (action: …)` citations, so this covers
+// the bare-token class. `allow` names bodies whose re-point is deferred because
+// they sit in a fingerprinted section and are tracked in the review register.
+const TOOL_TOKEN_RE = /`command`|command\(/;
+// The MCP client-config schema key is a different namespace (REQ-163a names
+// `command`, `args`, `cwd`, and `mcpServers` as config keys, not tools).
+const CONFIG_SCHEMA_HINT_RE = /mcpServers|`args`|`cwd`/;
+
+export function checkToolTokenDrift(
+  bodies: ReadonlyArray<{ id: string; body: string }>,
+  allow: ReadonlySet<string>,
+): string[] {
+  const issues: string[] = [];
+  for (const { id, body } of bodies) {
+    if (allow.has(id)) continue;
+    if (CONFIG_SCHEMA_HINT_RE.test(body)) continue;
+    if (!TOOL_TOKEN_RE.test(body)) continue;
+    issues.push(`${id}: cites the unregistered tool token \`command\` (registered: run_command)`);
   }
   return issues;
 }

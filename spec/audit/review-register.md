@@ -11,6 +11,25 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.10 parser tool-name drift
+
+- **F-P6a-20 — `command`-as-tool drift in §5.10 (resolved 2026-11-11):** the
+  retired token survived the 2026-09-10 rename in 26 §5.10 REQ bodies and two
+  §5.10 prose paragraphs (`spec/02-requirements.md:3199-3203`), while the
+  registered tool is `run_command` (`holonovel/AGENTS.md:72`; rename recorded
+  at `holonovel/DECISIONS.md:1507`). All 28 sites now name `run_command`
+  (`run_command (action: execute, "X")` where an invocation is quoted), and
+  `scripts/tool-citation-check.ts` gained a bare-token detector
+  (`checkToolTokenDrift` in `scripts/lib/req-checks.ts`) so the class cannot
+  recur silently. The fixture-notation clause's licence was also re-pointed
+  from the Appendix T tool-surface map to Appendix F, the actual test
+  catalogue, and now excludes §5 normative text
+  (`spec/01a-constitution.md:141`); Appendix W's transcript is declared as
+  notation rather than rewritten, and T261 asserts the registered tool through
+  that notation (`spec/appendices-reference.md:1721`). REQ-196a, REQ-196d,
+  REQ-197a–c, REQ-283b, REQ-284b/d/f, REQ-309b–h, REQ-316a, REQ-317a–d,
+  REQ-319d, REQ-320c, REQ-327a, REQ-367b1/b2.
+
 ### 2026-11-11 §5.12 observer resolve and resource reads
 
 - **F-5.12-1 — REQ-366b resolve, spatial-query, and resource depth (resolved
@@ -1727,6 +1746,20 @@ pass and completion-oracle green. Fix evidence: regression tests in
   REQ-075, REQ-077, REQ-083, REQ-233, REQ-236, REQ-246, REQ-289, REQ-357,
   REQ-358, REQ-359, REQ-360, REQ-361. Scheduled under Harness test-ID label
   hygiene.
+
+### 2026-11-11 §5.10 parser tool-name drift — deferred remainder
+
+- **F-P6a-21 — three `command` tokens remain in fingerprinted sections
+  (2026-11-11):** REQ-221b (`spec/02-requirements.md:1542`, three call forms)
+  and REQ-330a (`:1826`, one bare token) sit in §5.6, a data-format fingerprint
+  source (`scripts/lib/contract-fingerprint.ts:38`); REQ-385a (`:3906`) sits in
+  §5.16, a package-format source (`:27`), not §5.11 as first recorded. A
+  text-only re-point would change the baked fingerprint and make the startup
+  reconciliation path re-serialize every persisted Novel and hold every
+  installed ruleset package inactive, so the three land with the increment that
+  regenerates the affected fingerprint. `scripts/tool-citation-check.ts`
+  allowlists exactly these three bodies until then. REQ-221b, REQ-330a,
+  REQ-385a. Scheduled under Fingerprinted-section tool-token re-point.
 
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 

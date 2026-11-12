@@ -783,6 +783,10 @@ countdowns, and undo. Exercises the same behavioral contracts as Appendix B (REQ
 REQ-032, REQ-041, REQ-042, REQ-055, REQ-072, REQ-073, REQ-092) over infrastructure-only
 surfaces._
 
+_Tool lines use the §4 fixture notation: `command { "command": "look" }` denotes
+`run_command { "action": "execute", "command": "look" }`, and the other short tokens
+(`scene`, `novel`, `combat`, `set_badge`, …) map the same way._
+
 ### W.1 Fixture world model
 
 ```

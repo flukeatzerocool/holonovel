@@ -12,18 +12,18 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.10 parser tool-name drift (P2)
+## Fingerprinted-section tool-token re-point (P2)
 
-- §5.10, Appendix F's T239 and T261 rows, and Appendix W name the parser tool
-  `command` (19 occurrences in `spec/02-requirements.md`, 16 of them in §5.10)
-  while the registered tool is `run_command` (`holonovel/AGENTS.md:72`; the
-  rename is recorded in `holonovel/DECISIONS.md:1507`).
-- Re-point those references to `run_command (action: execute)` and re-run
-  `validate`, `check-tool-surface`, and the coverage register.
+- Re-point the three remaining `command`-as-tool references in fingerprinted
+  sections — REQ-221b and REQ-330a in §5.6, REQ-385a in §5.16 — and
+  regenerate the affected contract fingerprint in the same increment
+  (F-P6a-21).
+- Shrink the bare-token detector's allowlist to empty in that commit, so
+  `tool-citation-check` stays a real guard rather than a permanent exemption.
 
-**Trigger:** the next §5.10 parser-contract session that touches these blocks;
-closes when no `command`-as-tool reference remains in §5.10, Appendix F, or
-Appendix W.
+**Trigger:** the next increment that regenerates either the data-format (§5.6)
+or package-format (§5.16) fingerprint; closes when the allowlist is empty and
+`check-fingerprint-sync` is green.
 
 ## §5.20/§5.24 assertion and staging remediation (P1)
 

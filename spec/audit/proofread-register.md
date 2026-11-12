@@ -344,3 +344,18 @@ which re-ran the proofreading pass; it is not attributable to this increment.
 
 **Disposition: all 282 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 12 — §5.10 parser tool-name drift (2026-11-11)
+
+Re-verified against live `npm run validate:sdd`: **0 errors, 283 warnings**.
+The increment re-points 26 §5.10 REQ bodies and two §5.10 prose paragraphs from
+the retired `command` token to `run_command`, so the proofreading pass rescored
+those bodies. Two new sentence-length warnings (REQ-196d, REQ-284b) were
+introduced by the longer registered tool form and shortened back out of the
+text; the residual +1 over Batch 11 is REQ-196d's remaining 48-word sentence,
+which carries the normative category list and is accepted rather than abridged.
+REQ-284f's existing sentence-length warning rises from 52 to 58 words for the
+same reason.
+
+**Disposition: all 283 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.
