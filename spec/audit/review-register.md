@@ -11,6 +11,28 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.20/§5.24 assertion repair
+
+- **F-P5-7 — six narrow assertions (resolved 2026-11-11):** each check now
+  reaches the clause its REQ body states. `T545`
+  (`holonovel/scripts/test-event-log.ts:33`) keeps the retained ordinals across
+  a restart, continues at `#3`/`#4`, and returns both through
+  `replay (to_event: 2)`; `T550` (`:165`) admits evidence citing ordinal 1 while
+  `#2` exists and asserts the record's `source_ordinals` is `[1]`; `T640`
+  (`holonovel/scripts/test-lean-narrator.ts:122`) covers all six badge ×
+  AI-role cases plus a 150-character briefing budget, and the token now reads
+  `narrativeRole(novel) ?? "game_master"` (`holonovel/src/index.ts:14963`) and
+  renders under a tier-1 `### Play loop` section (`:3175`); `T712` (`:190`)
+  excludes `active_session_id` and `last_mutation_at`; `T713` (`:204`) injects
+  an unhashed entry and an older-projection entry and asserts the two counts,
+  the `[unhashed]` replay line, and `State verification: unhashed entries: 1`;
+  and `T727` (`holonovel/scripts/test-competitive-gaps.ts:588`, `:704`) asserts
+  the manual selection clears on a scene transition and that export, clone, and
+  checkpoint preserve the cast state. The widened `T713` exposed a REQ-603
+  defect — `verify` claimed `clean` beside unhashed entries — fixed in the same
+  increment (`index.ts:10696-10703`). REQ-412a, REQ-455, REQ-460, REQ-601,
+  REQ-602, REQ-603, REQ-611.
+
 ### 2026-11-11 fingerprinted-section tool-token re-point
 
 - **F-P6a-21 — three `command` tokens remained in fingerprinted sections
@@ -1803,20 +1825,6 @@ T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
 
-
-### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
-
-- **F-P5-7 — six narrow assertions (2026-11-09):**
-  `T545` never reproduces ordinals across a restart (`REQ-455`); `T550` never
-  asserts a derived record's cited ordinal (`REQ-460`); `T640` asserts the
-  orientation token once, not per AI role or at a minimal budget (`REQ-412a`);
-  `T712` never tests session-identity exclusion (`REQ-601`); `T713` never
-  tests the unhashed/older-projection branches (`REQ-602`); `T727` never
-  asserts manual-selection clearing on a scene transition (`REQ-611`).
-  Predicates: `test-event-log.ts:32-43`, `:113-123`, `:127-132`;
-  `test-lean-narrator.ts:115-119`; `test-competitive-gaps.ts:591-602`.
-  Scheduled under ROADMAP § §5.20/§5.24 assertion repair (P1); covers
-  `REQ-412a`, `REQ-455`, `REQ-460`, `REQ-601`, `REQ-602`, `REQ-611`.
 
 ### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
 

@@ -3172,7 +3172,7 @@ function antiSlopFor(badge: string): string {
 // `TTRPG_PROMPT_BUDGET` remains a fallback so existing callers keep working.
 const briefingBudget = (): number =>
   configInt("TTRPG_MAX_BRIEFING_TOKENS", configInt("TTRPG_PROMPT_BUDGET", 16000));
-const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "intro"]);
+const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "intro"]);
 // REQ-118 — every prompts/get result stays within the per-prompt budget.
 // Sections are truncated lowest-priority first, preserving headers and the
 // never-truncated contract elements. Prefer the deepest heading level present
@@ -10696,7 +10696,11 @@ Options: yes, cancel`);
       const status = report.verified
         ? (report.projection_stale
           ? `stale (projection v${report.recorded_projection}, current v${report.projection_version})`
-          : report.clean ? "clean" : `DIVERGENCE at #${report.first_mismatch_ordinal ?? "?"}`)
+          : report.clean && report.unhashed_events === 0 && report.unhashed_checkpoints.length === 0
+            ? "clean"
+            : report.clean
+              ? `unhashed entries: ${report.unhashed_events + report.unhashed_checkpoints.length}`
+              : `DIVERGENCE at #${report.first_mismatch_ordinal ?? "?"}`)
         : "unverified (no save-time digest recorded)";
       const lines = [
         `State verification: ${status}`,
@@ -14958,9 +14962,10 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   const badge = novel.badge;
   const entity = state.getActiveEntity();
   // REQ-412a — play-loop orientation token: the act-resolve-narrate order,
-  // adapted to the active AI role. Rendered in the never-truncated tier
-  // (REQ-135) alongside the badge foundations.
-  const loopRole = (novel as any).ai_role ?? (badge === "game_master" ? "player" : "game_master");
+  // adapted to the AI's narrative role (REQ-304, resolved by REQ-598), and
+  // rendered in the never-truncated tier (REQ-135b) beside the badge
+  // foundations.
+  const loopRole = narrativeRole(novel) ?? "game_master";
   const profile = guidanceProfile();
   const orientation = composeBadgeOrientation(profile, loopRole);
 
@@ -14971,9 +14976,11 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
 
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
-${orientation}
 ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}
-**Player-Detail:** ${detailLevel}`;
+**Player-Detail:** ${detailLevel}
+
+### Play loop
+${orientation}`;
 
   // REQ-250 — adventure scene waypoint: surface the adventure scene as a
   // distinct labeled block alongside the current scene state, with adjacent

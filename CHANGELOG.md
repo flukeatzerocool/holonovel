@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-11 — §5.20/§5.24 assertion repair
+
+- The six assertions F-P5-7 named now reach their REQ bodies: T545 keeps the
+  retained ordinals across a restart, continues at `#3`/`#4`, and returns both
+  through replay; T550 asserts a derived record's cited ordinal; T712 excludes
+  session identity and wall-clock bookkeeping; T713 exercises the unhashed and
+  older-projection branches; T727 asserts the manual-selection clear on a scene
+  transition plus export/clone/checkpoint persistence (REQ-455, REQ-460,
+  REQ-601, REQ-602, REQ-611).
+- T640 covers all six badge × AI-role cases and a minimal briefing budget. The
+  play-loop token now resolves the AI role through `narrativeRole` (REQ-304,
+  REQ-598) instead of the badge and a nonexistent state field, and renders
+  under a tier-1 `### Play loop` section registered in `NEVER_TRUNCATED`
+  (REQ-412a, REQ-135b).
+- Widening T713 exposed a REQ-603 defect: `verify` reported `clean` beside
+  unhashed entries. The status line now names the unhashed entries (events plus
+  checkpoints) instead (REQ-603).
+- The six Appendix F rows carry the widened clauses; F-P5-7 is `Resolved` and
+  its emptied `### … chunk P5` heading is removed; the ROADMAP
+  §5.20/§5.24 section retires (REQ-412a, REQ-455, REQ-460, REQ-601, REQ-602,
+  REQ-603, REQ-611; T545, T550, T640, T712, T713, T727).
+
 ## 2026-11-11 — fingerprinted-section tool-token re-point
 
 - The last three bare `command` tokens in §5 normative text now name the

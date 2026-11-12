@@ -12,16 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.20/§5.24 assertion repair (P1)
-
-- Widen narrow assertions: T545 replay reproduction, T550 derived-record
-  citation, T640 per-role/budget orientation, T712 session-identity exclusion,
-  T713 legacy/older-projection branches, T727 manual-selection clear
-  (REQ-412a, REQ-455, REQ-460, REQ-601, REQ-602, REQ-611; F-P5-7).
-
-**Trigger:** the next assertion-repair session; closes when F-P5-7 is
-`Resolved` in the review register.
-
 ## §5.9/§5.19 persistence remediation (P1)
 
 - Archive and corruption integrity: refuse archiving over an existing archived

@@ -41,6 +41,28 @@ async function main() {
     const hist = await call(p, "manage_diagnostics", { action: "history" });
     assert(hist.indexOf("#1") < hist.indexOf("#2"), "T545 ordinals out of order");
     await kill(p);
+    // REQ-455 — the retained ordinals survive a restart and the next append
+    // continues from them; replay returns the same ordinals in order.
+    const p2 = await boot();
+    await call(p2, "manage_novel", { action: "switch", slug: "elog1" });
+    const resumed = await call(p2, "manage_diagnostics", { action: "history" });
+    assert(resumed.includes("#1") && resumed.includes("#2"), "T545 ordinals lost across a restart: " + resumed.slice(0, 200));
+    assert(resumed.indexOf("#1") < resumed.indexOf("#2"), "T545 restart reordered the ordinals");
+    const rp = await call(p2, "manage_diagnostics", { action: "replay", to_event: 2 });
+    assert(rp.includes("#1") && rp.includes("#2"), "T545 replay dropped a retained ordinal: " + rp.slice(0, 200));
+    const third = await call(p2, "manage_diagnostics", { action: "event", text: "the drawbridge lowers" });
+    const fourth = await call(p2, "manage_diagnostics", { action: "event", text: "the horn answers" });
+    assert(third.includes("#3"), "T545 post-restart append did not continue at #3: " + third.slice(0, 120));
+    assert(fourth.includes("#4"), "T545 post-restart append did not continue at #4: " + fourth.slice(0, 120));
+    // REQ-455 — replaying the same inputs reproduces the same ordinals. This
+    // leg is a regression guard (a per-Novel counter starts at #1 by
+    // construction); the restart and replay legs carry the evidence.
+    await call(p2, "manage_novel", { action: "create", name: "elog1-replay" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    const r1 = await call(p2, "manage_diagnostics", { action: "event", text: "the gate opens" });
+    const r2 = await call(p2, "manage_diagnostics", { action: "event", text: "a horn sounds" });
+    assert(r1.includes("#1") && r2.includes("#2"), "T545 replay of the same inputs changed the ordinals: " + r1.slice(0, 80) + " / " + r2.slice(0, 80));
+    await kill(p2);
   });
 
   // ── T546: non-semantic record (REQ-456) ──────────────────────────────
@@ -149,6 +171,17 @@ async function main() {
     const through = await call(p, "manage_diagnostics", { action: "history", through_ordinal: 1 });
     assert(through.includes("the butler did it"), "T550 provenance lookup missing contributing entry");
     assert(!through.includes("the maid saw it"), "T550 provenance lookup returned an out-of-range entry");
+    // REQ-460 — a derived record cites the ordinals that contributed to it.
+    // The supplied ordinal wins over the newest entry, and the citation is
+    // returned by the evidence read.
+    const admitted = await call(p, "manage_belief", {
+      action: "admit", entity_id: "hero", subject: "the butler", predicate: "did",
+      object: "it", polarity: "positive", source_ordinal: 1,
+    });
+    assert(admitted.includes("admitted"), "T550 evidence admission failed: " + admitted.slice(0, 160));
+    const cited = JSON.parse(await call(p, "manage_belief", { action: "evidence", entity_id: "hero" }));
+    assert(Array.isArray(cited) && cited.length === 1, "T550 evidence read did not return one record: " + JSON.stringify(cited).slice(0, 200));
+    assert(JSON.stringify(cited[0].source_ordinals) === "[1]", "T550 derived record did not cite the contributing ordinal: " + JSON.stringify(cited[0].source_ordinals));
     await kill(p);
   });
 
@@ -159,6 +192,12 @@ async function main() {
     const b = stateHash({ count: 2, scene: "hall" } as any);
     assert(a === b, "T712 event log or key order changed the digest");
     assert(a !== stateHash({ scene: "crypt", count: 2 } as any), "T712 changed field kept the digest");
+    // REQ-601 — session identity and wall-clock bookkeeping are excluded, so
+    // two runs with identical story content hash equally.
+    const s1 = stateHash({ scene: "hall", count: 2, active_session_id: "sess-a", last_mutation_at: "2026-01-01T00:00:00Z" } as any);
+    const s2 = stateHash({ scene: "hall", count: 2, active_session_id: "sess-b", last_mutation_at: "2026-01-02T00:00:00Z" } as any);
+    assert(s1 === s2, "T712 session identity or wall-clock bookkeeping changed the digest");
+    assert(s1 !== stateHash({ scene: "crypt", count: 2, active_session_id: "sess-a" } as any), "T712 changed story state kept the digest under a session stamp");
   });
 
   // ── T713: per-event digest (REQ-602) ─────────────────────────────────
@@ -173,6 +212,32 @@ async function main() {
     const recorded = /recorded state hash at #1: ([0-9a-f]+)/.exec(rp)?.[1];
     assert(!!live && live === recorded, "T713 event digest does not match live state: " + v.slice(0, 200));
     await kill(p);
+    // REQ-602/REQ-603 — a legacy entry reports unhashed and an
+    // older-projection entry reports historical; neither is fabricated, and
+    // the status line cannot claim clean while entries are unhashed.
+    const slug = "legacyhash";
+    const pT = await boot();
+    await call(pT, "manage_novel", { action: "create", name: slug });
+    await call(pT, "set_badge", { badge: "game_master" });
+    await call(pT, "manage_diagnostics", { action: "event", text: "the gate opens" });
+    await kill(pT);
+    const dir = join(DATA_DIR, "novels");
+    const file = join(dir, readdirSync(dir).find((f) => f.startsWith(slug))!);
+    const payload = JSON.parse(readFileSync(file, "utf-8"));
+    payload.event_log.push({ ordinal: 2, source: "system", kind: "event", text: "legacy", at: new Date().toISOString() });
+    payload.event_log.push({ ordinal: 3, source: "system", kind: "event", text: "older projection", at: new Date().toISOString(), state_hash: "a".repeat(64), state_hash_projection: 1 });
+    delete payload._checksum;
+    payload._checksum = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    writeFileSync(file, JSON.stringify(payload, null, 2));
+    const pv = await boot();
+    await call(pv, "manage_novel", { action: "switch", slug });
+    const legacy = await call(pv, "manage_diagnostics", { action: "verify" });
+    assert(legacy.includes("unhashed events: 1"), "T713 unhashed entry not reported: " + legacy.slice(0, 300));
+    assert(legacy.includes("historical event hashes: 1"), "T713 older-projection entry not reported historical: " + legacy.slice(0, 300));
+    assert(legacy.includes("State verification: unhashed entries: 1"), "T713 status claimed clean beside an unhashed entry: " + legacy.split("\n")[0]);
+    const unhashedReplay = await call(pv, "manage_diagnostics", { action: "replay", to_event: 2 });
+    assert(unhashedReplay.includes("recorded state hash at #2: [unhashed]"), "T713 unhashed replay entry was fabricated: " + unhashedReplay.slice(0, 300));
+    await kill(pv);
   });
 
   // ── T714: divergence via checkpoint tamper (REQ-603) ─────────────────

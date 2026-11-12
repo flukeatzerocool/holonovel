@@ -112,10 +112,47 @@ async function main(): Promise<void> {
     assert(t.includes("Example:"), "no example invocation in task map");
   });
 
-  await test("REQ-412a T640 play-loop orientation token", async () => {
-    const r = await proto(p, "prompts/get", { name: "badge_briefing" });
-    const text = (r.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n");
-    assert(text.includes("Play loop:"), "orientation token missing");
+  // REQ-412a — the play-loop orientation token follows the AI's narrative role
+  // (REQ-304/REQ-598) and sits in the never-truncated tier (REQ-135b). Each
+  // case boots its own host because the badge lives on the Novel and
+  // `boot()` mints a fresh data directory.
+  const PLAYER_TOKEN = "act in character once the engine validates the result";
+  const GM_TOKEN = "narrate the validated result to the table";
+  async function roleCase(label: string, env: Record<string, string>, badge: string, want: "player" | "game_master") {
+    await test(`REQ-412a T640 ${label}`, async () => {
+      const r = await boot({ TTRPG_GUIDANCE_PROFILE: "full", ...env });
+      try {
+        await call(r, "manage_novel", { action: "create", name: `role-${badge}-${label.replace(/[^a-z0-9]+/gi, "-")}` });
+        await call(r, "set_badge", { badge });
+        const got = await proto(r, "prompts/get", { name: "badge_briefing" });
+        const text = (got.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n");
+        const wanted = want === "player" ? PLAYER_TOKEN : GM_TOKEN;
+        const other = want === "player" ? GM_TOKEN : PLAYER_TOKEN;
+        assert(text.includes(wanted), `T640 missing the ${want} orientation under ${badge}/${JSON.stringify(env)}`);
+        assert(!text.includes(other), `T640 rendered the other role's orientation under ${badge}/${JSON.stringify(env)}`);
+      } finally {
+        await kill(r);
+      }
+    });
+  }
+  await roleCase("counterpart under a Game-Master badge", { TTRPG_AI_ROLE: "" }, "game_master", "player");
+  await roleCase("counterpart under a Player badge", { TTRPG_AI_ROLE: "" }, "player", "game_master");
+  await roleCase("counterpart under the Editor badge", { TTRPG_AI_ROLE: "" }, "none", "game_master");
+  await roleCase("AI-Game-Master role under a Game-Master badge", { TTRPG_AI_ROLE: "game_master" }, "game_master", "game_master");
+  await roleCase("AI-Player role under a Player badge", { TTRPG_AI_ROLE: "player" }, "player", "player");
+  await roleCase("AI-Player role under the Editor badge", { TTRPG_AI_ROLE: "player" }, "none", "player");
+  await test("REQ-412a T640 play-loop orientation token survives a minimal briefing budget", async () => {
+    const r = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "150", TTRPG_AI_ROLE: "", TTRPG_GUIDANCE_PROFILE: "full" });
+    try {
+      await call(r, "manage_novel", { action: "create", name: "role-budget" });
+      await call(r, "set_badge", { badge: "game_master" });
+      const got = await proto(r, "prompts/get", { name: "badge_briefing" });
+      const text = (got.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n");
+      assert(text.includes("**Play loop:**"), "T640 orientation token lost at a minimal budget");
+      assert(text.includes("[truncated"), "T640 budget case did not truncate a lower-priority section");
+    } finally {
+      await kill(r);
+    }
   });
   await kill(p);
 

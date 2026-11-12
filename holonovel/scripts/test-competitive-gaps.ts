@@ -604,6 +604,29 @@ async function main() {
       const forbidden = await call(proc, "manage_staging", { action: "cast", strategy: "manual" });
       assertContains(forbidden, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
+      // REQ-611 — cast state survives export, clone, and checkpoint. Mira is
+      // already muted by the clause above; the order is deliberate.
+      const order = [created.Cato, created.Mira, created.Bo];
+      await call(proc, "manage_staging", { action: "cast", strategy: "list", order });
+      const exported = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      const castOut = exported.novel?.social_cast ?? {};
+      assert(castOut.strategy === "list", `export lost the cast strategy: ${JSON.stringify(castOut)}`);
+      assert(JSON.stringify(castOut.order) === JSON.stringify(order), `export lost the speaker order: ${JSON.stringify(castOut.order)}`);
+      assert(Array.isArray(castOut.muted) && castOut.muted.includes(created.Mira), `export lost the muted set: ${JSON.stringify(castOut.muted)}`);
+      await call(proc, "manage_archive", { action: "clone", source_slug: "crl-test", new_name: "crl-cast-clone" });
+      await call(proc, "manage_novel", { action: "switch", slug: "crl-cast-clone" });
+      const cloned = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      const cloneCast = cloned.novel?.social_cast ?? {};
+      assert(cloneCast.strategy === "list" && JSON.stringify(cloneCast.order) === JSON.stringify(order) && cloneCast.muted.includes(created.Mira), `clone lost the cast state: ${JSON.stringify(cloneCast)}`);
+      await call(proc, "manage_novel", { action: "switch", slug: "crl-test" });
+      await call(proc, "manage_archive", { action: "checkpoint_set", label: "cast-cp" });
+      await call(proc, "manage_staging", { action: "cast", strategy: "pooled" });
+      const restoreAsk = await call(proc, "manage_archive", { action: "checkpoint_restore", label: "cast-cp" });
+      assertContains(restoreAsk, "[NEED_INPUT]");
+      await call(proc, "respond_decision", { decision: "restore_checkpoint:cast-cp", option: "yes" });
+      const restored = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      const restoredCast = restored.novel?.social_cast ?? {};
+      assert(restoredCast.strategy === "list" && JSON.stringify(restoredCast.order) === JSON.stringify(order) && restoredCast.muted.includes(created.Mira), `checkpoint restore lost the cast state: ${JSON.stringify(restoredCast)}`);
     });
 
     await test("T728/REQ-612: natural order prefers a mentioned NPC", async () => {
@@ -676,8 +699,8 @@ async function main() {
   {
     const p = await boot();
     await newNovel(p, "cast-default");
-    await call(p, "manage_npc", { action: "create", name: "Ann" });
-    await call(p, "manage_npc", { action: "create", name: "Ben" });
+    const ann = (await call(p, "manage_npc", { action: "create", name: "Ann" })).match(/\((\w+)\)/)![1];
+    const ben = (await call(p, "manage_npc", { action: "create", name: "Ben" })).match(/\((\w+)\)/)![1];
     await test("T727/REQ-611: default cast strategy is natural and a scene reset clears spoken", async () => {
       const cast = await call(p, "manage_staging", { action: "cast" });
       assertContains(cast, "natural");
@@ -689,6 +712,16 @@ async function main() {
       await call(p, "manage_scene", { action: "set", description: "A new scene." });
       const after = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
       assert(after.social_cast?.spoken === 0, "scene transition did not reset the spoken set");
+      // REQ-611 — a scene transition also clears the manual selection. The
+      // manual branch falls back to the first present NPC when no selection is
+      // stored (REQ-612 leaves the fallback undefined; this records it).
+      await call(p, "manage_scene", { action: "set", description: "The common room." });
+      await call(p, "manage_staging", { action: "cast", strategy: "manual", select: ben });
+      const selected = JSON.parse(await call(p, "manage_staging", { action: "next_speaker" }));
+      assert(selected.npc_id === ben && selected.reason === "manual", `manual selection not honoured: ${JSON.stringify(selected)}`);
+      await call(p, "manage_scene", { action: "set", description: "The cellar." });
+      const cleared = JSON.parse(await call(p, "manage_staging", { action: "next_speaker" }));
+      assert(cleared.npc_id === ann && cleared.reason === "manual", `scene transition kept the manual selection: ${JSON.stringify(cleared)}`);
     });
     p.kill("SIGKILL");
   }
