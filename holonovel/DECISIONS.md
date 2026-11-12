@@ -1057,6 +1057,24 @@ dated entries below record changes to this list.
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## Persistence format versioning and v1 audit migration, 2026-11-12
+
+- **`novel_format_version` is an envelope stamp (REQ-092e).** The on-disk
+  Novel carries `novel_format_version` beside `data_format`, `spec_version`,
+  and `_checksum`. It is serialized explicitly and reserved from
+  `future_fields`, so it never re-enters state as inert data and never shifts
+  the state digest. It is not a §7.7 property group, and it needs no
+  clone/checkpoint/archive enumeration; the export `manifest` field and the
+  on-disk field name the same value from one constant (Appendix T).
+- **A v1 audit sidecar that fails chain verification is kept (REQ-092c/f).**
+  REQ-092f conditions deleting `<slug>.audit.jsonl` on verifying the hash chain
+  end-to-end. When the chain is broken or unparseable, the Novel loads with an
+  empty `audit_log`, records `[migration-missing-audit]` with
+  `reason: "chain_invalid"`, stamps `novel_format_version: 2`, and leaves the
+  sidecar on disk for operator recovery. Deleting it would silently discard
+  state that REQ-092c forbids discarding; a missing sidecar records
+  `reason: "no_audit_sidecar"`.
+
 ## Distribution and state location standing facts, 2026-11-10
 
 - **Registry schema.** `holonovel/schemas/mcp-server.schema.json` is a
@@ -1216,7 +1234,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.11 |
+| Spec version | 2026.11.12 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |

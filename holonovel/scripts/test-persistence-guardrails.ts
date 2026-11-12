@@ -6,9 +6,10 @@
 // backup regression visibility, persist-tools, corruption surfacing).
 
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
 
@@ -31,6 +32,7 @@ function assertNotContains(hay: string, needle: string): void {
 let msgId = 0;
 const pending = new Map<number, (msg: any) => void>();
 let buffer = "";
+let stderrBuffer = "";
 function send(proc: ChildProcess, msg: any): Promise<any> {
   return new Promise((resolve) => {
     const id = ++msgId;
@@ -40,6 +42,7 @@ function send(proc: ChildProcess, msg: any): Promise<any> {
 }
 function attach(proc: ChildProcess): void {
   buffer = "";
+  proc.stderr!.on("data", (data: Buffer) => { stderrBuffer += data.toString(); });
   proc.stdout!.on("data", (data: Buffer) => {
     buffer += data.toString();
     const lines = buffer.split("\n");
@@ -101,6 +104,35 @@ async function main() {
       const b = await briefing(proc);
       assertContains(b, "State persistence");
       assertContains(b, "scene, action: set");
+      // REQ-400 — the eight categories the directive previously omitted, each
+      // named with the tool that commits it (base-capability is in the same
+      // sentence and asserted separately).
+      for (const token of [
+        "manage_diagnostics (action: event)",
+        "manage_belief (action: evidence)",
+        "manage_identity (action: accept)",
+        "manage_causality (action: causal_propose)",
+        "manage_corpus (action: corpus_register)",
+        "manage_agent (action: create)",
+        "manage_belief (action: perception_record)",
+        "manage_belief (action: subjective_record)",
+      ]) {
+        assertContains(b, token);
+      }
+      assertContains(b, "base-capability");
+    });
+
+    await test("T469/REQ-135: the persistence directive survives a small briefing budget", async () => {
+      const small = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "200" });
+      await call(small, "manage_novel", { action: "create", name: "budget-novel" });
+      await call(small, "set_badge", { badge: "game_master" });
+      const b = await briefing(small);
+      assertContains(b, "State persistence");
+      if (!b.includes("manage_belief (action: evidence)")) {
+        const i = b.indexOf("State persistence");
+        throw new Error(`budget briefing directive window: ${b.substring(i, i + 600)}`);
+      }
+      await kill(small);
     });
 
     await test("T470/REQ-401: state_ledger token renders with mutation counts", async () => {
@@ -108,6 +140,14 @@ async function main() {
       const b = await briefing(proc);
       assertContains(b, "state_ledger");
       assertContains(b, "note: 1");
+      // REQ-401 — the ledger carries the last-mutation ISO timestamp.
+      if (!/Last state mutation: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(b)) {
+        throw new Error(`state_ledger has no ISO last-mutation timestamp: ${b.substring(0, 400)}`);
+      }
+      // REQ-401/REQ-403a — an active drift marker renders in the token.
+      await call(proc, "manage_novel", { action: "save_context", current_scene: "drift ledger scene" });
+      const driftBriefing = await briefing(proc);
+      assertContains(driftBriefing, "[state-drift]");
     });
 
     await test("T10/REQ-041: note, corpus, and causal mutations are undoable", async () => {
@@ -210,6 +250,24 @@ async function main() {
       if (moments.length < 1) throw new Error(`no auto-moments, got ${story.length} journal entries`);
     });
 
+    await test("T474/REQ-405: a resolved combat round appends a moment", async () => {
+      await call(proc, "manage_scene", { action: "set", description: "Combat hall" });
+      await call(proc, "manage_combat", { action: "init", participants: [], dangers: [{ name: "goblin" }] });
+      const before = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      const beforeCount = (before.novel?.story_journal ?? []).filter((s: any) => String(s.entry ?? "").includes("Combat round")).length;
+      await call(proc, "manage_combat", { action: "advance" });
+      await call(proc, "manage_combat", { action: "advance" });
+      const after = JSON.parse(await call(proc, "manage_archive", { action: "export", format: "json" }));
+      const rounds = (after.novel?.story_journal ?? []).filter((s: any) => String(s.entry ?? "").startsWith("Combat round"));
+      if (rounds.length < beforeCount + 2) {
+        throw new Error(`combat rounds did not append moments: before ${beforeCount}, after ${rounds.length}`);
+      }
+      if (!rounds[rounds.length - 1].scene_anchor || !rounds[rounds.length - 1].timestamp) {
+        throw new Error(`combat moment missing anchor/timestamp: ${JSON.stringify(rounds[rounds.length - 1])}`);
+      }
+      await call(proc, "manage_combat", { action: "end", outcome: "test" });
+    });
+
     await kill(proc);
   }
 
@@ -218,7 +276,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "gate-novel" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T472/REQ-403a: a context save alone activates drift", async () => {
-      await call(proc, "manage_novel", { action: "save_context",  current_scene: "Gate scene" });
+      await call(proc, "manage_novel", { action: "save_context",  current_scene: "Gate scene", immediate_situation: "The gate is barred." });
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const markers = health.state_health?.markers ?? [];
       if (!markers.includes("[state-drift]")) {
@@ -227,12 +285,21 @@ async function main() {
       const recap = await call(proc, "manage_context", { action: "recap" });
       assertContains(recap, "[state-drift]");
       assertContains(recap, "Commit each narrated beat");
+      // REQ-403b — the warning names the saved beats and the tools that commit
+      // them, and the recap enumerates the same beats.
+      assertContains(recap, "Uncommitted beats:");
+      assertContains(recap, "current_scene");
+      assertContains(recap, "manage_scene (action: set)");
+      assertContains(recap, "immediate_situation");
+      assertContains(recap, "manage_story (action: record)");
     });
 
     await test("T472/REQ-403b: TTRPG_STATE_GATE=warn does not block and warns", async () => {
       const sw = await call(proc, "manage_novel", { action: "switch",  slug: "gate-novel" });
       assertContains(sw, "[OK]");
       assertContains(sw, "Commit each narrated beat");
+      assertContains(sw, "Uncommitted beats:");
+      assertContains(sw, "manage_scene (action: set)");
     });
 
     await test("T472/REQ-403a: a story-state mutation clears drift", async () => {
@@ -298,6 +365,8 @@ async function main() {
       }
       const windows = health.state_health?.session_no_mutation_windows ?? [];
       if (windows.length === 0) throw new Error("no session window recorded in state_health");
+      // REQ-402 — the recap names the session that recorded no state writes.
+      assertContains(recap, String(windows[0]));
     });
 
     await test("T475/REQ-406: backup restore surfaces [state-regression]", async () => {
@@ -314,6 +383,9 @@ async function main() {
       // AND a wrong checksum, forcing the backup-restore path.
       const corrupt = JSON.parse(good);
       corrupt.audit_log.push({ timestamp: new Date().toISOString(), badge: "game_master", tool: "set_note", args: "{}", output_prefix: "", hash: "bbbbbbbb" });
+      // REQ-406 — make the corruption event later than the restored state so
+      // the marker's timestamp gap is measurable.
+      corrupt.metadata.modified = new Date(Date.now() + 60_000).toISOString();
       corrupt._checksum = "deadbeef0000000000000000000000000000000000000000000000000000";
       writeFileSync(file, JSON.stringify(corrupt));
       const resp = await call(proc, "manage_novel", { action: "resume",  slug: "corrupt-novel" });
@@ -326,9 +398,30 @@ async function main() {
       if (health.state_health?.regression?.audit_gap !== 1) {
         throw new Error(`unexpected regression audit gap: ${JSON.stringify(health.state_health?.regression)}`);
       }
+      // REQ-406 — the marker carries the timestamp gap, not only the audit gap.
+      if ((health.state_health?.regression?.timestamp_gap_ms ?? 0) < 60_000) {
+        throw new Error(`regression timestamp gap not reported: ${JSON.stringify(health.state_health?.regression)}`);
+      }
       // state_regression also surfaces via the state_ledger token in briefing.
       const b = await briefing(proc);
       assertContains(b, "state-regression");
+
+      // REQ-406/REQ-092c — an unparseable primary restores from the backup and
+      // reports honest zero gaps (there is no readable primary to compare).
+      const unparseFile = join(novelDir, "corrupt-unparseable.json");
+      writeFileSync(unparseFile + ".bak", good.replace(/"slug":"corrupt-novel"/, '"slug":"corrupt-unparseable"'));
+      writeFileSync(unparseFile, "{ not valid json ");
+      const respU = await call(proc, "manage_novel", { action: "resume",  slug: "corrupt-unparseable" });
+      assertContains(respU, "[OK]");
+      const healthU = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      if (!(healthU.state_health?.markers ?? []).includes("[state-regression]")) {
+        throw new Error(`[state-regression] missing for unparseable primary: ${JSON.stringify(healthU.state_health)}`);
+      }
+      const regU = healthU.state_health?.regression ?? {};
+      if (regU.backup_index !== 1) throw new Error(`backup_index not recorded: ${JSON.stringify(regU)}`);
+      if (regU.audit_gap !== 0 || regU.timestamp_gap_ms !== 0) {
+        throw new Error(`unparseable primary should report zero gaps: ${JSON.stringify(regU)}`);
+      }
     });
     await kill(proc);
   }
@@ -343,8 +436,140 @@ async function main() {
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const corrupted = Object.keys(health.data_health?.corrupted ?? {});
       if (!corrupted.includes("corrupt-skip")) throw new Error(`corrupt-skip not surfaced: ${JSON.stringify(health.data_health)}`);
+      // REQ-092c/REQ-238 — the flag carries the slug, the chain paths, and a
+      // stderr line naming the same paths.
+      if (!(health.data_health?.markers ?? []).includes("[corrupted-novel]")) {
+        throw new Error(`[corrupted-novel] marker missing: ${JSON.stringify(health.data_health)}`);
+      }
+      const detail = health.data_health?.corrupted_detail?.["corrupt-skip"];
+      if (!detail?.primary_path?.includes("corrupt-skip.json")) {
+        throw new Error(`corrupted_detail missing the primary path: ${JSON.stringify(detail)}`);
+      }
+      if (!stderrBuffer.includes("[corrupted-novel]") || !stderrBuffer.includes(detail.primary_path)) {
+        throw new Error(`stderr does not name the primary path: ${stderrBuffer.substring(0, 500)}`);
+      }
     });
     await kill(proc);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // ── REQ-092e/f/g: on-disk format version and the v1 migration ────────────
+  {
+    const seedDir = mkdtempSync(join(tmpdir(), "holonovel-format-seed-"));
+    const seed = await boot({ TTRPG_DATA_DIR: seedDir, TTRPG_STARTER_NOVEL: "off" });
+    await call(seed, "manage_novel", { action: "create", name: "fmt-source" });
+    await call(seed, "set_badge", { badge: "game_master" });
+    await call(seed, "manage_note", { action: "set", key: "seed-note", content: "v" });
+    const exp = JSON.parse(await call(seed, "manage_archive", { action: "export", format: "json" }));
+    const template = exp.novel;
+    await kill(seed);
+
+    const seedFile = join(seedDir, "novels", "fmt-source.json");
+    const seedData = JSON.parse(readFileSync(seedFile, "utf-8"));
+    await test("T77/REQ-092e: a saved Novel carries novel_format_version 2", async () => {
+      if (seedData.novel_format_version !== 2) {
+        throw new Error(`expected novel_format_version 2, got ${JSON.stringify(seedData.novel_format_version)}`);
+      }
+    });
+    rmSync(seedDir, { recursive: true, force: true });
+
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-format-test-"));
+    const novelsDir = join(dir, "novels");
+    mkdirSync(novelsDir, { recursive: true });
+    const payload = (slug: string, version?: number): any => {
+      const data: any = JSON.parse(JSON.stringify(template));
+      data.slug = slug;
+      data.name = slug;
+      data.audit_log = [];
+      if (version === undefined) delete data.novel_format_version;
+      else data.novel_format_version = version;
+      return data;
+    };
+    const chain = (tools: string[]): any[] => {
+      let prev = "00000000";
+      return tools.map((tool, i) => {
+        const args = JSON.stringify({ i });
+        const hash = createHash("sha256").update(prev + tool + args).digest("hex").substring(0, 8);
+        prev = hash;
+        return { timestamp: new Date().toISOString(), badge: "game_master", tool, args, output_prefix: "", hash };
+      });
+    };
+    // v1 with a valid sidecar: adopted, then deleted.
+    writeFileSync(join(novelsDir, "fmt-v1.json"), JSON.stringify(payload("fmt-v1")));
+    writeFileSync(join(novelsDir, "fmt-v1.audit.jsonl"), chain(["set_note", "set_note"]).map((e) => JSON.stringify(e)).join("\n") + "\n");
+    // v1 with no sidecar: empty log + [migration-missing-audit].
+    writeFileSync(join(novelsDir, "fmt-missing.json"), JSON.stringify(payload("fmt-missing")));
+    // v1 with a broken chain: sidecar preserved, empty log + marker.
+    const broken = chain(["set_note"]);
+    broken[0].hash = "deadbeef";
+    writeFileSync(join(novelsDir, "fmt-broken.json"), JSON.stringify(payload("fmt-broken")));
+    writeFileSync(join(novelsDir, "fmt-broken.audit.jsonl"), JSON.stringify(broken[0]) + "\n");
+    // newer format: loads and warns.
+    writeFileSync(join(novelsDir, "fmt-future.json"), JSON.stringify(payload("fmt-future", 3)));
+
+    const fmt = await boot({ TTRPG_DATA_DIR: dir, TTRPG_STARTER_NOVEL: "off" });
+
+    await test("T77/REQ-092f: a v1 Novel adopts and deletes its audit sidecar", async () => {
+      const data = JSON.parse(readFileSync(join(novelsDir, "fmt-v1.json"), "utf-8"));
+      if (data.novel_format_version !== 2) throw new Error(`v1 not migrated: ${JSON.stringify(data.novel_format_version)}`);
+      if ((data.audit_log ?? []).length !== 2) throw new Error(`adopted log length ${(data.audit_log ?? []).length}`);
+      if (existsSync(join(novelsDir, "fmt-v1.audit.jsonl"))) throw new Error("audit sidecar not deleted after adoption");
+    });
+
+    await test("T77/REQ-092f: a v1 Novel with no sidecar records [migration-missing-audit]", async () => {
+      const data = JSON.parse(readFileSync(join(novelsDir, "fmt-missing.json"), "utf-8"));
+      const marker = (data.audit_log ?? []).find((e: any) => e.tool === "migration_missing_audit");
+      if (!marker) throw new Error(`no migration_missing_audit entry: ${JSON.stringify(data.audit_log)}`);
+      assertContains(marker.args, "no_audit_sidecar");
+    });
+
+    await test("T77/REQ-092f: a v1 Novel with a broken chain keeps its sidecar", async () => {
+      const data = JSON.parse(readFileSync(join(novelsDir, "fmt-broken.json"), "utf-8"));
+      const marker = (data.audit_log ?? []).find((e: any) => e.tool === "migration_missing_audit");
+      if (!marker) throw new Error(`no migration_missing_audit entry for broken chain: ${JSON.stringify(data.audit_log)}`);
+      assertContains(marker.args, "chain_invalid");
+      if (!existsSync(join(novelsDir, "fmt-broken.audit.jsonl"))) throw new Error("unverified sidecar was deleted");
+    });
+
+    await test("T77/REQ-092g: a newer-format Novel loads and surfaces [format-future]", async () => {
+      const health = JSON.parse(await call(fmt, "manage_diagnostics", { action: "health" }));
+      if (!(health.data_health?.markers ?? []).includes("[format-future]")) {
+        throw new Error(`[format-future] missing: ${JSON.stringify(health.data_health)}`);
+      }
+      if (health.data_health?.format_future?.["fmt-future"] !== 3) {
+        throw new Error(`format_future did not name the stored version: ${JSON.stringify(health.data_health?.format_future)}`);
+      }
+      // The Novel still loads and lists.
+      assertContains(await call(fmt, "manage_novel", { action: "list" }), "fmt-future");
+    });
+
+    await kill(fmt);
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // ── REQ-224a: the backup-restore branch runs staleness accounting ─────────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-stale-restore-"));
+    const first = await boot({ TTRPG_DATA_DIR: dir, TTRPG_STARTER_NOVEL: "off" });
+    await call(first, "manage_novel", { action: "create", name: "stale-restore" });
+    await call(first, "set_badge", { badge: "game_master" });
+    const need = await call(first, "manage_novel", { action: "end" });
+    assertContains(need, "NEED_INPUT");
+    // A second save puts the pending workflow into the backup chain.
+    await call(first, "manage_novel", { action: "save_context", current_scene: "pending end" });
+    await kill(first);
+
+    const second = await boot({ TTRPG_DATA_DIR: dir, TTRPG_STARTER_NOVEL: "off" });
+    // Corrupt the primary after boot so `resume` takes the restore branch.
+    writeFileSync(join(dir, "novels", "stale-restore.json"), "{ corrupt primary ");
+    const resumed = await call(second, "manage_novel", { action: "resume", slug: "stale-restore" });
+    assertContains(resumed, "[OK]");
+    const health = JSON.parse(await call(second, "manage_diagnostics", { action: "health" }));
+    if (!health.pending_workflow) throw new Error("pending workflow lost across the restore");
+    if (health.pending_workflow.connections < 2) {
+      throw new Error(`restore skipped staleness accounting: ${JSON.stringify(health.pending_workflow)}`);
+    }
+    await kill(second);
     rmSync(dir, { recursive: true, force: true });
   }
 

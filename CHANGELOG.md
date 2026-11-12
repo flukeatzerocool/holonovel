@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-12 — §5.9/§5.19 persistence remediation
+
+- Archiving over an existing archived slug is refused with `[STATE_CONFLICT]`
+  naming the archived path (and its backup chain), so a second archive can no
+  longer delete the earlier copy; a rename frees the slug (REQ-334b).
+- Total corruption now surfaces operator-recovery detail: `spec_health`
+  carries `[corrupted-novel]` plus `corrupted_detail` (primary and every backup
+  path) and stderr names the same paths, on all four load/activation sites
+  (REQ-092c, REQ-238).
+- Novels persist `novel_format_version` (initially `2`). Version 1 auto-migrates
+  by adopting and deleting a valid `<slug>.audit.jsonl`, recording
+  `[migration-missing-audit]` when the sidecar is absent or its chain fails
+  (an unverified sidecar is kept), and a newer format loads with a
+  `[format-future]` marker (REQ-092e/f/g).
+- A backup restore runs workflow-staleness accounting, so a pending workflow
+  restored from backup ages toward auto-cancel (REQ-224a).
+- A resolved combat round appends a story-journal `moment`, through the same
+  recorder as scene transitions (REQ-405).
+- Warn-mode drift names the uncommitted beats and the tool that commits each
+  (accumulated across the drift window from `gm_context.saved_beats`), and the
+  recap, switch, and end responses share the formatter (REQ-403b, REQ-232a).
+- The GM persistence directive names the eight previously omitted state
+  categories from one table shared with the REQ-407 tool list; all three §5.19
+  sections are now in the never-truncated tier (REQ-400, REQ-401, REQ-407).
+- T470/T471/T475 reach their full contracts (ledger timestamp and drift marker,
+  named session, timestamp gap and unparseable-primary branch); the T77 and
+  T381 catalogue rows gain the format-version and archive-collision clauses
+  with exercising assertions. F-P4-2–F-P4-9 are `Resolved` and the roadmap
+  section is retired.
+
 ## 2026-11-11 — §5.20/§5.24 assertion repair
 
 - The six assertions F-P5-7 named now reach their REQ bodies: T545 keeps the

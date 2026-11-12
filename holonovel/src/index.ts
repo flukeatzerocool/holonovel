@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -151,7 +151,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.11",
+  version: "2026.11.12",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -2131,8 +2131,7 @@ if (startupNovel) {
       state.createNovel(startupNovel);
     }
   } catch (e) {
-    state.corruptData.set(slug, `TTRPG_NOVEL activation failed: ${(e as Error).message}`);
-    process.stderr.write(`[holonovel] TTRPG_NOVEL='${startupNovel}' activation failed: ${(e as Error).message}\n`);
+    state.markCorrupt(slug, `TTRPG_NOVEL activation failed: ${(e as Error).message}`);
   }
 }
 
@@ -3172,7 +3171,10 @@ function antiSlopFor(badge: string): string {
 // `TTRPG_PROMPT_BUDGET` remains a fallback so existing callers keep working.
 const briefingBudget = (): number =>
   configInt("TTRPG_MAX_BRIEFING_TOKENS", configInt("TTRPG_PROMPT_BUDGET", 16000));
-const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "intro"]);
+// REQ-135 — sections that always render in full. REQ-400 (State-Persistence
+// Directive), REQ-401 (state_ledger token), and REQ-407 (Persistence tools)
+// each name the never-truncated tier explicitly.
+const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "intro", "state persistence", "state_ledger", "persistence tools"]);
 // REQ-118 — every prompts/get result stays within the per-prompt budget.
 // Sections are truncated lowest-priority first, preserving headers and the
 // never-truncated contract elements. Prefer the deepest heading level present
@@ -6650,16 +6652,7 @@ function applyWorldEffect(novel: NovelState, eff: any): { applied: boolean; warn
 
 // REQ-405 — auto-record a story-journal moment entry on scene transition.
 function recordStoryMoment(novel: NovelState, scene: string, location: string | null): void {
-  const entry: any = {
-    index: novel.story_journal.length,
-    type: "moment",
-    entry: `Scene transition: ${scene}`,
-    scene_anchor: scene.substring(0, 80),
-    entity_ids: [],
-    timestamp: new Date().toISOString(),
-  };
-  if (location) entry.room_id = location;
-  novel.story_journal.push(entry);
+  appendStoryMoment(novel, `Scene transition: ${scene}`, scene, location);
   audit("auto-moment", { scene: scene.substring(0, 80), location });
 }
 
@@ -10534,7 +10527,7 @@ Options: yes, cancel`);
       }
       if (state.stateDriftActive(novel)) {
         recap += state.stateGate() === "warn"
-          ? `\n${stateDriftWarning(novel.gm_context?.saved_at)}`
+          ? `\n${stateDriftWarning(novel)}`
           : `\n[state-drift] GM context saved after the last recorded mutation — narration may be uncommitted.`;
       }
       if (novel.uncommitted_rolls.length > 0) {
@@ -11367,10 +11360,10 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
     case "switch": {
       const active = state.activeNovel;
       const driftWarn = active && state.stateGate() === "warn" && state.stateDriftActive(active)
-        ? `\n${stateDriftWarning(active.gm_context?.saved_at)}`
+        ? `\n${stateDriftWarning(active)}`
         : "";
       if (active && state.stateGate() === "block" && state.stateDriftActive(active)) {
-        return err("STATE_CONFLICT", stateDriftBlockMessage("before switching"));
+        return err("STATE_CONFLICT", stateDriftBlockMessage(active, "before switching"));
       }
       if (active) {
         const sessionId = process.env.TTRPG_SESSION_ID ?? active.metadata.session_count.toString();
@@ -11393,10 +11386,10 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
       const novel = requireNovel();
       if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
       const driftWarn = state.stateGate() === "warn" && state.stateDriftActive(novel)
-        ? `\n${stateDriftWarning(novel.gm_context?.saved_at)}`
+        ? `\n${stateDriftWarning(novel)}`
         : "";
       if (state.stateGate() === "block" && state.stateDriftActive(novel)) {
-        return err("STATE_CONFLICT", stateDriftBlockMessage("before ending"));
+        return err("STATE_CONFLICT", stateDriftBlockMessage(novel, "before ending"));
       }
       novel.pending_workflow = { decision: "end_novel", snapshot: state.captureWorkflowSnapshot(novel) };
       state.saveNovel(novel);
@@ -11448,9 +11441,9 @@ Options: yes, cancel${driftWarn}`);
       }
       const full = exportNovelJSON(novel);
       const data: any = {
-        format_version: 2,
+        format_version: NOVEL_FORMAT_VERSION,
         manifest: {
-          novel_format_version: 2,
+          novel_format_version: NOVEL_FORMAT_VERSION,
           server_spec_version: state.buildFingerprint.specVersion,
           // REQ-386b — the export manifest names the Novel's ruleset so another
           // conformant host can validate it on import.
@@ -11837,7 +11830,11 @@ Options: yes, cancel${driftWarn}`);
         active_vows: novel.vows.filter(v => v.state === "active").map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones })),
       };
       novel.gm_context = { ...novel.gm_context, ...f, saved_at: new Date().toISOString() };
-      state.recordContextSave(novel);
+      // REQ-403b — record only the beats the GM supplied (the derived context
+      // fields are not narration and cannot be "committed" by a state tool).
+      const suppliedBeats = ["current_scene", "immediate_situation", "pending_player_action", "short_term_plans", "long_term_plans", "player_goals"]
+        .filter((key) => (args as any)[key] !== undefined);
+      state.recordContextSave(novel, suppliedBeats);
       state.saveNovel(novel);
       return ok("Pause context saved.");
     }
@@ -12585,13 +12582,59 @@ function storageCapStatus(count: number, raw: string | undefined, fallback: numb
 
 // REQ-403b — operator-facing drift advice. The commit route is the state tool
 // for each narrated beat; `save_context` records context and cannot clear drift.
-function stateDriftWarning(savedAt: string | undefined): string {
-  return `[state-drift] context saved at ${savedAt ?? "(unknown)"}; no story-state mutation since. Commit each narrated beat with its state tool (manage_context (action: recap) lists them), then retry.`;
+// The beats are the context keys supplied by the saves since the last mutation
+// (REQ-403a), each paired with the tool that commits it.
+const BEAT_COMMIT_TOOLS: Record<string, string> = {
+  current_scene: "manage_scene (action: set)",
+  immediate_situation: "manage_story (action: record)",
+  pending_player_action: "manage_story (action: record)",
+  short_term_plans: "manage_story (action: record)",
+  long_term_plans: "manage_story (action: record)",
+  player_goals: "manage_note (action: set)",
+};
+
+function stateDriftBeatLines(novel: NovelState): string[] {
+  const beats = novel.gm_context?.saved_beats ?? [];
+  const lines: string[] = [];
+  for (const key of beats) {
+    const tool = BEAT_COMMIT_TOOLS[key];
+    if (!tool) continue;
+    const value = (novel.gm_context as any)?.[key];
+    if (value === undefined || value === null || value === "") continue;
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    lines.push(`${key} ("${text.substring(0, 60)}") → ${tool}`);
+    if (lines.length >= 5) break;
+  }
+  return lines;
 }
 
-function stateDriftBlockMessage(when: string): string {
-  return `[state-drift] uncommitted narration detected — commit the narrated state, then retry; manage_context (action: recap) lists the uncommitted beats (${when}).`;
+function stateDriftWarning(novel: NovelState): string {
+  const savedAt = novel.gm_context?.saved_at;
+  const beats = stateDriftBeatLines(novel);
+  const beatList = beats.length > 0 ? ` Uncommitted beats: ${beats.join("; ")}.` : "";
+  return `[state-drift] context saved at ${savedAt ?? "(unknown)"}; no story-state mutation since.${beatList} Commit each narrated beat with its state tool (manage_context (action: recap) lists them), then retry.`;
 }
+
+function stateDriftBlockMessage(novel: NovelState, when: string): string {
+  const beats = stateDriftBeatLines(novel);
+  const beatList = beats.length > 0 ? ` Uncommitted beats: ${beats.join("; ")}.` : "";
+  return `[state-drift] uncommitted narration detected — commit the narrated state, then retry; manage_context (action: recap) lists the uncommitted beats.${beatList} (${when})`;
+}
+
+// REQ-400/REQ-407 — one source for the persistence categories the directive
+// names and the tool tokens the Persistence-tools list renders, so the two
+// never-truncated surfaces cannot drift. `base-capability` is rendered in the
+// directive's own sentence, not here.
+const PERSISTENCE_CATEGORY_TOKENS: Array<{ category: string; directive: string; tool: string }> = [
+  { category: "event-log", directive: "manage_diagnostics (action: event)", tool: "manage_diagnostics (event)" },
+  { category: "belief/evidence", directive: "manage_belief (action: evidence)", tool: "manage_belief (admit/perception_record/subjective_record)" },
+  { category: "identity", directive: "manage_identity (action: accept)", tool: "manage_identity (accept)" },
+  { category: "causal-state", directive: "manage_causality (action: causal_propose)", tool: "manage_causality (causal_propose)" },
+  { category: "corpus", directive: "manage_corpus (action: corpus_register)", tool: "manage_corpus (corpus_register)" },
+  { category: "agent-task", directive: "manage_agent (action: create)", tool: "manage_agent (create)" },
+  { category: "perception", directive: "manage_belief (action: perception_record)", tool: "manage_belief (admit/perception_record/subjective_record)" },
+  { category: "subjective-memory", directive: "manage_belief (action: subjective_record)", tool: "manage_belief (admit/perception_record/subjective_record)" },
+];
 
 // REQ-383a — per-ruleset health, computed from each installed package's
 // metadata and index WITHOUT hydrating it (REQ-390b). Fields a package does
@@ -12871,6 +12914,17 @@ function buildSpecHealth(): Record<string, unknown> {
           stale_count: state.staleData.size,
           remedy: state.staleData.size > 0 ? "Run `holonovel update` to re-stamp stale artifacts." : null,
           corrupted: Object.fromEntries(state.corruptData),
+          // REQ-092c/REQ-238 — operator recovery detail: the primary path plus
+          // every backup-chain path for each corrupt Novel.
+          corrupted_detail: Object.fromEntries(state.corruptDetail),
+          // REQ-092g — Novels written by a newer server, keyed by slug.
+          format_future: Object.fromEntries(state.formatFuture),
+          // Data-level markers (a Novel named here need not be the active one);
+          // play-state markers live in state_health.markers.
+          markers: [
+            ...(state.corruptData.size > 0 ? ["[corrupted-novel]"] : []),
+            ...(state.formatFuture.size > 0 ? ["[format-future]"] : []),
+          ],
           compression_mismatch: Object.fromEntries(state.compressionMismatch),
         }
       : undefined,
@@ -15284,9 +15338,14 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
     }
 
     if (badge === "game_master") {
-      // REQ-400 — State-Persistence Directive (never-truncated tier).
+      // REQ-400 — State-Persistence Directive (never-truncated tier). The
+      // category list comes from PERSISTENCE_CATEGORY_TOKENS so the directive
+      // and the REQ-407 tool list below share one source.
+      const categoryTokens = PERSISTENCE_CATEGORY_TOKENS
+        .map((row) => `${row.category} (${row.directive})`)
+        .join(", ");
       briefing += `\n\n### State persistence
-Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), story beats (story, action: record), and base-capability outcomes (fate, ironsworn, forged).`;
+Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), story beats (story, action: record), base-capability outcomes (fate, ironsworn, forged), and the remaining state categories: ${categoryTokens}.`;
 
       // REQ-401 — state_ledger decision-critical token (never-truncated).
       const ledgerLines = [
@@ -15305,7 +15364,7 @@ Commit every narratable change to state in the same turn you narrate it — scen
       // scene type (scene, journal, countdown, note, personality, NPC, vow,
       // event log, belief/evidence, identity, causal state, corpus, semantic
       // index, knowledge graph, agent tasks, perception, base capabilities).
-      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · manage_diagnostics (event) · manage_belief (admit/perception_record/subjective_record) · manage_identity (accept) · manage_causality (causal_propose) · manage_corpus (corpus_register) · manage_knowledge (index_build/graph_build) · manage_agent (create) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`;
+      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · ${[...new Set(PERSISTENCE_CATEGORY_TOKENS.map((row) => row.tool))].join(" · ")} · manage_knowledge (index_build/graph_build) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`;
 
       if (badge === "observer") {
       // REQ-366 — observer omniscient orientation directive.

@@ -1,6 +1,6 @@
 export { expandMacros } from "./macros.js";
 export type { MacroContext } from "./macros.js";
-export { StateManager, normalizeBadge, migrateNovelData } from "./state.js";
+export { StateManager, normalizeBadge, migrateNovelData, NOVEL_FORMAT_VERSION } from "./state.js";
 export type {
   Badge,
   NovelState,

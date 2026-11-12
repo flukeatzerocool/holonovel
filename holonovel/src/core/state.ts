@@ -34,6 +34,12 @@ const SPEC_VERSION: string = JSON.parse(
 // prefix avoids collision with operator-authored keys.
 const META_KEY = "__holonovel_meta";
 
+// REQ-092e — on-disk Novel schema version. Version 1 predates the embedded
+// `audit_log` (entries lived in `<slug>.audit.jsonl`); version 2 is the
+// current single-file shape. Bump this when the persisted schema changes
+// incompatibly and add the matching migration branch.
+export const NOVEL_FORMAT_VERSION = 2;
+
 // REQ-065a — the server build fingerprint: the fields persisted alongside Novel
 // state so a restart can compare the stored build against the current one.
 export interface BuildFingerprint {
@@ -480,6 +486,9 @@ export interface GMContext {
   npc_attitudes?: Record<string, string>;
   player_goals?: string;
   saved_at?: string;
+  // REQ-403b — the beat keys supplied by the context saves since the last
+  // story-state mutation; the drift warning names them and their commit tools.
+  saved_beats?: string[];
   story_context?: string[];
   active_vows?: { name: string; difficulty: string; milestone_count: number }[];
   faction_clocks?: { name: string; clock: number | null; clock_max: number | null; status: string }[];
@@ -790,6 +799,8 @@ export interface NovelState {
   last_mutation_at: string | null; // REQ-401/403 — timestamp of last state write
   mutation_counts_by_group: Record<string, number>; // REQ-401 — per-group counts this session
   uncommitted_rolls: Array<{ roll: string; suggested_tool: string; at: string }>; // REQ-404
+  // REQ-092e — on-disk Novel schema version this state was loaded from.
+  format_version: number;
   // REQ-092e/092g — unknown top-level fields from a newer format version are
   // retained as inert data and re-emitted at the top level on save.
   future_fields?: Record<string, unknown>;
@@ -1030,6 +1041,13 @@ export class StateManager {
   // resume (unparseable JSON, checksum mismatch, or data-migration failure),
   // surfaced as a [WARNING] in spec_health.data_health.corrupted.
   corruptData = new Map<string, string>();
+  // REQ-092c/REQ-238 — operator recovery detail for a corrupt Novel: the
+  // primary path plus every backup-chain path, surfaced in
+  // spec_health.data_health.corrupted_detail and stderr.
+  corruptDetail = new Map<string, { reason: string; primary_path: string; backup_paths: string[] }>();
+  // REQ-092g — Novels whose on-disk format version is newer than this server
+  // understands, surfaced as a [format-future] marker in spec_health.
+  formatFuture = new Map<string, number>();
   // REQ-092h1 — Novels whose on-disk compression state disagrees with the
   // active TTRPG_NOVEL_COMPRESS setting, surfaced as [compression-mismatch].
   compressionMismatch = new Map<string, string>();
@@ -1238,6 +1256,7 @@ export class StateManager {
       npc_goal_suggestions: [],
       voice_corrections_this_session: 0,
       auto_record: autoRecordDefaultFromEnv(),
+      format_version: NOVEL_FORMAT_VERSION,
       session_no_mutation_windows: [],
       state_regression: null,
       last_mutation_at: null,
@@ -1392,10 +1411,12 @@ export class StateManager {
     if (data === null || !this.hasValidChecksum(data)) {
       const restored = this.restoreFromBackups(filePath);
       if (restored) {
-        const loaded = this.loadNovelFromData(restored.data);
-        // REQ-406 — surface the backup-restore content regression.
+        // REQ-406 — compute the regression from the raw payloads, before the
+        // loader's migration may append a [migration-missing-audit] entry.
+        const regression = this.computeStateRegression(primaryData ?? restored.data, restored.data);
+        const { novel: loaded } = this.loadNovelFromData(restored.data, filePath);
         loaded.state_regression = {
-          ...this.computeStateRegression(primaryData ?? restored.data, restored.data),
+          ...regression,
           backup_index: restored.index,
           recorded_at: new Date().toISOString(),
         };
@@ -1405,18 +1426,24 @@ export class StateManager {
         this.restoredThisSession.add(slug);
         this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: restored.index });
         this.applyEnvBadge(loaded);
+        // REQ-224a — a workflow restored from backup ages toward auto-cancel
+        // exactly like one loaded from a healthy primary.
+        this.checkWorkflowStaleness(loaded);
         return loaded;
       }
-      this.corruptData.set(slug, "corrupt primary, no valid backup");
+      this.markCorrupt(slug, "corrupt primary, no valid backup", filePath);
       throw new Error(`[STATE_CONFLICT] Novel '${slug}' is corrupted.`);
     }
 
-    const novel = this.loadNovelFromData(data);
+    const { novel, migrated } = this.loadNovelFromData(data, filePath);
     this.novels.set(slug, novel);
     this.activeNovelId = slug;
     this.novelPaths.set(slug, filePath);
     this.audit(novel, novel.badge, "resume_novel", { slug });
     this.applyEnvBadge(novel);
+    // REQ-092e/f — persist a completed format migration before any later load
+    // can re-run it (the v1 JSONL has already been consumed).
+    if (migrated) this.saveNovel(novel);
     this.checkWorkflowStaleness(novel);
     return novel;
   }
@@ -1541,25 +1568,29 @@ export class StateManager {
         const restored = this.restoreFromBackups(filePath);
         if (!restored) {
           const reason = data === null ? "unparseable JSON, no valid backup" : "checksum mismatch, no valid backup";
-          this.corruptData.set(fileSlug, reason);
-          process.stderr.write(`[holonovel] hydration: skipped corrupt novel '${file}' (${reason}).\n`);
+          this.markCorrupt(fileSlug, reason, filePath);
           continue;
         }
         data = restored.data;
         restoredIndex = restored.index;
       }
       let novel: NovelState;
+      let migrated = false;
+      // REQ-406 — compute the regression from the raw payloads, before the
+      // loader's migration may append a [migration-missing-audit] entry.
+      const regression = restoredIndex !== null ? this.computeStateRegression(primaryData ?? data, data) : null;
       try {
-        novel = this.loadNovelFromData(data);
+        const loaded = this.loadNovelFromData(data, filePath);
+        novel = loaded.novel;
+        migrated = loaded.migrated;
       } catch (e) {
-        this.corruptData.set(fileSlug, `load failed: ${(e as Error).message}`);
-        process.stderr.write(`[holonovel] hydration: skipped novel '${file}' (${(e as Error).message}).\n`);
+        this.markCorrupt(fileSlug, `load failed: ${(e as Error).message}`, filePath);
         continue;
       }
-      if (restoredIndex !== null) {
+      if (regression) {
         novel.state_regression = {
-          ...this.computeStateRegression(primaryData ?? data, data),
-          backup_index: restoredIndex,
+          ...regression,
+          backup_index: restoredIndex!,
           recorded_at: new Date().toISOString(),
         };
         this.restoredThisSession.add(novel.slug);
@@ -1579,13 +1610,16 @@ export class StateManager {
       this.novels.set(key, novel);
       this.novelPaths.set(key, filePath);
       if (fileSlug === key) canonicalKeys.add(key);
+      // REQ-092e/f — persist a completed migration unless this Novel arrived
+      // through the backup-restore path (which must not rotate its chain here).
+      if (migrated && !this.restoredThisSession.has(key)) this.saveNovel(novel);
     }
     // REQ-238 / TTRPG_NOVEL_RETENTION_DAYS — purge expired .trash entries at
     // startup. A retention of 0 (the default) disables purging.
     this.cleanupExpiredTrash();
   }
 
-  private loadNovelFromData(data: any): NovelState {
+  private loadNovelFromData(data: any, filePath?: string): { novel: NovelState; migrated: boolean } {
     // REQ-423 — a Novel written under a prior (or absent) data-format
     // fingerprint is flagged [data-stale]; it still loads per REQ-065.
     if (data.data_format !== DATA_FORMAT) {
@@ -1595,6 +1629,9 @@ export class StateManager {
       this.staleData.set(`novel:${data.slug}`, reason);
       this.staleDetail.set(`novel:${data.slug}`, { stored: data.data_format ?? null, current: DATA_FORMAT, reason });
     }
+    // REQ-092e/f/g — bring the payload to the current on-disk format before the
+    // loader reads it; a v1 Novel may adopt (and delete) its JSONL audit log.
+    const migration = this.migrateNovelFormat(data, filePath);
     data = migrateNovelData(data);
     const novel: NovelState = {
       slug: data.slug,
@@ -1675,6 +1712,7 @@ export class StateManager {
       npc_goal_suggestions: data.npc_goal_suggestions ?? [],
       voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
       auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
+      format_version: data.novel_format_version ?? 1,
       session_no_mutation_windows: data.session_no_mutation_windows ?? [],
       state_regression: data.state_regression ?? null,
       last_mutation_at: data.last_mutation_at ?? null,
@@ -1706,7 +1744,54 @@ export class StateManager {
     // REQ-092e/092g — retain unknown top-level fields across a load-and-save.
     (novel as any).future_fields = captureFutureFields(data, novel);
     migrateStateDigestProjection(novel);
-    return novel;
+    // REQ-092f — a v1 Novel with no usable audit sidecar keeps an empty log and
+    // records why, so an operator can see the gap (never a silent discard).
+    if (migration.missingAuditReason) {
+      this.audit(novel, novel.badge, "migration_missing_audit", { reason: migration.missingAuditReason }, "[migration-missing-audit]");
+    }
+    return { novel, migrated: migration.migrated };
+  }
+
+  // REQ-092e/f/g — on-disk format version gate. Returns whether the payload was
+  // migrated and, when the legacy audit sidecar is unusable, the reason the
+  // [migration-missing-audit] entry records.
+  private migrateNovelFormat(data: any, filePath: string | undefined): { migrated: boolean; missingAuditReason: string | null } {
+    const stored = typeof data?.novel_format_version === "number" ? data.novel_format_version : 1;
+    if (stored > NOVEL_FORMAT_VERSION) {
+      // REQ-092g — newer format: load with the graceful rules; the warning
+      // stays active until the stored version matches the server's.
+      this.formatFuture.set(data.slug ?? "(unknown)", stored);
+      return { migrated: false, missingAuditReason: null };
+    }
+    if (stored >= NOVEL_FORMAT_VERSION) return { migrated: false, missingAuditReason: null };
+
+    // REQ-092f — v1 auto-migration. The sidecar is plain JSONL even when the
+    // primary is compressed (compression arrived after the log was split out).
+    const sidecar = filePath ? filePath.replace(/\.json$/, ".audit.jsonl") : null;
+    let adopted: any[] | null = null;
+    let missingAuditReason: string | null = null;
+    if (sidecar && fs.existsSync(sidecar)) {
+      try {
+        const entries = fs.readFileSync(sidecar, "utf-8")
+          .split("\n")
+          .filter((line) => line.trim().length > 0)
+          .map((line) => JSON.parse(line));
+        if (this.auditChainBreak(entries) === -1) {
+          adopted = entries;
+          fs.unlinkSync(sidecar);
+        } else {
+          // Never destroy an unverified log (REQ-092c); load empty and say why.
+          missingAuditReason = "chain_invalid";
+        }
+      } catch {
+        missingAuditReason = "chain_invalid";
+      }
+    } else {
+      missingAuditReason = "no_audit_sidecar";
+    }
+    data.audit_log = adopted ?? [];
+    data.novel_format_version = NOVEL_FORMAT_VERSION;
+    return { migrated: true, missingAuditReason };
   }
 
   switchNovel(slug: string): NovelState {
@@ -1790,13 +1875,20 @@ export class StateManager {
     const archiveDir = path.join(this.stateDir, "archive");
     fs.mkdirSync(archiveDir, { recursive: true });
     const target = path.join(archiveDir, `${slug}.json`);
-    if (fs.existsSync(target)) fs.unlinkSync(target);
+    // REQ-334b — archived Novels are long-term reference files, never
+    // auto-deleted. Refuse rather than overwrite an existing archived copy
+    // (and its backup chain); a same-slug Novel can be created after the first
+    // archive, so this collision is reachable.
+    const collisions = [target, ...this.backupFilesOnDisk(novelFile).map((bakPath) => target + bakPath.slice(novelFile.length))]
+      .filter((candidate) => fs.existsSync(candidate));
+    if (collisions.length > 0) {
+      throw new Error(`[STATE_CONFLICT] An archived Novel '${slug}' already exists at ${collisions[0]}. Corrective action: rename this Novel with manage_novel (action: rename) and archive the renamed slug, or unarchive the archived copy first with manage_archive (action: unarchive).`);
+    }
     fs.renameSync(novelFile, target);
     // REQ-334 — move the backup chain alongside the archived primary.
     for (const bakPath of this.backupFilesOnDisk(novelFile)) {
       const suffix = bakPath.slice(novelFile.length);
       const dest = target + suffix;
-      if (fs.existsSync(dest)) fs.unlinkSync(dest);
       fs.renameSync(bakPath, dest);
     }
     this.novels.delete(slug);
@@ -2081,6 +2173,8 @@ export class StateManager {
     novel.mutation_counts_by_group[group] = (novel.mutation_counts_by_group[group] ?? 0) + 1;
     // REQ-404 — a committing mutation drains pending uncommitted-roll markers.
     novel.uncommitted_rolls = [];
+    // REQ-403b — and closes the drift window's beat list.
+    if (novel.gm_context) novel.gm_context.saved_beats = [];
     this.saveNovel(novel);
   }
 
@@ -2088,8 +2182,16 @@ export class StateManager {
   // story-state mutation: it advances neither `last_mutation_at` (so drift
   // survives the save) nor the uncommitted-roll drain (REQ-404), and it is not
   // subject to the REQ-449 AI agency ceiling.
-  recordContextSave(novel: NovelState): void {
+  recordContextSave(novel: NovelState, suppliedBeats: string[] = []): void {
     const group = "context";
+    // REQ-403b — accumulate the beat keys across the open drift window, so a
+    // second save does not drop the beats that opened it. recordMutation
+    // clears the list, which closes the window.
+    const savedAt = novel.gm_context?.saved_at;
+    const windowOpen = !novel.last_mutation_at
+      || (!!savedAt && new Date(savedAt).getTime() > new Date(novel.last_mutation_at).getTime());
+    const prior = windowOpen ? (novel.gm_context?.saved_beats ?? []) : [];
+    if (novel.gm_context) novel.gm_context.saved_beats = [...new Set([...prior, ...suppliedBeats])];
     novel.mutation_counts_by_group[group] = (novel.mutation_counts_by_group[group] ?? 0) + 1;
     this.saveNovel(novel);
   }
@@ -2248,16 +2350,23 @@ export class StateManager {
   verifyAuditChain(novel: NovelState): { valid: boolean; entries: number; first_broken_index?: number } {
     const entries = novel.audit_log;
     if (entries.length === 0) return { valid: true, entries: 0 };
+    const broken = this.auditChainBreak(entries);
+    return broken === -1
+      ? { valid: true, entries: entries.length }
+      : { valid: false, entries: entries.length, first_broken_index: broken };
+  }
+
+  // REQ-092f/REQ-601 — the audit hash-chain predicate, shared by verification
+  // and the v1 JSONL migration so an adopted log is judged by the same rule.
+  private auditChainBreak(entries: Array<{ tool: string; args: string; hash: string }>): number {
     let prevHash = "00000000";
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       const expected = crypto.createHash("sha256").update(prevHash + entry.tool + entry.args).digest("hex").substring(0, 8);
-      if (entry.hash !== expected) {
-        return { valid: false, entries: entries.length, first_broken_index: i };
-      }
+      if (entry.hash !== expected) return i;
       prevHash = entry.hash;
     }
-    return { valid: true, entries: entries.length };
+    return -1;
   }
 
   getWisdomHealth(): any {
@@ -2379,6 +2488,17 @@ export class StateManager {
             this.audit(novel, novel.badge, "countdown_expired", { name: cd.name });
           }
         }
+      }
+      // REQ-405 — a resolved combat round appends a story-journal moment, the
+      // same way a scene transition does; auto_record alone governs it.
+      if (novel.auto_record) {
+        const scene = novel.scene_description ?? "";
+        appendStoryMoment(novel, `Combat round ${combat.round} resolved`, scene, novel.scene_location ?? null);
+        this.audit(novel, novel.badge, "auto-moment", {
+          round: combat.round,
+          scene: scene.substring(0, 80),
+          location: novel.scene_location ?? null,
+        });
       }
     }
 
@@ -2507,6 +2627,19 @@ ${turnOrder}`;
     return null;
   }
 
+  // REQ-092c/REQ-238 — record a Novel that cannot be loaded and write the
+  // operator-recovery stderr line (primary + every chain path). `corruptData`
+  // keeps the advisory slug→reason form; `corruptDetail` carries the paths.
+  markCorrupt(slug: string, reason: string, primaryPath?: string): void {
+    this.corruptData.set(slug, reason);
+    const primary = primaryPath ?? path.join(this.stateDir, "novels", `${slug}.json`);
+    const backupPaths = this.backupFilesOnDisk(primary);
+    this.corruptDetail.set(slug, { reason, primary_path: primary, backup_paths: backupPaths });
+    process.stderr.write(
+      `[holonovel] [corrupted-novel] '${slug}' (${reason}). Primary: ${primary}. Backup chain: ${backupPaths.length > 0 ? backupPaths.join(", ") : "(none)"}.\n`,
+    );
+  }
+
   // REQ-238 — enumerate every backup file on disk for a primary file path: the
   // rotated `<file>.bak.N` chain plus the legacy singular `<file>.bak`.
   private backupFilesOnDisk(filePath: string): string[] {
@@ -2568,6 +2701,8 @@ ${turnOrder}`;
     // REQ-423 — stamp the data-format fingerprint and spec version at write time.
     payload.data_format = DATA_FORMAT;
     payload.spec_version = SPEC_VERSION;
+    // REQ-092e — the on-disk schema version the next load compares against.
+    payload.novel_format_version = NOVEL_FORMAT_VERSION;
     // REQ-092h1 — record the compression setting in Novel metadata; it is part
     // of the checksummed payload so an integrity check covers it.
     if (!payload.metadata) payload.metadata = {};
@@ -2794,6 +2929,9 @@ function novelToJSON(novel: NovelState): any {
     ...(novel.future_fields ?? {}),
     slug: novel.slug,
     name: novel.name,
+    // REQ-092e — the on-disk schema version; the export manifest carries the
+    // same value (Appendix T).
+    novel_format_version: novel.format_version,
     ruleset: novel.ruleset,
     badge: novel.badge,
     entities: Object.fromEntries(novel.entities),
@@ -2926,11 +3064,27 @@ function estimateJsonBytes(value: unknown): number {
   }
 }
 
+// REQ-405 — append a story-journal moment entry. Shared by the scene-transition
+// path (index.ts) and the combat-round path (advanceCombat) so the entry shape
+// cannot drift between them.
+export function appendStoryMoment(novel: NovelState, entry: string, scene: string, location?: string | null): void {
+  const moment: any = {
+    index: novel.story_journal.length,
+    type: "moment",
+    entry,
+    scene_anchor: (scene ?? "").substring(0, 80),
+    entity_ids: [],
+    timestamp: new Date().toISOString(),
+  };
+  if (location) moment.room_id = location;
+  novel.story_journal.push(moment);
+}
+
 // REQ-092e/092g — unknown top-level fields are retained as inert data so a
 // newer format survives a load-and-save. Prototype keys and write-time envelope
 // stamps are reserved: they must never re-enter state through `future_fields`
 // and shift the digest. Shared by both load paths so they cannot drift.
-const RESERVED_FUTURE_FIELDS = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "_checksum"]);
+const RESERVED_FUTURE_FIELDS = new Set(["__proto__", "constructor", "prototype", "future_fields", "data_format", "spec_version", "novel_format_version", "_checksum"]);
 function captureFutureFields(data: any, known: object): Record<string, unknown> {
   const extras: Record<string, unknown> = {};
   for (const key of Object.keys(data ?? {})) {
@@ -3038,6 +3192,7 @@ function novelFromJSON(data: any): NovelState {
     npc_goal_suggestions: data.npc_goal_suggestions ?? [],
 voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
       auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
+      format_version: data.novel_format_version ?? 1,
       session_no_mutation_windows: data.session_no_mutation_windows ?? [],
       state_regression: data.state_regression ?? null,
       last_mutation_at: data.last_mutation_at ?? null,

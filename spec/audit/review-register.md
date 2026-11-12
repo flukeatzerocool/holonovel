@@ -11,6 +11,57 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 §5.9/§5.19 persistence remediation
+
+- **F-P4-2 — an archive over an existing archived Novel deleted it (resolved
+  2026-11-12):** `archiveNovel` (`holonovel/src/core/state.ts:1872`) refuses
+  with `[STATE_CONFLICT]` when the archive target or any backup destination
+  exists (`:1884`), names the path, and suggests rename or unarchive, so the
+  earlier archived copy survives byte-for-byte. Exercised by
+  `T381/REQ-334b` in `test:persistence`.
+- **F-P4-3 — combat-round resolution wrote no auto-moment (resolved
+  2026-11-12):** the round increment in `advanceCombat`
+  (`holonovel/src/core/state.ts:2496`) appends a `moment` through the shared
+  `appendStoryMoment` and audits `auto-moment`, gated by `auto_record`.
+  Exercised by `T474/REQ-405` in `test:persistence-guardrails`.
+- **F-P4-4 — total corruption surfaced no chain paths (resolved 2026-11-12):**
+  `markCorrupt` (`holonovel/src/core/state.ts:2633`) records
+  `data_health.corrupted_detail` (primary plus every backup path) and emits a
+  stderr line naming them; `data_health.markers` carries `[corrupted-novel]`.
+  Four call sites: the `resumeNovel` catch and both hydration branches in
+  `state.ts`, plus the `TTRPG_NOVEL` activation in `index.ts:2134`. Exercised
+  by `T175/REQ-001a`.
+- **F-P4-5 — `novel_format_version` and its migrations were absent (resolved
+  2026-11-12):** `saveNovel` stamps `novel_format_version`
+  (`holonovel/src/core/state.ts:2705`); `migrateNovelFormat` (`:1758`) adopts
+  and deletes a valid v1 `.audit.jsonl`, records `[migration-missing-audit]`
+  when the sidecar is absent or its chain fails (keeping an unverified
+  sidecar), stamps `2`, and records `[format-future]` for a newer payload. The
+  stamp is reserved from `future_fields` so the digest is stable, and the
+  export manifest uses the same constant. Exercised by `T77/REQ-092e/f/g`.
+- **F-P4-6 — warn-mode drift text named no beats or commit tools (resolved
+  2026-11-12):** `stateDriftWarning` (`holonovel/src/index.ts:12611`) names up
+  to five beats from `gm_context.saved_beats` with the tool that commits each;
+  the recap, switch, end, and block paths share the formatter, and
+  `recordMutation` clears the list. Exercised by `T472/REQ-403b`.
+- **F-P4-7 — the persistence directive omitted eight tool categories
+  (resolved 2026-11-12):** `### State persistence`
+  (`holonovel/src/index.ts:15347`) names the eight omitted REQ-400 categories
+  from `PERSISTENCE_CATEGORY_TOKENS`, the same table that feeds the REQ-407
+  tool list, and all three §5.19 sections are in `NEVER_TRUNCATED`. Exercised
+  by `T469/REQ-400/135`.
+- **F-P4-8 — a restored backup skipped workflow-staleness accounting (resolved
+  2026-11-12):** the `resumeNovel` restore branch calls
+  `checkWorkflowStaleness` (`holonovel/src/core/state.ts:1431`) before
+  returning. Exercised by the restore-staleness case in
+  `test:persistence-guardrails` (T266 family/REQ-224a).
+- **F-P4-9 — three §5.19 assertions were narrower than their REQs (resolved
+  2026-11-12):** T470 asserts the ISO last-mutation timestamp and an active
+  `[state-drift]` ledger marker; T471 asserts the recap names the recorded
+  session; T475 asserts the timestamp gap and the unparseable-primary branch
+  (honest zero gaps, `backup_index` recorded). Exercised by
+  `test:persistence-guardrails`.
+
 ### 2026-11-11 §5.20/§5.24 assertion repair
 
 - **F-P5-7 — six narrow assertions (resolved 2026-11-11):** each check now
@@ -1825,59 +1876,6 @@ T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
 
-
-### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
-
-- **F-P4-2 — archiving over an existing archived Novel deletes it (2026-11-09):**
-  `archiveNovel` unlinks `archive/<slug>.json` when present, and `createNovel`
-  checks only the in-memory registry, so creating a same-slug Novel and
-  archiving it removes the previously archived copy — REQ-334b's "never
-  auto-deleted" is violated. Predicate: `state.ts:1736`, `state.ts:1152`.
-  Scheduled under `ROADMAP.md` § §5.9/§5.19 persistence remediation.
-- **F-P4-3 — combat-round resolution writes no auto-moment (2026-11-09):**
-  `advanceCombat` advances the turn/round and expires conditions but appends no
-  story-journal `moment`, which REQ-405 requires for every combat-round
-  resolution; T474 covers scene transitions only. Predicate: `state.ts:2313-2326`,
-  `test-persistence-guardrails.ts:158`. Scheduled under `ROADMAP.md`
-  § §5.9/§5.19 persistence remediation.
-- **F-P4-4 — total corruption surfaces no chain paths (2026-11-09):** the
-  `data_health.corrupted` map carries a reason string only ("corrupt primary, no
-  valid backup"), with no `[corrupted-novel]` marker and no backup/primary paths;
-  stderr likewise omits paths — REQ-092c requires both. Predicate:
-  `state.ts:1357`, `state.ts:1490`, `index.ts:11972`. Scheduled under
-  `ROADMAP.md` § §5.9/§5.19 persistence remediation.
-- **F-P4-5 — `novel_format_version` and its migrations are absent (2026-11-09):**
-  `saveNovel` stamps `data_format`/`spec_version` but never `novel_format_version`;
-  no v1 `.audit.jsonl` migration, `[migration-missing-audit]`, or
-  `[format-future]` warning exists (REQ-092e/f/g). A created Novel's JSON has no
-  such field (live probe, 2026-11-09). Predicate: `state.ts:2479-2555`; the only
-  occurrence is the export manifest at `index.ts:10658`. Scheduled under
-  `ROADMAP.md` § §5.9/§5.19 persistence remediation.
-- **F-P4-6 — warn-mode drift text names no beats or commit tools (2026-11-09):**
-  the warning says "Commit each narrated beat with its state tool" without naming
-  the beats or the tools, and recap prints the same sentence rather than
-  enumerating the beats — REQ-403b requires both. Predicate: `index.ts:9753-9756`,
-  `index.ts:11765-11767`. Scheduled under `ROADMAP.md`
-  § §5.9/§5.19 persistence remediation.
-- **F-P4-7 — the persistence directive omits eight tool categories (2026-11-09):**
-  REQ-400 enumerates event-log, belief/evidence, identity, causal-state, corpus,
-  agent-task, perception, and subjective-memory state tools; the directive text
-  names none of them. Predicate: `index.ts:14159-14160`;
-  `test-persistence-guardrails.ts:100`. Scheduled under `ROADMAP.md`
-  § §5.9/§5.19 persistence remediation.
-- **F-P4-8 — a restored backup skips workflow-staleness accounting (2026-11-09):**
-  the restore branch of `resumeNovel` returns before `checkWorkflowStaleness`,
-  while the normal branch calls it, so a pending workflow restored from backup
-  never ages toward auto-cancel (REQ-224a). Predicate: `state.ts:1341-1355` vs
-  `state.ts:1366`. Scheduled under `ROADMAP.md` § §5.9/§5.19 persistence
-  remediation.
-- **F-P4-9 — three §5.19 assertions are narrower than their REQs (2026-11-09):**
-  T470 asserts the ledger token and one count, not the timestamp or drift/
-  regression markers (REQ-401); T471 asserts the no-mutation marker and window
-  list, not that recap names the session (REQ-402); T475 asserts the audit gap
-  only, not the timestamp gap or the unparseable-primary branch (REQ-406).
-  Predicate: `test-persistence-guardrails.ts:106`, `:235`, `:257`. Scheduled
-  under `ROADMAP.md` § §5.9/§5.19 persistence remediation.
 
 ### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
 

@@ -443,6 +443,35 @@ async function main() {
       }
     });
 
+    await test("T381/REQ-334b: archiving over an existing archived slug is refused", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "dup-archive" });
+      await call(proc, "manage_novel", { action: "switch", slug: "restore-novel" });
+      await call(proc, "manage_archive", { action: "archive", slug: "dup-archive" });
+      const archivedPath = join(DATA_DIR, "archive", "dup-archive.json");
+      const firstCopy = readFileSync(archivedPath, "utf-8");
+      // The slug is free again once archived, so a same-slug Novel can be made.
+      await call(proc, "manage_novel", { action: "create", name: "dup-archive" });
+      await call(proc, "manage_novel", { action: "switch", slug: "restore-novel" });
+      const refused = await call(proc, "manage_archive", { action: "archive", slug: "dup-archive" });
+      assertContains(refused, "[STATE_CONFLICT]");
+      assertContains(refused, "rename");
+      if (readFileSync(archivedPath, "utf-8") !== firstCopy) {
+        throw new Error("refused archive still replaced the archived copy");
+      }
+      // Renaming the live Novel frees the slug; the archived copy stays intact.
+      await call(proc, "manage_novel", { action: "switch", slug: "dup-archive" });
+      await call(proc, "manage_novel", { action: "rename", new_slug: "dup-archive-2" });
+      await call(proc, "manage_novel", { action: "switch", slug: "restore-novel" });
+      const okArchive = await call(proc, "manage_archive", { action: "archive", slug: "dup-archive-2" });
+      assertContains(okArchive, "[OK]");
+      const archivedList = await call(proc, "manage_novel", { action: "list", filter: "archived" });
+      assertContains(archivedList, "dup-archive");
+      assertContains(archivedList, "dup-archive-2");
+      if (readFileSync(archivedPath, "utf-8") !== firstCopy) {
+        throw new Error("the original archived copy changed after the renamed Novel was archived");
+      }
+    });
+
     await kill(proc);
   }
 

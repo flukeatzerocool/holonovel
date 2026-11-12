@@ -12,25 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.9/§5.19 persistence remediation (P1)
-
-- Archive and corruption integrity: refuse archiving over an existing archived
-  slug, surface the primary/backup chain paths on total corruption, implement
-  `novel_format_version` with the v1 migration and `[format-future]` warning,
-  and run workflow-staleness accounting on the restore path (REQ-334b,
-  REQ-092c, REQ-092e, REQ-092f, REQ-092g, REQ-224a; F-P4-2, F-P4-4, F-P4-5,
-  F-P4-8).
-- Directive and warning completeness: append a `moment` on every combat-round
-  resolution, name the uncommitted beats and commit tools in warn mode (and
-  enumerate them in recap), and name the eight omitted state-tool categories in
-  the REQ-400 directive (REQ-405, REQ-403b, REQ-400; F-P4-3, F-P4-6, F-P4-7).
-- Citation repair: widen T470 to the ledger timestamp and drift/regression
-  markers, T471 to the recap's named session, and T475 to the timestamp gap and
-  the unparseable-primary branch (REQ-401, REQ-402, REQ-406; F-P4-9).
-
-**Trigger:** the next session that takes persistence remediation work; closes
-when F-P4-2–F-P4-9 are `Resolved` in the review register.
-
 ## §5.6 state surfaces remediation (P1)
 
 - Pause/resume and world reactivity: return the `badge_briefing` payload from
