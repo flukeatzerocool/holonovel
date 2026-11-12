@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-11 — fingerprinted-section tool-token re-point
+
+- The last three bare `command` tokens in §5 normative text now name the
+  registered tool: REQ-221b's three call forms become
+  `run_command (action: execute, …)`, REQ-330a's parser-navigation clause cites
+  `run_command (action: execute)` per REQ-196, and REQ-385a speaks of
+  parser-command suggestions rather than a `command` tool. The §4 fixture
+  notation row no longer records a deferral, since none remains (REQ-221b,
+  REQ-330a, REQ-385a).
+- `scripts/tool-citation-check.ts` carries an empty allowlist, so the
+  bare-token detector now gates every REQ body instead of exempting the three
+  fingerprinted-section deferrals; the MCP client-config `command` key stays
+  exempt through the separate config-schema predicate. F-P6a-21 is `Resolved`
+  and the roadmap item is retired.
+- Both contract fingerprints move in the same increment, as the deferral
+  required: the data-format constant through §5.6 and the package-format
+  constant through §5.16 (`holonovel/src/generated/contract-fingerprints.ts`).
+  The two committed artifacts that bake them were re-emitted
+  (`holonovel/content/torre-nosferatu.json`,
+  `holonovel/testdata/rulesets/fixture/manifest.json`). Persisted Novels
+  re-stamp `[data-stale]` once and installed ruleset packages are held
+  `[package-incompatible]` until `holonovel update` rebuilds them — the
+  sanctioned path for any release that touches these sections (REQ-393,
+  REQ-420, REQ-423, REQ-424).
+- `check-fixture-emitter`'s drift message named `npm run build:covered-package`,
+  which writes the install directory and leaves the committed baseline stale;
+  it now names the emitter invocation that refreshes the baseline
+  (`build-package.mjs --out holonovel/testdata/rulesets/fixture --no-backup`,
+  matching the `version-bump` re-emit path). REQ-563.
+
 ## 2026-11-11 — §5.20 staging order and AI-role handoff
 
 - `manage_staging (action: cast)` gains an `order` parameter: the GM speaker

@@ -52,10 +52,11 @@ for (const alias of artifact.hidden_aliases ?? []) {
 const violations: { req: string; tool: string; action: string; reason: string }[] = [];
 
 // Bare-token drift: a normative body citing `command` instead of the registered
-// `run_command`. Bodies in fingerprinted sections are deferred and tracked in
-// spec/audit/review-register.md; they are allowlisted rather than silently
-// skipped so the deferral stays visible.
-const TOKEN_ALLOW = new Set(["REQ-221b", "REQ-330a", "REQ-385a"]);
+// `run_command`. No body is exempt: the three fingerprinted-section deferrals
+// (REQ-221b, REQ-330a, REQ-385a) shipped with the 2026-11-11 re-point. A future
+// deferral needs a spec/audit/review-register.md row plus an entry in this set,
+// so it stays visible rather than silently skipped.
+const TOKEN_ALLOW = new Set<string>();
 const specText = readSpec();
 const tokenIssues = checkToolTokenDrift([...extractReqBodies(specText).values()], TOKEN_ALLOW);
 

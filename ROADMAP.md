@@ -12,19 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Fingerprinted-section tool-token re-point (P2)
-
-- Re-point the three remaining `command`-as-tool references in fingerprinted
-  sections — REQ-221b and REQ-330a in §5.6, REQ-385a in §5.16 — and
-  regenerate the affected contract fingerprint in the same increment
-  (F-P6a-21).
-- Shrink the bare-token detector's allowlist to empty in that commit, so
-  `tool-citation-check` stays a real guard rather than a permanent exemption.
-
-**Trigger:** the next increment that regenerates either the data-format (§5.6)
-or package-format (§5.16) fingerprint; closes when the allowlist is empty and
-`check-fingerprint-sync` is green.
-
 ## §5.20/§5.24 assertion repair (P1)
 
 - Widen narrow assertions: T545 replay reproduction, T550 derived-record

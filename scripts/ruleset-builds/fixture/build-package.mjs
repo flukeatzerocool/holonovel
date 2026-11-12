@@ -85,7 +85,10 @@ try {
     });
     if (drifted.length > 0) {
       console.error(`check-fixture-emitter: committed package is stale: ${drifted.join(", ")}`);
-      console.error("Fix: npm run build:covered-package");
+      console.error(
+        "Fix: node scripts/ruleset-builds/fixture/build-package.mjs " +
+          "--out holonovel/testdata/rulesets/fixture --no-backup",
+      );
       status = 1;
     } else {
       console.log(`PASS: fixture package is current (${PACKAGE_FILES.length} files)`);
