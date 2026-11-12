@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,713 tokens; standard 25,115; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 28,873 tokens; standard 25,274; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 

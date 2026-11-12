@@ -204,7 +204,7 @@ async function main() {
       const dismiss = await call(proc, "respond_decision", { decision: "suggestion", option: "dismiss" });
       assertNotContains(dismiss, "[ERROR]");
       const b = await briefing(proc);
-      assertNotContains(b, "Steal the crown");
+      assertNotContains(b, 'pursues "Steal the crown"');
     });
 
     await test("T398/401: audit records faction autonomous advancement", async () => {
@@ -1226,6 +1226,57 @@ async function main() {
       assertContains(last, "[distant]");
     });
   }
+
+  // ── §5.6 personality, signal, and citation remediation ──
+
+  await test("T112/REQ-076: scene history returns the newest first and keeps chronological order", async () => {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t112-novel" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_scene", { action: "set", description: "forest clearing", location: "Forest" });
+    await call(proc, "manage_scene", { action: "set", description: "dark cavern", location: "Cavern" });
+    await call(proc, "manage_scene", { action: "set", description: "sunlit glen", location: "Glen" });
+    const current = await readResource(proc, "scene://current");
+    assertContains(current, "sunlit glen");
+    const history = JSON.parse(await readResource(proc, "scene://history"));
+    assert(Array.isArray(history) && history.length >= 2, `scene history is not an array: ${typeof history} ${JSON.stringify(history).slice(0, 200)}`);
+    assertContains(JSON.stringify(history), "forest clearing");
+    assertContains(JSON.stringify(history), "dark cavern");
+    await call(proc, "set_badge", { badge: "player" });
+    const playerHistory = await readResource(proc, "scene://history");
+    assertContains(playerHistory, "dark cavern");
+    await kill(proc);
+  });
+
+  await test("T723/REQ-075g: talkativeness defaults to 50, zero mutes the roll, and the Player read omits it", async () => {
+    const proc = await boot({ TTRPG_AI_ROLE: "game_master" });
+    await call(proc, "manage_novel", { action: "create", name: "t723-novel" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_npc", { action: "create", name: "Quiet" });
+    await call(proc, "manage_npc", { action: "create", name: "Loud" });
+    const npcs = JSON.parse(await readResource(proc, "npcs://"));
+    const ids = Object.keys(npcs);
+    const quiet = ids.find((id) => JSON.stringify(npcs[id]).includes("Quiet"))!;
+    const loud = ids.find((id) => JSON.stringify(npcs[id]).includes("Loud"))!;
+    await call(proc, "manage_npc", { action: "update", npc_id: quiet, talkativeness: 0 });
+    await call(proc, "manage_npc", { action: "update", npc_id: loud, talkativeness: 100 });
+    const narrate = await (async () => {
+      const r = await send(proc, { method: "prompts/get", params: { name: "narrate", arguments: {} } });
+      return (r.result?.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n");
+    })();
+    assertContains(narrate, "Talkativeness order");
+    let picks = 0;
+    for (let i = 0; i < 5; i++) {
+      const out = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker", after_user: true }));
+      if (out.npc_id === loud) picks++;
+      if (out.npc_id === quiet) throw new Error("talkativeness 0 NPC was selected");
+    }
+    assert(picks === 5, "the metered peer was not selected every time");
+    await call(proc, "set_badge", { badge: "player" });
+    const list = await call(proc, "manage_npc", { action: "list" });
+    assert(!list.includes("talkativeness"), "Player NPC read exposed talkativeness");
+    await kill(proc);
+  });
 
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);

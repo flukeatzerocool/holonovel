@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 114852,
+  "tools_list_bytes": 115489,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 114852,
-        "tokens": 28713
+        "bytes": 115489,
+        "tokens": 28873
       },
       "standard": {
         "tools": 37,
-        "bytes": 100459,
-        "tokens": 25115
+        "bytes": 101096,
+        "tokens": 25274
       },
       "small": {
         "tools": 6,
@@ -47,8 +47,8 @@
           },
           "referee": {
             "tools": 6,
-            "bytes": 3975,
-            "tokens": 994
+            "bytes": 4058,
+            "tokens": 1015
           },
           "author": {
             "tools": 6,
@@ -524,7 +524,7 @@
         "roster_remove",
         "roster_list"
       ],
-      "param_count": 27,
+      "param_count": 28,
       "required": [
         "action"
       ],
@@ -536,12 +536,13 @@
         "details": "Grouped mechanical details (create).",
         "entity_id": "Entity identifier (stage/sheet/set_active/personality/voice/remove).",
         "equipment": "Starting equipment (create).",
-        "examples": "Voice examples (voice).",
+        "examples": "Voice examples (voice); at most 5; source tags synthesis examples for the [supplementary] annotation.",
         "feats": "Feats (create).",
         "format": "Output format (sheet).",
         "goals": "Character goals (create/personality).",
         "inventory": "Replace the entity's inventory (update).",
         "name": "Character name; omit (create) to begin step-by-step.",
+        "persona": "Values, traits, and mannerisms (create/personality).",
         "personality": "Grouped personality fields (create).",
         "pov": "Point-of-view mode (set_active).",
         "roster_id": "Roster identifier (import/roster_remove).",
@@ -571,9 +572,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 28,
+        "paramCount": 29,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 28,
+        "paramsWithDescriptions": 29,
         "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -584,7 +585,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 5734,
+        "definitionBytes": 6043,
         "descriptionBytes": 979
       },
       "category": "",
@@ -1500,7 +1501,7 @@
         "export_card",
         "import_cof"
       ],
-      "param_count": 16,
+      "param_count": 18,
       "required": [
         "action"
       ],
@@ -1518,7 +1519,9 @@
         "name": "NPC name (create).",
         "npc_id": "NPC identifier (update/remove/get/export_card).",
         "persona": "Optional values, traits, and mannerisms (create/update).",
+        "role": "Optional display role named in the voice directive (create/update); default NPC.",
         "ruleset_reference": "Optional ruleset stat-block reference (create).",
+        "scope": "Optional badge scope (create/update); the Player badge sees shared-scope NPC personality and voice directives. Default game_master.",
         "source": "Import provenance URL or description (import_card).",
         "talkativeness": "Optional 0-100 social-scene speaking weight; default 50 (create/update)."
       },
@@ -1536,10 +1539,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 17,
+        "paramCount": 19,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 17,
-        "paramsWithEnums": 1,
+        "paramsWithDescriptions": 19,
+        "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -1549,7 +1552,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3691,
+        "definitionBytes": 4019,
         "descriptionBytes": 663
       },
       "category": "",

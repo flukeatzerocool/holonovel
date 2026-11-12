@@ -900,6 +900,36 @@ async function main() {
     });
   }
 
+  // ── §5.6 personality, signal, and citation remediation ──
+
+  await test("T211/REQ-069c/REQ-173: a signal survives restart and its age advances", async () => {
+    const brief = async (proc: ChildProcess): Promise<string> => {
+      const r = await send(proc, { method: "prompts/get", params: { name: "badge_briefing", arguments: {} } });
+      return ((r.result?.messages ?? []) as any[]).map((m: any) => m.content?.text ?? "").join("\n");
+    };
+    let proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t211-novel" });
+    await call(proc, "set_badge", { badge: "player" });
+    await call(proc, "manage_character", { action: "signal", signal: "tone", value: "darker" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    assertContains(await brief(proc), "tone: darker (set this connection)");
+    await kill(proc);
+    proc = await boot();
+    await call(proc, "manage_novel", { action: "resume", slug: "t211-novel" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    assertContains(await brief(proc), "tone: darker (set 1 connection ago)");
+    await call(proc, "set_badge", { badge: "player" });
+    await call(proc, "manage_character", { action: "signal", signal: "pace", value: "faster" });
+    await kill(proc);
+    proc = await boot();
+    await call(proc, "manage_novel", { action: "resume", slug: "t211-novel" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const after = await brief(proc);
+    assertContains(after, "tone: darker (set 2 connections ago)");
+    assertContains(after, "pace: faster (set 1 connection ago)");
+    await kill(proc);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

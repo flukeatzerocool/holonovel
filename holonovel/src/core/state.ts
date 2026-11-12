@@ -93,9 +93,26 @@ export function normalizeBadge(raw: unknown): Badge {
   return "none"; // null, undefined, "none", and unknown values resolve to the Editor badge
 }
 
-export function migrateNovelData(data: any): any {
-  const out: any = { ...data };
+export function normalizePlayerSignals(raw: any): Record<string, PlayerSignalEntry> {
+  const out: Record<string, PlayerSignalEntry> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string") { out[key] = { value }; continue; }
+    if (value && typeof value === "object") {
+      const entry: PlayerSignalEntry = { value: String((value as any).value ?? "") };
+      const counter = (value as any).connection_counter;
+      if (typeof counter === "number" && Number.isFinite(counter)) entry.connection_counter = counter;
+      const updated = (value as any).last_updated;
+      if (typeof updated === "string" && updated) entry.last_updated = updated;
+      out[key] = entry;
+    }
+  }
+  return out;
+}
+
+export function migrateNovelData(data: any): any {  const out: any = { ...data };
   out.badge = normalizeBadge(data.badge ?? data.hat);
+  if (data.player_signals) out.player_signals = normalizePlayerSignals(data.player_signals);
   if (data.lore) {
     out.lore = Object.fromEntries(
       Object.entries(data.lore).map(([k, v]: [string, any]) => [
@@ -226,8 +243,8 @@ export function reconcileUserData(
 export interface NovelEntity {
   id: string;
   name: string;
-  personality?: { description?: string; voice?: string; background?: string; goals?: string };
-  voice_examples?: { context: string; dialogue: string; tag?: string }[];
+  personality?: { description?: string; voice?: string; background?: string; goals?: string; persona?: string };
+  voice_examples?: { context: string; dialogue: string; tag?: string; source?: "synthesis" | "codex" | "player-corrected"; source_url?: string }[];
   inventory: string[]; // thing lowercased names held
   current_room: string | null;
   conditions: string[];
@@ -255,8 +272,12 @@ export interface NpcState {
 location?: string;
   // REQ-327 — NPC-world coupling: room id when location matches a room.
   room_id?: string;
-  personality?: { description?: string; voice?: string; background?: string; goals?: string };
+  personality?: { description?: string; voice?: string; background?: string; goals?: string; persona?: string };
   persona?: string; // REQ-077a — values, traits, and mannerisms.
+  // REQ-282a — badge scope and display role for the voice directive. Older
+  // Novels carry neither; absence means game_master scope and the "NPC" role.
+  scope?: "game_master" | "shared";
+  role?: string;
   talkativeness?: number; // REQ-075g — 0-100 social-scene speaking weight.
   // REQ-075c/d — depth metadata, maintained by the server, never set by the GM.
   appearance_count?: number;
@@ -264,7 +285,7 @@ location?: string;
   last_seen?: string;
   appearance_scenes?: string[]; // dedup key: one appearance per scene
   appearance_sessions?: string[]; // sessions this NPC appeared in
-  voice_examples?: { context: string; dialogue: string; tag?: string }[];
+  voice_examples?: { context: string; dialogue: string; tag?: string; source?: "synthesis" | "codex" | "player-corrected"; source_url?: string }[];
   // REQ-075f — NPC mind: GM-only journal/directive/auto_play/identity_core/
   // shared_notes, excluded from every Player-badge surface.
   mind?: { private_journal?: string[]; directive?: string; auto_play?: boolean; identity_core?: string[]; shared_notes?: string[] };
@@ -733,6 +754,14 @@ export interface RulingLedgerEntry {
   reverted: boolean;
 }
 
+export interface PlayerSignalEntry {
+  // REQ-069a/b/c — the free-text value plus the connection counter at set time.
+  // Older Novels stored a bare string; the load path migrates it.
+  value: string;
+  connection_counter?: number;
+  last_updated?: string;
+}
+
 export interface NovelState {
   slug: string;
   name: string;
@@ -756,7 +785,7 @@ export interface NovelState {
   countdowns: Map<string, Countdown>;
   lore: Map<string, LoreEntry>;
   briefing_assembly_count: number;
-  player_signals: Record<string, string>;
+  player_signals: Record<string, PlayerSignalEntry>;
   adventure_slug: string | null;
   generated_adventure: any | null;
   audit_log: AuditEntry[];
@@ -1045,6 +1074,8 @@ export class StateManager {
   // REQ-510 — derived, session-scoped knowledge-graph projection (never persisted).
   knowledgeGraph: import("./graph.js").KnowledgeGraph | null = null;
   activeNovelId: string | null = null;
+  // REQ-173a — count one connection per Novel per process, not per tool call.
+  private connectionCounted = new Set<string>();
 
   buildFingerprint: BuildFingerprint;
   // REQ-065a — the fingerprint persisted at first start, retained for startup
@@ -1420,6 +1451,14 @@ export class StateManager {
     return true;
   }
 
+  // REQ-173a — one increment per Novel per process, when it becomes active.
+  private countConnection(novel: NovelState): void {
+    if (this.connectionCounted.has(novel.slug)) return;
+    this.connectionCounted.add(novel.slug);
+    novel.connection_counter = (novel.connection_counter ?? 0) + 1;
+    this.saveNovel(novel);
+  }
+
   resumeNovel(slug: string): NovelState {
     const filePath = path.join(this.stateDir, "novels", `${slug}.json`);
     if (!fs.existsSync(filePath)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' does not exist on disk.`);
@@ -1457,6 +1496,8 @@ export class StateManager {
         this.restoredThisSession.add(slug);
         this.audit(loaded, loaded.badge, "resume_novel", { slug, restored_from_backup: restored.index });
         this.applyEnvBadge(loaded);
+        // REQ-173a — a restored Novel counts this connection once.
+        if (!loaded.pending_workflow) this.countConnection(loaded);
         // REQ-224a — a workflow restored from backup ages toward auto-cancel
         // exactly like one loaded from a healthy primary.
         this.checkWorkflowStaleness(loaded);
@@ -1472,6 +1513,8 @@ export class StateManager {
     this.novelPaths.set(slug, filePath);
     this.audit(novel, novel.badge, "resume_novel", { slug });
     this.applyEnvBadge(novel);
+    // REQ-173a — count this connection once before any tool services it.
+    if (!novel.pending_workflow) this.countConnection(novel);
     // REQ-092e/f — persist a completed format migration before any later load
     // can re-run it (the v1 JSONL has already been consumed).
     if (migrated) this.saveNovel(novel);
@@ -1488,6 +1531,8 @@ export class StateManager {
     const novel = this.novels.get(slug);
     if (!novel) throw new Error(`[STATE_CONFLICT] Novel '${slug}' is not hydrated.`);
     this.activeNovelId = slug;
+    // REQ-173a — a hydrated startup Novel counts this connection once.
+    if (!novel.pending_workflow) this.countConnection(novel);
     const restoredIndex = novel.state_regression?.backup_index ?? null;
     this.audit(novel, novel.badge, "resume_novel", restoredIndex !== null
       ? { slug, restored_from_backup: restoredIndex }

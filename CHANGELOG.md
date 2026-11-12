@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-12 — §5.6 personality, signal, and citation remediation
+
+- `badge_briefing` now carries a `### Personality` group: each entity and
+  badge-visible NPC renders voice examples before trait lines, unset fields are
+  omitted, NPCs carry an `[NPC]` marker, and an empty Novel shows the REQ-109
+  empty-state marker; `entity://<id>/personality` and
+  `npc://<id>/personality` return `{entity_id|npc_id, name, …fields,
+  voice_examples}` with synthesis `[supplementary]`/`[player-corrected]`
+  provenance (REQ-077, REQ-126, REQ-166, REQ-167). A sixth voice example is
+  refused at the write path, and entity `persona` is settable.
+- The NPC voice directive moved out of the GM-only branch: NPCs gain `scope`
+  and `role`, the REQ-282a location gate stays, and examples are filtered by
+  active `scene_type` before the first two are taken; the Player badge sees
+  shared-scope directives only (REQ-282).
+- Player signals are a compound `{value, connection_counter, last_updated}`
+  with migration from the legacy string form; empty values remove the signal,
+  the audit entry uses the REQ-069c tool name and prefix, the briefing reports
+  "set N connections ago"/"unknown", and the Novel connection counter now
+  advances once per process (REQ-069, REQ-128, REQ-173).
+- Boundary collision is advisory on every free-text entry point —
+  `manage_scene (set|directive)`, `manage_npc (create|update)`, and
+  `manage_lore (set|update)` — and never suppresses the operation (REQ-255b).
+- Citation repair wrote the T55/T56/T57/T58/T65/T112/T132/T140/T142/T723/T129/
+  T202 assertions, tightened T201/T216/T220, and removed the false T131 token
+  from the conflict-lifecycle title. REQ-124b's NPC damage contract has no
+  reachable surface, so instead of re-pointing the citation the increment adds
+  **REQ-124 NPC damage resolution (P1)** to `ROADMAP.md` and schedules
+  F-P3B2-15 in the review register.
+- The *§5.6 personality, signal, and citation remediation* roadmap section is
+  retired; the coverage register, tool definitions, surface baseline, and
+  DECISIONS token counts are regenerated.
+
 ## 2026-11-12 — §5.6 entity, scene, and NPC-depth remediation
 
 - Entity and roster lifecycle is one path: `import` refuses a second import of

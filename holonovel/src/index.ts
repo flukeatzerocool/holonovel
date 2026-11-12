@@ -28,6 +28,7 @@ import {
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
 import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment } from "./core/state.js";
+import { personalityFieldsFor, hasPersonalityData, voiceExamplesFor, renderPersonalityBlock, renderVoiceExample, normalizeVoiceExamples, npcRole, avoidLine } from "./core/personality.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { presentEntityIds, isPresent, presentIdsForLedger as presentIdsForLedgerDerivation, sessionsSince, loreContradictionWarning } from "./core/scene-ledger.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
@@ -2713,13 +2714,26 @@ function composeSubjectiveMemorySection(novel: NovelState, badge: string): strin
 // substring matching an active boundary value, return [WARNING] identifying the
 // match without suppressing the operation (advisory collision check).
 function boundaryCollisionWarning(novel: NovelState, text: string): string | null {
-  const boundary = novel.player_signals?.boundary;
+  const boundary = novel.player_signals?.boundary?.value;
   if (!boundary) return null;
   const t = text.toLowerCase();
   if (t.includes(boundary.toLowerCase())) {
     return `Boundary collision: input contains the boundary value '${boundary}'. Advisory — do not narrate content evoking this topic.`;
   }
   return null;
+}
+
+// REQ-255b — append one advisory warning per matched boundary to an already
+// successful tool result. The operation is never suppressed.
+function appendBoundaryWarning(output: string, novel: NovelState, texts: Array<string | undefined>): string {
+  const seen = new Set<string>();
+  const warnings: string[] = [];
+  for (const text of texts) {
+    if (!text) continue;
+    const warning = boundaryCollisionWarning(novel, text);
+    if (warning && !seen.has(warning)) { seen.add(warning); warnings.push(warning); }
+  }
+  return warnings.length > 0 ? `${output}\n\n[WARNING] ${warnings.join("\n[WARNING] ")}` : output;
 }
 
 function audit(tool: string, args: any, prefix?: string): void {
@@ -3497,7 +3511,7 @@ const briefingBudget = (): number =>
 // REQ-135 — sections that always render in full. REQ-400 (State-Persistence
 // Directive), REQ-401 (state_ledger token), and REQ-407 (Persistence tools)
 // each name the never-truncated tier explicitly.
-const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "intro", "state persistence", "state_ledger", "persistence tools"]);
+const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "intro", "state persistence", "state_ledger", "persistence tools", "player signals"]);
 // REQ-118 — every prompts/get result stays within the per-prompt budget.
 // Sections are truncated lowest-priority first, preserving headers and the
 // never-truncated contract elements. Prefer the deepest heading level present
@@ -3666,7 +3680,8 @@ function illustrate(key: string, schema: any): string {
 }
 
 function fmtEntitySheet(entity: any): string {
-  const p = entity.personality ?? {};
+  const fields = personalityFieldsFor(entity);
+  const examples = voiceExamplesFor(entity, []);
   let sheet = `## ${entity.name}\n`;
   if (entity.inventory?.length > 0) {
     sheet += `**Inventory:** ${entity.inventory.join(", ")}\n`;
@@ -3681,12 +3696,14 @@ function fmtEntitySheet(entity: any): string {
   if (known.length > 0) {
     sheet += `\n### Known Information\n${known.map((row) => `- [${row.kind}] ${row.key} — ${row.content}`).join("\n")}\n`;
   }
-  if (p.description || p.voice || p.background || p.goals) {
+  if (Object.keys(fields).length > 0 || examples.length > 0) {
     sheet += `\n### Personality\n`;
-    if (p.description) sheet += `**Description:** ${p.description}\n`;
-    if (p.voice) sheet += `**Voice:** ${p.voice}\n`;
-    if (p.background) sheet += `**Background:** ${p.background}\n`;
-    if (p.goals) sheet += `**Goals:** ${p.goals}\n`;
+    for (const ex of examples) sheet += `${renderVoiceExample(ex)}\n`;
+    if (fields.description) sheet += `**Description:** ${fields.description}\n`;
+    if (fields.voice) sheet += `**Voice:** ${fields.voice}\n`;
+    if (fields.background) sheet += `**Background:** ${fields.background}\n`;
+    if (fields.goals) sheet += `**Goals:** ${fields.goals}\n`;
+    if (fields.persona) sheet += `**Persona:** ${fields.persona}\n`;
   }
   if (!entity.stats) {
     sheet += `\n_World-model only — no mechanical stats._`;
@@ -4656,7 +4673,8 @@ server.registerTool("manage_character", {
     stat_method: z.string().optional().describe("Stat-generation method (create)."),
     seed: z.string().optional().describe("Deterministic seed (create)."),
     stage_to_roster: z.boolean().optional().describe("Also stage into the roster (create)."),
-    personality: z.object({ description: z.string().optional(), voice: z.string().optional(), background: z.string().optional(), goals: z.string().optional() }).optional().describe("Grouped personality fields (create)."),
+    personality: z.object({ description: z.string().optional(), voice: z.string().optional(), background: z.string().optional(), goals: z.string().optional(), persona: z.string().optional() }).optional().describe("Grouped personality fields (create)."),
+    persona: z.string().optional().describe("Values, traits, and mannerisms (create/personality)."),
     details: z.object({ ability_scores: z.union([z.string(), z.array(z.number())]).optional(), skills: z.union([z.string(), z.array(z.string())]).optional(), feats: z.union([z.string(), z.array(z.string())]).optional(), talents: z.union([z.string(), z.array(z.string())]).optional(), equipment: z.union([z.string(), z.array(z.string())]).optional() }).optional().describe("Grouped mechanical details (create)."),
     description: z.string().optional().describe("Narrative description (create/personality)."),
     voice: z.string().optional().describe("Voice and speech pattern (create/personality)."),
@@ -4671,7 +4689,7 @@ server.registerTool("manage_character", {
     roster_id: z.string().optional().describe("Roster identifier (import/roster_remove)."),
     format: z.string().optional().describe("Output format (sheet)."),
     pov: z.enum(["character", "omniscient"]).optional().describe("Point-of-view mode (set_active)."),
-    examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional() })).optional().describe("Voice examples (voice)."),
+    examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional(), source: z.enum(["synthesis", "codex", "player-corrected"]).optional(), source_url: z.string().optional() })).optional().describe("Voice examples (voice); at most 5; source tags synthesis examples for the [supplementary] annotation."),
     signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "detail", "voice_feedback"]).optional().describe("Feedback category (signal); detail carries terse|normal|rich."),
     value: z.string().optional().describe("Feedback text (signal)."),
     stats: z.record(z.string(), z.any()).optional().describe("Mechanical stat keys to shallow-merge into the entity's stats (update)."),
@@ -4681,13 +4699,14 @@ server.registerTool("manage_character", {
 }, async (args: any) => {
   switch (args.action) {
     case "create": {
-      const { name, species, classes, stat_method, seed, stage_to_roster, personality: personalityObj, details, description, voice, background, goals, ability_scores, skills, feats, talents, equipment } = args;
+      const { name, species, classes, stat_method, seed, stage_to_roster, personality: personalityObj, details, description, voice, background, goals, persona, ability_scores, skills, feats, talents, equipment } = args;
       const p = personalityObj ?? {};
       const d = details ?? {};
       const effDescription = description ?? p.description;
       const effVoice = voice ?? p.voice;
       const effBackground = background ?? p.background;
       const effGoals = goals ?? p.goals;
+      const effPersona = persona ?? p.persona;
       const effAbilityScores = ability_scores ?? d.ability_scores;
       const effSkills = skills ?? d.skills;
       const effFeats = feats ?? d.feats;
@@ -4696,8 +4715,8 @@ server.registerTool("manage_character", {
       requireNotObserver();
       const novel = requireNovel();
       const rules = getCharacterRules(novel);
-      const personality = { description: effDescription, voice: effVoice, background: effBackground, goals: effGoals };
-      const hasPersonality = effDescription || effVoice || effBackground || effGoals;
+      const personality = { description: effDescription, voice: effVoice, background: effBackground, goals: effGoals, persona: effPersona };
+      const hasPersonality = effDescription || effVoice || effBackground || effGoals || effPersona;
 
       if (!name) {
         if (novel.pending_workflow) return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before starting a new one.");
@@ -4856,6 +4875,10 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       let target = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      // REQ-077b/REQ-122b — setting NPC narrative fields is Game Master only.
+      if (novel.npcs.has(args.entity_id) && getBadge() === "player") {
+        return err("FORBIDDEN", `NPC personality fields are Game Master only. Corrective action: switch badges with set_badge, or edit your own entity.`);
+      }
       novelSnapshot();
       if (!target.personality) target.personality = {};
       if (args.description !== undefined) {
@@ -4865,9 +4888,10 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       if (args.voice !== undefined) target.personality.voice = args.voice;
       if (args.background !== undefined) target.personality.background = args.background;
       if (args.goals !== undefined) target.personality.goals = args.goals;
+      if (args.persona !== undefined) target.personality.persona = args.persona;
       state.recordMutation(novel, "set_personality", "personality");
       state.saveNovel(novel);
-      const setFields = [args.description !== undefined, args.voice !== undefined, args.background !== undefined, args.goals !== undefined].filter(Boolean).length;
+      const setFields = [args.description !== undefined, args.voice !== undefined, args.background !== undefined, args.goals !== undefined, args.persona !== undefined].filter(Boolean).length;
       audit("set_personality", { entity_id: args.entity_id, fields: setFields });
       return ok(`Personality set for '${args.entity_id}'.`);
     }
@@ -4876,15 +4900,33 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const novel = requireNovel();
       let target = novel.entities.get(args.entity_id) ?? novel.npcs.get(args.entity_id);
       if (!target) return err("NOT_FOUND", `Entity or NPC '${args.entity_id}' not found.`);
+      if (novel.npcs.has(args.entity_id) && getBadge() === "player") {
+        return err("FORBIDDEN", `NPC voice examples are Game Master only. Corrective action: switch badges with set_badge, or edit your own entity.`);
+      }
+      const normalized = normalizeVoiceExamples(args.examples);
+      if (!normalized.ok) return err("INVALID_INPUT", normalized.error);
       novelSnapshot();
-      target.voice_examples = args.examples;
+      target.voice_examples = normalized.examples;
+      state.recordMutation(novel, "set_voice_examples", "personality");
       state.saveNovel(novel);
-      audit("set_voice_examples", { entity_id: args.entity_id, count: args.examples.length });
-      return ok(`Voice examples set for '${args.entity_id}' (${args.examples.length} examples).`);
+      audit("set_voice_examples", { entity_id: args.entity_id, count: normalized.examples.length });
+      return ok(`Voice examples set for '${args.entity_id}' (${normalized.examples.length} examples).`);
     }
     case "signal": {
       requirePlayer();
       const novel = requireNovel();
+      const recordSignal = (key: string, value: string): string => {
+        if (value === "") {
+          delete novel.player_signals[key];
+          return `Signal '${key}' removed.`;
+        }
+        novel.player_signals[key] = {
+          value,
+          connection_counter: novel.connection_counter ?? 0,
+          last_updated: new Date().toISOString(),
+        };
+        return `Signal '${key}' recorded.`;
+      };
       // REQ-197c — the detail signal selects the session detail level; it is
       // an override, so the chosen room mode is not mutated.
       if (args.signal === "detail") {
@@ -4894,10 +4936,10 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
         }
         novelSnapshot();
         detailLevel = level as "terse" | "normal" | "rich";
-        novel.player_signals[args.signal] = level;
+        const prefix = recordSignal(args.signal, level);
         state.saveNovel(novel);
-        audit("player_signal", { signal: args.signal, value: level });
-        return ok(`Signal recorded: detail → ${level}`);
+        audit("manage_character (action: signal)", { signal: args.signal, value: level }, prefix);
+        return ok(`${prefix} detail → ${level}`);
       }
       if (args.signal === "voice_feedback") {
         const entity = state.getActiveEntity();
@@ -4908,17 +4950,17 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
         }
         novelSnapshot();
         if (!entity.voice_examples) entity.voice_examples = [];
-        entity.voice_examples.push({ context: "player correction", dialogue: args.value, tag: "player-corrected" });
+        entity.voice_examples.push({ context: "player correction", dialogue: args.value, tag: "player-corrected", source: "player-corrected" });
         novel.voice_corrections_this_session++;
         state.saveNovel(novel);
         audit("voice-feedback", { corrected: args.value, count: novel.voice_corrections_this_session });
         return ok(`Voice correction captured (${novel.voice_corrections_this_session}/${limit}).`);
       }
       novelSnapshot();
-      novel.player_signals[args.signal] = args.value;
+      const prefix = recordSignal(args.signal, String(args.value ?? ""));
       state.saveNovel(novel);
-      audit("player_signal", { signal: args.signal, value: args.value });
-      return ok(`Signal recorded: ${args.signal} → ${args.value}`);
+      audit("manage_character (action: signal)", { signal: args.signal, value: args.value }, prefix);
+      return ok(prefix);
     }
     case "update": {
       requireNotObserver();
@@ -7465,14 +7507,15 @@ server.registerTool("manage_scene", {
       state.saveNovel(novel);
       audit("set_scene_state", { description: effectiveDescription, location, time_of_day, atmosphere, beat });
       emitEvent("scene_transition", { location: location ?? null });
-      const boundaryWarn = boundaryCollisionWarning(novel, effectiveDescription);
       // REQ-076b5/b6/b7 — advisory lore/disposition contradiction check. It
       // never blocks the scene change; it surfaces the conflict for the GM.
       const contradiction = loreContradictionWarning(novel, location ?? novel.scene_location, effectiveDescription);
       const sceneSummary = description === undefined && beat !== undefined ? `beat ${beat}` : effectiveDescription || (location ? `location ${location}` : "state updated");
       const ffSuffix = fastForwardSummary ? `\n\n[fast-forward] ${fastForwardSummary}` : "";
-      if (contradiction) return ok(`Scene set: ${sceneSummary}${ffSuffix}\n\n[WARNING] ${contradiction}`);
-      return boundaryWarn ? warn(`${boundaryWarn}${ffSuffix}`) : ok(`Scene set: ${sceneSummary}${ffSuffix}`);
+      let sceneOutput = `Scene set: ${sceneSummary}${ffSuffix}`;
+      if (contradiction) sceneOutput += `\n\n[WARNING] ${contradiction}`;
+      sceneOutput = appendBoundaryWarning(sceneOutput, novel, [effectiveDescription]);
+      return ok(sceneOutput);
     }
     case "directive": {
       requireGM();
@@ -7484,7 +7527,7 @@ server.registerTool("manage_scene", {
       if (directiveText.includes("the world reacts") || directiveText.includes("living world")) worldReactivityOverride = true;
       if (directiveText.includes("freeze the world") || directiveText.includes("stop the world reacting") || directiveText.includes("world is still")) worldReactivityOverride = false;
       state.saveNovel(novel);
-      return ok(`Narrative directive set.`);
+      return ok(appendBoundaryWarning(`Narrative directive set.`, novel, [args.directive]));
     }
     case "presence": {
       requireGM();
@@ -7662,6 +7705,8 @@ server.registerTool("manage_npc", {
     goals: z.string().optional().describe("Optional goals."),
     persona: z.string().optional().describe("Optional values, traits, and mannerisms (create/update)."),
     talkativeness: z.number().min(0).max(100).optional().describe("Optional 0-100 social-scene speaking weight; default 50 (create/update)."),
+    scope: z.enum(["game_master", "shared"]).optional().describe("Optional badge scope (create/update); the Player badge sees shared-scope NPC personality and voice directives. Default game_master."),
+    role: z.string().optional().describe("Optional display role named in the voice directive (create/update); default NPC."),
     ruleset_reference: z.string().optional().describe("Optional ruleset stat-block reference (create)."),
     card: z.union([z.string(), z.record(z.string(), z.any())]).optional().describe("Character Card V3 JSON object or string (import_card)."),
     source: z.string().optional().describe("Import provenance URL or description (import_card)."),
@@ -7688,6 +7733,8 @@ server.registerTool("manage_npc", {
       if (description !== undefined) setNpcDescription(npc, description);
       if (args.persona !== undefined) npc.persona = args.persona; // REQ-077a
       if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
+      if (args.scope !== undefined) npc.scope = args.scope;
+      if (args.role !== undefined) npc.role = args.role;
       // REQ-119 — NPC stat block reference.
       if (ruleset_reference) {
         const slug = novel.ruleset ?? null;
@@ -7723,7 +7770,7 @@ server.registerTool("manage_npc", {
       state.recordMutation(novel, "create_npc", "npc");
       state.saveNovel(novel);
       audit("create_npc", { name, id, ruleset_reference });
-      return ok(`NPC '${name}' created (${id}).`);
+      return ok(appendBoundaryWarning(`NPC '${name}' created (${id}).`, novel, [description, args.persona, goals]));
     }
     case "update": {
       requireGM();
@@ -7753,10 +7800,12 @@ server.registerTool("manage_npc", {
       if (goals !== undefined) npc.personality = { ...(npc.personality ?? {}), goals };
       if (args.persona !== undefined) npc.persona = args.persona; // REQ-077a
       if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
+      if (args.scope !== undefined) npc.scope = args.scope;
+      if (args.role !== undefined) npc.role = args.role;
       if (args.mind !== undefined) npc.mind = { ...(npc.mind ?? {}), ...args.mind };
       state.saveNovel(novel);
       audit("update_npc", { npc_id });
-      return ok(`NPC '${npc_id}' updated.`);
+      return ok(appendBoundaryWarning(`NPC '${npc_id}' updated.`, novel, [description, args.persona, goals]));
     }
     case "remove": {
       requireGM();
@@ -8181,7 +8230,7 @@ server.registerTool("manage_lore", {
       state.saveNovel(novel);
       audit("set_lore_entry", { key });
       emitEvent("lore_trigger", { key, active: true });
-      return ok(`Lore entry '${key}' created.`);
+      return ok(appendBoundaryWarning(`Lore entry '${key}' created.`, novel, [content]));
     }
     case "update": {
       requireGM();
@@ -8198,7 +8247,7 @@ server.registerTool("manage_lore", {
       if (sticky !== undefined) { entry.sticky = sticky; entry.sticky_remaining = sticky; }
       if (group !== undefined) { if (group === null) delete entry.group; else entry.group = group; }
       state.saveNovel(novel);
-      return ok(`Lore entry '${key}' updated.`);
+      return ok(appendBoundaryWarning(`Lore entry '${key}' updated.`, novel, [content]));
     }
     case "remove": {
       requireGM();
@@ -14225,9 +14274,12 @@ server.registerResource("entity-personality", new ResourceTemplate("entity://{id
   const novel = state.activeNovel;
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const id = uri.href.split("/")[2] ?? "";
-  const entity = novel.entities.get(id) ?? novel.npcs.get(id);
-  if (!entity) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text: JSON.stringify(entity.personality ?? {}), mimeType: "application/json" }] };
+  const entity = novel.entities.get(id);
+  if (!entity) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "[NOT_FOUND]", entity_id: id, corrective_action: "List entities with entities:// or party://current." }), mimeType: "application/json" }] };
+  const payload: Record<string, unknown> = { entity_id: entity.id, name: entity.name, ...personalityFieldsFor(entity) };
+  const examples = voiceExamplesFor(entity, novel.scene_type ?? []);
+  if (examples.length > 0) payload.voice_examples = examples;
+  return { contents: [{ uri: uri.href, text: JSON.stringify(payload), mimeType: "application/json" }] };
 });
 
 server.registerResource("entity-voice", new ResourceTemplate("entity://{id}/voice_examples", { list: undefined }), { title: "Entity Voice Examples" }, async (uri) => {
@@ -14368,11 +14420,17 @@ server.registerResource("npc-personality", new ResourceTemplate("npc://{id}/pers
   if (!novel) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "no active novel" }), mimeType: "application/json" }] };
   const id = uri.href.split("/")[2] ?? "";
   const npc = novel.npcs.get(id);
-  if (!npc) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  const personality: Record<string, unknown> = { ...(npc.personality ?? {}) };
-  const description = npcDescription(npc);
-  if (description !== undefined) personality.description = description;
-  return { contents: [{ uri: uri.href, text: JSON.stringify(personality), mimeType: "application/json" }] };
+  if (!npc) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "[NOT_FOUND]", npc_id: id, corrective_action: "List NPCs with npcs://." }), mimeType: "application/json" }] };
+  const badge = getBadge();
+  const isGM = badge === "game_master" || badge === "none" || badge === "observer";
+  // REQ-167b — Player badge sees NPC personality only for shared-scope NPCs.
+  if (!isGM && npc.scope !== "shared") {
+    return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "[FORBIDDEN]", npc_id: id, corrective_action: "This NPC is Game Master only; switch badges with set_badge." }), mimeType: "application/json" }] };
+  }
+  const payload: Record<string, unknown> = { npc_id: npc.id, name: npc.name, ...personalityFieldsFor(npc) };
+  const examples = voiceExamplesFor(npc, novel.scene_type ?? []);
+  if (examples.length > 0) payload.voice_examples = examples;
+  return { contents: [{ uri: uri.href, text: JSON.stringify(payload), mimeType: "application/json" }] };
 });
 
 server.registerResource("npc-voice", new ResourceTemplate("npc://{id}/voice_examples", { list: undefined }), { title: "NPC Voice Examples" }, async (uri) => {
@@ -16098,6 +16156,34 @@ server.prompt("intro", "Introduction and Getting Started", async () => {
   };
 });
 
+// REQ-166/REQ-282 — the entity personality group. Entity blocks render for
+// every badge; NPC blocks are badge-filtered by scope (REQ-282a: GM sees all,
+// Player sees shared-scope NPCs). The voice directive follows its NPC's block.
+function composePersonalityGroup(novel: NovelState, badge: string): string {
+  const isGM = badge === "game_master" || badge === "none" || badge === "observer";
+  const blocks: string[] = [];
+  const activeTypes = novel.scene_type ?? [];
+  for (const entity of novel.entities.values()) {
+    if (!hasPersonalityData(entity)) continue;
+    blocks.push(renderPersonalityBlock(entity.name, personalityFieldsFor(entity), voiceExamplesFor(entity, activeTypes)));
+  }
+  const sceneLoc = novel.scene_location?.toLowerCase();
+  for (const npc of novel.npcs.values()) {
+    if (!isGM && npc.scope !== "shared") continue;
+    if (!hasPersonalityData(npc)) continue;
+    blocks.push(renderPersonalityBlock(npc.name, personalityFieldsFor(npc), voiceExamplesFor(npc, activeTypes), { npc: true }));
+    const examples = voiceExamplesFor(npc, activeTypes);
+    const present = !sceneLoc || (!!npc.location && npc.location.toLowerCase() === sceneLoc);
+    if (present && examples.length > 0) {
+      const voice = npc.personality?.voice ?? "";
+      const snippet = examples.slice(0, 2).map((ex) => `Example: "${ex.dialogue}"`).join(" ");
+      blocks.push(`Voice directive (${npc.name}, ${npcRole(npc)}): ${voice || "unvoiced"}.\n${snippet}\n${avoidLine(voice)}`);
+    }
+  }
+  if (blocks.length === 0) blocks.push("[No entity personality data recorded.]");
+  return `\n\n### Personality\n${blocks.join("\n\n")}`;
+}
+
 function composeBadgeBriefing(novel: NovelState | null | undefined, opts: { mutate: boolean }): string {
   // REQ-136 — Editor-badge briefing: with no active Novel, return setup-oriented
   // content — available Novels, the active Novel name if any, intro pointer.
@@ -16364,7 +16450,7 @@ You are in the story. Confine tool use and responses to the current Novel. To st
   // REQ-109 — boundaries (GM only): persisted persistent player boundaries,
   // never trimmed. Each is an absolute do-not-narrate directive.
   if (badge === "game_master") {
-    const boundary = novel.player_signals.boundary;
+    const boundary = novel.player_signals.boundary?.value;
     if (boundary) {
       briefing += `\n\n### Boundaries
 The player has set these topics as off-limits for the entire story:
@@ -16379,10 +16465,15 @@ kept out of every scene, every scene description, and every choice.`;
   // focus, boundary) surface with their values and age; empty signals show an
   // empty-state marker. GM-only.
   if (badge === "game_master") {
-    const signals: Record<string, string> = novel.player_signals ?? {};
-    const entries = Object.entries(signals);
-    if (entries.length > 0) {
-      briefing += `\n\n### Player signals\n${entries.map(([k, v]) => `${k}: ${v}`).join("\n")}`;
+    const signals = Object.entries(novel.player_signals ?? {});
+    if (signals.length > 0) {
+      const age = (entry: any): string => {
+        if (typeof entry?.connection_counter !== "number") return "unknown";
+        const delta = (novel.connection_counter ?? 0) - entry.connection_counter;
+        if (delta <= 0) return "set this connection";
+        return delta === 1 ? "set 1 connection ago" : `set ${delta} connections ago`;
+      };
+      briefing += `\n\n### Player signals\n${signals.map(([k, entry]) => `${k}: ${entry.value} (${age(entry)})`).join("\n")}`;
     } else {
       briefing += `\n\n### Player signals\n[No player signals set.]`;
     }
@@ -16422,6 +16513,10 @@ POV: none — narration is omniscient.`;
       briefing += `\n\n### Who They Are\n${body}`;
     }
   }
+
+  // REQ-166/REQ-282 — entity personality group (voice examples before traits,
+  // NPC marker, badge-filtered NPC blocks and voice directives).
+  briefing += composePersonalityGroup(novel, badge);
 
   // REQ-109 — autonomy state (GM only): AI decision delegation sliders.
   if (badge === "game_master") {
@@ -16483,25 +16578,6 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
         const npcPresent = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
         const hasIdentity = (identityFor(npc.id)?.facets.length ?? 0) > 0;
         if (npcPresent && (npc.memory || npc.mind?.identity_core || npc.mind?.shared_notes || hasIdentity)) briefing += composeNpcMemorySection(novel, npc);
-      }
-    }
-
-    // REQ-282 — NPC voice directive: NPCs whose location matches the current
-    // scene location and who carry voice_examples render a compact voice
-    // directive block (name, voice field, up to 2 snippets, synthesized
-    // "Avoid:" line) in the entity personality group. GM sees all; Player sees
-    // shared-scope NPCs.
-    if (novel.npcs.size > 0) {
-      const sceneLoc = novel.scene_location?.toLowerCase();
-      for (const [, npc] of novel.npcs) {
-        const npcPresent = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
-        const examples = npc.voice_examples ?? [];
-        if (npcPresent && examples.length > 0) {
-          const voice = npc.personality?.voice ?? "";
-          const snippet = examples.slice(0, 2).map((v: any) => `"${v.dialogue}"`).join(" · ");
-          const avoid = voice ? ` Avoid: the opposite of "${voice}".` : "";
-          briefing += `\n\nVoice directive (${npc.name}): ${voice || "unvoiced"}. ${snippet}.${avoid}`;
-        }
       }
     }
 

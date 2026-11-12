@@ -2047,7 +2047,60 @@ pass and completion-oracle green. Fix evidence: regression tests in
   unknown slug, conflicting filters, unchanged `rulesets_hydrated`, foreign
   cursor) at `holonovel/scripts/test-selection.ts:268-299`. REQ-391b.
 
+### 2026-11-09 full-review sweep — chunk P3b-2 (§5.6 entities and NPCs)
+
+F-P3B2-9 through F-P3B2-14 are `Resolved` in the 2026-11-12 §5.6 personality,
+signal, and citation remediation increment. The one citation that could not be
+re-pointed honestly (REQ-124b's T131) is split out as F-P3B2-15 below and
+scheduled on `ROADMAP.md`.
+
+- **F-P3B2-9 — personality surfaces (Resolved).** `composePersonalityGroup`
+  renders a `### Personality` group with voice examples before trait lines, an
+  `[NPC]` marker, omitted unset fields, and the REQ-109 empty-state marker;
+  `NovelEntity.personality.persona` joins the entity personality object; and
+  `normalizeVoiceExamples` refuses a sixth example
+  (`core/personality.ts:96-108`, `index.ts:16405-16440`). T140/T201 exercise
+  the briefing and sheet ordering. REQ-077a/b/d/e/f, REQ-126a/b, REQ-166a/b/c.
+- **F-P3B2-10 — NPC voice-directive scope and tagging (Resolved).** `NpcState`
+  carries `scope` and `role`; the directive renders outside the GM-only branch,
+  keeps the REQ-282a location gate, filters examples by active `scene_type`
+  before slicing, and gates the Player badge on `scope: "shared"`
+  (`index.ts:16412-16428`, `:7760-7776`). T332 exercises GM/Player scope, the
+  location change, and tag filtering. REQ-282a/b/c.
+- **F-P3B2-11 — personality resources (Resolved).** Both resources return
+  `{entity_id|npc_id, name, …populated fields, voice_examples}` with synthesis
+  source metadata and badge filtering (`index.ts:14252-14268`,
+  `:14405-14422`). T58/T65/T167/T202 exercise the shape and the Player read.
+  REQ-167a/b.
+- **F-P3B2-12 — player signals (Resolved).** `PlayerSignalEntry` stores
+  `{value, connection_counter, last_updated}`; empty values delete; the audit
+  entry uses `manage_character (action: signal)` with the REQ-069c prefix; the
+  briefing renders "set N connections ago" and "unknown"; `connection_counter`
+  increments once per Novel per process (`core/state.ts:96-110`, `:2018-2024`,
+  `index.ts:4912-4955`, `:16460-16480`). T142/T211 exercise the lifecycle and
+  restart ages. REQ-069a/b/c, REQ-128a/b, REQ-173a/b.
+- **F-P3B2-13 — boundary propagation (Resolved).** `appendBoundaryWarning` is
+  called from `manage_scene (set|directive)`, `manage_npc (create|update)`, and
+  `manage_lore (set|update)`; the operation succeeds and the warning names the
+  boundary (`index.ts:2724-2740`). T314 exercises every entry point. REQ-255b.
+- **F-P3B2-14 — citations and narrow assertions (Resolved).** T55, T56, T57,
+  T58, T65, T112, T132, T140, T142, T723, T129, and T202 now title assertions
+  in the harnesses that own the surface; T201 asserts briefing rendering; T216/
+  T220 assert the `party://current` contract; the conflict-lifecycle title no
+  longer carries the false T131 token (`test-backfill.ts:415`). REQ-074,
+  REQ-075g, REQ-076, REQ-077, REQ-126b, REQ-128b, REQ-167b.
+
 ## Scheduled-roadmap
+
+### 2026-11-12 §5.6 citation remediation
+
+- **F-P3B2-15 — REQ-124 NPC damage resolution is unimplemented
+  (2026-11-12):** REQ-124b's `_Check:_ T131` names an NPC damage resolution
+  (`roll_weapon_damage` reduces NPC HP; zero HP applies incapacitation), but no
+  `roll_weapon_damage` handler exists and `manage_ruleset (action: roll)` rolls
+  only generation tables; the conflict-lifecycle harness title previously
+  carried a false T131 token, now removed. Scheduled under `ROADMAP.md` §
+  *REQ-124 NPC damage resolution (P1)*. REQ-124a, REQ-124b.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
@@ -2108,43 +2161,6 @@ Each finding cites the predicate that carries it.
   T25/T33/T110/T161 (REQ-043f), T53/T212 (REQ-072f), T271 (REQ-073a2),
   T54/T139 (REQ-073c3), and T335 (REQ-289e) appear in per-REQ
   `_Check:_` lines but in no `holonovel/scripts` harness.
-
-### 2026-11-09 full-review sweep — chunk P3b-2 (§5.6 entities and NPCs)
-
-F-P3B2-1 through F-P3B2-8 are `Resolved` (2026-11-12 §5.6 entity, scene, and
-NPC-depth remediation block above). The remaining findings are scheduled under
-`ROADMAP.md` § *§5.6 personality, signal, and citation remediation (P1)*.
-Each finding cites the predicate that carries it.
-
-- **F-P3B2-9 — personality surfaces are missing from the briefing:**
-  `badge_briefing` renders no entity personality group, `voice_examples` never
-  render ahead of trait descriptions, `persona` is NPC-only, and the 5-example
-  cap is unenforced (REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-126a, REQ-126b,
-  REQ-166a, REQ-166b, REQ-166c).
-- **F-P3B2-10 — NPC voice-directive scope and tagging:** Player badge never sees
-  shared-scope directives (NPCs have no `scope`), the role field is absent, and
-  no `tag`/`scene_type` filtering is applied (REQ-282a, REQ-282b, REQ-282c).
-- **F-P3B2-11 — personality resources are unstructured and unfiltered:**
-  `entity://<id>/personality` and `npc://<id>/personality` return the bare
-  personality object, omitting `entity_id`/`npc_id`, `name`, and
-  `voice_examples`, and apply no badge filter (REQ-167a, REQ-167b).
-- **F-P3B2-12 — player signals violate the storage and briefing contract:**
-  `player_signals` is `Record<string, string>` (`core/state.ts:748`), an empty
-  value is stored instead of removing the signal, no `connection_counter` or
-  timestamp is recorded, and the briefing shows no "set N connections ago" age;
-  the audit tool and output prefix also differ from the REQ (REQ-069a,
-  REQ-069b, REQ-069c, REQ-128a, REQ-128b, REQ-173b).
-- **F-P3B2-13 — boundary collision covers only one entry point:** the advisory
-  runs on `manage_scene (action: set)` but not on `manage_npc` create/update,
-  `manage_lore` set/update, or `manage_scene (action: directive)` (REQ-255b).
-- **F-P3B2-14 — citations and narrow assertions:** T55, T56, T57, T58, T65,
-  T112, T132, T140, T142, and T723 appear in per-REQ `_Check:_` lines but in no
-  `holonovel/scripts` harness; T131 matches a conflict-lifecycle test, not NPC
-  damage; and T201/T216/T220 assert a substring or an unrelated surface rather
-  than the REQ contract (REQ-075g, REQ-077f, REQ-124b, REQ-126b, REQ-128b,
-  REQ-167b). T056/T057, T191, T216/T217/T219/T220, and T331 now assert their
-  contracts in the narrative, briefing, backfill, and output-contract harnesses;
-  the tokens this finding still owns stay unexercised.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

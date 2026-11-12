@@ -209,7 +209,7 @@ async function main() {
     await test("T211/T313/T314: player_signal records feedback", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const sig = await call(proc, "manage_character", { action: "signal",  signal: "pace", value: "slow down" });
-      assertContains(sig, "[OK] Signal recorded");
+      assertContains(sig, "Signal 'pace' recorded.");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
@@ -940,11 +940,24 @@ async function main() {
       assertContains(gm, "[OK] Active badge: game_master");
     });
 
-    await test("T216/T218/T220/T074: multi-entity support — several characters exist", async () => {
+    await test("T216/T218/T220/T074: multi-entity party contract — party://current and entities://", async () => {
       await call(proc, "manage_character", { action: "create",  name: "MultiOne", description: "1" });
       await call(proc, "manage_character", { action: "create",  name: "MultiTwo", description: "2" });
-      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
-      if ((health.entities ?? 0) < 2) throw new Error(`expected ≥2 entities, got ${health.entities}`);
+      const readRes = async (uri: string): Promise<string> => {
+        const r = await send(proc, { method: "resources/read", params: { uri } });
+        return ((r.result?.contents ?? []) as any[]).map((x: any) => x.text ?? "").join("\n");
+      };
+      const ents = JSON.parse(await readRes("entities://"));
+      const ids = Object.keys(ents);
+      if (ids.length < 2) throw new Error(`expected ≥2 entities, got ${ids.length}`);
+      const party = JSON.parse(await readRes("party://current"));
+      const names = party.map((e: any) => e.name);
+      assertContains(names.join(","), "MultiOne");
+      assertContains(names.join(","), "MultiTwo");
+      await call(proc, "manage_character", { action: "set_active", entity_id: ids[ids.length - 1] });
+      const after = JSON.parse(await readRes("party://current"));
+      const active = after.find((e: any) => e.active === true);
+      if (!active) throw new Error("party://current reports no active entity after set_active");
     });
 
     await test("T331/REQ-076b5-b7: a scene description contradicting location lore warns without blocking", async () => {
@@ -2029,6 +2042,37 @@ async function main() {
 
     await kill(proc);
   }
+
+  // ── §5.6 personality, signal, and citation remediation ──
+
+  await test("T56/REQ-075: NPC partial stats, a confrontation turn, and persistence across restart", async () => {
+    const readRes = async (proc: ChildProcess, uri: string): Promise<string> => {
+      const r = await send(proc, { method: "resources/read", params: { uri } });
+      return ((r.result?.contents ?? []) as any[]).map((x: any) => x.text ?? "").join("\n");
+    };
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t56-novel" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_npc", { action: "create", name: "Partial" });
+    const npcs = JSON.parse(await readRes(proc, "npcs://"));
+    const id = Object.keys(npcs)[0];
+    await call(proc, "manage_character", { action: "update", entity_id: id, stats: { Grit: 3 } });
+    const before = await readRes(proc, `npc://${id}`);
+    assertContains(before, "Grit");
+    await call(proc, "manage_combat", { action: "init", participants: [id] });
+    const turn = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(turn, "[auto]");
+    await kill(proc);
+    const again = await boot();
+    await call(again, "manage_novel", { action: "resume", slug: "t56-novel" });
+    await call(again, "set_badge", { badge: "game_master" });
+    const after = await readRes(again, `npc://${id}`);
+    assertContains(after, "Grit");
+    await call(again, "manage_character", { action: "update", entity_id: id, stats: { Nerve: 2 } });
+    const added = await readRes(again, `npc://${id}`);
+    assertContains(added, "Nerve");
+    await kill(again);
+  });
 
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);

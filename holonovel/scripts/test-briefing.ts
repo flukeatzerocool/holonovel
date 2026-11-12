@@ -20,6 +20,7 @@ async function boot(env: Record<string, string> = {}) { const p = spawn("npx", [
 async function call(proc: any, name: string, args: any = {}): Promise<string> { const r = await send(proc, { method: "tools/call", params: { name, arguments: args } }); if (r.error) throw new Error(`${name}: ${r.error.message ?? JSON.stringify(r.error)}`); return (r.result?.content ?? []).map((x: any) => x?.text ?? "").join("\n"); }
 async function health(p: any): Promise<any> { return JSON.parse(await call(p, "manage_diagnostics", { action: "health" })); }
 async function promptText(p: any, name: string): Promise<string> { const r = await send(p, { method: "prompts/get", params: { name, arguments: {} } }); return (r.result?.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n"); }
+async function resource(p: any, uri: string): Promise<string> { const r = await send(p, { method: "resources/read", params: { uri } }); return (r.result?.contents ?? []).map((x: any) => x.text ?? "").join("\n"); }
 async function kill(proc: any) { try { proc.kill("SIGKILL"); } catch { /* exited */ } await new Promise((r) => setTimeout(r, 100)); }
 
 let passed = 0; let failed = 0;
@@ -255,7 +256,7 @@ async function main() {
       const brief = await promptText(p, "badge_briefing");
       assert(brief.includes("World in Motion"), "non-NPC change missing from World in Motion");
       assert(brief.includes("source: relationship"), "ripple entry does not name its source");
-      assert(!brief.toLowerCase().includes("steal the crown"), "NPC pursuit surfaced with autonomy off");
+      assert(!brief.includes('pursues "Steal the crown"'), "NPC pursuit surfaced with autonomy off");
       await kill(p);
     }
 
@@ -362,6 +363,158 @@ async function main() {
     await call(p, "set_badge", { badge: "player" });
     const player = await promptText(p, "badge_briefing");
     assert(!player.includes("Scene tick"), "scene tick surfaced under the Player badge");
+    await kill(p);
+  });
+
+  // ── §5.6 personality, signal, and citation remediation ──
+
+  await test("T140/REQ-126: the personality group renders voice examples before traits", async () => {
+    const p = await boot(); await newNovel(p, "pers140");
+    const created = await call(p, "manage_character", { action: "create", name: "Voice One", description: "Tall" });
+    assert(created.includes("[OK]"), "entity creation failed: " + created.slice(0, 120));
+    const ents = JSON.parse(await resource(p, "entities://"));
+    const id = Object.keys(ents)[0];
+    await call(p, "manage_character", { action: "personality", entity_id: id, voice: "slow drawl, formal register", goals: "find the relic", persona: "patient, formal" });
+    await call(p, "manage_character", { action: "voice", entity_id: id, examples: [{ context: "greeting", dialogue: "Well met, traveller.", tag: "neutral" }] });
+    const brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("### Personality"), "no personality group");
+    assert(brief.includes("Voice One"), "entity absent from the personality group");
+    assert(brief.includes("Well met, traveller."), "voice example absent");
+    assert(brief.indexOf("Well met, traveller.") < brief.indexOf("**Voice:**"), "voice examples did not precede traits");
+    assert(brief.includes("**Persona:** patient, formal"), "persona absent");
+    assert(brief.includes("**Goals:** find the relic"), "goals absent");
+    assert(brief.includes("**Description:** Tall"), "description absent");
+    assert(!brief.includes("**Background:**"), "unset background rendered a placeholder");
+    const sheet = await call(p, "manage_character", { action: "sheet", entity_id: id });
+    assert(sheet.includes("Well met, traveller."), "sheet omitted the voice example");
+    await kill(p);
+  });
+
+  await test("T140/REQ-166: NPC personality carries an [NPC] marker and the empty state renders", async () => {
+    const p = await boot(); await newNovel(p, "pers140b");
+    await call(p, "manage_npc", { action: "create", name: "Smith", description: "A smith" });
+    const npcs = JSON.parse(await resource(p, "npcs://"));
+    const nid = Object.keys(npcs)[0];
+    await call(p, "manage_character", { action: "personality", entity_id: nid, voice: "gruff" });
+    const brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("[NPC]"), "NPC marker absent");
+    assert(brief.includes("**Voice:** gruff"), "NPC voice field absent");
+    const q = await boot(); await newNovel(q, "pers140c");
+    const empty = await promptText(q, "badge_briefing");
+    assert(empty.includes("[No entity personality data"), "empty-state marker absent");
+    await kill(q); await kill(p);
+  });
+
+  await test("T57/REQ-076: scene state renders, persists, and refuses the Player badge", async () => {
+    const p = await boot(); await newNovel(p, "scene57");
+    await call(p, "manage_scene", { action: "set", description: "A moonlit glade", location: "Glade" });
+    const current = await resource(p, "scene://current");
+    assert(current.includes("A moonlit glade"), "scene://current lacks the description");
+    const brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("A moonlit glade"), "briefing lacks the scene description");
+    const audit = await resource(p, "audit://novel");
+    assert(audit.includes("set_scene"), "scene change not audited");
+    await call(p, "set_badge", { badge: "player" });
+    const player = await promptText(p, "badge_briefing");
+    assert(player.includes("A moonlit glade"), "Player briefing lost the scene state");
+    const forbidden = await call(p, "manage_scene", { action: "set", description: "Denied" });
+    assert(forbidden.includes("[FORBIDDEN]"), "Player scene set was not refused");
+    await kill(p);
+  });
+
+  await test("T142/REQ-128/REQ-069: signals show age, removal, audit identity, and GM-only scope", async () => {
+    const p = await boot(); await newNovel(p, "sig142");
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_character", { action: "signal", signal: "tone", value: "darker" });
+    await call(p, "manage_character", { action: "signal", signal: "pace", value: "faster" });
+    await call(p, "set_badge", { badge: "game_master" });
+    let brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("### Player signals"), "no signals section");
+    assert(brief.includes("tone: darker (set this connection)"), "signal age absent");
+    const audit = await resource(p, "audit://novel");
+    assert(audit.includes("manage_character (action: signal)"), "audit tool name is not the REQ-069c identity");
+    assert(audit.includes("Signal 'tone' recorded."), "audit output prefix is wrong");
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_character", { action: "signal", signal: "tone", value: "" });
+    await call(p, "set_badge", { badge: "game_master" });
+    brief = await promptText(p, "badge_briefing");
+    assert(!brief.includes("tone:"), "empty value did not remove the signal");
+    const audit2 = await resource(p, "audit://novel");
+    assert(audit2.includes("Signal 'tone' removed."), "removal prefix is wrong");
+    await call(p, "set_badge", { badge: "player" });
+    const player = await promptText(p, "badge_briefing");
+    assert(!player.includes("### Player signals"), "Player badge saw the signals section");
+    const q = await boot(); await newNovel(q, "sig142b");
+    const empty = await promptText(q, "badge_briefing");
+    assert(empty.includes("[No player signals set.]"), "empty-state marker absent");
+    await kill(q); await kill(p);
+  });
+
+  await test("T332/REQ-282: the voice directive honours location, scope, role, and tags", async () => {
+    const p = await boot(); await newNovel(p, "vd282");
+    await call(p, "manage_scene", { action: "set", description: "The forge", location: "smithy", scene_type: "social" });
+    await call(p, "manage_npc", { action: "create", name: "Gruff", location: "smithy" });
+    await call(p, "manage_npc", { action: "create", name: "Hidden", location: "smithy" });
+    const npcs = JSON.parse(await resource(p, "npcs://"));
+    const ids = Object.keys(npcs).filter((k) => !k.startsWith("__"));
+    const gruff = ids.find((k) => JSON.stringify(npcs[k]).includes("Gruff"))!;
+    const hidden = ids.find((k) => JSON.stringify(npcs[k]).includes("Hidden"))!;
+    await call(p, "manage_npc", { action: "update", npc_id: gruff, scope: "shared", role: "Blacksmith" });
+    await call(p, "manage_character", { action: "personality", entity_id: gruff, voice: "gruff, uses 'oi'" });
+    await call(p, "manage_character", { action: "voice", entity_id: gruff, examples: [
+      { context: "greeting", dialogue: "Oi! What?", tag: "neutral" },
+      { context: "combat", dialogue: "Die!", tag: "combat" },
+      { context: "chat", dialogue: "Fine day.", tag: "social" },
+    ] });
+    await call(p, "manage_character", { action: "personality", entity_id: hidden, voice: "quiet" });
+    await call(p, "manage_character", { action: "voice", entity_id: hidden, examples: [{ context: "hi", dialogue: "Hello.", tag: "neutral" }] });
+    let brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("Voice directive (Gruff, Blacksmith)"), "directive missing role or name");
+    assert(brief.includes("Oi! What?"), "neutral example absent");
+    assert(brief.includes("Fine day."), "social-tagged example absent");
+    assert(!brief.includes("Die!"), "combat-tagged example surfaced in a social scene");
+    assert(brief.includes("Voice directive (Hidden"), "GM lost a GM-scope directive");
+    await call(p, "set_badge", { badge: "player" });
+    const player = await promptText(p, "badge_briefing");
+    assert(player.includes("Voice directive (Gruff"), "Player lost the shared-scope directive");
+    assert(!player.includes("Voice directive (Hidden"), "Player saw a GM-scope directive");
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_scene", { action: "set", location: "market", description: "The market" });
+    brief = await promptText(p, "badge_briefing");
+    assert(!brief.includes("Voice directive (Gruff"), "directive survived a location change");
+    await kill(p);
+  });
+
+  await test("T314/REQ-255b: boundary collision warns on every free-text entry point", async () => {
+    const p = await boot(); await newNovel(p, "bound314");
+    await call(p, "set_badge", { badge: "player" });
+    await call(p, "manage_character", { action: "signal", signal: "boundary", value: "spiders" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "manage_npc", { action: "create", name: "Web", description: "a nest of spiders" });
+    assert(created.includes("[WARNING]") && created.includes("[OK]"), "NPC create suppressed the operation or lost the warning");
+    const npcs = JSON.parse(await resource(p, "npcs://"));
+    const nid = Object.keys(npcs)[0];
+    const updated = await call(p, "manage_npc", { action: "update", npc_id: nid, goals: "harvest spiders" });
+    assert(updated.includes("[WARNING]") && updated.includes("[OK]"), "NPC update warning missing");
+    const lore = await call(p, "manage_lore", { action: "set", key: "web", content: "spiders fill the rafters" });
+    assert(lore.includes("[WARNING]") && lore.includes("[OK]"), "lore set warning missing");
+    const loreUpdate = await call(p, "manage_lore", { action: "update", key: "web", content: "more spiders" });
+    assert(loreUpdate.includes("[WARNING]"), "lore update warning missing");
+    const directive = await call(p, "manage_scene", { action: "directive", directive: "make the spiders louder" });
+    assert(directive.includes("[WARNING]") && directive.includes("[OK]"), "directive warning missing");
+    const scene = await call(p, "manage_scene", { action: "set", description: "a hall of spiders" });
+    assert(scene.includes("[WARNING]") && scene.includes("[OK]"), "scene set warning missing");
+    await kill(p);
+  });
+
+  await test("T65/REQ-077a: a sixth voice example is refused at the write path", async () => {
+    const p = await boot(); await newNovel(p, "cap65");
+    await call(p, "manage_character", { action: "create", name: "Capped" });
+    const ents = JSON.parse(await resource(p, "entities://"));
+    const id = Object.keys(ents)[0];
+    const examples = Array.from({ length: 6 }, (_, i) => ({ context: `c${i}`, dialogue: `line ${i}` }));
+    const refused = await call(p, "manage_character", { action: "voice", entity_id: id, examples });
+    assert(refused.includes("[INVALID_INPUT]"), "a sixth example was accepted: " + refused.slice(0, 160));
     await kill(p);
   });
 

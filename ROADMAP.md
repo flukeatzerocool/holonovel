@@ -35,28 +35,6 @@
 remediation work; closes when F-P3B2-1–F-P3B2-8 are `Resolved` in the review
 register.
 
-## §5.6 personality, signal, and citation remediation (P1)
-
-- Personality surfaces: render the briefing personality group and voice examples,
-  gate and tag-filter NPC voice directives, and reshape and badge-filter the
-  personality resources (REQ-077a, REQ-077b, REQ-077d, REQ-077e, REQ-077f,
-  REQ-126a, REQ-126b, REQ-166a, REQ-166b, REQ-166c, REQ-282a, REQ-282b,
-  REQ-282c, REQ-167a, REQ-167b; F-P3B2-9–F-P3B2-11).
-- Player signals and boundary propagation: store signals as
-  `{value, connection_counter}` with removal semantics and briefing ages, and
-  extend boundary collision to every free-text entry point (REQ-069a, REQ-069b,
-  REQ-069c, REQ-128a, REQ-128b, REQ-173b, REQ-255b; F-P3B2-12–F-P3B2-13).
-- Citation repair: write or re-point the unexercised Automated citations that
-  shadow real behaviour (T55, T56, T57, T58, T65, T112, T132, T140, T142, T723,
-  T131, plus REQ-124b's T131 match and REQ-075g's T723), then refresh the
-  coverage register and regenerate `holonovel/tool-definitions.json` for the
-  reshaped resources (F-P3B2-14).
-
-**Trigger:** the next session that takes personality, signal, or citation
-remediation work, and not before the entity/scene/NPC-depth increment lands
-(REQ-156 and the personality read surfaces share one description accessor);
-closes when F-P3B2-9–F-P3B2-14 are `Resolved`.
-
 ## §5.6 core state and lifecycle remediation (P1)
 
 - Structured recap payload: emit the typed fields REQ-072b/c1/c2/d and
@@ -146,6 +124,21 @@ harness.
 **Trigger:** the next session that takes citation-remediation work; closes when
 every §5.3 Check citation resolves to an exercised harness and
 `spec/audit/review-register.md` marks F-P2-1–F-P2-3 `Resolved`.
+
+## REQ-124 NPC damage resolution (P1)
+
+- Implement the NPC damage path REQ-124a/b describe: a damage-resolution call
+  carrying `target_id` reduces the NPC's ruleset HP, zero HP applies the
+  ruleset's incapacitation convention, and the result is audited and
+  snapshot-able; then write the T131 assertion (currently the catalogue row has
+  no harness) and mark F-P3B2-15 `Resolved` in the review register.
+- Decide whether the surface is a host-side consequence applied by the bound
+  ruleset's roll tool or an explicit `manage_combat` action, and record the
+  choice in `holonovel/DECISIONS.md`.
+
+**Trigger:** the next combat- or ruleset-surface session; closes when T131
+exercises the HP-reduction and incapacitation branches against a fixture
+ruleset (REQ-124a, REQ-124b).
 
 ## Unscoped-surface review sweep (P2)
 

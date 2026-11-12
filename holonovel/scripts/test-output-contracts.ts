@@ -1134,6 +1134,10 @@ async function main() {
     await call(p, "manage_character", { action: "voice",  entity_id: id, examples: [{ context: "greeting", dialogue: "What do you need?" }] });
     const pers = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
     assertContains(pers, "gruff", "REQ-166 personality rendering");
+    const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "### Personality", "T201 briefing personality group");
+    assertContains(brief, "What do you need?", "T201 briefing voice example");
+    assertContains(brief, "[NPC]", "T201 NPC marker in the briefing");
     const voice = await proto(p, "resources/read", { uri: `npc://${id}/voice_examples` });
     assertContains(voice, "What do you need?", "REQ-126 voice examples resource");
     passed++;
@@ -2576,6 +2580,95 @@ async function main() {
     const ended = await call(p, "manage_novel", { action: "end" });
     assertContains(ended, "[NEED_INPUT]", "T282 end requests confirmation");
     assertContains(await call(p, "respond_decision", { decision: "-end_novel-confirm", option: "yes" }), "[OK]", "T282 end clears the Novel");
+    await kill(p);
+  });
+
+  // ── §5.6 personality, signal, and citation remediation ──
+
+  await test("T55/REQ-074: party://current and entities:// list the whole party and set_active switches", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t55" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create", name: "Alpha" });
+    await call(p, "manage_character", { action: "create", name: "Beta" });
+    const ents = JSON.parse(await proto(p, "resources/read", { uri: "entities://" }));
+    assertContains(JSON.stringify(ents), "Alpha", "T55 entities:// lists Alpha");
+    assertContains(JSON.stringify(ents), "Beta", "T55 entities:// lists Beta");
+    const ids = Object.keys(ents);
+    const party = JSON.parse(await proto(p, "resources/read", { uri: "party://current" }));
+    assertContains(JSON.stringify(party), "Alpha", "T55 party://current lists Alpha");
+    assertContains(JSON.stringify(party), "Beta", "T55 party://current lists Beta");
+    await call(p, "manage_character", { action: "set_active", entity_id: ids[1] });
+    const after = JSON.parse(await proto(p, "resources/read", { uri: "party://current" }));
+    const active = after.find((e: any) => e.active === true);
+    assertContains(JSON.stringify(active), "Beta", "T55 set_active targets the second entity");
+    await kill(p);
+  });
+
+  await test("T58/REQ-077 + T65/REQ-126 + T167/REQ-167 + T202: personality resource shape", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t58" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create", name: "Drawl" });
+    const ents = JSON.parse(await proto(p, "resources/read", { uri: "entities://" }));
+    const id = Object.keys(ents)[0];
+    await call(p, "manage_character", { action: "personality", entity_id: id, voice: "slow drawl, formal register", goals: "find the relic", persona: "patient, formal" });
+    await call(p, "manage_character", { action: "voice", entity_id: id, examples: [
+      { context: "greeting", dialogue: "Well met, traveller.", tag: "neutral" },
+      { context: "oath", dialogue: "By my word.", tag: "neutral", source: "synthesis", source_url: "https://example.test/voice" },
+    ] });
+    const raw = await proto(p, "resources/read", { uri: `entity://${id}/personality` });
+    const obj = JSON.parse(raw);
+    assertContains(JSON.stringify(obj), id, "T167a resource carries entity_id");
+    assertContains(JSON.stringify(obj), "Drawl", "T167a resource carries name");
+    assertContains(JSON.stringify(obj), "slow drawl, formal register", "T167a resource carries voice");
+    assertContains(JSON.stringify(obj), "find the relic", "T167a resource carries goals");
+    assertContains(JSON.stringify(obj), "patient, formal", "T167d persona renders");
+    assertContains(JSON.stringify(obj), "Well met, traveller.", "T167a resource carries voice_examples");
+    if ("background" in obj) throw new Error("T167a unset background was present");
+    assertContains(JSON.stringify(obj), "synthesis", "T65 synthesis source tag");
+    assertContains(JSON.stringify(obj), "https://example.test/voice", "T65 synthesis source_url");
+    await call(p, "set_badge", { badge: "player" });
+    const playerRaw = await proto(p, "resources/read", { uri: `entity://${id}/personality` });
+    assertContains(playerRaw, "slow drawl, formal register", "T167b Player reads entity personality");
+    await kill(p);
+  });
+
+  await test("T129/REQ-122b: NPC narrative fields are GM-only to write and readable at the resource", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t129" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_npc", { action: "create", name: "Innkeeper" });
+    const npcs = JSON.parse(await proto(p, "resources/read", { uri: "npcs://" }));
+    const id = Object.keys(npcs)[0];
+    await call(p, "set_badge", { badge: "player" });
+    const forbidden = await call(p, "manage_character", { action: "personality", entity_id: id, voice: "denied" });
+    assertContains(forbidden, "[FORBIDDEN]", "T129 Player NPC personality write refused");
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "personality", entity_id: id, voice: "gruff, clipped sentences" });
+    const raw = await proto(p, "resources/read", { uri: `npc://${id}/personality` });
+    const obj = JSON.parse(raw);
+    assertContains(JSON.stringify(obj), id, "T167a npc resource carries npc_id");
+    assertContains(JSON.stringify(obj), "Innkeeper", "T167a npc resource carries name");
+    assertContains(JSON.stringify(obj), "gruff, clipped sentences", "T129 npc resource carries voice");
+    await kill(p);
+  });
+
+  await test("T132/REQ-076: the scene-history cap reports suppressed entries and keeps the audit", async () => {
+    const p = await boot({ TTRPG_SCENE_HISTORY_MAX: "2" });
+    await call(p, "manage_novel", { action: "create", name: "t132" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_scene", { action: "set", description: "one" });
+    await call(p, "manage_scene", { action: "set", description: "two" });
+    await call(p, "manage_scene", { action: "set", description: "three" });
+    await call(p, "manage_scene", { action: "set", description: "four" });
+    const history = JSON.parse(await proto(p, "resources/read", { uri: "scene://history" }));
+    if (history.length !== 3) throw new Error(`T132 expected marker + 2 entries, got ${history.length}`);
+    assertContains(JSON.stringify(history[0]), "[truncated]", "T132 truncation marker");
+    if (history[0].suppressed !== 1) throw new Error(`T132 suppressed count ${history[0].suppressed}`);
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    const sets = audit.split("\n").filter((line: string) => line.includes("set_scene")).length;
+    if (sets !== 4) throw new Error(`T132 audit lost an entry: ${sets}`);
     await kill(p);
   });
 
