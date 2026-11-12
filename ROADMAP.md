@@ -25,18 +25,15 @@
 or package-format (§5.16) fingerprint; closes when the allowlist is empty and
 `check-fingerprint-sync` is green.
 
-## §5.20/§5.24 assertion and staging remediation (P1)
+## §5.20/§5.24 assertion repair (P1)
 
-- Turn-role and staging order: drive the REQ-412 handoff from the AI narrative
-  role, and give REQ-612's `list` strategy a real GM-order source on
-  `manage_staging (action: cast)` (REQ-412, REQ-612; F-P5-5, F-P5-6).
 - Widen narrow assertions: T545 replay reproduction, T550 derived-record
   citation, T640 per-role/budget orientation, T712 session-identity exclusion,
   T713 legacy/older-projection branches, T727 manual-selection clear
   (REQ-412a, REQ-455, REQ-460, REQ-601, REQ-602, REQ-611; F-P5-7).
 
-**Trigger:** the next §5.20/§5.24 remediation session; closes when F-P5-5,
-F-P5-6, and F-P5-7 are `Resolved`.
+**Trigger:** the next assertion-repair session; closes when F-P5-7 is
+`Resolved` in the review register.
 
 ## §5.9/§5.19 persistence remediation (P1)
 

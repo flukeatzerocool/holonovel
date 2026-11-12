@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-11 — §5.20 staging order and AI-role handoff
+
+- `manage_staging (action: cast)` gains an `order` parameter: the GM speaker
+  order the `list` strategy follows. `next_speaker (strategy: list)` now walks
+  the declared order first and the remaining present NPCs in insertion order
+  after it, ignores ids that name no present NPC, keeps mute excluding and force
+  overriding, and reads `cast.order ?? []` so a pre-increment save cannot break
+  the selector. The mutation is audited in the existing `set_scene_cast` entry
+  (REQ-611, REQ-612).
+- `order` joins `MANAGE_SCENE_STAGING_PARAMS`, so the legacy `manage_scene`
+  schema stays unchanged; `manage_staging`'s description names the order and
+  the recorded surface advances to 28,631 full / 25,033 standard tokens
+  (`holonovel/tool-definitions.json`,
+  `spec/audit/tool-surface-baseline.json`, `holonovel/DECISIONS.md`).
+- The REQ-412 turn handoff now follows the AI's narrative role through the
+  REQ-598 `narrativeRole` resolver instead of the human badge, gated by
+  REQ-412's WHEN clause: a Player or Observer badge under an AI-Player role
+  hands initiative back, and a Game Master badge under an AI-Game-Master role
+  carries no directive. Counterpart behaviour is unchanged (REQ-412, REQ-304).
+- T728 grows the ordered-list, unknown-id, muted-head, and force assertions
+  (`holonovel/scripts/test-competitive-gaps.ts`); T482 grows the counterpart
+  badge matrix in `test-backfill` and the AI-role override plus
+  never-truncated-tier cases in `test-briefing`, which already boots one server
+  per environment (T728, T482).
+- REQ-611 and REQ-612 bodies name the order source; Appendix F's T482 and T728
+  rows state the new cases (REQ-611, REQ-612, REQ-412).
+- F-P5-5 and F-P5-6 are `Resolved` with corrected predicates — the register's
+  `index.ts:6360` and `:13939-13945` citations were stale — and `ROADMAP.md`
+  narrows the section to `§5.20/§5.24 assertion repair (P1)` carrying F-P5-7.
+
 ## 2026-11-11 — §5.10 parser tool-name drift
 
 - The retired `command` token is re-pointed to the registered `run_command`

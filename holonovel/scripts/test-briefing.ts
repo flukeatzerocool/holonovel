@@ -127,6 +127,38 @@ async function main() {
     await kill(p);
   });
 
+  await test("T482/T412: turn handoff follows the AI narrative role and survives the never-truncated tier", async () => {
+    // REQ-412: the directive's variant follows the AI's narrative role
+    // (REQ-304), not the human badge; it renders in the never-truncated tier
+    // (REQ-135). Each combination gets its own server because the role is
+    // read from the environment at request time.
+    const handoff = (brief: string): "invite" | "handback" | "none" => {
+      const start = brief.indexOf("### Turn handoff");
+      if (start < 0) return "none";
+      const next = brief.indexOf("\n### ", start + 5);
+      const section = brief.slice(start, next < 0 ? undefined : next);
+      if (/inviting the player/i.test(section)) return "invite";
+      if (/hands initiative back/i.test(section)) return "handback";
+      return "none";
+    };
+    const cases: Array<[Record<string, string>, string, "invite" | "handback" | "none"]> = [
+      [{ TTRPG_AI_ROLE: "player" }, "player", "handback"],
+      [{ TTRPG_AI_ROLE: "player" }, "observer", "handback"],
+      [{ TTRPG_AI_ROLE: "game_master" }, "player", "invite"],
+      [{ TTRPG_AI_ROLE: "game_master" }, "game_master", "none"],
+      [{ TTRPG_MAX_BRIEFING_TOKENS: "400" }, "player", "invite"],
+    ];
+    for (const [env, badge, expected] of cases) {
+      const p = await boot(env);
+      try {
+        await newNovel(p, `ho-${badge}-${Object.keys(env)[0]}-${expected}`);
+        await call(p, "set_badge", { badge });
+        const got = handoff(await promptText(p, "badge_briefing"));
+        assert(got === expected, `${JSON.stringify(env)} / badge ${badge}: expected ${expected}, got ${got}`);
+      } finally { await kill(p); }
+    }
+  });
+
   const SECRET = "The butler killed Lord Ashworth in the library";
   const GM_LORE = "The vault code is 4417";
   const MIND = "Secretly reports to the rival guild";

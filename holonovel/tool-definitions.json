@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 114340,
+  "tools_list_bytes": 114522,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 114340,
-        "tokens": 28585
+        "bytes": 114522,
+        "tokens": 28631
       },
       "standard": {
         "tools": 37,
-        "bytes": 99947,
-        "tokens": 24987
+        "bytes": 100129,
+        "tokens": 25033
       },
       "small": {
         "tools": 6,
@@ -1745,15 +1745,15 @@
     {
       "name": "manage_staging",
       "title": "Scene Staging Management",
-      "description": "Manage scene presence, autonomy, and social-cast staging. presence replaces the present set; cast sets the multi-NPC speaker strategy with mute/unmute adjusting its pool; next_speaker runs manual, forced, or pooled selection, where force overrides select; autonomy changes apply to the current scene only. Presence, autonomy, and cast state persist to the Novel and are audited. Use when: setting who is present, adjusting scene autonomy, choosing a speaker strategy, or selecting the next speaker. Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. Revert the most recent mutation with manage_history (action: undo).",
-      "description_bytes": 688,
+      "description": "Manage scene presence, autonomy, and social-cast staging. presence replaces the present set; cast sets the multi-NPC speaker strategy, the mute/unmute pool, and the GM speaker order that next_speaker follows under list; next_speaker runs manual, forced, or pooled selection, where force overrides select; autonomy changes apply to the current scene only. Presence, autonomy, and cast state persist to the Novel and are audited. Use when: setting who is present, adjusting scene autonomy, choosing a speaker strategy, or selecting the next speaker. Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. Revert the most recent mutation with manage_history (action: undo).",
+      "description_bytes": 737,
       "action_enum": [
         "presence",
         "autonomy",
         "cast",
         "next_speaker"
       ],
-      "param_count": 11,
+      "param_count": 12,
       "required": [
         "action"
       ],
@@ -1765,6 +1765,7 @@
         "force": "NPC forced as the next speaker (cast/next_speaker).",
         "level": "Autonomy level (autonomy).",
         "mute": "NPC muted from speaker selection (cast).",
+        "order": "GM speaker order of NPC ids (cast; the list strategy follows it).",
         "safety": "Safety tier (autonomy).",
         "select": "NPC selected as the manual speaker (cast/next_speaker).",
         "strategy": "Speaker-selection strategy (cast).",
@@ -1784,9 +1785,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 12,
+        "paramCount": 13,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 12,
+        "paramsWithDescriptions": 13,
         "paramsWithEnums": 6,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1797,8 +1798,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2696,
-        "descriptionBytes": 688
+        "definitionBytes": 2878,
+        "descriptionBytes": 737
       },
       "category": "",
       "gate": ""

@@ -11,6 +11,35 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-11 §5.20 staging order and AI-role handoff
+
+- **F-P5-5 — REQ-612 `list` had no GM-order source (resolved 2026-11-11):** the
+  `list` branch iterated `novel.npcs` insertion order
+  (`holonovel/src/index.ts:6932`) because no action wrote
+  `social_cast.order` — the field was typed (`holonovel/src/core/state.ts:737`)
+  and persisted but never set. `manage_staging (action: cast)` now accepts
+  `order` (`index.ts:6718`), stores it (`:6922`) and audits it in the existing
+  `set_scene_cast` entry (`:6925`); the `list` branch walks the declared order
+  first, then insertion order, ignoring ids that name no present NPC, and reads
+  `cast.order ?? []` so a pre-increment save cannot break the selector
+  (`:6949-6961`). `manage_scene` stays unchanged: `order` joins
+  `MANAGE_SCENE_STAGING_PARAMS` (`:6686`), which filters staging parameters off
+  the legacy schema. Exercised by T728
+  (`holonovel/scripts/test-competitive-gaps.ts:609-640`); REQ-611 and REQ-612
+  (`spec/02-requirements.md:4119`, `:4122`).
+- **F-P5-6 — turn handoff keyed on badge, not AI role (resolved 2026-11-11):**
+  the directive branched on `badge` (`index.ts:15013-15023`) and read
+  `TTRPG_AI_ROLE` only afterwards for orientation (`:15029-15033`), so the
+  override never reached the handoff. The block now resolves the AI narrative
+  role through the REQ-598 helper (`narrativeRole`, `:1106-1111`; call at
+  `:15039`) and gates the invite branch on REQ-412's WHEN clause
+  (`badge === "player" || badge === "observer"`), so a Player or Observer badge
+  under an AI-Player role hands initiative back and a Game Master badge under
+  an AI-Game-Master role carries no directive. Exercised by T482 in
+  `holonovel/scripts/test-backfill.ts:1250-1268` (counterpart matrix) and
+  `holonovel/scripts/test-briefing.ts:130-162` (role overrides and the
+  never-truncated tier). REQ-412, REQ-304.
+
 ### 2026-11-11 §5.10 parser tool-name drift
 
 - **F-P6a-20 — `command`-as-tool drift in §5.10 (resolved 2026-11-11):** the
@@ -1772,19 +1801,6 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P5 (engine loop, event stream, agent tasks)
 
-- **F-P5-5 — REQ-612 `list` has no GM-order source (2026-11-09):**
-  `manage_staging (action: next_speaker, strategy: list)` iterates `novel.npcs`
-  insertion order; `social_cast.order` is persisted (`state.ts:724`, `:1186`)
-  but never read and no action sets it. Predicate: `index.ts:6360`. Scheduled
-  under ROADMAP § §5.20/§5.24 assertion and staging remediation; covers
-  `REQ-612`.
-- **F-P5-6 — turn handoff keys on badge, not AI role (2026-11-09):**
-  The REQ-412 directive branches on `badge` at `index.ts:13939-13945`, while
-  `TTRPG_AI_ROLE` is applied later only to orientation (`:13951-13955`), so an
-  AI-role override renders the wrong handoff variant. Predicate:
-  `index.ts:13939-13945`; `T482` asserts the GM-badge path only. Scheduled
-  under ROADMAP § §5.20/§5.24 assertion and staging remediation; covers
-  `REQ-412`.
 - **F-P5-7 — six narrow assertions (2026-11-09):**
   `T545` never reproduces ordinals across a restart (`REQ-455`); `T550` never
   asserts a derived record's cited ordinal (`REQ-460`); `T640` asserts the
@@ -1794,8 +1810,8 @@ absent, so each finding carries the failing predicate rather than a test.
   asserts manual-selection clearing on a scene transition (`REQ-611`).
   Predicates: `test-event-log.ts:32-43`, `:113-123`, `:127-132`;
   `test-lean-narrator.ts:115-119`; `test-competitive-gaps.ts:591-602`.
-  Scheduled under ROADMAP § §5.20/§5.24 assertion and staging remediation;
-  covers `REQ-412a`, `REQ-455`, `REQ-460`, `REQ-601`, `REQ-602`, `REQ-611`.
+  Scheduled under ROADMAP § §5.20/§5.24 assertion repair (P1); covers
+  `REQ-412a`, `REQ-455`, `REQ-460`, `REQ-601`, `REQ-602`, `REQ-611`.
 
 ### 2026-11-09 full-review sweep — chunk P4 (persistence and §5.19)
 

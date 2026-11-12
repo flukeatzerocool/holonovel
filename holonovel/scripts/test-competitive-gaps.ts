@@ -611,6 +611,29 @@ async function main() {
       await call(proc, "manage_scene", { action: "set", description: "Mira steps forward." });
       const r = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker" }));
       assert(r.npc_id === created.Mira && r.reason === "mentioned", `expected mention pick, got ${JSON.stringify(r)}`);
+      // REQ-612 — `list` follows the GM order declared by cast.
+      await call(proc, "manage_staging", { action: "cast", strategy: "list", order: [created.Cato, created.Mira, created.Bo] });
+      const first = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker", after_user: true }));
+      assert(first.npc_id === created.Cato && first.reason === "list", `list order 1: ${JSON.stringify(first)}`);
+      const second = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker" }));
+      assert(second.npc_id === created.Mira && second.reason === "list", `list order 2: ${JSON.stringify(second)}`);
+      const third = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker" }));
+      assert(third.npc_id === created.Bo && third.reason === "list", `list order 3: ${JSON.stringify(third)}`);
+      const wrap = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker" }));
+      assert(wrap.npc_id === created.Cato && wrap.reason === "list", `list order wrap: ${JSON.stringify(wrap)}`);
+      // An id that names no NPC is ignored; ids outside the order follow
+      // insertion order after the declared prefix.
+      await call(proc, "manage_staging", { action: "cast", order: [created.Cato, "npc_ghost"] });
+      const unknown = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker", after_user: true }));
+      assert(unknown.npc_id === created.Cato, `unknown-id order 1: ${JSON.stringify(unknown)}`);
+      const afterUnknown = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker" }));
+      assert(afterUnknown.npc_id === created.Mira, `unknown-id order 2 (insertion order): ${JSON.stringify(afterUnknown)}`);
+      // Mute excludes the ordered head; force still overrides.
+      await call(proc, "manage_staging", { action: "cast", order: [created.Cato, created.Mira, created.Bo], mute: created.Cato });
+      const muted = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker", after_user: true }));
+      assert(muted.npc_id === created.Mira, `muted head skipped: ${JSON.stringify(muted)}`);
+      const forced = JSON.parse(await call(proc, "manage_staging", { action: "next_speaker", force: created.Cato }));
+      assert(forced.npc_id === created.Cato && forced.reason === "forced", `force overrides order/mute: ${JSON.stringify(forced)}`);
     });
 
     await test("T724/REQ-075h: card import maps fields and refuses prompts", async () => {

@@ -1247,10 +1247,30 @@ async function main() {
       assertContains(sc.atmosphere ?? "", "tense");
     });
 
-    await test("T482/T412: turn-handoff directive present in badge_briefing", async () => {
-      await call(proc, "set_badge", { badge: "player" });
-      const brief = await getPrompt(proc, "badge_briefing", {});
-      if (!/invite|hand|turn/i.test(brief)) throw new Error("turn-handoff directive missing from badge_briefing");
+    await test("T482/T412: turn-handoff directive follows the badge under the counterpart role", async () => {
+      // Lift the section and classify its wording: the GM-narrator variant
+      // invites the player, the AI-Player variant hands initiative back.
+      const handoff = (brief: string): "invite" | "handback" | "none" => {
+        const start = brief.indexOf("### Turn handoff");
+        if (start < 0) return "none";
+        const next = brief.indexOf("\n### ", start + 5);
+        const section = brief.slice(start, next < 0 ? undefined : next);
+        if (/inviting the player/i.test(section)) return "invite";
+        if (/hands initiative back/i.test(section)) return "handback";
+        return "none";
+      };
+      const cases: Array<[string, "invite" | "handback" | "none"]> = [
+        ["player", "invite"],
+        ["observer", "invite"],
+        ["game_master", "handback"],
+        ["none", "none"],
+      ];
+      for (const [badge, expected] of cases) {
+        await call(proc, "set_badge", { badge });
+        const brief = await getPrompt(proc, "badge_briefing", {});
+        const got = handoff(brief);
+        if (got !== expected) throw new Error(`badge '${badge}': expected ${expected} handoff, got ${got}`);
+      }
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

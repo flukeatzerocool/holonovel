@@ -6683,7 +6683,7 @@ function advanceSceneTransitionCountdowns(novel: NovelState): void {
 
 // Scene (REQ-076, REQ-081, REQ-087, REQ-125, REQ-155, REQ-191, REQ-250, REQ-252, REQ-291, REQ-306, REQ-307, REQ-326, REQ-335, REQ-342, REQ-353, REQ-405) —
 // consolidated scene-state/directive/presence/autonomy/choices/oracle surface.
-const MANAGE_SCENE_STAGING_PARAMS = new Set(["entity_ids", "strategy", "select", "mute", "unmute", "force", "after_user", "level", "confirmation", "safety", "creativity"]);
+const MANAGE_SCENE_STAGING_PARAMS = new Set(["entity_ids", "strategy", "select", "mute", "unmute", "force", "order", "after_user", "level", "confirmation", "safety", "creativity"]);
 // REQ-087a — the resolved scene-type catalog: the default four plus any types
 // the bound ruleset model declares. Unknown values are refused with the list.
 function resolvedSceneTypes(novel: NovelState): string[] {
@@ -6715,6 +6715,7 @@ const MANAGE_SCENE_SCHEMA = {
     mute: z.string().optional().describe("NPC muted from speaker selection (cast)."),
     unmute: z.string().optional().describe("NPC restored to speaker selection (cast)."),
     force: z.string().optional().describe("NPC forced as the next speaker (cast/next_speaker)."),
+    order: z.array(z.string()).optional().describe("GM speaker order of NPC ids (cast; the list strategy follows it)."),
     after_user: z.boolean().optional().describe("Reset the pooled spoken-set for a new user turn (next_speaker)."),
     level: z.enum(["full", "mechanical_prompt", "manual"]).optional().describe("Autonomy level (autonomy)."),
     confirmation: z.enum(["auto", "confirm", "prompt"]).optional().describe("Confirmation mode (autonomy)."),
@@ -6917,9 +6918,11 @@ server.registerTool("manage_scene", {
       if (args.mute && !cast.muted.includes(args.mute)) cast.muted.push(args.mute);
       if (args.unmute) cast.muted = cast.muted.filter((id: string) => id !== args.unmute);
       if (args.force) cast.selected = args.force;
+      // REQ-611/612 — the GM speaker order the `list` strategy follows.
+      if (args.order !== undefined) cast.order = args.order;
       state.recordMutation(novel, "set_scene_cast", "scene");
       state.saveNovel(novel);
-      audit("set_scene_cast", { strategy: cast.strategy, muted: cast.muted, selected: cast.selected });
+      audit("set_scene_cast", { strategy: cast.strategy, muted: cast.muted, selected: cast.selected, order: cast.order });
       return ok(`Cast strategy: ${cast.strategy}${cast.muted.length ? `; muted: ${cast.muted.join(", ")}` : ""}.`);
     }
     case "next_speaker": {
@@ -6938,7 +6941,23 @@ server.registerTool("manage_scene", {
       let reason: string;
       if (forced) { pick = forced; reason = "forced"; }
       else if (cast.strategy === "manual") { pick = present.find((n: any) => n.id === cast.selected) ?? present[0]; reason = "manual"; }
-      else if (cast.strategy === "list") { pick = present.find((n: any) => !cast.spoken.includes(n.id)) ?? present[0]; reason = "list"; }
+      else if (cast.strategy === "list") {
+        // REQ-612 — `list` follows the GM order set by cast. An id that names
+        // no present NPC is ignored; present NPCs outside the order keep the
+        // map's insertion order after the declared prefix. Mute already
+        // excluded and force was resolved above.
+        const order = cast.order ?? [];
+        const rank = (id: string): number => {
+          const i = order.indexOf(id);
+          return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+        };
+        const ordered = present
+          .map((n: any, i: number) => ({ n, i }))
+          .sort((a: any, b: any) => rank(a.n.id) - rank(b.n.id) || a.i - b.i)
+          .map((x: any) => x.n);
+        pick = ordered.find((n: any) => !cast.spoken.includes(n.id)) ?? ordered[0];
+        reason = "list";
+      }
       else if (cast.strategy === "pooled") {
         const unspoken = present.filter((n: any) => !cast.spoken.includes(n.id));
         const pool = unspoken.length > 0 ? unspoken : present;
@@ -7306,9 +7325,9 @@ server.registerTool("manage_npc", {
 const MANAGE_SCENE_SCHEMA_ACTIONS = ["presence", "autonomy", "cast", "next_speaker"] as const;
 server.registerTool("manage_staging", {
   title: "Scene Staging Management",
-  description: "Manage scene presence, autonomy, and social-cast staging. presence replaces the present set; cast sets the multi-NPC speaker strategy with mute/unmute adjusting its pool; next_speaker runs manual, forced, or pooled selection, where force overrides select; autonomy changes apply to the current scene only. Presence, autonomy, and cast state persist to the Novel and are audited. Use when: setting who is present, adjusting scene autonomy, choosing a speaker strategy, or selecting the next speaker. Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. Revert the most recent mutation with manage_history (action: undo).",
+  description: "Manage scene presence, autonomy, and social-cast staging. presence replaces the present set; cast sets the multi-NPC speaker strategy, the mute/unmute pool, and the GM speaker order that next_speaker follows under list; next_speaker runs manual, forced, or pooled selection, where force overrides select; autonomy changes apply to the current scene only. Presence, autonomy, and cast state persist to the Novel and are audited. Use when: setting who is present, adjusting scene autonomy, choosing a speaker strategy, or selecting the next speaker. Do NOT use when: setting the scene, issuing a directive, offering choices, or consulting the oracle — use manage_scene. Revert the most recent mutation with manage_history (action: undo).",
   inputSchema: {
-    ...pickParams(MANAGE_SCENE_SCHEMA, ["action", "entity_ids", "strategy", "select", "mute", "unmute", "force", "after_user", "level", "confirmation", "safety", "creativity"]),
+    ...pickParams(MANAGE_SCENE_SCHEMA, ["action", "entity_ids", "strategy", "select", "mute", "unmute", "force", "order", "after_user", "level", "confirmation", "safety", "creativity"]),
     action: z.enum(MANAGE_SCENE_SCHEMA_ACTIONS).describe("presence, autonomy, cast, or next_speaker."),
   },
 }, async (args: any, extra: any) => {
@@ -15010,16 +15029,21 @@ ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel
     briefing += `\n\n### Player Intent\n${recent.join("\n")}`;
   }
 
-  // REQ-412 — turn-handoff directive. When the AI narrates as Game Master
-  // (human wears Player/Observer), close each turn by inviting the player's
-  // next action. When the AI inhabits a Player role (human GM), hand initiative
-  // back to the human Game Master instead.
-  if (badge === "player" || badge === "observer") {
-    briefing += `\n\n### Turn handoff
+  // REQ-412 — turn-handoff directive. The variant follows the AI's narrative
+  // role (REQ-304, resolved by narrativeRole per REQ-598), gated by REQ-412's
+  // badge condition: the narrator invites the player's next action when the AI
+  // narrates as Game Master and a Player or Observer badge is active; under an
+  // AI-Player role it hands initiative back to the human Game Master. The
+  // Editor badge (badge "none") carries no directive.
+  if (badge !== "none") {
+    const handoffRole = narrativeRole(novel);
+    if (handoffRole === "game_master" && (badge === "player" || badge === "observer")) {
+      briefing += `\n\n### Turn handoff
 Close each narrated turn by inviting the player's next action — ask what they do, where they look, or what they say next. Never end a turn with a tool signature or a parameter list; use a plain-English question or prompt to act.`;
-  } else if (badge === "game_master") {
-    briefing += `\n\n### Turn handoff
+    } else if (handoffRole === "player") {
+      briefing += `\n\n### Turn handoff
 You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
+    }
   }
 
   // REQ-304 — Counterpart AI role: the AI's narrative role is the counterpart
