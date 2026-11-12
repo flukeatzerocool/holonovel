@@ -1057,6 +1057,32 @@ dated entries below record changes to this list.
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## World in Motion changes, codex health, and transient prompts, 2026-11-12
+
+- **D1 — pending world changes live under the existing World in Motion
+  property group.** `novel.world_in_motion` (`{id, source, summary, targets,
+  state, defer_count, created_at}`) is the REQ-233a2 pending-change list; §7.7
+  already classifies World in Motion (Narrative-memory, REQ-233a), so there is
+  no property-table, class-contract, or coupling-row change. The
+  fourth-deferral warning and every pending entry are derived at render time —
+  no second counter is persisted. (REQ-233a1, REQ-233a2, REQ-233a3)
+- **D2 — the ally↔rival lore consideration is scene-scoped and in memory.** It
+  follows the relationship-marker precedent: a persisted field would need a
+  §7.7 class contract for a transient briefing line, and REQ-236a asks for a
+  prompt, not durable state. The marker list already clears at the scene
+  transition. (REQ-236a)
+- **D3 — `spec_health.codex` is a partition, and staleness is computed.**
+  `codex` is `{ total, by_kind }` (REQ-321l) and `codex_stale` compares each
+  source entry's `codex_modified_at` against the value recorded on the Novel
+  artifact's `codex_source` at import (REQ-332b). Both are GM-only diagnostics.
+- **D4 — flat stores reuse the Novel backup count.** `server-notes.json` and
+  `codex.json` now rotate through `.bak.N` using `TTRPG_NOVEL_BACKUP_COUNT`
+  rather than introducing a second behavioral config; the atomic write is the
+  Novel writer's temp-fsync-rename sequence. (REQ-285a, REQ-321k)
+- **D5 — `TTRPG_WORLD_REACTIVITY` accepts `off`.** The setting defaults to
+  active; `false`, `off`, `0`, and `no` disable the cycle, matching REQ-233a3's
+  "When `off`" wording. (REQ-233a2, REQ-233a3)
+
 ## Persistence format versioning and v1 audit migration, 2026-11-12
 
 - **`novel_format_version` is an envelope stamp (REQ-092e).** The on-disk

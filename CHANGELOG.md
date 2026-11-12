@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-12 — §5.6 state surfaces remediation
+
+- `manage_novel (action: get_context)` returns the full `badge_briefing` payload
+  rendered read-only through the shared `composeBadgeBriefing` renderer;
+  `save_context` captures only `decision`/`bond` story entries; the `intro`
+  prompt carries the persisted `gm_context` summary (REQ-232b, REQ-232c).
+- World in Motion is no longer NPC-only: pending world changes from relationship
+  flips, faction-clock fills, and secret revelations trace one hop through the
+  relationship graph, surface with source/summary and accept/modify/defer
+  labels, raise a `[NEED_INPUT]` apply/cancel workflow on modify, derive the
+  fourth-deferral `[WARNING]` in `spec_health`, and honour `off` for
+  `TTRPG_WORLD_REACTIVITY` (REQ-233a1, REQ-233a2, REQ-233a3).
+- An `ally`↔`rival` flip prompts a lore-entry consideration in the narrative
+  threads; the marker set already covered neutral changes (REQ-236a, REQ-236b).
+- `audit://novel` redacts `session_id` for non-GM badges: boundary markers render
+  as a timespan, and `[session-boundary]` markers are visible to every badge
+  (REQ-237b1). `manage_context (action: recap, session_id)` scopes a live
+  session to its audit range, and the boundary marker records `started_at` and
+  the previous session's `ended_at` (REQ-237a, REQ-237b1).
+- Notes reach `badge_briefing` under the new `notes` section token, badge-
+  filtered; the token is in both vocabulary lists (REQ-242b).
+- `server-notes.json` and `codex.json` are written atomically with `.bak.N`
+  rotation, fsync, and rename, sharing the Novel writer's backup count
+  (REQ-285a, REQ-321k).
+- `spec_health.codex` is `{ total, by_kind }`; `codex_stale` flags a Novel
+  artifact whose source entry changed after import (REQ-321l, REQ-332b).
+- Captured Codex entries carry the source Novel's `ruleset` scope, now asserted
+  (REQ-321g).
+- T270 (relationships), T358 (world reactivity), and the widened T268/T275/T280/
+  T334/T384 assertions now cover their catalogue rows; REQ-065f re-points its
+  `_Check:` to the exercised T224 (REQ-065f, REQ-236c, REQ-233a3).
+
 ## 2026-11-12 — §5.9/§5.19 persistence remediation
 
 - Archiving over an existing archived slug is refused with `[STATE_CONFLICT]`

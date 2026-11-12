@@ -711,18 +711,57 @@ async function main() {
     await kill(p);
   });
 
-  await test("T275/REQ-237 + T328/REQ-279: session segmentation and narrative orientation", async () => {
+  await test("T275/REQ-237 + T328/REQ-279: session segmentation, scoping, and orientation", async () => {
     const p = await boot({ TTRPG_SESSION_ID: "sess-1" });
     await call(p, "manage_novel", { action: "create",  name: "w4c" });
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_story", { action: "record",  type: "decision", entry: "The party weighs the two doors." });
+    await call(p, "manage_scene", { action: "set",  description: "Session one hall" });
+    // Persist the scene audit entry before the process restarts.
+    await call(p, "manage_novel", { action: "save_context",  current_scene: "Session one hall" });
     const recap = await call(p, "manage_context", { action: "recap" });
     assertContains(recap, "narrative_orientation", "REQ-279 orientation field");
     assertContains(recap, "The party weighs the two doors", "REQ-279 decision in orientation");
-    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
-    if (!Array.isArray(health.sessions)) throw new Error("REQ-237 sessions array missing");
-    passed++;
     await kill(p);
+
+    // REQ-237b1 — a second session under a different TTRPG_SESSION_ID adds a
+    // second boundary marker; a scoped recap returns only that session's range.
+    const p2 = await boot({ TTRPG_SESSION_ID: "sess-2" });
+    await call(p2, "manage_novel", { action: "resume", slug: "w4c" });
+    await call(p2, "set_badge", { badge: "game_master" });
+    await call(p2, "manage_countdown", { action: "set",  name: "session-two-clock", ticks: 3, type: "round" });
+    await call(p2, "manage_note", { action: "set",  key: "session-two", content: "persist marker" });
+
+    const audit = ((await readRaw(p2, "audit://novel")).contents ?? []).map((c: any) => c.text ?? "").join("\n");
+    const boundaries = (audit.match(/\[session-boundary\]/g) ?? []).length;
+    if (boundaries < 2) throw new Error(`expected two [session-boundary] markers, got ${boundaries}`);
+
+    const s1 = await call(p2, "manage_context", { action: "recap", session_id: "sess-1" });
+    assertContains(s1, "session_scope: sess-1", "T275 scoped recap names the session");
+    assertContains(s1, "set_scene_state", "T275 session 1 entry present");
+    if (s1.includes("set_countdown")) throw new Error("T275 session 1 recap leaked a session 2 entry");
+    const s2 = await call(p2, "manage_context", { action: "recap", session_id: "sess-2" });
+    assertContains(s2, "session_scope: sess-2", "T275 scoped recap names session 2");
+    assertContains(s2, "set_countdown", "T275 session 2 entry present");
+    if (s2.includes("set_scene_state")) throw new Error("T275 session 2 recap leaked a session 1 entry");
+
+    // REQ-237b1 — per-session metrics for both sessions.
+    const health = JSON.parse(await call(p2, "manage_diagnostics", { action: "health" }));
+    if (!Array.isArray(health.sessions)) throw new Error("REQ-237 sessions array missing");
+    if (health.sessions.length < 2) throw new Error(`expected two session metrics, got ${health.sessions.length}`);
+    for (const s of health.sessions) {
+      for (const field of ["session_id", "entry_count", "timespan_start", "timespan_end", "combat_rounds", "significant_roll_count", "scene_transitions"]) {
+        if (!(field in s)) throw new Error(`REQ-237 session metric '${field}' missing: ${JSON.stringify(s)}`);
+      }
+    }
+
+    // REQ-237b1 — the Player sees boundary timespans without the session_id.
+    await call(p2, "set_badge", { badge: "player" });
+    const playerAudit = ((await readRaw(p2, "audit://novel")).contents ?? []).map((c: any) => c.text ?? "").join("\n");
+    assertContains(playerAudit, "[session-boundary]", "Player sees the boundary marker");
+    if (playerAudit.includes("sess-1") || playerAudit.includes("sess-2")) throw new Error("Player audit leaked a session_id");
+    passed++;
+    await kill(p2);
   });
 
   await test("T352/REQ-308 + T377/REQ-330: knowledge gating by presence and exploration", async () => {
@@ -851,6 +890,13 @@ async function main() {
     await call(p, "manage_npc", { action: "create",  name: "Guard Captain" });
     const conflict = await call(p, "manage_codex", { action: "capture",  kind: "npc", source_id: "Guard Captain", update_source: true });
     assertContains(conflict, "[STATE_CONFLICT]", "T383 no-provenance conflict");
+    // REQ-321g — a captured entry defaults its ruleset to the source Novel's
+    // scope. This Novel is ruleset-free, so the scope is null; the key must
+    // still be written.
+    await call(p, "manage_codex", { action: "capture",  kind: "npc", source_id: "Guard Captain" });
+    const captured = JSON.parse(await call(p, "manage_codex", { action: "get",  id: "npc_guard_captain" }));
+    if (!Object.prototype.hasOwnProperty.call(captured, "ruleset")) throw new Error("REQ-321g captured entry omitted the ruleset field");
+    if (captured.ruleset !== null) throw new Error(`REQ-321g ruleset scope: ${JSON.stringify(captured.ruleset)}`);
     passed++;
     await kill(p);
   });
@@ -952,8 +998,18 @@ async function main() {
     }
     const info = JSON.parse(await call(p, "manage_novel", { action: "info" }));
     assertContains(JSON.stringify(info.codex_sources), "npc_blacksmith", "T384 codex_sources in novel_info");
+    // REQ-321l — the count is partitioned by kind.
+    const codexHealth = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if (!codexHealth.codex || typeof codexHealth.codex.total !== "number" || (codexHealth.codex.by_kind?.npc ?? 0) < 1) {
+      throw new Error(`T384 codex partition wrong: ${JSON.stringify(codexHealth.codex)}`);
+    }
     await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Blacksmith", content: { description: "Renamed smith" } });
+    // REQ-332b — the template changed after import, so the artifact is stale.
+    const staleHealth = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assertContains(JSON.stringify(staleHealth.codex_stale ?? []), "[codex-stale]", "T384 stale flag missing");
     await call(p, "manage_codex", { action: "import",  id: "npc_blacksmith" });
+    const clearedHealth = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if ((clearedHealth.codex_stale ?? []).length !== 0) throw new Error(`T384 stale flag not cleared: ${JSON.stringify(clearedHealth.codex_stale)}`);
     const list2 = JSON.parse(await call(p, "manage_npc", { action: "list", detail: true }));
     const smith2 = list2.filter((n: any) => n.name === "Blacksmith");
     if (smith2.length !== 1) throw new Error(`T384 duplicate NPCs: ${smith2.length}`);

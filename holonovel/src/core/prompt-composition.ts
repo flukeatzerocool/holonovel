@@ -37,6 +37,9 @@ export interface IntroContext {
   inputs?: PromptInputs | null;
   library: string;
   specRepoUrl: string;
+  // REQ-232c — the resume briefing's GM context summary, rendered when the
+  // caller has persisted gm_context.
+  gmContext?: string;
 }
 
 export interface SessionZeroContext {
@@ -88,7 +91,7 @@ function modelTagline(inputs: PromptInputs | null | undefined): string {
 }
 
 export function composeIntro(ctx: IntroContext): string {
-  const { inputs, library, specRepoUrl } = ctx;
+  const { inputs, library, specRepoUrl, gmContext } = ctx;
   const opening = inputs
     ? `${modelTagline(inputs)}
 
@@ -105,7 +108,10 @@ program you step into; the rules are whatever you bring to the table.`;
 
 ${opening}
 ${library}
-
+${gmContext ? `
+## GM context
+${gmContext}
+` : ""}
 ## Getting started
 1. Create a world for your campaign, or resume one from the list above.
 2. Run the setup guide to add characters, choose a story source, and agree on

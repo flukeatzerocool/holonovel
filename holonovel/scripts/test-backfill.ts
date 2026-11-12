@@ -218,10 +218,25 @@ async function main() {
       assertContains(recap, "Active Novel");
     });
 
-    await test("T268/T232: set_pause_context / get_pause_context", async () => {
+    await test("T268/T232: pause context round-trips with the briefing payload", async () => {
+      // REQ-232c — only decision/bond story entries are captured.
+      await call(proc, "manage_story", { action: "record", type: "decision", entry: "The party chose the west door." });
+      await call(proc, "manage_story", { action: "record", type: "moment", entry: "A Quiet moment in the hall." });
+      await call(proc, "manage_story", { action: "record", type: "bond", entry: "The ranger owes the cleric a favor." });
       await call(proc, "manage_novel", { action: "save_context",  current_scene: "In the hall", immediate_situation: "Guards approach" });
       const ctx = await call(proc, "manage_novel", { action: "get_context" });
       assertContains(ctx, "Guards approach");
+      assertContains(ctx, "badge_briefing");
+      assertContains(ctx, "Badge Briefing");
+      const parsed = JSON.parse(ctx);
+      const story = parsed.gm_context?.story_context ?? [];
+      if (!story.some((e: string) => e.includes("west door"))) throw new Error("decision beat missing from story_context");
+      if (!story.some((e: string) => e.includes("owes the cleric"))) throw new Error("bond beat missing from story_context");
+      if (story.some((e: string) => e.toLowerCase().includes("quiet moment"))) throw new Error("moment beat must not be captured");
+      // REQ-232c — resume's intro carries the GM context summary.
+      const intro = await getPrompt(proc, "intro", {});
+      assertContains(intro, "GM context");
+      assertContains(intro, "Guards approach");
     });
 
     await test("T279/T241: checkpoints save, list, restore, remove", async () => {
@@ -247,11 +262,53 @@ async function main() {
       await call(proc, "manage_archive", { action: "checkpoint_remove",  label: "pre-combat" });
     });
 
-    await test("T280/T242: notes set, list, remove", async () => {
+    await test("T280/T242: notes are badge-scoped and cleared with the Novel", async () => {
       await call(proc, "manage_note", { action: "set",  key: "gm-reminder", content: "Reveal the secret next turn" });
+      await call(proc, "manage_note", { action: "set",  key: "clue", content: "The key is in the clock", badge_scope: "player" });
       const list = await call(proc, "manage_note", { action: "list" });
       assertContains(list, "gm-reminder");
+      assertContains(list, "game_master");
+      assertContains(list, "clue");
+      assertContains(list, "player");
+
+      // REQ-242b — the GM briefing shows both scopes.
+      const gmBrief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(gmBrief, "gm-reminder");
+      assertContains(gmBrief, "clue");
+
+      await call(proc, "set_badge", { badge: "player" });
+      const playerList = await call(proc, "manage_note", { action: "list" });
+      assertContains(playerList, "clue");
+      assertNotContains(playerList, "gm-reminder");
+      const playerBrief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(playerBrief, "clue");
+      assertNotContains(playerBrief, "gm-reminder");
+      // REQ-242d — the Player is refused on GM-scoped writes and reads.
+      const forbiddenSet = await call(proc, "manage_note", { action: "set",  key: "gm_only", content: "secret", badge_scope: "game_master" });
+      assertContains(forbiddenSet, "FORBIDDEN");
+      const forbiddenRead = await readResource(proc, "notes://gm-reminder");
+      assertContains(forbiddenRead, "FORBIDDEN");
+      const playerClue = await readResource(proc, "notes://clue");
+      assertContains(playerClue, "The key is in the clock");
+      await call(proc, "set_badge", { badge: "game_master" });
+
+      // REQ-242b — export carries the notes map.
+      const exported = await call(proc, "manage_archive", { action: "export", format: "json" });
+      if (!exported.includes("badge_scope")) throw new Error("export missing badge_scope");
+      if (!exported.includes("clue")) throw new Error("export missing notes payload");
+
+      // REQ-242b — end clears the Novel's notes (temp Novel so the block continues).
+      await call(proc, "manage_novel", { action: "create",  name: "notes-temp" });
+      await call(proc, "manage_note", { action: "set",  key: "temp-note", content: "gone with the Novel" });
+      const ended = await call(proc, "manage_novel", { action: "end" });
+      assertContains(ended, "NEED_INPUT");
+      const confirmed = await call(proc, "respond_decision", { decision: "end_novel", option: "yes" });
+      assertContains(confirmed, "ended");
+      const back = await call(proc, "manage_novel", { action: "resume", slug: "bf" });
+      assertContains(back, "OK");
+      await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_note", { action: "remove",  key: "gm-reminder" });
+      await call(proc, "manage_note", { action: "remove",  key: "clue" });
     });
 
     await test("T334/T416/T285: server notes set, listed, and surfaced in the briefing", async () => {
@@ -283,11 +340,35 @@ async function main() {
       const playerBrief = await getPrompt(proc, "badge_briefing", {});
       assertNotContains(playerBrief, "[lore-seed]");
       assertNotContains(playerBrief, "Unfiled GM scribble");
+      // REQ-285c — every server-note surface is refused for the Player badge.
+      const refusedSet = await call(proc, "manage_note", { action: "set_server",  key: "x", content: "y" });
+      assertContains(refusedSet, "FORBIDDEN");
+      const refusedList = await call(proc, "manage_note", { action: "list_server" });
+      assertContains(refusedList, "FORBIDDEN");
+      const refusedRemove = await call(proc, "manage_note", { action: "remove_server",  key: "old-gods" });
+      assertContains(refusedRemove, "FORBIDDEN");
+      const refusedResource = await readResource(proc, "server-notes://old-gods");
+      assertContains(refusedResource, "FORBIDDEN");
       await call(proc, "set_badge", { badge: "game_master" });
+
+      // REQ-285a/b — the resource returns full content and spec_health counts.
+      const resourceText = await readResource(proc, "server-notes://old-gods");
+      assertContains(resourceText, "The old gods were banished to the outer dark");
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      if (typeof health.server_notes !== "number" || health.server_notes < 1) throw new Error(`server_notes count missing: ${JSON.stringify(health.server_notes)}`);
+
+      // REQ-285a — the store survives a server restart.
+      const restarted = await boot();
+      await call(restarted, "set_badge", { badge: "game_master" });
+      const afterRestart = await call(restarted, "manage_note", { action: "list_server" });
+      assertContains(afterRestart, "old-gods");
+      await kill(restarted);
 
       for (const key of ["old-gods", "dm-reminder", "house-rule", "bible", "blank", "untagged"]) {
         await call(proc, "manage_note", { action: "remove_server",  key });
       }
+      const emptied = await call(proc, "manage_note", { action: "list_server" });
+      assertNotContains(emptied, "old-gods");
     });
 
     await test("T337/T481/T291: ask_oracle returns a d100 ladder result", async () => {

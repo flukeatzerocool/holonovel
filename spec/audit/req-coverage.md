@@ -208,10 +208,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-230 | Synthesis status dashboard (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T327, T306 | — |
 | REQ-231 | Per-module synthesis toggle (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T307 | — |
 | REQ-232 | Pause/resume context (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T268 | — |
-| REQ-233 | Factions (Part b1) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T269, T408, T413, T415 | — |
+| REQ-233 | Factions (Part b1) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T269, T358, T408, T413, T415 | — |
 | REQ-234 | Secrets and knowledge (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T274, T406, T414 | — |
 | REQ-235 | Structured player choices (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T273 | — |
-| REQ-236 | Entity relationships (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T410 | — |
+| REQ-236 | Entity relationships (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T270, T410 | — |
 | REQ-237 | Session segmentation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T471, T275 | — |
 | REQ-238 | Backup rotation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T276 | — |
 | REQ-239 | Audit log compaction (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T277 | — |
@@ -276,7 +276,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-307 | Entity presence (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T351, T342, T356, S17 | — |
 | REQ-308 | Knowledge gating by presence (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T352, T356, T690 | — |
 | REQ-309 | World and narrative surface prominence (Part a) (8 sub-parts) | 5.10 World-Model Layer | C | T353, T643 | — |
-| REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T355 | — |
+| REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T355, T358 | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
 | REQ-312 | Pre-narration validation gate (Part d1) (6 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T357, T641 | — |
 | REQ-313 | Server implementation fingerprinting (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |

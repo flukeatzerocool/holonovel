@@ -625,6 +625,36 @@ async function main() {
       }
     });
 
+    await test("T270/REQ-236: relationship read, sheet, lore prompt, and pause capture", async () => {
+      // REQ-236c — faction/entity identifiers resolve and a suspicious entry
+      // with a numeric value round-trips through get and the sheet.
+      await call(proc, "manage_relationship", { action: "set",  entity_a: charId, entity_b: npcId, type: "suspicious", value: 3 });
+      const got = JSON.parse(await call(proc, "manage_relationship", { action: "get",  entity_id: charId }));
+      const row = got.outgoing.find((r: any) => r.type === "suspicious");
+      if (!row || row.value !== 3) throw new Error(`suspicious row missing: ${JSON.stringify(got.outgoing)}`);
+      const sheet = await call(proc, "manage_character", { action: "sheet",  entity_id: charId });
+      assertContains(sheet, "suspicious");
+
+      // REQ-236a — an ally↔rival flip prompts the GM to consider a lore entry.
+      await call(proc, "manage_relationship", { action: "set",  entity_a: charId, entity_b: npcId, type: "ally" });
+      await call(proc, "manage_relationship", { action: "set",  entity_a: charId, entity_b: npcId, type: "rival" });
+      const brief = await briefing(proc);
+      assertContains(brief, "Consider recording a lore entry");
+      await call(proc, "set_badge", { badge: "player" });
+      const playerBrief = await briefing(proc);
+      await call(proc, "set_badge", { badge: "game_master" });
+      assertNotContains(playerBrief, "Consider recording a lore entry");
+
+      // REQ-232/REQ-236 — relationships are captured by save_context.
+      await call(proc, "manage_novel", { action: "save_context",  current_scene: "The courtyard" });
+      const ctx = JSON.parse(await call(proc, "manage_novel", { action: "get_context" }));
+      // The relationship row is keyed by the display name of the first `set`;
+      // either endpoint token identifies it.
+      const captured = (ctx.gm_context?.relationships ?? []).find((r: any) =>
+        r.entity_b === npcId || r.entity_a === "Mara");
+      if (!captured) throw new Error(`pause context dropped the relationship: ${JSON.stringify(ctx.gm_context?.relationships)}`);
+    });
+
     await test("T-new: same-type set does not duplicate the marker", async () => {
       await call(proc, "manage_relationship", { action: "set",  entity_a: "Mara", entity_b: "Kestrel", type: "rival", value: 3 });
       const b = await briefing(proc);

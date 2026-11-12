@@ -11,6 +11,72 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 §5.6 state surfaces remediation
+
+Resolved in the 2026-11-12 increment. Findings F-P3B4-3 (neutral-inclusive
+marker set) and F-P3B4-8 (`ruleset` on a captured entry) were already satisfied
+in source; their resolution is the added assertion.
+
+- **F-P3B4-1 — pause/resume context gaps.** `get_context` now returns the
+  `badge_briefing` payload rendered read-only through
+  `composeBadgeBriefing(novel, { mutate: false })` (`index.ts:15305`); the
+  renderer skips the pacing counter and world-in-motion bookkeeping. The
+  `save_context` capture filters to `decision`/`bond` entries
+  (`index.ts:12016`), and the `intro` prompt renders a `## GM context` summary
+  from `gmContextSummary` (`:15242`) through `IntroContext.gmContext`
+  (`core/prompt-composition.ts:36`). T268 widened.
+- **F-P3B4-2 — world reactivity was NPC-only.** `WorldChange` and
+  `novel.world_in_motion` (`core/state.ts:807`) hold pending non-NPC changes;
+  `enqueueWorldChange` (`index.ts:2482`) covers the three REQ-233a1 triggers
+  (relationship set, `fillFactionClock`, `manage_lore (action: reveal)`) and
+  traces one hop through `worldChangeTargets` (`:2469`). The transition cycle
+  (`:2504`) receives the marker list captured before the clear
+  (`index.ts:6910`). `respond_decision` resolves accept/modify/defer/dismiss,
+  the `modify` branch raises an apply/cancel `[NEED_INPUT]` workflow, and the
+  fourth deferral surfaces `spec_health.world_reactivity_warnings` (derived at
+  render time, `:13223`). REQ-233a3's T358 now exists.
+- **F-P3B4-3 — relationship gaps.** `recordRelationshipMarker` records the
+  ally↔rival lore prompt rendered in `narrative_threads`
+  (`index.ts:1103`), and clears it with the markers at the transition. The
+  neutral-inclusive transition set was already implemented at `:1087`; T270
+  now asserts it.
+- **F-P3B4-4 — session markers were not badge-filtered.** `auditArgsForBadge`
+  (`index.ts:13688`) renders a `[session-boundary]` marker for a non-GM badge as
+  a `started_at`/`ended_at` timespan and strips `session_id` from other args;
+  boundary markers are always visible so the Player sees the timespan.
+- **F-P3B4-5 — notes were absent from the briefing.** `composeNotesSection`
+  (`index.ts:1060`) renders `### Notes (notes)` badge-filtered, and the `notes`
+  token is in both `section_tokens` and `VALID_TOKENS`.
+- **F-P3B4-6 — flat stores were not atomic.** `writeFlatStore`
+  (`core/state.ts:2875`) gives `server-notes.json` and `codex.json` the Novel
+  writer's `.bak.N` rotation, fsync, and rename.
+- **F-P3B4-7 — codex health count was not partitioned.** `spec_health.codex`
+  is `{ total, by_kind }` (`index.ts:13200`).
+- **F-P3B4-8 — captured entries carried no ruleset scope.** Already
+  implemented at capture (`index.ts:14740`, `ruleset: novel.ruleset ?? null`);
+  T383 now asserts the field.
+- **F-P3B4-9 — `[codex-stale]` was unimplemented.** `spec_health.codex_stale`
+  (`index.ts:13206`) compares each source entry's `codex_modified_at` against
+  the Novel artifact's recorded import value; T384 asserts the flag appears and
+  clears.
+- **F-P3B4-10 — REQ-065f cited an unexercised T52.** The `_Check:` re-points to
+  the exercised T224 (`test-persistence.ts:703`), which asserts all three drift
+  branches.
+- **F-P3B4-11 — REQ-236c cited an unexercised T270.** T270 now exists in
+  `test-narrative.ts` (relationship read, sheet, lore prompt, pause capture).
+- **F-P3B4-12 — REQ-233a3 cited an unexercised T358.** T358 now exists in
+  `test-briefing.ts` (reactivity/autonomy matrix, ripple memory fact, accept,
+  defer re-surface, fourth-deferral warning).
+- **F-P3B4-13 — T275 was narrower than REQ-237.** T275 now asserts two
+  boundary markers, per-session recap scoping through `sessionAuditRange`
+  (`index.ts:10439`), the full per-session metric set, and Player redaction.
+- **F-P3B4-14 — T280 was narrower than REQ-242.** T280 now asserts the default
+  `game_master` scope, Player list filtering, `notes://` `[FORBIDDEN]`, both
+  briefing views, the export shape, and end-Novel clearing.
+- **F-P3B4-15 — T334 was narrower than REQ-285.** T334 now asserts restart
+  persistence, Player refusals on all four surfaces, the
+  `server-notes://<key>` content, and the `spec_health.server_notes` count.
+
 ### 2026-11-12 §5.9/§5.19 persistence remediation
 
 - **F-P4-2 — an archive over an existing archived Novel deleted it (resolved
@@ -2056,65 +2122,6 @@ Each finding cites the predicate that carries it.
   `TTRPG_ADVENTURE_DIR` rather than `TTRPG_ADVENTURE` (`:2493`), and no
   `lookup_monster` fuzzy-match suggestion is produced for pre-populated NPCs
   (REQ-079d).
-
-### 2026-11-09 full-review sweep — chunk P3b-4 (§5.6 state surfaces and fingerprinting)
-
-Scheduled under `ROADMAP.md` § *§5.6 state surfaces remediation (P1)*.
-Each finding cites the predicate that carries it.
-
-- **F-P3B4-1 — pause/resume context gaps:** `get_context` returns JSON without
-  the required `badge_briefing` prompt (REQ-232b; `holonovel/src/index.ts:11032-11041`);
-  `save_context` captures the last three story entries with no `decision`/`bond`
-  type filter (REQ-232c; `:11025`); and the `intro` prompt never includes the
-  `gm_context` summary (REQ-232c; `:13824-13858`, `core/prompt-composition.ts`
-  has no `gm_context` input).
-- **F-P3B4-2 — world reactivity is NPC-only:** the World in Motion block
-  (`index.ts:14260-14300`) lists NPC goal suggestions only — no non-NPC pending
-  changes, no one-hop ripple-effect tracing (REQ-233a1), no `modify` option and
-  no max-3-deferral escalation to a `[WARNING]` (REQ-233a2; resolution at
-  `:3339-3359`). REQ-233a3's T358 has no harness.
-- **F-P3B4-3 — relationship gaps:** no `badge_briefing` prompt to consider a
-  lore entry when a relationship flips `ally`↔`rival` (REQ-236a;
-  `index.ts:7263-7310`), and the marker transition set is only ally↔rival,
-  ally↔suspicious, rival↔suspicious — any change involving `neutral` is omitted
-  (REQ-236b; `:975-982`).
-- **F-P3B4-4 — session markers are not badge-filtered:** the `audit://novel`
-  resource renders each entry's raw `args`, so a Player whose badge wrote the
-  `[session-boundary]` marker sees its `session_id` (REQ-237b1;
-  `index.ts:12450-12463`).
-- **F-P3B4-5 — notes are absent from the briefing:** no `notes` section token is
-  rendered in `badge_briefing` (REQ-242b; `index.ts:13863-14320`; `:10681` only
-  names the token).
-- **F-P3B4-6 — server-note and codex stores are not atomically written:**
-  `saveServerNotes` and `saveCodex` call `writeFileSync` directly with no
-  temp-and-rename and no backup rotation, unlike the Novel writer
-  (`core/state.ts:2654-2666`, `:2680-2692`; atomic+backup writer at `:174-193`)
-  (REQ-285a, REQ-321k).
-- **F-P3B4-7 — codex health count is not partitioned by kind:**
-  `spec_health.codex` is `state.codex.size` (REQ-321l; `index.ts:12030`).
-- **F-P3B4-8 — captured entries carry no ruleset scope:** the capture entry
-  construction sets no `ruleset` field (REQ-321g; `index.ts:13360-13377`).
-- **F-P3B4-9 — `[codex-stale]` is unimplemented:** no staleness computation or
-  flag exists in `spec_health` (REQ-332b/REQ-332c; `index.ts:12025-12035`; no
-  `codex-stale` literal in `holonovel/src`). T384's title claims "reports stale"
-  but its body asserts only that the health payload contains `codex`
-  (`holonovel/scripts/test-output-contracts.ts:854-877`).
-- **F-P3B4-10 — REQ-065f cites Automated T52 with no harness** (T224 is
-  exercised; `spec/appendices-reference.md:1508` classifies T52 Automated).
-- **F-P3B4-11 — REQ-236c cites Automated T270 with no harness.**
-- **F-P3B4-12 — REQ-233a3 cites Automated T358 with no harness.**
-- **F-P3B4-13 — REQ-237b2's T275 is narrower than the contract:**
-  `holonovel/scripts/test-output-contracts.ts:713-724` asserts only that
-  `spec_health.sessions` is an array — no boundary markers, recap scoping, or
-  per-session metrics (REQ-237b1/b2).
-- **F-P3B4-14 — REQ-242d's T280 is narrower than the contract:**
-  `holonovel/scripts/test-backfill.ts:248-253` asserts set/list/remove only — not
-  the default `game_master` scope, Player filtering, `notes://` `[FORBIDDEN]`,
-  or briefing visibility.
-- **F-P3B4-15 — REQ-285c's T334 is narrower than the contract:**
-  `holonovel/scripts/test-backfill.ts:255-260` asserts set/list only — not
-  restart persistence, Player `[FORBIDDEN]`, the `server-notes://` resource, or
-  the `spec_health` count.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

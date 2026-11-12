@@ -2596,7 +2596,7 @@ The server SHALL load existing state gracefully. Fields present in state but abs
 The server continues to operate with a clean state for the affected Novel — the corrupted state is not loaded; the Novel is treated as ended (resume returns `[STATE_CONFLICT]`). Roster baselines and other intact Novels are unaffected. A fresh start against an empty state directory is a match. *Acceptance criterion:* After a rebuild with added entity fields, an existing Novel loads without error. A corrupted JSON produces a stderr diagnostic naming the affected keys.
 
 **REQ-065f — Build fingerprint (Part f).**
-A ruleset modification after build produces a [ruleset-drift] warning in spec_health and stderr at next startup; a spec modification produces a [spec-drift] warning; neither blocks startup. _Check:_ T52, T224. Out of scope: relational database backends, distributed state, cloud synchronization, and cross-version state migration without the Update workflow (§6.7).
+A ruleset modification after build produces a [ruleset-drift] warning in spec_health and stderr at next startup; a spec modification produces a [spec-drift] warning; neither blocks startup. _Check:_ T224. Out of scope: relational database backends, distributed state, cloud synchronization, and cross-version state migration without the Update workflow (§6.7).
 **REQ-313a — Server implementation fingerprinting (Part a).**
 The builder SHALL compute SHA-256 content hashes for five server implementation components at every build and record them alongside the build fingerprint (REQ-065) in DECISIONS.md (1). _Check:_ T497.
 

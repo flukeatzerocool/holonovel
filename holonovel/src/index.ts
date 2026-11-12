@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment } from "./core/state.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { appendEvent, supersedeEvent, sliceThrough, describeEntry, evictToCap, type EventSource } from "./core/event-log.js";
 import { stateHash, canonicalJson, STATE_HASH_PROJECTION_VERSION } from "./core/state-hash.js";
@@ -400,7 +400,10 @@ function npcTalkativeness(npc: any): number {
 let worldReactivityOverride: boolean | null = null;
 function worldReactivityOn(): boolean {
   if (worldReactivityOverride !== null) return worldReactivityOverride;
-  return (process.env.TTRPG_WORLD_REACTIVITY ?? "true") !== "false";
+  // REQ-233a2/a3 — the setting defaults to active; the documented "off" value
+  // (and the conventional false forms) disable the cycle.
+  const raw = (process.env.TTRPG_WORLD_REACTIVITY ?? "true").trim().toLowerCase();
+  return !["false", "off", "0", "no"].includes(raw);
 }
 function worldGenMaxRooms(): number { return configInt("TTRPG_WORLD_GEN_MAX_ROOMS", 20); }
 
@@ -648,6 +651,11 @@ const pacingSessions = new Map<string, PacingSession>();
 // need a §7.7 class contract for a transient briefing line.
 interface RelationshipMarker { text: string; entity_ids: string[] }
 const relationshipMarkers = new Map<string, RelationshipMarker[]>();
+
+// REQ-236a — an ally↔rival flip prompts the GM to consider a lore entry. Like
+// the marker list, the prompt lives for the current scene and is deliberately
+// in memory (a persisted Novel field would need a §7.7 class contract).
+const relationshipLorePrompts = new Map<string, RelationshipMarker[]>();
 
 function pacingSession(novel: NovelState): PacingSession {
   let session = pacingSessions.get(novel.slug);
@@ -1046,6 +1054,17 @@ function composeKnowledgeState(novel: NovelState, entity: any, badge: Badge): st
   return section;
 }
 
+// REQ-242b — notes reach badge_briefing under the `notes` token: the Game
+// Master (and the Editor) see every scope; the Player and Observer see only
+// `player` and `shared` entries. Empty notes render no section.
+function composeNotesSection(novel: NovelState, badge: Badge): string {
+  const allScopes = badge === "game_master" || badge === "none";
+  const visible = novel.notes.filter((n) => allScopes || n.badge_scope !== "game_master");
+  if (visible.length === 0) return "";
+  const lines = visible.map((n) => `- ${n.key} [${n.badge_scope}]: ${n.content.length > 100 ? n.content.slice(0, 100) + "…" : n.content}`);
+  return `\n\n### Notes (notes)\n${lines.join("\n")}`;
+}
+
 // REQ-236b — the transition set: ally ↔ rival, ally ↔ suspicious,
 // rival ↔ suspicious, and any change involving neutral. A new row's previous
 // type reads as neutral.
@@ -1056,7 +1075,7 @@ function shouldMarkRelationshipChange(previous: string | undefined, next: string
   return pair === "ally|rival" || pair === "ally|suspicious" || pair === "rival|suspicious";
 }
 
-function recordRelationshipMarker(novel: NovelState, row: Relationship, type: string): void {
+function recordRelationshipMarker(novel: NovelState, row: Relationship, type: string, previousType?: string): void {
   const { a, b } = relationshipEndpoints(novel, row);
   const text = `Relationship changed: ${a.name} and ${b.name} are now ${type}.`;
   const list = relationshipMarkers.get(novel.slug) ?? [];
@@ -1064,11 +1083,31 @@ function recordRelationshipMarker(novel: NovelState, row: Relationship, type: st
     list.push({ text, entity_ids: [a.id, b.id] });
     relationshipMarkers.set(novel.slug, list);
   }
+  // REQ-233a1/a3 — the state change traces one hop immediately: the connected
+  // endpoint records a campaign-memory fact naming the shift. The GM-facing
+  // pending entry is enqueued from the scene's markers at the next transition.
+  recordCampaignMemory(novel, "threads", `${b.name} now regards ${a.name} as ${type}.`, "game_master");
+  enqueueWorldChange(novel, "relationship", `Relationship shift: ${a.name} and ${b.name} are now ${type}.`, [a.id, b.id]);
+
+  // REQ-236a — only a flip between ally and rival (either direction) prompts
+  // the lore consideration.
+  const pair = [previousType ?? "neutral", type].sort().join("|");
+  if (pair === "ally|rival") {
+    const promptText = `Consider recording a lore entry for the shift between ${a.name} and ${b.name}.`;
+    const prompts = relationshipLorePrompts.get(novel.slug) ?? [];
+    if (!prompts.some((p) => p.text === promptText)) {
+      prompts.push({ text: promptText, entity_ids: [a.id, b.id] });
+      relationshipLorePrompts.set(novel.slug, prompts);
+    }
+  }
 }
 
 function relationshipMarkerLines(novel: NovelState, badge: Badge, activeId?: string): string[] {
   const list = relationshipMarkers.get(novel.slug) ?? [];
-  if (badge === "game_master" || badge === "none") return list.map((marker) => marker.text);
+  if (badge === "game_master" || badge === "none") {
+    // REQ-236a — the lore consideration follows the marker it belongs to.
+    return [...list.map((marker) => marker.text), ...(relationshipLorePrompts.get(novel.slug) ?? []).map((p) => p.text)];
+  }
   if (badge === "player" && activeId) {
     return list.filter((marker) => marker.entity_ids.includes(activeId)).map((marker) => marker.text);
   }
@@ -2423,6 +2462,52 @@ function recordCampaignMemory(novel: NovelState, category: "npcs" | "threads" | 
   if (novel.campaign_memory.length > 200) novel.campaign_memory.shift();
 }
 
+// REQ-233a1 — a connected change traces one hop through the relationship
+// graph. Targets are the relationship endpoints other than the change's own
+// seeds; unknown ids pass through as tokens (the relationship store accepts
+// ids and display names alike).
+function worldChangeTargets(novel: NovelState, seedIds: string[]): string[] {
+  const seeds = new Set(seedIds.filter(Boolean));
+  const out = new Set<string>();
+  for (const row of novel.relationships) {
+    if (seeds.has(row.entity_a)) out.add(row.entity_b);
+    if (seeds.has(row.entity_b)) out.add(row.entity_a);
+  }
+  for (const seed of seeds) out.delete(seed);
+  return [...out];
+}
+
+// REQ-233a2 — enqueue a pending world change. Suppressed entirely while world
+// reactivity is off (REQ-233a3); a non-terminal duplicate is not re-enqueued.
+function enqueueWorldChange(novel: NovelState, source: WorldChange["source"], summary: string, seedIds: string[]): void {
+  if (!worldReactivityOn()) return;
+  const duplicate = novel.world_in_motion.some((c) =>
+    c.source === source && c.summary === summary && c.state !== "dismissed" && c.state !== "accepted");
+  if (duplicate) return;
+  novel.world_in_motion.push({
+    id: `${source}_${novel.world_in_motion.length + 1}_${Date.now().toString(36)}`,
+    source,
+    summary,
+    targets: worldChangeTargets(novel, seedIds),
+    state: "pending",
+    defer_count: 0,
+    created_at: new Date().toISOString(),
+  });
+  // Bounded like campaign memory so a long campaign cannot grow without limit.
+  while (novel.world_in_motion.length > 50) novel.world_in_motion.shift();
+}
+
+// REQ-233a1/a2 — the transition-time reactivity cycle. Relationship markers
+// accumulated during the closing scene become GM-facing pending changes. Defer
+// re-surfacing is handled by rendering deferred entries; the cap is derived in
+// spec_health, so no second persisted counter exists.
+function runWorldReactivityCycle(novel: NovelState, markers: RelationshipMarker[]): void {
+  if (!worldReactivityOn()) return;
+  for (const marker of markers) {
+    enqueueWorldChange(novel, "relationship", marker.text.replace(/^Relationship changed:\s*/, "Relationship shift: "), marker.entity_ids);
+  }
+}
+
 // REQ-084a1/a2 — proactive Available Actions: mechanically legal actions for
 // the active entity from scene type, capabilities, and active countdowns,
 // capped at TTRPG_MAX_AVAILABLE_ACTIONS (default 8) and badge-filtered.
@@ -3621,6 +3706,47 @@ server.registerTool("respond_decision", {
   const dec = canon(String(decision));
   const opt = canon(String(option));
 
+  // REQ-233a2 — pending world changes resolve by id (or the earliest pending
+  // entry when no NPC goal pursuit is competing for the bare option). Accept
+  // records the GM decision in campaign memory; modify raises a [NEED_INPUT]
+  // apply/cancel workflow; defer counts toward the four-deferral warning.
+  if (novel.world_in_motion.length > 0 && ["accept", "modify", "defer", "dismiss"].includes(opt)) {
+    const change =
+      novel.world_in_motion.find((c) => c.id === dec || c.id === opt) ??
+      (novel.npc_goal_suggestions.length === 0
+        ? novel.world_in_motion.find((c) => c.state === "pending" || c.state === "deferred")
+        : undefined);
+    if (change) {
+      if (opt === "modify") {
+        novel.pending_workflow = {
+          decision: `world_change:${change.id}`,
+          snapshot: state.captureWorkflowSnapshot(novel),
+          payload: { change_id: change.id },
+        } as any;
+        state.saveNovel(novel);
+        return needInput(`Modify world change '${change.summary}'. Respond with apply to accept it, or cancel to leave it pending.`);
+      }
+      if (opt === "accept") {
+        recordCampaignMemory(novel, "threads", `GM accepted: ${change.summary}`, "game_master");
+        change.state = "accepted";
+        audit("world-in-motion", { change: change.id, source: change.source, disposition: "accepted" });
+        state.saveNovel(novel);
+        return ok(`World change accepted: ${change.summary}`);
+      }
+      if (opt === "defer") {
+        change.defer_count += 1;
+        change.state = "deferred";
+        audit("world-in-motion", { change: change.id, source: change.source, disposition: "deferred", deferrals: change.defer_count });
+        state.saveNovel(novel);
+        return ok(`World change deferred (${change.defer_count}/3) — it re-surfaces at the next scene transition.`);
+      }
+      change.state = "dismissed";
+      audit("world-in-motion", { change: change.id, source: change.source, disposition: "dismissed" });
+      state.saveNovel(novel);
+      return ok(`World change dismissed: ${change.summary}`);
+    }
+  }
+
   // REQ-339 — World in Motion goal-pursuit suggestion resolution (no pending
   // workflow required; suggestions are surfaced in badge_briefing).
   if (novel.npc_goal_suggestions.length > 0 && ["accept", "defer", "dismiss", "auto-apply"].includes(opt)) {
@@ -3692,6 +3818,25 @@ server.registerTool("respond_decision", {
 
   // Determine the workflow kind from the stable machine token, not the echo.
   const kind = pw.decision;
+
+  // REQ-233a2 — modify a pending world change: apply accepts it (recording the
+  // GM decision); the generic cancel path above restores the pre-modify
+  // snapshot and leaves the change pending.
+  if (kind.startsWith("world_change:")) {
+    const id = kind.slice("world_change:".length);
+    const change = novel.world_in_motion.find((c) => c.id === id);
+    novel.pending_workflow = null;
+    if (opt === "apply") {
+      if (change) {
+        recordCampaignMemory(novel, "threads", `GM accepted: ${change.summary}`, "game_master");
+        change.state = "accepted";
+        audit("world-in-motion", { change: change.id, source: change.source, disposition: "accepted", via: "modify" });
+      }
+      state.saveNovel(novel);
+      return ok(`World change applied: ${change?.summary ?? id}`);
+    }
+    return err("INVALID_INPUT", "Respond with apply to accept the world change, or cancel to leave it pending.");
+  }
   // REQ-431 — procedural world generation decision: apply converts the
   // proposed assertions into the world model; discard drops them.
   if (kind === "world_generate" || kwMatch(dec, ["world_generate", "world generate"])) {
@@ -5116,6 +5261,8 @@ server.registerTool("run_command", {
       advanceWorldTriggeredCountdowns(novel, `room_enter:${goResult.newRoom.toLowerCase()}`);
       // REQ-125/REQ-353 — a parser move is a scene transition: tick on_scene_transition clocks.
       advanceSceneTransitionCountdowns(novel);
+      // REQ-233a1 — the same reactivity cycle runs on a parser-driven transition.
+      runWorldReactivityCycle(novel, [...(relationshipMarkers.get(novel.slug) ?? [])]);
       // REQ-622 — hazard rooms resolve after the transition tick, before discoveries.
       hazardWarnings.push(...enterRoomHazards(novel, goResult.newRoom));
       // Persist the move even when the room was already explored and no
@@ -6434,6 +6581,8 @@ function fillFactionClock(novel: NovelState, f: FactionRecord): void {
   syncFactionClock(novel, f);
   const notices = factionFillNotices.get(novel.slug) ?? [];
   notices.push(`Faction '${f.name}' clock filled — status advanced to '${f.status}'.`);
+  // REQ-233a1 — a faction clock filling is a connected change.
+  enqueueWorldChange(novel, "faction", `Faction '${f.name}' completed a goal — status advanced to '${f.status}'.`, [f.id]);
   factionFillNotices.set(novel.slug, notices.slice(-5));
   audit("faction_clock_fill", { faction: f.id, status: f.status });
 }
@@ -6827,13 +6976,20 @@ server.registerTool("manage_scene", {
           if (entity) entity.current_room = matchRoom[1].name;
         }
       }
-      if (isTransition) relationshipMarkers.delete(novel.slug);
+      // REQ-233a1 — capture the closing scene's markers before the clear so the
+      // reactivity cycle can enqueue their pending changes.
+      const transitionMarkers = isTransition ? [...(relationshipMarkers.get(novel.slug) ?? [])] : [];
+      if (isTransition) {
+        relationshipMarkers.delete(novel.slug);
+        relationshipLorePrompts.delete(novel.slug);
+      }
       if (isTransition && !skip_transition_hook) {
         // REQ-449 — a scene transition closes the current turn: the excessive-
         // agency mutation counter resets for the next turn.
         state.resetAiMutationTurn();
         audit("scene-transition", { from: novel.scene_history.slice(-1)[0]?.description, to: effectiveDescription });
         advanceSceneTransitionCountdowns(novel);
+        runWorldReactivityCycle(novel, transitionMarkers);
         resolvePendingDiscoveries(novel);
         factionAutonomousAdvance(novel);
         resetPacing(novel);
@@ -7725,6 +7881,8 @@ server.registerTool("manage_lore", {
       }
       if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
       if (!secret.known_by.includes(args.entity_id)) secret.known_by.push(args.entity_id);
+      // REQ-233a1 — a secret revelation is a connected change.
+      enqueueWorldChange(novel, "secret", `Secret '${secret.key}' revealed to '${args.entity_id}'.`, [args.entity_id]);
       // REQ-595 — an explicit reveal is a `told` perception for the recipient.
       const recipient = novel.entities.get(args.entity_id);
       const summary = `Secret '${secret.key}' revealed`;
@@ -7978,7 +8136,7 @@ server.registerTool("manage_relationship", {
       }
       const effType = row.type;
       if (shouldMarkRelationshipChange(previousType, effType)) {
-        recordRelationshipMarker(novel, row, effType ?? "");
+        recordRelationshipMarker(novel, row, effType ?? "", previousType);
       }
       if (previousType !== "rival" && effType === "rival") {
         shiftRelationshipDispositions(novel, row);
@@ -10275,6 +10433,26 @@ const MANAGE_SESSION_SCHEMA = {
     to_event: z.number().optional().describe("Target event ordinal for replay inspection (replay; default the newest retained entry)."),
   };
 
+// REQ-237b1 — the audit range for a live session: from its [session-boundary]
+// marker to the next marker (or the end of the log). Returns null when the id
+// names no live marker, so the caller can fall through to the archive path.
+function sessionAuditRange(novel: NovelState, sessionId: string): { entries: any[]; started_at?: string; ended_at?: string } | null {
+  const markers: { index: number; args: any }[] = [];
+  novel.audit_log.forEach((entry: any, index: number) => {
+    if (entry.tool !== "[session-boundary]") return;
+    let parsed: any = {};
+    try { parsed = typeof entry.args === "string" ? JSON.parse(entry.args) : (entry.args ?? {}); } catch { parsed = {}; } // non-JSON marker args carry no session id
+    markers.push({ index, args: parsed });
+  });
+  for (let i = 0; i < markers.length; i++) {
+    if (markers[i].args?.session_id !== sessionId) continue;
+    const start = markers[i].index;
+    const end = markers[i + 1]?.index ?? novel.audit_log.length;
+    return { entries: novel.audit_log.slice(start, end), started_at: markers[i].args?.started_at, ended_at: markers[i].args?.ended_at };
+  }
+  return null;
+}
+
 const MANAGE_CONTEXT_CANONICAL_SCHEMA = {
   ...pickParams(MANAGE_SESSION_SCHEMA, [
     "action", "mode", "sections", "gm_notes", "session_id", "format", "max_transitions", "max_rolls", "query", "detail", "tier", "budget_tokens",
@@ -10354,7 +10532,7 @@ const handleContextTool = async (args: any): Promise<any> => {
     case "briefing_order": {
       requireGM();
       const novel = requireNovel();
-      const VALID_TOKENS = ["scene_state", "entities", "combat_state", "available_actions", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal"];
+      const VALID_TOKENS = ["scene_state", "entities", "combat_state", "available_actions", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal", "notes"];
       if (args.sections.length > 0) {
         const unknown = args.sections.filter((s: string) => !VALID_TOKENS.includes(s));
         if (unknown.length > 0) return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_TOKENS.join(", ")}.`);
@@ -10417,6 +10595,26 @@ Options: yes, cancel`);
       const maxTransitions = args.max_transitions ?? 5;
       if (!Number.isInteger(maxTransitions) || maxTransitions < 1 || maxTransitions > 20) {
         return err("INVALID_INPUT", "max_transitions must be an integer in the valid range 1–20.");
+      }
+      // REQ-237b1 — a session_id naming a live session scopes the recap to the
+      // audit range bounded by that [session-boundary] marker and the next one.
+      // An id that matches no live marker falls through to the archive path
+      // (REQ-239b), which summarizes a compacted session.
+      if (args.session_id) {
+        const bounds = sessionAuditRange(novel, args.session_id);
+        if (bounds) {
+          const badge = getBadge();
+          const isGM = badge === "game_master" || badge === "none";
+          const lines = bounds.entries
+            .filter((e: any) => isGM || e.badge !== "game_master")
+            .map((e: any) => `${e.timestamp} | ${e.badge} | ${e.tool} | ${e.output_prefix || "-"}`);
+          return ok([
+            `session_scope: ${args.session_id}`,
+            `timespan: ${bounds.started_at ?? "(unknown)"} → ${bounds.ended_at ?? "(open)"}`,
+            `entry_count: ${bounds.entries.length}`,
+            ...lines,
+          ].join("\n"));
+        }
       }
       const parts: string[] = [];
       const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
@@ -11826,7 +12024,11 @@ Options: yes, cancel${driftWarn}`);
         countdown_positions: [...novel.countdowns.entries()].map(([name, cd]) => ({ name, ticks: cd.ticks, total: cd.total })),
         npc_dispositions: [...novel.npcs.values()].map(n => ({ name: n.name, disposition: n.disposition, location: n.location })),
         relationships: novel.relationships,
-        story_context: novel.story_journal.slice(-3).map(s => s.entry),
+        // REQ-232c — only decision and bond entries are captured, newest last.
+        story_context: novel.story_journal
+          .filter(s => s.type === "decision" || s.type === "bond")
+          .slice(-3)
+          .map(s => s.entry),
         active_vows: novel.vows.filter(v => v.state === "active").map(v => ({ name: v.name, difficulty: v.difficulty, milestone_count: v.milestones })),
       };
       novel.gm_context = { ...novel.gm_context, ...f, saved_at: new Date().toISOString() };
@@ -11842,6 +12044,10 @@ Options: yes, cancel${driftWarn}`);
       const novel = requireNovel();
       return raw(JSON.stringify({
         gm_context: novel.gm_context,
+        // REQ-232b — the complete resumption briefing includes the
+        // badge_briefing prompt. Rendered read-only: no pacing advance and no
+        // world-in-motion bookkeeping from a documented read tool.
+        badge_briefing: composeBadgeBriefing(novel, { mutate: false }),
         novel_slug: novel.slug,
         scene: novel.scene_description,
         world_rooms: novel.world.rooms.size,
@@ -12982,9 +13188,43 @@ function buildSpecHealth(): Record<string, unknown> {
     // REQ-334 — archived Novels surface with slug + archive timestamp.
     archived_novels: isGM ? state.archivedNovels() : undefined,
     server_notes: state.serverNotes.size,
-    codex: isGM ? state.codex.size : undefined,
+    // REQ-321l — the codex count is partitioned by kind.
+    codex: isGM
+      ? (() => {
+        const by_kind: Record<string, number> = {};
+        for (const entry of state.codex.values()) {
+          const kind = String((entry as any).kind ?? "unknown");
+          by_kind[kind] = (by_kind[kind] ?? 0) + 1;
+        }
+        return { total: state.codex.size, by_kind };
+      })()
+      : undefined,
     // REQ-332 — codex provenance register for the active Novel.
     codex_sources: isGM && novel ? (novel.codex_sources ?? []) : undefined,
+    // REQ-332b — a source entry modified after the import makes the Novel
+    // artifact stale.
+    codex_stale: isGM && novel
+      ? (novel.codex_sources ?? [])
+        .filter((cs: any) => {
+          const entry: any = state.codex.get(cs.id);
+          return entry && String(entry.codex_modified_at ?? "") > String(cs.codex_modified_at ?? "");
+        })
+        .map((cs: any) => ({
+          artifact: cs.id,
+          kind: cs.kind,
+          codex_id: cs.id,
+          imported_at: cs.imported_at,
+          codex_modified_at: cs.codex_modified_at,
+          flag: "[codex-stale]",
+        }))
+      : undefined,
+    // REQ-233a2 — a fourth deferral escalates to a warning; derived from the
+    // persisted change list, never a second counter.
+    world_reactivity_warnings: isGM && novel
+      ? novel.world_in_motion
+        .filter((c) => c.defer_count >= 4)
+        .map((c) => ({ id: c.id, summary: c.summary, deferrals: c.defer_count, flag: "[WARNING]" }))
+      : undefined,
     // REQ-170 — adventure discovery surface: indexed adventure slugs + content
     // hashes (informational; adventure modules ship with the build).
     indexed_adventures: isGM ? Object.fromEntries((novel?.adventure_index ? [[novel.adventure_slug ?? "generated", "adventure-scaffold"]] : [])) : undefined,
@@ -13160,6 +13400,7 @@ function buildSpecHealth(): Record<string, unknown> {
       { token: "campaign_memory", group: "campaign memory", has_content: !!(novel && (novel.campaign_memory ?? []).length > 0) },
       { token: "world_state", group: "world-model room context", has_content: !!(novel && novel.world.rooms.size > 0) },
       { token: "story_journal", group: "story journal", has_content: !!(novel && novel.story_journal.length > 0) },
+      { token: "notes", group: "novel notes", has_content: !!(novel && novel.notes.length > 0) },
     ],
     // REQ-263 — synthesis auto-trigger threshold (visible).
     synthesis_auto_trigger: process.env.TTRPG_SYNTHESIS_AUTO_TRIGGER ?? "off",
@@ -13439,6 +13680,37 @@ server.registerResource("lore-single", new ResourceTemplate("lore://{key}", { li
 });
 
 // Audit resource
+// REQ-237b1 — non-GM audit rendering: the Player and Observer see a
+// [session-boundary] marker as a timespan without the session_id, and any
+// other entry's args have a session_id key removed (JSON when parseable,
+// textual removal otherwise). The GM sees the raw entry; the chain hash is
+// never recomputed.
+function auditArgsForBadge(entry: any, isGM: boolean): string {
+  const raw = entry?.args;
+  if (isGM) return typeof raw === "string" ? raw : (raw == null ? "" : JSON.stringify(raw));
+  const strip = (value: any): any => {
+    if (!value || typeof value !== "object") return value;
+    const { session_id: _sessionId, ...rest } = value as Record<string, any>;
+    return rest;
+  };
+  let parsed: any;
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    parsed = undefined;
+  }
+  if (parsed && typeof parsed === "object") {
+    if (entry?.tool === "[session-boundary]") {
+      const { started_at, ended_at } = parsed as any;
+      return JSON.stringify({ started_at, ended_at });
+    }
+    return JSON.stringify(strip(parsed));
+  }
+  return String(raw ?? "")
+    .replace(/"session_id"\s*:\s*"[^"]*"/g, '"session_id":"[redacted]"')
+    .replace(/session_id\s*[:=]\s*\S+/g, "session_id:[redacted]");
+}
+
 server.registerResource("audit-novel", "audit://novel", { title: "Audit Log" }, async () => {
   // REQ-168a/b — the audit resource renders the full chained log as Markdown,
   // one entry per line, badge-filtered (Player/Observer see own-badge entries
@@ -13453,10 +13725,11 @@ server.registerResource("audit-novel", "audit://novel", { title: "Audit Log" }, 
   const visible = isGM
     ? novel.audit_log
     : novel.audit_log.filter((e: any) =>
+        e.tool === "[session-boundary]" ||
         e.badge === badge ||
         (activeId && typeof e.args === "string" && e.args.includes(activeId)));
   const text = visible
-    .map((e: any) => [e.timestamp, e.badge, e.tool, e.output_prefix || "-", e.hash, e.args ?? "", e.security_event ? "security_event" : ""].filter((part, i) => i < 6 || part).join(" | "))
+    .map((e: any) => [e.timestamp, e.badge, e.tool, e.output_prefix || "-", e.hash, auditArgsForBadge(e, isGM), e.security_event ? "security_event" : ""].filter((part, i) => i < 6 || part).join(" | "))
     .join("\n");
   return { contents: [{ uri: "audit://novel", text, mimeType: "text/markdown" }] };
 });
@@ -14964,6 +15237,31 @@ function runWorkflowCategories(toolNames: string[]): ToolCategory[] {
 }
 
 
+// REQ-232c — the intro prompt includes the persisted gm_context summary on
+// resume. Only populated fields are listed; an empty context yields no block.
+function gmContextSummary(novel: NovelState | null | undefined): string | undefined {
+  const ctx = novel?.gm_context;
+  if (!ctx) return undefined;
+  const lines: string[] = [];
+  const scalar: Array<[keyof typeof ctx, string]> = [
+    ["current_scene", "Scene"],
+    ["immediate_situation", "Situation"],
+    ["pending_player_action", "Pending action"],
+    ["short_term_plans", "Short-term plans"],
+    ["long_term_plans", "Long-term plans"],
+    ["player_goals", "Player goals"],
+  ];
+  for (const [key, label] of scalar) {
+    const value = (ctx as any)[key];
+    if (typeof value === "string" && value.trim().length > 0) lines.push(`- ${label}: ${value}`);
+  }
+  const story = Array.isArray((ctx as any).story_context) ? (ctx as any).story_context : [];
+  for (const entry of story.slice(-3)) lines.push(`- Recent beat: ${entry}`);
+  const vows = Array.isArray((ctx as any).active_vows) ? (ctx as any).active_vows : [];
+  for (const vow of vows) lines.push(`- Vow: ${vow.name} (${vow.difficulty}, ${vow.milestone_count} milestones)`);
+  return lines.length > 0 ? lines.join("\n") : undefined;
+}
+
 server.prompt("intro", "Introduction and Getting Started", async () => {
   // REQ-063b — preview truncation at TTRPG_NOVEL_PREVIEW_CHARS (default 120),
   // session count, last-played date, and synthesis status per Novel.
@@ -14997,20 +15295,20 @@ server.prompt("intro", "Introduction and Getting Started", async () => {
           inputs: promptInputsFor(state.activeNovel),
           library,
           specRepoUrl: specRepoUrl(),
+          gmContext: gmContextSummary(state.activeNovel),
         })),
       },
     }],
   };
 });
 
-server.prompt("badge_briefing", "Current Badge Briefing", async () => {
-  const novel = state.activeNovel;
+function composeBadgeBriefing(novel: NovelState | null | undefined, opts: { mutate: boolean }): string {
   // REQ-136 — Editor-badge briefing: with no active Novel, return setup-oriented
   // content — available Novels, the active Novel name if any, intro pointer.
   if (!novel) {
     const novels = [...state.novels.entries()].map(([slug, n]) => `- ${n.name} (${slug})`);
     const list = novels.length > 0 ? `\nAvailable Novels:\n${novels.join("\n")}` : "\nNo Novels yet — create one to begin.";
-    return { messages: [{ role: "user", content: { type: "text" as const, text: `## Editor Briefing${list}\n\nUse the intro prompt to get started, or manage_novel (action: create) to set up a new campaign.` } }] };
+    return `## Editor Briefing${list}\n\nUse the intro prompt to get started, or manage_novel (action: create) to set up a new campaign.`;
   }
 
   const badge = novel.badge;
@@ -15026,7 +15324,7 @@ server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   // REQ-336/351 — the pacing counter advances in the tool-registry wrapper.
   // Rendering the briefing reads the signal and commits one autonomy cycle when
   // the window has been exceeded.
-  triggerPacingAutonomy(novel);
+  if (opts.mutate) triggerPacingAutonomy(novel);
 
   let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
 **Novel:** ${novel.name} (${novel.slug})
@@ -15431,7 +15729,7 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
     // REQ-339 — World in Motion: goal-pursuit suggestions (GM only);
     // REQ-233a — the reactivity cycle runs only while world reactivity is on.
     if (badge === "game_master" && worldReactivityOn()) {
-      if (npcAutonomyOn()) {
+      if (opts.mutate && npcAutonomyOn()) {
         for (const [, npc] of novel.npcs) {
           const goal = npc.personality?.goals;
           if (!goal) continue;
@@ -15442,7 +15740,7 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       }
       // REQ-339e — session-boundary beats, once per session, derived from the
       // audit log. Default off; requires NPC autonomy.
-      if (npcAutonomyOn() && npcProactiveBoundaryOn() && !boundaryBeatFiredThisSession(novel)) {
+      if (opts.mutate && npcAutonomyOn() && npcProactiveBoundaryOn() && !boundaryBeatFiredThisSession(novel)) {
         const surfaced: string[] = [];
         for (const [, npc] of novel.npcs) {
           const goal = npc.personality?.goals;
@@ -15455,17 +15753,27 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
         if (surfaced.length > 0) audit("npc-boundary-beat", { npcs: surfaced });
       }
       const active = novel.npc_goal_suggestions.filter((s) => s.state !== "dismissed" && s.state !== "accepted");
-      if (active.length > 0) {
-        briefing += `\n\n## World in Motion\n${active.map((s) => {
-          // REQ-339d — the auto-apply option surfaces only for NPCs carrying a
-          // populated mind directive when TTRPG_NPC_MIND=on.
-          const npc = novel.npcs.get(s.npc_id);
-          const opts = npcMindOn() && npc?.mind?.directive
-            ? "`accept`, `defer`, `dismiss`, or `auto-apply`"
-            : "`accept`, `defer`, or `dismiss`";
-          return `${s.text}\n   — respond ${opts} (suggestion ${s.npc_id})`;
-        }).join("\n")}`;
-        state.saveNovel(novel);
+      const npcLines = active.map((s) => {
+        // REQ-339d — the auto-apply option surfaces only for NPCs carrying a
+        // populated mind directive when TTRPG_NPC_MIND=on.
+        const npc = novel.npcs.get(s.npc_id);
+        const choices = npcMindOn() && npc?.mind?.directive
+          ? "`accept`, `defer`, `dismiss`, or `auto-apply`"
+          : "`accept`, `defer`, or `dismiss`";
+        return `${s.text}\n   — respond ${choices} (suggestion ${s.npc_id})`;
+      });
+      // REQ-233a2 — pending world changes carry source, summary, and the
+      // accept/modify/defer labels.
+      const changeLines = novel.world_in_motion
+        .filter((c) => c.state === "pending" || c.state === "deferred")
+        .map((c) => {
+          const affects = c.targets.length > 0 ? `; affects: ${c.targets.join(", ")}` : "";
+          return `${c.summary}\n   — source: ${c.source}${affects}; respond \`accept\`, \`modify\`, or \`defer\` (change ${c.id})`;
+        });
+      const wimLines = [...npcLines, ...changeLines];
+      if (wimLines.length > 0) {
+        briefing += `\n\n## World in Motion\n${wimLines.join("\n")}`;
+        if (opts.mutate) state.saveNovel(novel);
       }
     }
 
@@ -15475,6 +15783,9 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
       briefing += `\n\n### Story journal\n${storyItems}`;
     }
   }
+
+  // REQ-242b — Novel notes, badge-filtered.
+  briefing += composeNotesSection(novel, badge);
 
   // REQ-286 — knowledge state (decision-critical, all badges with an entity).
   briefing += composeLoreSection(novel, badge);
@@ -15490,7 +15801,11 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
   const bc = briefingConsistency();
   briefing += `\n\n**Briefing consistency:** events through #${bc.through_ordinal}; index ${bc.index}; graph ${bc.graph}.${bc.advisory ? ` ${bc.advisory}` : ""}`;
 
-  return { messages: [{ role: "user", content: { type: "text" as const, text: briefing } }] };
+  return briefing;
+}
+
+server.prompt("badge_briefing", "Current Badge Briefing", async () => {
+  return { messages: [{ role: "user", content: { type: "text" as const, text: composeBadgeBriefing(state.activeNovel, { mutate: true }) } }] };
 });
 
 server.prompt("narrate", "Narration Clearance", async () => {

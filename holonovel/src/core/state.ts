@@ -459,6 +459,19 @@ export interface GoalSuggestion {
   state: "pending" | "deferred" | "dismissed" | "accepted";
 }
 
+// REQ-233a2 — a pending world change surfaced in the World in Motion section.
+// Relationship, faction-fill, and secret-reveal triggers enqueue entries; the
+// GM accepts, modifies, or defers them.
+export interface WorldChange {
+  id: string;
+  source: "relationship" | "faction" | "secret";
+  summary: string;
+  targets: string[];
+  state: "pending" | "accepted" | "deferred" | "dismissed";
+  defer_count: number;
+  created_at: string;
+}
+
 export interface SecretState {
   key: string;
   content: string;
@@ -791,6 +804,7 @@ export interface NovelState {
   scene_transition_count: number; // REQ-338 — for faction autonomous interval
   faction_autonomous_ticks: Record<string, number>; // REQ-338 — per-faction autonomous tick count
   npc_goal_suggestions: GoalSuggestion[]; // REQ-339 — World in Motion suggestions
+  world_in_motion: WorldChange[]; // REQ-233a2 — pending world changes
   voice_corrections_this_session: number; // REQ-344 — correction limit counter
   // §5.19 State Persistence Guardrails (REQ-400 through REQ-407)
   auto_record: boolean; // REQ-405 — auto-moment on transitions
@@ -1254,6 +1268,7 @@ export class StateManager {
       scene_transition_count: 0,
       faction_autonomous_ticks: {},
       npc_goal_suggestions: [],
+      world_in_motion: [],
       voice_corrections_this_session: 0,
       auto_record: autoRecordDefaultFromEnv(),
       format_version: NOVEL_FORMAT_VERSION,
@@ -1710,6 +1725,7 @@ export class StateManager {
       scene_transition_count: data.scene_transition_count ?? 0,
       faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
       npc_goal_suggestions: data.npc_goal_suggestions ?? [],
+      world_in_motion: data.world_in_motion ?? [],
       voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
       auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
       format_version: data.novel_format_version ?? 1,
@@ -2106,11 +2122,17 @@ export class StateManager {
         significant_roll_count: 0,
         scene_transitions: 0,
       });
+      // REQ-237a — the marker carries the session id, the first mutating
+      // call's timestamp, and the previous session's last mutating entry (null
+      // for the first session).
+      const previousEntryAt = novel.audit_log.length > 0
+        ? novel.audit_log[novel.audit_log.length - 1].timestamp
+        : null;
       const marker: AuditEntry & { session_id?: string } = {
         timestamp: now,
         badge,
         tool: "[session-boundary]",
-        args: JSON.stringify({ session_id: sessionId }),
+        args: JSON.stringify({ session_id: sessionId, started_at: now, ended_at: previousEntryAt }),
         output_prefix: "[session-boundary]",
         hash: "",
         notation: "? session boundary",
@@ -2846,15 +2868,43 @@ ${turnOrder}`;
     } catch { /* ignore corrupt */ }
   }
 
-  saveServerNotes(): void {
+  // REQ-285a / REQ-321k — flat server stores share the Novel writer's
+  // durability contract: rotate the .bak.N chain, fsync a temp file, then
+  // rename it over the primary. TTRPG_NOVEL_BACKUP_COUNT governs the chain for
+  // every persisted artifact, so no second behavioral config is introduced.
+  private writeFlatStore(fileName: "server-notes.json" | "codex.json", payload: Record<string, any>): void {
     fs.mkdirSync(this.stateDir, { recursive: true });
+    const filePath = path.join(this.stateDir, fileName);
+    const count = this.backupCount();
+    const out = JSON.stringify(payload, null, 2);
+    if (count > 1) {
+      for (let i = count - 1; i >= 1; i--) {
+        const from = `${filePath}.bak.${i}`;
+        const to = `${filePath}.bak.${i + 1}`;
+        if (fs.existsSync(from)) {
+          if (fs.existsSync(to)) fs.unlinkSync(to);
+          fs.renameSync(from, to);
+        }
+      }
+    }
+    if (fs.existsSync(filePath)) fs.copyFileSync(filePath, `${filePath}.bak.1`);
+    for (let i = count + 1; ; i++) {
+      const stale = `${filePath}.bak.${i}`;
+      if (!fs.existsSync(stale)) break;
+      fs.unlinkSync(stale);
+    }
+    const tmpPath = `${filePath}.${process.pid}-${Date.now()}.tmp`;
+    const fd = fs.openSync(tmpPath, "w");
+    fs.writeFileSync(fd, out);
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fs.renameSync(tmpPath, filePath);
+  }
+
+  saveServerNotes(): void {
     const notesData: Record<string, any> = Object.fromEntries(this.serverNotes);
     notesData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
-    fs.writeFileSync(
-      path.join(this.stateDir, "server-notes.json"),
-      JSON.stringify(notesData, null, 2),
-      "utf-8",
-    );
+    this.writeFlatStore("server-notes.json", notesData);
     this.staleData.delete("server-notes");
     this.staleDetail.delete("server-notes");
   }
@@ -2873,14 +2923,9 @@ ${turnOrder}`;
   }
 
   saveCodex(): void {
-    fs.mkdirSync(this.stateDir, { recursive: true });
     const codexData: Record<string, any> = Object.fromEntries(this.codex);
     codexData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
-    fs.writeFileSync(
-      path.join(this.stateDir, "codex.json"),
-      JSON.stringify(codexData, null, 2),
-      "utf-8",
-    );
+    this.writeFlatStore("codex.json", codexData);
     this.staleData.delete("codex");
     this.staleDetail.delete("codex");
   }
@@ -2996,6 +3041,7 @@ function novelToJSON(novel: NovelState): any {
     scene_transition_count: novel.scene_transition_count,
     faction_autonomous_ticks: novel.faction_autonomous_ticks,
     npc_goal_suggestions: novel.npc_goal_suggestions,
+    world_in_motion: novel.world_in_motion,
     voice_corrections_this_session: novel.voice_corrections_this_session,
     auto_record: novel.auto_record,
     session_no_mutation_windows: novel.session_no_mutation_windows,
@@ -3190,7 +3236,8 @@ function novelFromJSON(data: any): NovelState {
     scene_transition_count: data.scene_transition_count ?? 0,
     faction_autonomous_ticks: data.faction_autonomous_ticks ?? {},
     npc_goal_suggestions: data.npc_goal_suggestions ?? [],
-voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
+    world_in_motion: data.world_in_motion ?? [],
+    voice_corrections_this_session: data.voice_corrections_this_session ?? 0,
       auto_record: data.auto_record ?? autoRecordDefaultFromEnv(),
       format_version: data.novel_format_version ?? 1,
       session_no_mutation_windows: data.session_no_mutation_windows ?? [],

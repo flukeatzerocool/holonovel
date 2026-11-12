@@ -229,6 +229,83 @@ async function main() {
     await kill(p);
   });
 
+  await test("T358/REQ-233a: World in Motion gates NPC pursuit and surfaces ripple changes", async () => {
+    // REQ-233a3 — reactivity off: no World in Motion section at all.
+    {
+      const off = await boot({ TTRPG_WORLD_REACTIVITY: "off", TTRPG_NPC_AUTONOMY: "on" });
+      await newNovel(off, "wim-off");
+      await call(off, "manage_npc", { action: "create",  name: "Schemer", goals: "Steal the crown" });
+      await call(off, "manage_scene", { action: "set",  description: "Throne room" });
+      const brief = await promptText(off, "badge_briefing");
+      assert(!brief.includes("World in Motion"), "reactivity off still rendered World in Motion");
+      await kill(off);
+    }
+
+    // REQ-233a2 — autonomy off: no NPC pursuit, but non-NPC changes still surface.
+    {
+      const p = await boot({ TTRPG_WORLD_REACTIVITY: "on", TTRPG_NPC_AUTONOMY: "off" });
+      await newNovel(p, "wim-noautonomy");
+      await call(p, "manage_npc", { action: "create",  name: "Schemer", goals: "Steal the crown" });
+      const alice = (await call(p, "manage_npc", { action: "create",  name: "Alice" })).match(/\(([^)]+)\)/)?.[1];
+      const bob = (await call(p, "manage_npc", { action: "create",  name: "Bob" })).match(/\(([^)]+)\)/)?.[1];
+      assert(alice && bob, "NPC ids not reported");
+      await call(p, "manage_relationship", { action: "set",  entity_a: alice, entity_b: bob, type: "ally" });
+      await call(p, "manage_relationship", { action: "set",  entity_a: alice, entity_b: bob, type: "rival" });
+      await call(p, "manage_scene", { action: "set",  description: "Courtyard" });
+      const brief = await promptText(p, "badge_briefing");
+      assert(brief.includes("World in Motion"), "non-NPC change missing from World in Motion");
+      assert(brief.includes("source: relationship"), "ripple entry does not name its source");
+      assert(!brief.toLowerCase().includes("steal the crown"), "NPC pursuit surfaced with autonomy off");
+      await kill(p);
+    }
+
+    // REQ-233a1/a3 — an ally→rival flip writes a campaign fact on the
+    // connected entity; accepting a change records the GM decision; the fourth
+    // deferral escalates to a spec_health warning.
+    {
+      const p = await boot({ TTRPG_WORLD_REACTIVITY: "on", TTRPG_NPC_AUTONOMY: "on" });
+      await newNovel(p, "wim-on");
+      await call(p, "manage_npc", { action: "create",  name: "Schemer", goals: "Steal the crown" });
+      const alice = (await call(p, "manage_npc", { action: "create",  name: "Alice" })).match(/\(([^)]+)\)/)?.[1];
+      const bob = (await call(p, "manage_npc", { action: "create",  name: "Bob" })).match(/\(([^)]+)\)/)?.[1];
+      assert(alice && bob, "NPC ids not reported");
+      await call(p, "manage_relationship", { action: "set",  entity_a: alice, entity_b: bob, type: "ally" });
+      const before = (await health(p)).campaign_memory.threads;
+      await call(p, "manage_relationship", { action: "set",  entity_a: alice, entity_b: bob, type: "rival" });
+      const afterFlip = (await health(p)).campaign_memory.threads;
+      assert(afterFlip > before, "relationship flip wrote no campaign-memory fact");
+      await call(p, "manage_scene", { action: "set",  description: "Throne room" });
+      const brief = await promptText(p, "badge_briefing");
+      assert(brief.includes("World in Motion"), "World in Motion missing at transition");
+      assert(brief.toLowerCase().includes("steal the crown"), "NPC goal pursuit missing with autonomy on");
+
+      const changeId = brief.match(/\(change ([^)]+)\)/)?.[1];
+      assert(changeId, "no pending world change surfaced");
+
+      // Accept records the GM decision in campaign memory.
+      const beforeAccept = (await health(p)).campaign_memory.threads;
+      const accepted = await call(p, "respond_decision", { decision: changeId, option: "accept" });
+      assert(accepted.includes("[OK]"), "accept refused: " + accepted);
+      const afterAccept = (await health(p)).campaign_memory.threads;
+      assert(afterAccept > beforeAccept, "accept wrote no campaign-memory fact");
+
+      // Defer re-surfaces at the next transition; the fourth deferral warns.
+      await call(p, "manage_scene", { action: "set",  description: "Great hall" });
+      const second = await promptText(p, "badge_briefing");
+      const deferredId = second.match(/\(change ([^)]+)\)/)?.[1];
+      assert(deferredId, "no pending change after the transition");
+      for (let i = 0; i < 4; i++) {
+        await call(p, "respond_decision", { decision: deferredId, option: "defer" });
+      }
+      const warnings = (await health(p)).world_reactivity_warnings ?? [];
+      assert(warnings.length > 0, "fourth deferral produced no spec_health warning");
+      await call(p, "manage_scene", { action: "set",  description: "Courtyard" });
+      const third = await promptText(p, "badge_briefing");
+      assert(third.includes("modify"), "deferred change did not re-surface with modify");
+      await kill(p);
+    }
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });

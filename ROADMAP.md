@@ -12,29 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.6 state surfaces remediation (P1)
-
-- Pause/resume and world reactivity: return the `badge_briefing` payload from
-  `get_context`, filter the story capture to `decision`/`bond`, include the
-  `gm_context` summary in `intro`, add non-NPC World in Motion entries with
-  one-hop ripple tracing, a `modify` option and a three-deferral cap, add the
-  ally↔rival lore prompt, include `neutral` transitions in the relationship
-  marker, and redact `session_id` from Player-visible session markers (REQ-232b,
-  REQ-232c, REQ-233a1, REQ-233a2, REQ-233a3, REQ-236a, REQ-236b, REQ-236c,
-  REQ-237b1, REQ-237b2; F-P3B4-1–F-P3B4-4, F-P3B4-11, F-P3B4-13).
-- Notes, persistence, and codex truth: surface Novel notes in `badge_briefing`,
-  write `server-notes.json` and `codex.json` atomically with backup rotation,
-  partition `spec_health.codex` by kind, default a captured entry's `ruleset`
-  to the source Novel's scope, and implement the `[codex-stale]` flag (REQ-242b,
-  REQ-242d, REQ-285a, REQ-285c, REQ-321g, REQ-321k, REQ-321l, REQ-332b,
-  REQ-332c, REQ-065f; F-P3B4-5–F-P3B4-10, F-P3B4-14, F-P3B4-15).
-- Citation repair: write or re-point the unexercised assertions for T52
-  (REQ-065), T270 (REQ-236), T358 (REQ-233), and widen T275 (REQ-237), T280
-  (REQ-242), and T334 (REQ-285) to the full contracts (F-P3B4-10–F-P3B4-15).
-
-**Trigger:** the first session that takes §5.6 state-surface remediation work;
-closes when F-P3B4-1–F-P3B4-15 are `Resolved` in the review register.
-
 ## §5.6 adventure content remediation (P1)
 
 - Module load, catalog, and discovery: give `load` a real `target: "codex"`
