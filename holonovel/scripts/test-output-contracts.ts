@@ -124,6 +124,29 @@ function seedRuleset(): void {
   for (const [name, obj] of Object.entries(files)) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
 }
 
+// A death-condition variant of the Wave1 package (REQ-072a1 / T212): the model
+// declares `death_condition`, so an applied "destroyed" reads as dead and an
+// unapplied 0-HP entity reads as unconscious rather than incapacitated.
+const DEATH_PKG: any = JSON.parse(JSON.stringify(RULESET_PKG));
+DEATH_PKG.slug = "wave1death";
+DEATH_PKG.manifest = { ...RULESET_PKG.manifest, slug: "wave1death", name: "Wave1 Death Test" };
+DEATH_PKG.model = { ...RULESET_PKG.model, death_condition: "destroyed" };
+DEATH_PKG.manifest.content_hash = contentHash(DEATH_PKG);
+
+function seedDeathRuleset(): void {
+  const dir = join(DATA_DIR, "rulesets", "wave1death");
+  mkdirSync(dir, { recursive: true });
+  const files: Record<string, any> = {
+    "manifest.json": DEATH_PKG.manifest,
+    "index.json": DEATH_PKG.index,
+    "model.json": DEATH_PKG.model,
+    "tools.json": DEATH_PKG.tools,
+    "resources.json": [],
+    "prompts.json": DEATH_PKG.prompts,
+  };
+  for (const [name, obj] of Object.entries(files)) writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
+}
+
 // A second minimal valid package, used by the lazy-hydration test (REQ-390):
 // two installed packages, only the bound one hydrates.
 const SECOND_PKG: any = {
@@ -147,8 +170,7 @@ SECOND_PKG.manifest.content_hash = contentHash(SECOND_PKG);
 function seedSecondRuleset(): void {
   const dir = join(DATA_DIR, "rulesets", "wave2test");
   mkdirSync(dir, { recursive: true });
-  const files: Record<string, any> = {
-    "manifest.json": SECOND_PKG.manifest,
+  const files: Record<string, any> = {    "manifest.json": SECOND_PKG.manifest,
     "index.json": SECOND_PKG.index,
     "model.json": SECOND_PKG.model,
     "tools.json": SECOND_PKG.tools,
@@ -1253,7 +1275,8 @@ async function main() {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w5e" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_character", { action: "create",  name: "PC" });
+    const pcCreated = await call(p, "manage_character", { action: "create",  name: "PC" });
+    const pcId = pcCreated.match(/Entity id (\w+)/)?.[1] ?? "";
     const aud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(aud, "create_novel", "REQ-168 audit resource");
     // REQ-168a — Markdown, one entry per line: timestamp | badge | tool | prefix | hash.
@@ -1266,12 +1289,16 @@ async function main() {
     if (afterHealth.split("\n").some((line) => line.split(" | ")[2] === "health")) {
       throw new Error("REQ-168a state query recorded in audit");
     }
-    // REQ-168a — the Player badge sees own-badge entries, never GM-badge entries.
+    // REQ-168a — the Player badge sees own-badge entries, and GM-badge entries
+    // only where they name the player's own entity (the creation audit does).
     await call(p, "set_badge", { badge: "player" });
     const playerAud = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(playerAud, "set_badge", "REQ-168a player own-badge entry");
-    if (playerAud.split("\n").some((line) => line.split(" | ")[1] === "game_master")) {
-      throw new Error("REQ-168a player saw a GM-badge entry");
+    assertContains(playerAud, pcId, "REQ-168a own-entity creation entry visible to the Player");
+    const gmLines = playerAud.split("\n").filter((line) => line.split(" | ")[1] === "game_master");
+    const foreignGm = gmLines.filter((line) => !pcId || !line.includes(pcId));
+    if (foreignGm.length > 0) {
+      throw new Error(`REQ-168a player saw a GM-badge entry for another entity: ${foreignGm[0]?.slice(0, 160)}`);
     }
     const forbidden = await call(p, "manage_npc", { action: "create",  name: "Denied" });
     assertContains(forbidden, "[FORBIDDEN]", "REQ-032 player GM gate");
@@ -2347,21 +2374,129 @@ async function main() {
     await kill(p);
   });
 
+  // ── REQ-072 typed recap payload ──
+  await test("T53/REQ-072: recap returns the 15 declared fields with typed values", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "recap53" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create", name: "Ana" });
+    await call(p, "manage_character", { action: "create", name: "Bo" });
+    await call(p, "manage_scene", { action: "set", description: "Hall" });
+    await call(p, "manage_scene", { action: "set", description: "Crypt", scene_type: "exploration" });
+    await call(p, "manage_lore", { action: "set", key: "ward", content: "A ward hums.", triggers: ["crypt"] });
+    await call(p, "manage_scene", { action: "directive", directive: "Find the reliquary." });
+    await call(p, "manage_story", { action: "record", type: "decision", entry: "They chose the crypt." });
+    const raw: any = await callRaw(p, "manage_context", { action: "recap", max_transitions: 2, max_rolls: 3 });
+    const sc = raw.structuredContent ?? {};
+    const fields = [
+      "narrative_orientation", "timespan_start", "timespan_end", "entities",
+      "confrontations_completed", "confrontation_pending", "scene", "scene_type",
+      "lore_entries", "narrative_directive", "scene_transitions", "roster_changes",
+      "condition_changes", "significant_rolls", "total_combat_rounds", "story_entries",
+    ];
+    for (const f of fields) if (!(f in sc)) throw new Error(`REQ-072c1/c2 missing declared field: ${f}`);
+    if (!(typeof sc.timespan_start === "string" && !Number.isNaN(Date.parse(sc.timespan_start)))) throw new Error("REQ-072c1 timespan_start is not ISO 8601");
+    if (!Array.isArray(sc.entities) || sc.entities.length < 2) throw new Error("REQ-072c1 entities missing the created characters");
+    for (const e of sc.entities) {
+      for (const k of ["name", "hp", "max_hp", "conditions", "status"]) if (!(k in e)) throw new Error(`REQ-072c1 entity missing ${k}`);
+      if (!Array.isArray(e.conditions)) throw new Error("REQ-072c1 entity conditions is not an array");
+      if (!["alive", "unconscious", "dead", "incapacitated"].includes(e.status)) throw new Error(`REQ-072a1 unknown status ${e.status}`);
+    }
+    if (!Array.isArray(sc.confrontations_completed)) throw new Error("REQ-072c1 confrontations_completed is not an array");
+    if (sc.confrontation_pending !== null) throw new Error("REQ-175b pending must be null when no combat is active");
+    if (!sc.lore_entries.some((l: any) => l.key === "ward" && l.active === true)) throw new Error("REQ-072c1 lore_entries missing the active ward");
+    if (sc.narrative_directive !== "Find the reliquary.") throw new Error("REQ-072c1 narrative_directive not reported");
+    if (sc.scene_type !== "exploration") throw new Error(`REQ-072c1 scene_type ${sc.scene_type}`);
+    if (!Number.isInteger(sc.total_combat_rounds)) throw new Error("REQ-072c2 total_combat_rounds is not an integer");
+    if (sc.scene_transitions.length > 2) throw new Error("REQ-072e max_transitions not honoured");
+    if (sc.significant_rolls.length > 3) throw new Error("REQ-072e max_rolls not honoured");
+    if (!sc.story_entries.some((s: any) => s.entry === "They chose the crypt.")) throw new Error("REQ-072c2 story_entries missing the recorded beat");
+    // REQ-548a parity — the payload reports what the text reports.
+    const text = (raw.content ?? []).map((c: any) => c.text ?? "").join("\n");
+    if (!text.includes(String(sc.total_combat_rounds))) throw new Error("REQ-548a parity: total_combat_rounds absent from the text envelope");
+    // REQ-072f bounds.
+    const bad = await callRaw(p, "manage_context", { action: "recap", max_transitions: 0 });
+    const badText = (bad.content ?? []).map((c: any) => c.text ?? "").join("\n");
+    if (!badText.includes("[ERROR] [INVALID_INPUT]") || !badText.includes("1–20")) throw new Error("REQ-072f max_transitions range not refused");
+    // REQ-072a2 / REQ-072f — Player badge sees own-entity data only.
+    await call(p, "set_badge", { badge: "player" });
+    const playerRaw: any = await callRaw(p, "manage_context", { action: "recap" });
+    const psc = playerRaw.structuredContent ?? {};
+    if (!Array.isArray(psc.entities) || psc.entities.length !== 1) throw new Error(`REQ-072a2 Player entities not scoped (${psc.entities?.length})`);
+    await call(p, "set_badge", { badge: "game_master" });
+    passed++;
+    await kill(p);
+  });
+
+  await test("T212/REQ-072: recap entity status follows HP and the declared death condition", async () => {
+    seedRuleset();
+    seedDeathRuleset();
+    const p = await boot();
+    const createId = async (name: string) => {
+      const text = await call(p, "manage_character", { action: "create", name });
+      return text.match(/Entity id (\w+)/)?.[1] ?? "";
+    };
+    // No declared death condition: alive above 0 HP, incapacitated at 0.
+    await call(p, "manage_novel", { action: "create", name: "recap212a", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const haleId = await createId("Hale");
+    const downId = await createId("Down");
+    await call(p, "manage_character", { action: "update", entity_id: downId, stats: { hp: 0, max_hp: 10 } });
+    let sc: any = (await callRaw(p, "manage_context", { action: "recap" })).structuredContent ?? {};
+    const statusOf = (s: any, name: string) => s.entities.find((e: any) => e.name === name)?.status;
+    if (!haleId || !downId) throw new Error("REQ-072 fixture: character ids not allocated");
+    if (statusOf(sc, "Hale") !== "alive") throw new Error(`REQ-072a1 expected alive, got ${statusOf(sc, "Hale")}`);
+    if (statusOf(sc, "Down") !== "incapacitated") throw new Error(`REQ-072a1 no-death ruleset at 0 HP must be incapacitated, got ${statusOf(sc, "Down")}`);
+    // Declared death condition: 0 HP is unconscious until it is applied.
+    await call(p, "manage_novel", { action: "create", name: "recap212b", ruleset: "wave1death" });
+    const doomedId = await createId("Doomed");
+    await call(p, "manage_character", { action: "update", entity_id: doomedId, stats: { hp: 0, max_hp: 10 } });
+    sc = (await callRaw(p, "manage_context", { action: "recap" })).structuredContent ?? {};
+    if (statusOf(sc, "Doomed") !== "unconscious") throw new Error(`REQ-072a1 declared-but-unapplied death condition must be unconscious, got ${statusOf(sc, "Doomed")}`);
+    await call(p, "manage_condition", { action: "apply", entity_id: doomedId, condition: "destroyed" });
+    sc = (await callRaw(p, "manage_context", { action: "recap" })).structuredContent ?? {};
+    if (statusOf(sc, "Doomed") !== "dead") throw new Error(`REQ-072a1 applied death condition must be dead, got ${statusOf(sc, "Doomed")}`);
+    passed++;
+    await kill(p);
+  });
+
   // ── REQ-175 confrontation summary derivation ──
   await test("T214/REQ-175: recap derives completed and pending confrontations", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "wR1" });
     await call(p, "set_badge", { badge: "game_master" });
-    await call(p, "manage_character", { action: "create",  name: "Ann" });
-    await call(p, "manage_npc", { action: "create",  name: "Foe" });
-    await call(p, "manage_combat", { action: "init" });
+    const ann = (await call(p, "manage_character", { action: "create",  name: "Ann" })).match(/Entity id (\w+)/)?.[1] ?? "";
+    const foe = (await call(p, "manage_npc", { action: "create",  name: "Foe" })).match(/\((\w+)\)/)?.[1] ?? "";
+    if (!ann || !foe) throw new Error("REQ-175 fixture: participant ids not allocated");
+    await call(p, "manage_combat", { action: "init", participants: [ann, foe] });
+    await call(p, "manage_combat", { action: "advance" });
     await call(p, "manage_combat", { action: "advance" });
     await call(p, "manage_combat", { action: "end",  outcome: "goblins routed" });
-    const recap = await call(p, "manage_context", { action: "recap" });
-    assertContains(recap, "confrontations_completed:", "REQ-175 completed confrontations");
-    await call(p, "manage_combat", { action: "init" });
-    const recap2 = await call(p, "manage_context", { action: "recap" });
-    assertContains(recap2, "confrontation_pending:", "REQ-175 pending confrontation");
+    const raw: any = await callRaw(p, "manage_context", { action: "recap" });
+    const sc = raw.structuredContent ?? {};
+    const text = (raw.content ?? []).map((c: any) => c.text ?? "").join("\n");
+    assertContains(text, "confrontations_completed:", "REQ-175 completed confrontations");
+    if (!Array.isArray(sc.confrontations_completed) || sc.confrontations_completed.length !== 1) {
+      throw new Error(`REQ-175a expected one completed confrontation object, got ${JSON.stringify(sc.confrontations_completed)}`);
+    }
+    const done = sc.confrontations_completed[0];
+    if (!Array.isArray(done.participants) || !done.participants.includes(ann) || !done.participants.includes(foe)) {
+      throw new Error(`REQ-175a participants missing: ${JSON.stringify(done.participants)}`);
+    }
+    if (done.rounds !== 2) throw new Error(`REQ-175a rounds must be the recorded rounds_played (2), got ${done.rounds}`);
+    if (done.outcome !== "goblins routed") throw new Error(`REQ-175a outcome ${done.outcome}`);
+    if (sc.confrontation_pending !== null) throw new Error("REQ-175b pending must be null with no active combat");
+    await call(p, "manage_combat", { action: "init", participants: [ann, foe] });
+    const raw2: any = await callRaw(p, "manage_context", { action: "recap" });
+    const sc2 = raw2.structuredContent ?? {};
+    if (sc2.confrontations_completed.length !== 1) throw new Error("REQ-175b completed count must stay one while a second combat is pending");
+    if (!sc2.confrontation_pending) throw new Error("REQ-175b pending confrontation absent");
+    for (const k of ["participants", "round", "turn_position"]) {
+      if (!(k in sc2.confrontation_pending)) throw new Error(`REQ-175a pending missing ${k}`);
+    }
+    if (typeof sc2.confrontation_pending.turn_position !== "string") {
+      throw new Error(`REQ-175a pending turn_position must name a participant, got ${JSON.stringify(sc2.confrontation_pending.turn_position)}`);
+    }
     passed++;
     await kill(p);
   });

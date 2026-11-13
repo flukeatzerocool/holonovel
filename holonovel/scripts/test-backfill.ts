@@ -213,9 +213,25 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T214/T215/T261/T072: session_recap summarizes the session", async () => {
-      const recap = await call(proc, "manage_context", { action: "recap" });
-      assertContains(recap, "Active Novel");
+    await test("T215/REQ-072: recap returns the declared typed fields", async () => {
+      const resp = await callRaw(proc, "manage_context", { action: "recap" });
+      const raw = resp?.result ?? resp ?? {};
+      const sc = raw?.structuredContent ?? {};
+      const fields = [
+        "narrative_orientation", "timespan_start", "timespan_end", "entities",
+        "confrontations_completed", "confrontation_pending", "scene", "scene_type",
+        "lore_entries", "narrative_directive", "scene_transitions", "roster_changes",
+        "condition_changes", "significant_rolls", "total_combat_rounds", "story_entries",
+      ];
+      for (const f of fields) if (!(f in sc)) throw new Error(`REQ-072c1/c2 missing declared field: ${f}`);
+      for (const k of ["timespan_start", "timespan_end"]) {
+        const v = sc[k];
+        if (v !== null && (typeof v !== "string" || Number.isNaN(Date.parse(v)))) throw new Error(`REQ-072c1 ${k} is not ISO 8601 or null`);
+      }
+      if (!Array.isArray(sc.entities)) throw new Error("REQ-072c1 entities is not an array");
+      if (!Number.isInteger(sc.total_combat_rounds)) throw new Error("REQ-072c2 total_combat_rounds is not an integer");
+      const text = (raw.content ?? []).map((c: any) => c.text ?? "").join("\n");
+      assertContains(text, "Active Novel");
     });
 
     await test("T268/T232: pause context round-trips with the briefing payload", async () => {

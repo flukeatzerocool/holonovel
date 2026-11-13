@@ -3177,6 +3177,13 @@ function ok(text: string) {
   return { content: [{ type: "text" as const, text: `[OK] ${expanded}` }], structuredContent: structured("OK", expanded) };
 }
 
+// REQ-548a — an OK envelope that also carries a typed payload. `structured`
+// merges the fields and appends `grounding`, so the recap cannot drop it.
+function okWith(text: string, fields: Record<string, any>) {
+  const expanded = expandMacros(text, buildMacroContext());
+  return { content: [{ type: "text" as const, text: `[OK] ${expanded}` }], structuredContent: structured("OK", expanded, fields) };
+}
+
 // REQ-002 — error taxonomy: every failure surfaces [ERROR] [CODE] + corrective
 // action; REQ-001 — response contract (OK/raw/err) and REQ-032 server-side
 // gating via requireGM/requirePlayer.
@@ -4758,6 +4765,8 @@ server.registerTool("manage_character", {
         const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, profileStats);
         state.addEntity(novel, entity);
         if (stage_to_roster) state.addToRoster(entity, novel.ruleset ?? null);
+        // REQ-040a / REQ-072c2 — roster_changes derives created rows from here.
+        audit("create_character", { entity_id: entity.id, name: entity.name });
         state.saveNovel(novel);
         return ok(`${fmtEntitySheet(entity)}
 
@@ -4803,6 +4812,8 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
       const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, stats);
       state.addEntity(novel, entity);
       if (stage_to_roster) state.addToRoster(entity, novel.ruleset ?? null);
+      // REQ-040a / REQ-072c2 — roster_changes derives created rows from here.
+      audit("create_character", { entity_id: entity.id, name: entity.name });
       state.saveNovel(novel);
 
       const inputs = [`name=${name}`, `species=${species}`, `classes=${classLevels.map((c) => `${c.className} ${c.levels}`).join("/")}`, `stat_method=${method}`];
@@ -4852,7 +4863,10 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       const importRefusal = capGuard("entities", novel.entities.size);
       if (importRefusal) return importRefusal;
       novelSnapshot();
-      state.addEntity(novel, { ...rosterEntity, roster_source_id: args.roster_id, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] });
+      const importedEntity = { ...rosterEntity, roster_source_id: args.roster_id, current_room: rosterEntity.current_room ?? null, inventory: rosterEntity.inventory ?? [] };
+      state.addEntity(novel, importedEntity);
+      // REQ-040a / REQ-072c2 — roster_changes derives created rows from here.
+      audit("import_character", { entity_id: importedEntity.id, name: importedEntity.name, roster_id: args.roster_id });
       state.saveNovel(novel);
       return ok(`Character '${rosterEntity.name}' imported.`);
     }
@@ -11067,6 +11081,232 @@ function sessionAuditRange(novel: NovelState, sessionId: string): { entries: any
   return null;
 }
 
+// REQ-072 — typed recap payload. The text envelope remains the human render
+// (REQ-072g's markdown/lonelog notation, REQ-279b's prose orientation); the
+// machine-readable structure REQ-072b requires is the structured result
+// (REQ-548a), built from the same live state.
+function auditEntryArgs(entry: any): any {
+  try { return typeof entry.args === "string" ? JSON.parse(entry.args) : (entry.args ?? {}); } catch { return {}; } // non-JSON args carry no structured fields
+}
+
+// REQ-072a1 — "dead" requires the ruleset's declared death condition; a ruleset
+// (or ruleset-free Novel) that declares none reports alive/incapacitated.
+function rulesetDeathCondition(novel: NovelState): string | null {
+  const slug = novel?.ruleset ?? null;
+  if (!slug || !rulesets.isInstalled(slug)) return null;
+  try {
+    const model = rulesets.hydrate(slug).model as any;
+    const declared = model?.death_condition ?? model?.concepts_death_condition;
+    return typeof declared === "string" && declared.trim().length > 0 ? declared.trim() : null;
+  } catch {
+    return null; // an unreadable package model declares no death condition
+  }
+}
+
+function recapEntityStatus(entity: any, deathCondition: string | null): "alive" | "unconscious" | "dead" | "incapacitated" {
+  const conditions: string[] = Array.isArray(entity?.conditions) ? entity.conditions : [];
+  if (deathCondition && conditions.includes(deathCondition)) return "dead";
+  const hp = entityHp(entity).hp;
+  if (hp === undefined || hp > 0) return "alive";
+  return deathCondition ? "unconscious" : "incapacitated";
+}
+
+// REQ-072c2 / REQ-174 — the significant-roll predicates shared by the text
+// renderer and the payload so the two cannot drift.
+function isSignificantRollTool(tool: string): boolean {
+  return tool === "fate_roll" || tool === "ironsworn_move" || tool === "ironsworn_progress_test" || tool === "forged_action_roll" ||
+    (tool.includes("roll") && !tool.includes("table"));
+}
+function recapRollVisible(entry: any, isGM: boolean): boolean {
+  return isGM || entry.badge !== "game_master";
+}
+function recapRollDetail(entry: any) {
+  const parsed = auditEntryArgs(entry);
+  const entityId = parsed.entity_id ?? parsed.attacker ?? parsed.target ?? parsed.target_id ?? null;
+  const dice = parsed.dice ?? parsed.notation ?? parsed.roll ?? null;
+  const outcome = parsed.outcome ?? parsed.result ?? parsed.total ?? parsed.damage ?? null;
+  return { tool: entry.tool, entity: entityId ? String(entityId) : undefined, dice: dice !== null ? String(dice) : undefined, outcome: outcome !== null ? String(outcome) : undefined };
+}
+
+// REQ-175a/b — pair init/advance/end audit entries in log order. The round count
+// is the value the end entry recorded; the published advance formula is the
+// fallback for an entry that lacks it.
+function recapConfrontations(entries: any[]): { completed: { participants: string[]; rounds: number | null; outcome: string | null }[]; open: { participants: string[]; advances: number } | null } {
+  const completed: { participants: string[]; rounds: number | null; outcome: string | null }[] = [];
+  let open: { participants: string[]; advances: number } | null = null;
+  for (const entry of entries) {
+    if (entry.tool === "init_combat") {
+      const a = auditEntryArgs(entry);
+      const participants = [
+        ...(Array.isArray(a.participants) ? a.participants.map(String) : []),
+        ...(Array.isArray(a.dangers) ? a.dangers.map((d: any) => typeof d === "string" ? d : String(d?.name ?? "")).filter(Boolean) : []),
+      ];
+      open = { participants, advances: 0 };
+    } else if (entry.tool === "advance_combat" && open) {
+      open.advances += 1;
+    } else if (entry.tool === "end_combat") {
+      const a = auditEntryArgs(entry);
+      const current = open ?? { participants: [], advances: 0 };
+      const rounds = typeof a.rounds_played === "number"
+        ? a.rounds_played
+        : Math.ceil(current.advances / Math.max(1, current.participants.length));
+      completed.push({ participants: current.participants, rounds, outcome: typeof a.outcome === "string" ? a.outcome : null });
+      open = null;
+    }
+  }
+  return { completed, open };
+}
+
+// REQ-072c2 — the audit arguments are not the declared field shape, so each
+// roster/condition row is mapped explicitly (create_npc's `id` and remove_npc's
+// `npc_id` both become entity_id; condition_expired removes by name).
+function recapRosterAndConditionChanges(novel: NovelState, entries: any[], isGM: boolean, activeId: string | null) {
+  const roster: { entity_id: string; action: "created" | "removed"; timestamp: string }[] = [];
+  const conditions: { entity_id: string; condition: string; action: "applied" | "removed"; timestamp: string }[] = [];
+  const nameToId = (name: unknown): string | null => {
+    if (typeof name !== "string") return null;
+    for (const [id, e] of novel.entities) if (e.name === name) return id;
+    for (const [id, n] of novel.npcs) if (n.name === name) return id;
+    return null;
+  };
+  const ownOnly = (id: string) => isGM || id === activeId;
+  for (const entry of entries) {
+    const a = auditEntryArgs(entry);
+    let rosterRow: { id: string; action: "created" | "removed" } | null = null;
+    if (entry.tool === "create_character" || entry.tool === "import_character") rosterRow = { id: String(a.entity_id ?? ""), action: "created" };
+    else if (entry.tool === "remove_character") rosterRow = { id: String(a.entity_id ?? ""), action: "removed" };
+    else if (entry.tool === "create_npc") rosterRow = { id: String(a.id ?? ""), action: "created" };
+    else if (entry.tool === "remove_npc") rosterRow = { id: String(a.npc_id ?? ""), action: "removed" };
+    if (rosterRow) {
+      if (rosterRow.id && ownOnly(rosterRow.id)) roster.push({ entity_id: rosterRow.id, action: rosterRow.action, timestamp: entry.timestamp });
+      continue;
+    }
+    let conditionRow: { id: string | null; action: "applied" | "removed" } | null = null;
+    if (entry.tool === "apply_condition") conditionRow = { id: a.entity_id ? String(a.entity_id) : null, action: "applied" };
+    else if (entry.tool === "remove_condition") conditionRow = { id: a.entity_id ? String(a.entity_id) : null, action: "removed" };
+    else if (entry.tool === "condition_expired") conditionRow = { id: nameToId(a.entity) ?? (typeof a.entity === "string" ? a.entity : null), action: "removed" };
+    if (conditionRow?.id && ownOnly(conditionRow.id)) {
+      conditions.push({ entity_id: conditionRow.id, condition: String(a.condition ?? ""), action: conditionRow.action, timestamp: entry.timestamp });
+    }
+  }
+  return { roster, conditions };
+}
+
+function buildRecapPayload(
+  novel: NovelState,
+  entries: any[],
+  opts: { max_transitions: number; max_rolls: number },
+  orientation: string,
+  isGM: boolean,
+): Record<string, any> {
+  const activeId = novel.active_entity_id ?? null;
+  const deathCondition = rulesetDeathCondition(novel);
+  const visible = (id: string) => isGM || id === activeId;
+
+  const entities = [...novel.entities.entries()]
+    .filter(([id]) => visible(id))
+    .map(([, e]) => {
+      const hp = entityHp(e);
+      return {
+        name: e.name,
+        hp: hp.hp ?? null,
+        max_hp: hp.max_hp ?? null,
+        conditions: Array.isArray(e.conditions) ? [...e.conditions] : [],
+        status: recapEntityStatus(e, deathCondition),
+      };
+    });
+
+  const confrontations = recapConfrontations(entries);
+  const combatActive = novel.combat?.active === true;
+  const pendingParticipants = novel.combat
+    ? [...(novel.combat.participants ?? []), ...(novel.combat.dangers ?? []).map((d: any) => String(d?.name ?? ""))].filter(Boolean)
+    : [];
+  const pending = combatActive && novel.combat
+    ? {
+        participants: pendingParticipants,
+        round: novel.combat.round,
+        turn_position: novel.combat.turn_order?.[novel.combat.current_turn] ?? null,
+      }
+    : null;
+  const participantsVisible = (p: string[]) => isGM || (activeId !== null && p.includes(activeId));
+  const completed = confrontations.completed.filter((c) => participantsVisible(c.participants));
+
+  const lore_entries = [...novel.lore.values()]
+    .filter((l) => isGM || l.visibility === "shared" || (Array.isArray(l.known_by) && activeId !== null && l.known_by.includes(activeId)))
+    .map((l) => ({ key: l.key, active: !!l.enabled }));
+
+  const transitions = [
+    ...novel.scene_history.slice(-opts.max_transitions).map((h, i, arr) => {
+      const prior = i > 0 ? arr[i - 1].description : (novel.scene_history.at(-arr.length - 1)?.description ?? null);
+      return { from: prior, to: h.description, timestamp: h.timestamp, ...(h.location ? { location: h.location } : {}) };
+    }),
+    ...novel.story_journal
+      .filter((s) => typeof s.entry === "string" && (s.entry.startsWith("[vehicle-entry]") || s.entry.startsWith("[vehicle-exit]")))
+      .slice(-opts.max_transitions)
+      .map((s) => ({ from: novel.scene_description ?? null, to: s.entry, timestamp: s.timestamp, ...(s.scene_anchor ? { location: s.scene_anchor } : {}), kind: "vehicle" })),
+  ];
+
+  const { roster, conditions } = recapRosterAndConditionChanges(novel, entries, isGM, activeId);
+
+  const rolls = entries
+    .filter((e) => isSignificantRollTool(e.tool) && e.args && recapRollVisible(e, isGM))
+    .slice(-opts.max_rolls)
+    .map(recapRollDetail)
+    .filter((r) => isGM || r.entity === undefined || r.entity === activeId);
+
+  const story = novel.story_journal
+    .filter((s) => isGM || s.entity_ids.length === 0 || (activeId !== null && s.entity_ids.includes(activeId)))
+    .slice(-10)
+    .map((s) => ({ type: s.type, entry: s.entry, timestamp: s.timestamp, scene_anchor: s.scene_anchor, entity_ids: [...s.entity_ids] }));
+
+  return {
+    narrative_orientation: orientation,
+    timespan_start: entries[0]?.timestamp ?? null,
+    timespan_end: entries.at(-1)?.timestamp ?? null,
+    entities,
+    confrontations_completed: completed,
+    confrontation_pending: pending,
+    scene: novel.scene_description ?? "",
+    scene_type: Array.isArray(novel.scene_type) && novel.scene_type.length > 0 ? novel.scene_type.join(", ") : null,
+    lore_entries,
+    narrative_directive: novel.narrative_directive || null,
+    scene_transitions: transitions,
+    roster_changes: roster,
+    condition_changes: conditions,
+    significant_rolls: rolls,
+    total_combat_rounds: novel.metadata.total_combat_rounds ?? 0,
+    story_entries: story,
+  };
+}
+
+// REQ-072d — the archived-session payload is the typed-empty shape: the raw
+// rows are gone, so only the summary's timespans, the Novel-lifetime round
+// total, and the orientation are derivable.
+function archivedRecapPayload(
+  summary: any,
+  totalCombatRounds: number,
+  orientation: string,
+): Record<string, any> {
+  return {
+    narrative_orientation: orientation,
+    timespan_start: summary?.timespan_start ?? null,
+    timespan_end: summary?.timespan_end ?? null,
+    entities: [],
+    confrontations_completed: [],
+    confrontation_pending: null,
+    scene: "",
+    scene_type: null,
+    lore_entries: [],
+    narrative_directive: null,
+    scene_transitions: [],
+    roster_changes: [],
+    condition_changes: [],
+    significant_rolls: [],
+    total_combat_rounds: totalCombatRounds,
+    story_entries: [],
+  };
+}
+
 const MANAGE_CONTEXT_CANONICAL_SCHEMA = {
   ...pickParams(MANAGE_SESSION_SCHEMA, [
     "action", "mode", "sections", "gm_notes", "session_id", "format", "max_transitions", "max_rolls", "query", "detail", "tier", "budget_tokens",
@@ -11210,26 +11450,8 @@ Options: yes, cancel`);
       if (!Number.isInteger(maxTransitions) || maxTransitions < 1 || maxTransitions > 20) {
         return err("INVALID_INPUT", "max_transitions must be an integer in the valid range 1–20.");
       }
-      // REQ-237b1 — a session_id naming a live session scopes the recap to the
-      // audit range bounded by that [session-boundary] marker and the next one.
-      // An id that matches no live marker falls through to the archive path
-      // (REQ-239b), which summarizes a compacted session.
-      if (args.session_id) {
-        const bounds = sessionAuditRange(novel, args.session_id);
-        if (bounds) {
-          const badge = getBadge();
-          const isGM = badge === "game_master" || badge === "none";
-          const lines = bounds.entries
-            .filter((e: any) => isGM || e.badge !== "game_master")
-            .map((e: any) => `${e.timestamp} | ${e.badge} | ${e.tool} | ${e.output_prefix || "-"}`);
-          return ok([
-            `session_scope: ${args.session_id}`,
-            `timespan: ${bounds.started_at ?? "(unknown)"} → ${bounds.ended_at ?? "(open)"}`,
-            `entry_count: ${bounds.entries.length}`,
-            ...lines,
-          ].join("\n"));
-        }
-      }
+      const recapBadge = getBadge();
+      const recapIsGM = recapBadge === "game_master" || recapBadge === "none";
       const parts: string[] = [];
       const recent = novel.story_journal.filter((s) => s.type === "decision" || s.type === "bond").slice(-3);
       for (const s of recent) parts.push(s.entry);
@@ -11283,27 +11505,47 @@ Options: yes, cancel`);
         if (heat.length > 0) recap += `\n\nnpc_heatmap:\n${heat.join("\n")}`;
       }
       // REQ-246a — story journal entries surface in recap (most recent 10).
+      // REQ-237b1 — a session_id naming a live session scopes the recap to the
+      // audit range bounded by that [session-boundary] marker and the next one.
+      // An id that matches no live marker resolves to a compacted session
+      // (REQ-239b) or is refused (REQ-072f); it never reaches the full body.
+      let archivedSummary: any = null;
+      if (args.session_id) {
+        const bounds = sessionAuditRange(novel, args.session_id);
+        if (bounds) {
+          const lines = bounds.entries
+            .filter((e: any) => recapIsGM || e.badge !== "game_master")
+            .map((e: any) => `${e.timestamp} | ${e.badge} | ${e.tool} | ${e.output_prefix || "-"}`);
+          const scopedPayload = buildRecapPayload(novel, bounds.entries, { max_transitions: maxTransitions, max_rolls: maxRolls }, narrative_orientation, recapIsGM);
+          if (bounds.started_at) scopedPayload.timespan_start = bounds.started_at;
+          if (bounds.ended_at) scopedPayload.timespan_end = bounds.ended_at;
+          return okWith([
+            `session_scope: ${args.session_id}`,
+            `timespan: ${bounds.started_at ?? "(unknown)"} → ${bounds.ended_at ?? "(open)"}`,
+            `entry_count: ${bounds.entries.length}`,
+            ...lines,
+          ].join("\n"), scopedPayload);
+        }
+        archivedSummary = (novel.audit_archive ?? []).find((s) => s.session_id === args.session_id) ?? null;
+        if (!archivedSummary) {
+          const liveIds = (novel.audit_log as any[])
+            .filter((e) => e.tool === "[session-boundary]")
+            .map((e) => auditEntryArgs(e)?.session_id)
+            .filter((id: unknown): id is string => typeof id === "string");
+          const archiveIds = (novel.audit_archive ?? []).map((s) => s.session_id);
+          const valid = [...new Set([...liveIds, ...archiveIds])];
+          return err(
+            "NOT_FOUND",
+            `Session '${args.session_id}' matches no recorded session. Valid session IDs: ${valid.length > 0 ? valid.join(", ") : "(none recorded)"}.`,
+          );
+        }
+      }
       const journalBadge = getBadge();
       if ((journalBadge === "game_master" || journalBadge === "none") && novel.story_journal.length > 0) {
         recap += `\nstory_entries: ${JSON.stringify(novel.story_journal.slice(-10).map((s) => ({ index: s.index, type: s.type, entry: s.entry, scene_anchor: s.scene_anchor, timestamp: s.timestamp })))}`;
       }
-      const significantRollTool = (t: string) =>
-        t === "fate_roll" || t === "ironsworn_move" || t === "ironsworn_progress_test" || t === "forged_action_roll" ||
-        (t.includes("roll") && !t.includes("table"));
-      const rollVisible = (e: any) => {
-        const badge = getBadge();
-        return badge === "game_master" || badge === "none" || e.badge !== "game_master";
-      };
-      const rollDetail = (e: any) => {
-        let parsed: any = {};
-        try { parsed = typeof e.args === "string" ? JSON.parse(e.args) : (e.args ?? {}); } catch { parsed = {}; } // non-JSON audit args carry no roll detail
-        const entityId = parsed.entity_id ?? parsed.attacker ?? parsed.target ?? parsed.target_id ?? null;
-        const dice = parsed.dice ?? parsed.notation ?? parsed.roll ?? null;
-        const outcome = parsed.outcome ?? parsed.result ?? parsed.total ?? parsed.damage ?? null;
-        return { tool: e.tool, entity: entityId ? String(entityId) : undefined, dice: dice !== null ? String(dice) : undefined, outcome: outcome !== null ? String(outcome) : undefined, parsed };
-      };
-      const significantRolls = novel.audit_log.filter((e) => significantRollTool(e.tool) && e.args).filter(rollVisible).slice(-maxRolls);
-      const rollDetails = significantRolls.map(rollDetail);
+      const significantRolls = novel.audit_log.filter((e) => isSignificantRollTool(e.tool) && e.args).filter((e) => recapRollVisible(e, recapIsGM)).slice(-maxRolls);
+      const rollDetails = significantRolls.map(recapRollDetail);
       if (significantRolls.length > 0) {
         recap += `\nsignificant_rolls: ${rollDetails.map((r) => [r.tool, r.entity, r.dice, r.outcome].filter(Boolean).join(" ")).join("; ")}`;
       }
@@ -11417,12 +11659,12 @@ Options: yes, cancel`);
         recap += `\nsource_ordinals: ${assembled.source_ordinals.length > 0 ? assembled.source_ordinals.join(",") : "(none)"}`;
       }
       // REQ-239b — a recap targeting an archived session derives from its summary.
-      if (args.session_id) {
-        const summary = (novel.audit_archive ?? []).find((s) => s.session_id === args.session_id);
-        recap += summary
-          ? `\narchived_session: ${summary.session_id} (${summary.entry_count} entries, ${summary.timespan_start} → ${summary.timespan_end}; confrontations ${summary.confrontations}, significant_rolls ${summary.significant_rolls}, condition_changes ${summary.condition_changes}, roster_changes ${summary.roster_changes}, scene_transitions ${summary.scene_transitions})`
-          : `\narchived_session: '${args.session_id}' not found in the audit archive.`;
+      if (archivedSummary) {
+        recap += `\narchived_session: ${archivedSummary.session_id} (${archivedSummary.entry_count} entries, ${archivedSummary.timespan_start} → ${archivedSummary.timespan_end}; confrontations ${archivedSummary.confrontations}, significant_rolls ${archivedSummary.significant_rolls}, condition_changes ${archivedSummary.condition_changes}, roster_changes ${archivedSummary.roster_changes}, scene_transitions ${archivedSummary.scene_transitions})`;
       }
+      const recapPayload = archivedSummary
+        ? archivedRecapPayload(archivedSummary, novel.metadata.total_combat_rounds ?? 0, narrative_orientation)
+        : buildRecapPayload(novel, novel.audit_log, { max_transitions: maxTransitions, max_rolls: maxRolls }, narrative_orientation, recapIsGM);
       // REQ-072g — Lonelog notation, distinct from the default markdown body.
       if (args.format === "lonelog") {
         const story = [
@@ -11442,9 +11684,9 @@ Options: yes, cancel`);
         const notes = args.gm_notes && (getBadge() === "game_master" || getBadge() === "none")
           ? `\n? gm_notes: ${args.gm_notes}`
           : "";
-        return ok(`${lonelog}${notes}`);
+        return okWith(`${lonelog}${notes}`, recapPayload);
       }
-      return ok(recap);
+      return okWith(recap, recapPayload);
     }
     case "health": {
       return raw(JSON.stringify(buildSpecHealth(), null, 2));
@@ -11548,7 +11790,7 @@ Options: yes, cancel`);
 
 server.registerTool("manage_context", {
   title: "Context Controls",
-  description: "Manage play-facing context controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+  description: "Manage play-facing context controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap returns a typed structured result (spans, entities, confrontations, scene, lore, changes, rolls, story) alongside its text, and accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
   inputSchema: MANAGE_CONTEXT_CANONICAL_SCHEMA,
 }, handleContextTool);
 

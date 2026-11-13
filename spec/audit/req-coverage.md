@@ -26,7 +26,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T112, T118, T119, T127, T128, T129, T133, T134, T135, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
+| REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T112, T118, T119, T127, T128, T129, T133, T134, T135, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T8, T70, T100, T203, T147 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
@@ -52,7 +52,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T142, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
 | REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
-| REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T213, T214, T215, T261, T272, T518, T699 | — |
+| REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261, T272, T518, T699 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T90, T136, T261, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T216, T218, T220, S17 | — |
 | REQ-075 | Named-NPC state (Part a) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T409, T513, T722, T723, T724, T725, T782 | — |
@@ -151,8 +151,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-171 | Adventure content validation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T208, T283 | — |
 | REQ-172 | Adventure content drift detection | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T209 | — |
 | REQ-173 | Connection counter (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T142, S22 | — |
-| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T213 | — |
-| REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T214 | — |
+| REQ-174 | Significant-roll criterion for recap (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T473, T53, T213 | — |
+| REQ-175 | Confrontation summary derivation (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T214 | — |
 | REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, S17 | — |
 | REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217, S17 | — |
 | REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219, S17 | — |

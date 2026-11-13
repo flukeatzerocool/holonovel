@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-11-12 — §5.6 typed recap payload remediation
+
+- `manage_context (action: recap)` now carries the machine-readable structure
+  REQ-072b requires in its structured result: the 15 fields REQ-072c1/c2 declare
+  (`timespan_start`/`timespan_end`, `entities`, `confrontations_completed`,
+  `confrontation_pending`, `scene`, `scene_type`, `lore_entries`,
+  `narrative_directive`, `scene_transitions`, `roster_changes`,
+  `condition_changes`, `significant_rolls`, `total_combat_rounds`,
+  `story_entries`) plus `narrative_orientation`, built once by
+  `buildRecapPayload` and attached on the scoped-session, Lonelog, and default
+  return paths. Missing values are typed null or `[]` (REQ-072b/c1/c2/d,
+  REQ-548a); the text envelope is unchanged, and `okWith` routes through
+  `structured(...)` so `grounding` survives.
+- Confrontations are paired from `init_combat`/`advance_combat`/`end_combat`
+  with per-combat `{participants, rounds, outcome}` objects; `rounds` is the end
+  entry's `rounds_played` (REQ-175a now names that source, with the advance
+  formula as the no-value fallback) and `confrontation_pending` is null unless a
+  combat is active (REQ-175b scopes its empty-array sentence to the timespan).
+- Entity status follows HP and the ruleset model's declared `death_condition`
+  (applied → `dead`; HP > 0 → `alive`; HP 0 with a declaration → `unconscious`;
+  HP 0 with none → `incapacitated`), and REQ-072c1 says "typed fields"
+  (REQ-072a1).
+- Roster and condition changes map audit rows explicitly, including
+  `condition_expired`; the three character-creation paths now audit
+  `create_character`/`import_character` before saving, which `roster_changes`
+  requires (REQ-040a, REQ-072c2).
+- A Player recap filters entities, lore, story, roster, condition, roll, and
+  confrontation rows to the active entity; an unknown `session_id` is
+  `[ERROR] [NOT_FOUND]` enumerating valid ids instead of appending a not-found
+  line to a successful recap, and an archived session returns the typed-empty
+  payload (REQ-072a2/e/f).
+- Assertions: T53 (15 fields, bounds, badge filter, parity, `grounding`) and
+  T212 (four-status matrix over a death-condition fixture) are written;
+  T214/T215 assert the typed payload, and T203's GM-entry check follows
+  REQ-168a's own-entity allowance. Appendix F rows updated; §5.6 remains a
+  `DATA_FORMAT` fingerprint section, so `contract-fingerprints.ts` is
+  regenerated. The roadmap section is retitled to *§5.6 clock and
+  combat-report remediation* and scoped to F-P3B1-6/-7 plus seven citations;
+  F-P3B1-3 is `Resolved`.
+
 ## 2026-11-12 — §5.6 audit, condition, and vow lifecycle remediation
 
 - The Player may apply or remove conditions on their own active entity;

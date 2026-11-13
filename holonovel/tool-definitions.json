@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 115824,
+  "tools_list_bytes": 115952,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 115824,
-        "tokens": 28956
+        "bytes": 115952,
+        "tokens": 28988
       },
       "standard": {
         "tools": 37,
-        "bytes": 101431,
-        "tokens": 25358
+        "bytes": 101559,
+        "tokens": 25390
       },
       "small": {
         "tools": 6,
@@ -767,8 +767,8 @@
     {
       "name": "manage_context",
       "title": "Context Controls",
-      "description": "Manage play-facing context controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
-      "description_bytes": 832,
+      "description": "Manage play-facing context controls: recap, verbosity, briefing_order, and tool discovery, distinct from story content and Novel lifecycle. recap returns a typed structured result (spans, entities, confrontations, scene, lore, changes, rolls, story) alongside its text, and accepts an archived session_id, GM-only gm_notes, and an optional compression tier; gm_notes are never returned to a non-GM badge. discover searches names, descriptions, and titles, and detail schema requires query. verbosity is session-scoped; briefing_order persists to the Novel and requires the GM or Editor badge. recap and discover are read-only; a setting is restored by setting it again (no undo snapshot is taken). Use when: recapping play, tuning output verbosity, reordering the briefing, or finding a tool. Do NOT use when: health, audit compaction, event-log, or category operations — use manage_diagnostics; recording story content — use manage_story (action: record).",
+      "description_bytes": 960,
       "action_enum": [
         "recap",
         "verbosity",
@@ -819,8 +819,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3126,
-        "descriptionBytes": 832
+        "definitionBytes": 3254,
+        "descriptionBytes": 960
       },
       "category": "",
       "gate": ""

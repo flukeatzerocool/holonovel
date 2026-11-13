@@ -51,6 +51,33 @@ audit log and the lifecycle gates that write to it.
   `[vow-forsaken]` in the recap. T335 (two vows) and the widened T369 cover the
   gate, the fill, the consequence, the marker, and the audit entries.
 
+### 2026-11-12 §5.6 typed recap payload remediation
+
+Resolved in the 2026-11-12 increment. `manage_context (action: recap)` now
+carries the machine-readable structure REQ-072b requires in its structured
+result (`okWith` → `structured("OK", expanded, fields)`, so `grounding`
+survives), while the text envelope keeps its markdown/Lonelog notation.
+
+- **F-P3B1-3 — recap is not the typed structure REQ-072 requires.** The 15
+  declared fields (REQ-072c1/c2) plus `narrative_orientation` are built once by
+  `buildRecapPayload` and attached on all three return paths (scoped session,
+  Lonelog, default); missing values are typed null or `[]` (REQ-072d).
+  `confrontations_completed` holds per-combat `{participants, rounds, outcome}`
+  objects paired from `init_combat`/`advance_combat`/`end_combat`, with
+  `rounds` read from the end entry's `rounds_played` (REQ-175a) and
+  `confrontation_pending` null unless `novel.combat.active` (REQ-175b).
+  `entities` carries `{name, hp, max_hp, conditions, status}` with the
+  four-status rule: the ruleset model's declared `death_condition` applied →
+  `dead`; HP > 0 → `alive`; HP = 0 with a declaration → `unconscious`; HP = 0
+  with no declaration → `incapacitated` (REQ-072a1). `roster_changes` and
+  `condition_changes` map audit rows explicitly (including `condition_expired`),
+  which required auditing the three unaudited creation paths (REQ-040a).
+  A Player recap filters entities, lore, story, roster, condition, roll, and
+  confrontation rows to the active entity (REQ-072a2), and an unknown
+  `session_id` is `[ERROR] [NOT_FOUND]` with valid IDs enumerated (REQ-072f)
+  instead of appending a not-found line to a successful recap. T53 and T212 are
+  written; T214/T215 assert the typed payload.
+
 ### 2026-11-12 §5.6 entity, scene, and NPC-depth remediation
 
 Resolved in the 2026-11-12 increment. The scene ledger, presence, and NPC depth
@@ -2178,18 +2205,12 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
 
-Partially scheduled under `ROADMAP.md` § *§5.6 recap, clock, and combat-report
-remediation (P1)*. F-P3B1-4, F-P3B1-5, and F-P3B1-8 are `Resolved` above;
-the remaining findings cite the predicate that carries them.
+Partially scheduled under `ROADMAP.md` § *§5.6 clock and combat-report
+remediation (P1)*. F-P3B1-3, F-P3B1-4, F-P3B1-5, and F-P3B1-8 are `Resolved`
+above; the remaining findings cite the predicate that carries them. F-P3B1-9 is
+reduced to the seven citations that assert the deferred clock and combat-report
+surfaces.
 
-- **F-P3B1-3 — recap is not the typed structure REQ-072 requires:** output is a
-  line-oriented blob (`holonovel/src/index.ts:9694-9727`); `entities[]`,
-  `lore_entries[]`, `narrative_directive`, `scene_type`, `roster_changes`,
-  `condition_changes`, `story_entries`, `total_combat_rounds`, and typed
-  `timespan_*` are absent, and `confrontations_completed` is a count instead of
-  per-combat `{participants, rounds, outcome}` objects (REQ-175a).
-  T214/T215/T261/T072 (`holonovel/scripts/test-backfill.ts:214`) assert only
-  `Active Novel`.
 - **F-P3B1-6 — clock interaction models are unimplemented:** the
   `manage_countdown` schema (`index.ts:6678-6706`) exposes no `clock_type` (nor
   `opposes`, `link_countdown`, `retreat_countdown`), so racing/linked/tug_of_war/
@@ -2200,9 +2221,10 @@ the remaining findings cite the predicate that carries them.
   participant's actions, rolls, and state changes summarized from the audit log
   and the lowercase `[auto]` marker.
 - **F-P3B1-9 — Automated citations with no harness:** T25/T33/T110/T161
-  (REQ-043f), T53/T212 (REQ-072f), T271 (REQ-073a2), and T54/T139 (REQ-073c3)
-  appear in per-REQ `_Check:_` lines but in no `holonovel/scripts` harness. T8
-  and T335 are now written (see the resolved section).
+  (REQ-043f), T271 (REQ-073a2), and T54/T139 (REQ-073c3) appear in per-REQ
+  `_Check:_` lines but in no `holonovel/scripts` harness. T8, T335, T53, and
+  T212 are now written (see the resolved sections); the seven above assert the
+  deferred clock and combat-report surfaces.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

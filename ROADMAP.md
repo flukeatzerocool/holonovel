@@ -12,11 +12,19 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.6 recap, clock, and combat-report remediation (P1)
+## Pre-existing harness failures: divergence probe and license refusal (P1)
 
-- Structured recap payload: emit the typed fields REQ-072b/c1/c2/d and
-  per-combat confrontation objects REQ-175a/b, widen T214/T215/T072, and write
-  T53/T212 under REQ-072f (F-P3B1-3, F-P3B1-9).
+- `test:memory-recall` T752 (REQ-633) reports `confirmed` where the displaced
+  outcome fixture expects `displaced`, and `test:limits` T740 (REQ-096m) refuses
+  a non-Appendix-U module license with a JSON body rather than the expected
+  `[ERROR] [STATE_CONFLICT]`; both fail on `HEAD` and were recorded by the
+  2026-11-12 recap increment's baselines.
+
+**Trigger:** the next memory or license-surface session; closes when both
+assertions pass on the committed tree with their cited behaviour.
+
+## §5.6 clock and combat-report remediation (P1)
+
 - Clock interaction models: expose `clock_type` and the racing/linked/tug_of_war/
   retreat models (REQ-073a1, REQ-073a2), and write T271/T54/T139 under REQ-073c3
   (F-P3B1-6, F-P3B1-9).
@@ -24,9 +32,10 @@
   marker (REQ-043b/c), and write T25/T33/T110/T161 under REQ-043f
   (F-P3B1-7, F-P3B1-9).
 
-**Trigger:** the first session that takes §5.6 recap, clock, or combat-report
-work; closes when F-P3B1-3, F-P3B1-6, F-P3B1-7, and F-P3B1-9 are `Resolved` in
-the review register.
+**Trigger:** the first session that takes §5.6 clock or combat-report work;
+closes when F-P3B1-6 and F-P3B1-7 are `Resolved` in the review register and the
+seven citations (T271, T54, T139, T25, T33, T110, T161) resolve to an exercised
+harness.
 
 ## Cross-badge undo stack access (P1)
 
