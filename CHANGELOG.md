@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-13 — server-suite red baseline: migration gating, state-hash, evidence anchors
+
+- `TTRPG_AUTO_MIGRATE=off` now suppresses the load-time Novel format migration
+  write as well as startup reconciliation: the v1 audit sidecar is adopted in
+  memory and its unlink is deferred until a successful primary write carries
+  the adopted log, so boot leaves the file byte-identical and no log can be
+  orphaned. The switch is one exported predicate (`autoMigrateEnabled`) shared
+  by `src/index.ts` and `core/state.ts`. Fixes T460, T501, T503, T774, and
+  T775 (REQ-092f, REQ-393, REQ-423, REQ-651, REQ-652).
+
 ## 2026-11-13 — §5.6 clock interaction models and audit-derived combat turn report
 
 - `manage_countdown` exposes the clock interaction model: `set` accepts

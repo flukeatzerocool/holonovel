@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment } from "./core/state.js";
+import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment, autoMigrateEnabled } from "./core/state.js";
 import { personalityFieldsFor, hasPersonalityData, voiceExamplesFor, renderPersonalityBlock, renderVoiceExample, normalizeVoiceExamples, npcRole, avoidLine } from "./core/personality.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { presentEntityIds, isPresent, presentIdsForLedger as presentIdsForLedgerDerivation, sessionsSince, loreContradictionWarning } from "./core/scene-ledger.js";
@@ -134,7 +134,7 @@ const RULESET_DIR = process.env.TTRPG_RULESET_DIRS ?? path.join(DATA_DIR, "rules
 // before hydration, so the in-memory load sees current files. Disabled by
 // TTRPG_AUTO_MIGRATE=off; a failed artifact keeps its advisory flag.
 let startupReconcile: ReturnType<typeof reconcileUserData> = [];
-if ((process.env.TTRPG_AUTO_MIGRATE ?? "on") !== "off") {
+if (autoMigrateEnabled()) {
   try {
     startupReconcile = reconcileUserData(DATA_DIR, { apply: true });
   } catch (e) {

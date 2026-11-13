@@ -40,6 +40,13 @@ const META_KEY = "__holonovel_meta";
 // incompatibly and add the matching migration branch.
 export const NOVEL_FORMAT_VERSION = 2;
 
+// REQ-651 — the single definition of the automatic-startup-reconciliation
+// switch. `off` means no startup write: neither the data-format reconcile nor
+// the load-time Novel format migration may rewrite a persisted artifact.
+export function autoMigrateEnabled(): boolean {
+  return (process.env.TTRPG_AUTO_MIGRATE ?? "on") !== "off";
+}
+
 // REQ-065a — the server build fingerprint: the fields persisted alongside Novel
 // state so a restart can compare the stored build against the current one.
 export interface BuildFingerprint {
@@ -1102,6 +1109,10 @@ export class StateManager {
   // REQ-652 — structured detail for the stale map: stored vs current
   // fingerprint and the reason. `staleData` keeps the advisory string form.
   staleDetail = new Map<string, { stored: string | null; current: string; reason: string }>();
+  // REQ-092f — v1 audit sidecars whose entries were adopted into memory but not
+  // yet persisted because startup reconciliation is off. The path is removed
+  // only after a successful primary write carries the adopted log.
+  pendingAuditSidecars = new Set<string>();
   // REQ-001a — Novels whose save file could not be loaded at hydration or
   // resume (unparseable JSON, checksum mismatch, or data-migration failure),
   // surfaced as a [WARNING] in spec_health.data_health.corrupted.
@@ -1692,8 +1703,11 @@ export class StateManager {
       this.novelPaths.set(key, filePath);
       if (fileSlug === key) canonicalKeys.add(key);
       // REQ-092e/f — persist a completed migration unless this Novel arrived
-      // through the backup-restore path (which must not rotate its chain here).
-      if (migrated && !this.restoredThisSession.has(key)) this.saveNovel(novel);
+      // through the backup-restore path (which must not rotate its chain here)
+      // or startup reconciliation is switched off (REQ-651): with the switch
+      // off the adopted log stays in memory and the first ordinary save
+      // persists it, so the file is untouched at boot.
+      if (migrated && !this.restoredThisSession.has(key) && autoMigrateEnabled()) this.saveNovel(novel);
     }
     // REQ-238 / TTRPG_NOVEL_RETENTION_DAYS — purge expired .trash entries at
     // startup. A retention of 0 (the default) disables purging.
@@ -1861,7 +1875,10 @@ export class StateManager {
           .map((line) => JSON.parse(line));
         if (this.auditChainBreak(entries) === -1) {
           adopted = entries;
-          fs.unlinkSync(sidecar);
+          // REQ-092f/REQ-651 — the sidecar is removed only after a successful
+          // primary write carries the adopted log, so an exit before that write
+          // leaves the v1 file and its log intact for the next boot.
+          this.pendingAuditSidecars.add(sidecar);
         } else {
           // Never destroy an unverified log (REQ-092c); load empty and say why.
           missingAuditReason = "chain_invalid";
@@ -2922,6 +2939,17 @@ ${turnOrder}`;
     fs.fsyncSync(fd);
     fs.closeSync(fd);
     fs.renameSync(tmpPath, filePath);
+    // REQ-092f — an adopted v1 audit log is now in the primary, so its sidecar
+    // is safe to remove (the unlink is deferred to here for every path, so no
+    // order can delete a log that is not yet persisted). A failed unlink leaves
+    // an orphan file, never a lost log.
+    const auditSidecar = filePath.replace(/\.json$/, ".audit.jsonl");
+    if (this.pendingAuditSidecars.has(auditSidecar)) {
+      try {
+        fs.unlinkSync(auditSidecar);
+      } catch { /* log already persisted; an orphan sidecar is harmless */ }
+      this.pendingAuditSidecars.delete(auditSidecar);
+    }
     // REQ-652 — a successful write stamps the current format, so the artifact
     // is no longer stale for this session.
     this.staleData.delete(`novel:${novel.slug}`);
