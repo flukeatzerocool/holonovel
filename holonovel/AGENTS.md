@@ -70,7 +70,7 @@ src/library.ts          Package library entry: core and world namespaces plus
 - **manage_world** (action: list/get/create_room/update_room/remove_room/create_thing/update_thing/remove_thing/create_exit/remove_exit/convert/generate) — world-model rooms, things, and exits (REQ-484–REQ-495)
 - **manage_causality** (action: causal_propose/causal_admit/causal_reject/causal_list/causal_state/causal_ingress) — objective causal state and transition ledger; split from `manage_world` (REQ-413/REQ-581)
 - **run_command** (action: execute/resolve/suggest/visibility/audibility) — parser dispatch, spatial intent resolution, action suggestions, and read-only visibility/audibility queries
-- **manage_combat** (action: init/advance/end/add_participant/remove_participant/status) — GM combat lifecycle
+- **manage_combat** (action: init/advance/end/add_participant/remove_participant/damage/status) — GM combat lifecycle and damage resolution
 - **manage_condition** (action: apply/remove/list) — mechanical/narrative conditions
 - **manage_countdown** (action: set/advance/remove/list) — GM countdown timers
 - **manage_faction** (action: create/update/remove/list) — GM factions and progress clocks

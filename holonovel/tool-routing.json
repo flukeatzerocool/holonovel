@@ -77,6 +77,11 @@
       "advance the round",
       "move to the next turn"
     ],
+    "manage_combat.damage": [
+      "deal damage",
+      "resolve weapon damage",
+      "hit for damage"
+    ],
     "manage_combat.end": [
       "conclude the fight",
       "leave combat"

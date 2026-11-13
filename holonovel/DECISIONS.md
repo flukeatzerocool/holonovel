@@ -2,11 +2,11 @@
 
 **Spec hash:** d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672
 
-**Recorded tool budget:** 37 listed (244 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
+**Recorded tool budget:** 37 listed (245 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 29,217 tokens; standard 25,619; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 29,417 tokens; standard 25,819; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -67,6 +67,44 @@ dated entries below record changes to this list.
   token; no new combat-state field is persisted. The marker is lowercase
   `[auto]` and applies to statless participants (dangers, and NPCs whose `stats`
   is absent or empty). (REQ-043b, REQ-043c)
+
+### NPC damage resolution — 2026-11-13
+
+- **Surface choice.** Damage resolution is `manage_combat (action: damage)`, not a
+  ruleset-derived tool and not a new host tool. Ruleset-derived tools are
+  contractually read-only/generation (REQ-430, REQ-450), so a host mutation
+  inferred from a package tool name would break that declaration; a new tool
+  would consume all but ~77 tokens of the standard projection headroom. The
+  action targets an entity or NPC by `target_id`, requires `attacker_id`, and
+  resolves `dice`/`amount` with REQ-003 transparency. (REQ-124a, REQ-124b,
+  REQ-408, REQ-429)
+- **Health stat and write-back.** The health stat is the first numeric value of
+  `hp`, `current_hp`, `hit_points` (the `entityHp` precedence). Every present
+  numeric key loses the same damage total and clamps at 0, so divergent siblings
+  never raise and never mask a downed target; the lowest key at or below 0 fires
+  the zero-health convention. A target with no numeric health stat refuses with
+  `[INVALID_INPUT]`. (REQ-124a)
+- **Zero-health convention.** The host applies the installed model's optional
+  `incapacitation_condition` key when present, else the base `incapacitated`
+  condition. The key is advisory model data read only here; the model contract
+  validates collections rather than rejecting extra top-level keys, so no
+  package-format or fingerprint change. `death_condition` is not reused: it is
+  recap's death marker, and applying it at zero would make every knockdown
+  report "dead". The entity condition name and the recap status string remain
+  separate surfaces. (REQ-124a, REQ-072a1, REQ-559)
+- **Audit and reporting.** The audit operation is `roll_weapon_damage`, with
+  `attacker`, `target_id`, weapon/dice/total, HP before/after, updated keys,
+  optional damage type, and any condition. The `roll` name makes it a
+  significant roll (REQ-174); the existing audit-derived turn report and recap
+  read it with no formatter change. The mutation is undoable and
+  checkpoint-restorable. (REQ-040a, REQ-041, REQ-043b, REQ-124b, REQ-174)
+- **Re-baseline.** The 2026-10-19 *Baseline* bullet records the pre-increment
+  surface; this entry supersedes its counts: 37 tools, 245 canonical actions,
+  299 total declarations (245 canonical + 54 compatibility), full 29,417 /
+  standard 25,819 / small 1,180 tokens. (REQ-571, REQ-567)
+- **Non-numeric health stats.** A ruleset whose zero-health convention rests on
+  a non-numeric stat (a wound ladder, a condition track) is unsupported by this
+  increment; a demonstrated failure reopens it. (REQ-124a)
 
 ### Seed conflict and env badge semantics — 2026-11-10
 

@@ -1834,7 +1834,6 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-212": "generation-table extraction — build-time; cited in the ruleset table header",
   "REQ-214": "table classification — build-time extraction of generation vs lookup tables; cited in the additional-tools header alongside REQ-213",
   "REQ-373": "terminal builder-scope non-goal — the reference holonovel build statically registers ruleset-derived tools by design (the MCP SDK's runtime registration is acknowledged and deliberately unused); recorded in DECISIONS.md and exercised by T424's waiver branch; no re-activation trigger",
-  "REQ-124": "§5.6 ruleset-dependent NPC damage resolution — needs a ruleset with a defensive-stat/damage model and zero-health threshold, which the ruleset-free reference host does not provide; re-activate with such a package (spec-code comparison SC-2)",
   "REQ-123": "§5.6 builder-defined NPC stat fields — derived from a ruleset's own stat-block conventions at discovery; the ruleset-free reference host's package format carries no stat-block schema, so the NPC surface exposes narrative fields only. Re-activate with a stat-block ruleset (spec-code comparison SC-6)",
   "REQ-187": "spec-content-hash computation is builder-side; the runtime stored-hash read and spec_hash_current surfacing (REQ-187a/b) are implemented in holonovel/src (index.ts build-fingerprint load, core/state.ts loadBuildFingerprint, 2026-09-30)",
 };
@@ -2010,13 +2009,6 @@ const INTENDED_GAP_REQS = new Set([
   // tables; the workflow pattern itself is covered by character creation
   // (REQ-104). Not owed by the ruleset-free runtime server.
   "REQ-056",
-  // §5.6 ruleset-dependent (spec-code comparison 2026-09-25, SC-2): NPC damage
-  // resolution needs a ruleset's damage model and zero-health threshold, which a
-  // ruleset-free host does not provide. T131's only harness occurrence was the
-  // conflict-lifecycle bundle, which asserted nothing about damage — REQ-124 was
-  // a false bucket C. Re-activate with a ruleset package that declares
-  // defensive stats and a damage model.
-  "REQ-124",
   // §5.6 ruleset-dependent (spec-code comparison 2026-09-25, SC-6): builder-
   // defined NPC stat fields are derived from a ruleset's stat-block conventions
   // during discovery; the ruleset-free reference host's package format carries

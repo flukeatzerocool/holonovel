@@ -12,16 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.6 clock and combat-report remediation (P1)
-
-- T161 evidence: the combat turn report must show a weapon-damage mutation
-  against a target's HP (REQ-043f), which needs the damage-resolution surface
-  from *REQ-124 NPC damage resolution* below; T131 and T161 close together.
-
-**Trigger:** the next §5.6 or ruleset-damage session; closes when T161 resolves
-to an exercised harness. T271, T54, T139, T110, and T162 resolve as of the
-2026-11-13 increment; T25 and T33 are re-pointed off REQ-043f.
-
 ## §5.4 remediation (P1)
 
 - Record the end-Novel disposal in the audit log before the Novel file moves to
@@ -93,22 +83,6 @@ harness.
 **Trigger:** the next session that takes citation-remediation work; closes when
 every §5.3 Check citation resolves to an exercised harness and
 `spec/audit/review-register.md` marks F-P2-1–F-P2-3 `Resolved`.
-
-## REQ-124 NPC damage resolution (P1)
-
-- Implement the NPC damage path REQ-124a/b describe: a damage-resolution call
-  carrying `target_id` reduces the NPC's ruleset HP, zero HP applies the
-  ruleset's incapacitation convention, and the result is audited and
-  snapshot-able; then write the T131 and T161 assertions (both catalogue rows
-  currently have no harness) and mark F-P3B2-15 `Resolved` in the review
-  register. T161 is the §5.6 clock/combat-report section's last open citation.
-- Decide whether the surface is a host-side consequence applied by the bound
-  ruleset's roll tool or an explicit `manage_combat` action, and record the
-  choice in `holonovel/DECISIONS.md`.
-
-**Trigger:** the next combat- or ruleset-surface session; closes when T131 and
-T161 exercise the HP-reduction and incapacitation branches against a fixture
-ruleset (REQ-124a, REQ-124b).
 
 ## Unscoped-surface review sweep (P2)
 

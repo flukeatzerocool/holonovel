@@ -1196,6 +1196,20 @@
       "successors": [],
       "edges": []
     },
+    "manage_combat.damage": {
+      "group": "resolve",
+      "phases": [
+        "scene",
+        "combat",
+        "downtime"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_combat.end": {
       "group": "resolve",
       "phases": [

@@ -1073,44 +1073,6 @@ in source; their resolution is the added assertion.
   Fix at `index.ts:10883-10892`: the handler refuses with a corrective action;
   T381 asserts the refusal, switches away, then archives.
 
-### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
-
-- **F-P3B1-1 — `audit://novel` was truncated JSON, unfiltered (resolved):** the
-  resource returned `novel.audit_log.slice(-50)` as JSON, with no badge filter
-  and `"[]"` when no Novel was active — REQ-168a requires the full log as
-  Markdown, one entry per line, badge-filtered, and REQ-168b requires
-  `[ERROR] [STATE_CONFLICT]`. Predicate: `holonovel/src/index.ts:12447`
-  (pre-fix); T203 asserted only that `create_novel` appeared. Fix at `:12442-12458`:
-  Markdown lines `timestamp | badge | tool | output_prefix | hash | args`,
-  Player/Observer filter by badge or active-entity reference, no-Novel error.
-  The `withForbiddenAudit` wrapper now records `getBadge()` instead of the
-  undefined `ctx.badge` (`core/server.ts:66-73`), so boundary entries carry the
-  active badge. T203 asserts format, filter, state-query absence, boundary
-  prefix, boundary badge, and the no-Novel error; `test-security` and
-  `test-artifact-registry` parse the Markdown resource.
-- **F-P3B1-2 — combat refusals named a tool that does not exist (resolved):**
-  the init guard and the navigation block said `end_combat`; REQ-203/REQ-221a
-  quote `manage_combat (action: end)`. Predicate: `index.ts:5708` and `:4636`
-  (pre-fix). Fix: both messages corrected; T246/T263 assert the quoted action.
-
-### 2026-11-12 execution findings
-
-- **F-P3B1-10 — undo cannot reach another badge's mutation (Resolved
-  2026-11-13):** `StateManager.snapshot` pushed under `getBadge()` and
-  `undo`/`redo` selected `novel.undo_stacks[stackKey]` by the current badge
-  (`holonovel/src/core/state.ts:2104-2116`, pre-fix), so a mutation made under
-  one badge was absent from another badge's stack and an undo there returned
-  `[STATE_CONFLICT]` — REQ-041a requires that "an undo in the Player badge
-  reverses the most recent mutation regardless of which badge initiated it"
-  (`spec/02-requirements.md:1473`). Found during the §5.6 audit/condition/vow
-  increment while writing T8. Resolved by the 2026-11-13 cross-badge-undo
-  increment: each snapshot carries `_snapshot_seq` and `undo` selects the
-  newest stamped snapshot across every badge's stack
-  (`state.ts:2129-2219`), the active badge is preserved across the restore
-  (REQ-040d, `state.ts:3579`), and T10 asserts both in
-  `holonovel/scripts/test-persistence-guardrails.ts:194`, `:218`. REQ-041a,
-  REQ-040d.
-
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
 - **F-P3-1 — structured decision options were mangled (resolved):**
@@ -2255,10 +2217,9 @@ pass and completion-oracle green. Fix evidence: regression tests in
 
 ### 2026-11-09 full-review sweep — chunk P3b-2 (§5.6 entities and NPCs)
 
-F-P3B2-9 through F-P3B2-14 are `Resolved` in the 2026-11-12 §5.6 personality,
-signal, and citation remediation increment. The one citation that could not be
-re-pointed honestly (REQ-124b's T131) is split out as F-P3B2-15 below and
-scheduled on `ROADMAP.md`.
+F-P3B2-9 through F-P3B2-15 are `Resolved`. F-P3B2-9 through F-P3B2-14 closed
+in the 2026-11-12 §5.6 personality, signal, and citation increment; F-P3B2-15
+(REQ-124b's T131) closed in the 2026-11-13 NPC damage increment.
 
 - **F-P3B2-9 — personality surfaces (Resolved).** `composePersonalityGroup`
   renders a `### Personality` group with voice examples before trait lines, an
@@ -2296,17 +2257,29 @@ scheduled on `ROADMAP.md`.
   longer carries the false T131 token (`test-backfill.ts:415`). REQ-074,
   REQ-075g, REQ-076, REQ-077, REQ-126b, REQ-128b, REQ-167b.
 
+- **F-P3B2-15 — REQ-124 NPC damage resolution (resolved 2026-11-13):**
+  `manage_combat (action: damage)` now targets an entity or NPC, reduces the
+  ruleset-backed health stat with a transparent dice/flat total, applies the
+  model's `incapacitation_condition` (or the base condition), and is audited,
+  undoable, and checkpoint-restorable (`holonovel/src/index.ts`, `damage` case).
+  T131 exercises the full path in `holonovel/scripts/test-backfill.ts`
+  (HP, audit entry, undo, checkpoint restore, unknown target, input refusals,
+  ruleset `downed` condition, ruleset-free fallback). REQ-124a, REQ-124b.
+
+### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
+
+F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
+`Resolved`.
+
+- **F-P3B1-9 — Automated citations with no harness (resolved 2026-11-13):**
+  the clock and combat-report citations are exercised by
+  `holonovel/scripts/test-backfill.ts`; T25/T33 are re-pointed off REQ-043f
+  because neither asserts the combat turn report (T25 is the ruleset-section
+  deletion drill, T33 a Manual ruleset-combat check). T161 (REQ-043f) now
+  asserts the weapon-damage mutation against a target's HP in the same harness,
+  backed by `manage_combat (action: damage)`. REQ-043f.
+
 ## Scheduled-roadmap
-
-### 2026-11-12 §5.6 citation remediation
-
-- **F-P3B2-15 — REQ-124 NPC damage resolution is unimplemented
-  (2026-11-12):** REQ-124b's `_Check:_ T131` names an NPC damage resolution
-  (`roll_weapon_damage` reduces NPC HP; zero HP applies incapacitation), but no
-  `roll_weapon_damage` handler exists and `manage_ruleset (action: roll)` rolls
-  only generation tables; the conflict-lifecycle harness title previously
-  carried a false T131 token, now removed. Scheduled under `ROADMAP.md` §
-  *REQ-124 NPC damage resolution (P1)*. REQ-124a, REQ-124b.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
@@ -2327,22 +2300,6 @@ T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
 
-
-### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
-
-Partially scheduled under `ROADMAP.md` § *§5.6 clock and combat-report
-remediation (P1)*. F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, and
-F-P3B1-8 are `Resolved` above; F-P3B1-9 is reduced to the single T161 citation
-that asserts the deferred damage surface.
-
-- **F-P3B1-9 — Automated citations with no harness (partially resolved
-  2026-11-13):** the clock and combat-report citations are now exercised by
-  `holonovel/scripts/test-backfill.ts`, and T25/T33 are re-pointed off REQ-043f
-  because neither asserts the combat turn report (T25 is the ruleset-section
-  deletion drill, T33 a Manual ruleset-combat check). **Open:** T161 (REQ-043f)
-  asserts a weapon-damage mutation against a target's HP, and no
-  damage-resolution surface exists until REQ-124 lands. The row stays
-  `Scheduled-roadmap` on that single citation.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

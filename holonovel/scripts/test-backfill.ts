@@ -33,6 +33,32 @@ function assert(cond: any, msg: string): void {
   if (!cond) throw new Error(msg);
 }
 
+// REQ-124 — a ruleset-backed NPC fixture seeded on disk before boot. The
+// distinct `downed` name proves the ruleset-declared zero-health branch.
+const DAMAGE_FIXTURE_MODEL: any = {
+  monsters: { goblin: { name: "Goblin", ac: 13, hp: 12, max_hp: 12 } },
+  incapacitation_condition: "downed",
+  info: {}, tables: {}, generation_tables: {}, concepts: {}, resolution: {}, roles: {},
+};
+function seedDamageFixture(): void {
+  const slug = "damagefixture";
+  const dir = join(DATA_DIR, "rulesets", slug);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const model = DAMAGE_FIXTURE_MODEL;
+  const manifest = {
+    slug, name: "Damage Fixture", host_version: "0.0.0",
+    package_format: PACKAGE_FORMAT, built_at: "2026-01-01T00:00:00.000Z",
+    counts: {}, content_hash: sha256Canonical([], model, [], [], []),
+  };
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest));
+  writeFileSync(join(dir, "model.json"), JSON.stringify(model));
+  for (const file of ["index.json", "tools.json", "resources.json", "prompts.json"]) {
+    writeFileSync(join(dir, file), "[]");
+  }
+  writeFileSync(join(dir, "reasoning.jsonl"), "");
+}
+
 // ── MCP client ──────────────────────────────────────────────────────
 
 let msgId = 0;
@@ -2297,6 +2323,129 @@ async function main() {
     const npcs = JSON.parse(await readResource(proc, "npcs://"));
     assert(Object.keys(npcs[npcId]?.stats ?? {}).length === 0, "auto-advance wrote mechanical stats");
     await call(proc, "manage_combat", { action: "end" });
+    await kill(proc);
+  });
+
+  // ── §5.6 REQ-124 NPC damage resolution (T131) and turn report (T161) ──
+
+  await test("T131/REQ-124a/b: NPC damage — HP, audit, undo, checkpoint, incap, validation", async () => {
+    seedDamageFixture();
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t131-damage", ruleset: "damagefixture" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create", name: "Rook", species: "Human" });
+    const created = await call(proc, "manage_npc", { action: "create", name: "Goblin", ruleset_reference: "goblin" });
+    const npcId = created.match(/\(([^)]+)\)/)?.[1] ?? "npc_1";
+    let npcs = JSON.parse(await readResource(proc, "npcs://"));
+    assert(npcs[npcId]?.stats?.hp === 12, `ruleset_reference did not copy hp: ${JSON.stringify(npcs[npcId])}`);
+    assert(npcs[npcId]?.stats?.ac === 13, "ruleset_reference did not copy ac");
+
+    assertContains(await call(proc, "manage_combat", { action: "init", participants: ["character_01", npcId] }), "[OK]");
+    await call(proc, "manage_combat", { action: "advance" });
+    await call(proc, "manage_combat", { action: "advance" });
+
+    const dmg = await call(proc, "manage_combat", {
+      action: "damage", attacker_id: "character_01", target_id: npcId,
+      weapon: "longsword", dice: "1d8", amount: 2, damage_type: "slashing", seed: "fixed",
+    });
+    assertContains(dmg, "longsword");
+    assertContains(dmg, "1d8");
+    assertContains(dmg, "slashing");
+    const total = Number(dmg.match(/= (\d+) damage/)?.[1]);
+    const after = Number(dmg.match(/HP 12 → (\d+)/)?.[1]);
+    assert(total >= 3 && after === 12 - total, `damage arithmetic wrong: ${dmg}`);
+    npcs = JSON.parse(await readResource(proc, "npcs://"));
+    assert(npcs[npcId].stats.hp === after, `npcs:// did not report stats.hp ${after}: ${JSON.stringify(npcs[npcId])}`);
+    const auditLog = await readResource(proc, "audit://novel");
+    assertContains(auditLog, "roll_weapon_damage");
+    assertContains(auditLog, npcId);
+    assertContains(auditLog, "hp_before");
+
+    // Undo, on its own NPC.
+    const c2 = await call(proc, "manage_npc", { action: "create", name: "Goblin Two", ruleset_reference: "goblin" });
+    const npc2 = c2.match(/\(([^)]+)\)/)?.[1] ?? "npc_2";
+    await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: npc2, amount: 3 });
+    assert(JSON.parse(await readResource(proc, "npcs://"))[npc2].stats.hp === 9, "damage did not reduce NPC HP by 3");
+    await call(proc, "manage_history", { action: "undo" });
+    assert(JSON.parse(await readResource(proc, "npcs://"))[npc2].stats.hp === 12, "undo did not restore the NPC's HP");
+
+    // Checkpoint, on a second NPC.
+    const c3 = await call(proc, "manage_npc", { action: "create", name: "Goblin Three", ruleset_reference: "goblin" });
+    const npc3 = c3.match(/\(([^)]+)\)/)?.[1] ?? "npc_3";
+    await call(proc, "manage_archive", { action: "checkpoint_set", label: "pre-damage" });
+    await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: npc3, amount: 4 });
+    const restore = await call(proc, "manage_archive", { action: "checkpoint_restore", label: "pre-damage" });
+    assertContains(restore, "[NEED_INPUT]");
+    await call(proc, "respond_decision", { decision: "restore_checkpoint:pre-damage", option: "yes" });
+    assert(JSON.parse(await readResource(proc, "npcs://"))[npc3].stats.hp === 12, "checkpoint restore did not restore the NPC's HP");
+
+    // Unknown target.
+    const missing = await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: "npc_missing", amount: 1 });
+    assertContains(missing, "[NOT_FOUND]");
+    assertContains(missing, npcId);
+
+    // Rejected inputs mutate nothing.
+    for (const extra of [{}, { amount: -1 }, { amount: 0 }, { dice: "1d8+2" }]) {
+      const refused = await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: npcId, ...extra });
+      assertContains(refused, "[INVALID_INPUT]");
+    }
+    const plain = await call(proc, "manage_npc", { action: "create", name: "No Stats" });
+    const plainId = plain.match(/\(([^)]+)\)/)?.[1] ?? "npc_4";
+    assertContains(await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: plainId, amount: 1 }), "[INVALID_INPUT]");
+    npcs = JSON.parse(await readResource(proc, "npcs://"));
+    assert(npcs[npcId].stats.hp === after, "a rejected damage call changed HP");
+
+    // Ruleset-declared zero-health condition.
+    await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: npcId, amount: 99 });
+    npcs = JSON.parse(await readResource(proc, "npcs://"));
+    assert(npcs[npcId].conditions.includes("downed"), `ruleset condition not applied: ${JSON.stringify(npcs[npcId].conditions)}`);
+    assert(!npcs[npcId].conditions.includes("incapacitated"), "base condition applied despite the ruleset's declaration");
+
+    // Divergent keys and the ruleset-free fallback live in a new Novel.
+    await call(proc, "manage_novel", { action: "create", name: "t131-free" });
+    await call(proc, "manage_character", { action: "create", name: "Ace", species: "Human" });
+    await call(proc, "manage_character", { action: "create", name: "Bolt", species: "Elf" });
+    await call(proc, "manage_character", { action: "update", entity_id: "character_01", stats: { hp: 10, current_hp: 4 } });
+    const divergent = await call(proc, "manage_combat", { action: "damage", attacker_id: "character_02", target_id: "character_01", amount: 3 });
+    assertContains(divergent, "HP 10 → 7");
+    const sheet = JSON.parse(await call(proc, "manage_character", { action: "sheet", entity_id: "character_01", format: "json" }));
+    assert(sheet.stats.hp === 7 && sheet.stats.current_hp === 1, `divergent keys not reduced by the same delta: ${JSON.stringify(sheet.stats)}`);
+
+    await call(proc, "manage_character", { action: "update", entity_id: "character_02", stats: { hp: 1 } });
+    const down = await call(proc, "manage_combat", { action: "damage", attacker_id: "character_01", target_id: "character_02", amount: 5 });
+    assertContains(down, "incapacitated");
+    const sheet2 = JSON.parse(await call(proc, "manage_character", { action: "sheet", entity_id: "character_02", format: "json" }));
+    assert(sheet2.conditions.includes("incapacitated"), `fallback condition missing: ${JSON.stringify(sheet2.conditions)}`);
+    // The recap's status surface is entity-scoped; pin it on the fallen entity.
+    const recapResp = await callRaw(proc, "manage_context", { action: "recap" });
+    const recapSc = (recapResp?.result ?? recapResp)?.structuredContent ?? {};
+    const boltRow = (recapSc.entities ?? []).find((e: any) => e.name === "Bolt");
+    assert(boltRow?.status === "incapacitated", `recap status not incapacitated: ${JSON.stringify(recapSc.entities)}`);
+    await kill(proc);
+  });
+
+  await test("T161/REQ-043f: audit-derived turn report includes weapon damage", async () => {
+    seedDamageFixture();
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t161-damage", ruleset: "damagefixture" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create", name: "Rook", species: "Human" });
+    const created = await call(proc, "manage_npc", { action: "create", name: "Goblin", ruleset_reference: "goblin" });
+    const npcId = created.match(/\(([^)]+)\)/)?.[1] ?? "npc_1";
+    await call(proc, "manage_combat", { action: "init", participants: ["character_01", npcId] });
+    const dmg = await call(proc, "manage_combat", {
+      action: "damage", attacker_id: "character_01", target_id: npcId,
+      weapon: "longsword", dice: "1d8", amount: 3, seed: "fixed",
+    });
+    const total = Number(dmg.match(/= (\d+) damage/)?.[1]);
+    const report = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(report, "character_01");
+    assertContains(report, "longsword");
+    assertContains(report, "1d8");
+    assertContains(report, `total=${total}`);
+    assertContains(report, "hp_after");
+    const noAction = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(noAction, "took no action");
     await kill(proc);
   });
 

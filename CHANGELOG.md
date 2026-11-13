@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-11-13 — REQ-124 NPC damage resolution: `manage_combat (action: damage)`
+
+- New `manage_combat (action: damage)` resolves weapon damage against an entity
+  or NPC: `target_id` and `attacker_id` are required, `dice` (pure notation) and
+  `amount` (non-negative flat modifier) supply at least one operand, and the
+  result reports the weapon, dice, modifier, total, and `HP before → after`
+  (REQ-003, REQ-124a). Every present numeric health key (`hp`, `current_hp`,
+  `hit_points`) loses the same total and clamps at 0; the lowest key at or below
+  0 applies the model's optional `incapacitation_condition` or the base
+  `incapacitated` condition. Rejected input (unknown target, missing health
+  stat, no operand, negative amount, zero total, inline dice modifier) returns
+  `[INVALID_INPUT]`/`[NOT_FOUND]` before the snapshot, so it leaves no undo
+  frame.
+- The mutation is audited as `roll_weapon_damage` (a significant roll under
+  REQ-174), is undoable and checkpoint-restorable, and appears in the
+  audit-derived combat turn report and recap with no formatter change
+  (REQ-040a, REQ-041, REQ-043b, REQ-124b).
+- Spec: REQ-124a names the surface and REQ-124b's acceptance criterion uses the
+  real invocation; Appendix F T131/T161 name the action and the ruleset-backed
+  fixture. `holonovel/DECISIONS.md` records the surface choice, health
+  write-back, zero-health convention, audit naming, non-numeric-health
+  condition, and a dated re-baseline (37 tools, 245 canonical actions, 299
+  total declarations).
+- T131 (`test-backfill.ts`) exercises HP reduction, the audit entry, undo,
+  checkpoint restore, unknown target, input refusals, the ruleset `downed`
+  condition, the ruleset-free `incapacitated` fallback, divergent health keys,
+  and the recap status surface; T161 exercises the turn report. Review-register
+  F-P3B2-15 and F-P3B1-9 are `Resolved`, and `ROADMAP.md` retires the §5.6
+  clock/combat-report section and the REQ-124 section (T271/T54/T139/T110/T162
+  resolved, T25/T33 re-pointed, T131/T161 now exercised). REQ-124 leaves the
+  intended-gap whitelist in `scripts/validate.ts` and the coverage register
+  reports bucket C.
+
 ## 2026-11-13 — cross-badge undo: newest snapshot across every badge's stack
 
 - `manage_history (action: undo)` now restores the newest mutation under any

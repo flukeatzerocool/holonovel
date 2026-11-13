@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 116866,
+  "tools_list_bytes": 117668,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 116866,
-        "tokens": 29217
+        "bytes": 117668,
+        "tokens": 29417
       },
       "standard": {
         "tools": 37,
-        "bytes": 102473,
-        "tokens": 25619
+        "bytes": 103275,
+        "tokens": 25819
       },
       "small": {
         "tools": 6,
@@ -658,26 +658,33 @@
     {
       "name": "manage_combat",
       "title": "Combat Encounter Management",
-      "description": "Manage combat encounters in the active Novel — encounter turn order, participants, and lifecycle, not per-entity conditions. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
-      "description_bytes": 528,
+      "description": "Manage combat encounters in the active Novel — encounter turn order, participants, and lifecycle, not per-entity conditions. damage resolves a weapon hit against an entity or NPC health stat with a transparent roll, applying the ruleset's zero-health condition. Mutating actions persist to the Novel and are audited; status does not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, changing its participants, or resolving damage. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
+      "description_bytes": 674,
       "action_enum": [
         "init",
         "advance",
         "end",
         "add_participant",
         "remove_participant",
+        "damage",
         "status"
       ],
-      "param_count": 5,
+      "param_count": 11,
       "required": [
         "action"
       ],
       "params": {
+        "amount": "Flat non-negative damage modifier; with no dice, the whole damage (damage).",
+        "attacker_id": "Entity or NPC identifier dealing the damage (damage).",
+        "damage_type": "Free-text damage type recorded in the audit entry (damage).",
         "dangers": "Optional non-entity combatants (init).",
+        "dice": "Damage dice notation without a modifier, e.g. 1d8 (damage).",
         "outcome": "Optional text describing how combat ended (end).",
         "participant_id": "Entity identifier (add_participant/remove_participant).",
         "participants": "Entity identifiers participating (init).",
-        "seed": "Optional deterministic seed (init)."
+        "seed": "Optional deterministic seed (init/damage).",
+        "target_id": "Entity or NPC identifier to damage (damage).",
+        "weapon": "Weapon name reported in the result and audit entry (damage)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c).",
@@ -693,9 +700,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 6,
+        "paramCount": 12,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 6,
+        "paramsWithDescriptions": 12,
         "paramsWithEnums": 1,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
@@ -706,8 +713,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2089,
-        "descriptionBytes": 528
+        "definitionBytes": 2884,
+        "descriptionBytes": 674
       },
       "category": "",
       "gate": ""
@@ -715,8 +722,8 @@
     {
       "name": "manage_condition",
       "title": "Condition Management",
-      "description": "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. The GM or Editor may act on any entity or NPC; the Player may apply or remove on their own active entity only and is refused on any other. Mutations persist to the Novel, are audited, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
-      "description_bytes": 732,
+      "description": "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. The GM or Editor may act on any entity or NPC; the Player may apply or remove on their own active entity only and is refused on any other. Mutations persist to the Novel, are audited, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance/damage).",
+      "description_bytes": 739,
       "action_enum": [
         "apply",
         "remove",
@@ -758,8 +765,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1799,
-        "descriptionBytes": 732
+        "definitionBytes": 1806,
+        "descriptionBytes": 739
       },
       "category": "",
       "gate": ""

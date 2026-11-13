@@ -6872,14 +6872,20 @@ function composeRoomContext(room: WorldRoom, novel: NovelState, world: WorldMode
 // Combat (REQ-203, REQ-204, REQ-311) — consolidated init/advance/end/participant/status surface.
 server.registerTool("manage_combat", {
   title: "Combat Encounter Management",
-  description: "Manage combat encounters in the active Novel — encounter turn order, participants, and lifecycle, not per-entity conditions. Mutating actions persist to the Novel and are audited; read-only actions do not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, or changing its participants. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
+  description: "Manage combat encounters in the active Novel — encounter turn order, participants, and lifecycle, not per-entity conditions. damage resolves a weapon hit against an entity or NPC health stat with a transparent roll, applying the ruleset's zero-health condition. Mutating actions persist to the Novel and are audited; status does not mutate state. Revert the most recent mutation with manage_history (action: undo). init's seed only reorders the danger set; participants keep their given order. Use when: starting, advancing, ending a fight, changing its participants, or resolving damage. Do NOT use when: applying a status effect — use manage_condition (action: apply).",
   inputSchema: {
-    action: z.enum(["init", "advance", "end", "add_participant", "remove_participant", "status"]).describe("init, advance, end, add_participant, remove_participant, or status."),
+    action: z.enum(["init", "advance", "end", "add_participant", "remove_participant", "damage", "status"]).describe("init, advance, end, add_participant, remove_participant, damage, or status."),
     participants: z.array(z.string()).optional().describe("Entity identifiers participating (init)."),
     dangers: z.array(z.object({ name: z.string(), ac: z.number().optional(), hp: z.number().optional(), initiative_bonus: z.number().optional() })).optional().describe("Optional non-entity combatants (init)."),
-    seed: z.string().optional().describe("Optional deterministic seed (init)."),
+    seed: z.string().optional().describe("Optional deterministic seed (init/damage)."),
     outcome: z.string().optional().describe("Optional text describing how combat ended (end)."),
     participant_id: z.string().optional().describe("Entity identifier (add_participant/remove_participant)."),
+    target_id: z.string().optional().describe("Entity or NPC identifier to damage (damage)."),
+    attacker_id: z.string().optional().describe("Entity or NPC identifier dealing the damage (damage)."),
+    weapon: z.string().optional().describe("Weapon name reported in the result and audit entry (damage)."),
+    dice: z.string().optional().describe("Damage dice notation without a modifier, e.g. 1d8 (damage)."),
+    amount: z.number().optional().describe("Flat non-negative damage modifier; with no dice, the whole damage (damage)."),
+    damage_type: z.string().optional().describe("Free-text damage type recorded in the audit entry (damage)."),
   },
 }, async (args: any) => {
   switch (args.action) {
@@ -6952,6 +6958,97 @@ server.registerTool("manage_combat", {
       state.saveNovel(novel);
       if (result.ended) return ok("Combat ended — all participants removed.");
       return ok(`'${args.participant_id}' removed from combat.`);
+    }
+    case "damage": {
+      requireGM();
+      const novel = requireNovel();
+      const targetId = args.target_id;
+      const attackerId = args.attacker_id;
+      if (!targetId) return err("INVALID_INPUT", "target_id is required for damage. Corrective action: pass an entity or NPC identifier.");
+      if (!attackerId) return err("INVALID_INPUT", "attacker_id is required for damage. Corrective action: pass the attacking entity or NPC identifier.");
+      const target: any = novel.entities.get(targetId) ?? novel.npcs.get(targetId);
+      if (!target) {
+        const valid = [...novel.entities.keys(), ...novel.npcs.keys()];
+        return err("NOT_FOUND", `Target '${targetId}' not found. Valid entity/NPC IDs: ${valid.join(", ") || "(none)"}.`);
+      }
+      // REQ-124a — the numeric health stat(s); the precedence list matches entityHp.
+      const stats = (target.stats ?? {}) as Record<string, any>;
+      const healthKeys = ["hp", "current_hp", "hit_points"].filter((key) => typeof stats[key] === "number");
+      if (healthKeys.length === 0) {
+        return err("INVALID_INPUT", `Target '${targetId}' has no numeric health stat (hp, current_hp, or hit_points). Corrective action: bind a package with a stat block via ruleset_reference, or set the stat through the owning tool.`);
+      }
+      // REQ-003 — damage operands: dice notation (no inline modifier) and/or a
+      // non-negative flat modifier; at least one is required and the total >= 1.
+      const rawDice = typeof args.dice === "string" ? args.dice.trim() : "";
+      const hasDice = rawDice.length > 0;
+      const hasAmount = typeof args.amount === "number";
+      if (!hasDice && !hasAmount) {
+        return err("INVALID_INPUT", "damage requires dice and/or amount. Corrective action: pass dice notation (e.g. 1d8), a positive amount, or both.");
+      }
+      if (hasAmount && (!Number.isInteger(args.amount) || args.amount < 0)) {
+        return err("INVALID_INPUT", `amount must be a non-negative integer; got ${args.amount}.`);
+      }
+      if (hasDice && /[+-]/.test(rawDice.slice(1))) {
+        return err("INVALID_INPUT", `dice '${rawDice}' must be a pure dice expression; pass modifiers as amount.`);
+      }
+      let diceTotal = 0;
+      let diceRolls: number[] = [];
+      let notation: string | undefined;
+      if (hasDice) {
+        try {
+          const rolled = rollDice(rawDice, args.seed);
+          diceTotal = rolled.total;
+          diceRolls = rolled.dice;
+          notation = rolled.notation;
+        } catch (e: any) {
+          return err("INVALID_INPUT", e.message);
+        }
+      }
+      const modifier = hasAmount ? args.amount : 0;
+      const total = diceTotal + modifier;
+      if (!(total >= 1)) {
+        return err("INVALID_INPUT", "Damage total must be at least 1. Corrective action: raise amount or supply dice.");
+      }
+      const primaryKey = healthKeys[0];
+      const hpBefore = stats[primaryKey] as number;
+      // Validation is complete; snapshot only now so a rejected call leaves no
+      // undo frame (REQ-041).
+      novelSnapshot();
+      for (const key of healthKeys) stats[key] = Math.max(0, (stats[key] as number) - total);
+      target.stats = stats;
+      const primaryAfter = stats[primaryKey] as number;
+      const lowest = Math.min(...healthKeys.map((key) => stats[key] as number));
+      let condition: string | undefined;
+      if (lowest <= 0) {
+        condition = rulesetIncapacitationCondition(novel);
+        if (!Array.isArray(target.conditions)) target.conditions = [];
+        if (!target.condition_rounds) target.condition_rounds = {};
+        if (!target.conditions.includes(condition)) target.conditions.push(condition);
+      }
+      state.recordMutation(novel, "roll_weapon_damage", novel.npcs.has(targetId) ? "npc" : "entity");
+      // REQ-040a / REQ-124b — audited with full transparency; the `roll` prefix
+      // makes it a significant roll (REQ-174) for the recap and the turn report.
+      audit("roll_weapon_damage", {
+        attacker: attackerId,
+        target_id: targetId,
+        ...(args.weapon ? { weapon: args.weapon } : {}),
+        ...(notation ? { dice: notation, rolls: diceRolls } : {}),
+        amount: modifier,
+        total,
+        hp_before: hpBefore,
+        hp_after: primaryAfter,
+        updated_keys: healthKeys,
+        ...(args.damage_type ? { damage_type: args.damage_type } : {}),
+        ...(condition ? { condition } : {}),
+      });
+      state.saveNovel(novel);
+      const parts = [args.weapon ? `${args.weapon}` : "unarmed"];
+      if (notation) parts.push(`${notation} (${diceRolls.join(", ")})${modifier > 0 ? ` + ${modifier}` : ""}`);
+      else parts.push("flat");
+      parts.push(`= ${total} damage`);
+      const typeSuffix = args.damage_type ? ` [${args.damage_type}]` : "";
+      const conditionSuffix = condition ? ` Incapacitated: ${condition}.` : "";
+      return ok(`${parts.join(": ")} to '${target.name ?? targetId}' (${targetId})${typeSuffix}. HP ${hpBefore} → ${primaryAfter}.${conditionSuffix}`);
     }
     case "status": {
       const novel = requireNovel();
@@ -8636,10 +8733,25 @@ function conditionCatalogue(novel: NovelState): { list: string[]; validate: bool
   }
   return { list: BASE_CONDITIONS, validate: true };
 }
+// REQ-124a — the ruleset's zero-health convention. A package may declare an
+// optional `incapacitation_condition` model key; otherwise the base condition
+// applies. The key is advisory model data and does not change the package
+// format (§6.4.2).
+function rulesetIncapacitationCondition(novel: NovelState): string {
+  const slug = novel?.ruleset ?? null;
+  if (!slug || !rulesets.isInstalled(slug)) return "incapacitated";
+  try {
+    const model = rulesets.hydrate(slug).model as any;
+    const declared = model?.incapacitation_condition;
+    return typeof declared === "string" && declared.trim().length > 0 ? declared.trim() : "incapacitated";
+  } catch {
+    return "incapacitated"; // an unreadable package model falls back to the base condition
+  }
+}
 // Condition (REQ-217) — consolidated apply/remove/list surface.
 server.registerTool("manage_condition", {
   title: "Condition Management",
-  description: "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. The GM or Editor may act on any entity or NPC; the Player may apply or remove on their own active entity only and is refused on any other. Mutations persist to the Novel, are audited, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance).",
+  description: "Manage mechanical or narrative conditions on entities. apply attaches a named condition to one entity; rounds is a positive round count, and omitting it (or passing 0) leaves the condition without an expiry. Re-applying an active condition warns instead of duplicating it, and remove deletes the condition and its round counter. The GM or Editor may act on any entity or NPC; the Player may apply or remove on their own active entity only and is refused on any other. Mutations persist to the Novel, are audited, and are undoable via manage_history (action: undo); list is read-only. Use when: applying, removing, or listing conditions. Do NOT use when: recording damage or combat state — use manage_combat (action: init/advance/damage).",
   inputSchema: {
     action: z.enum(["apply", "remove", "list"]).describe("apply, remove, or list."),
     entity_id: z.string().optional().describe("The entity to affect (apply/remove)."),
