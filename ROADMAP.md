@@ -22,23 +22,6 @@
 to an exercised harness. T271, T54, T139, T110, and T162 resolve as of the
 2026-11-13 increment; T25 and T33 are re-pointed off REQ-043f.
 
-## Pre-existing server-suite reds (P1)
-
-- Fingerprint staleness advisory is cleared by the v1 Novel migration save:
-  `migrateNovelFormat` marks the file migrated, `saveNovel` then deletes
-  `staleData`/`staleDetail`, so T460/T501/T503/T774/T775 fail at HEAD
-  (`test:fingerprints`: 11 passed, 5 failed before any 2026-11-13 edit).
-- Holosuite evidence anchors have drifted: conformance (5), invariants (6),
-  adversarial (7), differential (2), and novel (7) `predicate_unresolved`
-  findings, plus `novel/restart_state_stable` (`_checksum`,
-  `connection_counter` drift) and `test:identity` T772 nondeterminism — all
-  reproduced on the stashed tree at HEAD `26cf82c`. Repoint the anchors and
-  re-pin the restart hash, then re-run `test:all`.
-
-**Trigger:** the next harness-maintenance session; closes when `npm run
-test:all` is green at HEAD+1 and no holosuite finding is
-`predicate_unresolved`.
-
 ## Cross-badge undo stack access (P1)
 
 - Make `manage_history (action: undo|redo)` reach the most recent mutation made

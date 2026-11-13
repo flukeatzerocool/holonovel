@@ -11,6 +11,45 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-13 server-suite red baseline
+
+Cleared in the 2026-11-13 red-baseline increment (plan
+`docs/plans/2026-11-13-server-suite-reds/`). Baseline before the change:
+`test:fingerprints` 11/5, `test:identity` 25/1, and all five Holosuite tiers
+failing; `npm --prefix holonovel run test:all` 49 passed, 7 failed.
+
+- **F-RB-1 — the load-time format-migration save ignores
+  `TTRPG_AUTO_MIGRATE`. Resolved.** Predicate was
+  `holonovel/src/core/state.ts:1696` (`if (migrated && !restoredThisSession)
+  saveNovel(...)`), which rewrote a v1 Novel on every boot, stamped
+  `data_format`, cleared the `[data-stale]` advisory, and fatally broke
+  REQ-393's byte-for-byte preservation. The sidecar is now adopted in memory
+  and its unlink deferred to a successful primary write; the load-time save is
+  gated on one exported switch predicate shared with `src/index.ts`. T460,
+  T501, T503, T774, and T775 pass. REQ-092f, REQ-393, REQ-423, REQ-651,
+  REQ-652.
+- **F-RB-2 — the state hash covers the per-process `connection_counter`.
+  Resolved.** Predicate was `STATE_HASH_EXCLUDED_KEYS`
+  (`holonovel/src/core/state-hash.ts:13-22`) omitting a field that REQ-173a
+  increments once per process, so `novel/restart_state_stable` reported
+  `changed: _checksum,connection_counter`. The key is excluded, the projection
+  advances to v3, and the diagnostic projects through the same shape as the
+  hash. REQ-601, REQ-602.
+- **F-RB-3 — 27 Holosuite evidence anchors did not resolve. Resolved.** Each
+  predicate was a `path:line#symbol` whose line no longer held the symbol
+  (e.g. `state.ts:2527#saveNovel`, now `:2867`; `index.ts:9945` held
+  `context_report`, `recap`, and `visibility_check` before code motion). All
+  are repointed to the definition or dispatch site; ambiguous choices resolve
+  to the function/handler rather than a call site or description prose.
+  REQ-141m.
+- **F-RB-4 — T772 compared a record a briefing legitimately mutates.
+  Resolved.** Predicate was `holonovel/scripts/test-identity.ts:419`
+  (`JSON.stringify(again) === JSON.stringify(gmGet)`) across a GM briefing that
+  records the NPC's first appearance (`index.ts:16776 → 17219`); the observed
+  delta was the `appearance_*` fields only. The assertion now requires the
+  identity block and its version and compares them canonically, which is
+  REQ-649's claim. REQ-075c, REQ-649.
+
 ### 2026-11-13 §5.6 clock interaction models and combat turn report
 
 Resolved in the 2026-11-13 clock/combat-report increment (plan
