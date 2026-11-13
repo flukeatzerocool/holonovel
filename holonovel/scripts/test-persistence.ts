@@ -768,13 +768,13 @@ async function main() {
     await test("T712/REQ-601: a version-1 digest migrates on load", async () => {
       const verify = await call(proc, "manage_diagnostics", { action: "verify" });
       assertContains(verify, "State verification: clean");
-      assertContains(verify, "projection: v2");
+      assertContains(verify, "projection: v3");
     });
     await test("T712/REQ-601: the next save stamps the current projection", async () => {
       await call(proc, "set_badge", { badge: "game_master" });
       const saved = JSON.parse(readFileSync(join(dir, "novels", "legacy-hash.json"), "utf-8"));
-      if (saved.metadata.state_hash_projection !== 2) {
-        throw new Error(`save did not stamp projection v2: ${saved.metadata.state_hash_projection}`);
+      if (saved.metadata.state_hash_projection !== 3) {
+        throw new Error(`save did not stamp projection v3: ${saved.metadata.state_hash_projection}`);
       }
     });
     await kill(proc);

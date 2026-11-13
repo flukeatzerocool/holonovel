@@ -9,6 +9,13 @@
   orphaned. The switch is one exported predicate (`autoMigrateEnabled`) shared
   by `src/index.ts` and `core/state.ts`. Fixes T460, T501, T503, T774, and
   T775 (REQ-092f, REQ-393, REQ-423, REQ-651, REQ-652).
+- The state-hash projection excludes `connection_counter` (REQ-173a increments
+  it once per process, so a restart changed the hash without a story mutation)
+  and advances to v3; a v2 digest is reported historical per REQ-602. The
+  restart diagnostic now projects through the same shape as the hash, so it
+  names only keys the hash covers. The Holosuite evidence anchors are repointed
+  to their definition or dispatch sites across all five tiers (27 predicates),
+  fixing every `predicate_unresolved` finding.
 
 ## 2026-11-13 — §5.6 clock interaction models and audit-derived combat turn report
 

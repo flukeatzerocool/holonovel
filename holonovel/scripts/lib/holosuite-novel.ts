@@ -26,14 +26,14 @@ import type { TierResult } from "./eval-schema.js";
 // Predicate anchors: line numbers are advisory; refresh them whenever the
 // cited file shifts, or cite a nearby stable symbol instead.
 const P_STRUCTURE = anchor("holonovel/scripts/lib/starter-novel.ts", 54, "buildStarterArtifact");
-const P_LOCK = anchor("holonovel/src/world/parser.ts", 311, "door");
-const P_HASH = anchor("holonovel/src/core/state-hash.ts", 59, "stateHash");
-const P_CONTEXT = anchor("holonovel/src/index.ts", 9945, "context_report");
-const P_VISIBILITY = anchor("holonovel/src/index.ts", 9945, "visibility_check");
-const P_KNOWLEDGE = anchor("holonovel/src/index.ts", 8585, "knowledge_query");
-const P_INTEGRITY = anchor("holonovel/src/index.ts", 10895, "computeBundleIntegrity");
-const P_RESTART = anchor("holonovel/src/core/state.ts", 2527, "saveNovel");
-const P_NARRATOR = anchor("holonovel/src/index.ts", 9945, "recap");
+const P_LOCK = anchor("holonovel/src/world/parser.ts", 396, "door");
+const P_HASH = anchor("holonovel/src/core/state-hash.ts", 64, "stateHash");
+const P_CONTEXT = anchor("holonovel/src/index.ts", 11812, "context_report");
+const P_VISIBILITY = anchor("holonovel/src/index.ts", 11833, "visibility_check");
+const P_KNOWLEDGE = anchor("holonovel/src/index.ts", 9834, "knowledge_query");
+const P_INTEGRITY = anchor("holonovel/src/index.ts", 12619, "computeBundleIntegrity");
+const P_RESTART = anchor("holonovel/src/core/state.ts", 2867, "saveNovel");
+const P_NARRATOR = anchor("holonovel/src/index.ts", 11558, "recap");
 
 const NOVEL_NAME = "Torre Nosferatu";
 // Bounded anti-slop tokens (REQ-070b/REQ-077/REQ-279): the GM design key, the
@@ -438,9 +438,15 @@ export async function runNovel(opts: { serverDir: string; dataDir?: string; seed
       const afterRestart = contentHash(readPersistedNovel(dataDir, NOVEL_NAME));
       record("restart_resumes_and_verifies", resumedAgain.text.startsWith("[OK]") && !verifyAgain.isError && verifyAgain.text.includes("clean"), verifyAgain.text.split("\n")[0] ?? "", step, ["REQ-089", "REQ-603"], P_RESTART);
       const afterNovel = readPersistedNovel(dataDir, NOVEL_NAME);
+      // REQ-601 — report only keys the state hash actually covers: the storage
+      // checksum is stripped (as contentHash does) before the projection.
+      const projected = (n: Record<string, unknown>) => {
+        const { _checksum: _ignored, ...content } = n;
+        return projectState(content);
+      };
       const changed = beforeRestart === afterRestart
         ? []
-        : Object.keys(projectState(beforeNovel)).filter((k) => canonicalJson(projectState(beforeNovel)[k]) !== canonicalJson(projectState(afterNovel)[k]));
+        : Object.keys(projected(beforeNovel)).filter((k) => canonicalJson(projected(beforeNovel)[k]) !== canonicalJson(projected(afterNovel)[k]));
       record("restart_state_stable", beforeRestart === afterRestart, beforeRestart === afterRestart ? "content hash stable across restart" : `content hash changed across restart${changed.length ? `; changed: ${changed.join(",")}` : ""}`, step + 1, ["REQ-601"], P_HASH);
     } finally {
       await rebooted.close();

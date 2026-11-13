@@ -27,6 +27,21 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### State-hash projection and startup migration — 2026-11-13
+
+- **`connection_counter` is session bookkeeping, not story state.** REQ-601's
+  exclusion clause ("session and wall-clock bookkeeping") covers the per-Novel
+  `connection_counter` that REQ-173a increments once per process: it changes on
+  every restart without a story mutation, so including it made the restart hash
+  unstable. The projection advances to v3; a v2 digest is reported historical
+  per REQ-602, not compared. (REQ-601, REQ-602, REQ-173a)
+- **The audit sidecar is removed only after the log is persisted.** REQ-092f's
+  v1 sidecar adoption writes the entries into the Novel in memory; the file
+  unlink is deferred until a successful primary write carries the adopted log,
+  in every mode. `TTRPG_AUTO_MIGRATE=off` (REQ-651) therefore leaves a v1 Novel
+  byte-identical at boot instead of migrating it at load, and no exit path can
+  delete a log that only existed in memory. (REQ-092f, REQ-651, REQ-393)
+
 ### Clock interaction models and combat turn report — 2026-11-13
 
 - **Mission clocks are direction-aware on resume.** REQ-073a1's "mission clock

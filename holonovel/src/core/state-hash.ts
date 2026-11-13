@@ -20,11 +20,16 @@ export const STATE_HASH_EXCLUDED_KEYS: readonly string[] = [
   "event_log",
   "active_session_id",
   "last_mutation_at",
+  // REQ-173a — connection_counter increments once per Novel per process, so it
+  // changes on every restart without a story mutation (REQ-601 session
+  // bookkeeping). The storage checksum is stripped by contentHash callers and
+  // is never projected here.
+  "connection_counter",
 ];
 
 // REQ-601/REQ-602 — the projection's shape is versioned so a digest recorded
 // under an older exclusion set is distinguishable from a current one.
-export const STATE_HASH_PROJECTION_VERSION = 2;
+export const STATE_HASH_PROJECTION_VERSION = 3;
 
 function normalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalize);
