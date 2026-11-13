@@ -357,12 +357,17 @@ export function checkRecord(
   const polarity = record.claim.polarity;
 
   const question = facts.filter((f) => f.subject === subject && f.predicate === family && f.object === object);
+  // REQ-630 / Appendix O.13 — an event-anchored fact outranks an unanchored
+  // restatement when the memory cites an event ordinal. With no cited ordinal,
+  // or no anchored fact at all, the whole question set decides.
+  const anchoredFacts = question.filter((f) => f.anchor !== null);
+  const considered = record.event_ordinal !== null && anchoredFacts.length > 0 ? anchoredFacts : question;
   const anchorMismatch = (f: TruthFact): boolean =>
     record.event_ordinal !== null && f.anchor !== null && f.anchor !== record.event_ordinal;
 
-  const samePolarity = question.filter((f) => f.polarity === polarity);
-  const anchored = samePolarity.find((f) => !anchorMismatch(f));
-  if (anchored) {
+  const samePolarity = considered.filter((f) => f.polarity === polarity);
+  const matched = samePolarity.find((f) => !anchorMismatch(f));
+  if (matched) {
     const affect = affectValence(record.felt_then);
     // The claim's subject is the target when its object is not a recorded
     // entity (a disposition's object is a value, not a party).
@@ -373,15 +378,15 @@ export function checkRecord(
         ...base,
         verdict: "affect_drift",
         reason: `the claim holds but the remembered affect opposes the recorded ${recorded} valence`,
-        truth: anchored,
+        truth: matched,
       };
     }
-    return { ...base, verdict: "confirmed", reason: "recorded state asserts the claim", truth: anchored };
+    return { ...base, verdict: "confirmed", reason: "recorded state asserts the claim", truth: matched };
   }
 
   // REQ-630 — false outcome precedes displaced: if recorded state asserts the
   // opposite at any point, the memory is a false outcome, not a misplacement.
-  const opposite = question.filter((f) => f.polarity !== polarity && f.polarity !== "neutral");
+  const opposite = considered.filter((f) => f.polarity !== polarity && f.polarity !== "neutral");
   if (opposite.length > 0) {
     return {
       ...base,

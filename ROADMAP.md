@@ -12,16 +12,20 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Pre-existing harness failures: divergence probe and license refusal (P1)
+## Assembled spec drops Appendix O.8–O.13 (P0)
 
-- `test:memory-recall` T752 (REQ-633) reports `confirmed` where the displaced
-  outcome fixture expects `displaced`, and `test:limits` T740 (REQ-096m) refuses
-  a non-Appendix-U module license with a JSON body rather than the expected
-  `[ERROR] [STATE_CONFLICT]`; both fail on `HEAD` and were recorded by the
-  2026-11-12 recap increment's baselines.
+- `parseAppendices` (`scripts/assemble.ts`) splits a source file on
+  `\n\n---\n\n` and discards every part that does not begin with
+  `## Appendix <letter>`, so the intra-appendix separators inside Appendix O
+  drop O.8–O.13 from the committed `holonovel.md`; verified at HEAD,
+  `git show HEAD:holonovel.md | grep "Outcome opposition pairs"` is empty while
+  the source has it. Keep continuation blocks with the preceding appendix,
+  then re-assemble and reconcile any lint findings in the previously
+  undelivered text.
 
-**Trigger:** the next memory or license-surface session; closes when both
-assertions pass on the committed tree with their cited behaviour.
+**Trigger:** the next assembler or spec-artifact session; closes when
+`holonovel.md` carries every O-subsection present in
+`spec/appendices-reference.md` and `check:fast` stays green.
 
 ## §5.6 clock and combat-report remediation (P1)
 

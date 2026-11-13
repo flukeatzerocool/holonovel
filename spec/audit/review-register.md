@@ -11,6 +11,37 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 harness failure remediation (H-1..H-3)
+
+Resolved in the 2026-11-12 harness-failure increment. Both findings were
+HEAD-red assertions the previous increment's baseline recorded.
+
+- **H-1 — an unanchored restatement outranked the cited event.** `checkRecord`
+  treated a fact with `anchor === null` as satisfying any cited ordinal, because
+  `anchorMismatch` only rejected a *different* non-null anchor; the T752 campaign
+  thread "Kael now regards Anna as ally" (`holonovel/src/index.ts:1091`) supplied
+  such a fact and `confirmed` won (`holonovel/src/core/divergence.ts:364`,
+  `:379`). The check now evaluates both polarity sets over the event-anchored
+  subset when the record cites an ordinal and that subset is non-empty
+  (`considered` in `checkRecord`); CR-3's false-outcome-before-displaced order is
+  unchanged among the facts considered. Appendix O.13 records the precedence.
+  T752 adds an assertion that the displaced verdict cites an anchored event.
+- **H-2 — the share license gate read the embedded payload, not the loaded
+  module.** `export` ran the Appendix U check only when `embedded` carried
+  provenance (`index.ts:12688`), and `embeddedAdventureContent` returns the
+  generated adventure first with `provenance: null` (`:12364-12366`), so a
+  loaded non-redistributable module never reached the refusal while a generated
+  adventure was active. `shareLicenseRefusal` now resolves
+  `novel.adventure_slug` directly and runs before embedding. A generated-only
+  share no longer writes the spurious `export_license_unattributed` entry
+  (pinned by T740).
+- **H-3 — both-active share embeds only the generated adventure (Closed-P3).**
+  `embeddedAdventureContent` still prefers the generated payload while
+  `manifest.adventure_module_slugs` names `novel.adventure_slug`
+  (`index.ts:12364`, `:12724`); REQ-132c permits coexistence and REQ-096m does
+  not say which wins. No gate demonstrates a failure, and a multi-adventure
+  bundle key is a format change. Recorded, no action.
+
 ### 2026-11-12 §5.6 audit, condition, and vow lifecycle remediation
 
 Resolved in the 2026-11-12 increment. The three findings share one seam: the
@@ -2172,6 +2203,18 @@ scheduled on `ROADMAP.md`.
   REQ-075g, REQ-076, REQ-077, REQ-126b, REQ-128b, REQ-167b.
 
 ## Scheduled-roadmap
+
+### 2026-11-12 harness failure remediation — assembler gap found mid-execution
+
+- **H-4 — the assembled spec drops Appendix O.8–O.13 (2026-11-12, P0):**
+  `parseAppendices` (`scripts/assemble.ts`) splits each appendix source on
+  `\n\n---\n\n` and keeps only parts beginning with `## Appendix <letter>`, so
+  the intra-appendix separators inside Appendix O discard O.8–O.13. Predicate:
+  `git show HEAD:holonovel.md` contains no `Outcome opposition pairs` (the
+  O.13 table) while `spec/appendices-reference.md` does. Found while placing the
+  H-1 precedence line; scheduled under `ROADMAP.md` § *Assembled spec drops
+  Appendix O.8–O.13 (P0)* rather than expanding this increment's scope.
+  REQ-629, REQ-630, REQ-633.
 
 ### 2026-11-12 §5.6 citation remediation
 

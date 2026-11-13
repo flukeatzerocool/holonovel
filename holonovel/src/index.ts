@@ -12378,6 +12378,26 @@ function embeddedAdventureContent(novel: NovelState, force = false): { slug: str
   } catch { return null; /* module not present on disk — nothing to embed */ }
 }
 
+// REQ-096m — a share redistributes the Novel's loaded module, so the license
+// gate follows the loaded module, not whichever payload happens to be embedded.
+// A generated adventure carries no provenance and is never a redistributed
+// module, so it neither refuses nor warns.
+function shareLicenseRefusal(novel: NovelState): string | null {
+  const slug = novel.adventure_slug;
+  if (!slug || skippedAdventureSlugs().has(slug)) return null;
+  const filePath = findAdventureFile(slug);
+  if (!filePath) return null;
+  try {
+    const { provenance } = parseAdventureProvenance(fs.readFileSync(filePath, "utf-8"));
+    const license = provenance?.license ?? null;
+    if (license && !APPENDIX_U_LICENSES.has(license)) {
+      return `Cannot share: adventure module '${slug}' declares license '${license}', which is not a redistributable Appendix U license.`;
+    }
+    if (!license) audit("export_license_unattributed", { slug }, "[license-unattributed]");
+    return null;
+  } catch { return null; /* module unreadable — treat as not loaded */ }
+}
+
 // REQ-096m — serialize a module's provenance block from untrusted bundle data.
 // Only known fields survive; every value must be a non-empty single-line string
 // so a crafted value cannot break the fenced block.
@@ -12682,15 +12702,12 @@ Options: yes, cancel${driftWarn}`);
       const novel = requireNovel();
       // REQ-096h/i1 — embed adventure content when configured or shared.
       const embedded = embeddedAdventureContent(novel, args.share === true);
-      // REQ-096m — a share redistributes the module, so a declared license
-      // must be one Appendix U marks redistributable; an unattributed module
-      // shares but is flagged in the audit log.
-      if (args.share === true && embedded) {
-        const license = embedded.provenance?.license ?? null;
-        if (license && !APPENDIX_U_LICENSES.has(license)) {
-          return err("STATE_CONFLICT", `Cannot share: adventure module '${embedded.slug}' declares license '${license}', which is not a redistributable Appendix U license.`);
-        }
-        if (!license) audit("export_license_unattributed", { slug: embedded.slug }, "[license-unattributed]");
+      // REQ-096m — a share redistributes the loaded module, so its declared
+      // license is checked even when a generated adventure takes embedding
+      // precedence; an unattributed module shares but is flagged in the audit.
+      if (args.share === true) {
+        const refusal = shareLicenseRefusal(novel);
+        if (refusal) return err("STATE_CONFLICT", refusal);
       }
       const exportScope = args.share === true ? "full" : (args.scope ?? "full");
       // REQ-448 — security-event audit: Novel exports are recorded and tagged.

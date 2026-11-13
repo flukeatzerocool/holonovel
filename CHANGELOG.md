@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-12 — harness failure remediation: divergence anchors and share license gate
+
+- The divergence check now evaluates a memory's claim against the
+  event-anchored fact set when the record cites an event ordinal, instead of
+  letting an unanchored campaign-memory restatement satisfy the citation. This
+  makes the committed T752 `displaced-outcome` probe report `displaced`
+  (REQ-629, REQ-630, REQ-633); Appendix O.13 records the precedence and T752
+  asserts the verdict cites an anchored event.
+- `manage_archive (action: export, share: true)` now runs the Appendix U
+  license gate against the Novel's loaded module (`novel.adventure_slug`)
+  before embedding, instead of reading only the embedded payload — a generated
+  adventure's `provenance: null` no longer bypasses the refusal when both are
+  active (REQ-096m). A generated-only share no longer writes a spurious
+  `[license-unattributed]` audit entry; T740 covers the refusal and the
+  generated-only silence.
+- The roadmap's *Pre-existing harness failures* section is closed; the review
+  register records H-1/H-2 as Resolved and the both-active embedding precedence
+  (H-3) as Closed-P3. A pre-existing assembler gap found while placing the
+  precedence line — `holonovel.md` omits Appendix O.8–O.13 — is recorded (H-4)
+  and scheduled as a P0 roadmap item.
+
 ## 2026-11-12 — §5.6 typed recap payload remediation
 
 - `manage_context (action: recap)` now carries the machine-readable structure

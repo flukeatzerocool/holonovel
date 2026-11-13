@@ -291,12 +291,14 @@ async function main() {
     if (recall < 0.9) throw new Error(`aggregate recall ${recall.toFixed(2)} below 0.90: ${misses.join(", ")}`);
   });
 
+  let divergenceAnna: string | null = null;
   await test("T752/REQ-633: divergence probes return their declared verdicts", async () => {
     await call(proc, "manage_novel", { action: "create", name: "divergence-fixture" });
     await call(proc, "set_badge", { badge: "game_master" });
     const annaRes = await call(proc, "manage_character", { action: "create", name: "Anna" });
     const anna = annaRes.match(/Entity id ([a-z0-9_]+)/i)?.[1];
     if (!anna) throw new Error(`character create did not return an id: ${annaRes.slice(0, 160)}`);
+    divergenceAnna = anna;
     await call(proc, "manage_npc", { action: "create", name: "Kael", disposition: "loyal" });
     await call(proc, "manage_npc", { action: "create", name: "Mira", disposition: "hostile" });
     await call(proc, "manage_relationship", { action: "set", entity_a: anna, entity_b: "Kael", type: "ally" });
@@ -343,6 +345,19 @@ async function main() {
     if (again !== view) throw new Error("recomputation of unchanged state differs");
     const infoAfter = await call(proc, "manage_novel", { action: "info", slug: "divergence-fixture" });
     if (infoAfter.match(/"event_count":\s*(\d+)/)?.[1] !== eventsBefore) throw new Error("the divergence check advanced the event log");
+  });
+
+  await test("T752/REQ-633: a displaced verdict cites an event-anchored fact", async () => {
+    if (!divergenceAnna) throw new Error("the T752 fixture entity is unavailable");
+    const view = await call(proc, "manage_belief", { action: "subjective_verify", subjective_entity: divergenceAnna });
+    const rows = JSON.parse(view) as Array<{ gist: string; verdict: string; truth: { anchor: number | null } | null }>;
+    const displaced = rows.find((r) => r.gist === "displaced-outcome");
+    if (!displaced) throw new Error("the displaced-outcome probe is missing from the truth view");
+    if (displaced.verdict !== "displaced") throw new Error(`the displaced-outcome probe reported ${displaced.verdict}, not displaced`);
+    if (displaced.truth?.anchor === null || displaced.truth?.anchor === undefined) {
+      throw new Error(`the displaced verdict cites an unanchored fact: ${JSON.stringify(displaced.truth)}`);
+    }
+    if (displaced.truth.anchor !== 1) throw new Error(`the displaced verdict cites event ${displaced.truth.anchor}, not event 1`);
   });
 
   await kill(proc);

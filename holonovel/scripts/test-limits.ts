@@ -285,6 +285,17 @@ async function main() {
       assertContains(out, "adventures_embedded");
       assertContains(await readResource(proc, "audit://novel"), "license-unattributed");
     });
+    await test("T740/REQ-096m: a generated-only share writes no license-unattributed warning", async () => {
+      await call(proc, "manage_novel", { action: "create", name: "share-generated-only" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_adventure", { action: "generate", premise: "A quiet orchard." });
+      const out = await call(proc, "manage_archive", { action: "export", format: "json", share: true });
+      assertContains(out, "adventures_embedded");
+      const audit = await readResource(proc, "audit://novel");
+      if (audit.toLowerCase().includes("license-unattributed")) {
+        throw new Error(`a generated-only share recorded a license warning: ${audit.slice(0, 300)}`);
+      }
+    });
     await kill(proc);
   }
 
