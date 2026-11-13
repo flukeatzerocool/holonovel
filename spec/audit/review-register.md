@@ -11,6 +11,31 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-13 §5.6 clock interaction models and combat turn report
+
+Resolved in the 2026-11-13 clock/combat-report increment (plan
+`docs/plans/2026-11-13-5-6-clock-combat-report/`).
+
+- **F-P3B1-6 — clock interaction models are unimplemented. Resolved.**
+  `manage_countdown (action: set)` now exposes `clock_type` (danger, racing,
+  linked, tug_of_war, faction, mission), `opposes`, and
+  `link_countdown(parent_name, child_name)`; `advance` accepts
+  `retreat_countdown`. Racing pairs resolve a winner or a tie, a linked child
+  stays locked and renders indented until its parent fires, a tug_of_war clock
+  retreats without firing, and a decrement-direction mission clock ticks once per
+  `manage_novel (action: resume)`. T271 asserts all five models
+  (`holonovel/scripts/test-backfill.ts`). REQ-073a1, REQ-073a2.
+- **F-P3B1-7 — the combat turn report is not audit-derived. Resolved.**
+  `manage_combat (action: advance)` derives the report from the audit entries
+  after the last `init_combat`/`advance_combat` boundary, reports the resolved
+  participant (not the next one), lists actions, rolls, and state changes, and
+  reports "took no action" when the turn left no mutation. Statless participants
+  (dangers and NPCs with absent/empty `stats`) carry lowercase `[auto]` and their
+  description sentence. The briefing gains the REQ-043e combat group (round, turn
+  order, current participant, Player redaction) replacing the single summary
+  line, and `spec_health` gains `total_combat_rounds` (REQ-043d). T110 and T162
+  assert the behaviour. REQ-043b, REQ-043c, REQ-043d, REQ-043e.
+
 ### 2026-11-12 assembler appendix completeness (H-4)
 
 Resolved in the 2026-11-12 assembler-completeness increment. The defect sat in
@@ -2263,25 +2288,18 @@ absent, so each finding carries the failing predicate rather than a test.
 ### 2026-11-09 full-review sweep — chunk P3b-1 (§5.6 core state and lifecycle)
 
 Partially scheduled under `ROADMAP.md` § *§5.6 clock and combat-report
-remediation (P1)*. F-P3B1-3, F-P3B1-4, F-P3B1-5, and F-P3B1-8 are `Resolved`
-above; the remaining findings cite the predicate that carries them. F-P3B1-9 is
-reduced to the seven citations that assert the deferred clock and combat-report
-surfaces.
+remediation (P1)*. F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, and
+F-P3B1-8 are `Resolved` above; F-P3B1-9 is reduced to the single T161 citation
+that asserts the deferred damage surface.
 
-- **F-P3B1-6 — clock interaction models are unimplemented:** the
-  `manage_countdown` schema (`index.ts:6678-6706`) exposes no `clock_type` (nor
-  `opposes`, `link_countdown`, `retreat_countdown`), so racing/linked/tug_of_war/
-  retreat (REQ-073a1/a2) cannot be selected; `CountdownState.clock_type`
-  (`core/state.ts:318`) is only set internally for faction/mission clocks.
-- **F-P3B1-7 — the combat turn report is not audit-derived:** `advance` returns
-  only the turn line with `[AUTO]` (`index.ts:5727-5732`); REQ-043b/c require the
-  participant's actions, rolls, and state changes summarized from the audit log
-  and the lowercase `[auto]` marker.
-- **F-P3B1-9 — Automated citations with no harness:** T25/T33/T110/T161
-  (REQ-043f), T271 (REQ-073a2), and T54/T139 (REQ-073c3) appear in per-REQ
-  `_Check:_` lines but in no `holonovel/scripts` harness. T8, T335, T53, and
-  T212 are now written (see the resolved sections); the seven above assert the
-  deferred clock and combat-report surfaces.
+- **F-P3B1-9 — Automated citations with no harness (partially resolved
+  2026-11-13):** the clock and combat-report citations are now exercised by
+  `holonovel/scripts/test-backfill.ts`, and T25/T33 are re-pointed off REQ-043f
+  because neither asserts the combat turn report (T25 is the ruleset-section
+  deletion drill, T33 a Manual ruleset-combat check). **Open:** T161 (REQ-043f)
+  asserts a weapon-damage mutation against a target's HP, and no
+  damage-resolution surface exists until REQ-124 lands. The row stays
+  `Scheduled-roadmap` on that single citation.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

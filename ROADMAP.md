@@ -14,17 +14,30 @@
 
 ## §5.6 clock and combat-report remediation (P1)
 
-- Clock interaction models: expose `clock_type` and the racing/linked/tug_of_war/
-  retreat models (REQ-073a1, REQ-073a2), and write T271/T54/T139 under REQ-073c3
-  (F-P3B1-6, F-P3B1-9).
-- Combat turn report: derive it from the audit log with the lowercase `[auto]`
-  marker (REQ-043b/c), and write T25/T33/T110/T161 under REQ-043f
-  (F-P3B1-7, F-P3B1-9).
+- T161 evidence: the combat turn report must show a weapon-damage mutation
+  against a target's HP (REQ-043f), which needs the damage-resolution surface
+  from *REQ-124 NPC damage resolution* below; T131 and T161 close together.
 
-**Trigger:** the first session that takes §5.6 clock or combat-report work;
-closes when F-P3B1-6 and F-P3B1-7 are `Resolved` in the review register and the
-seven citations (T271, T54, T139, T25, T33, T110, T161) resolve to an exercised
-harness.
+**Trigger:** the next §5.6 or ruleset-damage session; closes when T161 resolves
+to an exercised harness. T271, T54, T139, T110, and T162 resolve as of the
+2026-11-13 increment; T25 and T33 are re-pointed off REQ-043f.
+
+## Pre-existing server-suite reds (P1)
+
+- Fingerprint staleness advisory is cleared by the v1 Novel migration save:
+  `migrateNovelFormat` marks the file migrated, `saveNovel` then deletes
+  `staleData`/`staleDetail`, so T460/T501/T503/T774/T775 fail at HEAD
+  (`test:fingerprints`: 11 passed, 5 failed before any 2026-11-13 edit).
+- Holosuite evidence anchors have drifted: conformance (5), invariants (6),
+  adversarial (7), differential (2), and novel (7) `predicate_unresolved`
+  findings, plus `novel/restart_state_stable` (`_checksum`,
+  `connection_counter` drift) and `test:identity` T772 nondeterminism — all
+  reproduced on the stashed tree at HEAD `26cf82c`. Repoint the anchors and
+  re-pin the restart hash, then re-run `test:all`.
+
+**Trigger:** the next harness-maintenance session; closes when `npm run
+test:all` is green at HEAD+1 and no holosuite finding is
+`predicate_unresolved`.
 
 ## Cross-badge undo stack access (P1)
 
@@ -114,14 +127,15 @@ every §5.3 Check citation resolves to an exercised harness and
 - Implement the NPC damage path REQ-124a/b describe: a damage-resolution call
   carrying `target_id` reduces the NPC's ruleset HP, zero HP applies the
   ruleset's incapacitation convention, and the result is audited and
-  snapshot-able; then write the T131 assertion (currently the catalogue row has
-  no harness) and mark F-P3B2-15 `Resolved` in the review register.
+  snapshot-able; then write the T131 and T161 assertions (both catalogue rows
+  currently have no harness) and mark F-P3B2-15 `Resolved` in the review
+  register. T161 is the §5.6 clock/combat-report section's last open citation.
 - Decide whether the surface is a host-side consequence applied by the bound
   ruleset's roll tool or an explicit `manage_combat` action, and record the
   choice in `holonovel/DECISIONS.md`.
 
-**Trigger:** the next combat- or ruleset-surface session; closes when T131
-exercises the HP-reduction and incapacitation branches against a fixture
+**Trigger:** the next combat- or ruleset-surface session; closes when T131 and
+T161 exercise the HP-reduction and incapacitation branches against a fixture
 ruleset (REQ-124a, REQ-124b).
 
 ## Unscoped-surface review sweep (P2)

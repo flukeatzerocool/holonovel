@@ -429,7 +429,7 @@ The Trap Hall is a room. "Stale air."
       if (!warden) throw new Error(`pre-populated NPC missing: ${JSON.stringify(npcs)}`);
       await call(p, "manage_combat", { action: "init", participants: [warden.id] });
       const advance = await call(p, "manage_combat", { action: "advance" });
-      assertContains(advance, "[AUTO]");
+      assertContains(advance, "[auto]");
       await call(p, "manage_combat", { action: "end" });
     });
 

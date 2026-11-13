@@ -154,7 +154,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.12",
+  version: "2026.11.13",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -6903,7 +6903,17 @@ server.registerTool("manage_combat", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const beforeRound = novel.combat?.round ?? 0;
+      // REQ-043b/c — the report describes the participant whose turn this call
+      // resolves; the turn pointer advances inside advanceCombat, so capture the
+      // resolved participant and the audit slice boundary first.
+      const before = novel.combat;
+      const resolved = before?.active ? before.turn_order[before.current_turn] : undefined;
+      const resolvedRound = before?.round ?? 0;
+      const resolvedTurn = (before?.current_turn ?? 0) + 1;
+      const resolvedTotal = before?.turn_order.length ?? 0;
+      const auditStart = state.combatTurnBoundary(novel);
+      const auditEnd = novel.audit_log.length;
+      const beforeRound = resolvedRound;
       const combat = state.advanceCombat(novel);
       // REQ-076b3 — a full combat round wrapped: advance the scene pacing tick.
       if ((combat.round ?? 0) > beforeRound) novel.scene_tick += 1;
@@ -6914,7 +6924,8 @@ server.registerTool("manage_combat", {
         recordCampaignMemory(novel, "npcs", `${currentName} engaged in combat (round ${combat.round})`);
       }
       state.saveNovel(novel);
-      return ok(`Turn: ${currentName} — Round ${combat.round}, Turn ${combat.current_turn + 1}/${combat.turn_order.length}. [AUTO]`);
+      if (!resolved) return ok("Combat advanced.");
+      return ok(state.combatTurnReport(novel, resolved, auditStart, auditEnd, resolvedTurn, resolvedRound, resolvedTotal));
     }
     case "end": {
       requireGM();
@@ -7153,7 +7164,43 @@ function absentInWindow(novel: NovelState, startIndex: number, endIndex: number)
 
 // REQ-340 — when an on_scene_transition countdown fires while the active entity
 // is absent from all scenes since its creation, produce a [discovered] entry.
-function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; world_effect?: any; scope?: string; created_scene_index?: number }): void {
+// REQ-073a2 — a firing clock's interaction model resolves here: a racing pair
+// declares its winner (or a tie when the opponent is already at its threshold)
+// and removes the loser; a linked parent unlocks and ticks each child.
+function applyClockModelOnFire(novel: NovelState, name: string, cd: { clock_type?: string; opposes?: string; linked_parent?: string; direction?: string; total: number }, depth = 0): string[] {
+  // A cyclic link chain would otherwise recurse without bound.
+  if (!cd || depth > 8) return [];
+  const notes: string[] = [];
+  if (cd.clock_type === "racing" && cd.opposes) {
+    const opponent = novel.countdowns.get(cd.opposes);
+    const opponentFull = opponent
+      ? (opponent.direction === "increment" ? opponent.ticks >= opponent.total : opponent.ticks <= 0)
+      : false;
+    if (opponent && opponentFull) {
+      novel.countdowns.delete(opponent.name);
+      audit("countdown_race", { winner: null, tie: true, clocks: [name, opponent.name] });
+      notes.push(`Racing clocks '${name}' and '${opponent.name}' completed together — tie.`);
+    } else {
+      if (opponent) novel.countdowns.delete(opponent.name);
+      audit("countdown_race", { winner: name, loser: opponent?.name ?? null, tie: false });
+      notes.push(`Racing clock '${name}' won${opponent ? `; '${opponent.name}' removed` : ""}.`);
+    }
+  }
+  for (const [, child] of [...novel.countdowns.entries()]) {
+    if (child.linked_parent !== name) continue;
+    child.linked_parent = undefined;
+    const dir = child.direction === "increment" ? 1 : -1;
+    child.ticks = Math.max(0, Math.min(child.total, child.ticks + dir));
+    audit("countdown_chain", { parent: name, child: child.name, ticks: child.ticks });
+    notes.push(`Linked clock '${child.name}' unlocked and advanced to ${child.ticks}.`);
+    if ((dir > 0 && child.ticks >= child.total) || (dir < 0 && child.ticks <= 0)) {
+      expireCountdown(novel, child.name, child);
+    }
+  }
+  return notes;
+}
+
+function fireCountdown(novel: NovelState, name: string, cd: { name: string; ticks: number; total: number; direction?: string; clock_type?: string; opposes?: string; linked_parent?: string; world_effect?: any; scope?: string; created_scene_index?: number }): void {
   const presentIds = new Set(presentEntityIds(novel) ?? novel.entities.keys());
   const activeId = novel.active_entity_id;
   const absent = activeId && !presentIds.has(activeId);
@@ -7164,6 +7211,8 @@ function fireCountdown(novel: NovelState, name: string, cd: { name: string; tick
   const discoverers = absent
     ? [...absentSince].filter((id) => !presentIds.has(id))
     : [];
+  // REQ-073a2 — model resolution (racing winner/tie, linked-chain unlock).
+  applyClockModelOnFire(novel, name, cd);
   novel.countdowns.delete(name);
   // REQ-368 — countdown-world effect coupling: apply the effect immediately
   // after removal; a missing target records a [WARNING] but the countdown
@@ -8061,6 +8110,13 @@ server.registerTool("manage_countdown", {
     ticks: z.number().min(0).optional().describe("Starting ticks (set)."),
     total: z.number().min(1).optional().describe("Optional capacity for decrement refills (set; defaults to ticks)."),
     type: z.enum(["round", "narrative"]).optional().describe("round or narrative (set)."),
+    clock_type: z.enum(["danger", "racing", "linked", "tug_of_war", "faction", "mission"]).optional().describe("Interaction model (set): danger (default), racing, linked, tug_of_war, faction, or mission."),
+    opposes: z.string().optional().describe("Opposing clock name for a racing pair (set)."),
+    link_countdown: z.object({
+      parent_name: z.string().describe("The clock whose completion unlocks the child."),
+      child_name: z.string().describe("The clock to lock until the parent completes."),
+    }).optional().describe("Link two existing clocks (set): the child stays locked until the parent fires."),
+    retreat_countdown: z.number().int().min(0).optional().describe("Ticks to retreat on a tug_of_war clock (advance)."),
     scope: z.string().optional().describe("Optional scope name (set)."),
     direction: z.string().optional().describe("Optional direction: increment or decrement (set)."),
     on_scene_transition: z.boolean().optional().describe("When true, advance on each scene transition (set)."),
@@ -8087,7 +8143,36 @@ server.registerTool("manage_countdown", {
       requireGM();
       const novel = requireNovel();
       novelSnapshot();
-      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect, survival } = args;
+      // REQ-073a1 — `link_countdown(parent_name, child_name)` links two
+      // existing clocks; the child stays locked until the parent completes.
+      if (args.link_countdown) {
+        const { parent_name: parentName, child_name: childName } = args.link_countdown;
+        const parent = novel.countdowns.get(parentName);
+        const child = novel.countdowns.get(childName);
+        if (!parent || !child) {
+          return err("NOT_FOUND", `link_countdown requires two active countdowns. Valid: ${[...novel.countdowns.keys()].join(", ") || "(none)"}.`);
+        }
+        if (parentName === childName) return err("INVALID_INPUT", "link_countdown parent and child must differ.");
+        if (child.linked_parent) return err("INVALID_INPUT", `Countdown '${childName}' is already linked to '${child.linked_parent}'.`);
+        let cursor: typeof parent | undefined = parent;
+        for (let i = 0; cursor && i < 32; i++) {
+          if (cursor.linked_parent === childName) return err("INVALID_INPUT", "link_countdown would create a cycle.");
+          cursor = cursor.linked_parent ? novel.countdowns.get(cursor.linked_parent) : undefined;
+        }
+        child.linked_parent = parentName;
+        if (parent.clock_type !== "linked") parent.clock_type = "linked";
+        if (child.clock_type !== "linked") child.clock_type = "linked";
+        state.saveNovel(novel);
+        audit("link_countdown", { parent: parentName, child: childName });
+        return ok(`Countdown '${childName}' linked to '${parentName}' — it stays locked until the parent completes.`);
+      }
+      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect, survival, clock_type, opposes } = args;
+      if (opposes !== undefined) {
+        if (opposes === name) return err("INVALID_INPUT", "A clock cannot oppose itself.");
+        if (!novel.countdowns.has(opposes)) {
+          return err("NOT_FOUND", `Opposing clock '${opposes}' not found. Valid clocks: ${[...novel.countdowns.keys()].join(", ") || "(none)"}.`);
+        }
+      }
       // REQ-129b1 — countdown cardinality applies to new countdowns only.
       if (!novel.countdowns.has(name)) {
         const cdRefusal = capGuard("countdowns", novel.countdowns.size);
@@ -8100,6 +8185,8 @@ server.registerTool("manage_countdown", {
         ticks: nextTicks,
         total: total ?? existingCd?.total ?? ticks ?? nextTicks,
         type: type ?? existingCd?.type ?? "narrative",
+        clock_type: clock_type ?? existingCd?.clock_type,
+        opposes: opposes ?? existingCd?.opposes,
         scope: scope ?? existingCd?.scope,
         direction: direction ?? existingCd?.direction,
         on_scene_transition: on_scene_transition ?? existingCd?.on_scene_transition,
@@ -8108,6 +8195,12 @@ server.registerTool("manage_countdown", {
         survival: survival ?? existingCd?.survival,
         created_scene_index: existingCd?.created_scene_index ?? novel.scene_history.length,
       });
+      // REQ-073a2 — a racing pair is symmetric; record the reverse link so
+      // either clock resolves the same opponent.
+      if (opposes !== undefined) {
+        const opponent = novel.countdowns.get(opposes)!;
+        opponent.opposes = name;
+      }
       state.recordMutation(novel, "set_countdown", "countdown");
       state.saveNovel(novel);
       audit("set_countdown", { name, ticks: nextTicks, total: total ?? existingCd?.total ?? nextTicks, type, on_scene_transition, triggers, world_effect: world_effect?.type });
@@ -8119,6 +8212,26 @@ server.registerTool("manage_countdown", {
       novelSnapshot();
       const cd = novel.countdowns.get(args.name);
       if (!cd) return err("NOT_FOUND", `Countdown '${args.name}' not found.`);
+      // REQ-073a1 — a linked child is locked while its parent is active.
+      if (cd.linked_parent) {
+        const parent = novel.countdowns.get(cd.linked_parent);
+        if (parent) {
+          return err("STATE_CONFLICT", `Countdown '${cd.name}' is locked until '${parent.name}' completes.`);
+        }
+        cd.linked_parent = undefined;
+      }
+      // REQ-073a2 — a tug_of_war clock retreats without firing and never
+      // goes below zero.
+      if (args.retreat_countdown !== undefined) {
+        if (cd.clock_type !== "tug_of_war") {
+          return err("INVALID_INPUT", `retreat_countdown requires a tug_of_war clock; '${cd.name}' is ${cd.clock_type ?? "danger"}.`);
+        }
+        const amount = Math.max(0, Math.floor(Number(args.retreat_countdown)));
+        cd.ticks = Math.max(0, cd.ticks - amount);
+        state.saveNovel(novel);
+        audit("retreat_countdown", { name: cd.name, retreat: amount, remaining: cd.ticks });
+        return ok(`Countdown ${cd.name} retreated ${amount} tick${amount === 1 ? "" : "s"} to ${cd.ticks}.`);
+      }
       // REQ-233b2 — a faction clock is the source of truth; advancing its
       // countdown advances the faction and rewrites the display.
       const faction = factionForCountdown(novel, cd);
@@ -8134,6 +8247,9 @@ server.registerTool("manage_countdown", {
           state.saveNovel(novel);
           return ok(`Countdown '${args.name}' extended by last light.`);
         }
+        // REQ-073a2 — racing resolution and linked-chain unlock run before the
+        // firing clock leaves the active set.
+        const modelNotes = applyClockModelOnFire(novel, args.name, cd);
         novel.countdowns.delete(args.name);
         if ((cd as any).world_effect) {
           const eff = (cd as any).world_effect;
@@ -8154,7 +8270,7 @@ server.registerTool("manage_countdown", {
         audit("countdown_expired", { name: args.name });
         emitEvent("countdown_fire", { name: args.name, ticks: 0 });
         state.saveNovel(novel);
-        return ok(`Countdown '${args.name}' expired. Recorded in audit log.`);
+        return ok(`Countdown '${args.name}' expired. Recorded in audit log.${modelNotes.length ? "\n" + modelNotes.join("\n") : ""}`);
       }
       state.saveNovel(novel);
       audit("advance_countdown", { name: args.name, remaining: cd.ticks });
@@ -12641,6 +12757,15 @@ Next step: run the novel_setup guide to add characters, choose a story source, a
       }
       const novel = state.resumeNovel(args.slug);
       novel.metadata.session_count += 1;
+      // REQ-073a1 — a decrement-direction mission clock loses one tick per
+      // resume and fires at zero. Increment-direction (vow-linked) mission
+      // clocks are milestone-driven (REQ-322) and untouched.
+      for (const [name, cd] of [...novel.countdowns.entries()]) {
+        if (cd.clock_type !== "mission" || cd.direction !== "decrement") continue;
+        cd.ticks = Math.max(0, cd.ticks - 1);
+        audit("mission_tick", { countdown: name, remaining: cd.ticks });
+        if (cd.ticks <= 0) expireCountdown(novel, name, cd);
+      }
       state.saveNovel(novel);
       if (novel.ruleset) {
         if (!rulesets.isInstalled(novel.ruleset)) return err("INVALID_INPUT", `Novel '${novel.slug}' is bound to ruleset '${novel.ruleset}', which is not installed.`);
@@ -14284,6 +14409,9 @@ function buildSpecHealth(): Record<string, unknown> {
     pending_sections: 0,
     defect_count: 0,
     world_model: { rooms, things },
+    // REQ-043d — Novel-lifetime combat round counter (cumulative; combat start
+    // and end do not reset it).
+    total_combat_rounds: novel?.metadata.total_combat_rounds ?? 0,
     novels_available: [...state.novels.keys()].length,
     // REQ-334 — archived Novels surface with slug + archive timestamp.
     archived_novels: isGM ? state.archivedNovels() : undefined,
@@ -14710,9 +14838,18 @@ server.registerResource("countdown-active", "countdown://active", { title: "Acti
   if (!novel) return { contents: [{ uri: "countdown://active", text: "{}", mimeType: "application/json" }] };
   const isGM = getBadge() === "game_master" || getBadge() === "none";
   // REQ-073 — active countdowns are badge-filtered by scope; a faction clock's
-  // mirror is Game Master only.
-  const active = Object.fromEntries([...novel.countdowns.entries()]
-    .filter(([, cd]) => cd.ticks > 0 && (isGM || cd.badge_scope !== "game_master")));
+  // mirror is Game Master only. REQ-073a1 — a linked child renders under its
+  // parent via `linked_children`, and a locked child carries `locked`.
+  const active: Record<string, any> = {};
+  for (const [name, cd] of novel.countdowns) {
+    if (!(cd.ticks > 0 && (isGM || cd.badge_scope !== "game_master"))) continue;
+    const children = [...novel.countdowns.values()].filter((c) => c.linked_parent === name).map((c) => c.name);
+    active[name] = {
+      ...cd,
+      locked: cd.linked_parent ? true : undefined,
+      linked_children: children.length > 0 ? children : undefined,
+    };
+  }
   return { contents: [{ uri: "countdown://active", text: JSON.stringify(active), mimeType: "application/json" }] };
 });
 
@@ -16618,6 +16755,13 @@ ${orientation}`;
     briefing += `\n\n### Party\n${lines.join("\n")}`;
   }
 
+  // REQ-043e — active combat group: round, turn order, and current participant.
+  // The Player badge sees entity positions only (REQ-043e redaction); the whole
+  // group is omitted when no combat is active (REQ-043f).
+  if (novel.combat?.active) {
+    briefing += `\n\n### Combat\n${state.combatReport(novel, badge).trim()}`;
+  }
+
   // REQ-075c/d — the NPC depth listing: each NPC with its disposition, location
   // and depth marker. Appearance metadata is maintained here when the briefing
   // is a mutating render, and by the scene-set path when a scene places an NPC.
@@ -16906,7 +17050,7 @@ Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of no
   } else if (badge === "game_master" || badge === "observer") {
     briefing += `\n\n### GM State
 **World model:** ${novel.world.rooms.size} rooms, ${novel.world.things.size} things
-**NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}${novel.combat?.active ? `\n**Combat active:** Round ${novel.combat.round}` : ""}
+**NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}
 **Scene tick:** ${novel.scene_tick} (GM only — resets on a scene transition, advances on a full combat round)`;
 
     // REQ-311 — NPC memory: NPCs present in the current scene surface their
@@ -16993,9 +17137,18 @@ You are both Game Master and Player. The human is observing. Narrate scenes, mak
         threadLines.push(`Vow: ${v.name}${description}${parties} (${v.difficulty}, ${v.milestones}/${v.rank_track} milestones)`);
       }
     }
+    // REQ-073a1 — a linked chain renders as an indented tree: parents first,
+    // their children beneath.
+    const clockLines: string[] = [];
     for (const [name, cd] of novel.countdowns) {
-      if (cd.ticks > 0 || cd.clock_type === "mission") threadLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
+      if (cd.linked_parent) continue;
+      if (cd.ticks > 0 || cd.clock_type === "mission") clockLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
+      for (const [childName, child] of novel.countdowns) {
+        if (child.linked_parent !== name) continue;
+        clockLines.push(`  Countdown: ${childName} (${countdownDisplay(child)})`);
+      }
     }
+    threadLines.push(...clockLines);
     if (badge === "game_master") {
       for (const [, npc] of novel.npcs) {
         if (npc.disposition && npc.disposition !== "neutral") threadLines.push(`${npc.name} (${npc.disposition})`);

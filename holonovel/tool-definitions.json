@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 115952,
+  "tools_list_bytes": 116765,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 115952,
-        "tokens": 28988
+        "bytes": 116765,
+        "tokens": 29192
       },
       "standard": {
         "tools": 37,
-        "bytes": 101559,
-        "tokens": 25390
+        "bytes": 102372,
+        "tokens": 25593
       },
       "small": {
         "tools": 6,
@@ -903,14 +903,18 @@
         "remove",
         "list"
       ],
-      "param_count": 10,
+      "param_count": 14,
       "required": [
         "action"
       ],
       "params": {
+        "clock_type": "Interaction model (set): danger (default), racing, linked, tug_of_war, faction, or mission.",
         "direction": "Optional direction: increment or decrement (set).",
+        "link_countdown": "Link two existing clocks (set): the child stays locked until the parent fires.",
         "name": "Countdown name (set/advance/remove).",
         "on_scene_transition": "When true, advance on each scene transition (set).",
+        "opposes": "Opposing clock name for a racing pair (set).",
+        "retreat_countdown": "Ticks to retreat on a tug_of_war clock (advance).",
         "scope": "Optional scope name (set).",
         "survival": "Survival-resource parameters applied when a room hazard names this countdown (set; REQ-622c).",
         "ticks": "Starting ticks (set).",
@@ -933,10 +937,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 11,
+        "paramCount": 15,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 11,
-        "paramsWithEnums": 2,
+        "paramsWithDescriptions": 15,
+        "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -946,7 +950,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3620,
+        "definitionBytes": 4433,
         "descriptionBytes": 698
       },
       "category": "",

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-13 — §5.6 clock interaction models and audit-derived combat turn report
+
+- `manage_countdown` exposes the clock interaction model: `set` accepts
+  `clock_type` (`danger`, `racing`, `linked`, `tug_of_war`, `faction`,
+  `mission`), `opposes`, and `link_countdown(parent_name, child_name)`, and
+  `advance` accepts `retreat_countdown`. Racing pairs resolve a winner or a tie,
+  a linked child is locked (and rendered indented under its parent) until the
+  parent fires and then advances one tick, a tug-of-war clock retreats without
+  firing and clamps at zero, and a decrement-direction mission clock loses one
+  tick per `manage_novel (action: resume)`. `countdown://active` carries
+  `clock_type`, `opposes`, `linked_parent`, `locked`, and `linked_children`.
+- `manage_combat (action: advance)` derives its turn report from the audit log:
+  it names the participant whose turn it resolves, lists the actions, rolls, and
+  state changes recorded since the previous boundary, reports "took no action"
+  for a mutation-free turn, and marks statless participants (dangers and NPCs
+  with absent/empty `stats`) with lowercase `[auto]` plus their description.
+  `badge_briefing` gains the combat group (round, turn order, current
+  participant; Player sees entity positions only) in place of the single summary
+  line, and `spec_health` reports `total_combat_rounds`.
+- Citation repair: REQ-043f's `_Check:_` list drops T25/T33 (they assert other
+  REQs' ruleset behaviour) and keeps T110/T161/T162; T271, T54, T139, T110, and
+  T162 gain real assertions in `holonovel/scripts/test-backfill.ts`, the
+  false-token title there is retitled, and Appendix F's T139 row separates its
+  decrement and increment readings. T161 stays scheduled with the REQ-124 damage
+  surface. Review-register F-P3B1-6 and F-P3B1-7 are `Resolved`; F-P3B1-9 is
+  reduced to T161, and `ROADMAP.md` narrows to that single bullet.
+- Regenerated surfaces: `tool-definitions.json`, the contract fingerprint,
+  `spec/audit/req-coverage.md`, and the CalVer version surfaces.
+
 ## 2026-11-12 — assembler appendix completeness: Appendix O.8–O.13 and the fixture matrix
 
 - `parseAppendices` now slices an appendix source by `## Appendix <letter>:`

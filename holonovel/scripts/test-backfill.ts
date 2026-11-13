@@ -428,7 +428,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "bf2" });
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await test("T91/T131/T162/T043: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
+    await test("T91/T043: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "conflict-room", description: "Room." });
       // Open a pending workflow (present_choices); badge + undo are blocked
       // until it resolves (REQ-043 conflict lifecycle).
@@ -2077,7 +2077,11 @@ async function main() {
     assertContains(before, "Grit");
     await call(proc, "manage_combat", { action: "init", participants: [id] });
     const turn = await call(proc, "manage_combat", { action: "advance" });
-    assertContains(turn, "[auto]");
+    // REQ-043b — a statted NPC with no turn mutations reports no action; the
+    // turn line still names the participant (REQ-043c's [auto] marker belongs
+    // to statless participants only).
+    assertContains(turn, "Turn:");
+    assertContains(turn, "took no action");
     await kill(proc);
     const again = await boot();
     await call(again, "manage_novel", { action: "resume", slug: "t56-novel" });
@@ -2088,6 +2092,212 @@ async function main() {
     const added = await readRes(again, `npc://${id}`);
     assertContains(added, "Nerve");
     await kill(again);
+  });
+
+  // ── §5.6 clock interaction models and combat turn report ──
+
+  const clocks = async (proc: ChildProcess): Promise<Record<string, any>> =>
+    JSON.parse(await readResource(proc, "countdown://active"));
+
+  await test("T271/REQ-073a2: clock types — racing win and tie, linked chain, tug retreat, mission resume", async () => {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t271-clocks" });
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    // Racing pair: the clock that fills first wins and removes its opponent.
+    await call(proc, "manage_countdown", { action: "set", name: "race-a", ticks: 0, total: 3, type: "narrative", direction: "increment", clock_type: "racing" });
+    await call(proc, "manage_countdown", { action: "set", name: "race-b", ticks: 0, total: 3, type: "narrative", direction: "increment", clock_type: "racing" });
+    await call(proc, "manage_countdown", { action: "set", name: "race-a", opposes: "race-b" });
+    await call(proc, "manage_countdown", { action: "advance", name: "race-a" });
+    await call(proc, "manage_countdown", { action: "advance", name: "race-a" });
+    const win = await call(proc, "manage_countdown", { action: "advance", name: "race-a" });
+    assert(win.includes("[OK]") || win.includes("expired"), `race win not reported: ${win}`);
+    let active = await clocks(proc);
+    assert(!active["race-a"], "winning racing clock was not removed");
+    assert(!active["race-b"], "losing racing clock survived the win");
+
+    // Tie: an opponent already at its threshold resolves as a tie.
+    await call(proc, "manage_countdown", { action: "set", name: "tie-a", ticks: 0, total: 2, type: "narrative", direction: "increment", clock_type: "racing" });
+    await call(proc, "manage_countdown", { action: "set", name: "tie-b", ticks: 2, total: 2, type: "narrative", direction: "increment", clock_type: "racing" });
+    await call(proc, "manage_countdown", { action: "set", name: "tie-a", opposes: "tie-b" });
+    await call(proc, "manage_countdown", { action: "advance", name: "tie-a" });
+    const tie = await call(proc, "manage_countdown", { action: "advance", name: "tie-a" });
+    active = await clocks(proc);
+    assert(!active["tie-a"] && !active["tie-b"], `racing tie did not resolve both clocks: ${tie}`);
+
+    // Linked chain: the child is locked until the parent fires, then ticks.
+    await call(proc, "manage_countdown", { action: "set", name: "chain-parent", ticks: 0, total: 2, type: "narrative", direction: "increment", clock_type: "linked" });
+    await call(proc, "manage_countdown", { action: "set", name: "chain-child", ticks: 0, total: 3, type: "narrative", direction: "increment", clock_type: "linked" });
+    const linked = await call(proc, "manage_countdown", { action: "set", link_countdown: { parent_name: "chain-parent", child_name: "chain-child" } });
+    assert(linked.includes("[OK]"), `link_countdown failed: ${linked}`);
+    const locked = await call(proc, "manage_countdown", { action: "advance", name: "chain-child" });
+    assert(locked.includes("[STATE_CONFLICT]"), `locked child advanced: ${locked}`);
+    await call(proc, "manage_countdown", { action: "advance", name: "chain-parent" });
+    await call(proc, "manage_countdown", { action: "advance", name: "chain-parent" });
+    active = await clocks(proc);
+    assert(!active["chain-parent"], "parent clock did not fire");
+    assert(active["chain-child"], "linked child vanished on parent fire");
+    assert((active["chain-child"].ticks ?? 0) >= 1, `linked child did not tick on parent completion: ${JSON.stringify(active["chain-child"])}`);
+    assert(!active["chain-child"].linked_parent, "linked child stayed locked after parent completion");
+
+    // Tug of war: retreat removes ticks, never fires, never goes below zero.
+    await call(proc, "manage_countdown", { action: "set", name: "tug", ticks: 2, total: 4, type: "narrative", direction: "increment", clock_type: "tug_of_war" });
+    const retreat = await call(proc, "manage_countdown", { action: "advance", name: "tug", retreat_countdown: 5 });
+    assert(retreat.includes("[OK]"), `retreat failed: ${retreat}`);
+    assert(retreat.includes("to 0"), `tug clock did not clamp at zero: ${retreat}`);
+    assert(!retreat.toLowerCase().includes("expired"), `tug clock fired on a retreat to zero: ${retreat}`);
+    // The clock survives a retreat: advancing it again still resolves.
+    const afterRetreat = await call(proc, "manage_countdown", { action: "advance", name: "tug" });
+    assertContains(afterRetreat, "1 ticks remaining");
+
+    // Mission clock: auto-decrements on resume, fires at zero.
+    await call(proc, "manage_countdown", { action: "set", name: "mission-deadline", ticks: 2, total: 2, type: "narrative", direction: "decrement", clock_type: "mission" });
+    await call(proc, "manage_novel", { action: "resume", slug: "t271-clocks" });
+    active = await clocks(proc);
+    assert(active["mission-deadline"]?.ticks === 1, `mission clock did not decrement on resume: ${JSON.stringify(active["mission-deadline"])}`);
+    await call(proc, "manage_novel", { action: "resume", slug: "t271-clocks" });
+    active = await clocks(proc);
+    assert(!active["mission-deadline"], "mission clock did not fire at zero");
+
+    // Vow-linked (increment) mission clocks are milestone-driven, not resume-driven.
+    await call(proc, "manage_countdown", { action: "set", name: "mission-vow", ticks: 1, total: 5, type: "narrative", direction: "increment", clock_type: "mission" });
+    await call(proc, "manage_novel", { action: "resume", slug: "t271-clocks" });
+    active = await clocks(proc);
+    assert(active["mission-vow"]?.ticks === 1, "increment mission clock was auto-advanced on resume");
+    await kill(proc);
+  });
+
+  await test("T54/REQ-073c1: round countdown ticks per combat round; narrative countdown fires", async () => {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t54-clocks" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create", name: "Ace", species: "Human" });
+    await call(proc, "manage_character", { action: "create", name: "Bolt", species: "Elf" });
+    await call(proc, "manage_countdown", { action: "set", name: "round-clock", ticks: 5, total: 5, type: "round", direction: "decrement" });
+    await call(proc, "manage_combat", { action: "init", participants: ["character_01", "character_02"] });
+    for (let i = 0; i < 6; i++) await call(proc, "manage_combat", { action: "advance" });
+    let active = await clocks(proc);
+    assert(active["round-clock"]?.ticks === 2, `round countdown did not lose one tick per round: ${JSON.stringify(active["round-clock"])}`);
+
+    await call(proc, "manage_combat", { action: "end" });
+    await call(proc, "manage_countdown", { action: "set", name: "narrative-clock", ticks: 3, total: 3, type: "narrative", direction: "decrement" });
+    await call(proc, "manage_countdown", { action: "advance", name: "narrative-clock" });
+    await call(proc, "manage_countdown", { action: "advance", name: "narrative-clock" });
+    active = await clocks(proc);
+    assert(active["narrative-clock"]?.ticks === 1, `narrative countdown mis-ticked: ${JSON.stringify(active["narrative-clock"])}`);
+    const fired = await call(proc, "manage_countdown", { action: "advance", name: "narrative-clock" });
+    active = await clocks(proc);
+    assert(!active["narrative-clock"], `narrative countdown did not fire: ${fired}`);
+    const audit = await readResource(proc, "audit://novel");
+    assertContains(audit, "narrative-clock");
+    await kill(proc);
+  });
+
+  await test("T139/REQ-073c3: countdown lifecycle — increment fire, badge scope, remove", async () => {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t139-clocks" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_countdown", { action: "set", name: "tension", ticks: 1, total: 3, type: "narrative", direction: "increment", badge_scope: "shared" });
+    await call(proc, "manage_countdown", { action: "set", name: "patrol", ticks: 3, total: 3, type: "narrative", direction: "decrement", badge_scope: "game_master" });
+    // Badge filtering: the Player sees the shared clock only.
+    await call(proc, "set_badge", { badge: "player" });
+    const player = await getPrompt(proc, "badge_briefing");
+    assertContains(player, "tension");
+    assertNotContains(player, "patrol");
+    await call(proc, "set_badge", { badge: "game_master" });
+    const gm = await getPrompt(proc, "badge_briefing");
+    assertContains(gm, "tension");
+    assertContains(gm, "patrol");
+    // Increment clock fires at total and frees its name.
+    await call(proc, "manage_countdown", { action: "advance", name: "tension" });
+    await call(proc, "manage_countdown", { action: "advance", name: "tension" });
+    let active = await clocks(proc);
+    assert(!active["tension"], "increment countdown did not fire at total");
+    const reSet = await call(proc, "manage_countdown", { action: "set", name: "tension", ticks: 0, total: 3, type: "narrative", direction: "increment" });
+    assertContains(reSet, "[OK]");
+    // remove deletes without firing; a decrement clock fires at zero.
+    await call(proc, "manage_countdown", { action: "remove", name: "patrol" });
+    active = await clocks(proc);
+    assert(!active["patrol"], "remove left the countdown active");
+    await call(proc, "manage_countdown", { action: "set", name: "patrol", ticks: 1, total: 3, type: "narrative", direction: "decrement" });
+    const expired = await call(proc, "manage_countdown", { action: "advance", name: "patrol" });
+    assertContains(expired, "expired");
+    const audit = await readResource(proc, "audit://novel");
+    assertContains(audit, "patrol");
+    await kill(proc);
+  });
+
+  await test("T110/REQ-043d/e: combat state, briefing group, round total, badge redaction", async () => {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t110-combat" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create", name: "Rook", species: "Human" });
+    await call(proc, "manage_character", { action: "create", name: "Vale", species: "Elf" });
+    await call(proc, "manage_npc", { action: "create", name: "Wight", description: "A pale thing." });
+    const created = await call(proc, "manage_npc", { action: "create", name: "Ghoul", description: "A hungry thing." });
+    const npcId = created.match(/\(([^)]+)\)/)?.[1] ?? "npc_1";
+
+    const init = await call(proc, "manage_combat", { action: "init", participants: ["character_01", "character_02", npcId], dangers: [{ name: "goblin" }] });
+    assertContains(init, "[OK]");
+    let brief = await getPrompt(proc, "badge_briefing");
+    assertContains(brief, "### Combat");
+    assertContains(brief, "Round 1");
+    assert((brief.match(/Round 1 — Turn/g) ?? []).length === 1, "combat round reported more than once in the briefing");
+
+    // The report names the resolved participant, not the next one.
+    const firstTurn = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(firstTurn, "character_01");
+    assertNotContains(firstTurn, "Turn: character_02");
+
+    // Advance through the rest of round 1 into round 2.
+    for (let i = 0; i < 3; i++) await call(proc, "manage_combat", { action: "advance" });
+    brief = await getPrompt(proc, "badge_briefing");
+    assertContains(brief, "Round 2");
+    const health = await call(proc, "manage_diagnostics", { action: "health" });
+    assertContains(health, "total_combat_rounds");
+
+    // Player sees entity positions only.
+    await call(proc, "set_badge", { badge: "player" });
+    const player = await getPrompt(proc, "badge_briefing");
+    assertContains(player, "### Combat");
+    assertContains(player, "character_01");
+    assertNotContains(player, "goblin");
+    assertNotContains(player, npcId);
+
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_combat", { action: "end" });
+    brief = await getPrompt(proc, "badge_briefing");
+    assert(!brief.includes("### Combat"), "combat group survived combat end");
+    await kill(proc);
+  });
+
+  await test("T162/REQ-043c: statless participants auto-advance with [auto]", async () => {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "t162-combat" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_character", { action: "create", name: "Rook", species: "Human" });
+    const npc = await call(proc, "manage_npc", { action: "create", name: "Bone Warden", description: "A skeletal guardian." });
+    const npcId = npc.match(/\(([^)]+)\)/)?.[1] ?? "npc_1";
+    await call(proc, "manage_combat", { action: "init", participants: ["character_01", npcId], dangers: [{ name: "goblin" }] });
+
+    // Entity turn with no mutations: reports the participant took no action.
+    const entityTurn = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(entityTurn, "character_01");
+    assertContains(entityTurn, "took no action");
+    // Statless NPC: lowercase marker + the description sentence.
+    const npcTurn = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(npcTurn, "[auto]");
+    assertContains(npcTurn, "A skeletal guardian.");
+    assert(!npcTurn.includes("[AUTO]"), "uppercase marker survived");
+    // Danger: marker + name.
+    const dangerTurn = await call(proc, "manage_combat", { action: "advance" });
+    assertContains(dangerTurn, "[auto]");
+    assertContains(dangerTurn, "goblin");
+    // No mechanical change to the statless NPC.
+    const npcs = JSON.parse(await readResource(proc, "npcs://"));
+    assert(Object.keys(npcs[npcId]?.stats ?? {}).length === 0, "auto-advance wrote mechanical stats");
+    await call(proc, "manage_combat", { action: "end" });
+    await kill(proc);
   });
 
   harnessComplete();

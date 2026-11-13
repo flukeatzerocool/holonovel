@@ -353,6 +353,11 @@ export interface Countdown {
   scope?: string;
   direction?: string;
   clock_type?: "danger" | "racing" | "linked" | "tug_of_war" | "faction" | "mission";
+  // REQ-073a1/a2 — clock interaction metadata. `opposes` names a racing
+  // opponent (symmetric); `linked_parent` names the clock whose completion
+  // unlocks this one.
+  opposes?: string;
+  linked_parent?: string;
   // REQ-073 — active countdowns are badge-filtered by scope; a faction clock's
   // mirror is Game Master only.
   badge_scope?: "game_master" | "shared";
@@ -2607,9 +2612,84 @@ export class StateManager {
       participant: currentName,
       round: combat.round,
       turn: combat.current_turn,
-      statless: true,
+      // REQ-043c — the auto-turn marker applies to statless participants only.
+      statless: this.combatParticipantStatless(novel, currentName),
     });
     return combat;
+  }
+
+  // REQ-043c — a participant with no turn-defining mechanical stats: dangers,
+  // and NPCs whose `stats` is absent or empty. Entities are never auto-advanced.
+  combatParticipantStatless(novel: NovelState, name: string): boolean {
+    if (novel.combat?.dangers.some((d) => d.name === name)) return true;
+    const npc = novel.npcs.get(name);
+    if (npc) return Object.keys((npc as any).stats ?? {}).length === 0;
+    return false;
+  }
+
+  // REQ-043b — the audit slice for a turn starts after the last combat
+  // boundary entry (init or a prior advance). No new persisted state: the log
+  // already carries the boundary.
+  combatTurnBoundary(novel: NovelState): number {
+    for (let i = novel.audit_log.length - 1; i >= 0; i--) {
+      const tool = novel.audit_log[i].tool;
+      if (tool === "advance_combat" || tool === "init_combat") return i + 1;
+    }
+    return 0;
+  }
+
+  // REQ-043b — entries in [from, to) attributable to the reporting participant.
+  // Matching is whole-token on the participant id and, for NPCs, its name, so
+  // `npc_1` never matches inside `npc_10`.
+  combatTurnEntries(novel: NovelState, participant: string, from: number, to: number): AuditEntry[] {
+    const token = (value: string) =>
+      new RegExp(`(^|[^A-Za-z0-9_])${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9_])`, "i");
+    const names = new Set<string>([participant]);
+    const npcName = novel.npcs.get(participant)?.name;
+    if (npcName) names.add(npcName);
+    const patterns = [...names].map(token);
+    const excluded = new Set(["advance_combat", "init_combat", "auto-moment"]);
+    return novel.audit_log.slice(from, to).filter((entry) =>
+      !excluded.has(entry.tool)
+      && patterns.some((pattern) => pattern.test(entry.args) || (entry.notation ? pattern.test(entry.notation) : false)));
+  }
+
+  // REQ-043b/c — the turn report: participant, actions, rolls with full
+  // transparency, and resulting state changes, or the no-action line.
+  combatTurnReport(novel: NovelState, participant: string, from: number, to: number, turn: number, round: number, turnTotal: number): string {
+    const statless = this.combatParticipantStatless(novel, participant);
+    const lines = [`Turn: ${participant} — Round ${round}, Turn ${turn}/${turnTotal}${statless ? " [auto]" : ""}`];
+    if (statless) {
+      const description = novel.npcs.get(participant)?.description?.trim();
+      lines.push(`Action: ${description || `${participant} advances automatically.`}`);
+      return lines.join("\n");
+    }
+    const entries = this.combatTurnEntries(novel, participant, from, to);
+    if (entries.length === 0) {
+      lines.push(`Actions: ${participant} took no action.`);
+      return lines.join("\n");
+    }
+    lines.push(`Actions: ${[...new Set(entries.map((entry) => entry.tool))].join(", ")}`);
+    const summarize = (entry: AuditEntry): string => {
+      let args = entry.args;
+      try {
+        const parsed = JSON.parse(entry.args);
+        args = Object.entries(parsed)
+          .filter(([, value]) => value !== null && typeof value !== "object")
+          .map(([key, value]) => `${key}=${String(value)}`)
+          .join(" ") || entry.args;
+      } catch { /* non-JSON args render raw */ }
+      return `${entry.tool} ${args}`.slice(0, 180);
+    };
+    const rolls = entries.filter((entry) =>
+      /roll|check|attack|damage|save|move|test/i.test(entry.tool)
+      || /"(roll|total|result|damage|outcome)"/.test(entry.args));
+    if (rolls.length > 0) lines.push(`Rolls: ${rolls.map(summarize).join("; ")}`);
+    const changes = entries.filter((entry) =>
+      /condition|damage|heal|hp|update|apply|remove/i.test(entry.tool)
+      || /"(hp|conditions|entity|entity_id|target_id)"/.test(entry.args));
+    if (changes.length > 0) lines.push(`State changes: ${changes.map(summarize).join("; ")}`);
+    return lines.join("\n");
   }
 
   endCombat(novel: NovelState, outcome: string): void {
@@ -2673,10 +2753,10 @@ export class StateManager {
     return { combat, ended: false };
   }
 
-  combatReport(novel: NovelState): string {
+  combatReport(novel: NovelState, badge: Badge = novel.badge): string {
     if (!novel.combat || !novel.combat.active) return "\nNone";
     const c = novel.combat;
-    const gm = novel.badge === "game_master";
+    const gm = badge === "game_master" || badge === "none";
     const turnOrder = c.turn_order.map((name, i) => {
       const marker = i === c.current_turn ? "← current" : "";
       const isEntity = novel.entities.has(name);

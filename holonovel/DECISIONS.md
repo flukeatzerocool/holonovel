@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 28,988 tokens; standard 25,390; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 29,192 tokens; standard 25,593; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,32 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Clock interaction models and combat turn report — 2026-11-13
+
+- **Mission clocks are direction-aware on resume.** REQ-073a1's "mission clock
+  auto-decrements one tick per `manage_novel (action: resume)`" is applied to
+  decrement-direction mission clocks; the increment-direction, vow-linked
+  mission clocks (REQ-322a/c) stay milestone-driven and are not advanced by a
+  resume. Reading the clause literally for both directions would corrupt the
+  vow coupling. (REQ-073a1, REQ-322)
+- **"Reaching zero changes mission parameters" names no parameter surface.**
+  The spec defines no mission-parameter object, so a mission clock that reaches
+  zero fires and is removed like any countdown; the clause is recorded here as
+  unimplemented rather than invented. (REQ-073a1)
+- **Racing, linked, and tug-of-war semantics.** `opposes` is symmetric and a
+  racing clock that reaches its threshold while its opponent is already at its
+  own threshold resolves as a tie (both removed). A `linked` child is locked
+  while its parent is active and is unlocked plus advanced one tick when the
+  parent fires; the child renders indented under its parent. A `tug_of_war`
+  clock retreats through `retreat_countdown` without firing and clamps at zero.
+  (REQ-073a1, REQ-073a2)
+- **Combat turn report attribution is whole-token and audit-derived.** The
+  report covers the audit entries after the last `init_combat`/`advance_combat`
+  boundary whose args contain the resolved participant's id or name as a whole
+  token; no new combat-state field is persisted. The marker is lowercase
+  `[auto]` and applies to statless participants (dangers, and NPCs whose `stats`
+  is absent or empty). (REQ-043b, REQ-043c)
 
 ### Seed conflict and env badge semantics — 2026-11-10
 
@@ -1260,7 +1286,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.12 |
+| Spec version | 2026.11.13 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |
