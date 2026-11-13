@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 116765,
+  "tools_list_bytes": 116866,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 116765,
-        "tokens": 29192
+        "bytes": 116866,
+        "tokens": 29217
       },
       "standard": {
         "tools": 37,
-        "bytes": 102372,
-        "tokens": 25593
+        "bytes": 102473,
+        "tokens": 25619
       },
       "small": {
         "tools": 6,
@@ -1098,8 +1098,8 @@
     {
       "name": "manage_history",
       "title": "Undo and Redo History",
-      "description": "Undo or redo the most recent state mutation for the calling badge, restoring the Novel content snapshot captured before it. Append-only logs, checkpoints, and the undo/redo stacks are preserved rather than rolled back, and the response reports success without a diff. Both directions mutate Novel state and persist immediately. The stack is per badge and capped by TTRPG_MAX_SNAPSHOT_DEPTH, and a pending workflow decision blocks both until resolved with respond_decision. Use when: reverting the last mutation (undo) or restoring an undone one (redo). Do NOT use when: an older change is the target — re-run the owning tool (for example manage_story), because only the most recent mutation is stacked.",
-      "description_bytes": 704,
+      "description": "Undo or redo the most recent state mutation, restoring the Novel content snapshot captured before it. Undo reaches the newest mutation under any badge while the stacks stay per badge and are capped by TTRPG_MAX_SNAPSHOT_DEPTH; redo replays what the calling badge undid. Append-only logs, checkpoints, the undo/redo stacks, and the active badge are preserved rather than rolled back, and the response reports success without a diff. Both directions mutate Novel state and persist immediately, and a pending workflow decision blocks both until resolved with respond_decision. Use when: reverting the last mutation (undo) or restoring an undone one (redo). Do NOT use when: an older change is the target — re-run the owning tool (for example manage_story), because only the most recent mutation is stacked.",
+      "description_bytes": 805,
       "action_enum": [
         "undo",
         "redo"
@@ -1134,8 +1134,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 1590,
-        "descriptionBytes": 704
+        "definitionBytes": 1691,
+        "descriptionBytes": 805
       },
       "category": "",
       "gate": ""

@@ -191,6 +191,49 @@ async function main() {
       await kill(p);
     });
 
+    await test("T10/REQ-041a: undo under a second badge reverses the newest mutation under another badge", async () => {
+      // Fresh Novel on its own process: `manage_novel create` takes no snapshot,
+      // so the final all-empty assertion is exact.
+      const p = await boot();
+      await call(p, "manage_novel", { action: "create", name: "cross-badge" });
+      await call(p, "set_badge", { badge: "game_master" });
+      await call(p, "manage_note", { action: "set", key: "gm-note", content: "gm-value" });
+      await call(p, "set_badge", { badge: "player" });
+      await call(p, "manage_note", { action: "set", key: "player-note", content: "player-value", badge_scope: "player" });
+      await call(p, "set_badge", { badge: "game_master" });
+      // The undo runs under the GM badge but must pick the Player's newer snapshot.
+      assertContains(await call(p, "manage_history", { action: "undo" }), "[OK]");
+      const afterFirst = await call(p, "manage_note", { action: "list" });
+      assertContains(afterFirst, "gm-note");
+      assertNotContains(afterFirst, "player-note");
+      // ... and the GM's own earlier mutation is now the newest.
+      assertContains(await call(p, "manage_history", { action: "undo" }), "[OK]");
+      assertNotContains(await call(p, "manage_note", { action: "list" }), "gm-note");
+      // Empty means no stack has an entry, not just the caller's (REQ-041b).
+      await call(p, "set_badge", { badge: "player" });
+      assertContains(await call(p, "manage_history", { action: "undo" }), "[STATE_CONFLICT]");
+      await kill(p);
+    });
+
+    await test("T10/REQ-041a: redo after a cross-badge undo restores from the caller's stack", async () => {
+      const p = await boot();
+      await call(p, "manage_novel", { action: "create", name: "cross-badge-redo" });
+      await call(p, "set_badge", { badge: "game_master" });
+      await call(p, "manage_note", { action: "set", key: "gm-redo-note", content: "kept" });
+      await call(p, "set_badge", { badge: "player" });
+      await call(p, "manage_note", { action: "set", key: "player-redo-note", content: "reverted", badge_scope: "player" });
+      await call(p, "set_badge", { badge: "game_master" });
+      await call(p, "manage_history", { action: "undo" });
+      assertNotContains(await call(p, "manage_note", { action: "list" }), "player-redo-note");
+      // The undo targeted the Player's newer snapshot; the GM's own mutation
+      // must survive it, otherwise this assertion could pass on the old
+      // caller-only behaviour.
+      assertContains(await call(p, "manage_note", { action: "list" }), "gm-redo-note");
+      assertContains(await call(p, "manage_history", { action: "redo" }), "[OK]");
+      assertContains(await call(p, "manage_note", { action: "list" }), "player-redo-note");
+      await kill(p);
+    });
+
     await test("T10/REQ-041a: a refused capability call pushes no snapshot and clears no redo", async () => {
       // Each cycle: one capability mutation, one refused call, then undo must
       // reverse the mutation (proving no snapshot was pushed) and redo must

@@ -22,17 +22,6 @@
 to an exercised harness. T271, T54, T139, T110, and T162 resolve as of the
 2026-11-13 increment; T25 and T33 are re-pointed off REQ-043f.
 
-## Cross-badge undo stack access (P1)
-
-- Make `manage_history (action: undo|redo)` reach the most recent mutation made
-  under any badge, per REQ-041a, instead of only the current badge's stack; keep
-  the per-badge depth floor and the append-only/checkpoint preservation rules
-  (REQ-041a, REQ-041b).
-
-**Trigger:** the next state-history session; closes when an undo under a second
-badge reverses a mutation initiated under the first and the existing T10
-assertions stay green.
-
 ## §5.4 remediation (P1)
 
 - Record the end-Novel disposal in the audit log before the Novel file moves to

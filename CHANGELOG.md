@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-13 — cross-badge undo: newest snapshot across every badge's stack
+
+- `manage_history (action: undo)` now restores the newest mutation under any
+  badge instead of only the caller's stack, per REQ-041a. Each snapshot carries
+  an `_snapshot_seq` ordering key stamped on the clone (it never enters live
+  state or the state hash), so the selector is deterministic rather than
+  clock-dependent; the per-badge depth floor, the `[snapshot-truncated]` audit,
+  and the append-only/checkpoint preservation are unchanged. `redo` stays
+  caller-scoped (REQ-116), and an empty-stack `[STATE_CONFLICT]` now means no
+  stack has an entry.
+- The active badge is preserved across an undo/redo restore (REQ-040d): the
+  pre-restore badge survives `applyNovelState`, so a snapshot taken under
+  another badge cannot hand the caller a different badge — a gap the new T10
+  assertion exposed while exercising the cross-badge path.
+- REQ-041a's keying sentence now says stacks are keyed by the badge that
+  initiated each mutation and an undo consults every stack, matching the
+  behaviour the same sentence already required. The `manage_history`
+  description is reworded and `tool-definitions.json` regenerated; the surface
+  budget baseline, contract data-format fingerprint, and DECISIONS tokens are
+  refreshed.
+- T10 gains cross-badge assertions in `test-persistence-guardrails.ts`:
+  newest-first selection across two badges, the all-stack empty conflict, redo
+  from the caller's stack, and badge preservation. Review-register F-P3B1-10
+  is `Resolved` in place and `ROADMAP.md` drops the section. The Holosuite
+  `saveNovel` evidence anchor is repointed after the line shift.
+
+
 ## 2026-11-13 — server-suite red baseline: migration gating, state-hash, evidence anchors
 
 - `TTRPG_AUTO_MIGRATE=off` now suppresses the load-time Novel format migration

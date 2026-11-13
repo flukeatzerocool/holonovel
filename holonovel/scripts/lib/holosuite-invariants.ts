@@ -28,7 +28,7 @@ const P_READONLY = anchor("holonovel/src/core/server.ts", 30, "requireNotObserve
 const P_GATING = anchor("holonovel/src/core/server.ts", 22, "requireGM");
 const P_UNDO = anchor("holonovel/src/index.ts", 4321, "manage_history");
 const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 38, "dispatchCommand");
-const P_RESTART = anchor("holonovel/src/core/state.ts", 2867, "saveNovel");
+const P_RESTART = anchor("holonovel/src/core/state.ts", 2926, "saveNovel");
 const P_PACING = anchor("holonovel/src/index.ts", 649, "pacingSessions");
 const NOVEL_NAME = "Holosuite Invariants";
 

@@ -1095,17 +1095,21 @@ in source; their resolution is the added assertion.
 
 ### 2026-11-12 execution findings
 
-Scheduled under `ROADMAP.md` § *Cross-badge undo stack access (P1)*.
-
-- **F-P3B1-10 — undo cannot reach another badge's mutation (2026-11-12):**
-  `StateManager.snapshot` pushes under `getBadge()` and `undo`/`redo` select
-  `novel.undo_stacks[stackKey]` by the current badge
-  (`holonovel/src/core/state.ts:2104-2116`), so a mutation made under one badge
-  is absent from another badge's stack and an undo there returns
+- **F-P3B1-10 — undo cannot reach another badge's mutation (Resolved
+  2026-11-13):** `StateManager.snapshot` pushed under `getBadge()` and
+  `undo`/`redo` selected `novel.undo_stacks[stackKey]` by the current badge
+  (`holonovel/src/core/state.ts:2104-2116`, pre-fix), so a mutation made under
+  one badge was absent from another badge's stack and an undo there returned
   `[STATE_CONFLICT]` — REQ-041a requires that "an undo in the Player badge
   reverses the most recent mutation regardless of which badge initiated it"
   (`spec/02-requirements.md:1473`). Found during the §5.6 audit/condition/vow
-  increment while writing T8. REQ-041a.
+  increment while writing T8. Resolved by the 2026-11-13 cross-badge-undo
+  increment: each snapshot carries `_snapshot_seq` and `undo` selects the
+  newest stamped snapshot across every badge's stack
+  (`state.ts:2129-2219`), the active badge is preserved across the restore
+  (REQ-040d, `state.ts:3579`), and T10 asserts both in
+  `holonovel/scripts/test-persistence-guardrails.ts:194`, `:218`. REQ-041a,
+  REQ-040d.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 

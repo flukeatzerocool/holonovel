@@ -2121,9 +2121,67 @@ export class StateManager {
     return `Workflow '${decision}' auto-cancelled after ${baseline} connections (staleness threshold ${threshold}).`;
   }
 
+  // REQ-041a — undo reaches the newest snapshot under any badge, so snapshots
+  // need a total order. The sequence lives on the snapshot clone (never in
+  // live state, never in the state hash) and always exceeds every snapshot
+  // currently stacked. Numbers may be recycled after a pop; a popped snapshot
+  // never re-enters an undo stack, so that is harmless.
+  private nextSnapshotSeq(novel: NovelState): number {
+    let max = 0;
+    for (const key of Object.keys(novel.undo_stacks)) {
+      for (const snapshot of novel.undo_stacks[key] as any[]) {
+        const seq = typeof snapshot?._snapshot_seq === "number" ? snapshot._snapshot_seq : 0;
+        if (seq > max) max = seq;
+      }
+    }
+    return max + 1;
+  }
+
+  private stampSnapshot(novel: NovelState, snapshot: any): any {
+    snapshot._snapshot_seq = this.nextSnapshotSeq(novel);
+    return snapshot;
+  }
+
+  // REQ-041a comparator: sequence first, then the pre-mutation timestamp carried
+  // by the clone, then a fixed badge order with the caller first (legacy saves
+  // carry no sequence, so they can only win when nothing stamped exists).
+  private snapshotIsNewer(
+    candidate: any,
+    incumbent: any,
+    candidateBadge: Badge,
+    incumbentBadge: Badge,
+    caller: Badge,
+  ): boolean {
+    const seq = (snapshot: any) =>
+      typeof snapshot?._snapshot_seq === "number" ? snapshot._snapshot_seq : 0;
+    if (seq(candidate) !== seq(incumbent)) return seq(candidate) > seq(incumbent);
+    const at = (snapshot: any) => {
+      const parsed = Date.parse(snapshot?.last_mutation_at ?? "");
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    if (at(candidate) !== at(incumbent)) return at(candidate) > at(incumbent);
+    const rank = (badge: Badge) =>
+      badge === caller ? 0 : 1 + (["player", "game_master", "observer", "none"] as Badge[]).indexOf(badge);
+    return rank(candidateBadge) < rank(incumbentBadge);
+  }
+
+  private newestUndoSnapshot(novel: NovelState, caller: Badge): { badge: Badge; snapshot: any } | null {
+    let best: { badge: Badge; snapshot: any } | null = null;
+    for (const key of Object.keys(novel.undo_stacks) as Badge[]) {
+      const stack = novel.undo_stacks[key];
+      if (!stack || stack.length === 0) continue;
+      const candidate = stack[stack.length - 1];
+      if (!best || this.snapshotIsNewer(candidate, best.snapshot, key, best.badge, caller)) {
+        best = { badge: key, snapshot: candidate };
+      }
+    }
+    return best;
+  }
+
   snapshot(novel: NovelState, badge: Badge): void {
     const clone = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
     const stackKey = badge;
+    this.stampSnapshot(novel, clone);
     novel.undo_stacks[stackKey].push(clone);
     // REQ-041/REQ-129 — stack depth from TTRPG_MAX_SNAPSHOT_DEPTH (min 10).
     const depth = snapshotDepth();
@@ -2146,14 +2204,14 @@ export class StateManager {
   }
 
   undo(novel: NovelState, badge: Badge): { data: any } | null {
-    const stackKey = badge;
-    const stack = novel.undo_stacks[stackKey];
-    if (stack.length === 0) throw new Error("[STATE_CONFLICT] Nothing to undo.");
+    // REQ-041a — the most recent mutation under any badge, not just the caller's.
+    const target = this.newestUndoSnapshot(novel, badge);
+    if (!target) throw new Error("[STATE_CONFLICT] Nothing to undo.");
 
     const current = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
-    novel.redo_stacks[stackKey].push(current);
+    novel.redo_stacks[badge].push(current);
 
-    const restore = stack.pop()!;
+    const restore = novel.undo_stacks[target.badge].pop()!;
     const restored = novelFromJSON(restore);
     applyNovelState(novel, restored, "undo");
     this.saveNovel(novel);
@@ -2166,6 +2224,7 @@ export class StateManager {
     if (stack.length === 0) throw new Error("[STATE_CONFLICT] Nothing to redo.");
 
     const current = JSON.parse(JSON.stringify(novelToSnapshotJSON(novel)));
+    this.stampSnapshot(novel, current);
     novel.undo_stacks[stackKey].push(current);
 
     const restore = stack.pop()!;
@@ -3515,6 +3574,9 @@ export function applyNovelState(
   if (mode === "undo") {
     for (const key of APPEND_ONLY_STATE_FIELDS) preserve.add(key);
     for (const key of BOOKKEEPING_STATE_FIELDS) preserve.add(key);
+    // REQ-040d — a badge switch is not a state operation for undo purposes, so
+    // restoring a snapshot must not hand the caller a different badge.
+    preserve.add("badge");
   }
   const src = source as unknown as Record<string, unknown>;
   const dst = target as unknown as Record<string, unknown>;

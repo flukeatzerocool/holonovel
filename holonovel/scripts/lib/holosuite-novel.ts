@@ -32,7 +32,7 @@ const P_CONTEXT = anchor("holonovel/src/index.ts", 11812, "context_report");
 const P_VISIBILITY = anchor("holonovel/src/index.ts", 11833, "visibility_check");
 const P_KNOWLEDGE = anchor("holonovel/src/index.ts", 9834, "knowledge_query");
 const P_INTEGRITY = anchor("holonovel/src/index.ts", 12619, "computeBundleIntegrity");
-const P_RESTART = anchor("holonovel/src/core/state.ts", 2867, "saveNovel");
+const P_RESTART = anchor("holonovel/src/core/state.ts", 2926, "saveNovel");
 const P_NARRATOR = anchor("holonovel/src/index.ts", 11558, "recap");
 
 const NOVEL_NAME = "Torre Nosferatu";
