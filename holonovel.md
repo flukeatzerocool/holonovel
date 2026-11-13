@@ -9021,6 +9021,36 @@ the ruleset's own conventions during the structural pass.
 
 ---
 
+## Fixture Coverage Matrix
+
+| Extraction path                      | Tin Lanterns (B) | Captain Proton (N) | Weather (C) | Serpent Crown (W) | Social (X) | Stress (Y) | Supp. Ruleset (Z) |
+| ------------------------------------ | :-----------: | :----------------: | :---------: | :---------------: | :--------: | :--------: | :----------------: |
+| Single-file extraction               | ✓             |                    | ✓           | ✓                 | ✓          | ✓          | ✓                  |
+| Cross-file dedup                     | ✓ (gear)      | ✓ (foes, gadgets)  |             |                   |            |            |                    |
+| Inline stat blocks in prose          |               | ✓ (De-Coherence Ray)|             |                   |            |            |                    |
+| Broken cross-references              | ✓ (advancement)| ✓ (momentum)      |             |                   |            |            |                    |
+| Mechanical contradictions            | ✓ (Pushing)   | ✓ (nat-1/Peril)    |             |                   |            |            |                    |
+| Prompt injection resistance          |               |                    | ✓           |                   |            |            |                    |
+| Indirect injection (import channel)  |               |                    | ✓ (C.3)     |                   |            |            |                    |
+| GM-only content badge gating            | ✓             | ✓                  | ✓           | ✓                 | ✓          | ✓          |                    |
+| World-model parser commands          |               |                    |             | ✓                 |            |            |                    |
+| Social mechanics (no combat)         |               |                    |             |                   | ✓          |            |                    |
+| 7-level heading nesting              |               |                    |             |                   |            | ✓          |                    |
+| 100-row table extraction             |               |                    |             |                   |            | ✓          |                    |
+| Unicode/zero-width resilience         |               |                    |             |                   |            | ✓          |                    |
+| Runtime import extraction            |               |                    |             |                   |            |            | ✓                  |
+
+**Per-ruleset fixture annotation.** When a fixture targets a specific ruleset
+in a multi-ruleset build, its heading SHALL carry the ruleset slug in a
+standardized annotation: `### Fixture Name (dnd5e)`. The golden transcript for
+a per-ruleset fixture SHALL include a header line `# ruleset: <slug>` as its
+first line. Multi-ruleset golden transcripts SHALL alternate between
+ruleset-scoped sections, each preceded by a `# ruleset: <slug>` header. The
+fixture's RNG witness table (Appendix B.4/N.4/W.4) SHALL carry a per-ruleset
+section with independent witness values.
+
+---
+
 ## Appendix B: Golden Fixture
 
 _Tin Lanterns is a synthetic test fixture — a dark-fantasy holo-novel in the tradition_
@@ -12822,6 +12852,106 @@ results observes unchanged output.
 | `encounter_seeds` | array of free-text entries |
 | `genre_tags` | array of strings |
 | `sections` | parsed adventure sections per REQ-079: `## World`, `## Premise`, `## Factions`, `## Scenes`, `## NPCs`, `## Lore`, `## Seeds` |
+
+---
+
+**O.8 — Lookup completeness example:**
+
+A weapon lookup returns all defined fields inline:
+  **Longsword** (martial melee)
+  Cost: 15 gp  |  Damage: 1d8 slashing  |  Weight: 3 lb.
+  Properties: Versatile (1d10)
+
+A spell lookup returns all defined fields, not a file pointer:
+  **Fireball** — 3rd-level evocation
+  Casting Time: 1 action  |  Range: 150 feet  |  Duration: Instantaneous
+  Components: V, S, M (a tiny ball of bat guano and sulfur)
+  Description: A bright streak flashes from your pointing finger...
+
+A monster lookup returns a full stat block, not a file pointer:
+  **Goblin** — Small humanoid (goblinoid), Neutral Evil
+  AC: 15 (leather armor, shield)  |  HP: 7 (2d6)
+  Speed: 30 ft.
+  STR 8 (-1) | DEX 14 (+2) | CON 10 (+0) | INT 10 (+0) | WIS 8 (-1) | CHA 8 (-1)
+
+Verify with T47.
+
+---
+
+**O.11 — Base-capability tuning values:**
+
+These values are fixed base-server infrastructure attributed in Appendix S; they
+are licensing-pinned and never waived. A REQ body states the contract and
+references this table for the tuning value.
+
+| Capability | Setting | Value |
+|------------|---------|-------|
+| Fate | Starting refresh (Fate points) | 3 |
+| Fate | Fudge dice | a bare `dF` rolls four dice |
+| Fate | Ladder | Fail below the difficulty, Tie at equal, Succeed above, Succeed with style at least three above |
+| Ironsworn | Momentum range | −6 … +10 |
+| Ironsworn | Momentum starting/reset value | +2 |
+| Ironsworn | Progress track boxes | 10 |
+| Ironsworn | Oracle ladder thresholds | almost_certain ≥ 11, likely ≥ 26, 50_50 ≥ 51, unlikely ≥ 76, small_chance ≥ 91 |
+| Ironsworn | Oracle default likelihood | 50_50 |
+| Ironsworn | Oracle exceptional rule | doubles on the d100 (11, 22, …, 99) produce an exceptional result |
+| Forged | Action-roll dice | default 2d6, keep highest; a zero-dice pool rolls 2d6 and keeps the lower |
+| Forged | Position values | controlled, risky, desperate; default risky |
+| Forged | Effect values | limited, standard, great; default standard |
+| Forged | Result bands | 6 Critical success, 4–5 Partial success, 1–3 Miss |
+| Forged | Stress track maximum | 8 |
+| Forged | Resist default cost | 2 |
+| Forged | Downtime recover default | 2 |
+
+---
+
+**O.12 — Health and verification contract constants:**
+
+These constants are fixed contract values the health report and the independent
+verification workflow consume. Like O.11 they are referenced from a REQ body,
+not restated in it: a REQ states the contract and cites this table for the
+value.
+
+| Surface | Constant | Value |
+|---------|----------|-------|
+| Novel health | On-disk size ceiling (REQ-097) | 4 MB |
+| Novel health | Size-growth projection window (REQ-097) | 3 sessions |
+| Novel health | On-disk size mismatch tolerance (REQ-097) | 1% |
+| Novel health | Property-group overflow warning ratio (REQ-129) | 80% |
+| Independent verification | Prose word-count tolerance (REQ-273) | ±20% |
+| Surface contract | Standard catalog budget ratio (REQ-571) | 90% of the full-surface baseline |
+| Surface contract | Small catalog budget ratio (REQ-571) | 10% of the full-surface baseline |
+| Verification | Recall-probe aggregate floor (REQ-593) | 0.90 |
+| Verification | Subjective recall floor (REQ-648) | 0.90 |
+| Independent verification | Open-ended count tolerance (REQ-273) | ±1 |
+
+**Subjective recall probe fixture (REQ-648).** Each record declares
+`entity`, `disclosure`, `salience`, `gist`, `origin`, and `event_ordinal`;
+each probe declares `id`, `expected_contains`, `budget_tokens`, and `required`.
+
+---
+
+**O.13 — Subjective-memory divergence contracts:**
+
+These tables are fixed contract infrastructure referenced from REQ-629, REQ-630,
+and REQ-632; the REQ bodies state the contract and cite this table for the
+mapping.
+
+| Contract | Value |
+|----------|-------|
+| Predicate family `relationship` | `relationships`; polarity positive for ally, mentor, dependent, neutral for neutral, negative for rival, suspicious |
+| Predicate family `disposition` | NPC record; polarity positive for friendly, loyal, neutral for neutral or unset, negative for hostile |
+| Predicate family `presence` | scene presence set; positive |
+| Predicate family `location` | entity location or current scene; positive |
+| Predicate family `possession` | entity inventory; positive |
+| Predicate family `outcome` | event log, story journal, campaign memory; polarity from the outcome opposition table |
+| Affect valence, positive | glad, grateful, relieved, proud, delighted, hopeful, fond, warm, safe |
+| Affect valence, negative | afraid, terror, terrified, angry, furious, ashamed, grief, despair, bitter, guilty, alone |
+| Outcome opposition pairs | held/gave way, survived/died, opened/sealed, won/lost, rescued/abandoned, kept/broke, trusted/betrayed, welcomed/expelled |
+
+Affect terms and outcome pairs match on whole-word boundaries, never as
+substrings; a term outside these tables is not a cue. An event-anchored fact
+outranks an unanchored restatement when the memory cites an event ordinal.
 
 ---
 

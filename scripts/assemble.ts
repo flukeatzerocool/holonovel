@@ -10,6 +10,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
+import { parseAppendices } from "./lib/appendices.js";
 import { computeSpecContentHash, writePhaseMapHash } from "./lib/phase-map-hash.js";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -43,38 +44,6 @@ function readFile(filePath: string): string {
   return text;
 }
 
-function parseAppendices(text: string, label: string): { header: string; blocks: Map<string, string> } {
-  const blocks = new Map<string, string>();
-  const setBlock = (letter: string, body: string): void => {
-    if (blocks.has(letter)) throw new Error(`${label}: duplicate Appendix ${letter}`);
-    blocks.set(letter, body);
-  };
-  const parts = text.split("\n\n---\n\n");
-
-  let header = "";
-  let restIdx = 0;
-
-  if (parts[0] && parts[0].startsWith("# Appendices")) {
-    const headerEnd = parts[0].indexOf("\n\n## Appendix ");
-    if (headerEnd !== -1) {
-      header = parts[0].slice(0, headerEnd + 2); // "# Appendices\n\n"
-      const block = parts[0].slice(headerEnd + 2); // "## Appendix A: ..."
-      const m = block.match(/^## Appendix ([A-Z]):/);
-      if (m) setBlock(m[1], block);
-    } else {
-      header = parts[0];
-    }
-    restIdx = 1;
-  }
-
-  for (let i = restIdx; i < parts.length; i++) {
-    const m = parts[i].match(/^## Appendix ([A-Z]):/);
-    if (m) setBlock(m[1], parts[i]);
-  }
-
-  return { header, blocks };
-}
-
 function assemble(): { content: string; report: string[] } {
   const report: string[] = [];
   const parts: string[] = [];
@@ -86,21 +55,31 @@ function assemble(): { content: string; report: string[] } {
     report.push(`  ${file} (${text.split("\n").length} lines)`);
   }
 
-  // Appendices — interleaved from three source files
-  const { header: refHeader, blocks: refBlocks } = parseAppendices(readFile(APPENDIX_REF), APPENDIX_REF);
-  report.push(`  ${APPENDIX_REF} (${refBlocks.size} appendices)`);
-  const { blocks: fixBlocks } = parseAppendices(readFile(APPENDIX_FIX), APPENDIX_FIX);
-  report.push(`  ${APPENDIX_FIX} (${fixBlocks.size} appendices)`);
-  const { blocks: licBlocks } = parseAppendices(readFile(APPENDIX_LIC), APPENDIX_LIC);
-  report.push(`  ${APPENDIX_LIC} (${licBlocks.size} appendices)`);
-  const { blocks: runBlocks } = parseAppendices(readFile(APPENDIX_RUN), APPENDIX_RUN);
-  report.push(`  ${APPENDIX_RUN} (${runBlocks.size} appendices)`);
+  // Appendices — interleaved from four source files
+  const ref = parseAppendices(readFile(APPENDIX_REF), APPENDIX_REF);
+  if (ref.header === "") throw new Error(`${APPENDIX_REF}: source must begin with "# Appendices"`);
+  report.push(`  ${APPENDIX_REF} (${ref.blocks.size} appendices)`);
+  const fix = parseAppendices(readFile(APPENDIX_FIX), APPENDIX_FIX);
+  report.push(`  ${APPENDIX_FIX} (${fix.blocks.size} appendices)`);
+  const lic = parseAppendices(readFile(APPENDIX_LIC), APPENDIX_LIC);
+  report.push(`  ${APPENDIX_LIC} (${lic.blocks.size} appendices)`);
+  const run = parseAppendices(readFile(APPENDIX_RUN), APPENDIX_RUN);
+  report.push(`  ${APPENDIX_RUN} (${run.blocks.size} appendices)`);
 
   // A malformed or duplicated heading must fail assembly rather than silently
   // dropping content from the assembled spec (CR-21).
   const allBlocks = new Map<string, string>();
-  for (const [label, blocks] of [[APPENDIX_REF, refBlocks], [APPENDIX_FIX, fixBlocks], [APPENDIX_LIC, licBlocks], [APPENDIX_RUN, runBlocks]] as const) {
-    for (const [letter, block] of blocks) {
+  // A source preamble (everything before that file's first appendix) is
+  // emitted immediately before the first block that file defines, so it keeps
+  // its position instead of being discarded.
+  const preambles = new Map<string, string>();
+  for (const [label, source] of [[APPENDIX_REF, ref], [APPENDIX_FIX, fix], [APPENDIX_LIC, lic], [APPENDIX_RUN, run]] as const) {
+    if (source.header !== "" && label !== APPENDIX_REF) {
+      throw new Error(`${label}: only ${APPENDIX_REF} may carry the "# Appendices" header`);
+    }
+    const first = source.blocks.keys().next();
+    if (source.preamble !== "" && !first.done) preambles.set(first.value, source.preamble);
+    for (const [letter, block] of source.blocks) {
       if (allBlocks.has(letter)) throw new Error(`Appendix ${letter} is defined by more than one source file (${label})`);
       allBlocks.set(letter, block);
     }
@@ -113,11 +92,14 @@ function assemble(): { content: string; report: string[] } {
   const ordered: string[] = [];
   for (const letter of APPENDIX_ORDER) {
     const block = allBlocks.get(letter);
-    if (block) ordered.push(block.replace(/\n+$/, ""));
+    if (!block) continue;
+    const preamble = preambles.get(letter);
+    if (preamble) ordered.push(preamble);
+    ordered.push(block);
   }
 
-  const appendixContent = refHeader + ordered.join("\n\n---\n\n") + "\n";
-  report.push(`  appendices assembled: ${ordered.length} in canonical order`);
+  const appendixContent = `${ref.header}\n\n${ordered.join("\n\n---\n\n")}\n`;
+  report.push(`  appendices assembled: ${allBlocks.size} in canonical order`);
 
   const coreSeparator = "\n\n---\n\n";
   const coreContent = parts.join(coreSeparator);

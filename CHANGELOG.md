@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11-12 — assembler appendix completeness: Appendix O.8–O.13 and the fixture matrix
+
+- `parseAppendices` now slices an appendix source by `## Appendix <letter>:`
+  heading boundaries instead of splitting on horizontal rules and keeping only
+  parts that start with an appendix heading. Text between two headings therefore
+  belongs to the preceding appendix, so the four continuation blocks after the
+  intra-appendix rules in Appendix O no longer disappear: the assembled
+  `holonovel.md` carries O.8 (lookup completeness), O.11 (base-capability tuning),
+  O.12 (health/verification constants), and O.13 (subjective-memory divergence)
+  — the tables §5 bodies and REQ-434/436/438/440/441 already cite as "the
+  Appendix O value". The parser moves to `scripts/lib/appendices.ts`;
+  `scripts/test-spec-tooling.ts` pins continuation retention, the
+  header-plus-blocks reconstruction invariant, duplicate-heading failure, and
+  the assembled O.8–O.13 + matrix presence.
+- The same assembler change restores the fixture coverage matrix
+  (`spec/appendices-fixtures.md` preamble, including the per-ruleset fixture
+  annotation SHALL) that the old parser discarded because it is neither the
+  `# Appendices` header nor an appendix. A source preamble is now emitted
+  immediately before the first appendix that file defines (the matrix lands
+  between Appendix A and Appendix B). Assembled `Total lines` 14 021 → 14 151
+  (+130, no other appendix block changed).
+- H-4a/H-4b are `Resolved` in `spec/audit/review-register.md`; the P0 roadmap
+  section is closed.
+
 ## 2026-11-12 — harness failure remediation: divergence anchors and share license gate
 
 - The divergence check now evaluates a memory's claim against the

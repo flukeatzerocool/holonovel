@@ -11,6 +11,32 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-12 assembler appendix completeness (H-4)
+
+Resolved in the 2026-11-12 assembler-completeness increment. The defect sat in
+the assembly step, not in the spec sources: `parseAppendices` discarded every
+part of an appendix source that did not begin with `## Appendix <letter>`.
+
+- **H-4a — Appendix O.8–O.13 were dropped from `holonovel.md`.** The
+  separator-filter parser (`scripts/assemble.ts:52-73` at HEAD) discarded the
+  four continuation blocks after the intra-appendix rules at
+  `spec/appendices-reference.md:3108,3131,3158,3184`; the assembled spec cited
+  the O.11/O.12/O.13 constants from §5 bodies and Appendix F rows T91/T770
+  (`holonovel.md:10883`, `:11442`) while carrying none of them.
+  `parseAppendices` now slices by heading boundaries
+  (`scripts/lib/appendices.ts`), so text between two headings always belongs to
+  the preceding appendix; four self-tests in `scripts/test-spec-tooling.ts` pin
+  it (continuation retention, reconstruction invariant, duplicate failure, the
+  assembled O.8–O.13 pin). REQ-434, REQ-436, REQ-438, REQ-440, REQ-441,
+  REQ-097, REQ-129, REQ-273, REQ-571, REQ-593, REQ-629, REQ-630, REQ-632,
+  REQ-648.
+- **H-4b — the fixture coverage matrix was dropped.** The leading block of
+  `spec/appendices-fixtures.md` (`## Fixture Coverage Matrix`, carrying the
+  per-ruleset annotation SHALL) was neither `# Appendices` nor an appendix
+  heading, so the old parser discarded it. The parser returns it as a preamble
+  and assembly emits it immediately before the first appendix that file defines
+  (between Appendix A and Appendix B).
+
 ### 2026-11-12 harness failure remediation (H-1..H-3)
 
 Resolved in the 2026-11-12 harness-failure increment. Both findings were
@@ -2203,18 +2229,6 @@ scheduled on `ROADMAP.md`.
   REQ-075g, REQ-076, REQ-077, REQ-126b, REQ-128b, REQ-167b.
 
 ## Scheduled-roadmap
-
-### 2026-11-12 harness failure remediation — assembler gap found mid-execution
-
-- **H-4 — the assembled spec drops Appendix O.8–O.13 (2026-11-12, P0):**
-  `parseAppendices` (`scripts/assemble.ts`) splits each appendix source on
-  `\n\n---\n\n` and keeps only parts beginning with `## Appendix <letter>`, so
-  the intra-appendix separators inside Appendix O discard O.8–O.13. Predicate:
-  `git show HEAD:holonovel.md` contains no `Outcome opposition pairs` (the
-  O.13 table) while `spec/appendices-reference.md` does. Found while placing the
-  H-1 precedence line; scheduled under `ROADMAP.md` § *Assembled spec drops
-  Appendix O.8–O.13 (P0)* rather than expanding this increment's scope.
-  REQ-629, REQ-630, REQ-633.
 
 ### 2026-11-12 §5.6 citation remediation
 

@@ -20,6 +20,7 @@ import { hasUnfilledVerification, hasFingerprintDelta, isLegacyDeltaExempt, isPl
 import { hashFile } from "./lib/hash.js";
 import { classifyDelta, hasEditorialDisposition, reqFamily } from "./lib/spec-delta-classify.js";
 import { sameRemote } from "./lib/remote-url.js";
+import { parseAppendices } from "./lib/appendices.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -375,6 +376,42 @@ function main(): void {
     }
   }
   check(/Appendix V \(Workflow Runbooks\)/.test(readingGuide), "T464/REQ-395b: the reading guide reaches Appendix V");
+
+  // Assembler appendix completeness (ROADMAP: assembled spec dropped Appendix
+  // O.8–O.13). The parser slices by heading boundaries, so a continuation block
+  // after an intra-appendix `---` stays with its appendix and a source preamble
+  // is returned rather than discarded.
+  const synthetic =
+    "# Appendices\n\n## Appendix A: One\n\nbody\n\n---\n\n**A.8 — Continuation:**\n\nkept\n\n---\n\n## Appendix B: Two\n\nb\n";
+  const syntheticParsed = parseAppendices(synthetic, "synthetic");
+  check(syntheticParsed.header === "# Appendices", "assemble: the header is separated from the first appendix");
+  check(syntheticParsed.preamble === "", "assemble: a header-only lead is not reported as a preamble");
+  check(Boolean(syntheticParsed.blocks.get("A")?.includes("**A.8 — Continuation:**")), "assemble: a continuation block stays with its appendix");
+  check(syntheticParsed.blocks.get("B") === "## Appendix B: Two\n\nb", "assemble: a following appendix starts at its heading");
+  const reconstructed = `${syntheticParsed.header}\n\n${[...syntheticParsed.blocks.values()].join("\n\n---\n\n")}\n`;
+  check(reconstructed === synthetic, "assemble: header plus blocks reconstructs the source (no discarded parts)");
+
+  const preambleParsed = parseAppendices("## Preamble\n\nintro\n\n---\n\n## Appendix A: One\n\na\n", "preamble");
+  check(preambleParsed.header === "" && preambleParsed.preamble === "## Preamble\n\nintro", "assemble: a leading non-header block is returned as the preamble");
+
+  let duplicateThrew = false;
+  try {
+    parseAppendices("## Appendix A: One\n\na\n\n---\n\n## Appendix A: Again\n\nb\n", "duplicate");
+  } catch {
+    duplicateThrew = true;
+  }
+  check(duplicateThrew, "assemble: a duplicate appendix letter fails the parse");
+
+  const referenceSource = readFileSync(join(root, "spec", "appendices-reference.md"), "utf-8");
+  const oSubsections = [...referenceSource.matchAll(/^\*\*O\.(\d+) —/gm)].map((m) => m[1]);
+  check(oSubsections.length > 0, "assemble: the Appendix O source defines numbered subsections");
+  for (const n of oSubsections) {
+    check(spec.includes(`**O.${n} —`), `assemble: the assembled spec carries Appendix O.${n}`);
+  }
+  check(spec.includes("Outcome opposition pairs"), "assemble: the assembled spec carries the O.13 outcome table");
+  check(spec.includes("\n\n---\n\n## Fixture Coverage Matrix"), "assemble: the fixture matrix is assembled behind a single separator");
+  const matrixAt = spec.indexOf("## Fixture Coverage Matrix");
+  check(matrixAt > spec.indexOf("## Appendix A:") && matrixAt < spec.indexOf("## Appendix B:"), "assemble: the fixture matrix sits between Appendix A and Appendix B");
 
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
