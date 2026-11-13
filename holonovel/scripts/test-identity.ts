@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 import { resourceReader, promptReader } from "./lib/jsonrpc.js";
 import { normalizeFacetAttributes } from "../src/core/identity.js";
+import { canonicalJson } from "../src/core/state-hash.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(process.cwd(), "src", "index.ts");
@@ -416,7 +417,13 @@ async function main() {
     assert(!playerBrief.includes("a debt he hides") && !playerBrief.includes("Identity (v"), "Player briefing carried NPC identity");
     await call(p, "set_badge", { badge: "game_master" });
     const again = JSON.parse(await call(p, "manage_npc", { action: "get", npc_id: npcId }));
-    assert(JSON.stringify(again) === JSON.stringify(gmGet), "two GM reads at one identity version differ");
+    // REQ-649 — the claim is that two reads at one identity version agree on the
+    // identity block. A briefing is a mutating render (REQ-075c maintains the
+    // appearance counters), so whole-record equality would compare unrelated
+    // bookkeeping; compare the summary canonically instead.
+    assert(gmGet.identity && again.identity, "identity block missing from a GM read");
+    assert(typeof gmGet.identity.version === "number", "identity version missing");
+    assert(canonicalJson(again.identity) === canonicalJson(gmGet.identity), "two GM reads at one identity version differ");
     await kill(p);
   });
 

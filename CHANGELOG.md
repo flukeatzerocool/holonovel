@@ -16,6 +16,10 @@
   names only keys the hash covers. The Holosuite evidence anchors are repointed
   to their definition or dispatch sites across all five tiers (27 predicates),
   fixing every `predicate_unresolved` finding.
+- T772 compares the compiled identity block (canonicalized, with presence and
+  version assertions) instead of the whole NPC record, so the read-stability
+  claim of REQ-649 is asserted rather than the appearance bookkeeping a
+  briefing legitimately advances (REQ-075c).
 
 ## 2026-11-13 — §5.6 clock interaction models and audit-derived combat turn report
 
