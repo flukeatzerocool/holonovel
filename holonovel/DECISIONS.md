@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 29,806 tokens; standard 25,819; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 29,817 tokens; standard 25,830; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -26,6 +26,35 @@ dated entries below record changes to this list.
   evaluator may read a compact default as incomplete. The full default stays;
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
+
+### Trust-core autonomy, register, and safety semantics — 2026-11-14
+
+- **The autonomy safety tier governs death on an overkill axis.** `safe` (the
+  default) never applies the ruleset's declared death condition;
+  `moderate` applies it only when a single blow strictly exceeds the target's
+  remaining HP; `hardcore` applies it on any zeroing blow. The axis deliberately
+  avoids a max-health comparison: the ruleset-free corpus has targets with no
+  max-health stat, where a max-relative rule would collapse `moderate` into
+  `hardcore`. With no declared death condition no tier can apply one — the
+  response says `death condition unavailable (no ruleset declaration)` and the
+  target stays incapacitated rather than carrying an invented `dead` string
+  `recapEntityStatus` would not recognise. The default tier preserves the
+  pre-2026-11-14 damage behaviour byte-for-byte (T131/T161 are the guard).
+- **The player `register` signal is session presentation state, not Novel
+  state.** It lives in a module variable beside `detailLevel`, bypasses
+  `recordSignal`, and is never written to `player_signals`, so it is discarded
+  on connection close and never survives a restart (REQ-064d/REQ-064f). Under
+  `meta`, `run_command (action: suggest)` drops its `Actions for <name>:`
+  framing and keeps the mechanical blocks.
+- **The `mechanical_prompt` pause is delivered as a briefing directive over the
+  existing decision surface, not as a dispatcher refusal.** `DEFAULT_AUTONOMY`
+  is `mechanical_prompt`/`prompt`, so a refusal gate keyed on that level would
+  pause every ruleset resolution in every default session and break the harness
+  corpus. REQ-306c is phrased as an AI obligation; the server supplies the
+  slider state in `badge_briefing` and `spec_health`, the directive naming
+  `manage_scene (action: choices)` and `respond_decision`, and the working
+  decision round-trip. Hard enforcement is rejected as a default-breaking
+  change with no REQ-named off switch.
 
 ### End-Novel disposal record, equipment provenance, creation errors — 2026-11-13
 

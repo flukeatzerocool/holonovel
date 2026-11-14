@@ -12,16 +12,17 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Trust-core citation repair (P1)
+## Briefing section ordering (P1)
 
-- Four §5.1/§5.5 REQs cite `Automated` tests that no harness implements
-  (REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
-  REQ-306e → T350): write each assertion or re-point the citation to the test
-  that exercises the behaviour, then refresh the coverage register.
+- Reorder `composeBadgeBriefing` so the decision-critical groups (scene state,
+  POV, entities, combat, triggered lore, active NPCs, countdowns, narrative
+  threads, available actions) precede the supplementary groups, per REQ-109d
+  and REQ-109e; the observed order puts `Point of view` (REQ-220) and
+  `Narrative threads` after orientation and navigation sections. Then extend T109
+  with the ordering assertion now recorded as review-register F-S3.
 
-**Trigger:** the same session as the remediation above, or the next one if that
-session reaches its cap; closes when all four citations resolve to an exercised
-harness.
+**Trigger:** the next briefing-rendering session; closes when F-S3 is
+`Resolved` and T109 asserts the ordering.
 
 ## §5.3 citation repair (P1)
 

@@ -2507,6 +2507,19 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   `open_session` invokes the badge step only when a Novel is active. REQ-030,
   REQ-066b. T785. Predicate: `index.ts:4180`.
 
+- **F-S1 — the four phantom `Automated` citations now resolve (resolved
+  2026-11-14):** T44 (`holonovel/scripts/test-output-contracts.ts`, badge cycle
+  and Editor leg), T109 (`test-briefing.ts`, group anchors and inventory), T336
+  (`test-briefing.ts`, knowledge-state token), and T350 (`test-backfill.ts`,
+  autonomy sliders, pause directive, and the safety ladder) all run. The
+  earlier text claimed all four were "absent from every `holonovel/scripts`
+  harness"; that was false for T110, which already existed at
+  `test-backfill.ts:2300` — the real gap was T109 itself. No assertion was
+  weakened to reach green: the server now implements the register signal
+  (REQ-064c/d/f), the safety tier (REQ-306b/f), and the mechanical-pause
+  directive (REQ-306c). Predicate: the four `_Check:_` lines at
+  `spec/02-requirements.md:1239`, `:1309`, `:1336`, `:1355`.
+
 ## Scheduled-roadmap
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
@@ -2527,18 +2540,24 @@ against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
-Scheduled under `ROADMAP.md` § *Trust-core contract remediation (P1)* and
-§ *Trust-core citation repair (P1)*. Each finding cites the predicate that
-carries it; none is derived from a gate message or a test failure (no gate
-currently asserts these contracts — that is the finding).
+F-S1 (the four phantom `Automated` citations) is resolved and recorded under
+`## Resolved`; F-S3 below is scheduled under `ROADMAP.md` § *Briefing section
+ordering (P1)*. Each finding cites the predicate that carries it; none is
+derived from a gate message or a test failure.
 
-- **F-S1 — four §5.1/§5.5 REQs cite automated tests no harness implements
-  (scheduled):** REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
-  REQ-306e → T350. Each test is defined `Automated` in Appendix F and
-  absent from every `holonovel/scripts` harness. Either the assertion is
-  written or the citation is re-pointed to the test that does exercise the
-  behaviour. Predicate: `spec/02-requirements.md` Check lines for those REQs;
-  `spec/appendices-reference.md` T44/T109/T110/T336/T350 rows.
+- **F-S3 — the briefing's section order deviates from REQ-109d/109e
+  (scheduled):** the rendered order places decision-critical groups after
+  supplementary ones — `### Point of view` (REQ-220) follows `### Novel Setup`
+  and `### Player signals`, and `### Narrative threads` / `### Lore` follow
+  `### Autonomy`, while REQ-109e requires the decision-critical groups (scene
+  state, POV, entities, combat, triggered lore, NPCs, countdowns, narrative
+  threads, available actions) to precede the supplementary ones. The observed
+  GM order is recorded in
+  `docs/plans/2026-11-14-trust-core-citation-repair/tasks.md`. T109 asserts
+  presence, the known-heading inventory, the empty markers, and the Player
+  exclusion, but not the ordering. Predicate: `composeBadgeBriefing`
+  section emission order (`holonovel/src/index.ts:17102-17460`);
+  `spec/02-requirements.md:1330-1333` (REQ-109d/109e).
 
 ### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
 

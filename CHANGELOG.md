@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-14 — Trust-core contract and citation repair: safety, register, pause
+
+- The autonomy `safety` tier now scales consequence severity at the single
+  combat-damage site: `safe` (the default) never applies the ruleset's death
+  condition, `moderate` applies it only on an overkill blow, and `hardcore`
+  applies it on any zeroing blow. With no declared death condition the response
+  and audit say so and the target stays incapacitated. The default tier leaves
+  damage behaviour unchanged (T131/T161 are the guard); the ladder is recorded
+  in `DECISIONS.md`.
+- `manage_character (action: signal)` accepts `register` (`character`/`meta`).
+  The value is session presentation state beside `detailLevel` — it bypasses
+  `player_signals`, so it is discarded on connection close and never survives a
+  restart (REQ-064d/REQ-064f). `badge_briefing` carries a `Player-Register` line
+  and `meta` drops the `run_command (action: suggest)` framing while keeping the
+  mechanical blocks.
+- At `level=mechanical_prompt` the `### Autonomy` briefing block carries the
+  pause directive naming `manage_scene (action: choices)` and
+  `respond_decision`; the decision round-trip is asserted. The directive-only
+  reading (no dispatcher refusal) is recorded with its rationale —
+  `DEFAULT_AUTONOMY` is that level, so a refusal gate would pause every default
+  session.
+- Four §5.1/§5.5 REQs no longer cite phantom tests: T44 (Player → GM → Player
+  cycle and the Editor's ungated surface), T109 (badge-briefing group anchors,
+  known-heading inventory, empty markers, Player exclusion), T336
+  (knowledge-state secret, presence/no-entity markers, Player projection), and
+  T350 (autonomy sliders, pause directive, safety ladder, restart persistence)
+  all run. T461 is extended for the register line and its restart reset.
+  Review-register F-S1 is `Resolved`.
+- T109's decision-critical ordering clause is a genuine deviation from
+  REQ-109d/109e, recorded as F-S3 and scheduled on `ROADMAP.md` rather than
+  silently dropped or asserted falsely.
+- Regenerated `holonovel/tool-definitions.json`, the surface baseline and the
+  recorded budget line (full 29,817 / standard 25,830), the assembled spec, and
+  the coverage register.
+
 ## 2026-11-14 — AAR close gate: `LOOP OPEN` blocks the session close
 
 - The session close now refuses an increment whose after-action report ends

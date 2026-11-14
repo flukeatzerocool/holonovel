@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 119222,
+  "tools_list_bytes": 119266,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 119222,
-        "tokens": 29806
+        "bytes": 119266,
+        "tokens": 29817
       },
       "standard": {
         "tools": 37,
-        "bytes": 103275,
-        "tokens": 25819
+        "bytes": 103319,
+        "tokens": 25830
       },
       "small": {
         "tools": 6,
@@ -547,7 +547,7 @@
         "pov": "Point-of-view mode (set_active).",
         "roster_id": "Roster identifier (import/roster_remove).",
         "seed": "Deterministic seed (create).",
-        "signal": "Feedback category (signal); detail carries terse|normal|rich.",
+        "signal": "Feedback category (signal); detail carries terse|normal|rich; register carries character|meta.",
         "skills": "Trained skills (create).",
         "species": "Species (create).",
         "spells": "Known spells (update); entries may be bare names or {name, level} objects.",
@@ -585,7 +585,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6085,
+        "definitionBytes": 6129,
         "descriptionBytes": 979
       },
       "category": "",

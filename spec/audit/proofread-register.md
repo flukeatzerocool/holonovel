@@ -372,3 +372,15 @@ pass. The §5.2 readability warning moves line but not grade (18.7).
 
 **Disposition: all 284 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 14 — trust-core contract and citation repair (2026-11-14)
+
+Re-verified against live `npm run validate`: **0 errors, 286 warnings**.
+This increment rewrites the Appendix F T44/T109/T336/T350/T461 rows and adds
+server-side behaviour (safety ladder, register signal, pause directive); no
+warning line names any of those rows (checked by filtering the warning output
+for the five test IDs). The +2 over Batch 13 accumulated across the increments
+since that batch, none of which re-ran the proofreading pass.
+
+**Disposition: all 286 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

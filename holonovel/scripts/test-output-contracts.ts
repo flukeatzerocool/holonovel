@@ -220,6 +220,31 @@ async function main() {
     await kill(p);
   });
 
+  // ── T461 (extended) — REQ-064c/d/f player register ──
+  await test("T461/REQ-064d+f: player register line, meta framing suppression, and restart reset", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t461-register" });
+    await call(p, "set_badge", { badge: "player" });
+    let brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Player-Register:** character", "REQ-064d default register line");
+    const framed = await call(p, "run_command", { action: "suggest", intent: "take the lantern" });
+    assertContains(framed, "Actions for", "REQ-064d character register keeps the framing");
+    assertContains(await call(p, "manage_character", { action: "signal", signal: "register", value: "meta" }), "Player register: meta", "REQ-064c register signal accepted");
+    brief = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(brief, "Player-Register:** meta", "REQ-064d briefing reflects register");
+    const bare = await call(p, "run_command", { action: "suggest", intent: "take the lantern" });
+    assertNotContains(bare, "Actions for", "REQ-064d meta register drops the framing");
+    assertContains(bare, "Spatial:", "REQ-064d meta register keeps mechanical content");
+    assertContains(await call(p, "manage_character", { action: "signal", signal: "register", value: "" }), "reset to character", "REQ-064d empty value resets");
+    // REQ-064f — the register does not survive restart.
+    await kill(p);
+    const p2 = await boot();
+    await call(p2, "open_session", { novel: "t461-register" });
+    const resumed = await proto(p2, "prompts/get", { name: "badge_briefing" });
+    assertContains(resumed, "Player-Register:** character", "REQ-064f register resets on restart");
+    await kill(p2);
+  });
+
   // ── REQ-118 prompt length budget truncation (small budget) ──
   await test("T123/REQ-118: prompt budget truncation with never-truncated elements", async () => {
     const p = await boot({ TTRPG_PROMPT_BUDGET: "500" });
@@ -598,6 +623,26 @@ async function main() {
     const audit = await proto(p, "resources/read", { uri: "audit://novel" });
     assertContains(audit, "npc", "REQ-133 forbidden call audited");
     assertContains(audit, "boundary", "REQ-133 boundary marker");
+    passed++;
+    await kill(p);
+  });
+
+  // ── T44 — REQ-032b Player → GM → Player cycle and the Editor's ungated surface ──
+  await test("T44/REQ-032b: Player boundary cycle, GM restore, and Editor no-gating", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t44-cycle" });
+    await call(p, "manage_lore", { action: "set_secret", key: "gm_only", content: "TOPSECRET-BODY" });
+    await call(p, "set_badge", { badge: "player" });
+    const denied = await call(p, "manage_npc", { action: "create", name: "Denied" });
+    assertContains(denied, "[FORBIDDEN]", "REQ-032b Player refusal");
+    assertContains(denied, "set_badge", "REQ-032b refusal names the corrective action");
+    assertNotContains(denied, "TOPSECRET-BODY", "REQ-032b no hidden content in the refusal");
+    await call(p, "set_badge", { badge: "game_master" });
+    assertContains(await call(p, "manage_npc", { action: "create", name: "Allowed" }), "[OK]", "REQ-032b GM succeeds");
+    await call(p, "set_badge", { badge: "player" });
+    assertContains(await call(p, "manage_npc", { action: "create", name: "DeniedAgain" }), "[FORBIDDEN]", "REQ-032b switching back re-applies the gate");
+    await call(p, "set_badge", { badge: "none" });
+    assertContains(await call(p, "manage_npc", { action: "create", name: "EditorAllowed" }), "[OK]", "REQ-032b Editor badge is ungated");
     passed++;
     await kill(p);
   });

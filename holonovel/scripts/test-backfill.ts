@@ -40,6 +40,31 @@ const DAMAGE_FIXTURE_MODEL: any = {
   incapacitation_condition: "downed",
   info: {}, tables: {}, generation_tables: {}, concepts: {}, resolution: {}, roles: {},
 };
+// REQ-306b/REQ-306f — a ruleset fixture that declares both a zero-health
+// condition and a death condition, so the autonomy safety ladder is observable.
+const DEATH_LADDER_MODEL: any = {
+  monsters: { goblin: { name: "Goblin", ac: 13, hp: 12, max_hp: 12 } },
+  incapacitation_condition: "downed",
+  death_condition: "destroyed",
+  info: {}, tables: {}, generation_tables: {}, concepts: {}, resolution: {}, roles: {},
+};
+function seedDeathLadderFixture(): void {
+  const slug = "deathladder";
+  const dir = join(DATA_DIR, "rulesets", slug);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const model = DEATH_LADDER_MODEL;
+  const manifest = {
+    slug, name: "Death Ladder Fixture", host_version: "0.0.0",
+    package_format: PACKAGE_FORMAT, built_at: "2026-01-01T00:00:00.000Z",
+    counts: {}, content_hash: sha256Canonical([], model, [], [], []),
+  };
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest));
+  writeFileSync(join(dir, "model.json"), JSON.stringify(model));
+  for (const file of ["index.json", "tools.json", "resources.json", "prompts.json"]) writeFileSync(join(dir, file), "[]");
+  writeFileSync(join(dir, "reasoning.jsonl"), "");
+}
+
 function seedDamageFixture(): void {
   const slug = "damagefixture";
   const dir = join(DATA_DIR, "rulesets", slug);
@@ -2491,6 +2516,84 @@ async function main() {
     const noAction = await call(proc, "manage_combat", { action: "advance" });
     assertContains(noAction, "took no action");
     await kill(proc);
+  });
+
+  // ── T350 — REQ-306b/c/e autonomy: sliders, pause directive, safety ladder ──
+  await test("T350/REQ-306e: autonomy sliders, pause directive, safety ladder, and restart persistence", async () => {
+    seedDeathLadderFixture();
+    const proc = await boot();
+    const created = await call(proc, "manage_novel", { action: "create", name: "t350-autonomy", ruleset: "deathladder" });
+    assertContains(created, "[OK]");
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    const set = await call(proc, "manage_staging", { action: "autonomy", level: "full", confirmation: "auto", safety: "safe", creativity: "standard" });
+    assertContains(set, "[OK] Autonomy set");
+    let brief = await getPrompt(proc, "badge_briefing");
+    assertContains(brief, "### Autonomy");
+    assertContains(brief, "Level: full");
+    assertNotContains(brief, "Mechanical decisions pause");
+
+    // REQ-306c — the pause directive appears at mechanical_prompt.
+    assertContains(await call(proc, "manage_staging", { action: "autonomy", level: "mechanical_prompt" }), "[OK]");
+    brief = await getPrompt(proc, "badge_briefing");
+    assertContains(brief, "Mechanical decisions pause");
+    assertContains(brief, "manage_scene (action: choices)");
+
+    // REQ-306e — the Player badge is refused the autonomy tool.
+    await call(proc, "set_badge", { badge: "player" });
+    assertContains(await call(proc, "manage_staging", { action: "autonomy", level: "full" }), "[FORBIDDEN]");
+    await call(proc, "set_badge", { badge: "game_master" });
+
+    // REQ-306e — the slider values persist across a restart.
+    await kill(proc);
+    const proc2 = await boot();
+    await call(proc2, "open_session", { novel: "t350-autonomy" });
+    const resumed = await getPrompt(proc2, "badge_briefing");
+    assertContains(resumed, "Level: mechanical_prompt");
+
+    // REQ-306b/f — the safety ladder. safe (the default) never kills.
+    const mk = async (p: any, name: string) => {
+      const r = await call(p, "manage_npc", { action: "create", name, ruleset_reference: "goblin" });
+      return r.match(/\(([^)]+)\)/)?.[1] ?? "";
+    };
+    const safeId = await mk(proc2, "SafeGoblin");
+    const safeHit = await call(proc2, "manage_combat", { action: "damage", attacker_id: "npc_1", target_id: safeId, amount: 99 });
+    assertContains(safeHit, "Safety (safe): no permanent death");
+    let npc = JSON.parse(await readResource(proc2, "npcs://"));
+    assert(npc[safeId].conditions.includes("downed"), "safe tier lost the ruleset incap condition");
+    assert(!npc[safeId].conditions.includes("destroyed"), "safe tier applied the death condition");
+
+    // moderate — a non-overkill zeroing blow incapacitates; overkill kills.
+    await call(proc2, "manage_staging", { action: "autonomy", safety: "moderate" });
+    assertContains(await call(proc2, "respond_decision", { decision: "safety_escalation:moderate", option: "confirm" }), "moderate");
+    const modId = await mk(proc2, "ModGoblin");
+    const modHurt = await call(proc2, "manage_combat", { action: "damage", attacker_id: "npc_1", target_id: modId, amount: 12 });
+    assertContains(modHurt, "Safety (moderate): incapacitated");
+    const overId = await mk(proc2, "OverGoblin");
+    const overHit = await call(proc2, "manage_combat", { action: "damage", attacker_id: "npc_1", target_id: overId, amount: 99 });
+    assertContains(overHit, "Safety (moderate): killing blow");
+    npc = JSON.parse(await readResource(proc2, "npcs://"));
+    assert(npc[overId].conditions.includes("destroyed"), "moderate overkill did not apply the death condition");
+
+    // hardcore — any zeroing blow kills, with no warning line.
+    await call(proc2, "manage_staging", { action: "autonomy", safety: "hardcore" });
+    assertContains(await call(proc2, "respond_decision", { decision: "safety_escalation:hardcore", option: "confirm" }), "hardcore");
+    const hardId = await mk(proc2, "HardGoblin");
+    const hardHit = await call(proc2, "manage_combat", { action: "damage", attacker_id: "npc_1", target_id: hardId, amount: 12 });
+    assertContains(hardHit, "Safety (hardcore): death condition 'destroyed' applied");
+    npc = JSON.parse(await readResource(proc2, "npcs://"));
+    assert(npc[hardId].conditions.includes("destroyed"), "hardcore did not apply the death condition at zero HP");
+
+    // No declared death condition: the tier degrades with an explicit advisory.
+    await call(proc2, "manage_novel", { action: "create", name: "t350-nodeath" });
+    const plain = await call(proc2, "manage_character", { action: "create", name: "Plain" });
+    const plainId = (plain.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "";
+    await call(proc2, "manage_character", { action: "update", entity_id: plainId, stats: { hp: 5 } });
+    await call(proc2, "manage_staging", { action: "autonomy", safety: "hardcore" });
+    assertContains(await call(proc2, "respond_decision", { decision: "safety_escalation:hardcore", option: "confirm" }), "hardcore");
+    const noDeath = await call(proc2, "manage_combat", { action: "damage", attacker_id: plainId, target_id: plainId, amount: 99 });
+    assertContains(noDeath, "death condition unavailable");
+    await kill(proc2);
   });
 
   harnessComplete();

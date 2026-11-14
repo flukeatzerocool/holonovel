@@ -2111,6 +2111,10 @@ let enumerationVerbosity: "summary" | "detail" = "summary";
 // (`roomDescriptionMode`, set only by brief/verbose/normal), so leaving an
 // override always falls back to what the player actually chose.
 let detailLevel: "terse" | "normal" | "rich" = "normal";
+// REQ-064c/d/f — the player register is session presentation state: it is
+// discarded on connection close and does NOT survive a restart, so it lives
+// beside detailLevel rather than in Novel state.
+let playerRegister: "character" | "meta" = "character";
 function effectiveRoomDescriptionMode(): "brief" | "verbose" | "normal" {
   if (detailLevel === "terse") return "brief";
   if (detailLevel === "rich") return "verbose";
@@ -5003,7 +5007,7 @@ server.registerTool("manage_character", {
     format: z.string().optional().describe("Output format (sheet)."),
     pov: z.enum(["character", "omniscient"]).optional().describe("Point-of-view mode (set_active)."),
     examples: z.array(z.object({ context: z.string(), dialogue: z.string(), tag: z.string().optional(), source: z.enum(["synthesis", "codex", "player-corrected"]).optional(), source_url: z.string().optional() })).optional().describe("Voice examples (voice); at most 5; source tags synthesis examples for the [supplementary] annotation."),
-    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "detail", "voice_feedback"]).optional().describe("Feedback category (signal); detail carries terse|normal|rich."),
+    signal: z.enum(["pace", "difficulty", "tone", "focus", "boundary", "detail", "voice_feedback", "register"]).optional().describe("Feedback category (signal); detail carries terse|normal|rich; register carries character|meta."),
     value: z.string().optional().describe("Feedback text (signal)."),
     stats: z.record(z.string(), z.any()).optional().describe("Mechanical stat keys to shallow-merge into the entity's stats (update)."),
     spells: z.array(z.union([z.string(), z.object({ name: z.string(), level: z.number().optional() })])).optional().describe("Known spells (update); entries may be bare names or {name, level} objects."),
@@ -5266,6 +5270,24 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
         state.saveNovel(novel);
         audit("manage_character (action: signal)", { signal: args.signal, value: level }, prefix);
         return ok(`${prefix} detail → ${level}`);
+      }
+      // REQ-064c/d/f — the register is session presentation state, not Novel
+      // state: it bypasses recordSignal (which writes player_signals) so it is
+      // discarded on connection close and never survives a restart. An empty
+      // value resets to the default.
+      if (args.signal === "register") {
+        const wanted = String(args.value ?? "").trim().toLowerCase();
+        if (wanted === "" || wanted === "character") {
+          playerRegister = "character";
+          audit("player_register", { register: "character", reset: wanted === "" });
+          return ok(wanted === "" ? "Player register reset to character (default)." : "Player register: character.");
+        }
+        if (wanted === "meta") {
+          playerRegister = "meta";
+          audit("player_register", { register: "meta", reset: false });
+          return ok("Player register: meta.");
+        }
+        return err("INVALID_INPUT", `register must be 'character' or 'meta'; got '${args.value}'.`);
       }
       if (args.signal === "voice_feedback") {
         const entity = state.getActiveEntity();
@@ -5839,7 +5861,10 @@ server.registerTool("run_command", {
     if (domains.mechanical.length) blocks.push(`Mechanical:\n${domains.mechanical.map((s) => `  - ${s}`).join("\n")}`);
     if (domains.spatial.length) blocks.push(`Spatial:\n${domains.spatial.map((s) => `  - ${s}`).join("\n")}`);
     if (domains.social.length) blocks.push(`Social:\n${domains.social.map((s) => `  - ${s}`).join("\n")}`);
-    return ok(`Actions for ${name}:\n${blocks.join("\n")}`);
+    // REQ-064d — under register=meta the suggestion is bare mechanical
+    // information: the in-character framing line is suppressed.
+    const framing = playerRegister === "meta" ? "" : `Actions for ${name}:\n`;
+    return ok(`${framing}${blocks.join("\n")}`);
   }
   let command = args.command;
   const novel = requireNovel();
@@ -7322,6 +7347,27 @@ server.registerTool("manage_combat", {
         if (!target.condition_rounds) target.condition_rounds = {};
         if (!target.conditions.includes(condition)) target.conditions.push(condition);
       }
+      // REQ-306b/REQ-306e — the autonomy safety tier scales the consequence
+      // severity of a lethal blow. The ladder is expressed on overkill
+      // (`total > hpBefore`) so it is defined for a target with no max-health
+      // stat: safe never applies the ruleset's death condition, moderate
+      // applies it only when the blow exceeds the remaining HP, and hardcore
+      // applies it on any zeroing blow. With no declared death condition no
+      // tier can apply one; that is reported rather than faked.
+      const safetyTier = novel.autonomy?.safety ?? "safe";
+      const deathCondition = rulesetDeathCondition(novel);
+      const overkill = total > hpBefore;
+      let deathApplied = false;
+      let deathUnavailable = false;
+      if (lowest <= 0 && safetyTier !== "safe") {
+        const wantsDeath = safetyTier === "hardcore" || (safetyTier === "moderate" && overkill);
+        if (wantsDeath && deathCondition) {
+          if (!target.conditions.includes(deathCondition)) target.conditions.push(deathCondition);
+          deathApplied = true;
+        } else if (wantsDeath) {
+          deathUnavailable = true;
+        }
+      }
       state.recordMutation(novel, "roll_weapon_damage", novel.npcs.has(targetId) ? "npc" : "entity");
       // REQ-040a / REQ-124b — audited with full transparency; the `roll` prefix
       // makes it a significant roll (REQ-174) for the recap and the turn report.
@@ -7337,6 +7383,10 @@ server.registerTool("manage_combat", {
         updated_keys: healthKeys,
         ...(args.damage_type ? { damage_type: args.damage_type } : {}),
         ...(condition ? { condition } : {}),
+        safety_tier: safetyTier,
+        overkill,
+        death_applied: deathApplied,
+        death_unavailable: deathUnavailable,
       });
       state.saveNovel(novel);
       const parts = [args.weapon ? `${args.weapon}` : "unarmed"];
@@ -7345,7 +7395,23 @@ server.registerTool("manage_combat", {
       parts.push(`= ${total} damage`);
       const typeSuffix = args.damage_type ? ` [${args.damage_type}]` : "";
       const conditionSuffix = condition ? ` Incapacitated: ${condition}.` : "";
-      return ok(`${parts.join(": ")} to '${target.name ?? targetId}' (${targetId})${typeSuffix}. HP ${hpBefore} → ${primaryAfter}.${conditionSuffix}`);
+      // REQ-306b/REQ-306f — the safety consequence is stated on a lethal blow;
+      // hardcore carries none (no warnings), safe/moderate explain the outcome.
+      let safetySuffix = "";
+      if (lowest <= 0) {
+        if (safetyTier === "safe") {
+          safetySuffix = " Safety (safe): no permanent death — the target is incapacitated.";
+        } else if (deathApplied) {
+          safetySuffix = safetyTier === "moderate"
+            ? ` Safety (moderate): killing blow — death condition '${deathCondition}' applied.`
+            : ` Safety (hardcore): death condition '${deathCondition}' applied.`;
+        } else if (deathUnavailable) {
+          safetySuffix = ` Safety (${safetyTier}): death condition unavailable (no ruleset declaration).`;
+        } else {
+          safetySuffix = ` Safety (${safetyTier}): incapacitated; a killing blow would be fatal.`;
+        }
+      }
+      return ok(`${parts.join(": ")} to '${target.name ?? targetId}' (${targetId})${typeSuffix}. HP ${hpBefore} → ${primaryAfter}.${conditionSuffix}${safetySuffix}`);
     }
     case "status": {
       const novel = requireNovel();
@@ -17103,6 +17169,7 @@ function composeBadgeBriefing(novel: NovelState | null | undefined, opts: { muta
 **Novel:** ${novel.name} (${novel.slug})
 ${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}
 **Player-Detail:** ${detailLevel}
+**Player-Register:** ${playerRegister}
 
 ### Play loop
 ${orientation}`;
@@ -17421,6 +17488,11 @@ POV: none — narration is omniscient.`;
     const a = novel.autonomy;
     briefing += `\n\n### Autonomy
 Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Creativity: ${a.creativity}`;
+    // REQ-306c — at mechanical_prompt the AI must pause at ruleset-derived
+    // mechanical decisions and present them through the decision surface.
+    if (a.level === "mechanical_prompt") {
+      briefing += `\nMechanical decisions pause: before resolving a ruleset-derived mechanic, call manage_scene (action: choices) with [NEED_INPUT] and act on the human's respond_decision answer.`;
+    }
   }
 
   if (badge === "player") {

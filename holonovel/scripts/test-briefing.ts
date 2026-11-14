@@ -518,6 +518,91 @@ async function main() {
     await kill(p);
   });
 
+  // ── T109 — REQ-109f badge-briefing mandatory groups, markers, and inventory ──
+  await test("T109/REQ-109f: mandatory groups, empty markers, and known-heading inventory", async () => {
+    const p = await boot({ TTRPG_AI_ROLE: "game_master" }); await newNovel(p, "t109-groups");
+    await call(p, "manage_character", { action: "create", name: "Rogue" });
+    await call(p, "manage_npc", { action: "create", name: "Innkeeper" });
+    await call(p, "manage_countdown", { action: "set", name: "tension", ticks: 1, total: 3, type: "narrative" });
+    await call(p, "manage_scene", { action: "set", description: "Inside the vault" });
+    await call(p, "manage_scene", { action: "directive", directive: "Keep the pace tense." });
+    await call(p, "manage_lore", { action: "set", key: "vault_code", content: "The vault code is 4417", triggers: ["vault"] });
+    await call(p, "manage_adventure", { action: "load", slug: "hollow-of-the-moth", target: "novel" });
+    await call(p, "manage_character", { action: "set_active", entity_id: "character_01" });
+    await call(p, "manage_combat", { action: "init", participants: ["character_01"], dangers: [{ name: "goblin" }] });
+
+    const gm = await promptText(p, "badge_briefing");
+    // Every REQ-109 group with a writable source renders its anchor.
+    for (const anchor of ["### Party", "### Combat", "### NPCs (depth)", "### Lore", "## Adventure",
+      "### Point of view", "### Who They Are", "### Personality", "### Narrative directive",
+      "### Player signals", "### Novel Setup", "### Autonomy", "### Story beats", "### Available Actions"]) {
+      assert(gm.includes(anchor), `REQ-109 group anchor missing: ${anchor}`);
+    }
+    // Inventory: every rendered section heading is a known section (no drift).
+    const known = new Set(["Play loop", "Party", "Combat", "NPCs (depth)", "Available Actions (available_actions)",
+      "Turn handoff", "Badge boundary", "Anti-slop guidance", "Narrative tone", "Narrative directive",
+      "Narration contract", "Player signals", "Novel Setup", "Point of view", "Who They Are", "Personality",
+      "Autonomy", "GM State", "Surroundings", "State persistence", "state_ledger", "Persistence tools",
+      "Story beats", "Narrative threads", "Lore", "Knowledge state", "Player Tools", "Synthesis", "Server guidance"]);
+    const seen = gm.split("\n").filter((l) => l.startsWith("### ")).map((l) => l.slice(4).trim());
+    for (const heading of seen) assert(known.has(heading), `unknown briefing section: ${heading}`);
+    // Player badge sees the player-visible groups and none of the GM-only ones.
+    await call(p, "set_badge", { badge: "player" });
+    const player = await promptText(p, "badge_briefing");
+    for (const anchor of ["### Party", "### Knowledge state", "### Point of view"]) {
+      assert(player.includes(anchor), `REQ-109f Player group missing: ${anchor}`);
+    }
+    for (const anchor of ["### Autonomy", "### GM State", "### Player signals", "### Narrator"]) {
+      assert(!player.includes(anchor), `REQ-109f GM-only group leaked to Player: ${anchor}`);
+    }
+    await call(p, "set_badge", { badge: "game_master" });
+    // Empty markers and group omission.
+    await call(p, "manage_combat", { action: "end" });
+    assert(!(await promptText(p, "badge_briefing")).includes("### Combat"), "ended combat still renders the combat group");
+    await call(p, "manage_npc", { action: "remove", npc_id: "npc_1" }).catch(() => "");
+    await call(p, "manage_character", { action: "remove", entity_id: "character_01" });
+    const cleared = await promptText(p, "badge_briefing");
+    assert(!cleared.includes("### Party"), "removed entities still render the party group");
+    await call(p, "manage_scene", { action: "set", description: "" });
+    assert(!(await promptText(p, "badge_briefing")).includes("**Scene:**"), "cleared scene state still renders a scene line");
+    await kill(p);
+  });
+
+  // ── T336 — REQ-286c knowledge-state token ──
+  await test("T336/REQ-286c: knowledge-state secret, presence marker, no-entity marker, Player projection", async () => {
+    const p = await boot(); await newNovel(p, "t336-knowledge");
+    const created = await call(p, "manage_character", { action: "create", name: "Rogue" });
+    const rogue = (created.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1];
+    assert(rogue, "entity id missing: " + created.slice(0, 160));
+    const second = await call(p, "manage_character", { action: "create", name: "Other" });
+    const other = (second.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1];
+    await call(p, "manage_lore", { action: "set_secret", key: "floor_trap", content: "A pressure plate fires a dart." });
+    await call(p, "manage_lore", { action: "set_secret", key: "other_secret", content: "Only the other knows." });
+    await call(p, "manage_lore", { action: "reveal", key: "floor_trap", entity_id: rogue });
+    await call(p, "manage_lore", { action: "reveal", key: "other_secret", entity_id: other });
+    await call(p, "manage_character", { action: "set_active", entity_id: rogue });
+    let brief = await promptText(p, "badge_briefing");
+    assert(brief.includes("### Knowledge state"), "knowledge-state section missing");
+    assert(brief.includes("Secret: floor_trap — A pressure plate fires a dart."), "revealed secret not listed");
+    // Entity absent from the scene: marker above retained knowledge.
+    await call(p, "manage_staging", { action: "presence", entity_ids: [other] });
+    brief = await promptText(p, "badge_briefing");
+    const ks = brief.split("\n### ").find((s) => s.startsWith("Knowledge state")) ?? "";
+    assert(ks.includes("[Entity not present in this scene]"), "absence marker missing");
+    assert(ks.indexOf("[Entity not present in this scene]") < ks.indexOf("Secret: floor_trap"), "absence marker must precede retained knowledge");
+    // Player projection: only the active entity's own knowledge.
+    await call(p, "set_badge", { badge: "player" });
+    const player = await promptText(p, "badge_briefing");
+    assert(player.includes("floor_trap"), "Player lost its own knowledge");
+    assert(!player.includes("other_secret"), "Player saw another entity's secret");
+    // No active entity: the explicit empty-state marker on a fresh Novel.
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_novel", { action: "create", name: "t336-fresh" });
+    const fresh = await promptText(p, "badge_briefing");
+    assert(fresh.includes("[No active entity — knowledge state unavailable.]"), "no-active-entity marker missing");
+    await kill(p);
+  });
+
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);
   rmSync(DATA_DIR, { recursive: true, force: true });
