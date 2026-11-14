@@ -154,7 +154,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.13",
+  version: "2026.11.14",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -279,7 +279,7 @@ function normalizeRefusal(handler: any) {
       const parts = rest.split(/\s*Corrective action:\s*/);
       const body = parts[0].trim();
       const action = parts.length > 1 ? parts[parts.length - 1].trim() : undefined;
-      return refusalResult(code, body, action);
+      return err(code, body, action);
     }
   };
 }
@@ -1989,7 +1989,7 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
   if (toolName && activeRuleset) {
     const callee = packageSlugForTool(toolName);
     if (callee && callee !== activeRuleset) {
-      return refusalResult(
+      return err(
         "INVALID_INPUT",
         `Tool '${toolName}' belongs to ruleset '${callee}'; the active Novel uses '${activeRuleset}'.`,
         `Call a '${activeRuleset}' tool, or create or switch to a Novel bound to '${callee}'.`,
@@ -2245,6 +2245,24 @@ function jsonSchemaToZod(schema: any): any {
   return z.any();
 }
 
+// REQ-210c/REQ-002c1/REQ-445 — extracted catalogue entries carry a declared
+// `badge_scope` (absent means `shared`). The Game Master and Editor badges see
+// every entry; Player and Observer treat a `game_master` entry as absent, so it
+// cannot be resolved, enumerated, hinted at, or read through an info tool.
+function rulesetEntryVisible(entry: any, badge: Badge): boolean {
+  if (badge === "game_master" || badge === "none") return true;
+  return entry?.badge_scope !== "game_master";
+}
+
+function visibleRulesetCollection(raw: unknown, badge: Badge): Record<string, any> {
+  const out: Record<string, any> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const [key, entry] of Object.entries(raw as Record<string, any>)) {
+    if (rulesetEntryVisible(entry, badge)) out[key] = entry;
+  }
+  return out;
+}
+
 // Generic ruleset tool handlers. Tools are expressed as data (REQ-389); the
 // host dispatches on the tool's `kind` so a package's tools serve without the
 // host re-parsing source Markdown.
@@ -2268,7 +2286,10 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
       case "lookup": {
         const collection = schema.collection ?? "concepts";
         const key = String(args.key ?? args.name ?? "").toLowerCase();
-        const coll = (pkg.model[collection] ?? {}) as Record<string, any>;
+        // REQ-002c1/REQ-445/REQ-210c — an entry declared `game_master` is
+        // absent for the Player and Observer badges: it neither resolves,
+        // enumerates, nor hints.
+        const coll = visibleRulesetCollection(pkg.model[collection], getBadge());
         // REQ-558b — resolve a lookup by exact key, then by the entry's canonical
         // `name`, then by any declared `alias`. Extraction keys are heading slugs
         // (e.g. `the-veritech-fighters-2`); callers use natural names (e.g.
@@ -2302,8 +2323,8 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
         }
         // REQ-057 canonical lookup, REQ-059 parameter-canon validation, REQ-183
         // live-index enumerations: unknown names return [NOT_FOUND] with the
-        // valid values enumerated from the live index (badge-filtered per
-        // REQ-002c) and a "Did you mean?" hint when a close match exists.
+        // valid values enumerated from the visible collection (REQ-002c1) and
+        // a "Did you mean?" hint when a close match exists.
         // REQ-058 — tool-result fidelity: no fabricated entries, no reading of
         // ruleset Markdown after startup; lookups use the loaded index/model.
         // REQ-558b — enumerate canonical names (falling back to keys) so the
@@ -2385,14 +2406,17 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
         // REQ-389 — an info-kind tool (e.g. core_mechanic) returns the model
         // entry's content, not the tool's own description. REQ-558a — resolve
         // explicitly from model.info[toolName] first, then scan collections for a
-        // key matching the tool name.
+        // key matching the tool name. REQ-210c — an entry declared
+        // `game_master` is absent for the Player and Observer badges.
+        const badge = getBadge();
         const want = normId(schema.name);
-        let infoEntry: any = (pkg.model as any).info?.[schema.name] ?? (pkg.model as any).info?.[want] ?? null;
+        const declared: any = (pkg.model as any).info?.[schema.name] ?? (pkg.model as any).info?.[want] ?? null;
+        let infoEntry: any = declared && rulesetEntryVisible(declared, badge) ? declared : null;
         if (!infoEntry) {
           for (const coll of Object.values(pkg.model) as any[]) {
             if (!coll || typeof coll !== "object" || Array.isArray(coll)) continue;
             const hit = Object.keys(coll).find((k) => normId(k) === want);
-            if (hit) { infoEntry = coll[hit]; break; }
+            if (hit && rulesetEntryVisible(coll[hit], badge)) { infoEntry = coll[hit]; break; }
           }
         }
         if (infoEntry) {
@@ -3235,6 +3259,9 @@ function err(code: string, msg: string, correctiveAction?: string) {
   const values = parseValidValues(expanded);
   return {
     content: [{ type: "text" as const, text }],
+    // REQ-001b1 — a tool-level [ERROR] response is a normal result carrying
+    // `isError: true`, so the calling model can react to it.
+    isError: true as const,
     structuredContent: structured("ERROR", expanded, { category: code, corrective_action: action ?? null, ...(values ? { values } : {}) }),
   };
 }
@@ -3251,12 +3278,9 @@ function parseValidValues(text: string): string[] | null {
   return values.length > 0 ? values : null;
 }
 
-// REQ-001/REQ-548c — an error envelope that also carries `isError: true`, for
-// paths whose caller historically saw an SDK-thrown error (converted refusals
-// and dispatcher refusals). `err()` itself keeps its long-standing shape.
-function refusalResult(code: string, msg: string, correctiveAction?: string) {
-  return { ...err(code, msg, correctiveAction), isError: true as const };
-}
+// REQ-001/REQ-548c — every error envelope that reaches a caller whose former
+// SDK path threw now flows through `err()`, which carries `isError: true`
+// (REQ-001b1) alongside the structured result.
 
 // REQ-129a/c — cardinality refusal naming the affected group and the current
 // and maximum counts; a configured maximum of zero disables the group.
@@ -3411,7 +3435,14 @@ function validateNarration(claim: string, novel: NovelState): string | null {
 
 function raw(text: string) {
   const expanded = expandMacros(text, buildMacroContext());
-  return { content: [{ type: "text" as const, text: expanded }], structuredContent: structured(classifyStatus(expanded), expanded) };
+  const status = classifyStatus(expanded);
+  return {
+    content: [{ type: "text" as const, text: expanded }],
+    // REQ-001b1 — a raw payload whose declared status is ERROR is a tool-level
+    // error; the JSON body stays byte-verbatim (REQ-001).
+    ...(status === "ERROR" ? { isError: true as const } : {}),
+    structuredContent: structured(status, expanded),
+  };
 }
 
 function warn(text: string) {

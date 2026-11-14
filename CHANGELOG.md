@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-14 — Trust-core error envelope remainder: isError on errors, scoped SDK shape, filtered lookups
+
+- Error boundary: `err()` now sets `isError: true`, and `raw()` sets it when
+  the classified status is `ERROR`, so every tool-level `[ERROR]` result —
+  returned, parser-command, or ruleset lookup — carries the protocol flag
+  (REQ-001b1; F-P1-14). `refusalResult` folds into `err()`; `dispatcherRefusal`
+  keeps its exact-text contract.
+- Pacing: an `isError` result does not advance the counter, now uniformly for
+  thrown, converted, and returned errors; REQ-336a states the rule
+  (REQ-336a; F-P1-14).
+- SDK structural result: REQ-548c is scoped to tool-level errors that carry a
+  REQ-002 category and records that SDK parameter-validation failures surface
+  with `isError` and no structured result (REQ-001b1, REQ-548c; F-P1-15).
+- Ruleset badge filtering: new REQ-210c gives extracted Concept, Entity, and
+  info-tool entries a `badge_scope`; `rulesetEntryVisible` treats a
+  `game_master` entry as absent for Player and Observer on lookup resolution,
+  the `Valid values:` enumeration, the "Did you mean?" hint, and `info`
+  resolution (REQ-002c1, REQ-445, REQ-210c; F-P1-16). Index-backed search
+  carries no badge data and is scheduled as F-P1-17.
+- Harnesses: new `T783/REQ-001b1` (every `[ERROR]` result is `isError`) and
+  the G2 envelope sweep requires the flag; T180 asserts the structural result
+  has no `structuredContent`; T386c gains a returned-`err()` pacing leg; T179
+  is re-homed onto a synthetic package with a GM-only lookup and info entry,
+  and its borrowed label on the truncation test is corrected to T221.
+- Registers: F-P1-14/15/16 `Resolved` with current predicates; F-P1-17
+  (`Scheduled-roadmap`) replaces the ROADMAP remainder bullet; the coverage
+  and proofread registers are refreshed.
+
 ## 2026-11-13 — Trust-core error envelope: normalized refusals, declared statuses, structured error values
 
 - Refusals: a thrown `[FORBIDDEN]`/`[STATE_CONFLICT]` gate (`requireGM`,

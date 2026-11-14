@@ -14,10 +14,10 @@
 
 ## Trust-core contract remediation (P1)
 
-- Error-envelope remainder: give returned `err()` results `isError: true`
-  (REQ-001b1; F-P1-14), resolve the SDK parameter-validation result against
-  REQ-548c's "every error response" (F-P1-15), and badge-filter the ruleset
-  lookup `Valid values:` enumeration (REQ-002c1, REQ-445; F-P1-16).
+- Ruleset search badge filtering: give index entries a declared `badge_scope`
+  (an extension of REQ-210c) and filter search hits and the reported match
+  total for Player/Observer, so a GM-only catalogue entry is neither
+  retrievable nor countable (REQ-002c1, REQ-445; F-P1-17).
 - Output and authorization surface: truncate every tool result by byte length,
   badge-filter `output://`, gate badge class in the dispatcher, and make
   `tools/list`, `prompts/list`, and `resources/list` the read-only subset

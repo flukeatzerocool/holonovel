@@ -57,6 +57,39 @@ line; each resolution names the harness that now exercises it.
   `{from: previous, to: badge}` and T8 asserts both
   (`test-output-contracts.ts:489-490`); the row was stale.
 
+### 2026-11-14 trust-core error-envelope remainder
+
+The three deferred findings of the 2026-11-13 increment were resolved in the
+error-envelope-remainder increment (plan
+`docs/plans/2026-11-14-trust-core-envelope-remainder/`). Each predicate was
+re-confirmed before the change and re-cited at its post-change line.
+
+- **F-P1-14 — returned `err()` results carried no `isError: true`. Resolved
+  (2026-11-14).** Predicate was `index.ts:3231` (`err()` built
+  `{content, structuredContent}` only). `err()` now sets `isError: true as
+  const` (`index.ts:3255-3264`) and `raw()` sets it when the classified status
+  is `ERROR` (`:3436-3443`), so parser-command errors carry it too.
+  `refusalResult` folded into `err()`. REQ-001b1. Asserted by T783
+  (`test-output-contracts.ts:293`) and the G2 envelope sweep
+  (`:783-790`).
+- **F-P1-15 — SDK parameter-validation results carry no structured result.
+  Resolved by specification scoping (2026-11-14).** Predicate was REQ-548c's
+  "every error response" against REQ-001b1's "no REQ-002 taxonomy"
+  (`02-requirements.md:80-82`). REQ-548c now scopes to tool-level errors that
+  carry a REQ-002 category and states that SDK validation failures surface
+  with `isError` and no structured result. REQ-001b1, REQ-548c. Asserted by
+  T180 (`test-output-contracts.ts:276-291`, `structuredContent ===
+  undefined`).
+- **F-P1-16 — the ruleset lookup `Valid values:` enumeration was not
+  badge-filtered. Resolved (2026-11-14).** Predicate was the raw
+  `pkg.model[collection]` enumeration (`index.ts:2311-2313`, now
+  `:2292`). New REQ-210c declares an entry `badge_scope`;
+  `rulesetEntryVisible`/`visibleRulesetCollection` (`index.ts:2252-2266`)
+  apply it to lookup resolution, the enumeration, the hint, and `info`
+  resolution. REQ-002c1, REQ-445, REQ-210c. Asserted by T179
+  (`test-ruleset-nonovel.ts:271`). The index-backed `search` surface carries
+  no badge data and is scheduled as F-P1-17.
+
 ### 2026-11-13 §5.4 remediation
 
 The four implementation findings of the 2026-11-09 chunk-P3 sweep were
@@ -2438,24 +2471,15 @@ currently asserts these contracts — that is the finding).
   `index.ts:3996-4009` returns `[OK] Active badge: player` while `getBadge()`
   still resolves `none` (Editor), so the next call runs with full access.
   REQ-030 and REQ-066b. Predicate: `index.ts:3996`.
-- **F-P1-14 — returned `err()` results carry no `isError: true` (scheduled,
-  2026-11-13):** every returned error envelope is
-  `{content, structuredContent}` with no `isError` (`index.ts:3231-3241`), so a
-  tool-level error is indistinguishable from a success at the protocol level.
-  REQ-001b1 requires `isError: true` on tool-level errors. `refusalResult`
-  (`:3257`) covers only converted and dispatcher refusals. REQ-001b1.
-  Predicate: `index.ts:3231`.
-- **F-P1-15 — SDK parameter-validation results carry no structured result
-  (scheduled, 2026-11-13):** after the override deletion, the SDK's `-32602`
-  result is `{content, isError}` with `structuredContent === undefined`
-  (probed; SDK `mcp.js:185-191`). REQ-548c says "every error response", while
-  REQ-001b1 says a structural failure "carries no REQ-002 taxonomy"; the two
-  need a recorded resolution. REQ-548c. Predicate: `index.ts:304` (wrapper).
-- **F-P1-16 — the ruleset lookup `Valid values:` enumeration is not
-  badge-filtered (scheduled, 2026-11-13):** `coll = pkg.model[collection]`
-  (`index.ts:2240`) is enumerated raw at `:2280-2282`, and the in-file comment
-  at `:2274-2275` claims REQ-002c filtering. The structured `values` inherits
-  the same set. REQ-002c1, REQ-445. Predicate: `index.ts:2280`.
+- **F-P1-17 — index-backed ruleset search still discloses GM-only entries
+  (scheduled, 2026-11-14):** `rulesets.search` returns `RulesetIndexEntry`
+  rows with `id`/`anchor`/`category`/`content` and no `badge_scope`
+  (`rulesets.ts:656-672`), rendered raw by the package `search` kind
+  (`index.ts:2341-2351`) and by `manage_ruleset (action: search)`
+  (`index.ts:13611-13637`); the reported match total comes from a second,
+  unfiltered query (`index.ts:2347`). A Player badge can therefore retrieve
+  and count catalogue entries whose `badge_scope` is `game_master`.
+  REQ-002c1, REQ-445. Predicate: `index.ts:2341-2351`, `:13611-13637`.
 - **F-S1 — four §5.1/§5.5 REQs cite automated tests no harness implements
   (scheduled):** REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
   REQ-306e → T350. (REQ-001b2 → T180 is resolved by the trust-core error

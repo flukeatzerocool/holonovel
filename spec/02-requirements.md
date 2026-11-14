@@ -78,7 +78,7 @@ Every registered tool SHALL declare an output schema in `tools/list` describing 
 *Acceptance criterion:* every listed tool declares an output schema whose reported fields carry descriptions; a schema detail request returns it; adding a tool updates the listing without restart. _Check:_ T633.
 
 **REQ-548c — Structured error results.**
-Every error response SHALL carry a machine-readable structured result whose `status` is `ERROR`, naming the error category (REQ-002), the corrective action, and, where the enumeration is badge-visible, the valid values. The structured error SHALL remain badge-filtered per REQ-002c and REQ-445 and SHALL NOT disclose values the caller's badge cannot access.
+Every tool-level error response that carries a REQ-002 category SHALL carry a machine-readable structured result whose `status` is `ERROR`, naming the error category, the corrective action, and, where the enumeration is badge-visible, the valid values. The structured error SHALL remain badge-filtered per REQ-002c and REQ-445 and SHALL NOT disclose values the caller's badge cannot access. SDK parameter-validation failures surface before the handler with `isError: true` and no structured result (REQ-001b1).
 *Acceptance criterion:* an unknown canonical name returns a structured error carrying its category, corrective action, and badge-filtered values; a GM-only value stays absent. _Check:_ T634.
 **REQ-277 — Fixture evolution contract.** When a specification change breaks a
 golden transcript assertion (Appendix B.3, N.3, W.3, X.3), the maintainer SHALL
@@ -109,7 +109,7 @@ The `Corrective action:` line is a single imperative sentence describing what th
 **REQ-002b2 — Corrective-action contract (Part b2).**
 For `[SYSTEM]` errors (JSON-RPC `-32000`), no corrective action applies — the server cannot recover these at the tool layer. *Acceptance criterion:* Every tool-level error response contains exactly one `Corrective action:` line matching its category; protocol-level errors carry no corrective action. The `[SYSTEM]` category is catalogued in Appendix O.2. _Check:_ T178.
 **REQ-002c1 — Badge-filtered error values (Part c1).**
-`[NOT_FOUND]` and `[INVALID_INPUT]` errors hide values the caller's current badge cannot access — a Player badge sees only player-accessible spell names in a `[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue. "Did you mean?" hints follow the same badge filter. For enumeration, the tool treats a value that exists in the ruleset but stays invisible to the caller's badge as absent — it neither enumerates nor hints at that value.
+`[NOT_FOUND]` and `[INVALID_INPUT]` errors hide values the caller's current badge cannot access — a Player badge sees only player-accessible spell names in a `[NOT_FOUND]` on `lookup_spell`; a Game Master badge sees the full catalogue. "Did you mean?" hints follow the same badge filter. For enumeration, the tool treats a value that exists in the ruleset but stays invisible to the caller's badge as absent — it neither enumerates nor hints at that value. The invisibility signal is the entry's declared `badge_scope` (REQ-210c).
 
 **REQ-002c2 — Badge-filtered error values (Part c2).**
 This prevents side-channel disclosure of GM-only content through error message verbosity. *Acceptance criterion:* A Player-badge `[NOT_FOUND]` on `lookup_spell` with a GM-only spell name lists only player-visible spell names and provides no "Did you mean?" hint for the GM-only name. _Check:_ T179.
@@ -482,6 +482,10 @@ The builder SHALL extract ruleset content into seven categories, in dependency o
 
 **REQ-210b — Extraction categories (Part b).**
 A cross-category reference that cannot resolve against the inventory of earlier extractions within the same chunk SHALL become a MEDIUM-confidence finding in the defect log. The finding carries a deferred-reference annotation. *Acceptance criterion:* A ruleset chunk whose Actions reference a Concept term defined within the same chunk resolves that reference against the Concept inventory. A reference to a Concept term not yet extracted produces a deferred-reference annotation which resolves after cross-chunk resolution. _Check:_ T173.
+
+**REQ-210c — Extraction badge scope (Part c).**
+Each extracted Concept, Entity, and info-tool entry SHALL carry a `badge_scope` of `game_master` or `shared`, derived from the role of its source section and defaulting to `shared` when the section carries no role marker. The host treats a `game_master` entry as absent for the Player and Observer badges (REQ-002c1). *Acceptance criterion:* A catalogue entry extracted from a GM-only chapter is absent from a Player-badge lookup and its enumeration, and visible under the Game Master badge. _Check:_ T179.
+
 **REQ-215a — Table content extraction (Part a).**
 The builder SHALL extract generation table content from the ruleset and register it as `resolve_mechanic (action: roll)` entries. For each generation table, the builder SHALL produce five fields. A canonical `key` (snake_case slug derived from the source heading). A `dice_expression`. A `ranges` array (min/max/result tuples). A `badge_scope` (derived from source location — tables in GM-only chapters are `game_master`, otherwise `shared`). A `source_anchor` (heading and file path). Table content extraction follows the same confidence labeling and traceability rules as other extraction categories (REQ-011, REQ-010).
 
@@ -3565,7 +3569,7 @@ Changing beat away from `climax` reverts to standard rate.
 _Check:_ T404.
 
 **REQ-336a — Dramatic pacing signal (Part a).**
-The server SHALL track the count of tool calls (mutating and non-mutating) since the last scene transition or beat change. When the count exceeds the `TTRPG_PACING_WINDOW` ceiling (zero disables pacing signals), `badge_briefing` SHALL include a pacing signal in the `narrative_threads` section (REQ-281): `[pacing] Scene stabilized — N actions since last transition.` The signal is advisory — it does not block or auto-advance narration. The pacing counter resets on every `manage_scene (action: set)` call (scene transition) and on every beat change.
+The server SHALL track the count of successful tool calls (mutating and non-mutating) since the last scene transition or beat change. When the count exceeds the `TTRPG_PACING_WINDOW` ceiling (zero disables pacing signals), `badge_briefing` SHALL include a pacing signal in the `narrative_threads` section (REQ-281): `[pacing] Scene stabilized — N actions since last transition.` The signal is advisory — it does not block or auto-advance narration. The pacing counter resets on every `manage_scene (action: set)` call (scene transition) and on every beat change. A result carrying `isError: true` does not advance the counter.
 
 **REQ-336b — Dramatic pacing signal (Part b).**
 When a pacing signal fires, the server SHALL additionally trigger autonomous advancement per REQ-351. *Acceptance criterion:* After 21 tool calls with no scene transition, `badge_briefing` includes `[pacing] Scene stabilized — 21 actions since last transition.` After `manage_scene (action: set, "new scene")`, the counter resets and the signal disappears. Setting `TTRPG_PACING_WINDOW=0` suppresses all pacing signals. _Check:_ T386.

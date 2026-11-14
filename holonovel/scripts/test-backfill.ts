@@ -206,7 +206,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T221/T179: output:// template + full untruncated content", async () => {
+    await test("T221/REQ-179: output:// template + full untruncated content", async () => {
       const templates = await listTemplates(proc);
       if (!templates.some((t) => t.includes("output://{tool}/{counter}"))) {
         throw new Error(`output pointer template missing: ${templates.join(",")}`);

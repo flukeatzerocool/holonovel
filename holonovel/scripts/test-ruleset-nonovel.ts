@@ -58,8 +58,8 @@ function installFixture(): void {
   ];
   const model = {
     concepts: {},
-    things: { "the-thing-2": { name: "Big Thing", aliases: ["Huge Thing"], content: "A big thing.", source_file: "fixture.md" } },
-    info: { core_mechanic: { name: "Fixture resolution", content: "Roll a percentile die and compare to the skill.", source_file: "fixture.md", anchor: "Fixture resolution" } },
+    things: { "the-thing-2": { name: "Big Thing", aliases: ["Huge Thing"], content: "A big thing.", source_file: "fixture.md" }, "gm-secret-thing": { name: "GM Secret Thing", aliases: ["Forbidden Alias"], content: "hidden gm thing", badge_scope: "game_master", source_file: "fixture.md" } },
+    info: { core_mechanic: { name: "Fixture resolution", content: "Roll a percentile die and compare to the skill.", source_file: "fixture.md", anchor: "Fixture resolution", badge_scope: "game_master" } },
     generation_tables: { "gen-hitloc": { name: "Random Hit Location", aliases: ["random hit location", "hit location"], headers: ["d100", "Location"], rows: [["01-50", "Head"], ["51-00", "Body"]], type: "generation" } },
     tables: {},
     resolution: {},
@@ -265,6 +265,38 @@ async function main() {
     const p = await boot();
     const out = await call(p, "manage_ruleset", { action: "search", slug: SLUG, query: "thing" });
     assertContains(out, "thing", "slug-scoped search returns entries");
+    await kill(p);
+  });
+
+  await test("T179/REQ-002c1: GM-only entries stay hidden from the Player lookup surface", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t179", ruleset: SLUG });
+    await call(p, "set_badge", { badge: "player" });
+    // Enumeration and hint: the GM-only name and alias are absent.
+    const missing = await call(p, `${SLUG}_lookup_thing`, { key: "missing-thing" });
+    assertContains(missing, "[ERROR] [NOT_FOUND]", "player unknown key refuses");
+    assertContains(missing, "Big Thing", "player enumeration keeps shared names");
+    assertNotContains(missing, "GM Secret Thing", "player enumeration omits the GM-only name");
+    const hint = await call(p, `${SLUG}_lookup_thing`, { key: "GM Secret Thin" });
+    assertNotContains(hint, "Did you mean 'GM Secret Thing'", "player hint omits the GM-only name");
+    assertNotContains(hint, "Forbidden Alias", "player hint omits the GM-only alias");
+    // Resolution: exact key and alias are treated as absent.
+    const exact = await call(p, `${SLUG}_lookup_thing`, { key: "gm-secret-thing" });
+    assertContains(exact, "[ERROR] [NOT_FOUND]", "player exact key is absent");
+    assertNotContains(exact, "hidden gm thing", "player exact key discloses no content");
+    const byAlias = await call(p, `${SLUG}_lookup_thing`, { key: "Forbidden Alias" });
+    assertContains(byAlias, "[ERROR] [NOT_FOUND]", "player alias is absent");
+    assertNotContains(byAlias, "hidden gm thing", "player alias discloses no content");
+    // Info-kind entry: absent for Player, present for GM.
+    const playerInfo = await call(p, `${SLUG}_core_mechanic`, {});
+    assertContains(playerInfo, "[ERROR] [NOT_FOUND]", "player info entry is absent");
+    await call(p, "set_badge", { badge: "game_master" });
+    const gmExact = await call(p, `${SLUG}_lookup_thing`, { key: "gm-secret-thing" });
+    assertContains(gmExact, "hidden gm thing", "GM sees the GM-only entry");
+    const gmMissing = await call(p, `${SLUG}_lookup_thing`, { key: "missing-thing" });
+    assertContains(gmMissing, "GM Secret Thing", "GM enumeration lists the GM-only name");
+    const gmInfo = await call(p, `${SLUG}_core_mechanic`, {});
+    assertContains(gmInfo, "percentile die", "GM sees the info entry");
     await kill(p);
   });
 

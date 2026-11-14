@@ -279,12 +279,35 @@ async function main() {
     const structural = await callRaw(p, "set_badge", { badge: "wizard" });
     const structuralText = (structural.content ?? []).map((c: any) => c?.text ?? "").join("\n");
     if (structural.isError !== true) throw new Error("T180 structural error is not isError");
+    if (structural.structuredContent !== undefined) throw new Error("T180 structural error carries a structured result");
     assertContains(structuralText, "MCP error -32602", "T180 structural error keeps the SDK shape");
     if (/\[ERROR\] \[[A-Z_]+\]/.test(structuralText)) throw new Error(`T180 structural error carries a REQ-002 category: ${structuralText.slice(0, 120)}`);
     const semantic = await callRaw(p, "manage_scene", { action: "set", scene_type: "nonsense" });
     const semanticText = (semantic.content ?? []).map((c: any) => c?.text ?? "").join("\n");
     assertContains(semanticText, "[ERROR] [NOT_FOUND]", "T180 semantic error keeps the category and its enumeration");
     assertContains(semanticText, "Valid values:", "T180 semantic error enumerates valid values");
+    await kill(p);
+  });
+
+  // ── REQ-001b1 error boundary: every tool-level error is isError ──
+  await test("T783/REQ-001b1: every [ERROR] result carries isError", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t783", ruleset: "wave1test" });
+    await call(p, "set_badge", { badge: "game_master" });
+    const cases: [string, string, any][] = [
+      ["returned err() (ruleset lookup)", "wave1test_lookup_spell", { key: "no-such-spell" }],
+      ["returned err() (host tool)", "manage_npc", { action: "get", name: "does-not-exist" }],
+      ["raw() [ERROR] (parser)", "run_command", { action: "execute", command: "go north" }],
+      ["structural (SDK -32602)", "set_badge", { badge: "wizard" }],
+    ];
+    for (const [label, name, args] of cases) {
+      const r = await callRaw(p, name, args);
+      const text = (r.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      const isErrorEnvelope = /^\s*\[ERROR\]/.test(text) || /MCP error -32602/.test(text);
+      if (!isErrorEnvelope) throw new Error(`T783 ${label}: case did not produce an error result: ${text.slice(0, 120)}`);
+      if (r.isError !== true) throw new Error(`T783 ${label}: error result is not isError`);
+    }
     await kill(p);
   });
 
@@ -782,6 +805,11 @@ async function main() {
       const isJsonPayload = t.startsWith("{") || t.startsWith("[");
       const ok = r.isError === true || /^\s*\[[A-Z_]+\]/.test(text) || isJsonPayload;
       if (!ok) throw new Error(`${name}: result is neither enveloped, isError, nor JSON: ${text.slice(0, 120)}`);
+      // REQ-001b1 — an [ERROR] envelope is a tool-level error and must carry
+      // the protocol-level error flag.
+      if (/^\s*\[ERROR\]/.test(text) && r.isError !== true) {
+        throw new Error(`${name}: [ERROR] result is not isError: ${text.slice(0, 120)}`);
+      }
     }
     passed++;
     await kill(p);

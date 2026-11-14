@@ -1836,6 +1836,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-373": "terminal builder-scope non-goal — the reference holonovel build statically registers ruleset-derived tools by design (the MCP SDK's runtime registration is acknowledged and deliberately unused); recorded in DECISIONS.md and exercised by T424's waiver branch; no re-activation trigger",
   "REQ-123": "§5.6 builder-defined NPC stat fields — derived from a ruleset's own stat-block conventions at discovery; the ruleset-free reference host's package format carries no stat-block schema, so the NPC surface exposes narrative fields only. Re-activate with a stat-block ruleset (spec-code comparison SC-6)",
   "REQ-187": "spec-content-hash computation is builder-side; the runtime stored-hash read and spec_hash_current surfacing (REQ-187a/b) are implemented in holonovel/src (index.ts build-fingerprint load, core/state.ts loadBuildFingerprint, 2026-09-30)",
+  "REQ-210": "§5.2 extraction badge scope (REQ-210c) is builder-side; the server only consumes the declared entry field (index.ts rulesetEntryVisible, 2026-11-14)",
 };
 function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
   const issues: string[] = [];

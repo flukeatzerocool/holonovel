@@ -6,7 +6,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |
 |-----|-------|---------|--------|-----------------|-------------------|
 | REQ-001 | Response contract (4 sub-parts) | 5.1 Output and Error Contracts | C | T90, T91, T261 | — |
-| REQ-002 | Error taxonomy (6 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T177, S22 | — |
+| REQ-002 | Error taxonomy (6 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T177, S22, T179 | — |
 | REQ-003 | Roll transparency (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T47, T210, T131 | — |
 | REQ-004 | Truncation (1 sub-part) | 5.1 Output and Error Contracts | C | T13 | — |
 | REQ-010 | Traceability | 5.2 Extraction and Confidence | E | T15 | — |
@@ -185,7 +185,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-207 | Core-mechanic identification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-208 | Pattern Buffer convergence metric mapping (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-209 | Cross-format consistency | 5.2 Extraction and Confidence | E | — | — |
-| REQ-210 | Extraction categories (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
+| REQ-210 | Extraction categories (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T179 | — |
 | REQ-211 | Evidence record field contract (Part a) (3 sub-parts) | 5.5 Badges and Access | E | S22 | — |
 | REQ-212 | Generation table rolling (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-213 | Weighted table result mapping (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T254 | — |

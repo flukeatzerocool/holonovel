@@ -912,6 +912,18 @@ async function main() {
       await call(proc, "manage_context", { action: "recap" });
       const over = await briefing(proc);
       assertContains(over, "[pacing] Scene stabilized");
+      // A *returned* err() result (not a thrown/converted refusal) is also an
+      // error result and must not advance the counter.
+      await reset();
+      for (let i = 0; i < needed - 1; i++) await call(proc, "manage_context", { action: "recap" });
+      const returned = await callRaw(proc, "manage_npc", { action: "get", name: "no-such-npc" });
+      const returnedText = (returned.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      assertContains(returnedText, "[ERROR] [NOT_FOUND]");
+      const underReturned = await briefing(proc);
+      assertNotContains(underReturned, "[pacing] Scene stabilized");
+      await call(proc, "manage_context", { action: "recap" });
+      const overReturned = await briefing(proc);
+      assertContains(overReturned, "[pacing] Scene stabilized");
     });
 
     await test("T401: pacing-triggered autonomy advances faction and surfaces goal pursuit", async () => {

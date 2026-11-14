@@ -359,3 +359,16 @@ same reason.
 
 **Disposition: all 283 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 13 — trust-core error-envelope remainder (2026-11-14)
+
+Re-verified against live `npm run validate`: **0 errors, 284 warnings**.
+This increment edits REQ-002c1, REQ-336a, and REQ-548c and adds REQ-210c; none
+produces a new proofreading warning (checked by REQ filter — no warning line
+names any of the four). The +1 over Batch 12 accumulated from the increments
+published between 2026-11-11 and 2026-11-14 (the 2026-11-13 trust-core error
+envelope and §5.4 increments among them), none of which re-ran the proofreading
+pass. The §5.2 readability warning moves line but not grade (18.7).
+
+**Disposition: all 284 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.
