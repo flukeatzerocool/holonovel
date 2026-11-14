@@ -33,7 +33,7 @@ const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "o
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const PREDICATE_TOOLS = anchor("holonovel/src/index.ts", 200, "TOOL_ANNOTATIONS");
-const PREDICATE_RESOURCES = anchor("holonovel/src/index.ts", 2601, "registerResource");
+const PREDICATE_RESOURCES = anchor("holonovel/src/index.ts", 2609, "registerResource");
 const PREDICATE_PROMPTS = anchor("holonovel/src/index.ts", 1665, "prompt");
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
@@ -189,7 +189,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
       classified.prefix === "[?]" ? `negative probe returned unclassified output: ${probe.text.slice(0, 80)}` : `negative probe returned ${classified.prefix}`,
       step,
       ["REQ-001", "REQ-002"],
-      anchor("holonovel/src/index.ts", 2437, "err"),
+      anchor("holonovel/src/index.ts", 3366, "err"),
     );
   } finally {
     await client.close();
