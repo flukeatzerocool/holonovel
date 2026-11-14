@@ -12,19 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.4 remediation (P1)
-
-- Record the end-Novel disposal in the audit log before the Novel file moves to
-  `.trash` (REQ-140; F-P3-5).
-- Carry the ruleset source on each creation equipment entry and omit the field
-  when the ruleset defines no starting equipment (REQ-152a, REQ-152b; F-P3-6).
-- Surface a named creation error when a declared formula fails to evaluate, and
-  add a ruleset-backed creation fixture so the drain-atomicity branch is
-  asserted in-tree (REQ-399b, REQ-190; F-P3-7, F-P3-9).
-
-**Trigger:** the next session that takes §5.4 remediation work; closes when
-F-P3-5, F-P3-6, F-P3-7, and F-P3-9 are `Resolved` in the review register.
-
 ## §5.4 citation repair (P1)
 
 - Write the T103 assertion (character creation undo: step-by-step and quick
@@ -32,9 +19,9 @@ F-P3-5, F-P3-6, F-P3-7, and F-P3-9 are `Resolved` in the review register.
   `[STATE_CONFLICT]`) or re-point REQ-104c to the harness that exercises it;
   then refresh the coverage register.
 
-**Trigger:** the next citation-remediation session, or the same session as the
-§5.4 remediation above; closes when REQ-104c's citation resolves to an exercised
-harness and F-P3-8 is `Resolved`.
+**Trigger:** the next citation-remediation session, or the next session that
+takes decision-workflow work; closes when REQ-104c's citation resolves to an
+exercised harness and F-P3-8 is `Resolved`.
 
 
 ## Trust-core contract remediation (P1)

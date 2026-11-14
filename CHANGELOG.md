@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11-13 — §5.4 remediation: disposal audit record, equipment provenance, named creation errors
+
+- `respond_decision` now records `end_novel` before the Novel file moves, plus
+  `end_novel_failed` when a move fails; the primary rename runs last so a
+  failure leaves the Novel live, and a log with fewer than three free entries
+  refuses the disposal before any mutation (REQ-140, REQ-447). The shared
+  audit-cap corrective action now names `manage_diagnostics (action: compact)`
+  instead of the retired `session` tool.
+- Created characters' equipment entries carry a ruleset source — the
+  package-declared value when present, else the bound ruleset slug — and the
+  `equipment` key is omitted when nothing was assigned (REQ-152a, REQ-152b).
+- A failing derived-stat formula returns `[ERROR] [INVALID_INPUT]` naming the
+  statistic, label, and formula, and the whole creation computation now runs
+  before the workflow drain, so a failed build leaves the decision pending
+  (REQ-399b, REQ-190).
+- Harnesses: T468 gains a server tier over the shipped fixture package
+  (labels, declared and supplied equipment sources, omission, the named error,
+  the undrained workflow); T158 gains the audit-record, stderr, and
+  audit-capacity assertions. Appendix F rows T158 and T468 record both.
+- Registers: F-P3-5, F-P3-6, F-P3-7, and F-P3-9 are `Resolved`; the §5.4
+  remediation ROADMAP section is closed and the citation-repair Trigger no
+  longer refers to it. `holonovel/DECISIONS.md` records the disposal-record,
+  failure-semantics, and error-code decisions.
+
 ## 2026-11-13 — REQ-124 NPC damage resolution: `manage_combat (action: damage)`
 
 - New `manage_combat (action: damage)` resolves weapon damage against an entity

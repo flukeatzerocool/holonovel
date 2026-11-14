@@ -377,6 +377,32 @@ async function main() {
       await call(proc, "manage_novel", { action: "create",  name: "restore-novel" });
     });
 
+    await test("T158/REQ-140: the disposal is recorded in the audit log before the file moves", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "audited-end" });
+      const info = JSON.parse(await call(proc, "manage_novel", { action: "info" }));
+      const slug = info.slug;
+      let errBuf = "";
+      const onErr = (d: Buffer) => { errBuf += d.toString(); };
+      proc.stderr!.on("data", onErr);
+      await call(proc, "manage_novel", { action: "end" });
+      await call(proc, "respond_decision", { decision: "end novel", option: "yes" });
+      proc.stderr!.off("data", onErr);
+      // Restore an active Novel before asserting, so a red assertion cannot
+      // strand the later tests without one.
+      await call(proc, "manage_novel", { action: "create",  name: "restore-novel-2" });
+      // The trashed primary carries the record; `.bak.N` copies hold the
+      // previous save and must not be selected.
+      const trashDir = join(DATA_DIR, ".trash");
+      const entry = readdirSync(trashDir).filter((f) =>
+        f.startsWith(`${slug}-`) && f.endsWith(".json") && !f.includes(".bak") && !f.startsWith("archived-"))[0];
+      if (!entry) throw new Error(`no trashed primary for ${slug} in ${readdirSync(trashDir).join(", ")}`);
+      const payload = JSON.parse(readFileSync(join(trashDir, entry), "utf-8"));
+      const last = payload.audit_log[payload.audit_log.length - 1];
+      if (last?.tool !== "end_novel") throw new Error(`last audit entry is ${JSON.stringify(last)}`);
+      if (last.security_event !== true) throw new Error("disposal entry is not marked as a security event");
+      if (!errBuf.includes(entry)) throw new Error(`stderr did not name the trash path: ${errBuf.slice(-300)}`);
+    });
+
     await test("T318/REQ-259: update_novel_description sets, surfaces, and clears", async () => {
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_novel", { action: "description",  description: "A new premise." });
@@ -929,6 +955,31 @@ async function main() {
     assertContains(after, "pace: faster (set 1 connection ago)");
     await kill(proc);
   });
+
+  // ── REQ-447/REQ-140: audit capacity refuses the disposal ──────────
+  {
+    const dir = mkdtempSync(join(tmpdir(), "holonovel-audit-cap-test-"));
+    let p = await boot({ TTRPG_DATA_DIR: dir });
+    await call(p, "manage_novel", { action: "create",  name: "capacity-novel" });
+    await call(p, "manage_novel", { action: "end" });
+    const info = JSON.parse(await call(p, "manage_novel", { action: "info" }));
+    const slug = info.slug;
+    await kill(p);
+    // The disposal needs three free slots (session-boundary marker, record,
+    // compensation), so a cap two above the current length must refuse.
+    const before = JSON.parse(readFileSync(join(dir, "novels", `${slug}.json`), "utf-8"));
+    const cap = (before.audit_log?.length ?? 0) + 2;
+    p = await boot({ TTRPG_DATA_DIR: dir, TTRPG_AUDIT_MAX_ENTRIES: String(cap) });
+    await call(p, "manage_novel", { action: "resume", slug });
+    await test("T158/REQ-447: an at-capacity audit log refuses the disposal and keeps the Novel", async () => {
+      const res = await call(p, "respond_decision", { decision: "end novel", option: "yes" });
+      assertContains(res, "[ERROR] [STATE_CONFLICT]");
+      assertContains(res, "capacity");
+      if (!existsSync(join(dir, "novels", `${slug}.json`))) throw new Error("Novel file was disposed despite the capacity refusal");
+    });
+    await kill(p);
+    rmSync(dir, { recursive: true, force: true });
+  }
 
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);

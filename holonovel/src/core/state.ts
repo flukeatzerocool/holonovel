@@ -1078,6 +1078,11 @@ export function isStaleItem(item: any, manifest: any, cutoff: number): boolean {
 
 // ── State Manager ──────────────────────────────────────────────────
 
+// REQ-447 — one corrective sentence for the audit-capacity refusal, shared by
+// the append path here and the disposal pre-check in the server adapter.
+export const AUDIT_CAP_CORRECTIVE =
+  "Corrective action: raise TTRPG_AUDIT_MAX_ENTRIES or compact the log with manage_diagnostics (action: compact).";
+
 export class StateManager {
   novels = new Map<string, NovelState>();
   roster = new Map<string, RosterEntity>();
@@ -1936,35 +1941,49 @@ export class StateManager {
   // REQ-117 — Novel retention period: ended Novels move to .trash/ and are
   // excluded from resume_novel; retention is configurable via
   // TTRPG_NOVEL_RETENTION_DAYS (cleanupExpiredTrash).
-  endNovel(novel: NovelState, dispose: "yes" | "cancel"): { removed: boolean } {
-    if (dispose === "cancel") return { removed: false };
+  // REQ-140 / REQ-117 — dispose an ended Novel. The primary rename is the
+  // commit point and runs LAST: any earlier failure leaves the Novel live and
+  // on disk, so the caller can report the path and keep the record truthful.
+  // Returns every destination actually written.
+  endNovel(novel: NovelState): { trashPaths: string[] } {
     const trashDir = path.join(this.stateDir, ".trash");
     fs.mkdirSync(trashDir, { recursive: true });
+    const stamp = Date.now();
     const novelFile = path.join(this.stateDir, "novels", `${novel.slug}.json`);
-    if (fs.existsSync(novelFile)) {
-      fs.renameSync(novelFile, path.join(trashDir, `${novel.slug}-${Date.now()}.json`));
+    if (!fs.existsSync(novelFile)) {
+      throw new Error(`[STATE_CONFLICT] Novel file is already absent; nothing to dispose.`);
     }
+    const trashPaths: string[] = [];
+    const move = (from: string, to: string): void => {
+      try {
+        fs.renameSync(from, to);
+      } catch (e: any) {
+        throw new Error(`[STATE_CONFLICT] Could not move '${from}' to '${to}': ${e?.message ?? e}`);
+      }
+      trashPaths.push(to);
+    };
     // REQ-238b — move the whole backup chain (`.bak.N` + legacy `.bak`) to trash
     // alongside the primary so no orphaned backups survive an ended Novel.
     for (const bakPath of this.backupFilesOnDisk(novelFile)) {
       const suffix = bakPath.slice(novelFile.length);
-      fs.renameSync(bakPath, path.join(trashDir, `${novel.slug}-${Date.now()}.json${suffix}`));
+      move(bakPath, path.join(trashDir, `${novel.slug}-${stamp}.json${suffix}`));
     }
     const archiveDir = path.join(this.stateDir, "archive");
     if (fs.existsSync(archiveDir)) {
       for (const entry of fs.readdirSync(archiveDir)) {
         if (entry.startsWith(`${novel.slug}-`) || entry === `${novel.slug}.json`) {
-          const full = path.join(archiveDir, entry);
-          fs.renameSync(full, path.join(trashDir, `archived-${entry}`));
+          move(path.join(archiveDir, entry), path.join(trashDir, `archived-${entry}`));
         }
       }
     }
+    // Commit point: the primary leaves the live path last.
+    move(novelFile, path.join(trashDir, `${novel.slug}-${stamp}.json`));
     this.novels.delete(novel.slug);
     this.novelPaths.delete(novel.slug);
     if (this.activeNovelId === novel.slug) {
       this.activeNovelId = null;
     }
-    return { removed: true };
+    return { trashPaths };
   }
 
   // REQ-334 — Novel archive: move a Novel to .holonovel-state/archive/.
@@ -2238,9 +2257,14 @@ export class StateManager {
 
   // REQ-447 — audit-log growth cap: TTRPG_AUDIT_MAX_ENTRIES (0 = unlimited)
   // gates append; at capacity the server refuses new mutating calls.
-  auditLogAtCapacity(novel: NovelState): boolean {
+  auditLogCapacity(): number {
     const cap = parseInt(process.env.TTRPG_AUDIT_MAX_ENTRIES ?? "0", 10);
-    if (!Number.isFinite(cap) || cap <= 0) return false;
+    return Number.isFinite(cap) && cap > 0 ? cap : 0;
+  }
+
+  auditLogAtCapacity(novel: NovelState): boolean {
+    const cap = this.auditLogCapacity();
+    if (cap === 0) return false;
     return novel.audit_log.length >= cap;
   }
 
@@ -2256,7 +2280,7 @@ export class StateManager {
     // REQ-447 — refuse to append once the audit log is at capacity; the
     // caller surfaces [STATE_CONFLICT] before mutating (see index.ts audit()).
     if (this.auditLogAtCapacity(novel)) {
-      throw new Error(`[ERROR] [STATE_CONFLICT] Audit log at capacity (${process.env.TTRPG_AUDIT_MAX_ENTRIES} entries). Corrective action: raise TTRPG_AUDIT_MAX_ENTRIES or run session (action: compress) to archive older sessions.`);
+      throw new Error(`[ERROR] [STATE_CONFLICT] Audit log at capacity (${this.auditLogCapacity()} entries). ${AUDIT_CAP_CORRECTIVE}`);
     }
     // REQ-237 — session segmentation: when the session id changes (first
     // mutating call after start/resume, or a new TTRPG_SESSION_ID), emit a

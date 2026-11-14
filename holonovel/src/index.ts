@@ -27,7 +27,7 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
-import { StateManager, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment, autoMigrateEnabled } from "./core/state.js";
+import { StateManager, AUDIT_CAP_CORRECTIVE, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment, autoMigrateEnabled } from "./core/state.js";
 import { personalityFieldsFor, hasPersonalityData, voiceExamplesFor, renderPersonalityBlock, renderVoiceExample, normalizeVoiceExamples, npcRole, avoidLine } from "./core/personality.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
 import { presentEntityIds, isPresent, presentIdsForLedger as presentIdsForLedgerDerivation, sessionsSince, loreContradictionWarning } from "./core/scene-ledger.js";
@@ -4149,15 +4149,42 @@ server.registerTool("respond_decision", {
   }
   if (kind.includes("end_novel") || kind.includes("end novel") || kwMatch(dec, ["end novel", "end_novel"])) {
     const slug = state.activeNovel!.slug;
-    const result = state.endNovel(novel, opt === "yes" ? "yes" : "cancel");
-    if (result.removed) {
-      forgetPacingSession(slug);
-      novel.pending_workflow = null;
-      return ok(`Novel '${slug}' ended.`);
+    if (opt !== "yes") {
+      state.restoreFromSnapshot(novel, pw.snapshot);
+      state.saveNovel(novel);
+      return ok("End novel cancelled.");
     }
-    state.restoreFromSnapshot(novel, pw.snapshot);
+    // REQ-140 — the disposal is recorded before the file moves; REQ-447 — a
+    // log with fewer than three free entries (session-boundary marker, record,
+    // compensating entry) refuses before any mutation.
+    const novelFile = path.join(DATA_DIR, "novels", `${slug}.json`);
+    if (!fs.existsSync(novelFile)) {
+      return err("STATE_CONFLICT", "Novel file is already absent; nothing to dispose.");
+    }
+    const cap = state.auditLogCapacity();
+    if (cap > 0 && novel.audit_log.length + 3 > cap) {
+      return err("STATE_CONFLICT", `Audit log at capacity (${cap} entries); the end-Novel record cannot be written.`, AUDIT_CAP_CORRECTIVE.replace(/^Corrective action: /, ""));
+    }
+    state.audit(novel, getBadge(), "end_novel", { slug, dispose: "yes" });
+    novel.pending_workflow = null;
     state.saveNovel(novel);
-    return ok("End novel cancelled.");
+    try {
+      const { trashPaths } = state.endNovel(novel);
+      forgetPacingSession(slug);
+      process.stderr.write(`[holonovel] Novel '${slug}' ended; files moved to ${trashPaths.join(", ")}.\n`);
+      return ok(`Novel '${slug}' ended.`);
+    } catch (e: any) {
+      // The Novel is still live and on disk; record the failed attempt so the
+      // log does not end on a success-shaped entry.
+      const message = String(e?.message ?? e).replace(/^\[STATE_CONFLICT\]\s*/, "");
+      try {
+        state.audit(novel, getBadge(), "end_novel_failed", { message });
+        state.saveNovel(novel);
+      } catch (auditError: any) {
+        process.stderr.write(`[holonovel] end_novel_failed record could not be written: ${auditError?.message ?? auditError}\n`);
+      }
+      return err("STATE_CONFLICT", `Novel '${slug}' could not be disposed: ${message} The Novel remains active.`, "resolve the reported filesystem error and retry manage_novel (action: end).");
+    }
   }
   if (kind === "present_choices" || kwMatch(dec, ["present_choices", "present choices"])) {
     const chosenId = opt;
@@ -4247,34 +4274,40 @@ Character '${name}' created as ${entity.id} (profile-only — no mechanical stat
     for (const cl of classLevels) {
       if (!getClassData(rules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'. The workflow is still open — respond with a valid class or 'cancel'.`);
     }
-    // REQ-190 — the drain is atomic: pending_workflow is cleared only once the
-    // character can actually be built.
-    novel.pending_workflow = null;
+    // REQ-190 — compute the whole character BEFORE the drain, so a failing
+    // input or a failing declared formula leaves the workflow pending.
+    // REQ-399b — a failing formula surfaces a named creation error.
     const defaultScores = rules.default_ability_scores?.map(String).join(" ") ?? "15 14 13 12 10 8";
-    const abilityScores = applySpeciesAdjustments(
-      wf.answers.abilityScores ?? parseAbilityScores(defaultScores as any, rules),
-      species,
-      rules,
-    );
-    const build: CharacterBuildInput = {
-      name: wf.answers.name ?? "Unnamed",
-      species,
-      classLevels,
-      abilityScores,
-      trainedSkills: wf.answers.trainedSkills ?? [],
-      feats: [],
-      talents: [],
-      equipment: wf.answers.equipment ?? [],
-      statMethod: wf.answers.statMethod ?? "planned",
-    };
-    const stats = buildCharacterStats(build, rules);
+    let stats: Record<string, any>;
+    try {
+      const abilityScores = applySpeciesAdjustments(
+        wf.answers.abilityScores ?? parseAbilityScores(defaultScores as any, rules),
+        species,
+        rules,
+      );
+      const build: CharacterBuildInput = {
+        name: wf.answers.name ?? "Unnamed",
+        species,
+        classLevels,
+        abilityScores,
+        trainedSkills: wf.answers.trainedSkills ?? [],
+        feats: [],
+        talents: [],
+        equipment: wf.answers.equipment ?? [],
+        statMethod: wf.answers.statMethod ?? "planned",
+      };
+      stats = buildCharacterStats(build, rules, novel.ruleset!);
+    } catch (e: any) {
+      return creationError(e, novel.ruleset);
+    }
+    novel.pending_workflow = null;
     novelSnapshot();
-    const entity = state.createEntity(novel, build.name, undefined, stats);
+    const entity = state.createEntity(novel, wf.answers.name ?? "Unnamed", undefined, stats);
     state.addEntity(novel, entity);
     state.saveNovel(novel);
     return ok(`${fmtEntitySheet(entity)}
 
-Character '${build.name}' created as ${entity.id} with derived statistics.`);
+Character '${entity.name}' created as ${entity.id} with derived statistics.`);
   }
   if (kind.startsWith("restore_checkpoint:")) {
     const label = kind.slice("restore_checkpoint:".length);
@@ -4524,12 +4557,26 @@ function getCharacterRules(novel: NovelState | null): CharacterRules | null {
   }
 }
 
-function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules): Record<string, any> {
+// REQ-399b — a failing declared formula is a named creation error, not an
+// uncaught tool failure. The message names the statistic and the package.
+function creationError(e: any, rulesetSlug: string | null) {
+  const message = String(e?.message ?? e).replace(/^\[[A-Z_]+\]\s*/, "");
+  const key = /Derived statistic '([^']+)'/.exec(message)?.[1] ?? "the declared statistic";
+  return err(
+    "INVALID_INPUT",
+    `Character creation failed: ${message}`,
+    `fix the derived_stats formula for '${key}' in ruleset '${rulesetSlug ?? "(unbound)"}' and reinstall it, or rebind the Novel to a ruleset whose package defines valid formulas.`,
+  );
+}
+
+function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules, rulesetSlug: string): Record<string, any> {
   const derived = computeDerived(build, rules);
   const classLabel = build.classLevels.map((c) => `${c.className} ${c.levels}`).join(" / ");
+  // REQ-152a — every assigned item carries name, quantity, and ruleset source.
+  // REQ-152b — no assignment means no `equipment` key at all.
   const equipment: EquipmentItem[] = build.equipment?.length
-    ? build.equipment.map((n) => ({ name: n, quantity: 1 }))
-    : startingEquipmentFor(build.classLevels, rules);
+    ? build.equipment.map((n) => ({ name: n, quantity: 1, source: rulesetSlug }))
+    : startingEquipmentFor(build.classLevels, rules).map((item) => ({ ...item, source: item.source ?? rulesetSlug }));
   const stats: Record<string, any> = {
     class: classLabel,
     species: build.species,
@@ -4539,8 +4586,8 @@ function buildCharacterStats(build: CharacterBuildInput, rules: CharacterRules):
     trainedSkills: build.trainedSkills,
     feats: build.feats,
     talents: build.talents,
-    equipment,
   };
+  if (equipment.length > 0) stats.equipment = equipment;
   // Spread ruleset-declared derived statistics under their keys.
   for (const key of derived.order) stats[derived.labels[key] ?? key] = derived.values[key];
   stats._derived_labels = { order: derived.order, labels: derived.labels, sections: derived.sections };
@@ -4807,7 +4854,12 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
         trainedSkills: toList(effSkills), feats: toList(effFeats), talents: toList(effTalents),
         statMethod: method, seed, equipment: toList(effEquipment),
       };
-      const stats = buildCharacterStats(build, rules);
+      let stats: Record<string, any>;
+      try {
+        stats = buildCharacterStats(build, rules, novel.ruleset!);
+      } catch (e: any) {
+        return creationError(e, novel.ruleset);
+      }
       novelSnapshot();
       const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, stats);
       state.addEntity(novel, entity);

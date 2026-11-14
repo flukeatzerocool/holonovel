@@ -4,6 +4,8 @@
 // generation, and species adjustment — no server process required.
 
 import { strict as assert } from "node:assert";
+import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+installHarnessGuard();
 import {
   evaluateFormula, computeDerived, generateAbilityScores, applySpeciesAdjustments,
   getSpecies, getClassData, abilityNames, abilityModifier,
@@ -157,4 +159,165 @@ test("formula context exposes the first class's data, not the last (REQ-399b)", 
   assert.equal(sFirst.values.die_first, 6, "scholar's hit die wins when first");
 });
 
+test("a failing derived-stat formula names the statistic and formula (REQ-399b)", () => {
+  const rules: CharacterRules = {
+    ...RULES,
+    derived_stats: [
+      { key: "hit_points", label: "Hit Points", formula: "5 + ability_mod.nope" },
+    ],
+  };
+  assert.throws(
+    () => computeDerived(build(), rules),
+    (e: Error) => e.message.includes("hit_points")
+      && e.message.includes("Hit Points")
+      && e.message.includes("5 + ability_mod.nope")
+      && e.message.includes("undefined input"),
+    "the thrown message names the statistic, its label, its formula, and the original cause",
+  );
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? " (with failures)" : ""}`);
+
+// ── T468 server tier (REQ-152a, REQ-152b, REQ-399b, REQ-190) ──────────
+//
+// The pure tests above prove the engine; this tier proves the host wiring:
+// equipment provenance and omission, the named creation error, and the
+// undrained workflow after a failed build. Spawned through the shared MCP
+// client so the assertions read real persisted Novel state.
+
+let spawnPassed = 0;
+let spawnFailed = 0;
+async function atest(name: string, fn: () => Promise<void>): Promise<void> {
+  try { await fn(); spawnPassed++; console.log(`  PASS ${name}`); }
+  catch (e: any) { spawnFailed++; console.error(`  FAIL ${name}: ${e.message}`); process.exitCode = 1; }
+}
+
+function assertContains(hay: string, needle: string): void {
+  if (!hay.toLowerCase().includes(needle.toLowerCase())) throw new Error(`expected to contain "${needle}", got: ${hay.slice(0, 300)}`);
+}
+
+async function main(): Promise<void> {
+  const { bootServer } = await import("./lib/mcp-client.js");
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { computeContentHash } = await import("../src/rulesets.js");
+
+  const root = join(import.meta.dirname!, "..");
+  const fixtureDir = join(root, "testdata", "rulesets", "fixture");
+  const readJson = (name: string) => JSON.parse(readFileSync(join(fixtureDir, name), "utf-8"));
+  const base = {
+    slug: readJson("manifest.json").slug as string,
+    manifest: readJson("manifest.json"),
+    index: readJson("index.json"),
+    model: readJson("model.json"),
+    tools: readJson("tools.json"),
+    resources: readJson("resources.json"),
+    prompts: readJson("prompts.json"),
+  };
+  const variant = (slug: string, mutate: (model: any) => void) => {
+    const model = JSON.parse(JSON.stringify(base.model));
+    mutate(model);
+    const manifest = { ...base.manifest, slug, content_hash: computeContentHash(base.index, model, base.tools, base.resources, base.prompts) };
+    return { slug, manifest, index: base.index, model, tools: base.tools, resources: base.resources, prompts: base.prompts };
+  };
+  const none = variant("fixture-none", (m) => { delete m.character_creation.starting_equipment; });
+  const bad = variant("fixture-bad", (m) => { m.character_creation.derived_stats[0].formula = "5 + ability_mod.nope"; });
+
+  const client = await bootServer({ serverDir: root });
+  const entityBySlug = (slug: string, name: string) => {
+    const payload = JSON.parse(readFileSync(join(client.dataDir, "novels", `${slug}.json`), "utf-8"));
+    const entities = Object.values(payload.entities ?? {}) as any[];
+    const entity = entities.find((e) => e.name === name);
+    if (!entity) throw new Error(`entity '${name}' not found in ${slug}`);
+    return entity;
+  };
+  const setup = async (pkg: { slug: string; manifest: any; index: any; model: any; tools: any; resources: any; prompts: any }, novelName: string): Promise<string> => {
+    await client.call("set_badge", { badge: "game_master" });
+    const installed = await client.call("manage_ruleset", { action: "install", slug: pkg.slug, manifest: pkg.manifest, index: pkg.index, model: pkg.model, tools: pkg.tools, resources: pkg.resources, prompts: pkg.prompts });
+    assertContains(installed.text, "[OK]");
+    await client.call("manage_novel", { action: "create", name: novelName });
+    const info = JSON.parse((await client.call("manage_novel", { action: "info" })).text);
+    const slug = info.slug;
+    const bound = await client.call("manage_ruleset", { action: "bind", slug: pkg.slug });
+    assertContains(bound.text, "[OK]");
+    return slug;
+  };
+
+  try {
+    console.log("\n=== T468 server tier (REQ-152a/b, REQ-399b, REQ-190) ===");
+
+    const slugMain = await setup(base, "T468 quick");
+    await atest("T468/REQ-399b: quick mode returns the ruleset's labelled derived statistics", async () => {
+      const res = await client.call("manage_character", { action: "create", name: "Quick", species: "Human", classes: "Warrior 1", stat_method: "planned" });
+      assertContains(res.text, "[OK]");
+      const entity = entityBySlug(slugMain, "Quick");
+      // Might 10, Grace 10: HP 5 + 1*5 + 0 = 10; Reflex 10 + 1 + 0 + 1 = 12; Power max(0,0)+1 = 1.
+      if (entity.stats["Hit Points"] !== 10) throw new Error(`Hit Points = ${entity.stats["Hit Points"]}`);
+      if (entity.stats.Reflex !== 12) throw new Error(`Reflex = ${entity.stats.Reflex}`);
+      if (entity.stats.Power !== 1) throw new Error(`Power = ${entity.stats.Power}`);
+    });
+
+    await atest("T468/REQ-152a: ruleset-declared equipment carries its declared source", async () => {
+      const entity = entityBySlug(slugMain, "Quick");
+      const item = entity.stats.equipment?.[0];
+      if (!item) throw new Error("no equipment assigned");
+      if (item.name !== "Sword" || item.quantity !== 1) throw new Error(`equipment shape: ${JSON.stringify(item)}`);
+      if (item.source !== "Fixture") throw new Error(`source = ${JSON.stringify(item.source)}`);
+    });
+
+    await atest("T468/REQ-152a: player-supplied equipment carries the bound ruleset as its source", async () => {
+      const res = await client.call("manage_character", { action: "create", name: "Supplied", species: "Human", classes: "Warrior 1", equipment: "Torch Rope" });
+      assertContains(res.text, "[OK]");
+      const entity = entityBySlug(slugMain, "Supplied");
+      const names = (entity.stats.equipment ?? []).map((e: any) => `${e.name}:${e.source}`);
+      if (names.length !== 2) throw new Error(`equipment: ${JSON.stringify(entity.stats.equipment)}`);
+      for (const entry of entity.stats.equipment) {
+        if (entry.source !== "fixture") throw new Error(`source = ${JSON.stringify(entry.source)} for ${entry.name}`);
+      }
+    });
+
+    const slugNone = await setup(none, "T468 no equipment");
+    await atest("T468/REQ-152b: a ruleset with no starting equipment omits the equipment key", async () => {
+      const res = await client.call("manage_character", { action: "create", name: "Bare", species: "Human", classes: "Warrior 1" });
+      assertContains(res.text, "[OK]");
+      const entity = entityBySlug(slugNone, "Bare");
+      if ("equipment" in entity.stats) throw new Error(`equipment present: ${JSON.stringify(entity.stats.equipment)}`);
+    });
+
+    const slugBad = await setup(bad, "T468 bad formula");
+    await atest("T468/REQ-399b: a failing formula returns a named creation error in quick mode", async () => {
+      const res = await client.call("manage_character", { action: "create", name: "Broken", species: "Human", classes: "Warrior 1" });
+      assertContains(res.text, "[ERROR] [INVALID_INPUT]");
+      assertContains(res.text, "hit_points");
+      assertContains(res.text, "5 + ability_mod.nope");
+    });
+
+    await atest("T468/REQ-190: a failed step-by-step build leaves the workflow undrained", async () => {
+      const start = await client.call("manage_character", { action: "create" });
+      assertContains(start.text, "[NEED_INPUT]");
+      for (const option of ["Broken", "Human", "Warrior 1", "10 10 10"]) {
+        const step = await client.call("respond_decision", { decision: "character_creation", option });
+        assertContains(step.text, "[NEED_INPUT]");
+      }
+      const last = await client.call("respond_decision", { decision: "character_creation", option: "Sword" });
+      assertContains(last.text, "[ERROR] [INVALID_INPUT]");
+      assertContains(last.text, "hit_points");
+      const undo = await client.call("manage_history", { action: "undo" });
+      assertContains(undo.text, "[ERROR] [STATE_CONFLICT]");
+      const cancelled = await client.call("respond_decision", { decision: "character_creation", option: "cancel" });
+      assertContains(cancelled.text, "[OK]");
+    });
+  } finally {
+    await client.close();
+  }
+
+  console.log(`\n${spawnPassed} server-tier tests passed${spawnFailed ? `, ${spawnFailed} failed` : ""}`);
+  if (spawnFailed) process.exitCode = 1;
+}
+
+main().then(() => harnessComplete()).catch((e) => {
+  console.error(`server tier failed: ${e?.stack ?? e}`);
+  process.exitCode = 1;
+  harnessComplete();
+});
+

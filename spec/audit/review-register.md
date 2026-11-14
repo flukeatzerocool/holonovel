@@ -11,6 +11,40 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-13 §5.4 remediation
+
+The four implementation findings of the 2026-11-09 chunk-P3 sweep were
+resolved in the §5.4 remediation increment (plan
+`docs/plans/2026-11-13-s5-4-remediation/`). Each predicate was re-confirmed at
+`842a71e` before the change.
+
+- **F-P3-5 — end-Novel disposal is not recorded in the audit log. Resolved.**
+  Predicate was `holonovel/src/core/state.ts:1939` (`endNovel` moved the file
+  to `.trash` with no audit entry). The disposal now appends `end_novel`
+  through `state.audit` before the move, refuses before mutating when fewer
+  than three audit slots remain, and records `end_novel_failed` when a move
+  fails (the primary rename is the last move, so a failure leaves the Novel
+  live). REQ-140, REQ-447. Asserted by T158 in
+  `holonovel/scripts/test-persistence.ts`.
+- **F-P3-6 — creation equipment lacks the ruleset source. Resolved.**
+  Predicate was `holonovel/src/index.ts:4530-4532` (items became
+  `{ name, quantity: 1 }`, and `equipment: []` was always written). Each
+  assigned item now carries the package-declared source or the bound ruleset
+  slug, and the `equipment` key is omitted when nothing was assigned.
+  REQ-152a, REQ-152b. Asserted by T468 in
+  `holonovel/scripts/test-character-creation.ts`.
+- **F-P3-7 — a failing declared formula is not a named creation error.
+  Resolved.** Predicate was `holonovel/src/core/character-creation.ts:370`
+  (the throw escaped both creation paths). `computeDerived` now names the
+  statistic, label, and formula, and both creation paths return
+  `[ERROR] [INVALID_INPUT]` with a package-side corrective action. REQ-399b.
+  Asserted by T468.
+- **F-P3-9 — the drain-atomicity fix has no in-tree assertion. Resolved.**
+  Predicate was `holonovel/src/index.ts:4252` (the workflow drained before the
+  build). The whole compute block now runs before the drain, and the shipped
+  fixture package supplies the ruleset-backed creation the harness breaks.
+  REQ-190, REQ-399b. Asserted by T468.
+
 ### 2026-11-13 server-suite red baseline
 
 Cleared in the 2026-11-13 red-baseline increment (plan
@@ -2303,33 +2337,14 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
 
-Scheduled under `ROADMAP.md` § *§5.4 remediation (P1)* and § *§5.4 citation
-repair (P1)*. Each finding cites the predicate that carries it.
+The four implementation findings were resolved in the 2026-11-13 §5.4
+remediation increment (plan `docs/plans/2026-11-13-s5-4-remediation/`) and are
+recorded under `## Resolved`. One citation finding remains.
 
-- **F-P3-5 — end-Novel disposal is not recorded in the audit log:** REQ-140
-  requires the disposal recorded; `respond_decision` calls `state.endNovel`
-  (`holonovel/src/index.ts:3406-3416`) and `endNovel`
-  (`holonovel/src/core/state.ts:1697-1725`) writes no audit entry before moving
-  the Novel to `.trash`. The record has no home once the Novel file is gone —
-  the remediation decides where it lives (server log, audit archive, or a
-  tombstone entry).
-- **F-P3-6 — creation equipment lacks the ruleset source:** REQ-152a requires
-  name, quantity, and ruleset source per assigned item; player-supplied names
-  become `{ name, quantity: 1 }` (`holonovel/src/index.ts:3797-3799`), and a
-  creation with no equipment stores `equipment: []` instead of omitting the
-  field (REQ-152b).
-- **F-P3-7 — a failing declared formula is not a named creation error:**
-  REQ-399b requires a named error; `evaluateFormula` throws inside
-  `computeDerived` (`holonovel/src/core/character-creation.ts:368`) and
-  `buildCharacterStats` (`holonovel/src/index.ts:3780`) does not catch, so the
-  caller receives an uncaught tool failure.
 - **F-P3-8 — REQ-104c cites Automated T103 with no harness:** Appendix F
   catalogues T103 (`spec/appendices-reference.md:1564`); no `holonovel/scripts`
-  harness carries the token.
-- **F-P3-9 — the drain-atomicity fix has no in-tree assertion:** the failing
-  branch (`holonovel/src/index.ts:3503-3504`) needs a ruleset package that
-  defines character creation; the repo ships no such fixture, so the fix is
-  code-verified only.
+  harness carries the token. REQ-104c. Scheduled under `ROADMAP.md` § *§5.4
+  citation repair (P1)*.
 
 ### 2026-11-09 full-review sweep — chunk P1 (trust core, §5.1/§5.5)
 

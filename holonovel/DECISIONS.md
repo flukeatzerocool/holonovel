@@ -27,6 +27,37 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### End-Novel disposal record, equipment provenance, creation errors — 2026-11-13
+
+- **The end-Novel disposal record lives in the trashed Novel's own chained
+  log.** REQ-140 requires the disposal recorded, and the log is embedded in the
+  Novel file, so the entry is appended and saved before the file moves. The
+  accepted consequence: `cleanupExpiredTrash` removes that copy when
+  `TTRPG_NOVEL_RETENTION_DAYS` is set (default 0 keeps it), after which the
+  stderr line naming the trash path is the only trace. A separate server-level
+  ledger was rejected — it would be a new persisted surface with no REQ home
+  and the §7.7 / REQ-240a class-contract obligations that follow.
+- **Disposal is binary at the primary file, and the primary rename runs last.**
+  A failure before it leaves the Novel live and on disk; the handler appends
+  `end_novel_failed` with the failing path so the log never ends on a
+  success-shaped entry. A `[PARTIAL]` outcome was rejected: the server has no
+  partial-result builder, and a staged move cannot be rolled back once a rename
+  has happened. The audit-capacity pre-check reserves three slots
+  (`[session-boundary]` marker, record, compensation) and is inert when the cap
+  is unset or 0.
+- **The capacity refusal is applied to disposal only.** REQ-447 already
+  requires the refusal for mutating calls, but the implementers' general
+  pre-mutation sweep is the Trust-core remediation item (F-P1-4); that session
+  should treat `end_novel` as already covered rather than re-scope it.
+- **Creation equipment source is provenance, not a normalized slug.** A
+  package-declared `item.source` wins; otherwise the entry carries the bound
+  ruleset slug. Player-supplied names are plain strings and always take the
+  slug. Saved characters are not migrated — REQ-152b binds creation, not stored
+  history.
+- **A failing derived-stat formula is `[INVALID_INPUT]`, not
+  `[STATE_CONFLICT]`.** The defect is package data and both the code and the
+  corrective action are package-side (rebind is the secondary remedy).
+
 ### State-hash projection and startup migration — 2026-11-13
 
 - **`connection_counter` is session bookkeeping, not story state.** REQ-601's

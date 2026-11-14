@@ -367,7 +367,16 @@ export function computeDerived(build: CharacterBuildInput, rules: CharacterRules
   const order: string[] = [];
 
   for (const def of rules.derived_stats || []) {
-    const value = evaluateFormula(def.formula, ctx);
+    // REQ-399b — a failing formula must name the statistic it belongs to, so
+    // the caller can report a named creation error instead of a bare parser
+    // message.
+    let value: number;
+    try {
+      value = evaluateFormula(def.formula, ctx);
+    } catch (e: any) {
+      const label = def.label ? ` (${def.label})` : "";
+      throw new Error(`Derived statistic '${def.key}'${label} formula "${def.formula}" failed: ${e?.message ?? e}`);
+    }
     values[def.key] = value;
     labels[def.key] = def.label ?? def.key;
     sections[def.key] = def.section ?? "derived";
