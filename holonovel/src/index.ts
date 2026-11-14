@@ -1433,6 +1433,10 @@ function registrationFingerprint(): string {
     .update([...Object.keys(prompts)].sort().join(","))
     .update("|")
     .update([...packagePrompts.keys()].sort().join(","))
+    .update("|")
+    // REQ-389c — the served surface follows the install set, so every cache
+    // keyed on this fingerprint must too.
+    .update([...rulesets.installedSlugs()].sort().join(","))
     .digest("hex");
 }
 let metadataCache: MetadataCache | null = null;
@@ -1778,9 +1782,6 @@ function cachedMetadata(): MetadataCache {
   };
   return metadataCache;
 }
-// Prime the cache once at startup so the first tools/list read is warm.
-cachedMetadata();
-
 // ── Tool Surface Contract (REQ-567, REQ-568, REQ-570, REQ-571, REQ-572, REQ-580) ──
 interface SurfaceDeclaration {
   group: string;
@@ -2166,6 +2167,10 @@ function packageToolVisible(name: string): boolean {
   const slug = packageSlugForTool(name);
   return slug === undefined || rulesets.isInstalled(slug);
 }
+
+// Prime the metadata cache once the install set is known, so the first
+// tools/list read is warm without the fingerprint touching `rulesets` in TDZ.
+cachedMetadata();
 
 // REQ-379b/REQ-379c/REQ-381b — every listed tool reports its ruleset scope in
 // the MCP extension slot (`_meta.ruleset`, a slug or null). Under
@@ -2585,10 +2590,13 @@ function registerPackageTools(slug: string): void {
   }
 }
 
-// REQ-389c — register a package's declared resources. The MCP SDK has no
-// resource-deregistration API, so removal is realised as an installed-package
-// filter in the reader (the prompt-surface precedent).
+// REQ-389c — register a package's declared resources and keep the SDK handle so
+// removal can deregister them. The handle's remove() deletes the fixed or
+// template registration and emits resources/list_changed. Tools have no
+// equivalent in this host: ToolRegistry.define has no remove and a reinstall
+// would collide, so tools stay filtered by the installed set.
 const packageResourceKeys = new Set<string>();
+const packageResourceHandles = new Map<string, Array<{ remove(): void }>>();
 function registerPackageResources(slug: string): void {
   let declarations: any[];
   try {
@@ -2606,13 +2614,32 @@ function registerPackageResources(slug: string): void {
     const mimeType = typeof declaration?.mimeType === "string" ? declaration.mimeType : "application/json";
     const text = typeof declaration?.text === "string" ? declaration.text : JSON.stringify(declaration?.content ?? null);
     try {
-      server.registerResource(key, uri, { title: declaration?.title ?? name, mimeType }, async () => ({
+      const handle = server.registerResource(key, uri, { title: declaration?.title ?? name, mimeType }, async () => ({
         contents: rulesets.isInstalled(slug) ? [{ uri, text, mimeType }] : [],
       }));
       packageResourceKeys.add(key);
+      const handles = packageResourceHandles.get(slug) ?? [];
+      handles.push(handle as unknown as { remove(): void });
+      packageResourceHandles.set(slug, handles);
     } catch {
       // Duplicate URI/name: the first registration wins.
     }
+  }
+}
+
+// REQ-389c — deregister a removed package's resources and reopen its keys so a
+// reinstall can register the same URIs again.
+function deregisterPackageResources(slug: string): void {
+  for (const handle of packageResourceHandles.get(slug) ?? []) {
+    try {
+      handle.remove();
+    } catch {
+      // Already removed, or never registered; nothing left to deregister.
+    }
+  }
+  packageResourceHandles.delete(slug);
+  for (const key of [...packageResourceKeys]) {
+    if (key.startsWith(`pkg:${slug}:`)) packageResourceKeys.delete(key);
   }
 }
 
@@ -13957,8 +13984,12 @@ server.registerTool("manage_ruleset", {
       }
       try {
         rulesets.removePackage(args.slug);
+        // REQ-389c — deregister the package's resources, then tell clients the
+        // tool and resource lists changed.
+        deregisterPackageResources(String(args.slug));
         reloadPackagePrompts();
         (server as any).sendPromptListChanged?.();
+        (server as any).sendToolListChanged?.();
         audit("remove_ruleset", { slug: args.slug });
         return ok(`Ruleset '${args.slug}' removed.`);
       } catch (e: any) {
@@ -14332,10 +14363,12 @@ server.registerTool("manage_artifact", {
       if (kind === "ruleset") {
         if (!rulesets.isInstalled(slug)) return err("NOT_FOUND", `Ruleset '${slug}' is not installed.`);
         rulesets.removePackage(slug);
-        // REQ-389c — mirror manage_ruleset remove: package prompts are rebuilt
-        // immediately and clients are told the prompt list changed.
+        // REQ-389c — mirror manage_ruleset remove: package resources and
+        // prompts are deregistered immediately and clients are told.
+        deregisterPackageResources(slug);
         reloadPackagePrompts();
         (server as any).sendPromptListChanged?.();
+        (server as any).sendToolListChanged?.();
       } else if (kind === "adventure") {
         const target = resolveWithin(path.join(DATA_DIR, "adventures"), `${slug}.md`);
         if (!target) return err("INVALID_INPUT", `Adventure slug '${slug}' resolves outside the adventures directory.`);
@@ -14592,6 +14625,176 @@ function buildRulesetHealthSections(): Record<string, any> {
   return out;
 }
 
+// ── REQ-138a / REQ-139 — prompt references and live resource presence ──
+
+// A tool reference is a name on the host verb grammar (or a live package tool
+// name); a bare snake_case state field (`max_hp`), a badge value
+// (`game_master`), or prose must not be treated as one.
+const TOOL_REFERENCE = /\b(?:manage|resolve|run|set|open|close|take|respond)_[a-z0-9_]+\b/g;
+const URI_REFERENCE = /\b([a-z][a-z0-9+.-]*):\/\/[^\s"'`)\]>,;]*/gi;
+
+interface LiveResourceIndex {
+  entries: Map<string, { name: string; title?: string; mime_type?: string; package_slug?: string }>;
+  templates: Set<string>;
+  schemes: Set<string>;
+}
+
+function liveResourceIndex(): LiveResourceIndex {
+  const entries: LiveResourceIndex["entries"] = new Map();
+  const templates = new Set<string>();
+  const schemes = new Set<string>();
+  const fixed: Record<string, any> = (server as any)._registeredResources ?? {};
+  for (const [uri, r] of Object.entries(fixed)) {
+    const name = typeof r?.name === "string" ? r.name : uri;
+    const slug = name.startsWith("pkg:") ? name.slice(4).split(":")[0] : undefined;
+    // A removed package's registration survives until its handle is removed;
+    // while the slug is uninstalled it is not part of the live surface.
+    if (slug && !rulesets.isInstalled(slug)) continue;
+    const mime = r?.metadata?.mimeType;
+    entries.set(uri, {
+      name,
+      title: typeof r?.title === "string" ? r.title : undefined,
+      mime_type: typeof mime === "string" ? mime : undefined,
+      package_slug: slug,
+    });
+    if (uri.includes("://")) schemes.add(uri.split("://")[0].toLowerCase());
+  }
+  const templated: Record<string, any> = (server as any)._registeredResourceTemplates ?? {};
+  for (const [regName, r] of Object.entries(templated)) {
+    const raw = r?.resourceTemplate?.uriTemplate ?? r?.template?.uriTemplate;
+    const template = typeof raw === "string" ? raw : (raw?.toString?.() ?? "");
+    if (!template) continue;
+    templates.add(template);
+    entries.set(template, {
+      name: typeof r?.name === "string" ? r.name : regName,
+      title: typeof r?.title === "string" ? r.title : undefined,
+      mime_type: typeof r?.metadata?.mimeType === "string" ? r.metadata.mimeType : undefined,
+    });
+    if (template.includes("://")) schemes.add(template.split("://")[0].toLowerCase());
+  }
+  // Catalog and declared schemes are known even when the registration is
+  // missing, so an absent URI referenced by a prompt still reads as a reference.
+  for (const { template } of REQ022_URI_CATALOG) {
+    if (template.includes("://")) schemes.add(template.split("://")[0].toLowerCase());
+  }
+  for (const slug of rulesets.installedSlugs()) {
+    for (const d of rulesets.resourceDeclarations(slug)) {
+      if (typeof d?.uri === "string" && d.uri.includes("://")) schemes.add(d.uri.split("://")[0].toLowerCase());
+    }
+  }
+  return { entries, templates, schemes };
+}
+
+// REQ-139 — every drawn URI with its live presence: the REQ-022 catalog, the
+// installed packages' declared resources, and the live registrations. Ordered
+// catalog-first, then lexicographic. `presence` is derived from the live maps
+// only; no state survives a call.
+function resourceURIReport(): Array<{ uri: string; title: string; presence: "present" | "absent"; name?: string; mime_type?: string }> {
+  const live = liveResourceIndex();
+  const drawn = new Map<string, string>();
+  for (const { template, title } of REQ022_URI_CATALOG) drawn.set(template, title);
+  for (const slug of rulesets.installedSlugs()) {
+    for (const d of rulesets.resourceDeclarations(slug)) {
+      const name = typeof d?.name === "string" ? d.name.trim() : "";
+      const uri = typeof d?.uri === "string" && d.uri ? d.uri : (name ? `ruleset://${slug}/${name}` : "");
+      if (!uri || drawn.has(uri)) continue;
+      drawn.set(uri, typeof d?.title === "string" && d.title ? d.title : uri);
+    }
+  }
+  for (const [uri, entry] of live.entries) {
+    if (!drawn.has(uri)) drawn.set(uri, entry.title ?? uri);
+  }
+  const catalogOrder = REQ022_URI_CATALOG.map(({ template }) => template);
+  const ordered = [
+    ...catalogOrder.filter((uri) => drawn.has(uri)),
+    ...[...drawn.keys()].filter((uri) => !catalogOrder.includes(uri)).sort(),
+  ];
+  return ordered.map((uri) => {
+    let entry = live.entries.get(uri);
+    // A catalog template is present when a live registration matches its
+    // pattern: `guidance://{badge}/anti-slop` is served by the concrete
+    // `guidance://player/anti-slop` and `guidance://game_master/anti-slop`.
+    if (!entry && uri.includes("{")) {
+      const re = templateMatcher(uri);
+      for (const [liveUri, liveEntry] of live.entries) {
+        if (re.test(liveUri)) { entry = liveEntry; break; }
+      }
+    }
+    const title = drawn.get(uri) ?? entry?.title ?? uri;
+    if (!entry) return { uri, title, presence: "absent" as const };
+    return {
+      uri,
+      title,
+      presence: "present" as const,
+      name: entry.name,
+      ...(entry.mime_type ? { mime_type: entry.mime_type } : {}),
+    };
+  });
+}
+
+// The active Novel's user-authored strings. A candidate reference that occurs
+// inside this text is Novel data (a name, a description, a journal entry), not
+// a prompt reference.
+function userAuthoredText(): string {
+  const parts: string[] = [];
+  const push = (v: unknown): void => {
+    if (typeof v === "string" && v.trim() !== "") parts.push(v);
+  };
+  for (const [, n] of state.novels) {
+    push(n.name);
+    push(n.description);
+  }
+  const novel = state.activeNovel;
+  if (novel) {
+    push(novel.name);
+    push(novel.description);
+    push(novel.scene_location);
+    push(novel.scene_description);
+    for (const e of novel.entities.values()) { push(e.name); push((e as any).description); }
+    for (const n of novel.npcs.values()) { push(n.name); push((n as any).description); push((n as any).location); }
+    for (const r of novel.world.rooms.values()) { push(r.name); push((r as any).description); }
+    for (const t of novel.world.things.values()) { push(t.name); push((t as any).description); }
+    for (const [key, l] of novel.lore) { push(key); push((l as any).content); }
+    for (const s of novel.story_journal ?? []) push(s.entry);
+    const notes: any = (novel as any).notes;
+    if (notes && typeof notes.values === "function") for (const v of notes.values()) push(v);
+    const gm: any = novel.gm_context ?? {};
+    for (const key of ["current_scene", "immediate_situation", "pending_player_action", "short_term_plans", "long_term_plans", "player_goals"]) {
+      push(gm[key]);
+    }
+  }
+  for (const r of state.roster.values()) push(r.name);
+  return parts.join("\n");
+}
+
+function templateMatcher(template: string): RegExp {
+  const escaped = template.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped.replace(/\\\{[^}]*\\\}/g, "[^/]+")}$`);
+}
+
+// REQ-138a — tool or resource names in a prompt that no live registration
+// carries. Registered-but-hidden REQ-581 tombstones count as present.
+function staleReferencesFor(text: string, live: LiveResourceIndex, userText: string): string[] {
+  if (!text) return [];
+  const registered = new Set(Object.keys(registeredToolMap()));
+  const stale = new Set<string>();
+  for (const match of text.matchAll(TOOL_REFERENCE)) {
+    const token = match[0];
+    if (registered.has(token) || userText.includes(token)) continue;
+    stale.add(token);
+  }
+  const matchers = [...live.templates].map((template) => templateMatcher(template));
+  for (const match of text.matchAll(URI_REFERENCE)) {
+    const token = match[0].replace(/[.,;:]+$/, "");
+    const scheme = token.includes("://") ? token.split("://")[0].toLowerCase() : "";
+    if (!scheme || !live.schemes.has(scheme)) continue;
+    if (live.entries.has(token) || matchers.some((re) => re.test(token))) continue;
+    if (userText.includes(token)) continue;
+    stale.add(token);
+  }
+  return [...stale].sort();
+}
+
 function buildSpecHealth(): Record<string, unknown> {
   const novel = state.activeNovel;
   const badge = getBadge();
@@ -14603,9 +14806,13 @@ function buildSpecHealth(): Record<string, unknown> {
   const rooms = novel ? novel.world.rooms.size : 0;
   const things = novel ? novel.world.things.size : 0;
   const hiddenTools = hiddenAliasNames(surfaceRegistry());
-  const visibleToolCount = toolRegistry.names().filter((name) => !hiddenTools.has(name)).length;
+  const visibleToolCount = toolRegistry.names()
+    .filter((name) => !hiddenTools.has(name) && packageToolVisible(name)).length;
   const promptCount = ((server as any)._registeredPrompts ? Object.keys((server as any)._registeredPrompts).length : 0) + packagePrompts.size;
-  const resourceCount = ((server as any)._registeredResources ? Object.keys((server as any)._registeredResources).length : 0);
+  // REQ-139 — one report drives both the presence list and the count, so the
+  // payload cannot disagree with itself.
+  const resourceReport = resourceURIReport();
+  const resourceCount = resourceReport.filter((entry) => entry.presence === "present").length;
   // REQ-383a/REQ-383b — per-ruleset health plus the `combined` summary. A
   // Player badge sees only the active Novel's ruleset section (or none), while
   // `combined` stays visible to every badge.
@@ -14624,39 +14831,39 @@ function buildSpecHealth(): Record<string, unknown> {
     return { ...visible, combined };
   })();
 
-  const registeredResourceURIs = new Set<string>();
-  const listedResources: Record<string, any> = (server as any)._registeredResources ?? {};
-  for (const key of Object.keys(listedResources)) {
-    const r = listedResources[key];
-    const uriTemplate = r?._template?.uriTemplate?.toString?.() ?? key;
-    registeredResourceURIs.add(typeof uriTemplate === "string" ? uriTemplate : key);
-  }
-  const resource_uris = REQ022_URI_CATALOG.map(({ template, title }) => {
-    const present = registeredResourceURIs.has(template);
-    return { uri: template, title, presence: present ? "present" : "absent" };
-  });
-
-  const prompts: any[] = (server as any)._registeredPrompts ? Object.values((server as any)._registeredPrompts) : [];
+  const prompts: [string, any][] = (server as any)._registeredPrompts ? Object.entries((server as any)._registeredPrompts) : [];
   const promptBudget = briefingBudget();
+  // REQ-138a — both texts come from the one renderer call: `served` measures
+  // the budget the client receives, `source` is scanned for stale references.
+  const liveResources = liveResourceIndex();
+  const userText = userAuthoredText();
   const prompt_health = [
-    ...prompts.map((p: any) => ({
-      name: p?.name ?? "unknown",
-      present: true,
-      length: 0,
-      budget: promptBudget,
-      within: true,
-      stale_references: (p?.name ?? "") in BUILDER_CATEGORIES ? [] : [] as string[],
-    })),
+    ...prompts.map(([registeredName, p]: [string, any]) => {
+      const name = typeof p?.name === "string" ? p.name : registeredName;
+      const rendered = renderHostPromptText(name);
+      const source = rendered?.source ?? "";
+      const served = rendered?.served ?? "";
+      return {
+        name,
+        present: true,
+        presence: "present" as const,
+        length: served.length,
+        budget: promptBudget,
+        within: served.length <= promptBudget,
+        stale_references: staleReferencesFor(source, liveResources, userText),
+      };
+    }),
     ...packagePromptList().map((p) => {
       const entry = packagePrompts.get(p.name)!;
       const length = entry.prompt.text.length;
       return {
         name: p.name,
         present: true,
+        presence: "present" as const,
         length,
         budget: promptBudget,
         within: length <= promptBudget,
-        stale_references: [] as string[],
+        stale_references: staleReferencesFor(entry.prompt.text, liveResources, ""),
         source: entry.slug,
       };
     }),
@@ -14867,7 +15074,7 @@ function buildSpecHealth(): Record<string, unknown> {
     prompt_count: promptCount,
     package_prompts: { installed: packagePrompts.size, errors: packagePromptErrors },
     resource_count: resourceCount,
-    resource_uris, // REQ-139 — resource URI presence from the live resource map.
+    resource_uris: resourceReport, // REQ-139 — presence and count from one live-map report.
     prompt_health, // REQ-138 — per-prompt presence, length, budget, stale refs.
     // REQ-425d — the output format catalog (universal + surface sets + any
     // ruleset-declared formats) and whether the MCP Apps extension (REQ-426c)
@@ -17072,7 +17279,17 @@ function gmContextSummary(novel: NovelState | null | undefined): string | undefi
   return lines.length > 0 ? lines.join("\n") : undefined;
 }
 
-server.prompt("intro", "Introduction and Getting Started", async () => {
+// REQ-138a — one rendering path for the six host prompts. The wrapper owns the
+// per-prompt input assembly and is the only caller of applyPromptBudget on the
+// prompt path, so health measures the served text and scans the source text
+// without a second, divergent composition.
+interface HostPromptRender { source: string; served: string }
+
+function promptMessage(text: string) {
+  return { messages: [{ role: "user" as const, content: { type: "text" as const, text } }] };
+}
+
+function renderIntroPrompt(): HostPromptRender {
   // REQ-063b — preview truncation at TTRPG_NOVEL_PREVIEW_CHARS (default 120),
   // session count, last-played date, and synthesis status per Novel.
   const previewChars = configInt("TTRPG_NOVEL_PREVIEW_CHARS", 120);
@@ -17096,20 +17313,132 @@ server.prompt("intro", "Introduction and Getting Started", async () => {
     ? `\n## Your worlds\n${libraryLines}\n\nYou have ${novels.length} ${novels.length === 1 ? "world" : "worlds"}. Which would you like to resume, or create a new one?`
     : `\n## Your worlds\nThere are no worlds yet. Create your first one — a named, persistent campaign that holds your scenes, characters, and world.`;
 
-  return {
-    messages: [{
-      role: "user",
-      content: {
-        type: "text" as const,
-        text: applyPromptBudget(composeIntro({
-          inputs: promptInputsFor(state.activeNovel),
-          library,
-          specRepoUrl: specRepoUrl(),
-          gmContext: gmContextSummary(state.activeNovel),
-        })),
-      },
-    }],
-  };
+  const source = composeIntro({
+    inputs: promptInputsFor(state.activeNovel),
+    library,
+    specRepoUrl: specRepoUrl(),
+    gmContext: gmContextSummary(state.activeNovel),
+  });
+  return { source, served: applyPromptBudget(source) };
+}
+
+function renderBadgeBriefingPrompt(mutate: boolean): HostPromptRender {
+  // The composer applies its own REQ-118 budget (plus the never-truncated intro
+  // pointer and consistency footer), so served and source are the same text.
+  const text = composeBadgeBriefing(state.activeNovel, { mutate });
+  return { source: text, served: text };
+}
+
+function renderNarratePrompt(): HostPromptRender {
+  // REQ-598 — role-scoped narrator surface. Clearance follows the AI narrative
+  // role (REQ-304), not the human badge.
+  const novel = state.activeNovel;
+  let text: string;
+  if (!novel) {
+    text = "## Narration clearance\nNo active Novel — create or resume one before narrating.";
+  } else {
+    const role = narrativeRole(novel);
+    text = role
+      ? composeNarrationClearance(novel, role)
+      : "## Narration clearance\nUnder the Editor badge there is no narrative role. Switch to the Player, Game Master, or Observer badge to narrate.";
+  }
+  return { source: text, served: text };
+}
+
+function renderSessionZeroPrompt(): HostPromptRender {
+  // REQ-078 — session zero prompt: eight sections in order, plain-English
+  // throughout with no tool names.
+  const novel = state.activeNovel;
+  const index = novel?.adventure_index;
+  const source = composeSessionZero({
+    inputs: promptInputsFor(novel),
+    rosterCount: state.roster.size,
+    adventure: index
+      ? {
+          premise: index.premise,
+          factions: (index.factions ?? []).map((f) => `${f.name}${f.goals ? ` (${f.goals})` : ""}`),
+          npcs: (index.npcs ?? []).map((n) => n.name),
+          opening: index.locations?.[0]?.description,
+        }
+      : null,
+  });
+  return { source, served: applyPromptBudget(source) };
+}
+
+function renderNovelSetupPrompt(): HostPromptRender {
+  const novel = state.activeNovel;
+  const marc = (done: boolean) => (done ? "[✓]" : "[→]");
+  const steps = novel
+    ? {
+        adventure: marc(novel.adventure_set),
+        characters: marc(novel.characters_present),
+        sessionZero: marc(novel.session_zero_completed),
+        rosterCount: state.roster.size,
+      }
+    : { adventure: "[→]", characters: "[→]", sessionZero: "[→]", rosterCount: state.roster.size };
+  const authoring = "[→]";
+  const source = composeNovelSetup({
+    inputs: promptInputsFor(novel),
+    steps,
+    authoring,
+  });
+  return { source, served: applyPromptBudget(source) };
+}
+
+function renderRunWorkflowPrompt(): HostPromptRender {
+  const registeredTools: Record<string, any> = registeredToolMap();
+  // REQ-032a/REQ-032c — the intent prompt is badge-filtered like `tools/list`:
+  // filter before both the composition and the category derivation, so no
+  // GM-only tool name or category label reaches a Player or Observer.
+  const badge = getBadge();
+  const toolNames = Object.keys(registeredTools)
+    .filter((name) => toolsVisibleToBadge(name, badge, registeredTools[name]?.annotations))
+    .sort();
+  const novel = state.activeNovel;
+  const rulesetBound = !!novel?.ruleset;
+  const source = composeRunWorkflow({
+    inputs: promptInputsFor(novel),
+    rulesetBound,
+    toolNames,
+    categories: runWorkflowCategories(toolNames),
+  });
+  return { source, served: applyPromptBudget(source) };
+}
+
+function renderHostPromptText(name: string, opts: { mutate?: boolean } = {}): HostPromptRender | null {
+  switch (name) {
+    case "intro": return renderIntroPrompt();
+    case "badge_briefing": return renderBadgeBriefingPrompt(opts.mutate === true);
+    case "narrate": return renderNarratePrompt();
+    case "session_zero": return renderSessionZeroPrompt();
+    case "novel_setup": return renderNovelSetupPrompt();
+    case "run_workflow": return renderRunWorkflowPrompt();
+    default: return null;
+  }
+}
+
+server.prompt("intro", "Introduction and Getting Started", async () => {
+  return promptMessage(renderHostPromptText("intro")!.served);
+});
+
+server.prompt("badge_briefing", "Current Badge Briefing", async () => {
+  return promptMessage(renderHostPromptText("badge_briefing", { mutate: true })!.served);
+});
+
+server.prompt("narrate", "Narration Clearance", async () => {
+  return promptMessage(renderHostPromptText("narrate")!.served);
+});
+
+server.prompt("session_zero", "Session Zero Setup", async () => {
+  return promptMessage(renderHostPromptText("session_zero")!.served);
+});
+
+server.prompt("novel_setup", "Novel Setup Guidance", async () => {
+  return promptMessage(renderHostPromptText("novel_setup")!.served);
+});
+
+server.prompt("run_workflow", "Map Intent to Tools", async () => {
+  return promptMessage(renderHostPromptText("run_workflow")!.served);
 });
 
 // REQ-166/REQ-282 — the entity personality group. Entity blocks render for
@@ -18046,104 +18375,6 @@ function composeBadgeBriefing(novel: NovelState | null | undefined, opts: { muta
 
   return briefing;
 }
-server.prompt("badge_briefing", "Current Badge Briefing", async () => {
-  return { messages: [{ role: "user", content: { type: "text" as const, text: composeBadgeBriefing(state.activeNovel, { mutate: true }) } }] };
-});
-
-server.prompt("narrate", "Narration Clearance", async () => {
-  // REQ-598 — role-scoped narrator surface. Clearance follows the AI narrative
-  // role (REQ-304), not the human badge; badge_briefing remains the human's
-  // operational briefing.
-  const novel = state.activeNovel;
-  if (!novel) {
-    return { messages: [{ role: "user", content: { type: "text" as const, text: "## Narration clearance\nNo active Novel — create or resume one before narrating." } }] };
-  }
-  const role = narrativeRole(novel);
-  if (!role) {
-    return { messages: [{ role: "user", content: { type: "text" as const, text: "## Narration clearance\nUnder the Editor badge there is no narrative role. Switch to the Player, Game Master, or Observer badge to narrate." } }] };
-  }
-  return { messages: [{ role: "user", content: { type: "text" as const, text: composeNarrationClearance(novel, role) } }] };
-});
-
-server.prompt("session_zero", "Session Zero Setup", async () => {
-  // REQ-078 — session zero prompt: eight sections in order (welcome/safety,
-  // per-signal tuning options, character introductions, character creation,
-  // adventure confirmation, narrative capabilities, quick start, between
-  // stories), plain-English throughout with no tool names, listed in
-  // prompts/list after intro.
-  const novel = state.activeNovel;
-  const index = novel?.adventure_index;
-  return {
-    messages: [{
-      role: "user",
-      content: {
-        type: "text" as const,
-        text: applyPromptBudget(composeSessionZero({
-          inputs: promptInputsFor(novel),
-          rosterCount: state.roster.size,
-          adventure: index
-            ? {
-                premise: index.premise,
-                factions: (index.factions ?? []).map((f) => `${f.name}${f.goals ? ` (${f.goals})` : ""}`),
-                npcs: (index.npcs ?? []).map((n) => n.name),
-                opening: index.locations?.[0]?.description,
-              }
-            : null,
-        })),
-      },
-    }],
-  };
-});
-
-server.prompt("novel_setup", "Novel Setup Guidance", async () => {
-  const novel = state.activeNovel;
-  const marc = (done: boolean) => (done ? "[✓]" : "[→]");
-  const steps = novel
-    ? {
-        adventure: marc(novel.adventure_set),
-        characters: marc(novel.characters_present),
-        sessionZero: marc(novel.session_zero_completed),
-        rosterCount: state.roster.size,
-      }
-    : { adventure: "[→]", characters: "[→]", sessionZero: "[→]", rosterCount: state.roster.size };
-  const authoring = "[→]";
-
-  return {
-    messages: [{
-      role: "user",
-      content: {
-        type: "text" as const,
-        text: applyPromptBudget(composeNovelSetup({
-          inputs: promptInputsFor(novel),
-          steps,
-          authoring,
-        })),
-      },
-    }],
-  };
-});
-
-server.prompt("run_workflow", "Map Intent to Tools", async () => {
-  const registeredTools: Record<string, any> = registeredToolMap();
-  // REQ-032a/REQ-032c — the intent prompt is badge-filtered like `tools/list`:
-  // filter before both the composition and the category derivation, so no
-  // GM-only tool name or category label reaches a Player or Observer.
-  const badge = getBadge();
-  const toolNames = Object.keys(registeredTools)
-    .filter((name) => toolsVisibleToBadge(name, badge, registeredTools[name]?.annotations))
-    .sort();
-  const novel = state.activeNovel;
-  const rulesetBound = !!novel?.ruleset;
-
-  const text = composeRunWorkflow({
-    inputs: promptInputsFor(novel),
-    rulesetBound,
-    toolNames,
-    categories: runWorkflowCategories(toolNames),
-  });
-  return { messages: [{ role: "user", content: { type: "text" as const, text: applyPromptBudget(text) } }] };
-});
-
 // REQ-577 — deterministic session and turn composites. Each bundles the
 // constituent tool calls and returns one result; session composites are audited
 // as one workflow, and take_turn mints the REQ-574 handle consumed by
@@ -18352,11 +18583,16 @@ function stripHiddenCatalog(tools: any[]): any[] {
     });
 }
 let originalToolListHandler: ((request: any, extra: any) => Promise<any>) | null = null;
+// REQ-389c — the served catalog and the measured cache share one projection:
+// hidden compatibility aliases out, uninstalled packages out.
+function canonicalToolCatalog(tools: any[]): any[] {
+  return stripHiddenCatalog(tools).filter((tool: any) => packageToolVisible(tool.name));
+}
 async function warmCatalogCache(): Promise<void> {
   if (!originalToolListHandler) return;
   try {
     const full = await originalToolListHandler({ method: "tools/list", params: { _meta: { profile: "full" } } }, {});
-    liveToolCache = stripHiddenCatalog(full?.tools ?? []);
+    liveToolCache = canonicalToolCatalog(full?.tools ?? []);
     surfaceMeasurementCache = null;
   } catch {
     // Best-effort: the first tools/list request warms the cache instead.
@@ -18378,7 +18614,7 @@ function installBadgeFilteredToolList(): void {
   low.setRequestHandler(ListToolsRequestSchema, async (req: any, extra: any) => {
     const full = await original(req, extra);
     const badge = getBadge();
-    const canonical = stripHiddenCatalog(full?.tools ?? []);
+    const canonical = canonicalToolCatalog(full?.tools ?? []);
     // Cache the unfiltered canonical catalog so health measurements do not
     // depend on the last caller's badge (REQ-392, REQ-568).
     liveToolCache = canonical as any[];

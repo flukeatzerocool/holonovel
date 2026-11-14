@@ -27,6 +27,49 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Prompt-reference detection and resource presence reporting — 2026-11-14
+
+- **A tool reference is a name on the host verb grammar.** `stale_references`
+  treats a token as a tool reference when it matches
+  `^(manage|resolve|run|set|open|close|take|respond)_[a-z0-9_]+$` or equals a
+  live package tool name. A blanket snake_case scan would report state field
+  names (`max_hp`), the `game_master` badge value, and user prose as stale
+  references, and the §6.5 prompt-health metric could never read zero.
+  Registered-but-hidden REQ-581 tombstones (`manage_session`, `resolve_fate`,
+  `resolve_ironsworn`, `resolve_forged`) still serve a refusal naming the
+  replacement, so referencing one is not broken output and is reported
+  present. (REQ-138a, REQ-138b, REQ-581)
+- **User-authored Novel text is data, not a reference.** A candidate token that
+  occurs inside the active Novel's name, description, scene text,
+  lore/NPC/room/thing text, story journal, notes, GM context, or roster names
+  is excluded. Accepted tradeoff: if prompt source names a dead tool *and* the
+  same token appears verbatim in user data, the report and the §6.5 metric mask
+  it. T152 asserts the source-side lifecycle on package prompts, whose text is
+  author data and never excluded. (REQ-138a)
+- **Two texts per prompt, one producer.** Prompt bodies are rendered through
+  `renderHostPromptText`, which owns the per-prompt input assembly and is the
+  only caller of `applyPromptBudget` on the prompt path. `length` and `within`
+  measure the served (budget-applied) text; `stale_references` scans the
+  pre-budget source, so the report does not depend on the budget environment.
+  `within` is advisory for `badge_briefing`: its composer budgets the body and
+  then appends the never-truncated intro pointer and briefing-consistency
+  footer, so the served length can exceed the budget by construction.
+  (REQ-118, REQ-138a)
+- **`resource_uris` is drawn from three sets and its presence is live.** The
+  report lists the REQ-022 catalog, every installed package's declared
+  resources, and the live fixed and template registrations; presence is read
+  from the live maps at call time and a catalog template counts present when a
+  concrete registration matches its pattern (`guidance://{badge}/anti-slop` is
+  served by `guidance://player/anti-slop`). `resource_count` counts present
+  entries, so the two fields cannot disagree. (REQ-139)
+- **Package resources are deregistered; package tools are filtered.** The MCP
+  SDK's registration handle supports `remove()`, so a removed package's
+  resources are deregistered and its `packageResourceKeys` entries cleared,
+  which lets a reinstall register the same URIs again. Tools keep the
+  installed-set filter because `ToolRegistry.define` has no remove and a
+  reinstall would collide; the served `tools/list`, the warm catalog cache, and
+  `tool_count` all use the same filter. (REQ-389c)
+
 ### Briefing section registry, ordering, and token vocabulary — 2026-11-14
 
 - **One registry drives composition, the override, and the token set.**

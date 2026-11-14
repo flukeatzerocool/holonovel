@@ -12,20 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.3 prompt-health and resource-presence depth (P1)
-
-- Implement `stale_references` in `spec_health` (`holonovel/src/index.ts:14648`,
-  `:14659`): a prompt naming a tool or resource absent from the live registries
-  reports that name, and restoring the registration clears it (REQ-138a/b,
-  F-P2-5).
-- Derive `resource_uris` from the live resource map rather than
-  `REQ022_URI_CATALOG` so registration adds an entry and removal flips it to
-  `absent` (REQ-139), and filter a removed package's tools out of the live
-  `tools/list` (F-P2-6, REQ-389c); extend T152/T153 with both lifecycles.
-
-**Trigger:** the next `spec_health` or package-lifecycle session; closes when
-T152/T153 assert the lifecycle legs and F-P2-5 and F-P2-6 are `Resolved`.
-
 ## Player narrative threads (P1)
 
 - Render `### Narrative threads` for the Player badge with badge-filtered

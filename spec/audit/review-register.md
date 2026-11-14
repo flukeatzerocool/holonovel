@@ -2611,8 +2611,9 @@ against Appendix F and the harness corpus, not on a gate message.
 
 The three citation findings F-P2-1, F-P2-2, and F-P2-3 are `Resolved`
 (2026-11-14) — see the §5.3 citation-repair entry under `## Resolved`. The
-chunk's remaining scheduled item is F-P2-4 below, plus the depth findings
-F-P2-5 and F-P2-6.
+depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
+§5.3 prompt-health depth entry. The chunk's remaining scheduled item is F-P2-4
+below.
 
 - **F-P2-4 — zero-padded harness test IDs shadow real catalogue IDs
   (scheduled):** `holonovel/scripts/test-backfill.ts:157` (`T5/T020`),
@@ -2623,26 +2624,48 @@ F-P2-5 and F-P2-6.
   correct them to the IDs the assertions actually implement, and re-run the
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
-- **F-P2-5 — prompt-health stale references and live resource-URI presence are
-  unimplemented (scheduled):** `spec_health` emits `stale_references: []` for
-  every host and package prompt (`holonovel/src/index.ts:14648`, `:14659`) and
-  derives `resource_uris` from the static `REQ022_URI_CATALOG`
-  (`:14634-14637`), so REQ-138a/b's stale-reference lifecycle and REQ-139's
-  "registering a new resource adds an entry immediately" clause have no
-  implementation and no assertion. T152/T153 assert the report shape only.
-  Predicate: the two source sites against the two Check trailers. Scheduled
-  under `ROADMAP.md` § *§5.3 prompt-health and resource-presence depth (P1)*.
-- **F-P2-6 — a removed package's tools remain in `tools/list`
-  (scheduled):** the SDK has no tool-deregistration API and the live listing
-  does not filter on the installed set (only `registeredToolDefinitions`,
-  `holonovel/src/index.ts:1580`, applies `packageToolVisible`), so after
-  `manage_ruleset (action: remove)` the package's tools still list and are
-  refused only by the dispatch scope gate. Observed while writing T35
-  (`holonovel/scripts/test-output-contracts.ts:2593`). Predicate: `:1580`
-  versus the live-list handler at `:18379-18420`. Scheduled under the same
-  roadmap section.
+
+### 2026-11-14 §5.3 prompt-health and resource-presence depth
+
+- **F-P2-5 — prompt-health stale references and live resource-URI presence were
+  unimplemented. Resolved (2026-11-14).** Predicate was `spec_health` emitting
+  `stale_references: []` for every host and package prompt and building
+  `resource_uris` from the static `REQ022_URI_CATALOG`, so REQ-138a/b's
+  stale-reference lifecycle and REQ-139's registration clause had no
+  implementation. `prompt_health` now renders each host prompt through one
+  renderer (`renderHostPromptText`), reports `presence`, the served `length` and
+  `within`, and scans the source text for unregistered tool and resource
+  references; `resource_uris` is drawn from the REQ-022 catalog, the installed
+  packages' declared resources, and the live fixed and template maps, with
+  `resource_count` counting present entries. T152 and T153 assert both
+  lifecycles, including a declared-but-unregistered URI reporting `absent` and
+  a Novel's user-authored text not being read as a reference. REQ-138a,
+  REQ-138b, REQ-139.
+- **F-P2-6 — a removed package's tools remained in `tools/list`. Resolved
+  (2026-11-14).** Predicate was the live listing applying hidden-alias and
+  badge filters only while `registeredToolDefinitions` alone applied
+  `packageToolVisible`, so a removed package's tools still listed and were
+  refused only at dispatch. The served catalog and the warm cache now share
+  `canonicalToolCatalog` (hidden aliases + uninstalled packages out),
+  `visibleToolCount` applies the same predicate, `registrationFingerprint`
+  includes the install set, and removal emits `tools/list_changed`. Package
+  resources are deregistered through the SDK handle. T453 asserts the removed
+  tool leaves `tools/list(scope=all)` and `tool_count`, the resource leaves the
+  report, and a reinstall serves again. REQ-389c.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-14 §5.3 prompt-health depth — residuals
+
+- **Appendix F row T167 names a field the server does not emit
+  (2026-11-14):** the row describes
+  `spec_health.convergence_summary.prompt_health.stale_reference_count`, and no
+  `convergence_summary` exists anywhere in the tree; the row belongs to the
+  §6.5 builder metric, whose prompt-health detection is the REQ-138 report this
+  increment implements. REQ-138. No action: the token `T167` is also cited by
+  REQ-167, so the row cannot be exercised under its recorded ID without a
+  duplicate-title defect, and no server output is wrong. Revisit only if a
+  §6.5 builder surface is added.
 
 ### 2026-11-11 §5.10 override hint envelope — residuals
 

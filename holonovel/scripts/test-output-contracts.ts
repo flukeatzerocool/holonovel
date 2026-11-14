@@ -597,13 +597,75 @@ async function main() {
     await call(p, "manage_novel", { action: "create",  name: "w1k" });
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!Array.isArray(health.prompt_health) || health.prompt_health.length === 0) throw new Error("REQ-138 prompt_health empty");
+    const hostNames = ["intro", "badge_briefing", "narrate", "session_zero", "novel_setup", "run_workflow"];
     for (const ph of health.prompt_health) {
       if (!("name" in ph) || !("within" in ph) || !("stale_references" in ph)) throw new Error("REQ-138 prompt_health shape");
+      if (!hostNames.includes(ph.name)) continue;
+      if (ph.presence !== "present") throw new Error(`REQ-138 '${ph.name}' presence ${ph.presence}`);
+      if (!(ph.length > 0)) throw new Error(`REQ-138 '${ph.name}' length not measured`);
+      if (!Array.isArray(ph.stale_references) || ph.stale_references.length !== 0) {
+        throw new Error(`REQ-138 '${ph.name}' stale refs: ${(ph.stale_references ?? []).join(",")}`);
+      }
+    }
+    // REQ-138b — the health read renders prompts without mutating state.
+    const repeated = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if (JSON.stringify(repeated.prompt_health) !== JSON.stringify(health.prompt_health)) {
+      throw new Error("REQ-138 prompt_health changed between identical reads");
+    }
+    // REQ-138a (D2b) — user-authored Novel text is data, not a prompt reference.
+    await call(p, "manage_novel", { action: "create", name: "manage_dragon", description: "open_the_gate awaits." });
+    const withUserData = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    for (const ph of (withUserData.prompt_health ?? []).filter((x: any) => hostNames.includes(x.name))) {
+      if (ph.stale_references.length !== 0) throw new Error(`REQ-138 user data leaked into '${ph.name}': ${ph.stale_references.join(",")}`);
     }
     if (!Array.isArray(health.resource_uris) || health.resource_uris.length === 0) throw new Error("REQ-139 resource_uris empty");
     for (const ru of health.resource_uris) {
       if (!("uri" in ru) || !("presence" in ru)) throw new Error("REQ-139 resource_uris shape");
+      if (ru.presence === "present" && typeof ru.name !== "string") throw new Error(`REQ-139 '${ru.uri}' present without a registration name`);
     }
+    // REQ-139 — live-only host entries outside the REQ-022 catalog are listed,
+    // and a catalog template is present when its concrete registrations are.
+    if (!health.resource_uris.some((ru: any) => ru.uri === "holonovel://tool-groups")) throw new Error("REQ-139 live-only host entry missing");
+    if (!health.resource_uris.some((ru: any) => ru.uri === "ruleset://{slug}/{anchor}")) throw new Error("REQ-139 live template missing");
+    const antiSlop = health.resource_uris.find((ru: any) => ru.uri === "guidance://{badge}/anti-slop");
+    if (!antiSlop || antiSlop.presence !== "present") throw new Error("REQ-139 concrete template instances not recognised");
+    if (health.resource_count !== health.resource_uris.filter((ru: any) => ru.presence === "present").length) {
+      throw new Error("REQ-139 resource_count disagrees with resource_uris");
+    }
+    // REQ-138a/REQ-139 — install adds a declared resource and a prompt that
+    // names an unregistered tool reports it; a live name stays clean.
+    const healthPkg: any = {
+      manifest: { slug: "healthres", name: "Health Resources", host_version: "2026.10.20", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-10-20", counts: { index: 0 } },
+      index: [],
+      model: { concepts: {}, tables: {}, generation_tables: {} },
+      tools: [],
+      resources: [
+        { name: "runtime_entry", uri: "runtime://entry", title: "Runtime Entry", mimeType: "text/plain", text: "runtime resource text" },
+        { name: "dup_entry", uri: "runtime://dup-a", title: "Dup A", mimeType: "text/plain", text: "a" },
+        { name: "dup_entry", uri: "runtime://dup-b", title: "Dup B", mimeType: "text/plain", text: "b" },
+      ],
+      prompts: [
+        { name: "healthref_missing", title: "Missing Reference", text: "Use manage_absent_tool to continue." },
+        { name: "healthref_live", title: "Live Reference", text: "Use manage_context to continue." },
+      ],
+    };
+    healthPkg.manifest.content_hash = contentHash(healthPkg);
+    assertContains(await call(p, "manage_ruleset", { action: "install", slug: "healthres", manifest: healthPkg.manifest, index: healthPkg.index, model: healthPkg.model, tools: healthPkg.tools, resources: healthPkg.resources, prompts: healthPkg.prompts }), "installed", "health package installed");
+    const pkgHealth = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    const missingRef = (pkgHealth.prompt_health ?? []).find((x: any) => x.name === "healthref_missing");
+    if (!missingRef || !missingRef.stale_references.includes("manage_absent_tool")) throw new Error("REQ-138 stale reference not reported");
+    const liveRef = (pkgHealth.prompt_health ?? []).find((x: any) => x.name === "healthref_live");
+    if (!liveRef || liveRef.stale_references.length !== 0) throw new Error("REQ-138 registered reference reported stale");
+    const installedUri = (pkgHealth.resource_uris ?? []).find((x: any) => x.uri === "runtime://entry");
+    if (!installedUri || installedUri.presence !== "present" || installedUri.name !== "pkg:healthres:runtime_entry" || installedUri.mime_type !== "text/plain") {
+      throw new Error(`REQ-139 installed resource entry: ${JSON.stringify(installedUri)}`);
+    }
+    const unregistered = (pkgHealth.resource_uris ?? []).find((x: any) => x.uri === "runtime://dup-b");
+    if (!unregistered || unregistered.presence !== "absent") throw new Error(`REQ-139 declared-unregistered URI: ${JSON.stringify(unregistered)}`);
+    assertContains(await call(p, "manage_ruleset", { action: "remove", slug: "healthres" }), "removed", "health package removed");
+    const afterRemove = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if ((afterRemove.resource_uris ?? []).some((x: any) => x.uri === "runtime://entry")) throw new Error("REQ-139 removed package resource still reported");
+    if ((afterRemove.prompt_health ?? []).some((x: any) => x.name === "healthref_missing")) throw new Error("REQ-138 removed package prompt still reported");
     if (!health.audit_chain || health.audit_chain.valid !== true) throw new Error("REQ-169 audit_chain missing/valid");
     if (!health.safety_protocols?.state_loss) throw new Error("REQ-269 safety_protocols missing");
     passed++;
@@ -2476,6 +2538,7 @@ async function main() {
   await test("T453/REQ-389c: runtime install registers prompts without restart", async () => {
     const p = await boot();
     await call(p, "set_badge", { badge: "game_master" });
+    const beforeCount = JSON.parse(await call(p, "manage_diagnostics", { action: "health" })).tool_count;
     const runtimeTool = {
       name: "lookup_runtime", title: "Lookup Runtime",
       description: "Look up a runtime entry. Use when: testing runtime install. Do NOT use when: another package serves it.",
@@ -2507,6 +2570,21 @@ async function main() {
     assertContains(removed, "removed", "runtime package removed");
     const after = await send(p, { method: "prompts/list", params: {} });
     assertNotContains((after?.result?.prompts ?? []).map((x: any) => x.name).join(","), "runtime_intro", "runtime prompt deregistered");
+    // REQ-389c — the removed package's tools leave the served list and the
+    // reported count, and its resources are deregistered rather than filtered.
+    const scoped = await send(p, { method: "tools/list", params: { _meta: { scope: "all", profile: "full" } } });
+    const scopedNames = (scoped?.result?.tools ?? []).map((x: any) => x.name);
+    assertNotContains(scopedNames.join(","), "rtprompt_lookup_runtime", "removed package tool still listed");
+    assertNotContains(scopedNames.join(","), "rtprompt_", "removed package prefix still listed");
+    const healthAfterRemove = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if (healthAfterRemove.tool_count !== beforeCount) throw new Error(`REQ-389c tool_count ${healthAfterRemove.tool_count} != ${beforeCount}`);
+    if (healthAfterRemove.resource_uris.some((r: any) => r.uri === "runtime://entry")) throw new Error("REQ-389c removed resource still reported");
+    // REQ-389c — a reinstall re-registers the same resource (no duplicate guard).
+    assertContains(await call(p, "manage_ruleset", { action: "install", slug: "rtprompt", manifest: runtime.manifest, index: runtime.index, model: runtime.model, tools: runtime.tools, resources: runtime.resources, prompts: runtime.prompts }), "installed", "runtime package reinstalled");
+    const reread = await send(p, { method: "resources/read", params: { uri: "runtime://entry" } });
+    assertContains(JSON.stringify(reread?.result ?? {}), "runtime resource text", "reinstalled package resource not readable");
+    // Leave the install set as the test found it: later tests count packages.
+    assertContains(await call(p, "manage_ruleset", { action: "remove", slug: "rtprompt" }), "removed", "runtime package removed again");
     await kill(p);
     passed++;
   });

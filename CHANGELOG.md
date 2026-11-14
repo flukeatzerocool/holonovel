@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-11-14 — §5.3 prompt health and resource presence
+
+- `spec_health.prompt_health` now reports what REQ-138a asks for: every host
+  prompt is rendered through one `renderHostPromptText` path (the only caller of
+  `applyPromptBudget`), so `presence`, the served `length`, the REQ-118 `within`
+  flag, and a `stale_references` list are real rather than constant. A token is
+  a tool reference only on the host verb grammar or as a live package tool name,
+  registered tombstones count as present, and the active Novel's user-authored
+  text is excluded as data. (REQ-138a, REQ-138b, REQ-581)
+- `spec_health.resource_uris` is drawn from the REQ-022 catalog, the installed
+  packages' declared resources, and the live fixed and template maps, with
+  registration name and MIME type on present entries; a catalog template counts
+  present when a concrete registration matches it, a declared-but-unregistered
+  URI reports `absent`, and `resource_count` counts present entries so the two
+  fields cannot disagree. (REQ-139)
+- A removed package now leaves the served surface: package resources are
+  deregistered through the SDK registration handle (and their keys cleared, so a
+  reinstall re-registers), the served `tools/list` and warm catalog cache share
+  `canonicalToolCatalog`, `tool_count` follows the install set,
+  `registrationFingerprint` includes it, and removal emits `tools/list_changed`.
+  (REQ-389c)
+- T152 and T153 assert both lifecycles — the stale-reference report, the
+  user-data exclusion, live-only host entries, install/absent/removal, and the
+  Player-badge read — and T453 asserts the removed tool leaves the listing and
+  the count, the resource leaves the report, and a reinstall serves again.
+  REQ-138b's and REQ-139's acceptance sentences and the Appendix F T152/T153
+  rows now describe those reachable observables. F-P2-5 and F-P2-6 are
+  `Resolved`; Appendix F T167's unimplemented `convergence_summary` row is
+  recorded as Closed-P3. The detection policy is recorded in `DECISIONS.md`.
+  (REQ-138b, REQ-139, REQ-389c)
+- Holosuite evidence anchors that the source shift moved were repointed (17
+  anchors across the conformance, invariants, novel, and adversarial tiers),
+  restoring all five deterministic tiers.
+
 ## 2026-11-14 — §5.3 citation repair: prompt registration and fixture isolation
 
 - Two §5.3 assertions that named no harness now exist: T22 exercises the prompt

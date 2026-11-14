@@ -823,7 +823,7 @@ When no Novel is active, the field does not appear. *Acceptance criterion:* A No
 `spec_health` SHALL include, for each registered prompt: its name, presence (present/absent), character length, the configured budget from REQ-118, a budget-compliance flag (within/exceeded), and a stale-references list. The stale-references list names tool or resource names appearing in the prompt's rendered text that do not match any name in the live tool registry or resource map. A stale reference is one whose name (matching by exact string or the MCP SDK's registration name) appears in the prompt text but is absent from the live registrations at call time. The absence of any stale references SHALL be reported as an empty list.
 
 **REQ-138b — Prompt health reporting (Part b).**
-Prompt health SHALL be present in `spec_health` regardless of build mode. *Acceptance criterion:* `spec_health` reports prompt health for every registered prompt; renaming a tool referenced in a prompt produces a stale reference entry on the next `spec_health` call; restoring the tool name clears the entry. _Check:_ T152.
+Prompt health SHALL be present in `spec_health` regardless of build mode. *Acceptance criterion:* `spec_health` reports prompt health for every registered prompt; a prompt whose text names a tool absent from the live registry reports a stale reference on the next `spec_health` call; a prompt whose text names a registered tool reports none. _Check:_ T152.
 **REQ-139 — Resource URI completeness reporting.** `spec_health` SHALL report
 resource URI presence: for every URI template defined in the REQ-022 resource
 catalog, `spec_health` SHALL list the URI, its presence (present/absent), its
@@ -832,8 +832,9 @@ registration name if present, and its MIME type. URIs with dynamic segments
 template form. Counts SHALL be derived from the live resource map at call time.
 The report SHALL be absent when the build is not yet complete.
 *Acceptance criterion:* `spec_health.resource_uris` lists every REQ-022 URI
-with presence; registering a new resource adds an entry immediately; removing a
-resource changes its presence to `absent`.
+with presence; registering a new resource adds an entry immediately; a declared
+URI with no live registration reports `absent`, and an uninstalled package's
+resources leave the report.
 _Check:_ T153.
 
 **REQ-269 — Safety protocol status.** The server SHALL report, through `spec_health`,
