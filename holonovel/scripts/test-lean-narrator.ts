@@ -81,6 +81,12 @@ async function main(): Promise<void> {
     const r = await raw(p, "manage_novel", { action: "create", name: "Lean Test" });
     assert(Boolean(r.structuredContent), "no structuredContent on ok response");
     assert(r.structuredContent.status === "OK", `status=${r.structuredContent.status}`);
+    // A machine-readable body keeps its verbatim text (REQ-001) and reports a
+    // declared status (REQ-548a); `RAW` is not in the vocabulary.
+    const declared = new Set(["OK", "NEED_INPUT", "WARNING", "PARTIAL", "ERROR"]);
+    const json = await raw(p, "manage_story", { action: "list" });
+    assert(declared.has(json.structuredContent?.status), `machine-readable body status=${json.structuredContent?.status}`);
+    assert(json.structuredContent?.status !== "RAW", "RAW is an undeclared status");
   });
 
   await test("REQ-548c T634 structured error results", async () => {
@@ -88,6 +94,12 @@ async function main(): Promise<void> {
     assert(Boolean(r.structuredContent), "no structuredContent on error response");
     assert(Boolean(r.structuredContent.category), "no category");
     assert("corrective_action" in r.structuredContent, "no corrective_action");
+    // The structured error carries the same enumeration its text reports.
+    const nf = await raw(p, "manage_scene", { action: "set", scene_type: "nonsense" });
+    const values = nf.structuredContent?.values;
+    assert(Array.isArray(values) && values.includes("social"), `no values in structured error: ${JSON.stringify(nf.structuredContent)}`);
+    const textValues = (nf.content ?? []).map((c: any) => c?.text ?? "").join("\n").match(/Valid values:\s*([^\n]+)/)?.[1] ?? "";
+    for (const value of values) assert(textValues.includes(value), `structured value '${value}' absent from the text`);
   });
 
   await test("REQ-548d T635 machine-readable decision options", async () => {

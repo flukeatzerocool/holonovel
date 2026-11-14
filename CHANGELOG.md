@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-13 — Trust-core error envelope: normalized refusals, declared statuses, structured error values
+
+- Refusals: a thrown `[FORBIDDEN]`/`[STATE_CONFLICT]` gate (`requireGM`,
+  `requirePlayer`, `requireNotObserver`, `requireNovel`) is converted by
+  `normalizeRefusal` into the standard envelope — `[ERROR] [CODE]`, one
+  standalone `Corrective action:` line, `isError: true`, and a structured
+  result with `status`, `category`, and `corrective_action` (REQ-001,
+  REQ-002b1, REQ-548c; F-P1-1). Converted refusals do not advance the pacing
+  counter, matching the thrown behaviour they replace (REQ-336).
+- Error boundary: the `createToolError` override is removed, so an SDK
+  argument-schema violation keeps the SDK's `-32602` result shape and carries
+  no REQ-002 category (REQ-001b2; F-P1-2). Harness expectations that assumed
+  the old `[ERROR] [INVALID_INPUT]` re-label are reconciled (`G9`, T753, T756,
+  T720, T699) to accept the SDK shape as the refusal.
+- Status vocabulary: `raw()` reports `classifyStatus(text)` over the declared
+  set `OK | NEED_INPUT | WARNING | PARTIAL | ERROR` instead of an undeclared
+  `RAW` (REQ-548a; F-P1-3). REQ-001 gains the machine-readable-body clause,
+  REQ-548a the success statuses, and REQ-548c the `ERROR` status.
+- Structured errors: `err()` mirrors the text's `Valid values: …` enumeration
+  into `structuredContent.values` (REQ-548c; F-P1-10), and dispatcher refusals
+  (retired alias, ruleset scope, surface guard) now carry a structured result
+  (F-P1-11).
+- Harnesses: new `T180/REQ-001b2` and `T180b/REQ-548c` in
+  `test-output-contracts.ts`; `T178` gains the prefix, single-corrective-line,
+  and structured-result legs; `T632`/`T634` gain the declared-status and
+  mirrored-values legs; new `T386c` in `test-narrative.ts` proves a refusal
+  does not advance pacing. The four Holosuite anchor sets are repointed.
+- Registers: F-P1-1/2/3/10/11 `Resolved` with current predicates and F-P1-12
+  dispositioned (already implemented); F-P1-14/15/16 recorded as
+  `Scheduled-roadmap`; F-S1 drops its resolved REQ-001b2→T180 entry; the
+  ROADMAP error-envelope bullet is replaced by the remainder bullet.
+
 ## 2026-11-13 — §5.4 citation repair: T103 creation-undo assertions and profile-only snapshot fix
 
 - `manage_character (action: create)` now takes a pre-mutation snapshot on both

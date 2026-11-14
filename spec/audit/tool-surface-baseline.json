@@ -202,14 +202,14 @@
         "retired": true
       }
     ],
-    "full_tokens": 29417,
-    "tools_list_bytes": 117668
+    "full_tokens": 29806,
+    "tools_list_bytes": 119222
   },
   "measurements": {
     "full": {
       "tools": 37,
-      "bytes": 117668,
-      "tokens": 29417
+      "bytes": 119222,
+      "tokens": 29806
     },
     "standard": {
       "tools": 37,
@@ -265,8 +265,8 @@
     }
   },
   "budgets": {
-    "standard": 26476,
-    "small": 2942
+    "standard": 26826,
+    "small": 2981
   },
   "worst_case": {
     "standard_tokens": 25819,

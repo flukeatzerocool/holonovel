@@ -232,40 +232,55 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotation> = {
 const _registerTool = server.registerTool.bind(server);
 // The tool registry is the definition site; MCP is one adapter over it.
 const toolRegistry = new ToolRegistry();
-// REQ-002 — the SDK returns an argument-schema violation as a tool result with
-// `isError: true` and an `MCP error -32602: Input validation error …` message.
-// Emit the standard `[ERROR] [INVALID_INPUT]` envelope for those; other tool
-// errors keep the SDK's message. Feature-guarded so an SDK change surfaces
-// loudly in tests rather than silently.
-const _origCreateToolError = (server as any).createToolError?.bind(server);
-if (typeof _origCreateToolError === "function") {
-  (server as any).createToolError = (msg: unknown) => {
-    const text = String(msg ?? "");
-    if (/Input validation error|Invalid arguments|Invalid option|Invalid enum/i.test(text)) {
-      return {
-        content: [{ type: "text" as const, text: `[ERROR] [INVALID_INPUT] ${text}\nCorrective action: Supply a valid value for every required parameter.` }],
-        isError: true,
-      };
-    }
-    return _origCreateToolError(msg);
-  };
-}
 // REQ-548b — every registered tool declares an output schema in `tools/list`
 // describing its structured result. The shared schema is permissive so
 // ruleset-derived result fields remain unconstrained. REQ-548a — a handler that
 // returns text only is given a structured result derived from that text.
 const OUTPUT_SCHEMA = z.looseObject({
-  status: z.string().describe("Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or an error category (REQ-002, REQ-548c)."),
+  status: z.string().describe("Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or ERROR; an error's Appendix O.2 category rides in `category` (REQ-002, REQ-548c)."),
   text: z.string().optional().describe("Human-readable text envelope mirroring the structured result (REQ-001, REQ-548a)."),
 });
+// REQ-548a/REQ-548c — the declared status vocabulary. A machine-readable body
+// (Appendix T.1 `json`) keeps its text verbatim and reports its status here
+// instead of in a text prefix (REQ-001).
+const DECLARED_STATUSES = ["OK", "NEED_INPUT", "WARNING", "PARTIAL", "ERROR"] as const;
+type DeclaredStatus = (typeof DECLARED_STATUSES)[number];
+function classifyStatus(text: string): DeclaredStatus {
+  const first = text.split("\n").find((line) => line.trim().length > 0) ?? "";
+  for (const status of ["WARNING", "PARTIAL", "NEED_INPUT", "ERROR"] as const) {
+    if (first.trimStart().startsWith(`[${status}]`)) return status;
+  }
+  return "OK";
+}
 function ensureStructured(handler: any) {
   return async (...args: any[]) => {
     const result = await handler(...args);
     if (result && typeof result === "object" && Array.isArray(result.content) && result.structuredContent === undefined) {
       const text = result.content.map((c: any) => c?.text ?? "").join("\n");
-      result.structuredContent = { status: "OK", text };
+      result.structuredContent = { status: classifyStatus(text), text };
     }
     return result;
+  };
+}
+// REQ-001/REQ-002b1/REQ-548c — a handler that throws a categorical refusal is
+// converted into the standard envelope: `[ERROR] [CODE]`, a standalone
+// `Corrective action:` line, `isError: true`, and a structured result. The
+// StateManager gates throw one canonical shape; any other error propagates
+// unchanged and keeps the SDK's tool-result shape.
+function normalizeRefusal(handler: any) {
+  return async (...args: any[]) => {
+    try {
+      return await handler(...args);
+    } catch (e: any) {
+      const message = String(e?.message ?? "");
+      const match = message.match(/^\[(?:ERROR\]\s*\[)?([A-Z_]+)\]\s*([\s\S]*)$/);
+      if (!match) throw e;
+      const [, code, rest] = match;
+      const parts = rest.split(/\s*Corrective action:\s*/);
+      const body = parts[0].trim();
+      const action = parts.length > 1 ? parts[parts.length - 1].trim() : undefined;
+      return refusalResult(code, body, action);
+    }
   };
 }
 // The SDK normalizes a raw parameter shape into a Zod object at registration.
@@ -286,15 +301,17 @@ export function normalizeToolSchema(schema: any): any {
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
-  const audited = withForbiddenAudit(ensureStructured(handler), name) as any;
+  const audited = withForbiddenAudit(normalizeRefusal(ensureStructured(handler)), name) as any;
   // REQ-336 — every completed tool call advances the session pacing counter,
   // mutating or not. A refusal envelope still completes; a thrown error does
-  // not. The count is not persisted per call; only a firing autonomy cycle
-  // writes it (see triggerPacingAutonomy).
+  // not. A converted refusal keeps that parity: `isError` results are the
+  // refusals the SDK used to throw, so they do not advance the counter.
+  // The count is not persisted per call; only a firing autonomy cycle writes
+  // it (see triggerPacingAutonomy).
   const paced = async (args: any, ctx: any) => {
     const result = await audited(args, ctx);
     const novel = state.activeNovel;
-    if (novel) bumpPacing(novel);
+    if (novel && !(result && result.isError)) bumpPacing(novel);
     return result;
   };
   toolRegistry.define(name, {
@@ -1931,7 +1948,23 @@ function surfaceGuard(name: string, args: Record<string, unknown>): string | nul
   return refusal;
 }
 
-type GuardRefusal = { content: { type: "text"; text: string }[]; isError: true };
+type GuardRefusal = { content: { type: "text"; text: string }[]; isError: true; structuredContent: Record<string, any> };
+
+// REQ-548c — a dispatcher refusal keeps its exact text and gains a structured
+// result: the category, plus the corrective action its text already names
+// (`Next: …`, a closing `Use …` sentence, or the category default).
+function dispatcherRefusal(code: string, text: string): GuardRefusal {
+  const action = text.match(/Next:\s*(.+)$/i)?.[1]?.trim()
+    ?? text.match(/(Use .+)$/)?.[1]?.trim()
+    ?? CORRECTIVE_ACTIONS[code]
+    ?? null;
+  const body = text.replace(/^\s*\[ERROR\]\s*\[[A-Z_]+\]\s*/, "").trim();
+  return {
+    content: [{ type: "text", text }],
+    isError: true,
+    structuredContent: structured("ERROR", body, { category: code, corrective_action: action }),
+  };
+}
 
 // REQ-573/575/576/581 — one refusal path shared by the MCP request handler and
 // the in-process façade. Returns a refusal envelope or null to proceed.
@@ -1948,7 +1981,7 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
     discoveryPendingCall = false;
   }
   const retired = retiredAliasRefusal(surfaceRegistry(), toolName, callArgs);
-  if (retired) return { content: [{ type: "text", text: retired }], isError: true };
+  if (retired) return dispatcherRefusal("NOT_FOUND", retired);
   // REQ-381a/REQ-380c — ruleset scope is enforced at dispatch, not only in
   // tools/list. A package tool whose slug differs from the active Novel's
   // ruleset is refused, naming both scopes.
@@ -1956,17 +1989,15 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
   if (toolName && activeRuleset) {
     const callee = packageSlugForTool(toolName);
     if (callee && callee !== activeRuleset) {
-      return {
-        content: [{
-          type: "text",
-          text: `[ERROR] [INVALID_INPUT] Tool '${toolName}' belongs to ruleset '${callee}'; the active Novel uses '${activeRuleset}'. Next: call a '${activeRuleset}' tool, or create or switch to a Novel bound to '${callee}'.`,
-        }],
-        isError: true,
-      };
+      return refusalResult(
+        "INVALID_INPUT",
+        `Tool '${toolName}' belongs to ruleset '${callee}'; the active Novel uses '${activeRuleset}'.`,
+        `Call a '${activeRuleset}' tool, or create or switch to a Novel bound to '${callee}'.`,
+      );
     }
   }
   const refusal = surfaceGuard(toolName, callArgs);
-  if (refusal) return { content: [{ type: "text", text: refusal }], isError: true };
+  if (refusal) return dispatcherRefusal("STATE_CONFLICT", refusal);
   return null;
 }
 
@@ -3201,7 +3232,30 @@ function err(code: string, msg: string, correctiveAction?: string) {
   const expanded = expandMacros(msg, buildMacroContext());
   const action = correctiveAction ?? CORRECTIVE_ACTIONS[code];
   const text = action ? `[ERROR] [${code}] ${expanded}\nCorrective action: ${action}` : `[ERROR] [${code}] ${expanded}`;
-  return { content: [{ type: "text" as const, text }], structuredContent: structured("ERROR", expanded, { category: code, corrective_action: action ?? null }) };
+  const values = parseValidValues(expanded);
+  return {
+    content: [{ type: "text" as const, text }],
+    structuredContent: structured("ERROR", expanded, { category: code, corrective_action: action ?? null, ...(values ? { values } : {}) }),
+  };
+}
+
+// REQ-548c — the valid-value enumeration the text already carries, as a
+// structured array. One source, so the two cannot disagree; badge filtering of
+// that source is the caller's responsibility (REQ-002c).
+function parseValidValues(text: string): string[] | null {
+  const match = text.match(/Valid values:\s*([^\n]+)/);
+  if (!match) return null;
+  const rawList = match[1].replace(/\.\s*$/, "").trim();
+  if (!rawList) return null;
+  const values = rawList.split(",").map((value) => value.trim().replace(/…$/, "").trim()).filter(Boolean);
+  return values.length > 0 ? values : null;
+}
+
+// REQ-001/REQ-548c — an error envelope that also carries `isError: true`, for
+// paths whose caller historically saw an SDK-thrown error (converted refusals
+// and dispatcher refusals). `err()` itself keeps its long-standing shape.
+function refusalResult(code: string, msg: string, correctiveAction?: string) {
+  return { ...err(code, msg, correctiveAction), isError: true as const };
 }
 
 // REQ-129a/c — cardinality refusal naming the affected group and the current
@@ -3357,7 +3411,7 @@ function validateNarration(claim: string, novel: NovelState): string | null {
 
 function raw(text: string) {
   const expanded = expandMacros(text, buildMacroContext());
-  return { content: [{ type: "text" as const, text: expanded }], structuredContent: structured("RAW", expanded) };
+  return { content: [{ type: "text" as const, text: expanded }], structuredContent: structured(classifyStatus(expanded), expanded) };
 }
 
 function warn(text: string) {

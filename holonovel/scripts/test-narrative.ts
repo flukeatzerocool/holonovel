@@ -885,6 +885,35 @@ async function main() {
       assertContains(over, "[pacing] Scene stabilized");
     });
 
+    await test("T386c: a refusal does not advance the pacing counter", async () => {
+      // Measure the threshold empirically rather than assuming the scene-set
+      // call lands at 1: `needed` recaps past a reset are what cross the window.
+      await call(proc, "manage_novel", { action: "create", name: "narrative-refusal" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      let resetSeq = 0;
+      const reset = async () => { await call(proc, "manage_scene", { action: "set", description: `Refusal reset ${++resetSeq}` }); };
+      // An initial scene placement is not a transition; warm it up so every
+      // later set resets the counter.
+      await call(proc, "manage_scene", { action: "set", description: "Refusal warm-up" });
+      let needed = 0;
+      await reset();
+      for (let i = 1; i <= 10; i++) {
+        await call(proc, "manage_context", { action: "recap" });
+        if (/\[pacing\]/.test(await briefing(proc))) { needed = i; break; }
+      }
+      assert(needed >= 2, `T386c could not measure the pacing threshold (needed=${needed})`);
+      await reset();
+      for (let i = 0; i < needed - 1; i++) await call(proc, "manage_context", { action: "recap" });
+      const refused = await callRaw(proc, "manage_character", { action: "signal", signal: "detail", value: "brisk" });
+      const refusedText = (refused.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      assertContains(refusedText, "[ERROR] [FORBIDDEN]");
+      const under = await briefing(proc);
+      assertNotContains(under, "[pacing] Scene stabilized");
+      await call(proc, "manage_context", { action: "recap" });
+      const over = await briefing(proc);
+      assertContains(over, "[pacing] Scene stabilized");
+    });
+
     await test("T401: pacing-triggered autonomy advances faction and surfaces goal pursuit", async () => {
       await call(proc, "manage_faction", { action: "create",  name: "Thieves Guild", goals: ["Plunder the treasury"], resources: "lockpicks" });
       await call(proc, "manage_npc", { action: "create",  name: "Locke", disposition: "suspicious", goals: "Crack the vault" });

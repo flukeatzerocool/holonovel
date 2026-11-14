@@ -257,7 +257,7 @@ async function main(): Promise<void> {
       assert(parsed.matches.length > 0, "schema detail returned no matches");
       assert(parsed.matches[0].input_schema?.properties, "matched tool carries no input schema");
       const unknown = await text(proc, "manage_context", { action: "discover", query: "npc", detail: "bogus" });
-      assert(unknown.includes("INVALID_INPUT"), "unknown detail did not refuse");
+      assert(/Invalid option|INVALID_INPUT/.test(unknown), "unknown detail did not refuse");
       const noQuery = await text(proc, "manage_context", { action: "discover", detail: "schema" });
       assert(noQuery.includes("INVALID_INPUT"), "schema detail without a query did not refuse");
       // REQ-391b — a single ruleset's tool set on demand, distinct from the

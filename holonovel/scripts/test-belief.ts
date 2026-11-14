@@ -578,7 +578,7 @@ async function main() {
     const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
     assert(recs.length === 1 && recs[0].disclosure === "secret", "the record-time default is not secret: " + JSON.stringify(recs[0]?.disclosure));
     const bad = await memory(p, id, "a bad level", { subjective_disclosure: "loud" });
-    assert(bad.includes("[INVALID_INPUT]"), "an unknown disclosure was accepted: " + bad.slice(0, 160));
+    assert(/Invalid option|\[INVALID_INPUT\]/.test(bad), "an unknown disclosure was accepted: " + bad.slice(0, 160));
     const good = await memory(p, id, "a shared victory", { subjective_disclosure: "open" });
     assert(good.includes("[OK]"), "an explicit level was refused: " + good.slice(0, 160));
     await kill(p);
@@ -653,7 +653,7 @@ async function main() {
     const recs = JSON.parse(await call(p, "manage_belief", { action: "subjective_list", subjective_entity: id }));
     const rid = recs[0].id;
     const bad = await call(p, "manage_belief", { action: "subjective_disclose", subjective_record_id: rid, subjective_disclosure: "loud" });
-    assert(bad.includes("[INVALID_INPUT]"), "an unknown level was accepted: " + bad.slice(0, 160));
+    assert(/Invalid option|\[INVALID_INPUT\]/.test(bad), "an unknown level was accepted: " + bad.slice(0, 160));
     const missing = await call(p, "manage_belief", { action: "subjective_disclose", subjective_record_id: "sm-99", subjective_disclosure: "open" });
     assert(missing.includes("[NOT_FOUND]"), "an unknown record id was not refused: " + missing.slice(0, 160));
     const done = await call(p, "manage_belief", { action: "subjective_disclose", subjective_record_id: rid, subjective_disclosure: "open" });

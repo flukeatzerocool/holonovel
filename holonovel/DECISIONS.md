@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 29,417 tokens; standard 25,819; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 29,806 tokens; standard 25,819; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -131,7 +131,7 @@ dated entries below record changes to this list.
   checkpoint-restorable. (REQ-040a, REQ-041, REQ-043b, REQ-124b, REQ-174)
 - **Re-baseline.** The 2026-10-19 *Baseline* bullet records the pre-increment
   surface; this entry supersedes its counts: 37 tools, 245 canonical actions,
-  299 total declarations (245 canonical + 54 compatibility), full 29,417 /
+  299 total declarations (245 canonical + 54 compatibility), full 29,806 /
   standard 25,819 / small 1,180 tokens. (REQ-571, REQ-567)
 - **Non-numeric health stats.** A ruleset whose zero-health convention rests on
   a non-numeric stat (a wound ladder, a condition track) is unsupported by this

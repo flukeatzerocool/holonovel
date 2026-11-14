@@ -272,6 +272,33 @@ async function main() {
     await kill(p);
   });
 
+  // ── REQ-001b2 error boundary: structural vs semantic (T180) ──
+  await test("T180/REQ-001b2: structural parameter errors keep the SDK shape; semantic errors keep the category", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t180" });
+    const structural = await callRaw(p, "set_badge", { badge: "wizard" });
+    const structuralText = (structural.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+    if (structural.isError !== true) throw new Error("T180 structural error is not isError");
+    assertContains(structuralText, "MCP error -32602", "T180 structural error keeps the SDK shape");
+    if (/\[ERROR\] \[[A-Z_]+\]/.test(structuralText)) throw new Error(`T180 structural error carries a REQ-002 category: ${structuralText.slice(0, 120)}`);
+    const semantic = await callRaw(p, "manage_scene", { action: "set", scene_type: "nonsense" });
+    const semanticText = (semantic.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+    assertContains(semanticText, "[ERROR] [NOT_FOUND]", "T180 semantic error keeps the category and its enumeration");
+    assertContains(semanticText, "Valid values:", "T180 semantic error enumerates valid values");
+    await kill(p);
+  });
+
+  // ── REQ-548c structured dispatcher refusal (retired alias) ──
+  await test("T180b/REQ-548c: a dispatcher refusal carries a structured result", async () => {
+    const p = await boot();
+    const r = await callRaw(p, "resolve_fate", { action: "roll" });
+    if (r.isError !== true) throw new Error("T180b dispatcher refusal is not isError");
+    const sc = r.structuredContent;
+    if (!sc || sc.status !== "ERROR" || sc.category !== "NOT_FOUND") throw new Error(`T180b structured refusal missing: ${JSON.stringify(sc)}`);
+    if (!sc.corrective_action) throw new Error("T180b refusal carries no corrective_action");
+    await kill(p);
+  });
+
   // ── REQ-194 anchor determinism (unit-level, same function the server uses) ──
   await test("T236/REQ-194: anchor derivation determinism, CJK, explicit id, duplicates", async () => {
     const seen = new Set<string>();
@@ -787,14 +814,16 @@ async function main() {
     await kill(p);
   });
 
-  await test("G9/REQ-002: argument-schema violations return an [ERROR] [INVALID_INPUT] envelope", async () => {
+  await test("G9/REQ-002 + REQ-001b2: argument-schema violations keep the SDK shape, not a REQ-002 envelope", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "g9" });
     await call(p, "set_badge", { badge: "game_master" });
     const r = await callRaw(p, "manage_story", { action: "record",  type: "bogus", entry: "x" });
     const text = (r.content ?? []).map((c: any) => c?.text ?? "").join("\n");
     if (r.isError !== true) throw new Error("expected an isError result");
-    if (!/^\[ERROR\] \[INVALID_INPUT\]/.test(text.trim())) throw new Error("not enveloped: " + text.slice(0, 160));
+    // REQ-001b2 — an SDK-level schema failure carries no REQ-002 taxonomy.
+    if (!/MCP error -32602/.test(text)) throw new Error("not the SDK validation shape: " + text.slice(0, 160));
+    if (/\[ERROR\] \[[A-Z_]+\]/.test(text)) throw new Error("structural error carries a REQ-002 category: " + text.slice(0, 160));
     passed++;
     await kill(p);
   });

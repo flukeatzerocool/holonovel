@@ -53,12 +53,14 @@ For same-spec builds against different rulesets, when a prior assumption audit e
 **REQ-101c — Assumption audit trail (Part c).**
 Audit re-use does not block the build — a full audit is always acceptable. *Acceptance criterion:* DECISIONS.md (4) contains at least one challenged assumption per category with justification, or a diff-only audit note for spec revisions, or a re-use note citing the prior audit's ruleset fingerprint for unaffected categories. _Check:_ T89.
 **REQ-001 — Response contract.** _(F3)_ Every tool response begins with a status prefix:
-`[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`. Tool-level failures use
+`[OK]`, `[NEED_INPUT]`, `[PARTIAL]`, `[ERROR]`, or `[WARNING]`. A response whose text is a
+machine-readable payload (Appendix T.1 `json` format) carries its status in the structured
+result instead (REQ-548a), because a text prefix would break the payload. Tool-level failures use
 `isError: true` with the prefix in `content[0].text`; protocol-level failures use JSON-RPC
 error code `-32000` with the prefix in `message`. SDK-level schema errors use `-32602`.
 *Acceptance criterion:* Every tool response from a running server uses exactly one
-of the five prefixes; protocol-level errors use JSON-RPC error code -32000 with the
-prefix in `message`.
+of the five prefixes, or, for a machine-readable payload, a declared status in REQ-548a;
+protocol-level errors use JSON-RPC error code -32000 with the prefix in `message`.
 _Check:_ G2; Appendix D.
 
 **REQ-001a1 — Warning and Partial semantics (Part a1).**
@@ -68,7 +70,7 @@ The tool raises `[WARNING]` when the operation succeeds but hits a condition tha
 Neither `[WARNING]` nor `[PARTIAL]` uses `isError: true`. *Acceptance criterion:* A corrupted Novel on disk produces `[WARNING]` in `spec_health` with the Novel slug enumerated; a search returning contradictory ruleset texts produces `[PARTIAL]` with both texts cited. _Check:_ T175.
 
 **REQ-548a — Structured tool-result payload.**
-Every successful tool response SHALL carry a machine-readable structured result alongside its text envelope, derived from the same live state that produced the text. The structured result SHALL report the fields the text envelope reports, SHALL validate against the tool's declared output schema (REQ-548b), and SHALL NOT replace the text contract of REQ-001. A client that ignores structured results SHALL observe output identical to the text-only contract.
+Every successful tool response SHALL carry a machine-readable structured result alongside its text envelope, derived from the same live state that produced the text. The structured result SHALL report the fields the text envelope reports, SHALL validate against the tool's declared output schema (REQ-548b), and SHALL NOT replace the text contract of REQ-001. Its `status` SHALL be one of `OK`, `NEED_INPUT`, `WARNING`, or `PARTIAL`. A client that ignores structured results SHALL observe output identical to the text-only contract.
 *Acceptance criterion:* a canonical lookup, a dice roll, and a drained decision each return a structured result matching their text envelope. _Check:_ T632.
 
 **REQ-548b — Output-schema declaration.**
@@ -76,7 +78,7 @@ Every registered tool SHALL declare an output schema in `tools/list` describing 
 *Acceptance criterion:* every listed tool declares an output schema whose reported fields carry descriptions; a schema detail request returns it; adding a tool updates the listing without restart. _Check:_ T633.
 
 **REQ-548c — Structured error results.**
-Every error response SHALL carry a machine-readable structured result naming the error category (REQ-002), the corrective action, and, where the enumeration is badge-visible, the valid values. The structured error SHALL remain badge-filtered per REQ-002c and REQ-445 and SHALL NOT disclose values the caller's badge cannot access.
+Every error response SHALL carry a machine-readable structured result whose `status` is `ERROR`, naming the error category (REQ-002), the corrective action, and, where the enumeration is badge-visible, the valid values. The structured error SHALL remain badge-filtered per REQ-002c and REQ-445 and SHALL NOT disclose values the caller's badge cannot access.
 *Acceptance criterion:* an unknown canonical name returns a structured error carrying its category, corrective action, and badge-filtered values; a GM-only value stays absent. _Check:_ T634.
 **REQ-277 — Fixture evolution contract.** When a specification change breaks a
 golden transcript assertion (Appendix B.3, N.3, W.3, X.3), the maintainer SHALL

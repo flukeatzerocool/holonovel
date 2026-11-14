@@ -1446,6 +1446,16 @@ async function main() {
         : (forbidden.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
       assertContains(forbText, "[FORBIDDEN]");
       assertContains(forbText, "Corrective action");
+      // REQ-001/REQ-002b1/REQ-548c — the thrown gate is converted into the
+      // standard envelope: one prefix, one standalone corrective line, and a
+      // structured result with `isError`.
+      assertContains(forbText, "[ERROR] [FORBIDDEN]");
+      const correctiveLines = forbText.split("\n").filter((line) => line.trim().startsWith("Corrective action:"));
+      assert(correctiveLines.length === 1, `T178 expected exactly one corrective-action line, got ${correctiveLines.length}`);
+      assert(forbidden.result?.isError === true, "T178 refusal result is not isError");
+      const forbSc = forbidden.result?.structuredContent;
+      assert(forbSc?.category === "FORBIDDEN", `T178 structured category missing: ${JSON.stringify(forbSc)}`);
+      assert(Boolean(forbSc?.corrective_action), "T178 structured corrective_action missing");
       await call(proc, "set_badge", { badge: "game_master" });
     });
 

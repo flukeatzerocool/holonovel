@@ -14,11 +14,10 @@
 
 ## Trust-core contract remediation (P1)
 
-- Error envelope normalization: refusals return `[ERROR] [FORBIDDEN]` with a
-  standalone `Corrective action:` line, every error carries a structured
-  result including the valid values, the SDK `-32602` re-label is removed, and
-  the `RAW` status is replaced by a declared one (REQ-001, REQ-002, REQ-002b1,
-  REQ-548a, REQ-548b, REQ-548c; F-P1-1, F-P1-2, F-P1-3, F-P1-10, F-P1-11).
+- Error-envelope remainder: give returned `err()` results `isError: true`
+  (REQ-001b1; F-P1-14), resolve the SDK parameter-validation result against
+  REQ-548c's "every error response" (F-P1-15), and badge-filter the ruleset
+  lookup `Valid values:` enumeration (REQ-002c1, REQ-445; F-P1-16).
 - Output and authorization surface: truncate every tool result by byte length,
   badge-filter `output://`, gate badge class in the dispatcher, and make
   `tools/list`, `prompts/list`, and `resources/list` the read-only subset
@@ -35,13 +34,13 @@ chunk; closes when the §5.1/§5.5 findings in `spec/audit/review-register.md` a
 
 ## Trust-core citation repair (P1)
 
-- Five §5.1/§5.5 REQs cite `Automated` tests that no harness implements
-  (REQ-001b2 → T180, REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
+- Four §5.1/§5.5 REQs cite `Automated` tests that no harness implements
+  (REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
   REQ-306e → T350): write each assertion or re-point the citation to the test
   that exercises the behaviour, then refresh the coverage register.
 
 **Trigger:** the same session as the remediation above, or the next one if that
-session reaches its cap; closes when all five citations resolve to an exercised
+session reaches its cap; closes when all four citations resolve to an exercised
 harness.
 
 ## §5.3 citation repair (P1)

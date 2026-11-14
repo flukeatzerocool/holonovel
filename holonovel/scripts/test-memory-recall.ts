@@ -256,7 +256,9 @@ async function main() {
     assertContains(tight, "[truncated] arc tier omitted");
     assertContains(tight, "[truncated] session tier omitted");
     const bad = await call(proc, "manage_context", { action: "recap", tier: "nope" });
-    assertContains(bad, "[INVALID_INPUT]");
+    // REQ-001b2 — an enum violation is an SDK-level schema error, not a
+    // REQ-002 category: either shape is a refusal.
+    if (!/Invalid option|\[INVALID_INPUT\]/.test(bad)) throw new Error("unknown tier did not refuse: " + bad.slice(0, 160));
     const badBudget = await call(proc, "manage_context", { action: "recap", budget_tokens: 0 });
     assertContains(badBudget, "[INVALID_INPUT]");
   });
