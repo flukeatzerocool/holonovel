@@ -255,21 +255,99 @@ async function main() {
     await kill(p);
   });
 
-  // ── REQ-004 truncation + output:// pointer (via search with tiny limit) ──
-  await test("T13/REQ-004 + T221/REQ-179: truncation with output:// pointer retrieval", async () => {
+  // ── REQ-004 truncation channel + REQ-179/REQ-179c badge-scoped pointers ──
+  await test("T13/REQ-004 + T221/REQ-179 + REQ-179c/REQ-180c: truncation channel, badge-scoped pointers, ledger", async () => {
+    // (1) the ruleset search surface still truncates, and the key is the
+    // registered tool name (REQ-179a), not the retired `search_rules` label.
     seedRuleset();
     const p = await boot({ TTRPG_OUTPUT_LIMIT: "100" });
     await call(p, "manage_novel", { action: "create",  name: "w1d", ruleset: "wave1test" });
     await call(p, "set_badge", { badge: "game_master" });
     const s = await call(p, "manage_ruleset", { action: "search",  query: "fireball" });
-    assertContains(s, "[truncated — full content: output://search_rules/", "REQ-004 truncation pointer");
-    const uri = s.match(/output:\/\/search_rules\/(\d+)/)?.[0];
-    if (!uri) { failed++; console.error("FAIL REQ-004: no output uri"); }
-    else {
-      const full = await proto(p, "resources/read", { uri });
-      assertContains(full, "Fireball", "REQ-179 output:// full content");
-    }
+    assertContains(s, "[truncated — full content: output://manage_ruleset/", "REQ-004 truncation pointer keyed by the registered tool name");
+    const uri = s.match(/output:\/\/manage_ruleset\/\d+/)?.[0];
+    if (!uri) throw new Error("REQ-004: no output uri");
+    const full = await proto(p, "resources/read", { uri });
+    assertContains(full, "Fireball", "REQ-179 output:// full content under the producing badge");
+    // (2) a different badge cannot read the payload, and the refusal is the
+    // same non-disclosing body an evicted pointer returns (REQ-179c, REQ-445).
+    await call(p, "set_badge", { badge: "player" });
+    const denied = await proto(p, "resources/read", { uri });
+    assertContains(denied, "[ERROR] [NOT_FOUND]", "REQ-179c Player read of a GM payload is refused");
+    assertNotContains(denied, "Fireball", "REQ-179c refusal does not disclose payload content");
+    await call(p, "set_badge", { badge: "none" });
+    const editor = await proto(p, "resources/read", { uri });
+    assertContains(editor, "Fireball", "REQ-179c Editor reads any payload");
     await kill(p);
+
+    // (3) truncation is measured in UTF-8 bytes, not UTF-16 length: 60 CJK
+    // characters are 60 code units but 180 bytes, so a 150-byte limit cuts.
+    const p2 = await boot({ TTRPG_OUTPUT_LIMIT: "150" });
+    await call(p2, "manage_novel", { action: "create", name: "bytes" });
+    await call(p2, "set_badge", { badge: "none" });
+    await call(p2, "manage_world", { action: "create_room", name: "CJK", description: "火".repeat(60) });
+    const look = await call(p2, "run_command", { action: "execute", command: "look" });
+    assertContains(look, "output://run_command/", "REQ-180b byte-length truncation");
+    await kill(p2);
+
+    // (4) every tool result passes the channel, not only ruleset surfaces.
+    const p3 = await boot({ TTRPG_OUTPUT_LIMIT: "100" });
+    await call(p3, "manage_novel", { action: "create", name: "chan" });
+    await call(p3, "set_badge", { badge: "game_master" });
+    const recap = await call(p3, "manage_context", { action: "recap" });
+    assertContains(recap, "[truncated — full content: output://manage_context/", "REQ-004 truncation covers every tool result");
+    // (5) the structured mirror carries the pointer, not the payload.
+    const rawRecap = await callRaw(p3, "manage_context", { action: "recap" });
+    const structuredText = String(rawRecap.structuredContent?.text ?? "");
+    assertContains(structuredText, "output://manage_context/", "REQ-004 structured mirror is the pointer");
+    assertNotContains(structuredText, "# ", "REQ-004 structured mirror is not the payload");
+    await kill(p3);
+
+    // (6) eviction: the oldest payload's URI returns the same NOT_FOUND text,
+    // naming eviction (REQ-179b).
+    const p4 = await boot({ TTRPG_OUTPUT_LIMIT: "100", TTRPG_OUTPUT_SESSION_LIMIT: "1" });
+    await call(p4, "manage_novel", { action: "create", name: "evict" });
+    await call(p4, "set_badge", { badge: "none" });
+    const first = await call(p4, "manage_context", { action: "recap" });
+    const firstUri = first.match(/output:\/\/manage_context\/\d+/)?.[0];
+    await call(p4, "manage_context", { action: "recap" });
+    if (!firstUri) throw new Error("REQ-179b: no first pointer");
+    const evicted = await proto(p4, "resources/read", { uri: firstUri });
+    assertContains(evicted, "[ERROR] [NOT_FOUND]", "REQ-179b evicted pointer returns NOT_FOUND");
+    assertContains(evicted.toLowerCase(), "evict", "REQ-179b eviction message");
+    await kill(p4);
+
+    // (7) the context ledger is the store's second reader (REQ-179c).
+    const p5 = await boot({ TTRPG_OUTPUT_LIMIT: "100" });
+    await call(p5, "manage_novel", { action: "create", name: "ledger" });
+    await call(p5, "set_badge", { badge: "game_master" });
+    const gmRecap = await call(p5, "manage_context", { action: "recap" });
+    const gmUri = gmRecap.match(/output:\/\/manage_context\/\d+/)?.[0];
+    if (!gmUri) throw new Error("REQ-179c: no ledger pointer");
+    // The ledger exceeds the limit, so read its pointer; the report carries the
+    // `last_tool_output` token count of the newest visible payload.
+    const ledgerTokens = async (proc: any) => {
+      const res = await call(proc, "manage_diagnostics", { action: "context_report" });
+      const resUri = res.match(/output:\/\/manage_diagnostics\/\d+/)?.[0];
+      const full = resUri ? await proto(proc, "resources/read", { uri: resUri }) : res;
+      const report = JSON.parse(full.replace(/^\[OK\]\s*/, ""));
+      return (report.sections ?? []).find((s: any) => s.name === "last_tool_output")?.tokens ?? -1;
+    };
+    const gmTokens = await ledgerTokens(p5);
+    if (!(gmTokens > 0)) throw new Error(`REQ-179c producing-badge ledger counts the last payload (got ${gmTokens})`);
+    await call(p5, "set_badge", { badge: "player" });
+    const playerTokens = await ledgerTokens(p5);
+    if (playerTokens !== 0) throw new Error(`REQ-179c Player ledger omits a GM payload (got ${playerTokens})`);
+    void gmUri;
+    await kill(p5);
+
+    // (8) REQ-180c — a machine-readable JSON document is delivered intact even
+    // when it exceeds the limit (spec_health is ~47 KB at the default limit).
+    const p6 = await boot();
+    await call(p6, "manage_novel", { action: "create", name: "json" });
+    const health = await call(p6, "manage_diagnostics", { action: "health" });
+    try { JSON.parse(health); } catch { throw new Error("REQ-180c: spec_health JSON was truncated or altered"); }
+    await kill(p6);
   });
 
   // ── REQ-001b2 error boundary: structural vs semantic (T180) ──

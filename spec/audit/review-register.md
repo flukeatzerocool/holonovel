@@ -57,6 +57,38 @@ line; each resolution names the harness that now exercises it.
   `{from: previous, to: badge}` and T8 asserts both
   (`test-output-contracts.ts:489-490`); the row was stale.
 
+### 2026-11-14 trust-core output channel
+
+The two implementation findings of the 2026-11-09 chunk-P1 sweep's output
+bullet were resolved in the output-channel increment (plan
+`docs/plans/2026-11-14-trust-core-output-channel/`). Each predicate was
+re-confirmed at `f175b26` before the change and re-cited at its post-change
+line; T13 (extended) and T221 (rewritten) exercise both.
+
+- **F-P1-5 — `output://` payloads were not badge-filtered. Resolved
+  (2026-11-14).** Predicate was `index.ts:15474-15481` (a `Map<string,string>`
+  resolver with no badge check). `outputStore` now holds
+  `{ text, pointer, badge }` (`index.ts:3493`), `outputReadable` applies
+  exact-badge-or-Editor (`:3494`), and the resolver returns one non-disclosing
+  `[ERROR] [NOT_FOUND]` body for absent, evicted, denied, and never-existent
+  pointers (`:15548`). The store's second reader, `contextSectionTexts`
+  (`:1643-1676`), selects the newest visible payload and reports its tokens, so
+  a Player no longer counts a GM payload. The same change fixed two defects on
+  that surface: the store key was `search_rules` (not a registered tool name,
+  REQ-179a) and an absent pointer returned bare `{"error":"not found"}` JSON
+  instead of REQ-179b's `[ERROR] [NOT_FOUND]` eviction message. REQ-004,
+  REQ-179a, REQ-179b, REQ-179c, REQ-445. Exercised by T13
+  (`test-output-contracts.ts`) and T221 (`test-backfill.ts`).
+- **F-P1-6 — truncation covered four ruleset surfaces only and measured UTF-16
+  length. Resolved (2026-11-14).** Predicate was `index.ts:3486-3496`
+  (`text.length`, six call sites). `truncateResult` (`:3514`) sits in the
+  registration chain (`:318`), measures `Buffer.byteLength(…, "utf8")`, and the
+  six call sites are deleted. A single machine-readable JSON document is
+  delivered intact (REQ-180c), discovered in execution: `spec_health` is ~47 KB
+  and truncating it invalidated every `JSON.parse` consumer. REQ-004, REQ-180b,
+  REQ-180c. Exercised by T13, whose byte-vs-character leg uses a 60-character
+  CJK payload.
+
 ### 2026-11-14 trust-core error-envelope remainder
 
 The three deferred findings of the 2026-11-13 increment were resolved in the
@@ -2441,17 +2473,6 @@ currently asserts these contracts — that is the finding).
   which throws at `state.ts:2283`; the write persists while the caller sees a
   failure and the audit chain has a gap. Violates REQ-040a/REQ-447 (refuse
   *before* mutating). Predicate: `index.ts:4196`, `state.ts:2283`.
-- **F-P1-5 — `output://` payloads are not badge-filtered (scheduled):**
-  `index.ts:15474` stores plain text keyed `<tool>/<counter>`; the resolver at
-  `:15475-15481` returns it with no badge check. REQ-004 ("session-local and
-  badge-filtered") and REQ-179a ("badge-filtered per REQ-032"). A Player can
-  read a payload produced under the GM badge. Predicate: `index.ts:15474`,
-  `:15475`.
-- **F-P1-6 — truncation covers four ruleset surfaces only and measures UTF-16
-  length (scheduled):** `truncateOutput` (`index.ts:3455-3464`) is called at
-  the ruleset lookup and search surfaces only, and compares `text.length`, not
-  bytes. REQ-004 requires truncation of tool output generally; REQ-180b makes
-  the byte threshold authoritative. Predicate: `index.ts:3455`.
 - **F-P1-7 — no badge gate in the dispatcher (scheduled):**
   `guardToolCall` (`index.ts:1971-2002`) handles retired aliases, ruleset
   scope, and the surface profile only; authorization is 142 handler-local

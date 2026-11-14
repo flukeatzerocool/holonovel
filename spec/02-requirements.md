@@ -121,8 +121,9 @@ When a resolution mechanic rolls multiple dice of the same type and selects only
 
 **REQ-003c — Roll transparency (Part c).**
 When the ruleset defines named result bands (e.g., critical success, partial success, failure), the roll outcome reports which band applies to the total. *Acceptance criterion:* A d20 attack roll with advantage reports both d20 faces — e.g., `Dice: 2d20 = [12, 7], used: 12` — not just the higher value. A Strength-based attack roll with +2 proficiency reports `Modifiers: Strength +3, Proficiency +2` — not `Modifiers: +5`. _Check:_ G2, T47.
-**REQ-004 — Truncation.** The tool truncates output longer than a configurable limit
-with `… [truncated — full content: output://<tool>/<counter>]`. `output://`
+**REQ-004 — Truncation.** The tool truncates human-readable output longer than a configurable limit
+with `… [truncated — full content: output://<tool>/<counter>]`; one machine-readable
+JSON document is delivered intact (REQ-180c). `output://`
 payloads stay session-local and badge-filtered, and evict the oldest when exceeding the session
 limit. Stat blocks shown within truncated output follow the same limit rules. Stat blocks use
 the ruleset's baseline format, with all fields regardless of truncation
@@ -144,6 +145,16 @@ _Check:_ T13.
 
 **REQ-179a — Output pointer resource template (Part a).**
 `output://{tool_name}/{counter}` resource template in `resources/templates/list`. The template URI pattern SHALL be `output://{tool_name}/{counter}` where `{tool_name}` matches the producing tool's registered name and `{counter}` is a per-session monotonically increasing integer. `resources/read` on a resolved URI SHALL return the full untruncated tool output as Markdown, badge-filtered per REQ-032. The resource SHALL declare MIME type `text/markdown` and a title of the form "<tool_name> output #<counter>". Output payloads SHALL be session-local — they do not survive server restart.
+
+**REQ-179c — Output pointer badge visibility (Part c).** A stored payload is
+readable only under the badge that produced it or under the Editor badge. Any
+other badge receives the same `[ERROR] [NOT_FOUND]` response as an evicted
+payload, so a read cannot confirm that another badge holds one. The rule binds
+every surface that reads a stored payload — the `output://` resource and the
+context ledger's `last_tool_output`. Payloads remain session-local (REQ-179a).
+*Acceptance criterion:* a Player-badge read of a Game-Master-produced pointer
+returns `[ERROR] [NOT_FOUND]`, while the Editor badge returns the full payload.
+_Check:_ T13.
 
 **REQ-179b — Output pointer resource template (Part b).**
 When the session's output storage exceeds a configurable limit, the oldest payload SHALL be evicted and its URI SHALL return `[ERROR] [NOT_FOUND]` with a message indicating eviction. *Acceptance criterion:* After a tool produces output exceeding 32,000 bytes, `resources/templates/list` includes `output://{tool_name}/{counter}`; reading the resolved URI returns the full untruncated content, badge-filtered; pushing storage beyond the limit evicts the oldest payload and its URI returns `[ERROR] [NOT_FOUND]`. _Check:_ T221.
@@ -1361,6 +1372,14 @@ All truncation thresholds in this specification use bytes of UTF-8 encoded Markd
 
 **REQ-180b — Truncation budget unit (Part b).**
 The byte-level threshold is the authoritative limit — the token estimate is a proximity guard that SHALL NOT be used to truncate earlier than the byte threshold would require. *Acceptance criterion:* A 32,000-byte threshold produces truncation at the same byte offset regardless of whether the builder internally measures in tokens or bytes; the heuristic is recorded in DECISIONS.md. _Check:_ T222.
+
+**REQ-180c — Truncation scope (Part c).** The truncation channel covers
+human-readable tool output only. The channel delivers a result whose text forms
+one machine-readable JSON document intact, because clients parse that body and a
+pointer would make it invalid JSON (REQ-548a). A JSON payload followed by a
+source block still truncates. *Acceptance criterion:* a `spec_health` result
+over the threshold still parses as JSON, while a prose result over the
+threshold returns an `output://` pointer. _Check:_ T13.
 **REQ-136a — Editor-badge briefing (Part a).**
 `badge_briefing` returns setup-oriented content: a list of available Novels (REQ-093), the current active Novel name if one exists, and a pointer to the `intro` prompt (REQ-063).
 

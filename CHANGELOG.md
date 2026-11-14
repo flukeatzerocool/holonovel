@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-14 — Trust-core output channel: byte-accurate truncation on every prose result, badge-scoped output:// payloads
+
+- Output channel: truncation moves from six ruleset-surface call sites into the
+  tool registration chain, so every tool result (host and package) is measured
+  in UTF-8 bytes against `TTRPG_OUTPUT_LIMIT`; a result over the limit becomes
+  the `output://` pointer in both its text and its structured `text` mirror
+  (REQ-004, REQ-180b; F-P1-6). A single machine-readable JSON document is
+  delivered intact under new REQ-180c — `spec_health` is ~47 KB and truncating
+  it invalidated every `JSON.parse` consumer.
+- Badge-scoped payloads: the store records its producing badge and one accessor
+  gates every reader — the `output://` resource and the context ledger's
+  `last_tool_output`. Only the producing badge or the Editor badge reads a
+  payload; absent, evicted, denied, and never-existent pointers share one
+  non-disclosing `[ERROR] [NOT_FOUND]` body (REQ-179a/b, new REQ-179c, REQ-445;
+  F-P1-5). The store key is the registered tool name and an evicted pointer now
+  returns the REQ-179b eviction message instead of bare JSON.
+- Harnesses: T13 gains byte-vs-character, cross-badge, eviction, structured
+  mirror, ledger-count, and JSON-exemption legs; T221 is rewritten from a
+  vacuous read into a real produce-then-read; Holosuite anchors are repointed.
+- Registers: F-P1-5/F-P1-6 `Resolved` with current predicates; the ROADMAP
+  output-and-authorization bullet narrows to the authorization remainder
+  (F-P1-7/8/9) and the stale F-P1-12 mention is dropped; the coverage register
+  is regenerated.
+- Spec: new REQ-179c and REQ-180c; REQ-004 names the human-readable scope;
+  Appendix REQ index and the T13 catalogue row carry both IDs.
+
 ## 2026-11-14 — Trust-core error envelope remainder: isError on errors, scoped SDK shape, filtered lookups
 
 - Error boundary: `err()` now sets `isError: true`, and `raw()` sets it when

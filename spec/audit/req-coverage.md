@@ -156,8 +156,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-176 | Entity removal (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T216, S17 | — |
 | REQ-177 | Roster entity removal | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T217, S17 | — |
 | REQ-178 | Roster listing (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T219, S17 | — |
-| REQ-179 | Output pointer resource template (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T221 | — |
-| REQ-180 | Truncation budget unit (Part a) (2 sub-parts) | 5.5 Badges and Access | E | T222, S22 | — |
+| REQ-179 | Output pointer resource template (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T221, T13 | — |
+| REQ-180 | Truncation budget unit (Part a) (3 sub-parts) | 5.5 Badges and Access | E | T222, S22, T13 | — |
 | REQ-181 | Character creation output surface (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T47, T468 | — |
 | REQ-182 | Bounded-domain parameter documentation (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T39a | — |
 | REQ-183 | Live-index-derived error enumerations (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39b | — |

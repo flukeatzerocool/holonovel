@@ -18,15 +18,13 @@
   (an extension of REQ-210c) and filter search hits and the reported match
   total for Player/Observer, so a GM-only catalogue entry is neither
   retrievable nor countable (REQ-002c1, REQ-445; F-P1-17).
-- Output and authorization surface: truncate every tool result by byte length,
-  badge-filter `output://`, gate badge class in the dispatcher, and make
-  `tools/list`, `prompts/list`, and `resources/list` the read-only subset
-  (REQ-004, REQ-179a, REQ-180b, REQ-031a, REQ-032a, REQ-137b; F-P1-5, F-P1-6,
-  F-P1-7, F-P1-8, F-P1-9).
+- Authorization surface: gate badge class in the dispatcher, and make
+  `tools/list`, `prompts/list`, and `resources/list` the read-only subset for
+  Observer (REQ-031a, REQ-032a, REQ-137b; F-P1-7, F-P1-8, F-P1-9).
 - Audit durability and badge truth: refuse before mutating when the log is at
-  capacity, record old and new badge on a switch, and make `set_badge` fail
-  when no Novel is active instead of reporting success (REQ-040a, REQ-040c,
-  REQ-447, REQ-030, REQ-066b; F-P1-4, F-P1-12, F-P1-13).
+  capacity, and make `set_badge` fail when no Novel is active instead of
+  reporting success (REQ-040a, REQ-040c, REQ-447, REQ-030, REQ-066b; F-P1-4,
+  F-P1-13).
 
 **Trigger:** the first session that takes remediation work instead of a review
 chunk; closes when the §5.1/§5.5 findings in `spec/audit/review-register.md` are

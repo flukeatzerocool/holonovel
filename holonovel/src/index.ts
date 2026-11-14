@@ -301,7 +301,7 @@ export function normalizeToolSchema(schema: any): any {
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
-  const audited = withForbiddenAudit(normalizeRefusal(ensureStructured(handler)), name) as any;
+  const audited = withForbiddenAudit(normalizeRefusal(ensureStructured(truncateHandler(name, handler))), name) as any;
   // REQ-336 — every completed tool call advances the session pacing counter,
   // mutating or not. A refusal envelope still completes; a thrown error does
   // not. A converted refusal keeps that parity: `isError` results are the
@@ -1663,14 +1663,17 @@ function contextSectionTexts(): Record<string, string> {
       configInt("TTRPG_MEMORY_RECENT_EVENTS", 10),
     ).text
     : "";
-  const lastOutputKey = [...outputStore.keys()].at(-1);
+  // REQ-179c — the ledger is the store's second reader: it carries the newest
+  // payload the active badge may see, or an empty section.
+  let lastOutputKey: string | undefined;
+  for (const [key, payload] of outputStore) if (outputReadable(payload)) lastOutputKey = key;
   return {
     tool_catalog: activeCatalogText(),
     registered_prompts: promptText,
     resource_directory: resourceText,
     scene_state: sceneText,
     memory_tiers: memoryText,
-    last_tool_output: lastOutputKey ? (outputStore.get(lastOutputKey) ?? "") : "",
+    last_tool_output: lastOutputKey ? outputStore.get(lastOutputKey)!.pointer : "",
   };
 }
 
@@ -2319,7 +2322,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
           const idxEntry = pkg.index.find((i: any) => normId(i.id) === normId(matchedKey) || normId(i.key) === normId(matchedKey));
           const body = JSON.stringify({ ...entry, ...sourceAnchor(idxEntry ?? entry), ...discoverCrossRefs(pkg, entry, idxEntry) }, null, 2);
           const payload = body + sourceBlock(idxEntry ?? entry);
-          return raw(truncateOutput(toolName, payload));
+          return raw(payload);
         }
         // REQ-057 canonical lookup, REQ-059 parameter-canon validation, REQ-183
         // live-index enumerations: unknown names return [NOT_FOUND] with the
@@ -2342,7 +2345,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
         const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2)).join("\n");
         // REQ-113 — total match count vs returned count.
         const total = rulesets.search(slug, q, 100000).length;
-        return raw(truncateOutput(toolName, body + countReport(hits.length, total)));
+        return raw(body + countReport(hits.length, total));
       }
       case "roll": {
         try {
@@ -2424,7 +2427,7 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
             : typeof infoEntry.content === "string" ? infoEntry.content
             : typeof infoEntry.text === "string" ? infoEntry.text
             : JSON.stringify(infoEntry, null, 2);
-          return ok(truncateOutput(toolName, text + sourceBlock({ ...infoEntry, anchor: infoEntry.anchor ?? schema.name })));
+          return ok(text + sourceBlock({ ...infoEntry, anchor: infoEntry.anchor ?? schema.name }));
         }
         // REQ-558a — an info tool with no backing model entry is an extraction
         // defect; return [NOT_FOUND] rather than echoing the tool description.
@@ -3478,21 +3481,61 @@ function withSeedWarning<T extends { content: Array<{ type: "text"; text: string
 // REQ-004 — truncation: tool output longer than a configurable limit is
 // truncated with `… [truncated — full content: output://<tool>/<counter>]`.
 // The full payload is stored in `outputStore` (session-local, badge-filtered
-// on read via REQ-179); the store evicts the oldest entry past the session
-// limit, after which the pointer resolves to `[ERROR] [NOT_FOUND]`.
+// on read via REQ-179/REQ-179c); the store evicts the oldest entry past the
+// session limit, after which the pointer resolves to `[ERROR] [NOT_FOUND]`.
+// REQ-180b — the limit is measured in UTF-8 bytes of the joined text content.
 const outputLimit = (): number => configInt("TTRPG_OUTPUT_LIMIT", 32000);
 const outputSessionLimit = (): number => configInt("TTRPG_OUTPUT_SESSION_LIMIT", 20);
 let outputCounter = 0;
-function truncateOutput(tool: string, text: string): string {
-  if (text.length <= outputLimit()) return text;
+// REQ-179c — a payload records the badge that produced it; only that badge (or
+// the Editor badge) may read it, through any reader.
+interface OutputPayload { text: string; pointer: string; badge: Badge }
+const outputStore: Map<string, OutputPayload> = new Map();
+function outputReadable(payload: OutputPayload): boolean {
+  const badge = getBadge();
+  return badge === "none" || badge === payload.badge;
+}
+const OUTPUT_NOT_FOUND = "[ERROR] [NOT_FOUND] No output payload resolves for this pointer under the active badge; it may have been evicted. Corrective action: switch badges with set_badge to the badge that produced it, or re-run the tool.";
+function storeOutput(tool: string, text: string): { key: string; pointer: string } {
   const key = `${tool}/${++outputCounter}`;
-  outputStore.set(key, text);
+  const pointer = `… [truncated — full content: output://${key}]`;
+  outputStore.set(key, { text, pointer, badge: getBadge() });
   while (outputStore.size > outputSessionLimit()) {
     const oldest = outputStore.keys().next().value;
     if (oldest === undefined) break;
     outputStore.delete(oldest);
   }
-  return `… [truncated — full content: output://${key}]`;
+  return { key, pointer };
+}
+// REQ-004 — the single channel every tool result passes through (host and
+// package tools alike). A result over the byte limit becomes a pointer in its
+// text content and in its structured `text` mirror; other structured fields
+// survive.
+function truncateResult(tool: string, result: any): any {
+  if (!result || typeof result !== "object" || !Array.isArray(result.content)) return result;
+  const joined = result.content
+    .filter((c: any) => typeof c?.text === "string")
+    .map((c: any) => c.text)
+    .join("\n");
+  if (Buffer.byteLength(joined, "utf8") <= outputLimit()) return result;
+  // REQ-180c — a machine-readable body is delivered intact: clients parse it,
+  // and a pointer would make it invalid JSON. The pointer mechanism covers
+  // human-readable text and JSON-plus-source-block payloads.
+  try {
+    JSON.parse(joined.trim());
+    return result;
+  } catch { /* not one JSON document — fall through to truncation */ }
+  const { pointer } = storeOutput(tool, joined);
+  const nonText = result.content.filter((c: any) => typeof c?.text !== "string");
+  result.content = [{ type: "text", text: pointer }, ...nonText];
+  const structured = result.structuredContent;
+  if (structured && typeof structured === "object" && typeof structured.text === "string") {
+    result.structuredContent = { ...structured, text: pointer };
+  }
+  return result;
+}
+function truncateHandler(tool: string, handler: any) {
+  return async (...args: any[]) => truncateResult(tool, await handler(...args));
 }
 
 // REQ-194 — anchor derivation (implemented in core/anchors.ts; used by the
@@ -13675,13 +13718,13 @@ server.registerTool("manage_ruleset", {
         const suppressed = Math.max(0, total - rendered.length);
         searchBudgetStats = { max_tokens: budget, last_returned: rendered.length + adventureRendered.length, last_suppressed: suppressed };
         const body = rendered.join("\n");
-        return raw(truncateOutput("search_rules", mergeAdventure(body, rendered.length, total)));
+        return raw(mergeAdventure(body, rendered.length, total));
       }
       if (rulesets.installedSlugs().length > 0) {
-        if (adventureRendered.length > 0) return raw(truncateOutput("search_rules", mergeAdventure("", 0, 0)));
+        if (adventureRendered.length > 0) return raw(mergeAdventure("", 0, 0));
         return ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`);
       }
-      if (adventureRendered.length > 0) return raw(truncateOutput("search_rules", mergeAdventure("", 0, 0)));
+      if (adventureRendered.length > 0) return raw(mergeAdventure("", 0, 0));
       return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, install a package with manage_artifact (action: install, kind: ruleset); builders working from the repository can emit one with build-ruleset (spec Appendix V).`);
     }
     case "install": {
@@ -15502,12 +15545,16 @@ server.registerResource("spec-build", "spec://build", { title: "Build Specificat
 });
 
 // Output pointer resource (REQ-179): output://{tool}/{counter}
-const outputStore: Map<string, string> = new Map();
 server.registerResource("output-pointer", new ResourceTemplate("output://{tool}/{counter}", { list: undefined }), { title: "Tool Output" }, async (uri) => {
   const key = uri.href.replace("output://", "");
-  const text = outputStore.get(key);
-  if (text === undefined) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
-  return { contents: [{ uri: uri.href, text, mimeType: "text/markdown" }] };
+  const payload = outputStore.get(key);
+  // REQ-179b/REQ-179c — evicted, absent, and badge-invisible pointers return
+  // one non-disclosing body, so a read cannot confirm that another badge holds
+  // a payload (REQ-445's convention).
+  if (payload === undefined || !outputReadable(payload)) {
+    return { contents: [{ uri: uri.href, text: OUTPUT_NOT_FOUND, mimeType: "text/markdown" }] };
+  }
+  return { contents: [{ uri: uri.href, text: payload.text, mimeType: "text/markdown" }] };
 });
 
 // Notes resource (REQ-242)

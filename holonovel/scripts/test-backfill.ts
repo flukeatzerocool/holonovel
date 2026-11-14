@@ -207,15 +207,31 @@ async function main() {
     });
 
     await test("T221/REQ-179: output:// template + full untruncated content", async () => {
-      const templates = await listTemplates(proc);
+      // A payload only exists when a result exceeds the limit, so this test
+      // boots its own process with a small limit (REQ-179b).
+      const p = await boot({ TTRPG_OUTPUT_LIMIT: "100" });
+      const templates = await listTemplates(p);
       if (!templates.some((t) => t.includes("output://{tool}/{counter}"))) {
         throw new Error(`output pointer template missing: ${templates.join(",")}`);
       }
-      // The store is session-local; a produced output is retrievable by the
-      // producing tool. Verify the resource read path returns markdown.
-      await call(proc, "manage_world", { action: "create_room",  name: "pointer-hall", description: "A long description for pointer output." });
-      const content = await readResource(proc, "output://create_room/1");
-      if (content.includes("[FORBIDDEN]")) throw new Error("output pointer read blocked");
+      await call(p, "manage_novel", { action: "create", name: "pointer-novel" });
+      await call(p, "set_badge", { badge: "none" });
+      // A prose payload: recap (spec_health is one JSON document, exempt under
+      // REQ-180c and therefore never truncated).
+      const recap = await call(p, "manage_context", { action: "recap" });
+      const uri = recap.match(/output:\/\/manage_context\/\d+/)?.[0];
+      if (!uri) throw new Error("REQ-179: recap did not produce an output pointer");
+      const content = await readResource(p, uri);
+      if (content.includes("[FORBIDDEN]") || content.includes("[ERROR]")) {
+        throw new Error(`output pointer read failed: ${content.slice(0, 120)}`);
+      }
+      if (content.includes("[truncated — full content:")) {
+        throw new Error("REQ-179: pointer returned a pointer, not the payload");
+      }
+      if (content.length <= 100) {
+        throw new Error(`REQ-179: pointer payload shorter than the limit: ${content.length}`);
+      }
+      await kill(p);
     });
 
     await test("T26/T49/T50/T155: prompts/get returns badge_briefing with sections", async () => {
