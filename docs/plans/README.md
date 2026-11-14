@@ -40,17 +40,30 @@ refuses to commit an increment that fails it.
 6. **Fix if necessary.** Fixes found by the AAR land in the same increment when
    they are small and gate-visible; otherwise they are scheduled (step 5).
    Batching remediation at the end of a build is the anti-pattern.
-7. **Commit.** `npm run session:close` derives the commit subject from the
-   CHANGELOG heading, verifies the AAR, runs the fast gates, and commits.
+7. **Close.** In order:
+   a. Write the `CHANGELOG.md` entry for this session (the plan's changelog
+      step), dated to the session.
+   b. Run `after-action-report` and write `aar.md`.
+   c. Apply any fix it surfaces; re-run the AAR if a finding changed the work.
+   d. Run `npm run session:close`. It derives the commit subject from the
+      CHANGELOG heading, requires the increment's `aar.md` to end
+      `LOOP PAUSED`, runs the fast gates, and commits.
 
 ## AAR terminal tokens
 
 Every `aar.md` ends with exactly one:
 
-- `LOOP PAUSED` — gates green, no open P0/P1 beyond the scheduled roadmap,
-  zero new action items.
-- `LOOP OPEN` — an action item remains, and it is named with its tracking
-  surface (`ROADMAP.md` entry or register row).
+- `LOOP PAUSED` — every finding has a terminal disposition, and the gating
+  suite is green. A terminal disposition is one of: fixed in the increment; a
+  dated `ROADMAP.md` entry; a `spec/audit/review-register.md` row; or
+  record-and-closed, a dated note in the AAR saying why no action is taken.
+- `LOOP OPEN` — at least one finding has no terminal disposition. Name it.
+
+The close refuses an increment whose `aar.md` ends `LOOP OPEN`: resolve or
+schedule the named action, then re-run the AAR.
+
+A commit made without running `session:close` is not gated. The AAR contract
+applies to closes.
 
 ## Naming
 

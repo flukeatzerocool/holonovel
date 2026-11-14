@@ -466,11 +466,11 @@ the coverage backlog itself is cleared (bucket-A reflects intended coverage;
   the `skill-improvement-loop` and version it in the skill's own front matter,
   so a harness change is a reviewed, traceable step rather than an ad-hoc edit
   discovered mid-session.
-- **Loop status.** Every AAR ends with `LOOP PAUSED` or `LOOP OPEN`. PAUSED
-  requires: gates green, deployed verified, no open P0/P1 beyond the scheduled
-  roadmap. When PAUSED, the AAR lists zero new action items; the next plan
-  comes from ROADMAP.md or a direct user request — never from "AAR
-  recommendations."
+- **Loop status.** Every AAR ends with `LOOP PAUSED` or `LOOP OPEN`; the
+  definition of both lives in `docs/plans/README.md` under "AAR terminal
+  tokens" — do not restate it here. When PAUSED, the AAR lists zero new action
+  items; the next plan comes from ROADMAP.md or a direct user request — never
+  from "AAR recommendations."
 
 ## Before committing spec changes
 

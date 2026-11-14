@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-14 — AAR close gate: `LOOP OPEN` blocks the session close
+
+- The session close now refuses an increment whose after-action report ends
+  `LOOP OPEN`. A finding with no terminal disposition must be fixed, scheduled
+  on `ROADMAP.md`, registered, or explicitly closed before the commit lands.
+- The two tokens now have one definition, in `docs/plans/README.md`: `LOOP
+  PAUSED` means every finding has a terminal disposition and the gate suite is
+  green; `LOOP OPEN` means at least one does not. `AGENTS.md` points at it
+  rather than restating it.
+- The close is an ordered sequence — changelog entry, AAR, fixes, close — so a
+  report that surfaces a problem is acted on before the commit, not after it.
+- The changelog skill no longer stages or commits; it writes the entry and
+  hands off. The close command owns the mechanics.
+- History is unaffected: existing increments that ended `LOOP OPEN` keep
+  passing the standalone artifact check.
+
 ## 2026-11-14 — Trust-core audit durability and badge truth: capacity refusal before mutation, set_badge no-Novel refusal
 
 - Audit durability: `guardToolCall` refuses an audit-appending call at
