@@ -256,12 +256,16 @@ function main(): void {
     process.exit(1);
   }
 
-  const findings = validateIncrements(ROOT);
+  const increments = listIncrements(ROOT);
+  const target = increment
+    ? increments.find((item) => item.name === increment)
+    : increments.at(-1);
+  const findings = validateIncrements(ROOT, { requirePausedFor: target?.name });
   const scoped = increment
     ? findings.filter((finding) => finding.increment === increment)
     : findings;
   const errors = scoped.filter((finding) => finding.level === "error");
-  if (increment && !listIncrements(ROOT).some((item) => item.name === increment)) {
+  if (increment && !target) {
     console.error(`session-close: no increment named ${increment} under ${INCREMENTS_DIR}`);
     process.exit(1);
   }

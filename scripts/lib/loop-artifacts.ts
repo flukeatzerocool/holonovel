@@ -56,7 +56,10 @@ export function listIncrements(root: string): Increment[] {
   return increments.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function validateIncrements(root: string): Finding[] {
+export function validateIncrements(
+  root: string,
+  options: { requirePausedFor?: string } = {},
+): Finding[] {
   const findings: Finding[] = [];
   for (const increment of listIncrements(root)) {
     if (!increment.hasPlan) {
@@ -74,6 +77,16 @@ export function validateIncrements(root: string): Finding[] {
         increment: increment.name,
         level: "error",
         message: "aar.md has no LOOP PAUSED / LOOP OPEN terminal token",
+      });
+    } else if (
+      increment.loopToken === "LOOP OPEN" &&
+      options.requirePausedFor === increment.name
+    ) {
+      findings.push({
+        increment: increment.name,
+        level: "error",
+        message:
+          "aar.md reports LOOP OPEN — give every finding a terminal disposition, then re-run after-action-report",
       });
     }
     if (increment.hasPlan && !increment.doneBar) {
