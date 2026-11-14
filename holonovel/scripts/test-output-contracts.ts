@@ -674,7 +674,7 @@ async function main() {
     await kill(p);
   });
 
-  await test("T349/REQ-305: observer mode read-only", async () => {
+  await test("T349/REQ-305+REQ-032c: observer mode read-only", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w3e" });
     const s = await call(p, "set_badge", { badge: "observer" });
@@ -684,6 +684,30 @@ async function main() {
     const help = await call(p, "manage_context", { action: "discover" });
     assertNotContains(help, "[ERROR]", "REQ-305 observer read-only succeeds");
     passed++;
+    await kill(p);
+  });
+
+  await test("T151/REQ-032c: observer dispatch gate and badge-filtered metadata", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create", name: "t151c" });
+    await call(p, "set_badge", { badge: "observer" });
+    const tools = ((await send(p, { method: "tools/list", params: {} })).result?.tools ?? []).map((t: any) => t.name);
+    if (tools.includes("manage_scene")) throw new Error("observer tools/list leaked manage_scene");
+    if (!tools.includes("take_turn") || !tools.includes("set_badge")) throw new Error("observer tools/list is missing read tools");
+    const denied = await call(p, "manage_scene", { action: "set", description: "x" });
+    if (!denied.includes("[FORBIDDEN]")) throw new Error("observer mutating action was not refused: " + denied.slice(0, 120));
+    const closed = await call(p, "close_session", {});
+    if (!closed.includes("[FORBIDDEN]")) throw new Error("observer close_session was not refused");
+    const audit = await proto(p, "resources/read", { uri: "audit://novel" });
+    const boundaries = (audit.match(/BOUNDARY_VIOLATION/g) ?? []).length;
+    if (boundaries < 2) throw new Error(`expected >=2 boundary entries, got ${boundaries}`);
+    await call(p, "set_badge", { badge: "game_master" });
+    const gmPrompts = ((await send(p, { method: "prompts/list", params: {} })).result?.prompts ?? []).map((x: any) => x.name).sort();
+    await call(p, "set_badge", { badge: "player" });
+    const playerPrompts = ((await send(p, { method: "prompts/list", params: {} })).result?.prompts ?? []).map((x: any) => x.name).sort();
+    for (const n of playerPrompts) if (!gmPrompts.includes(n)) throw new Error(`player prompt '${n}' missing from GM list`);
+    const workflow = await proto(p, "prompts/get", { name: "run_workflow" });
+    if (workflow.includes("manage_world") || workflow.includes("manage_story")) throw new Error("run_workflow leaked a GM-only tool to Player");
     await kill(p);
   });
 

@@ -359,7 +359,7 @@ async function main() {
   // ── T151 (REQ-137a/REQ-137b): the DECISIONS.md gate-classification table
   // enumerates every registered tool exactly once with a valid gate, and the
   // badge-filtered `tools/list` output matches the table's Gate column.
-  await test("T151/REQ-137a+REQ-137b: gate table covers the registry; tools/list is badge-filtered", async () => {
+  await test("T151/REQ-137a+REQ-137b+REQ-032c: gate table covers the registry; tools/list is badge-filtered", async () => {
     const md = readFileSync(join(ROOT, "holonovel", "DECISIONS.md"), "utf-8");
     const start = md.indexOf("## Gate classification");
     assert(start !== -1, "DECISIONS.md is missing the '## Gate classification' section");
@@ -393,6 +393,27 @@ async function main() {
     const gmNames = new Set(((await send(proc, { method: "tools/list", params: {} })).result?.tools ?? []).map((t: any) => t.name));
     for (const n of gmOnly) assert(gmNames.has(n), `GM tools/list must include GM-only '${n}'`);
     assert(gmNames.size === tools.length, `GM tools/list has ${gmNames.size} tools, expected ${tools.length}`);
+
+    // REQ-032c — Observer tools/list is the read-only subset: every listed tool
+    // holds at least one registry-read action, or is the always-callable
+    // set_badge.
+    await call(proc, "set_badge", { badge: "observer" });
+    const observerNames = new Set(((await send(proc, { method: "tools/list", params: {} })).result?.tools ?? []).map((t: any) => t.name));
+    assert(observerNames.has("set_badge"), "set_badge must appear in Observer tools/list");
+    for (const n of ["take_turn", "manage_context", "manage_character", "manage_npc"]) {
+      assert(observerNames.has(n), `Observer tools/list must include read tool '${n}'`);
+    }
+    for (const n of ["manage_scene", "manage_history", "open_session", "close_session", "respond_decision", "manage_staging"]) {
+      assert(!observerNames.has(n), `Observer tools/list must exclude write-only tool '${n}'`);
+    }
+    assert(observerNames.size < gmNames.size, "Observer tools/list must be a strict subset of the GM catalog");
+    const surface = JSON.parse(readFileSync(join(process.cwd(), "tool-surface-registry.json"), "utf-8"));
+    for (const n of observerNames) {
+      if (n === "set_badge") continue;
+      const hasRead = Object.entries(surface.actions).some(([k, v]: any) => (k === n || k.startsWith(`${n}.`)) && v.mutation_class === "read");
+      assert(hasRead, `Observer tools/list listed '${n}' with no read action`);
+    }
+    await call(proc, "set_badge", { badge: "game_master" });
   });
 
   proc.kill("SIGKILL");

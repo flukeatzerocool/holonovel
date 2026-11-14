@@ -1338,6 +1338,8 @@ Player-only tools). T151 asserts the table and the filtered output agree.
 
 `manage_synthesis` is un-gated because its `player_*` actions are Player-accessible; `run`, `revert`, `verify`, `record_ruling`, and `revert_ruling` enforce Game Master-only inside the handler (REQ-080h, REQ-103a, REQ-261, REQ-589).
 
+The Observer badge is not a fourth Gate value. REQ-032c derives its read-only subset from the Tool Surface Contract `mutation_class` (`tool-surface-registry.json`): a `read` action is permitted unless listed in `OBSERVER_DENY_ACTIONS` (`src/core/badge-gate.ts`), which records the keys the registry marks `read` that nevertheless mutate (`resolve_*_roll`, `manage_vow.resolve`, `manage_session.visibility_check`, the two `corpus_access` actions). `run_command` defers to its handler because the parser classifies each command (REQ-309h). REQ-032a's "strict subset" clause binds where an entry declares a badge gate: the shipped host prompts all declare `shared` (REQ-063/078/089), so the Player prompt list equals the GM list today, while GM-only tools and resources differ. The `PROMPT_GATE` and `RESOURCE_GATE` maps are empty-of-prompts and three-resource respectively, both in the same module.
+
 ### Compatibility aliases
 
 `resolve_fate`, `resolve_ironsworn`, and `resolve_forged` are retired tombstones for `resolve_mechanic`; `manage_ruleset (action: roll)` is a retired action tombstone for `resolve_mechanic (action: roll)`. Each returns `[NOT_FOUND]` naming its replacement, is omitted from `tools/list`, and is advertised in `spec_health.tool_surface` and `holonovel://tool-groups` (REQ-581).

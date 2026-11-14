@@ -12,6 +12,19 @@ export type {
   AuditEntry,
 } from "./state.js";
 export {
+  OBSERVER_DENY_ACTIONS,
+  PROMPT_GATE,
+  RESOURCE_GATE,
+  actionKey,
+  badgeRefusalFor,
+  observerActionAllowed,
+  promptAllowed,
+  promptRefusalFor,
+  resourceAllowed,
+  toolObserverVisible,
+} from "./badge-gate.js";
+export type { BadgeLike, ToolAnnotationsLike } from "./badge-gate.js";
+export {
   initServer,
   getBadge,
   requireGM,

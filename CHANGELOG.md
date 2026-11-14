@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-14 — Trust-core authorization surface: dispatcher badge gate and badge-filtered metadata
+
+- Dispatcher gate: `guardToolCall` now refuses a badged call before the handler
+  runs. Under Player a GM-only tool is refused; under Observer every action the
+  Tool Surface Contract does not mark state-reading is refused with the
+  handler-local wording, and the refusal is recorded as a boundary entry
+  (REQ-032a, new REQ-032c, REQ-133a, REQ-137b; F-P1-7).
+- Classifier: `src/core/badge-gate.ts` derives Observer permission from the
+  surface registry `mutation_class` plus an explicit deny set for keys that are
+  marked `read` but mutate (`resolve_*` rolls, `manage_vow.resolve`,
+  `manage_session.visibility_check`, the two `corpus_access` actions);
+  `run_command` defers to its handler's command classification (REQ-309h). A
+  missing registry degrades to the unchanged handler guards rather than a
+  lockout.
+- Surfaces: Observer `tools/list` lists only tools holding a permitted action
+  plus `set_badge` (F-P1-8); `prompts/list` applies each prompt's declared gate
+  and `run_workflow` composes from badge-visible tools; a new `resources/list`
+  wrapper omits GM-only entries for Player while the Observer keeps the
+  REQ-305a state surface (F-P1-9). The gate-classification table keeps its three
+  classes; DECISIONS.md records the Observer derivation.
+- Harnesses: T151 asserts the Observer subset against the registry; T349
+  asserts the dispatch refusal, its boundary entry, prompt parity, and the
+  `run_command` command split; T16/T104 assert the filtered resource list; the
+  security harness unit-tests the classifier including the registry-absent and
+  bare-key cases.
+
 ## 2026-11-14 — Ruleset search badge scope: index entries carry `badge_scope`, and every index-backed read filters on it
 
 - Index visibility: `RulesetIndexEntry` gains an optional `badge_scope`, and

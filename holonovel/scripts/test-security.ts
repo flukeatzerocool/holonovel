@@ -7,11 +7,21 @@
 
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 import { initServer, withForbiddenAudit } from "../src/core/server.js";
+import {
+  OBSERVER_DENY_ACTIONS,
+  RESOURCE_GATE,
+  badgeRefusalFor,
+  observerActionAllowed,
+  promptAllowed,
+  promptRefusalFor,
+  resourceAllowed,
+  toolObserverVisible,
+} from "../src/core/badge-gate.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -32,6 +42,7 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
   try { await fn(); passed++; console.log(`PASS ${name}`); } catch (e: any) { failed++; console.error(`FAIL ${name}: ${e.message ?? e}`); }
 }
 function assert(cond: any, msg: string) { if (!cond) throw new Error(msg); }
+function decl(mutation_class: string) { return { group: "table", phases: ["scene"], entry: false, mutation_class, ruleset: null, preconditions: [], successors: [], edges: [] }; }
 
 function contentHash(pkg: any): string {
   return sha256Canonical(pkg.index, pkg.model, pkg.tools, pkg.resources, pkg.prompts);
@@ -315,6 +326,65 @@ async function main() {
     const forbidden = await call(p, "manage_synthesis", { action: "revert_ruling", ruling_id: rec.id });
     assert(forbidden.includes("FORBIDDEN"), "Player badge was allowed to revert a ruling");
     await kill(p);
+  });
+
+  // ── T349/REQ-032c: badged authorization classifier (pure) ─────────────
+  await test("T349/REQ-032c: badge classifier denies mutating reads and degrades safely", () => {
+    const registry = {
+      taxonomy: { groups: ["table"] },
+      actions: {
+        "manage_context.discover": decl("read"),
+        "manage_character.sheet": decl("read"),
+        "manage_scene.set": decl("write"),
+        "manage_vow.resolve": decl("read"),
+        "manage_session.visibility_check": decl("read"),
+        "resolve_mechanic.roll": decl("read"),
+        take_turn: decl("read"),
+        set_badge: decl("write"),
+      },
+    } as any;
+    const annotations = { readOnlyHint: true };
+    // Allow: registry-read, not denied.
+    assert(observerActionAllowed(registry, "manage_context.discover"), "read action was denied");
+    assert(observerActionAllowed(registry, "take_turn"), "bare-key read action was denied");
+    // Deny: write class, deny-set entry, unknown key.
+    assert(!observerActionAllowed(registry, "manage_scene.set"), "write action was allowed");
+    assert(!observerActionAllowed(registry, "manage_vow.resolve"), "mutating read (vow resolve) was allowed");
+    assert(!observerActionAllowed(registry, "manage_session.visibility_check"), "mutating read (visibility_check) was allowed");
+    assert(!observerActionAllowed(registry, "resolve_mechanic.roll"), "generation read (roll) was allowed");
+    assert(!observerActionAllowed(registry, "unknown_tool.action"), "unknown key was allowed");
+    // Every deny key exists in the committed registry with class read.
+    const committed = JSON.parse(readFileSync(join(process.cwd(), "tool-surface-registry.json"), "utf-8"));
+    for (const key of OBSERVER_DENY_ACTIONS) {
+      assert(committed.actions[key]?.mutation_class === "read", `deny key ${key} is not a committed read action`);
+    }
+    // Tool visibility: permitted-action tools and set_badge; write-only excluded.
+    assert(toolObserverVisible(registry, "manage_context"), "read-only tool missing from observer list");
+    assert(toolObserverVisible(registry, "set_badge"), "set_badge missing from observer list");
+    assert(!toolObserverVisible(registry, "manage_scene"), "write-only tool listed for observer");
+    assert(toolObserverVisible(registry, "rule_lookup", annotations), "read-only package tool listed");
+    assert(!toolObserverVisible(registry, "rule_roll", { readOnlyHint: false }), "mutating package tool listed");
+    // Registry absent: inert, never a lockout.
+    assert(observerActionAllowed(null, "manage_scene.set"), "absent registry did not degrade to inert");
+    assert(toolObserverVisible(null, "manage_scene"), "absent registry filtered the catalog");
+    // Refusals carry the handler-local wording and the D6 corrective action.
+    const observed = badgeRefusalFor("observer", "manage_scene", { action: "set" }, registry, undefined, false);
+    assert(observed === "[FORBIDDEN] Observer mode is read-only. Corrective action: switch badges with set_badge to interact.", `observer refusal text drift: ${observed}`);
+    const player = badgeRefusalFor("player", "manage_world", {}, registry, undefined, true);
+    assert(player === "[FORBIDDEN] This tool is Game Master only. Corrective action: use set_badge to switch.", `player refusal text drift: ${player}`);
+    assert(badgeRefusalFor("game_master", "manage_world", {}, registry, undefined, true) === null, "GM was refused");
+    assert(badgeRefusalFor("none", "manage_world", {}, registry, undefined, true) === null, "Editor was refused");
+    assert(badgeRefusalFor("observer", "set_badge", { badge: "player" }, registry, undefined, false) === null, "set_badge was gated");
+    // Prompt/resource filters are testable over a synthetic declaration.
+    const gates = new Map<string, "shared" | "GM-only">([["gm_only_prompt", "GM-only"]]);
+    assert(promptAllowed(gates, "game_master", "gm_only_prompt"), "GM prompt hidden from GM");
+    assert(promptAllowed(gates, "observer", "gm_only_prompt"), "observer prompt hidden");
+    assert(!promptAllowed(gates, "player", "gm_only_prompt"), "player saw a GM-only prompt");
+    assert(promptRefusalFor(gates, "player", "gm_only_prompt")?.includes("[FORBIDDEN]") === true, "no prompt refusal");
+    assert(promptAllowed(gates, "player", "intro"), "default-shared prompt hidden");
+    assert(!resourceAllowed(RESOURCE_GATE, "player", "spec://build"), "player list kept spec://build");
+    assert(resourceAllowed(RESOURCE_GATE, "observer", "spec://build"), "observer state surface was filtered");
+    assert(resourceAllowed(RESOURCE_GATE, "player", "guidance://player"), "player list hid shared guidance");
   });
 
   harnessComplete();

@@ -311,7 +311,7 @@ async function main() {
     const other = await present(p, "Rival");
     await memory(p, id, "a remembered shout", { subjective_disclosure: "open" });
     await memory(p, id, "a hidden betrayal");
-    const before = await call(p, "manage_context", { action: "history" });
+    const before = await call(p, "manage_session", { action: "history" });
     await call(p, "set_badge", { badge: "player" });
     await call(p, "manage_character", { action: "set_active", entity_id: id });
     const read = await call(p, "manage_belief", { action: "subjective_list" });
@@ -324,7 +324,7 @@ async function main() {
     await call(p, "set_badge", { badge: "observer" });
     const obs = await call(p, "manage_belief", { action: "subjective_list" });
     assert(obs.includes("[FORBIDDEN]"), "Observer read was not refused: " + obs.slice(0, 160));
-    const after = await call(p, "manage_context", { action: "history" });
+    const after = await call(p, "manage_session", { action: "history" });
     assert(before === after, "a refused read advanced the event log");
     await kill(p);
   });

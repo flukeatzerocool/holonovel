@@ -206,6 +206,24 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
+    await test("T16/REQ-032c: resources/list hides GM-only entries for the Player badge", async () => {
+      await call(proc, "set_badge", { badge: "game_master" });
+      const gmList = await listResources(proc);
+      for (const u of ["spec://build", "guidance://game_master"]) {
+        if (!gmList.some((x) => x === u || x.startsWith(u))) throw new Error(`GM resources/list missing ${u}`);
+      }
+      await call(proc, "set_badge", { badge: "player" });
+      const playerList = await listResources(proc);
+      for (const u of ["spec://build", "guidance://game_master"]) {
+        if (playerList.some((x) => x === u || x.startsWith(u))) throw new Error(`Player resources/list leaked ${u}`);
+      }
+      if (!playerList.some((x) => x.startsWith("guidance://player"))) throw new Error("Player resources/list lost shared guidance");
+      await call(proc, "set_badge", { badge: "observer" });
+      const observerList = await listResources(proc);
+      if (!observerList.some((x) => x === "spec://build")) throw new Error("Observer state surface lost spec://build");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
     await test("T221/REQ-179: output:// template + full untruncated content", async () => {
       // A payload only exists when a result exceeds the limit, so this test
       // boots its own process with a small limit (REQ-179b).

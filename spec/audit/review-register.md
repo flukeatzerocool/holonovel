@@ -2497,21 +2497,27 @@ currently asserts these contracts — that is the finding).
   which throws at `state.ts:2283`; the write persists while the caller sees a
   failure and the audit chain has a gap. Violates REQ-040a/REQ-447 (refuse
   *before* mutating). Predicate: `index.ts:4196`, `state.ts:2283`.
-- **F-P1-7 — no badge gate in the dispatcher (scheduled):**
-  `guardToolCall` (`index.ts:1971-2002`) handles retired aliases, ruleset
-  scope, and the surface profile only; authorization is 142 handler-local
-  `requireGM()` calls. REQ-032a/REQ-137b describe server-side gating of the
-  surface. Predicate: `index.ts:1971`.
-- **F-P1-8 — Observer `tools/list` is not the read-only subset (scheduled):**
-  `toolsVisibleToBadge` (`index.ts:347-350`) admits every non-GM-only tool for
-  `observer`, including mutating tools that then refuse. REQ-032a: "Observer
-  tools are a read-only subset … `tools/list` … filtered". Predicate:
-  `index.ts:347`.
-- **F-P1-9 — `prompts/list` and `resources/list` are unfiltered (scheduled):**
-  the prompt wrapper at `index.ts:17906` merges package prompts and applies a
-  budget, with no `getBadge()`; no resource-list handler exists in this file.
-  REQ-031a/REQ-032a make prompts and resources badge-filtered surfaces.
-  Predicate: `index.ts:17906`.
+- **F-P1-7 — dispatcher badge gate (resolved 2026-11-14):**
+  `guardToolCall` now calls `badgeRefusalFor` before `surfaceGuard`
+  (`index.ts:2021-2033`, `core/badge-gate.ts:117`), refusing a GM-only Player
+  call and any non-state-reading Observer call, and recording the refusal as a
+  boundary entry itself (REQ-133a). Handler-local guards remain the backstop.
+  T349 asserts the Observer refusal plus its `[BOUNDARY_VIOLATION]` entry; the
+  classifier unit test in `test-security.ts` asserts the rule. REQ-032a,
+  REQ-032c, REQ-137b. Predicate: `index.ts:2021`.
+- **F-P1-8 — Observer `tools/list` read-only subset (resolved 2026-11-14):**
+  `toolsVisibleToBadge` (`index.ts:357-368`) routes the Observer branch through
+  `toolObserverVisible`, which lists a tool only when it holds a permitted
+  state-reading action (or, for an unregistered package tool, its annotation is
+  read-only) plus `set_badge`. T151 asserts the subset and the registry
+  agreement. REQ-032a, REQ-032c. Predicate: `index.ts:357`.
+- **F-P1-9 — `prompts/list` and `resources/list` badge filtering (resolved
+  2026-11-14):** the prompt wrapper (`index.ts:18045`) now filters the host and
+  package lists through `promptAllowed(PROMPT_GATE, …)`, the new resource
+  wrapper (`index.ts:18090`) filters GM-only entries for the Player through
+  `resourceAllowed(RESOURCE_GATE, …)`, and `run_workflow` composes from
+  badge-visible tools. T16/T104 assert the filtered lists and T349 the prompt
+  parity. REQ-031a, REQ-032a, REQ-032c. Predicate: `index.ts:18045`.
 - **F-P1-13 — `set_badge` succeeds with no active Novel (scheduled):**
   `index.ts:3996-4009` returns `[OK] Active badge: player` while `getBadge()`
   still resolves `none` (Editor), so the next call runs with full access.

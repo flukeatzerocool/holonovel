@@ -9,7 +9,7 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, ListResourcesRequestSchema, McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
@@ -27,6 +27,15 @@ import {
   projectToolList as projectSurfaceTools,
   toolGroups as surfaceToolGroups,
 } from "./core/surface-projection.js";
+import {
+  PROMPT_GATE,
+  RESOURCE_GATE,
+  badgeRefusalFor,
+  promptAllowed,
+  promptRefusalFor,
+  resourceAllowed,
+  toolObserverVisible,
+} from "./core/badge-gate.js";
 import { StateManager, AUDIT_CAP_CORRECTIVE, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment, autoMigrateEnabled } from "./core/state.js";
 import { personalityFieldsFor, hasPersonalityData, voiceExamplesFor, renderPersonalityBlock, renderVoiceExample, normalizeVoiceExamples, npcRole, avoidLine } from "./core/personality.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
@@ -342,10 +351,16 @@ function toolGate(name: string): "un-gated" | "GM-only" | "Player" {
   if (PLAYER_ONLY_TOOLS.has(name)) return "Player";
   return "un-gated";
 }
-// REQ-137b — Game Master and no-badge see every tool; Player and Observer see
-// un-gated and Player-only tools, never GM-only tools.
-function toolsVisibleToBadge(name: string, badge: Badge): boolean {
+// REQ-137b/REQ-032c — Game Master and no-badge see every tool; Player sees
+// un-gated and Player-only tools, never GM-only tools; Observer sees only tools
+// holding at least one state-reading action (REQ-032c, `badge-gate.ts`).
+function toolsVisibleToBadge(
+  name: string,
+  badge: Badge,
+  annotations?: { readOnlyHint?: boolean },
+): boolean {
   if (badge === "game_master" || badge === "none") return true;
+  if (badge === "observer") return toolObserverVisible(surfaceRegistry(), name, annotations);
   return toolGate(name) !== "GM-only";
 }
 
@@ -1875,7 +1890,7 @@ function groupDirectory(): GroupDirectoryEntry[] {
       if (decl.compatibility) return false;
       if (decl.group !== group) return false;
       const tool = key.includes(".") ? key.slice(0, key.indexOf(".")) : key;
-      return toolsVisibleToBadge(tool, badge);
+      return toolsVisibleToBadge(tool, badge, toolRegistry.get(tool)?.config.annotations);
     });
     if (members.length === 0) continue;
     const entry = members.find(([, decl]) => decl.entry)?.[0] ?? null;
@@ -1998,6 +2013,24 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
         `Call a '${activeRuleset}' tool, or create or switch to a Novel bound to '${callee}'.`,
       );
     }
+  }
+  // REQ-032a/REQ-032c — badge authorization at dispatch. The handler-local
+  // guards stay as the backstop; this gate refuses before any handler runs and
+  // records the boundary entry itself, because `withForbiddenAudit` only sees
+  // results a handler returns or throws (REQ-133a).
+  const badgeDenial = registered.includes(toolName)
+    ? badgeRefusalFor(
+        getBadge(),
+        toolName,
+        callArgs,
+        surfaceRegistry(),
+        toolRegistry.get(toolName)?.config.annotations,
+        toolGate(toolName) === "GM-only",
+      )
+    : null;
+  if (badgeDenial) {
+    state.auditForbidden(getBadge(), toolName, callArgs);
+    return dispatcherRefusal("FORBIDDEN", badgeDenial);
   }
   const refusal = surfaceGuard(toolName, callArgs);
   if (refusal) return dispatcherRefusal("STATE_CONFLICT", refusal);
@@ -17645,7 +17678,13 @@ server.prompt("novel_setup", "Novel Setup Guidance", async () => {
 
 server.prompt("run_workflow", "Map Intent to Tools", async () => {
   const registeredTools: Record<string, any> = registeredToolMap();
-  const toolNames = Object.keys(registeredTools).sort();
+  // REQ-032a/REQ-032c — the intent prompt is badge-filtered like `tools/list`:
+  // filter before both the composition and the category derivation, so no
+  // GM-only tool name or category label reaches a Player or Observer.
+  const badge = getBadge();
+  const toolNames = Object.keys(registeredTools)
+    .filter((name) => toolsVisibleToBadge(name, badge, registeredTools[name]?.annotations))
+    .sort();
   const novel = state.activeNovel;
   const rulesetBound = !!novel?.ruleset;
 
@@ -17897,7 +17936,8 @@ function installBadgeFilteredToolList(): void {
     // depend on the last caller's badge (REQ-392, REQ-568).
     liveToolCache = canonical as any[];
     surfaceMeasurementCache = null;
-    const visible = canonical.filter((tool: any) => toolsVisibleToBadge(tool.name, badge));
+    const visible = canonical.filter((tool: any) =>
+      toolsVisibleToBadge(tool.name, badge, tool?.annotations ?? toolRegistry.get(tool.name)?.config.annotations));
     // REQ-570/580 — group and profile projection. The default profile is
     // `full`, so an unconfigured server serves the same catalog as before.
     // Group and profile are non-standard list parameters; MCP carries them in
@@ -18012,10 +18052,18 @@ function installPackagePromptSurface(): void {
   }
   low.setRequestHandler(ListPromptsRequestSchema, async (req: any, extra: any) => {
     const result = await originalList(req, extra);
-    return { ...result, prompts: [...(result?.prompts ?? []), ...packagePromptList()] };
+    // REQ-031a/REQ-032a — the prompt list is a badge-filtered surface. The
+    // shipped host prompts all declare `shared`, so the filtered list equals
+    // the full list today; a future GM-gated prompt is filtered here.
+    const badge = getBadge();
+    const prompts = [...(result?.prompts ?? []), ...packagePromptList()]
+      .filter((prompt: any) => promptAllowed(PROMPT_GATE, badge, String(prompt?.name ?? "")));
+    return { ...result, prompts };
   });
   low.setRequestHandler(GetPromptRequestSchema, async (req: any, extra: any) => {
     const name = req?.params?.name;
+    const promptDenial = typeof name === "string" ? promptRefusalFor(PROMPT_GATE, getBadge(), name) : null;
+    if (promptDenial) throw new McpError(ErrorCode.InvalidParams, promptDenial);
     const entry = packagePrompts.get(name);
     if (!entry) return originalGet(req, extra);
     const active = state.activeNovel;
@@ -18035,12 +18083,33 @@ function installPackagePromptSurface(): void {
   });
 }
 
+// REQ-031a/REQ-032a/REQ-032c — `resources/list` is a badge-filtered surface.
+// Content-level filtering stays in each resource handler; this wrapper removes
+// entries that are wholly GM-only for the Player badge. The Observer keeps the
+// full state surface (REQ-305a).
+function installBadgeFilteredResourceList(): void {
+  const low = (server as any).server;
+  const original = low?._requestHandlers?.get?.("resources/list");
+  if (typeof original !== "function") {
+    process.stderr.write("[holonovel] badge-filtered resources/list unavailable; serving full list\n");
+    return;
+  }
+  low.setRequestHandler(ListResourcesRequestSchema, async (req: any, extra: any) => {
+    const result = await original(req, extra);
+    const badge = getBadge();
+    const resources = (result?.resources ?? []).filter((resource: any) =>
+      resourceAllowed(RESOURCE_GATE, badge, String(resource?.uri ?? "")));
+    return { ...result, resources };
+  });
+}
+
 async function main() {
   const transport = new StdioServerTransport();
   reloadPackagePrompts();
   installBadgeFilteredToolList();
   installSurfaceGuards();
   installPackagePromptSurface();
+  installBadgeFilteredResourceList();
   await server.connect(transport);
   transportConnected = true;
   await warmCatalogCache();
